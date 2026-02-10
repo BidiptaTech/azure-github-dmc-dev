@@ -1958,33 +1958,9 @@
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Pick Up Time</label>
                                                 @php
-                                                    $time12 = $pickupTime ? date('h:i', strtotime($pickupTime)) : '';
-                                                    $ampm  = $pickupTime ? date('A', strtotime($pickupTime)) : 'AM';
+                                                    $time24 = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
                                                 @endphp
-                                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px;">
-                                                    <input
-                                                        type="text"
-                                                        class="form-control text-center"
-                                                        id="arrival_pickup_time_input_{{ $order->booking_id }}"
-                                                        placeholder="10:30"
-                                                        maxlength="5"
-                                                        value="{{ $time12 }}"
-                                                        style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
-                                                        oninput="formatTimeInput(this); syncArrivalPickupTime({{ $order->booking_id }})"
-                                                        onchange="syncArrivalPickupTime({{ $order->booking_id }})"
-                                                    >
-                                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                    <select
-                                                        class="form-select border-2"
-                                                        id="arrival_pickup_time_ampm_{{ $order->booking_id }}"
-                                                        style="width: 60px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                                        onchange="syncArrivalPickupTime({{ $order->booking_id }})"
-                                                    >
-                                                        <option value="AM" {{ $ampm === 'AM' ? 'selected' : '' }}>AM</option>
-                                                        <option value="PM" {{ $ampm === 'PM' ? 'selected' : '' }}>PM</option>
-                                                    </select>
-                                                </div>
-                                                <input type="hidden" name="pickup_time" id="arrival_pickup_time_{{ $order->booking_id }}" value="{{ $time12 ? ($time12.' '.$ampm) : '' }}">
+                                                <input type="time" class="form-control border-2" style="height: 35px;" name="pickup_time" value="{{ $time24 }}" required>
                                             </div>
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
@@ -2834,33 +2810,12 @@
                                                 </div>
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
-                                                    @php
-                                                        $guideTime = $pickupTimeAMPM ?: '';
-                                                    @endphp
-                                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px;">
-                                                        <input
-                                                            type="text"
-                                                            class="form-control text-center"
-                                                            id="guide_pickup_time_input_{{ $order->booking_id }}"
-                                                            placeholder="10:30"
-                                                            maxlength="5"
-                                                            value="{{ $guideTime ? \Carbon\Carbon::parse($guideTime)->format('h:i') : '' }}"
-                                                            style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
-                                                            oninput="formatTimeInput(this); syncGuideEditPickupTime({{ $order->booking_id }})"
-                                                            onchange="syncGuideEditPickupTime({{ $order->booking_id }})"
-                                                        >
-                                                        <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                        <select
-                                                            class="form-select border-0"
-                                                            id="guide_pickup_time_ampm_{{ $order->booking_id }}"
-                                                            style="width: 80px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                                            onchange="syncGuideEditPickupTime({{ $order->booking_id }})"
-                                                        >
-                                                            <option value="AM" {{ Str::endsWith($guideTime, 'AM') ? 'selected' : '' }}>AM</option>
-                                                            <option value="PM" {{ Str::endsWith($guideTime, 'PM') ? 'selected' : '' }}>PM</option>
-                                                        </select>
-                                                    </div>
-                                                    <input type="hidden" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" value="{{ $guideTime }}">
+                                                    <select class="form-select border-2" style="height: 35px;" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Guide First</option>
+                                                        @if($pickupTimeAMPM)
+                                                            <option value="{{ $pickupTimeAMPM }}" selected>{{ $pickupTimeAMPM }}</option>
+                                                        @endif
+                                                    </select>
                                                     <small class="text-muted d-block mt-1">Available times from selected guide</small>
                                                 </div>
                                                 <div class="col-md-6">
@@ -3917,34 +3872,23 @@
                                                                         }
                                                                     }
                                                                 }
-                                                                $departureTimeParts = $departureTimeAMPM ? explode(' ', $departureTimeAMPM) : [];
-                                                                $departureTimeOnly = $departureTimeParts[0] ?? '';
-                                                                $departureAmpm = $departureTimeParts[1] ?? 'AM';
                                                             @endphp
-                                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px;">
-                                                                <input
-                                                                    type="text"
-                                                                    class="form-control text-center"
-                                                                    id="departure_pickup_time_input_{{ $order->booking_id }}"
-                                                                    placeholder="10:30"
-                                                                    maxlength="5"
-                                                                    value="{{ $departureTimeOnly }}"
-                                                                    style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
-                                                                    oninput="formatTimeInput(this); syncDeparturePickupTime({{ $order->booking_id }})"
-                                                                    onchange="syncDeparturePickupTime({{ $order->booking_id }})"
-                                                                >
-                                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                                <select
-                                                                    class="form-select border-2"
-                                                                    id="departure_pickup_time_ampm_{{ $order->booking_id }}"
-                                                                    style="width: 60px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                                                    onchange="syncDeparturePickupTime({{ $order->booking_id }})"
-                                                                >
-                                                                    <option value="AM" {{ $departureAmpm === 'AM' ? 'selected' : '' }}>AM</option>
-                                                                    <option value="PM" {{ $departureAmpm === 'PM' ? 'selected' : '' }}>PM</option>
-                                                                </select>
-                                                            </div>
-                                                            <input type="hidden" name="pickup_time" id="departure_pickup_time_{{ $order->booking_id }}" value="{{ $departureTimeOnly ? ($departureTimeOnly.' '.$departureAmpm) : '' }}">
+                                                            <select class="form-select border-2" style="height: 35px;" name="pickup_time" id="departure_time_{{ $order->booking_id }}" required>
+                                                                <option value="">Select Time</option>
+                                                                @php
+                                                                    // Generate time slots from 12:00 AM to 11:30 PM in 30-minute intervals
+                                                                    $timeSlots = [];
+                                                                    for ($hour = 0; $hour < 24; $hour++) {
+                                                                        for ($minute = 0; $minute < 60; $minute += 30) {
+                                                                            $timeObj = \Carbon\Carbon::createFromTime($hour, $minute, 0);
+                                                                            $timeSlots[] = $timeObj->format('h:i A');
+                                                                        }
+                                                                    }
+                                                                @endphp
+                                                                @foreach($timeSlots as $timeSlot)
+                                                                    <option value="{{ $timeSlot }}" {{ $departureTimeAMPM == $timeSlot ? 'selected' : '' }}>{{ $timeSlot }}</option>
+                                                                @endforeach
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
@@ -4433,32 +4377,10 @@
 
                         <!-- Pickup Time -->
                         <div class="col-12 col-md-6">
-                            <label for="modal_guide_pickup_time_input" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                            <label for="modal_guide_pickup_time" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-time-line me-1" style="color: #fda085;"></i>Pickup Time
                             </label>
-                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px;">
-                                <input
-                                    type="text"
-                                    class="form-control text-center"
-                                    id="modal_guide_pickup_time_input"
-                                    placeholder="10:30"
-                                    maxlength="5"
-                                    style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
-                                    oninput="formatTimeInput(this); syncGuideModalPickupTime()"
-                                    onchange="syncGuideModalPickupTime()"
-                                >
-                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                <select
-                                    class="form-select border-0"
-                                    id="modal_guide_pickup_time_ampm"
-                                    style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                    onchange="syncGuideModalPickupTime()"
-                                >
-                                    <option value="AM">AM</option>
-                                    <option value="PM">PM</option>
-                                </select>
-                            </div>
-                            <input type="hidden" name="pickup_time" id="modal_guide_pickup_time">
+                            <input type="time" class="form-control modern-input" id="modal_guide_pickup_time" name="pickup_time" required style="height: 36px; font-size: 0.8rem;">
                         </div>
 
                         <!-- Guide Details Display -->
@@ -6183,29 +6105,33 @@
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                     <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
                                 </label>
-                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px;">
-                                    <input
-                                        type="text"
-                                        class="form-control text-center"
-                                        id="modal_transport_pickup_time_input"
-                                        placeholder="10:30"
-                                        maxlength="5"
-                                        style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
-                                        oninput="formatTimeInput(this); syncTransportModalPickupTime()"
-                                        onchange="syncTransportModalPickupTime()"
-                                    >
-                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                    <select
-                                        class="form-select border-0"
-                                        id="modal_transport_pickup_time_ampm"
-                                        style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                        onchange="syncTransportModalPickupTime()"
-                                    >
-                                        <option value="AM">AM</option>
-                                        <option value="PM">PM</option>
-                                    </select>
-                                </div>
-                                <input type="hidden" name="pickup_time" id="modal_transport_pickup_time">
+                                <select class="form-select modern-select" id="modal_transport_pickup_time" name="pickup_time" style="height: 36px; font-size: 0.8rem;">
+                                    <option value="">Select Time</option>
+                                    <option value="12:00 AM">12:00 AM</option>
+                                    <option value="01:00 AM">01:00 AM</option>
+                                    <option value="02:00 AM">02:00 AM</option>
+                                    <option value="03:00 AM">03:00 AM</option>
+                                    <option value="04:00 AM">04:00 AM</option>
+                                    <option value="05:00 AM">05:00 AM</option>
+                                    <option value="06:00 AM">06:00 AM</option>
+                                    <option value="07:00 AM">07:00 AM</option>
+                                    <option value="08:00 AM">08:00 AM</option>
+                                    <option value="09:00 AM">09:00 AM</option>
+                                    <option value="10:00 AM">10:00 AM</option>
+                                    <option value="11:00 AM">11:00 AM</option>
+                                    <option value="12:00 PM">12:00 PM</option>
+                                    <option value="01:00 PM">01:00 PM</option>
+                                    <option value="02:00 PM">02:00 PM</option>
+                                    <option value="03:00 PM">03:00 PM</option>
+                                    <option value="04:00 PM">04:00 PM</option>
+                                    <option value="05:00 PM">05:00 PM</option>
+                                    <option value="06:00 PM">06:00 PM</option>
+                                    <option value="07:00 PM">07:00 PM</option>
+                                    <option value="08:00 PM">08:00 PM</option>
+                                    <option value="09:00 PM">09:00 PM</option>
+                                    <option value="10:00 PM">10:00 PM</option>
+                                    <option value="11:00 PM">11:00 PM</option>
+                                </select>
                             </div>
                             <div class="col-md-6 col-lg-3">
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
@@ -6921,30 +6847,8 @@
                                             <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                         </label>
                                         <div class="position-relative">
-                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px; padding-left: 30px;">
-                                                <input
-                                                    type="text"
-                                                    class="form-control text-center"
-                                                    id="modal_dropoff_transport_pickup_time_input"
-                                                    placeholder="10:30"
-                                                    maxlength="5"
-                                                    style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
-                                                    oninput="formatTimeInput(this); syncDropoffTransportModalPickupTime();"
-                                                    onchange="syncDropoffTransportModalPickupTime();"
-                                                >
-                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                <select
-                                                    class="form-select border-0"
-                                                    id="modal_dropoff_transport_pickup_time_ampm"
-                                                    style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                                    onchange="syncDropoffTransportModalPickupTime();"
-                                                >
-                                                    <option value="AM">AM</option>
-                                                    <option value="PM">PM</option>
-                                                </select>
-                                            </div>
+                                            <input type="time" class="form-control border-2" id="modal_dropoff_transport_pickup_time" name="pickup_time" style="padding-left: 45px;">
                                             <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                            <input type="hidden" name="pickup_time" id="modal_dropoff_transport_pickup_time">
                                         </div>
                                     </div>
                                 </div>
@@ -7112,111 +7016,6 @@
             preventDuplicates: true,
             tapToDismiss: true
         };
-    }
-
-    // === Time helpers for edit form (arrival/others) ===
-    // Format time input to HH:MM as user types, clamping hours to 1–12 and minutes to 0–59, with max 12:00
-    function formatTimeInput(input) {
-        // Keep only digits and at most 4 of them (HHMM)
-        let v = input.value.replace(/\D/g, '').slice(0, 4);
-
-        if (v.length === 0) {
-            input.value = '';
-            return;
-        }
-
-        // If we only have hour digits so far, don't force minutes or colon yet
-        if (v.length === 1) {
-            input.value = v;
-            return;
-        }
-
-        // Parse and clamp hour first
-        let rawHour = v.slice(0, 2);
-        let hour = parseInt(rawHour, 10);
-        if (isNaN(hour) || hour <= 0) hour = 12;
-        if (hour > 12) hour = 12;
-
-        if (v.length === 2) {
-            input.value = String(hour).padStart(2, '0');
-            return;
-        }
-
-        // We have both hour and minute digits
-        const minutesRaw = v.slice(2); // "5" or "50"
-
-        // While typing 3 digits, keep minutes as typed (e.g. 115 -> "11:5")
-        if (minutesRaw.length === 1) {
-            const hourStr = String(hour).padStart(2, '0');
-            input.value = `${hourStr}:${minutesRaw}`;
-            return;
-        }
-
-        // When we have 4 digits, clamp minutes to 0–59 and enforce 12:00 max
-        let min = parseInt(minutesRaw, 10);
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-        if (hour === 12 && min > 0) min = 0;
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-        input.value = `${hourStr}:${minStr}`;
-    }
-
-    function syncArrivalPickupTime(bookingId) {
-        const timeInput = document.getElementById(`arrival_pickup_time_input_${bookingId}`);
-        const ampmSelect = document.getElementById(`arrival_pickup_time_ampm_${bookingId}`);
-        const hiddenInput = document.getElementById(`arrival_pickup_time_${bookingId}`);
-        if (!timeInput || !ampmSelect || !hiddenInput) return;
-
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-        if (!timeStr || timeStr.length < 4) {
-            hiddenInput.value = '';
-            return;
-        }
-
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) min = 0;
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-        hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
-    }
-
-    function syncDeparturePickupTime(bookingId) {
-        const timeInput = document.getElementById(`departure_pickup_time_input_${bookingId}`);
-        const ampmSelect = document.getElementById(`departure_pickup_time_ampm_${bookingId}`);
-        const hiddenInput = document.getElementById(`departure_pickup_time_${bookingId}`);
-        if (!timeInput || !ampmSelect || !hiddenInput) return;
-
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-        if (!timeStr || timeStr.length < 4) {
-            hiddenInput.value = '';
-            return;
-        }
-
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) min = 0;
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-        hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
 
     // Generic helper for Yes/No transport toggles (for radio buttons - backward compatibility)
@@ -10832,14 +10631,6 @@
         // Initialize the transport modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeTransportModal();
-            // Set default pickup time to 09:00 AM using the new inputs
-            const timeInput = document.getElementById('modal_transport_pickup_time_input');
-            const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
-            if (timeInput && ampmSelect) {
-                timeInput.value = '09:00';
-                ampmSelect.value = 'AM';
-                syncTransportModalPickupTime();
-            }
         }, 100);
     }
     
@@ -10871,49 +10662,6 @@
         }
         
         showTransportSelectionModal(tourId, country, startDate, endDate, 'exit_port');
-    }
-    
-    // Sync pickup time in transport selection modal (HH:MM + AM/PM, max 12:00)
-    function syncTransportModalPickupTime() {
-        const timeInput = document.getElementById('modal_transport_pickup_time_input');
-        const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
-        const hiddenInput = document.getElementById('modal_transport_pickup_time');
-        if (!timeInput || !ampmSelect || !hiddenInput) return;
-
-        // Take only digits from the visible input and build HH:MM
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-
-        if (!timeStr || timeStr.length < 4) {
-            hiddenInput.value = '';
-            return;
-        }
-
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-
-        // Clamp minutes 0–59
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-
-        // Clamp hours to 1–12
-        if (isNaN(hour) || hour <= 0) hour = 1;
-        if (hour > 12) hour = 12;
-
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) {
-            min = 0;
-        }
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-
-        // Update visible input and hidden field
-        timeInput.value = `${hourStr}:${minStr}`;
-        hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
     
     function showLocalTransferSelectionModal(tourId, country, startDate, endDate, serviceType = null) {
@@ -11034,14 +10782,6 @@
         // Initialize the dropoff transport modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeDropoffTransportModal();
-            // Set default pickup time to 09:00 AM using the new inputs
-            const timeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
-            const ampmSelect = document.getElementById('modal_dropoff_transport_pickup_time_ampm');
-            if (timeInput && ampmSelect) {
-                timeInput.value = '09:00';
-                ampmSelect.value = 'AM';
-                syncDropoffTransportModalPickupTime();
-            }
         }, 100);
     }
     
@@ -11249,13 +10989,9 @@
             dropoffZoneSelect.addEventListener('change', checkDropoffFormCompletion);
         }
         
-        const pickupTimeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
+        const pickupTimeInput = document.getElementById('modal_dropoff_transport_pickup_time');
         if (pickupTimeInput) {
-            pickupTimeInput.addEventListener('input', () => {
-                formatTimeInput(pickupTimeInput);
-                syncDropoffTransportModalPickupTime();
-                checkDropoffFormCompletion();
-            });
+            pickupTimeInput.addEventListener('change', checkDropoffFormCompletion);
         }
         
         const pickupDateInput = document.getElementById('modal_dropoff_transport_pickup_date');
@@ -11924,8 +11660,7 @@
             dropoffZoneType = selectedDropoffOption?.getAttribute('data-type');
         }
         
-        const pickupTimeInput = document.getElementById('modal_transport_pickup_time');
-        const pickupTime = pickupTimeInput ? pickupTimeInput.value : '';
+        const pickupTime = document.getElementById('modal_transport_pickup_time').value;
         const pickupDate = document.getElementById('modal_transport_pickup_date').value;
         
         if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !selectedCity) {
@@ -12663,44 +12398,6 @@
             searchBtn.classList.remove('btn-success');
             searchBtn.classList.add('btn-secondary');
         }
-    }
-
-    // Sync pickup time in dropoff transport modal (HH:MM + AM/PM, max 12:00)
-    function syncDropoffTransportModalPickupTime() {
-        const timeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
-        const ampmSelect = document.getElementById('modal_dropoff_transport_pickup_time_ampm');
-        const hiddenInput = document.getElementById('modal_dropoff_transport_pickup_time');
-        if (!timeInput || !ampmSelect || !hiddenInput) return;
-
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-
-        if (!timeStr || timeStr.length < 4) {
-            hiddenInput.value = '';
-            return;
-        }
-
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-
-        if (isNaN(hour) || hour <= 0) hour = 1;
-        if (hour > 12) hour = 12;
-
-        if (hour === 12 && min > 0) {
-            min = 0;
-        }
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-
-        timeInput.value = `${hourStr}:${minStr}`;
-        hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
 
     function searchDropoffVehicles() {
@@ -16090,43 +15787,18 @@
         document.getElementById('modal_guide_select').addEventListener('change', onGuideSelection);
         document.getElementById('modal_guide_duration').addEventListener('change', onDurationSelection);
         document.getElementById('modal_guide_custom_hours').addEventListener('input', validateCustomHours);
-        const modalPickupInput = document.getElementById('modal_guide_pickup_time_input');
-        const modalPickupAmpm = document.getElementById('modal_guide_pickup_time_ampm');
-        if (modalPickupInput) {
-            modalPickupInput.addEventListener('input', function() {
-                formatTimeInput(modalPickupInput);
-                syncGuideModalPickupTime();
-                calculateGuidePrice();
-                validateForm();
-            });
-            modalPickupInput.addEventListener('change', function() {
-                syncGuideModalPickupTime();
-                calculateGuidePrice();
-                validateForm();
-            });
-        }
-        if (modalPickupAmpm) {
-            modalPickupAmpm.addEventListener('change', function() {
-                syncGuideModalPickupTime();
-                calculateGuidePrice();
-                validateForm();
-            });
-        }
+        document.getElementById('modal_guide_pickup_time').addEventListener('change', function() {
+            calculateGuidePrice();
+            validateForm();
+        });
         document.getElementById('modal_guide_service_date').addEventListener('change', function() {
             calculateGuidePrice();
             validateForm();
         });
         document.getElementById('confirm_guide_btn').addEventListener('click', confirmGuideSelection);
         
-        // Set default pickup time to 09:00 AM
-        const modalPickupHidden = document.getElementById('modal_guide_pickup_time');
-        const modalPickupInputEl = document.getElementById('modal_guide_pickup_time_input');
-        const modalPickupAmpmEl = document.getElementById('modal_guide_pickup_time_ampm');
-        if (modalPickupInputEl && modalPickupAmpmEl && modalPickupHidden) {
-            modalPickupInputEl.value = '09:00';
-            modalPickupAmpmEl.value = 'AM';
-            syncGuideModalPickupTime();
-        }
+        // Set default pickup time to 9:00 AM
+        document.getElementById('modal_guide_pickup_time').value = '09:00';
         
         // Set date restrictions and default value
         const startDate = document.getElementById('start_date').value;
