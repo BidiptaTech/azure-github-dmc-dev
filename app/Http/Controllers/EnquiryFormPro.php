@@ -488,7 +488,7 @@ class EnquiryFormPro extends Controller
     public function initialize(Request $request)
     {
         $validated = $request->validate([
-            'tour_type' => 'required|in:Group,FIT',
+            'tour_type' => 'required|in:GROUP,FIT',
             'tour_start_date' => 'required|date|after_or_equal:today',
             'tour_end_date' => 'required|date|after:tour_start_date',
             'adult_count' => 'required|integer|min:0',
@@ -731,10 +731,18 @@ class EnquiryFormPro extends Controller
                       ->where('is_active', 1)
                       ->where('is_complete', 1)
                       ->where('city', $destination)
-                      ->with(['rooms' => function($query) {
-                          $query->where('status', 1)
-                                ->with(['beds' => function($bedQuery) {
+                      ->with(['rooms' => function($query) use ($dmc_id) {
+                          $query->where('status', 1);
+                          // Filter rooms by created_by if DMC ID is available
+                          if ($dmc_id) {
+                              $query->where('created_by', $dmc_id);
+                          }
+                          $query->with(['beds' => function($bedQuery) use ($dmc_id) {
                                     $bedQuery->where('is_active', 1);
+                                    // Filter beds by dmc_id if available
+                                    if ($dmc_id) {
+                                        $bedQuery->where('dmc_id', $dmc_id);
+                                    }
                                 }])
                                 ->orderBy('room_type', 'asc');
                       }]);
@@ -1161,6 +1169,8 @@ class EnquiryFormPro extends Controller
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
+            $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
+            $tour->created_by = $user->userId; // Store the user ID who created the tour
             
             // Store main guest data as JSON
             if ($request->has('mainguest') && $request->mainguest) {
@@ -2712,6 +2722,7 @@ class EnquiryFormPro extends Controller
             $tour->check_out_time = $checkOutTime;
             $tour->city = $request->city ?? null;
             $tour->child_ages = $request->child_ages ?? null;
+            $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
             
             // Update main guest data as JSON
             if ($request->has('mainguest')) {
@@ -3403,6 +3414,164 @@ class EnquiryFormPro extends Controller
                 'error' => $e->getMessage()
             ]);
             // Don't fail the edit page load if cleanup fails
+        }
+    }
+
+    /**
+     * Fetch meals by restaurant ID for Enquiry Form Pro
+     * Returns meals with type (1=Buffet, 2=Set Menu), category (1=Alcoholic, 2=Non-Alcoholic, 3=Beverage),
+     * item_description, and item_type (1=Veg, 2=Non-Veg for Set Menu)
+     */
+    public function fetchMealsByRestaurant(Request $request)
+    {
+        try {
+            $restaurantId = $request->input('restaurant_id');
+            $mealPeriod = $request->input('meal_period'); // 1=Breakfast, 2=Lunch, 3=Dinner
+            
+            // Get DMC ID from authenticated user
+            $user = User::where('userId', Auth::user()->userId)->first();
+            $dmcId = $user->created_by;
+            
+            // If user is DMC (role_id 11), use their own userId
+            if ($user->role_id == 11) {
+                $dmcId = $user->userId;
+            }
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+            
+            // Check if restaurant ID is valid (not empty, null, or 'undefined')
+            if (!$restaurantId || $restaurantId === 'undefined' || $restaurantId === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant ID is required'
+                ], 400);
+            }
+            
+            // Validate that restaurant ID is numeric
+            if (!is_numeric($restaurantId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid restaurant ID format'
+                ], 400);
+            }
+
+            $query = Meal::where('restaurant_id', $restaurantId)->where('dmc_id', $dmcId);
+            
+            // Filter by meal period if provided
+            if ($mealPeriod) {
+                $query->where('meal_period', $mealPeriod);
+            }
+
+            $meals = $query->select('meal_id', 'name', 'type', 'category', 'item_description', 'item_type', 'price', 'adult_price', 'child_price', 'meal_period')
+                ->get();
+
+            // Debug logging
+            \Log::info('EnquiryFormPro fetchMealsByRestaurant result:', [
+                'restaurant_id' => $restaurantId,
+                'dmc_id' => $dmcId,
+                'meal_period' => $mealPeriod,
+                'meals_count' => $meals->count()
+            ]);
+
+            $mealsData = $meals->map(function ($meal) {
+                // Type: 1=Buffet, 2=Set Menu
+                $typeLabel = '';
+                switch ($meal->type) {
+                    case 1:
+                        $typeLabel = 'Buffet';
+                        break;
+                    case 2:
+                        $typeLabel = 'Set Menu';
+                        break;
+                    default:
+                        $typeLabel = 'Other';
+                }
+
+                // Category: 1=Alcoholic, 2=Non-Alcoholic, 3=Beverage
+                $categoryLabel = '';
+                switch ($meal->category) {
+                    case 1:
+                        $categoryLabel = 'Alcoholic';
+                        break;
+                    case 2:
+                        $categoryLabel = 'Non-Alcoholic';
+                        break;
+                    case 3:
+                        $categoryLabel = 'Beverage';
+                        break;
+                    default:
+                        $categoryLabel = '';
+                }
+
+                // Item Type (for Set Menu): 1=Veg, 2=Non-Veg
+                $itemTypeLabel = '';
+                if ($meal->type == 2) { // Only for Set Menu
+                    switch ($meal->item_type) {
+                        case 1:
+                            $itemTypeLabel = 'Veg';
+                            break;
+                        case 2:
+                            $itemTypeLabel = 'Non-Veg';
+                            break;
+                        default:
+                            $itemTypeLabel = '';
+                    }
+                }
+
+                // Meal period label
+                $mealPeriodLabel = '';
+                switch ($meal->meal_period) {
+                    case 1:
+                        $mealPeriodLabel = 'Breakfast';
+                        break;
+                    case 2:
+                        $mealPeriodLabel = 'Lunch';
+                        break;
+                    case 3:
+                        $mealPeriodLabel = 'Dinner';
+                        break;
+                }
+
+                return [
+                    'meal_id' => $meal->meal_id,
+                    'name' => $meal->name,
+                    'type' => $meal->type,
+                    'type_label' => $typeLabel,
+                    'category' => $meal->category,
+                    'category_label' => $categoryLabel,
+                    'item_description' => $meal->item_description,
+                    'item_type' => $meal->item_type,
+                    'item_type_label' => $itemTypeLabel,
+                    'meal_period' => $meal->meal_period,
+                    'meal_period_label' => $mealPeriodLabel,
+                    'price' => $meal->price,
+                    'adult_price' => $meal->adult_price,
+                    'child_price' => $meal->child_price,
+                    'display_name' => $typeLabel
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'meals' => $mealsData
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('EnquiryFormPro fetchMealsByRestaurant error:', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching meals: ' . $e->getMessage()
+            ], 500);
         }
     }
    
