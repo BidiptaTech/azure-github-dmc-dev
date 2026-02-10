@@ -5473,8 +5473,9 @@
             return (!isNaN(num) && num >= 0) ? num : 0;
         };
 
-        // Check both direct properties and nested properties (matching single tour package approach)
-        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded || room.breakfast || false);
+        // Check if breakfast is complimentary (breakfast_included = true means free breakfast)
+        // Note: room.breakfast = true means breakfast is available (for a price), NOT that it's included/free
+        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded);
         const breakfastPriceAdult = parsePrice(room.breakfast_price || room.breakfastPrice || 0);
         const lunchPriceAdult = parsePrice(room.lunch_price || room.lunchPrice || 0);
         const dinnerPriceAdult = parsePrice(room.dinner_price || room.dinnerPrice || 0);
@@ -8944,6 +8945,9 @@
                         child_lunch_price: room.child_lunch_price,
                         child_dinner_price: room.child_dinner_price,
                         extra_bed_price: room.extra_bed_price,
+                        // Child with bed and child without bed prices from rooms table
+                        child_with_bed: room.child_with_bed,
+                        child_without_bed: room.child_without_bed,
                         breakfast_included: room.breakfast_included,
                         max_occupancy: room.max_occupancy,
                         room_type: room.room_type,
@@ -9230,6 +9234,9 @@
                                 child_lunch_price: firstRoom.child_lunch_price,
                                 child_dinner_price: firstRoom.child_dinner_price,
                                 extra_bed_price: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
+                                // Child with bed and child without bed prices from rooms table
+                                child_with_bed: firstRoom.child_with_bed,
+                                child_without_bed: firstRoom.child_without_bed,
                                 breakfast_included: firstRoom.breakfast_included,
                                 max_occupancy: bed.max_occupancy || firstRoom.max_occupancy || 2,
                                 room_type: firstRoom.room_type,
@@ -9251,7 +9258,7 @@
                                 price: 0,
                                 extraBedPrice: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
                                 babyCotPrice: bed.baby_cot_price || 0,
-                                extraBedAvailable: bed.extra_bed || false,
+                                extraBedAvailable: !!(bed.extra_bed == 1 || bed.extra_bed === true),
                                 babyCotAvailable: bed.baby_cot || false,
                                 weekendDays: weekendDays || [],
                                 roomData: roomDataWithPrices,
@@ -10000,14 +10007,16 @@
             return (!isNaN(num) && num >= 0) ? num : 0;
         };
         
-        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        // Use child_with_bed and child_without_bed prices from the rooms table
+        const childWithBedPrice = parsePrice(room.child_with_bed || room.childWithBed || 0);
+        const childWithoutBedPrice = parsePrice(room.child_without_bed || room.childWithoutBed || 0);
         const childBreakfastPrice = parsePrice(room.child_breakfast_price || room.childBreakfastPrice || 0);
         const childLunchPrice = parsePrice(room.child_lunch_price || room.childLunchPrice || 0);
         const childDinnerPrice = parsePrice(room.child_dinner_price || room.childDinnerPrice || 0);
         
         if (!dates.length) {
-            // If no dates, calculate base price
-            let basePrice = isWithBed ? extraBedPrice : 0;
+            // If no dates, calculate base price using child_with_bed or child_without_bed from database
+            let basePrice = isWithBed ? childWithBedPrice : childWithoutBedPrice;
             
             // Add meal costs
             const mealCost = computeMealCost(room, mealPlan, 0, 1); // 0 adults, 1 child
@@ -10017,7 +10026,8 @@
         // Calculate average price across all nights
         let totalPrice = 0;
         dates.forEach(() => {
-            let nightPrice = isWithBed ? extraBedPrice : 0;
+            // Use child_with_bed or child_without_bed price from database
+            let nightPrice = isWithBed ? childWithBedPrice : childWithoutBedPrice;
             // Add meal costs (meals are per night)
             const mealCost = computeMealCost(room, mealPlan, 0, 1);
             totalPrice += nightPrice + mealCost;
@@ -10101,8 +10111,10 @@
             return (!isNaN(num) && num >= 0) ? num : 0;
         };
         
-        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
-        let basePrice = isWithBed ? extraBedPrice : 0;
+        // Use child_with_bed and child_without_bed prices from the rooms table
+        const childWithBedPrice = parsePrice(room.child_with_bed || room.childWithBed || 0);
+        const childWithoutBedPrice = parsePrice(room.child_without_bed || room.childWithoutBed || 0);
+        let basePrice = isWithBed ? childWithBedPrice : childWithoutBedPrice;
         const mealCost = computeMealCost(room, mealPlan, 0, 1); // 0 adults, 1 child
         return basePrice + mealCost;
     }
@@ -14537,12 +14549,15 @@
                     // Build table rows - one row per ticket
                     let html = '';
                     data.attractions.forEach(attr => {
-                        console.log('Attraction:', attr.name, 'Tickets:', attr.tickets);
+                        console.log('Attraction:', attr.name, 'attraction_type:', attr.attraction_type, 'Tickets:', attr.tickets);
                         
                         // Determine attraction type and label
-                        const attractionType = attr.attraction_type ?? 1;
-                        const isAttraction = (attractionType == 2);
+                        // attraction_type: 1 = Tour Sites, 2 = Attraction
+                        // Parse as integer to handle both string and number values
+                        const attractionType = parseInt(attr.attraction_type) || 1;
+                        const isAttraction = (attractionType === 2);
                         const typeLabel = isAttraction ? 'Attraction' : 'Tour Sites';
+                        console.log(`  -> ${attr.name}: type=${attractionType}, isAttraction=${isAttraction}, label=${typeLabel}`);
                         
                         // If attraction has tickets, create a row for each ticket
                         if (attr.tickets && attr.tickets.length > 0) {
@@ -14803,14 +14818,14 @@
         } else if (type === 'attraction') {
             // Show only attractions (attraction_type = 2)
             rows.forEach(row => {
-                const rowType = row.getAttribute('data-attraction-type');
-                row.style.display = (rowType === '2') ? '' : 'none';
+                const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
+                row.style.display = (rowType === 2) ? '' : 'none';
             });
         } else if (type === 'toursite') {
             // Show only tour sites (attraction_type = 1)
             rows.forEach(row => {
-                const rowType = row.getAttribute('data-attraction-type');
-                row.style.display = (rowType === '1') ? '' : 'none';
+                const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
+                row.style.display = (rowType === 1) ? '' : 'none';
             });
         }
     }
@@ -18031,14 +18046,32 @@
             row.setAttribute('data-meal-id', meal.meal_id);
             row.setAttribute('data-meal-name', meal.name);
             row.setAttribute('data-meal-type', mealTypeLabel);
+            row.setAttribute('data-meal-type-id', mealType); // 1=Buffet, 2=Set Menu
             row.setAttribute('data-meal-category', categoryLabel);
             row.setAttribute('data-item-type', itemTypeLabel);
             row.setAttribute('data-restaurant-id', restaurantId);
             row.setAttribute('data-restaurant-name', restaurantName);
             
+            // For Set Menu (type=2), quantities are readonly and synced from header
+            const isSetMenu = mealType == 2;
+            const headerValues = getHeaderValues();
+            const setMenuReadonly = isSetMenu ? 'readonly style="font-size: 10px; padding: 2px 4px; text-align: center; background-color: #e9ecef; cursor: not-allowed;"' : 'style="font-size: 10px; padding: 2px 4px; text-align: center;"';
+            const setMenuAdultValue = isSetMenu ? headerValues.adults : 0;
+            const setMenuChildValue = isSetMenu ? headerValues.children : 0;
+            const setMenuInfantValue = isSetMenu ? headerValues.infants : 0;
+            
             // Parse prices from database - both cost and sell should be the same value from database
-            const adultPrice = parseFloat(meal.adult_price || meal.price || 0).toFixed(2);
-            const childPrice = parseFloat(meal.child_price || meal.price || 0).toFixed(2);
+            // Use explicit null check to avoid treating 0 as falsy
+            const adultPrice = parseFloat(
+                (meal.adult_price !== null && meal.adult_price !== undefined && meal.adult_price !== '') 
+                    ? meal.adult_price 
+                    : ((meal.price !== null && meal.price !== undefined && meal.price !== '') ? meal.price : 0)
+            ).toFixed(2);
+            const childPrice = parseFloat(
+                (meal.child_price !== null && meal.child_price !== undefined && meal.child_price !== '') 
+                    ? meal.child_price 
+                    : ((meal.price !== null && meal.price !== undefined && meal.price !== '') ? meal.price : 0)
+            ).toFixed(2);
             
             // Use the same database price for both cost and sell (no calculation)
             const adultCostPrice = adultPrice;
@@ -18107,7 +18140,7 @@
                     <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${meal.meal_id}" value="1" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
+                    <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="${setMenuAdultValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="text" class="form-control form-control-sm meal-adult-cost" data-meal-id="${meal.meal_id}" value="SGD ${adultCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
@@ -18116,7 +18149,7 @@
                     <input type="text" class="form-control form-control-sm meal-adult-sell" data-meal-id="${meal.meal_id}" value="SGD ${adultSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
+                    <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="${setMenuChildValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="text" class="form-control form-control-sm meal-child-cost" data-meal-id="${meal.meal_id}" value="SGD ${childCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
@@ -18125,7 +18158,7 @@
                     <input type="text" class="form-control form-control-sm meal-child-sell" data-meal-id="${meal.meal_id}" value="SGD ${childSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
+                    <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="${setMenuInfantValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="text" class="form-control form-control-sm meal-infant-cost" data-meal-id="${meal.meal_id}" value="SGD 0.00" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
@@ -18148,43 +18181,56 @@
         updateMealTotalAmount();
         
         // Auto-fill adult/child/infant counts from header for all newly created rows
-        const headerValues = getHeaderValues();
+        // Skip Set Menu rows (type=2) as they are already readonly and synced from header
+        const headerValuesForMeals = getHeaderValues();
         document.querySelectorAll('.meal-adult-qty').forEach(input => {
-            if (!input.value || input.value == '0') input.value = headerValues.adults;
-            input.setAttribute('max', headerValues.adults);
+            const row = input.closest('tr');
+            const isSetMenuRow = row && row.getAttribute('data-meal-type-id') == 2;
+            if (isSetMenuRow) return; // Skip Set Menu rows - already set
+            
+            if (!input.value || input.value == '0') input.value = headerValuesForMeals.adults;
+            input.setAttribute('max', headerValuesForMeals.adults);
             // Remove any existing listeners to avoid duplicates
             const newInput = input.cloneNode(true);
             input.parentNode.replaceChild(newInput, input);
             newInput.addEventListener('input', function() {
-                if (parseInt(this.value) > headerValues.adults) {
-                    this.value = headerValues.adults;
-                    alert(`Adults cannot exceed ${headerValues.adults} (header value)`);
+                if (parseInt(this.value) > headerValuesForMeals.adults) {
+                    this.value = headerValuesForMeals.adults;
+                    alert(`Adults cannot exceed ${headerValuesForMeals.adults} (header value)`);
                 }
             });
         });
         document.querySelectorAll('.meal-child-qty').forEach(input => {
-            if (!input.value || input.value == '0') input.value = headerValues.children;
-            input.setAttribute('max', headerValues.children);
+            const row = input.closest('tr');
+            const isSetMenuRow = row && row.getAttribute('data-meal-type-id') == 2;
+            if (isSetMenuRow) return; // Skip Set Menu rows - already set
+            
+            if (!input.value || input.value == '0') input.value = headerValuesForMeals.children;
+            input.setAttribute('max', headerValuesForMeals.children);
             // Remove any existing listeners to avoid duplicates
             const newInput = input.cloneNode(true);
             input.parentNode.replaceChild(newInput, input);
             newInput.addEventListener('input', function() {
-                if (parseInt(this.value) > headerValues.children) {
-                    this.value = headerValues.children;
-                    alert(`Children cannot exceed ${headerValues.children} (header value)`);
+                if (parseInt(this.value) > headerValuesForMeals.children) {
+                    this.value = headerValuesForMeals.children;
+                    alert(`Children cannot exceed ${headerValuesForMeals.children} (header value)`);
                 }
             });
         });
         document.querySelectorAll('.meal-infant-qty').forEach(input => {
-            if (!input.value || input.value == '0') input.value = headerValues.infants;
-            input.setAttribute('max', headerValues.infants);
+            const row = input.closest('tr');
+            const isSetMenuRow = row && row.getAttribute('data-meal-type-id') == 2;
+            if (isSetMenuRow) return; // Skip Set Menu rows - already set
+            
+            if (!input.value || input.value == '0') input.value = headerValuesForMeals.infants;
+            input.setAttribute('max', headerValuesForMeals.infants);
             // Remove any existing listeners to avoid duplicates
             const newInput = input.cloneNode(true);
             input.parentNode.replaceChild(newInput, input);
             newInput.addEventListener('input', function() {
-                if (parseInt(this.value) > headerValues.infants) {
-                    this.value = headerValues.infants;
-                    alert(`Infants cannot exceed ${headerValues.infants} (header value)`);
+                if (parseInt(this.value) > headerValuesForMeals.infants) {
+                    this.value = headerValuesForMeals.infants;
+                    alert(`Infants cannot exceed ${headerValuesForMeals.infants} (header value)`);
                 }
             });
         });
