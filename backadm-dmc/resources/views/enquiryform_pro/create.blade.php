@@ -9281,52 +9281,78 @@
         const hasLunch = room.lunch == 1 || room.lunch === true;
         const hasDinner = room.dinner == 1 || room.dinner === true;
         
-        // Add "Room Only" option first
-        mealPlans.push({ 
-            value: 'room_only', 
-            label: 'room only' 
-        });
+        // Check if breakfast is complimentary (already included in room price)
+        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded);
         
-        // Add specific meal options based on availability
-        if (hasBreakfast) {
+        // If breakfast is complimentary, don't show "room only" - show "room with breakfast (complimentary)" instead
+        if (breakfastIncluded) {
+            // Breakfast is free/included, so "room only" would have same price as "room with breakfast"
+            // Show a single option indicating breakfast is complimentary
             mealPlans.push({ 
                 value: 'room_with_breakfast', 
-                label: 'room with breakfast' 
+                label: 'room with breakfast (complimentary)' 
             });
-        }
-        if (hasLunch) {
+        } else {
+            // Add "Room Only" option first (only when breakfast is NOT included)
             mealPlans.push({ 
-                value: 'room_with_lunch', 
-                label: 'room with lunch' 
+                value: 'room_only', 
+                label: 'room only' 
+            });
+            
+            // Add breakfast as paid option if available
+            if (hasBreakfast) {
+                mealPlans.push({ 
+                    value: 'room_with_breakfast', 
+                    label: 'room with breakfast' 
+                });
+            }
+        }
+        
+        if (hasLunch) {
+            // If breakfast is complimentary, lunch option should mention it
+            const lunchLabel = breakfastIncluded ? 'room with breakfast (complimentary) + lunch' : 'room with lunch';
+            const lunchValue = breakfastIncluded ? 'room_with_breakfast_+_lunch' : 'room_with_lunch';
+            mealPlans.push({ 
+                value: lunchValue, 
+                label: lunchLabel 
             });
         }
         if (hasDinner) {
+            // If breakfast is complimentary, dinner option should mention it
+            const dinnerLabel = breakfastIncluded ? 'room with breakfast (complimentary) + dinner' : 'room with dinner';
+            const dinnerValue = breakfastIncluded ? 'room_with_breakfast_+_dinner' : 'room_with_dinner';
             mealPlans.push({ 
-                value: 'room_with_dinner', 
-                label: 'room with dinner' 
+                value: dinnerValue, 
+                label: dinnerLabel 
             });
         }
         
         // Add combination meal options
-        if (hasBreakfast && hasLunch) {
+        if (!breakfastIncluded && hasBreakfast && hasLunch) {
+            // Only show this if breakfast is NOT complimentary (otherwise it's already covered above)
             mealPlans.push({ 
                 value: 'room_with_breakfast_+_lunch', 
                 label: 'room with breakfast + lunch' 
             });
         }
-        if (hasBreakfast && hasDinner) {
+        if (!breakfastIncluded && hasBreakfast && hasDinner) {
+            // Only show this if breakfast is NOT complimentary (otherwise it's already covered above)
             mealPlans.push({ 
                 value: 'room_with_breakfast_+_dinner', 
                 label: 'room with breakfast + dinner' 
             });
         }
         if (hasLunch && hasDinner) {
+            // Lunch + Dinner combo - add complimentary breakfast note if applicable
+            const ldLabel = breakfastIncluded ? 'room with breakfast (complimentary) + lunch + dinner' : 'room with lunch + dinner';
+            const ldValue = breakfastIncluded ? 'room_with_all_meals_(breakfast_+_lunch_+_dinner)' : 'room_with_lunch_+_dinner';
             mealPlans.push({ 
-                value: 'room_with_lunch_+_dinner', 
-                label: 'room with lunch + dinner' 
+                value: ldValue, 
+                label: ldLabel 
             });
         }
-        if (hasBreakfast && hasLunch && hasDinner) {
+        if (!breakfastIncluded && hasBreakfast && hasLunch && hasDinner) {
+            // Full meal plan - only show if breakfast is NOT complimentary (covered above otherwise)
             mealPlans.push({ 
                 value: 'room_with_all_meals_(breakfast_+_lunch_+_dinner)', 
                 label: 'room with all meals (breakfast + lunch + dinner)' 
@@ -17850,8 +17876,8 @@
         }
         
         try {
-            // Build the URL with numeric restaurant ID
-            const url = `{{ route('fetch-meals-by-restaurant') }}?restaurant_id=${restaurantId}`;
+            // Build the URL with numeric restaurant ID - use EnquiryFormPro route
+            const url = `{{ route('enquiry-form-pro.fetch-meals-by-restaurant') }}?restaurant_id=${restaurantId}`;
             console.log('Fetching meals from URL:', url);
             
             // Fetch meals from web route (uses session auth, better for Blade templates)
@@ -17970,57 +17996,43 @@
         mealsTableBody.innerHTML = '';
         
         // Count meals by type for summary
-        let breakfastCount = 0, lunchCount = 0, dinnerCount = 0;
+        let buffetCount = 0, setMenuCount = 0;
         
         // Debug: Log all meals to see their structure
         console.log('All meals from restaurant:', restaurantMeals);
         
         // Add new rows for each meal/dish
         restaurantMeals.forEach((meal, index) => {
-            // Determine meal type/period
-            // API returns: 'Breakfast', 'Lunch', 'Dinner' as strings, or 1, 2, 3 as numbers
-            let mealType = 'dinner'; // default
-            let originalType = meal.meal_period || meal.type || '';
+            // Determine meal type from 'type' column: 1=Buffet, 2=Set Menu
+            let mealTypeLabel = meal.type_label || 'Other';
+            let mealType = meal.type || 0;
             
-            // Convert to string for comparison
-            let typeValue = String(originalType).trim();
+            // Count by type
+            if (mealType == 1) buffetCount++;
+            else if (mealType == 2) setMenuCount++;
             
-            console.log(`Meal: "${meal.name}", Original Type: "${originalType}" (${typeof originalType}), Type Value: "${typeValue}"`);
+            // Category: 1=Alcoholic, 2=Non-Alcoholic, 3=Beverage
+            let categoryLabel = meal.category_label || '';
             
-            // Map values to meal types
-            if (typeValue === '1' || typeValue.toLowerCase() === 'breakfast' || typeValue.toLowerCase() === 'bf') {
-                mealType = 'breakfast';
-                breakfastCount++;
-            } else if (typeValue === '2' || typeValue.toLowerCase() === 'lunch' || typeValue.toLowerCase() === 'l') {
-                mealType = 'lunch';
-                lunchCount++;
-            } else if (typeValue === '3' || typeValue.toLowerCase() === 'dinner' || typeValue.toLowerCase() === 'd') {
-                mealType = 'dinner';
-                dinnerCount++;
-            } else {
-                // Fallback: Try to guess from meal name
-                const mealNameLower = (meal.name || '').toLowerCase();
-                if (mealNameLower.includes('breakfast') || mealNameLower.includes('morning') || mealNameLower.includes('bf')) {
-                    mealType = 'breakfast';
-                    breakfastCount++;
-                } else if (mealNameLower.includes('lunch') || mealNameLower.includes('afternoon')) {
-                    mealType = 'lunch';
-                    lunchCount++;
-                } else if (mealNameLower.includes('dinner') || mealNameLower.includes('evening')) {
-                    mealType = 'dinner';
-                    dinnerCount++;
-                } else {
-                    // Default to dinner if we can't determine
-                    mealType = 'dinner';
-                    dinnerCount++;
-                }
-            }
+            // Item Type (for Set Menu): 1=Veg, 2=Non-Veg
+            let itemTypeLabel = meal.item_type_label || '';
+            
+            // Item description with ellipsis
+            let itemDescription = meal.item_description || '';
+            let shortDescription = itemDescription.length > 50 ? itemDescription.substring(0, 50) + '...' : itemDescription;
+            
+            // Meal period for display (Breakfast/Lunch/Dinner)
+            let mealPeriod = meal.meal_period_label || '';
+            
+            console.log(`Meal: "${meal.name}", Type: "${mealTypeLabel}", Category: "${categoryLabel}", Item Type: "${itemTypeLabel}"`);
             
             const row = document.createElement('tr');
             row.className = 'meal-row';
             row.setAttribute('data-meal-id', meal.meal_id);
             row.setAttribute('data-meal-name', meal.name);
-            row.setAttribute('data-meal-type', mealType);
+            row.setAttribute('data-meal-type', mealTypeLabel);
+            row.setAttribute('data-meal-category', categoryLabel);
+            row.setAttribute('data-item-type', itemTypeLabel);
             row.setAttribute('data-restaurant-id', restaurantId);
             row.setAttribute('data-restaurant-name', restaurantName);
             
@@ -18034,28 +18046,62 @@
             const childCostPrice = childPrice;
             const childSellPrice = childPrice;
             
-            // Icon based on meal type
+            // Icon and color based on meal type (Buffet vs Set Menu)
             let mealIcon = 'ri-restaurant-fill';
             let iconColor = 'text-success';
-            if (mealType === 'breakfast') {
-                mealIcon = 'ri-cup-line';
-                iconColor = 'text-warning';
-            } else if (mealType === 'lunch') {
-                mealIcon = 'ri-restaurant-2-line';
+            if (mealType == 1) { // Buffet
+                mealIcon = 'ri-bowl-line';
+                iconColor = 'text-primary';
+            } else if (mealType == 2) { // Set Menu
+                mealIcon = 'ri-file-list-3-line';
                 iconColor = 'text-info';
-            } else if (mealType === 'dinner') {
-                mealIcon = 'ri-restaurant-fill';
-                iconColor = 'text-success';
             }
+            
+            // Buffet/Set Menu badge
+            let mealTypeBadge = '';
+            if (mealType == 1) { // Buffet
+                mealTypeBadge = '<span class="badge bg-primary ms-1" style="font-size: 9px;">🍽️ Buffet</span>';
+            } else if (mealType == 2) { // Set Menu
+                mealTypeBadge = '<span class="badge bg-info ms-1" style="font-size: 9px;">📋 Set Menu</span>';
+            }
+            
+            // Veg/Non-Veg icon for Set Menu
+            let vegIcon = '';
+            if (mealType == 2 && itemTypeLabel) { // Set Menu
+                if (meal.item_type == 1) { // Veg
+                    vegIcon = '<span class="badge bg-success ms-1" style="font-size: 9px;">🥬 Veg</span>';
+                } else if (meal.item_type == 2) { // Non-Veg
+                    vegIcon = '<span class="badge bg-danger ms-1" style="font-size: 9px;">🍖 Non-Veg</span>';
+                }
+            }
+            
+            // Category badge
+            let categoryBadge = '';
+            if (categoryLabel) {
+                let badgeClass = 'bg-secondary';
+                if (meal.category == 1) badgeClass = 'bg-warning text-dark'; // Alcoholic
+                else if (meal.category == 2) badgeClass = 'bg-success'; // Non-Alcoholic
+                else if (meal.category == 3) badgeClass = 'bg-info'; // Beverage
+                categoryBadge = `<span class="badge ${badgeClass} ms-1" style="font-size: 9px;">${categoryLabel}</span>`;
+            }
+            
+            // Escape description for tooltip
+            const escapedDescription = itemDescription.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
             
             row.innerHTML = `
                 <td style="padding: 2px 8px; text-align: center;">
                     <input type="checkbox" class="meal-checkbox" data-meal-id="${meal.meal_id}" onchange="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <i class="${mealIcon} ${iconColor} me-1" style="font-size: 14px;"></i>
-                    ${meal.name}
-                    <small class="text-muted ms-2">(${mealType.charAt(0).toUpperCase() + mealType.slice(1)})</small>
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                            <strong>${mealPeriod || mealTypeLabel}</strong>
+                            ${mealTypeBadge}
+                            ${categoryBadge}
+                            ${vegIcon}
+                        </div>
+                        ${itemDescription ? `<small class="text-muted" style="font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; cursor: pointer;" title="${escapedDescription}">${shortDescription}</small>` : ''}
+                    </div>
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${meal.meal_id}" value="1" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
@@ -18148,17 +18194,15 @@
         // Debug: Log meal type counts
         console.log('Meal Type Summary:', {
             total: restaurantMeals.length,
-            breakfast: breakfastCount,
-            lunch: lunchCount,
-            dinner: dinnerCount
+            buffet: buffetCount,
+            setMenu: setMenuCount
         });
         
         // Show success message with meal type breakdown
         let summaryMessage = `Loaded ${restaurantMeals.length} dish(es) from ${restaurantName}`;
         const breakdown = [];
-        if (breakfastCount > 0) breakdown.push(`${breakfastCount} Breakfast`);
-        if (lunchCount > 0) breakdown.push(`${lunchCount} Lunch`);
-        if (dinnerCount > 0) breakdown.push(`${dinnerCount} Dinner`);
+        if (buffetCount > 0) breakdown.push(`${buffetCount} Buffet`);
+        if (setMenuCount > 0) breakdown.push(`${setMenuCount} Set Menu`);
         
         if (breakdown.length > 0) {
             summaryMessage += ` (${breakdown.join(', ')})`;
@@ -19153,10 +19197,12 @@
                 dateTimeValue = dateTimeValue + 'T' + defaultTime;
             }
             
-            // Format meal type for display (capitalize first letter)
+            // Format meal type for display (capitalize first letter) - show Breakfast/Lunch/Dinner
             const displayMealType = meal.mealType ? (meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)) : 'Meal';
-            // Use mealName for dish name, fallback to mealType if not available
-            const displayMealName = meal.mealName || displayMealType;
+            
+            // Get Buffet or Set Menu text
+            const mealSpecificType = meal.mealSpecificType || '';
+            const mealSpecificDisplay = mealSpecificType ? ` (${mealSpecificType.replace(/🍽️|📋/g, '').trim()})` : '';
             
             return `
             <tr>
@@ -19164,7 +19210,7 @@
                 <td><input type="datetime-local" value="${dateTimeValue}" onchange="updateMealField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
                 <td>
                     <a href="javascript:void(0)" onclick="editMeal(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
-                        ${meal.restaurantName || 'Restaurant'} - ${displayMealName} (${displayMealType})
+                        ${meal.restaurantName || 'Restaurant'} - ${displayMealType}${mealSpecificDisplay}
                     </a>
                 </td>
                 <td><input type="number" value="${meal.adultsQty}" onchange="updateMealField(${index}, 'adultsQty', this.value)"></td>
@@ -19218,7 +19264,7 @@
                 <input type="checkbox" class="meal-checkbox" data-meal-id="${mealId}">
             </td>
             <td style="padding: 2px 8px;">
-                ${mealName} <small class="text-muted">(${mealType})</small>
+                <strong>${mealType}</strong>
             </td>
             <td style="padding: 2px 8px;">
                 <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${mealId}" value="${meal.mealCount ?? 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">

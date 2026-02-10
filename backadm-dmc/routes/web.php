@@ -222,6 +222,7 @@ Route::get('/clear', function () {
             Route::get('/enquiry-form-pro/get-attractions', [EnquiryFormPro::class, 'getAttractionsByDestination'])->name('enquiry-form-pro.get-attractions');
             Route::get('/enquiry-form-pro/get-guides', [EnquiryFormPro::class, 'getGuidesByDestination'])->name('enquiry-form-pro.get-guides');
             Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
+            Route::get('/enquiry-form-pro/fetch-meals-by-restaurant', [EnquiryFormPro::class, 'fetchMealsByRestaurant'])->name('enquiry-form-pro.fetch-meals-by-restaurant');
             
             // Debug route to check DMC data
             Route::get('/debug/dmc-data', function() {
