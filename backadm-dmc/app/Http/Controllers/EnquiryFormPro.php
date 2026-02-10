@@ -488,7 +488,7 @@ class EnquiryFormPro extends Controller
     public function initialize(Request $request)
     {
         $validated = $request->validate([
-            'tour_type' => 'required|in:Group,FIT',
+            'tour_type' => 'required|in:GROUP,FIT',
             'tour_start_date' => 'required|date|after_or_equal:today',
             'tour_end_date' => 'required|date|after:tour_start_date',
             'adult_count' => 'required|integer|min:0',
@@ -1169,6 +1169,8 @@ class EnquiryFormPro extends Controller
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
+            $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
+            $tour->created_by = $user->userId; // Store the user ID who created the tour
             
             // Store main guest data as JSON
             if ($request->has('mainguest') && $request->mainguest) {
@@ -2720,6 +2722,7 @@ class EnquiryFormPro extends Controller
             $tour->check_out_time = $checkOutTime;
             $tour->city = $request->city ?? null;
             $tour->child_ages = $request->child_ages ?? null;
+            $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
             
             // Update main guest data as JSON
             if ($request->has('mainguest')) {
