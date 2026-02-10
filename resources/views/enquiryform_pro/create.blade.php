@@ -1066,7 +1066,7 @@
                             <input type="radio" name="type" value="FIT" {{ (isset($initialData['tour_type']) && $initialData['tour_type'] == 'FIT') || !isset($initialData) ? 'checked' : '' }}> FIT
                         </label>
                         <label style="font-size: 9px; margin: 0 0 0 4px; font-weight: 500;">
-                            <input type="radio" name="type" value="Group" {{ isset($initialData['tour_type']) && $initialData['tour_type'] == 'Group' ? 'checked' : '' }}> Group
+                            <input type="radio" name="type" value="GROUP" {{ isset($initialData['tour_type']) && $initialData['tour_type'] == 'GROUP' ? 'checked' : '' }}> Group
                         </label>
                     </div>
                     <div class="col-auto d-flex align-items-center">
@@ -2294,6 +2294,8 @@
                         <p class="text-muted small mb-0 text-center py-1" id="noHotelsMessage" style="font-size: 10px;">No hotels selected yet</p>
                     </div>
                 </div>
+
+                <!-- Room Pricing Summary Section removed - calculation is for footer only -->
             </div>
             <div class="modal-footer py-2">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
@@ -9490,10 +9492,16 @@
         };
 
         // Function to distribute total pax across all checked rooms intelligently
-        // Example: 7 pax = 3 rooms with 2 pax each + 1 room with 1 pax
+        // Following real-world hotel booking logic:
+        // 1. Adults are allocated first (2 per room by default - double sharing)
+        // 2. If extra bed is available and needed, children with bed can be added
+        // 3. Children without bed share existing bed space
+        // 4. Rooms count is calculated based on total occupants respecting max occupancy
         const distributePaxAcrossRooms = () => {
             const headerValues = getHeaderValues();
-            const totalPax = headerValues.adults + headerValues.children;
+            const totalAdults = headerValues.adults || 0;
+            const totalChildren = headerValues.children || 0;
+            const totalInfants = headerValues.infants || 0;
             
             // Get all checked combinations
             const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
@@ -9516,7 +9524,7 @@
                 const adultsInput = row.querySelector('.combo-adults');
                 const extraBedInput = row.querySelector('.combo-extra-bed');
                 const childWithoutInput = row.querySelector('.combo-child-without');
-                const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || 0);
+                const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || 2);
                 const extraBedAvailable = row.getAttribute('data-extra-bed-available') === 'true';
                 
                 checkedRooms.push({
@@ -9526,7 +9534,7 @@
                     adultsInput: adultsInput,
                     extraBedInput: extraBedInput,
                     childWithoutInput: childWithoutInput,
-                    maxOccupancy: maxOccupancy,
+                    maxOccupancy: maxOccupancy || 2,
                     extraBedAvailable: extraBedAvailable,
                     combo: combo
                 });
@@ -9536,148 +9544,134 @@
                 return;
             }
             
-            // If only one room is checked, set default to 2 pax and calculate rooms needed
+            // Default adults per room is 2 (double sharing)
+            const defaultAdultsPerRoom = 2;
+            
+            // If only one room type is checked
             if (checkedRooms.length === 1) {
                 const room = checkedRooms[0];
-                const defaultPaxPerRoom = 2;
-                const roomsNeeded = Math.ceil(totalPax / defaultPaxPerRoom);
+                const maxOcc = room.maxOccupancy;
                 
-                room.adultsInput.value = defaultPaxPerRoom;
-                room.extraBedInput.value = 0;
-                room.childWithoutInput.value = 0;
-                room.roomsInput.value = roomsNeeded;
+                // Calculate rooms needed based on adults (2 per room by default)
+                const roomsNeededForAdults = Math.ceil(totalAdults / defaultAdultsPerRoom);
                 
-                // Recalculate price
+                // Set adults per room (usually 2, but could be different if total is odd)
+                const adultsPerRoom = totalAdults > 0 ? Math.min(defaultAdultsPerRoom, totalAdults) : defaultAdultsPerRoom;
+                
+                // Calculate child with bed (extra bed) - limited by extra bed availability and remaining capacity
+                let childWithBedPerRoom = 0;
+                if (room.extraBedAvailable && totalChildren > 0) {
+                    // Each room can have up to (maxOcc - adultsPerRoom) extra occupants with bed
+                    const extraCapacity = Math.max(0, maxOcc - adultsPerRoom);
+                    childWithBedPerRoom = Math.min(totalChildren, extraCapacity);
+                }
+                
+                // Calculate child without bed (doesn't count towards max occupancy, but limited by header value)
+                const remainingChildren = Math.max(0, totalChildren - childWithBedPerRoom);
+                const childWithoutBedPerRoom = remainingChildren;
+                
+                // Final rooms needed considering all occupants
+                const totalOccupantsPerRoom = adultsPerRoom + childWithBedPerRoom;
+                let roomsNeeded = roomsNeededForAdults;
+                
+                // If occupancy exceeds max, we need more rooms
+                if (totalOccupantsPerRoom > maxOcc) {
+                    roomsNeeded = Math.ceil((totalAdults + childWithBedPerRoom) / maxOcc);
+                }
+                
+                room.adultsInput.value = adultsPerRoom;
+                room.extraBedInput.value = childWithBedPerRoom;
+                room.childWithoutInput.value = childWithoutBedPerRoom;
+                room.roomsInput.value = Math.max(1, roomsNeeded);
+                
+                // Update pricing summary for this combo
+                if (typeof updatePricingSummary === 'function') {
+                    updatePricingSummary(room.combo);
+                }
+                
                 recalcPrice(room.comboId);
                 return;
             }
             
-            // Multiple rooms: distribute pax intelligently
-            // Strategy: Ensure minimum 2 adults per room, then distribute remainder intelligently
-            const minAdultsPerRoom = 2;
-            const defaultPaxPerRoom = 2;
+            // Multiple room types: distribute pax across all room types
+            // First room type gets the primary allocation, subsequent types get remaining pax
             
-            // Calculate total rooms needed (minimum 2 adults per room)
-            const totalRoomsNeeded = Math.ceil(totalPax / minAdultsPerRoom);
+            let remainingAdults = totalAdults;
+            let remainingChildWithBed = totalChildren;
+            let remainingChildWithoutBed = 0;
             
-            // Initialize all checked rooms with 0 rooms
-            checkedRooms.forEach(room => {
-                room.roomsInput.value = 0;
-                room.adultsInput.value = minAdultsPerRoom;
-                room.extraBedInput.value = 0;
-                room.childWithoutInput.value = 0;
-            });
-            
-            let remainingPax = totalPax;
-            let totalRoomsAssigned = 0;
-            
-            // First pass: Assign at least 1 room with 2 adults to each checked combination
-            // This ensures each room type gets at least 1 room with minimum 2 adults
             checkedRooms.forEach((room, index) => {
-                if (remainingPax >= minAdultsPerRoom && totalRoomsAssigned < totalRoomsNeeded) {
-                    room.roomsInput.value = 1;
-                    room.adultsInput.value = minAdultsPerRoom;
+                const maxOcc = room.maxOccupancy;
+                
+                if (remainingAdults <= 0 && remainingChildWithBed <= 0) {
+                    // No more pax to allocate
+                    room.roomsInput.value = 0;
+                    room.adultsInput.value = 0;
                     room.extraBedInput.value = 0;
                     room.childWithoutInput.value = 0;
-                    remainingPax -= minAdultsPerRoom;
-                    totalRoomsAssigned += 1;
+                    return;
                 }
-            });
-            
-            // Second pass: Distribute remaining pax and additional rooms
-            // Strategy: Add rooms with 2 adults each until we can't fit another full room
-            while (remainingPax >= minAdultsPerRoom && totalRoomsAssigned < totalRoomsNeeded) {
-                // Find the room combination with the least rooms assigned
-                let minRoomsRoom = checkedRooms[0];
-                let minRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
                 
-                checkedRooms.forEach(room => {
-                    const currentRooms = parseInt(room.roomsInput.value || 0);
-                    if (currentRooms < minRooms) {
-                        minRooms = currentRooms;
-                        minRoomsRoom = room;
-                    }
-                });
+                // Calculate adults for this room type
+                const adultsForThisRoom = Math.min(remainingAdults, defaultAdultsPerRoom);
+                const roomsNeeded = adultsForThisRoom > 0 ? Math.ceil(remainingAdults / defaultAdultsPerRoom) : 0;
                 
-                // Add one more room with 2 adults to balance distribution
-                const currentRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                minRoomsRoom.roomsInput.value = currentRooms + 1;
-                minRoomsRoom.adultsInput.value = minAdultsPerRoom;
-                remainingPax -= minAdultsPerRoom;
-                totalRoomsAssigned += 1;
-            }
-            
-            // Third pass: Handle remaining pax (if less than 2, add to last room or add extra room)
-            if (remainingPax > 0 && remainingPax < minAdultsPerRoom) {
-                // Try to add remaining pax to the last room that was assigned
-                // Check if we can add it to an existing room without exceeding max occupancy
-                let addedToExisting = false;
-                
-                for (let i = checkedRooms.length - 1; i >= 0; i--) {
-                    const room = checkedRooms[i];
-                    const currentRooms = parseInt(room.roomsInput.value || 0);
+                // For first room type, take primary allocation
+                if (index === 0) {
+                    room.adultsInput.value = adultsForThisRoom;
                     
-                    if (currentRooms > 0) {
-                        const currentAdults = parseInt(room.adultsInput.value || minAdultsPerRoom);
-                        const maxOccupancy = room.maxOccupancy || 999; // Default to high value if not set
-                        const currentOccupancy = currentAdults + parseInt(room.extraBedInput.value || 0) + parseInt(room.childWithoutInput.value || 0);
+                    // Calculate child with bed for this room
+                    let childWithBed = 0;
+                    if (room.extraBedAvailable && remainingChildWithBed > 0) {
+                        const extraCapacity = Math.max(0, maxOcc - adultsForThisRoom);
+                        childWithBed = Math.min(remainingChildWithBed, extraCapacity);
+                    }
+                    room.extraBedInput.value = childWithBed;
+                    
+                    // Calculate child without bed
+                    const childWithoutBed = Math.max(0, remainingChildWithBed - childWithBed);
+                    room.childWithoutInput.value = childWithoutBed;
+                    
+                    room.roomsInput.value = Math.max(1, roomsNeeded);
+                    
+                    // Update remaining pax
+                    remainingAdults -= adultsForThisRoom * roomsNeeded;
+                    remainingChildWithBed -= childWithBed;
+                    remainingChildWithoutBed = childWithoutBed;
+                } else {
+                    // Subsequent room types get remaining pax
+                    if (remainingAdults > 0) {
+                        const adultsForRemaining = Math.min(remainingAdults, defaultAdultsPerRoom);
+                        const additionalRooms = Math.ceil(remainingAdults / defaultAdultsPerRoom);
                         
-                        // Check if we can add remaining pax to this room's last room
-                        if (currentOccupancy + remainingPax <= maxOccupancy) {
-                            // Add to adults (since we're ensuring minimum 2 adults, this is safe)
-                            room.adultsInput.value = currentAdults + remainingPax;
-                            remainingPax = 0;
-                            addedToExisting = true;
-                            break;
+                        room.adultsInput.value = adultsForRemaining;
+                        room.roomsInput.value = additionalRooms;
+                        
+                        // Allocate remaining children if any
+                        let childWithBed = 0;
+                        if (room.extraBedAvailable && remainingChildWithBed > 0) {
+                            const extraCapacity = Math.max(0, maxOcc - adultsForRemaining);
+                            childWithBed = Math.min(remainingChildWithBed, extraCapacity);
                         }
+                        room.extraBedInput.value = childWithBed;
+                        room.childWithoutInput.value = 0;
+                        
+                        remainingAdults -= adultsForRemaining * additionalRooms;
+                        remainingChildWithBed -= childWithBed;
+                    } else {
+                        room.roomsInput.value = 0;
+                        room.adultsInput.value = 0;
+                        room.extraBedInput.value = 0;
+                        room.childWithoutInput.value = 0;
                     }
                 }
                 
-                // If couldn't add to existing room, add a new room with minimum 2 adults
-                // The extra pax will be distributed across rooms
-                if (!addedToExisting) {
-                    // Find room with least rooms to add one more
-                    let minRoomsRoom = checkedRooms[0];
-                    let minRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                    
-                    checkedRooms.forEach(room => {
-                        const currentRooms = parseInt(room.roomsInput.value || 0);
-                        if (currentRooms < minRooms) {
-                            minRooms = currentRooms;
-                            minRoomsRoom = room;
-                        }
-                    });
-                    
-                    const currentRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                    minRoomsRoom.roomsInput.value = currentRooms + 1;
-                    // Set to minimum 2 adults (remaining pax will be handled by adjusting other rooms)
-                    minRoomsRoom.adultsInput.value = minAdultsPerRoom;
-                    
-                    // Now we have extra capacity, redistribute to balance
-                    // Add the remaining pax to the room that can accommodate it
-                    const totalExtraCapacity = minAdultsPerRoom - remainingPax;
-                    if (totalExtraCapacity > 0) {
-                        // Find a room that can take the extra capacity
-                        for (let i = 0; i < checkedRooms.length; i++) {
-                            const room = checkedRooms[i];
-                            const currentAdults = parseInt(room.adultsInput.value || minAdultsPerRoom);
-                            const maxOccupancy = room.maxOccupancy || 999;
-                            const currentOccupancy = currentAdults + parseInt(room.extraBedInput.value || 0) + parseInt(room.childWithoutInput.value || 0);
-                            
-                            if (currentOccupancy + totalExtraCapacity <= maxOccupancy) {
-                                room.adultsInput.value = currentAdults + totalExtraCapacity;
-                                break;
-                            }
-                        }
-                    }
+                // Update pricing summary for first combo
+                if (index === 0 && typeof updatePricingSummary === 'function') {
+                    updatePricingSummary(room.combo);
                 }
-            }
-            
-            // Recalculate prices for all rooms
-            checkedRooms.forEach(room => {
-                if (parseInt(room.roomsInput.value || 0) > 0) {
-                    recalcPrice(room.comboId);
-                }
+                
+                recalcPrice(room.comboId);
             });
         };
         
@@ -9768,16 +9762,44 @@
                     alert(`Adults cannot exceed ${max} (header value)`);
                 }
                 
-                // If adults changed to 3 and extra bed is available, adjust rooms
+                // Get the row and check max occupancy
                 const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
                 if (row) {
                     const extraBedAvailable = row.getAttribute('data-extra-bed-available') === 'true';
                     
-                    if (adults > 2 && !extraBedAvailable) {
-                        // If extra bed not available, limit to 2 adults
-                        adults = 2;
-                        this.value = 2;
-                        alert('Extra bed not available. Maximum 2 adults per room.');
+                    // Use maxOccupancy to limit adults, not extra bed availability
+                    const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || 0);
+                    if (maxOccupancy > 0 && adults > maxOccupancy) {
+                        adults = maxOccupancy;
+                        this.value = maxOccupancy;
+                        alert(`Maximum ${maxOccupancy} adults per room (based on max occupancy).`);
+                    }
+                    
+                    // Auto-calculate room count based on total pax and adults per room
+                    const headerValues = getHeaderValues();
+                    const totalAdults = headerValues.adults || 0;
+                    const totalChildren = headerValues.children || 0;
+                    const roomsInput = row.querySelector('.combo-rooms');
+                    
+                    if (roomsInput && adults > 0) {
+                        // Calculate rooms needed for adults
+                        let roomsNeeded = Math.ceil(totalAdults / adults);
+                        
+                        // Also consider children with bed if extra bed is available
+                        if (extraBedAvailable && totalChildren > 0) {
+                            const childrenWithBed = row.querySelector('.combo-extra-bed');
+                            const childPerRoom = parseInt(childrenWithBed?.value || 0);
+                            if (childPerRoom > 0 && maxOccupancy > 0) {
+                                // Check if total occupancy per room exceeds max occupancy
+                                const totalPerRoom = adults + childPerRoom;
+                                if (totalPerRoom > maxOccupancy) {
+                                    // Need more rooms to accommodate
+                                    roomsNeeded = Math.ceil((totalAdults + totalChildren) / maxOccupancy);
+                                }
+                            }
+                        }
+                        
+                        roomsInput.value = Math.max(1, roomsNeeded);
                     }
                 }
                 
@@ -9850,6 +9872,14 @@
                 // Redistribute pax across all checked rooms
                 distributePaxAcrossRooms();
                 validateTotalOccupancy();
+                
+                // Update pricing summary when checkbox is checked
+                if (isChecked) {
+                    const combo = window.currentRoomCombinations.find(c => c.id === comboId);
+                    if (combo && typeof updatePricingSummary === 'function') {
+                        updatePricingSummary(combo);
+                    }
+                }
             });
         });
 
@@ -9970,6 +10000,93 @@
         return dates.length ? (totalPrice / dates.length) : 0;
     }
     
+    // Helper function to compute weekday-only price
+    function computeWeekdayPrice(combo, occupancy) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        const weekdaySingle = parsePrice(room.weekday_price || room.weekdayPrice || 0);
+        const doubleWeekday = parsePrice(room.double_weekday_price || room.doubleWeekdayPrice || room.weekday_price || room.weekdayPrice || 0);
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
+        const adults = parseInt(occupancy.adults || 0);
+        const childWithBed = parseInt(occupancy.childWithBed || 0);
+        const occupantsWithBed = adults + childWithBed;
+        const isSingleOccupancy = occupantsWithBed <= 1;
+        const isTripleOccupancy = occupantsWithBed >= 3;
+        
+        let basePrice = isSingleOccupancy ? weekdaySingle : (doubleWeekday || weekdaySingle);
+        
+        if (isTripleOccupancy) {
+            const extraBedsNeeded = occupantsWithBed - 2;
+            basePrice += extraBedPrice * extraBedsNeeded;
+        }
+        
+        const mealCost = computeMealCost(room, mealPlan, adults, (occupancy.childWithBed || 0) + (occupancy.childWithoutBed || 0));
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute weekend-only price
+    function computeWeekendPrice(combo, occupancy) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        const weekendSingle = parsePrice(room.weekend_price || room.weekendPrice || room.weekday_price || room.weekdayPrice || 0);
+        const doubleWeekend = parsePrice(room.double_weekend_price || room.doubleWeekendPrice || room.double_weekday_price || room.doubleWeekdayPrice || room.weekend_price || room.weekendPrice || 0);
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
+        const adults = parseInt(occupancy.adults || 0);
+        const childWithBed = parseInt(occupancy.childWithBed || 0);
+        const occupantsWithBed = adults + childWithBed;
+        const isSingleOccupancy = occupantsWithBed <= 1;
+        const isTripleOccupancy = occupantsWithBed >= 3;
+        
+        let basePrice = isSingleOccupancy ? weekendSingle : (doubleWeekend || weekendSingle);
+        
+        if (isTripleOccupancy) {
+            const extraBedsNeeded = occupantsWithBed - 2;
+            basePrice += extraBedPrice * extraBedsNeeded;
+        }
+        
+        const mealCost = computeMealCost(room, mealPlan, adults, (occupancy.childWithBed || 0) + (occupancy.childWithoutBed || 0));
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute child weekday price
+    function computeChildWeekdayPrice(combo, isWithBed) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        let basePrice = isWithBed ? extraBedPrice : 0;
+        const mealCost = computeMealCost(room, mealPlan, 0, 1); // 0 adults, 1 child
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute child weekend price (same as weekday for children since extra bed price is constant)
+    function computeChildWeekendPrice(combo, isWithBed) {
+        // Child prices typically don't differ between weekday/weekend (extra bed is flat rate)
+        return computeChildWeekdayPrice(combo, isWithBed);
+    }
+
     // Update pricing summary at the bottom
     function updatePricingSummary(combo) {
         if (!combo) return;
@@ -9993,6 +10110,29 @@
         const childWithoutBedCost = calculateChildPricing(combo, false);
         const infantCost = 0; // Infants typically free
         
+        // Calculate weekday prices
+        const singleWeekday = computeWeekdayPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
+        const twinWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
+        const tripleWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
+        const childWithBedWeekday = computeChildWeekdayPrice(combo, true);
+        const childWithoutBedWeekday = computeChildWeekdayPrice(combo, false);
+        
+        // Calculate weekend prices
+        const singleWeekend = computeWeekendPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
+        const twinWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
+        const tripleWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
+        const childWithBedWeekend = computeChildWeekendPrice(combo, true);
+        const childWithoutBedWeekend = computeChildWeekendPrice(combo, false);
+        
+        // Get extra bed price for display
+        const room = combo.roomData || {};
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
         // Round all prices to next 0 (ceiling)
         const singleCostRounded = roundToNextZero(singleCost);
         const twinCostRounded = roundToNextZero(twinCost);
@@ -10001,7 +10141,28 @@
         const childWithoutBedCostRounded = roundToNextZero(childWithoutBedCost);
         const infantCostRounded = roundToNextZero(infantCost);
         
-        // Update Cost display (read-only text)
+        // Update Weekday Cost display
+        const updateEl = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = Number.isFinite(value) ? roundToNextZero(value).toFixed(2) : '--';
+        };
+        
+        updateEl('pricingSummarySingleWeekdayCost', singleWeekday);
+        updateEl('pricingSummaryTwinWeekdayCost', twinWeekday);
+        updateEl('pricingSummaryTripleWeekdayCost', tripleWeekday);
+        updateEl('pricingSummaryChildWithBedWeekdayCost', childWithBedWeekday);
+        updateEl('pricingSummaryChildWithoutBedWeekdayCost', childWithoutBedWeekday);
+        updateEl('pricingSummaryInfantWeekdayCost', 0);
+        
+        // Update Weekend Cost display
+        updateEl('pricingSummarySingleWeekendCost', singleWeekend);
+        updateEl('pricingSummaryTwinWeekendCost', twinWeekend);
+        updateEl('pricingSummaryTripleWeekendCost', tripleWeekend);
+        updateEl('pricingSummaryChildWithBedWeekendCost', childWithBedWeekend);
+        updateEl('pricingSummaryChildWithoutBedWeekendCost', childWithoutBedWeekend);
+        updateEl('pricingSummaryInfantWeekendCost', 0);
+        
+        // Update Average Cost display
         const singleCostEl = document.getElementById('pricingSummarySingleCost');
         const twinCostEl = document.getElementById('pricingSummaryTwinCost');
         const tripleCostEl = document.getElementById('pricingSummaryTripleCost');
@@ -10015,6 +10176,10 @@
         if (childWithBedCostEl) childWithBedCostEl.textContent = Number.isFinite(childWithBedCostRounded) ? childWithBedCostRounded.toFixed(2) : '--';
         if (childWithoutBedCostEl) childWithoutBedCostEl.textContent = Number.isFinite(childWithoutBedCostRounded) ? childWithoutBedCostRounded.toFixed(2) : '--';
         if (infantCostEl) infantCostEl.textContent = Number.isFinite(infantCostRounded) ? infantCostRounded.toFixed(2) : '--';
+        
+        // Update extra bed price display
+        const extraBedPriceEl = document.getElementById('pricingSummaryExtraBedPrice');
+        if (extraBedPriceEl) extraBedPriceEl.textContent = '$' + extraBedPrice.toFixed(2);
         
         // Update Sell inputs (editable, default to cost value if empty)
         const singleSellEl = document.getElementById('pricingSummarySingleSell');
@@ -23459,6 +23624,10 @@
         formData.append('markup_type', markupType);
         formData.append('discount_value', discountValue);
         formData.append('discount_type', discountType);
+        
+        // Add tour type (FIT or GROUP)
+        const tourType = document.querySelector('input[name="type"]:checked')?.value || 'FIT';
+        formData.append('tour_type', tourType);
         
         // Transform and add service data in required format (await async functions)
         const { entryPortData, exitPortData } = await transformArrivalDepartureData();
