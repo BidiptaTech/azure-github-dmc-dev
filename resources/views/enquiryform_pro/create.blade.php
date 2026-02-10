@@ -5473,8 +5473,9 @@
             return (!isNaN(num) && num >= 0) ? num : 0;
         };
 
-        // Check both direct properties and nested properties (matching single tour package approach)
-        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded || room.breakfast || false);
+        // Check if breakfast is complimentary (breakfast_included = true means free breakfast)
+        // Note: room.breakfast = true means breakfast is available (for a price), NOT that it's included/free
+        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded);
         const breakfastPriceAdult = parsePrice(room.breakfast_price || room.breakfastPrice || 0);
         const lunchPriceAdult = parsePrice(room.lunch_price || room.lunchPrice || 0);
         const dinnerPriceAdult = parsePrice(room.dinner_price || room.dinnerPrice || 0);
