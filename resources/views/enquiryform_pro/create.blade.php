@@ -19550,23 +19550,14 @@
                 ? `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)">`
                 : `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)" style="opacity: 0.7;">`;
             
-            // Normalize pricing using zone rates, type, and way
-            const pricing = getLocalTransferPricing(transfer);
+            // Display stored cost/sell directly - no multiplication needed
+            // Cost and sell are stored as unit prices (per person for shared, per vehicle for private)
             const storedSell = parseFloat(transfer.sell || 0);
             const storedCost = parseFloat(transfer.cost || 0);
             
-            let displayCost = pricing.totalPrice;
-            if (displayCost === 0 && storedCost > 0) {
-                displayCost = storedCost * pricing.wayMultiplier;
-            }
-            
-            // Default to computed total; honor manual sell overrides when present
-            let displaySell = pricing.totalPrice;
-            if (storedSell > 0 && storedSell !== storedCost) {
-                displaySell = storedSell * pricing.wayMultiplier;
-            } else if (displaySell === 0 && storedCost > 0) {
-                displaySell = storedCost * pricing.wayMultiplier;
-            }
+            // Use stored values directly
+            let displayCost = storedCost;
+            let displaySell = storedSell > 0 ? storedSell : storedCost;
             
             return `
             <tr>
@@ -20498,7 +20489,6 @@
     
     // Calculate transfer price based on type and way
     function calculateTransferPrice(zonePrice, type, way, adults, child, vehicleOption = null) {
-        let basePrice = 0;
         const totalPax = Math.max(1, (parseInt(adults) || 0) + (parseInt(child) || 0));
         
         // Get zone prices
@@ -20509,30 +20499,29 @@
         // Zone prices should remain 0 to indicate missing mapping
         // User must either: 1) Add zone mapping in settings, or 2) Manually enter prices
         
-        // Get base price based on type (SIC or Private)
+        // Store the UNIT price (not multiplied by pax or way)
+        // Shared: per person price, Private: per vehicle price
+        // Multiplication happens only in footer totals calculation
+        let costPrice = 0;
+        let sellPrice = 0;
+        
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared prices are per person - multiply by total passengers
-            basePrice = (zoneSharedPrice || 0) * totalPax;
+            // Shared: store per person price (no pax multiplication)
+            costPrice = zoneSharedPrice || 0;
+            sellPrice = zoneSharedPrice || 0;
         } else {
-            // Private prices are fixed for the vehicle (not per person)
-            basePrice = zonePrivatePrice || 0;
+            // Private: store per vehicle price (no pax multiplication)
+            costPrice = zonePrivatePrice || 0;
+            sellPrice = zonePrivatePrice || 0;
         }
         
-        // Apply way multiplier (both-way = 2x, one-way = 1x)
-        if (way === 'both-way' || way === 'both' || way === '2-way' || way === 'Two Way' || way === 'Both Way') {
-            basePrice = basePrice * 2;
-        }
-        
-        let costPrice = basePrice;
-        let sellPrice = basePrice;
-        
-        // Private transfers are already fixed price, no need to divide by pax
-        // (Previous logic was incorrect - private should be fixed price, not per person)
+        // DO NOT apply way multiplier here - store unit price only
+        // Way multiplier is already handled in display/table rendering
         
         return {
             cost: costPrice,
             sell: sellPrice,
-            basePrice: basePrice,
+            basePrice: costPrice,
             sharedPrice: zoneSharedPrice,
             privatePrice: zonePrivatePrice,
             totalPax: totalPax
@@ -21489,29 +21478,13 @@
                 }
             }
             
-            // Get passenger count
-            const adults = parseInt(transfer.adults || transfer.adultsQty || 0) || 0;
-            const child = parseInt(transfer.child || transfer.childQty || 0) || 0;
-            const totalPax = Math.max(1, adults + child);
-            
-            // Determine transfer type
-            const type = (transfer.type || '').toString().toLowerCase();
-            const isPrivate = type === 'p' || type === 'private';
-            
             let singleSellContribution = 0;
             let singleCostContribution = 0;
             
-            // Calculate based on type:
-            // Shared: tablePrice × pax (per person pricing)
-            // Private: tablePrice only (fixed vehicle price)
-            if (isPrivate) {
-                singleCostContribution = listCostValue;
-                singleSellContribution = listSellValue;
-            } else {
-                // Shared/SIC: multiply by pax
-                singleCostContribution = listCostValue * totalPax;
-                singleSellContribution = listSellValue * totalPax;
-            }
+            // Simply use the table values directly - they are already the final totals
+            // No additional multiplication needed
+            singleCostContribution = listCostValue;
+            singleSellContribution = listSellValue;
             
             // If sell is not set, fall back to cost value
             if (singleSellContribution === 0 && singleCostContribution > 0) {
