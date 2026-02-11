@@ -254,9 +254,9 @@ class HotelRestaurantController extends Controller
         if (!$hotel) {
             abort(404, 'Hotel not found.');
         }
-        if (!hasPermission('create restaurant')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
+        // if (!hasPermission('create restaurant')) {
+        //     abort(403, 'You do not have permission to access this page.');
+        // }
         
         $auth_user = Auth::user();
         if($auth_user->user_type == 1){
