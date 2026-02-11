@@ -118,6 +118,11 @@
                     Edit Vehicle
                 </a>
             </li>
+            @php
+                $roleIds = [11, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140];     
+            @endphp
+            
+            @if(in_array(auth()->user()->role_id, $roleIds))
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->has('zone_mapping') ? 'active' : '' }}" 
                    href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'port_port']) }}" 
@@ -125,6 +130,7 @@
                     Zone Mapping
                 </a>
             </li>
+            @endif
         </ul>
         
         <!-- Zone mapping subtabs, only shown when zone_mapping is active -->
