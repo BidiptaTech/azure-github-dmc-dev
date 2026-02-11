@@ -1066,7 +1066,7 @@
                             <input type="radio" name="type" value="FIT" {{ (isset($initialData['tour_type']) && $initialData['tour_type'] == 'FIT') || !isset($initialData) ? 'checked' : '' }}> FIT
                         </label>
                         <label style="font-size: 9px; margin: 0 0 0 4px; font-weight: 500;">
-                            <input type="radio" name="type" value="Group" {{ isset($initialData['tour_type']) && $initialData['tour_type'] == 'Group' ? 'checked' : '' }}> Group
+                            <input type="radio" name="type" value="GROUP" {{ isset($initialData['tour_type']) && $initialData['tour_type'] == 'GROUP' ? 'checked' : '' }}> Group
                         </label>
                     </div>
                     <div class="col-auto d-flex align-items-center">
@@ -1280,15 +1280,14 @@
                             <th>Hotel / Room / Bed / Meal</th>
                             <th>Check In Date</th>
                             <th>Check Out Date</th>
-                            <th>No. of Nights</th>
-                            <th>No. of Rooms</th>
-                            <th>Adults per Rm</th>
-                            <th>Cost</th>
+                            <th>Nights</th>
+                            <th>Rooms</th>
+                            <th>Avg Cost</th>
                             <th>Sell</th>
-                            <th>Extra Bed</th>
-                            <th>CWB</th>
-                            <th>CNB</th>
-                            <th>Infant</th>
+                            <th title="Adult Extra Bed Price">Extra Bed</th>
+                            <th title="Child with Bed Price">CWB</th>
+                            <th title="Child without Bed Price">CNB</th>
+                            <th title="Infant/Babycot Price">Infant</th>
                             <th>Supplement</th>
                         </tr>
                     </thead>
@@ -1821,12 +1820,14 @@
                                         <th style="padding: 4px 8px; min-width: 120px;">Room Type</th>
                                         <th style="padding: 4px 8px; min-width: 120px;">Bed Type</th>
                                         <th style="padding: 4px 8px; min-width: 100px;">Meal Plan</th>
-                                        <th style="width: 80px; padding: 4px 8px; text-align: center;">Max Occupancy</th>
                                         <th style="width: 60px; padding: 4px 8px; text-align: center;">Rooms</th>
-                                        <th style="width: 60px; padding: 4px 8px; text-align: center;">Adults <span id="headerAdultsBadge" class="text-muted"></span></th>
-                                        <th style="width: 60px; padding: 4px 8px; text-align: center;">Child w/ Bed <span id="headerChildrenBedBadge" class="text-muted"></span></th>
-                                        <th style="width: 70px; padding: 4px 8px; text-align: center;">Child w/o <span id="headerChildrenNoBedBadge" class="text-muted"></span></th>
-                                        <th style="width: 80px; padding: 4px 8px;">Avg. Price/Night</th>
+                                        <th style="width: 80px; padding: 4px 8px; text-align: center;">Avg Cost</th>
+                                        <th style="width: 80px; padding: 4px 8px; text-align: center;">Sell</th>
+                                        <th style="width: 70px; padding: 4px 8px; text-align: center;" title="Adult Extra Bed">Extra Bed</th>
+                                        <th style="width: 60px; padding: 4px 8px; text-align: center;" title="Child with Bed Price">CWB</th>
+                                        <th style="width: 60px; padding: 4px 8px; text-align: center;" title="Child without Bed Price">CNB</th>
+                                        <th style="width: 60px; padding: 4px 8px; text-align: center;" title="Infant/Babycot Price">Infant</th>
+                                        <th style="width: 80px; padding: 4px 8px; text-align: center;">Supplement</th>
                                     </tr>
                                 </thead>
                                 <tbody id="roomCombinationsTableBody">
@@ -2032,6 +2033,16 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="row g-2 mb-1">
+                            <div class="col-2" id="arrivalCostField">
+                                <label class="form-label small">Cost</label>
+                                <input type="number" class="form-control form-control-sm" id="arrivalCost" value="0" min="0" step="0.01" style="font-size: 10px;">
+                            </div>
+                            <div class="col-2" id="arrivalSellField">
+                                <label class="form-label small">Sell</label>
+                                <input type="number" class="form-control form-control-sm" id="arrivalSell" value="0" min="0" step="0.01" style="font-size: 10px;">
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Arrival Guide Section (outside transfer details so it's always visible) -->
@@ -2196,6 +2207,16 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="row g-2 mb-1">
+                            <div class="col-2" id="departureCostField">
+                                <label class="form-label small">Cost</label>
+                                <input type="number" class="form-control form-control-sm" id="departureCost" value="0" min="0" step="0.01" style="font-size: 10px;">
+                            </div>
+                            <div class="col-2" id="departureSellField">
+                                <label class="form-label small">Sell</label>
+                                <input type="number" class="form-control form-control-sm" id="departureSell" value="0" min="0" step="0.01" style="font-size: 10px;">
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Departure Guide Section (outside transfer details so it's always visible) -->
@@ -2272,6 +2293,8 @@
                         <p class="text-muted small mb-0 text-center py-1" id="noHotelsMessage" style="font-size: 10px;">No hotels selected yet</p>
                     </div>
                 </div>
+
+                <!-- Room Pricing Summary Section removed - calculation is for footer only -->
             </div>
             <div class="modal-footer py-2">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
@@ -2299,11 +2322,11 @@
                 <!-- Top Controls -->
                 <div class="border-bottom p-2" style="background: #f8f9fa;">
                     <div class="row g-2">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Date & Time:</label>
                             <input type="datetime-local" class="form-control form-control-sm" id="tourDateTime" style="font-size: 11px;">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Destination:</label>
                             <select class="form-select form-select-sm" id="tourDestination" onchange="loadAttractionsByDestination()" style="font-size: 11px;">
                                 <option value="">Select Destination</option>
@@ -2311,6 +2334,23 @@
                                     <option value="{{ $dest->name }}">{{ $dest->name }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Filter By Type:</label>
+                            <div class="d-flex gap-2 mt-1">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" checked onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterAttraction" style="font-size: 10px;">Attractions</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterTourSite" style="font-size: 10px;">Tour Sites</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAll" value="all" onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterAll" style="font-size: 10px;">All</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2816,62 +2856,40 @@
                     <!-- Guide Details (shown when checkbox is checked) -->
                     <div id="restaurantGuideDetailsSection" style="display: none;">
                         <div class="row g-2 mb-1">
-                            <div class="col-5">
+                            <div class="col-6">
                                 <label class="form-label small fw-bold">Select Guide</label>
                             </div>
                             <div class="col-3">
-                                <label class="form-label small fw-bold">Hours</label>
-                            </div>
-                            <div class="col-2">
                                 <label class="form-label small fw-bold">Adult Count</label>
                             </div>
-                            <div class="col-2">
+                            <div class="col-3">
                                 <label class="form-label small fw-bold">Child Count</label>
                             </div>
                         </div>
                         <div class="row g-2 mb-1">
-                            <div class="col-5">
-                                <label class="form-label small">Select Guide</label>
+                            <div class="col-6">
+                                <label class="form-label small">Select Guide <small class="text-muted">(Full Day - 12 Hours)</small></label>
                                 <select class="form-select form-select-sm" id="restaurantGuideSelect" style="font-size: 10px;" onchange="updateRestaurantGuidePricing()">
                                     <option value="">Select Guide</option>
                                     @foreach($guides as $guide)
                                         @php
                                             $languages = $guide->languages->pluck('language')->join(', ');
-                                            $twoHourPrice = $guide->two_hour_price ?? 0;
-                                            $fourHourPrice = $guide->four_hour_price ?? 0;
-                                            $sixHourPrice = $guide->six_hour_price ?? 0;
-                                            $eightHourPrice = $guide->eight_hour_price ?? 0;
-                                            $tenHourPrice = $guide->ten_hour_price ?? 0;
                                             $twelveHourPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
                                         @endphp
                                         <option value="{{ $guide->guide_id }}" 
                                                 data-name="{{ $guide->name }}" 
                                                 data-languages="{{ $languages }}"
-                                                data-two-hour-price="{{ $twoHourPrice }}"
-                                                data-four-hour-price="{{ $fourHourPrice }}"
-                                                data-six-hour-price="{{ $sixHourPrice }}"
-                                                data-eight-hour-price="{{ $eightHourPrice }}"
-                                                data-ten-hour-price="{{ $tenHourPrice }}"
                                                 data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                     @endforeach
                                 </select>
+                                <!-- Hidden hours field - always set to 12 (full day) -->
+                                <input type="hidden" id="restaurantGuideHours" value="12">
                             </div>
                             <div class="col-3">
-                                <label class="form-label small">Hours</label>
-                                <select class="form-select form-select-sm" id="restaurantGuideHours" style="font-size: 10px;" onchange="updateRestaurantGuidePricing()">
-                                    <option value="2">2 Hours</option>
-                                    <option value="4">4 Hours</option>
-                                    <option value="6">6 Hours</option>
-                                    <option value="8">8 Hours</option>
-                                    <option value="10">10 Hours</option>
-                                    <option value="12" selected>12 Hours</option>
-                                </select>
-                            </div>
-                            <div class="col-2">
                                 <label class="form-label small">Adult Qty</label>
                                 <input type="number" class="form-control form-control-sm" id="restaurantGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
                             </div>
-                            <div class="col-2">
+                            <div class="col-3">
                                 <label class="form-label small">Child Qty</label>
                                 <input type="number" class="form-control form-control-sm" id="restaurantGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                             </div>
@@ -3079,62 +3097,40 @@
                         <!-- Guide Details (shown when checkbox is checked) -->
                         <div id="localTransportGuideDetailsSection" style="display: none;">
                             <div class="row g-2 mb-1">
-                                <div class="col-5">
+                                <div class="col-6">
                                     <label class="form-label small fw-bold">Select Guide</label>
                                 </div>
                                 <div class="col-3">
-                                    <label class="form-label small fw-bold">Hours</label>
-                                </div>
-                                <div class="col-2">
                                     <label class="form-label small fw-bold">Adult Count</label>
                                 </div>
-                                <div class="col-2">
+                                <div class="col-3">
                                     <label class="form-label small fw-bold">Child Count</label>
                                 </div>
                             </div>
                             <div class="row g-2 mb-1">
-                                <div class="col-5">
-                                    <label class="form-label small">Select Guide</label>
+                                <div class="col-6">
+                                    <label class="form-label small">Select Guide <small class="text-muted">(Full Day - 12 Hours)</small></label>
                                     <select class="form-select form-select-sm" id="localTransportGuideSelect" style="font-size: 10px;" onchange="updateLocalTransportGuidePricing()">
                                         <option value="">Select Guide</option>
                                         @foreach($guides as $guide)
                                             @php
                                                 $languages = $guide->languages->pluck('language')->join(', ');
-                                                $twoHourPrice = $guide->two_hour_price ?? 0;
-                                                $fourHourPrice = $guide->four_hour_price ?? 0;
-                                                $sixHourPrice = $guide->six_hour_price ?? 0;
-                                                $eightHourPrice = $guide->eight_hour_price ?? 0;
-                                                $tenHourPrice = $guide->ten_hour_price ?? 0;
                                                 $twelveHourPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
                                             @endphp
                                             <option value="{{ $guide->guide_id }}" 
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
-                                                    data-two-hour-price="{{ $twoHourPrice }}"
-                                                    data-four-hour-price="{{ $fourHourPrice }}"
-                                                    data-six-hour-price="{{ $sixHourPrice }}"
-                                                    data-eight-hour-price="{{ $eightHourPrice }}"
-                                                    data-ten-hour-price="{{ $tenHourPrice }}"
                                                     data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
+                                    <!-- Hidden hours field - always set to 12 (full day) -->
+                                    <input type="hidden" id="localTransportGuideHours" value="12">
                                 </div>
                                 <div class="col-3">
-                                    <label class="form-label small">Hours</label>
-                                    <select class="form-select form-select-sm" id="localTransportGuideHours" style="font-size: 10px;" onchange="updateLocalTransportGuidePricing()">
-                                        <option value="2">2 Hours</option>
-                                        <option value="4">4 Hours</option>
-                                        <option value="6">6 Hours</option>
-                                        <option value="8">8 Hours</option>
-                                        <option value="10">10 Hours</option>
-                                        <option value="12" selected>12 Hours</option>
-                                    </select>
-                                </div>
-                                <div class="col-2">
                                     <label class="form-label small">Adult Qty</label>
                                     <input type="number" class="form-control form-control-sm" id="localTransportGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
-                                <div class="col-2">
+                                <div class="col-3">
                                     <label class="form-label small">Child Qty</label>
                                     <input type="number" class="form-control form-control-sm" id="localTransportGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
@@ -4341,6 +4337,9 @@
         }
         
         console.log('Filtered arrival vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update pricing after vehicle selection changes
+        updateArrivalVehiclePricing();
     }
     
     // Filter departure vehicles based on service type (Private/Shared)
@@ -4422,6 +4421,9 @@
         }
         
         console.log('Filtered departure vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update pricing after vehicle selection changes
+        updateDepartureVehiclePricing();
     }
     
     // Toggle hotel transfer fields visibility
@@ -4923,6 +4925,34 @@
         }
         
         console.log('Filtered local transfer vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update local transfer pricing after vehicle selection changes
+        updateLocalTransferVehiclePricing();
+    }
+    
+    // Update local transfer vehicle pricing when vehicle or type changes
+    function updateLocalTransferVehiclePricing() {
+        const vehicleSelect = document.getElementById('localVehicleType');
+        const selectedOption = vehicleSelect?.options[vehicleSelect?.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            const transferType = document.getElementById('localType')?.value || 'S';
+            const transferWay = document.getElementById('localWay')?.value || 'one-way';
+            const basePrice = transferType === 'S' 
+                ? parseFloat(selectedOption.dataset.sharablePrice || 0)
+                : parseFloat(selectedOption.dataset.basePrice || 0);
+            
+            // Store the vehicle price for later use
+            vehicleSelect.dataset.currentPrice = basePrice;
+            
+            console.log('Local transfer vehicle selected:', {
+                vehicle: selectedOption.text,
+                type: transferType,
+                way: transferWay,
+                price: basePrice,
+                seating: selectedOption.dataset.seating
+            });
+        }
     }
     
     // ==================== DESTINATION TAGS FUNCTIONALITY ====================
@@ -5442,8 +5472,9 @@
             return (!isNaN(num) && num >= 0) ? num : 0;
         };
 
-        // Check both direct properties and nested properties (matching single tour package approach)
-        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded || room.breakfast || false);
+        // Check if breakfast is complimentary (breakfast_included = true means free breakfast)
+        // Note: room.breakfast = true means breakfast is available (for a price), NOT that it's included/free
+        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded);
         const breakfastPriceAdult = parsePrice(room.breakfast_price || room.breakfastPrice || 0);
         const lunchPriceAdult = parsePrice(room.lunch_price || room.lunchPrice || 0);
         const dinnerPriceAdult = parsePrice(room.dinner_price || room.dinnerPrice || 0);
@@ -8913,6 +8944,9 @@
                         child_lunch_price: room.child_lunch_price,
                         child_dinner_price: room.child_dinner_price,
                         extra_bed_price: room.extra_bed_price,
+                        // Child with bed and child without bed prices from rooms table
+                        child_with_bed: room.child_with_bed,
+                        child_without_bed: room.child_without_bed,
                         breakfast_included: room.breakfast_included,
                         max_occupancy: room.max_occupancy,
                         room_type: room.room_type,
@@ -9199,6 +9233,9 @@
                                 child_lunch_price: firstRoom.child_lunch_price,
                                 child_dinner_price: firstRoom.child_dinner_price,
                                 extra_bed_price: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
+                                // Child with bed and child without bed prices from rooms table
+                                child_with_bed: firstRoom.child_with_bed,
+                                child_without_bed: firstRoom.child_without_bed,
                                 breakfast_included: firstRoom.breakfast_included,
                                 max_occupancy: bed.max_occupancy || firstRoom.max_occupancy || 2,
                                 room_type: firstRoom.room_type,
@@ -9220,7 +9257,7 @@
                                 price: 0,
                                 extraBedPrice: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
                                 babyCotPrice: bed.baby_cot_price || 0,
-                                extraBedAvailable: bed.extra_bed || false,
+                                extraBedAvailable: !!(bed.extra_bed == 1 || bed.extra_bed === true),
                                 babyCotAvailable: bed.baby_cot || false,
                                 weekendDays: weekendDays || [],
                                 roomData: roomDataWithPrices,
@@ -9250,52 +9287,78 @@
         const hasLunch = room.lunch == 1 || room.lunch === true;
         const hasDinner = room.dinner == 1 || room.dinner === true;
         
-        // Add "Room Only" option first
-        mealPlans.push({ 
-            value: 'room_only', 
-            label: 'room only' 
-        });
+        // Check if breakfast is complimentary (already included in room price)
+        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded);
         
-        // Add specific meal options based on availability
-        if (hasBreakfast) {
+        // If breakfast is complimentary, don't show "room only" - show "room with breakfast (complimentary)" instead
+        if (breakfastIncluded) {
+            // Breakfast is free/included, so "room only" would have same price as "room with breakfast"
+            // Show a single option indicating breakfast is complimentary
             mealPlans.push({ 
                 value: 'room_with_breakfast', 
-                label: 'room with breakfast' 
+                label: 'room with breakfast (complimentary)' 
             });
-        }
-        if (hasLunch) {
+        } else {
+            // Add "Room Only" option first (only when breakfast is NOT included)
             mealPlans.push({ 
-                value: 'room_with_lunch', 
-                label: 'room with lunch' 
+                value: 'room_only', 
+                label: 'room only' 
+            });
+            
+            // Add breakfast as paid option if available
+            if (hasBreakfast) {
+                mealPlans.push({ 
+                    value: 'room_with_breakfast', 
+                    label: 'room with breakfast' 
+                });
+            }
+        }
+        
+        if (hasLunch) {
+            // If breakfast is complimentary, lunch option should mention it
+            const lunchLabel = breakfastIncluded ? 'room with breakfast (complimentary) + lunch' : 'room with lunch';
+            const lunchValue = breakfastIncluded ? 'room_with_breakfast_+_lunch' : 'room_with_lunch';
+            mealPlans.push({ 
+                value: lunchValue, 
+                label: lunchLabel 
             });
         }
         if (hasDinner) {
+            // If breakfast is complimentary, dinner option should mention it
+            const dinnerLabel = breakfastIncluded ? 'room with breakfast (complimentary) + dinner' : 'room with dinner';
+            const dinnerValue = breakfastIncluded ? 'room_with_breakfast_+_dinner' : 'room_with_dinner';
             mealPlans.push({ 
-                value: 'room_with_dinner', 
-                label: 'room with dinner' 
+                value: dinnerValue, 
+                label: dinnerLabel 
             });
         }
         
         // Add combination meal options
-        if (hasBreakfast && hasLunch) {
+        if (!breakfastIncluded && hasBreakfast && hasLunch) {
+            // Only show this if breakfast is NOT complimentary (otherwise it's already covered above)
             mealPlans.push({ 
                 value: 'room_with_breakfast_+_lunch', 
                 label: 'room with breakfast + lunch' 
             });
         }
-        if (hasBreakfast && hasDinner) {
+        if (!breakfastIncluded && hasBreakfast && hasDinner) {
+            // Only show this if breakfast is NOT complimentary (otherwise it's already covered above)
             mealPlans.push({ 
                 value: 'room_with_breakfast_+_dinner', 
                 label: 'room with breakfast + dinner' 
             });
         }
         if (hasLunch && hasDinner) {
+            // Lunch + Dinner combo - add complimentary breakfast note if applicable
+            const ldLabel = breakfastIncluded ? 'room with breakfast (complimentary) + lunch + dinner' : 'room with lunch + dinner';
+            const ldValue = breakfastIncluded ? 'room_with_all_meals_(breakfast_+_lunch_+_dinner)' : 'room_with_lunch_+_dinner';
             mealPlans.push({ 
-                value: 'room_with_lunch_+_dinner', 
-                label: 'room with lunch + dinner' 
+                value: ldValue, 
+                label: ldLabel 
             });
         }
-        if (hasBreakfast && hasLunch && hasDinner) {
+        if (!breakfastIncluded && hasBreakfast && hasLunch && hasDinner) {
+            // Full meal plan - only show if breakfast is NOT complimentary (covered above otherwise)
             mealPlans.push({ 
                 value: 'room_with_all_meals_(breakfast_+_lunch_+_dinner)', 
                 label: 'room with all meals (breakfast + lunch + dinner)' 
@@ -9347,36 +9410,58 @@
             // Default rooms is 1 (will be adjusted when checkbox is checked)
             const defaultRooms = 1;
             
+            // Get extra bed, CWB, CNB, Infant prices from room data
+            const extraBedPrice = parseFloat(combo.extraBedPrice || combo.roomData?.extra_bed_price || 0);
+            const cwbPrice = parseFloat(combo.roomData?.child_with_bed_price || combo.roomData?.cwb_price || 0);
+            const cnbPrice = parseFloat(combo.roomData?.child_without_bed_price || combo.roomData?.cnb_price || 0);
+            const infantPrice = parseFloat(combo.roomData?.infant_price || combo.roomData?.babycot_price || 0);
+            
             row.innerHTML = `
                 <td style="padding: 2px 8px; text-align: center;">
                     <input type="checkbox" class="room-combination-checkbox" data-combo-id="${combo.id}">
                 </td>
                 <td style="padding: 2px 8px;">${combo.roomType}</td>
-                <td style="padding: 2px 8px;">${combo.bedType}${combo.extraBedAvailable && combo.extraBedPrice ? ` <small class="text-info">(Extra Bed: $${parseFloat(combo.extraBedPrice).toFixed(2)})</small>` : ''}</td>
+                <td style="padding: 2px 8px;">${combo.bedType}</td>
                 <td style="padding: 2px 8px;">${combo.mealPlanLabel}</td>
-                <td style="padding: 2px 8px; text-align: center;">${combo.maxOccupancy}</td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm combo-rooms" 
                            data-combo-id="${combo.id}" value="${defaultRooms}" min="1" 
                            style="font-size: 10px; padding: 2px 4px; text-align: center;">
                 </td>
+                <td style="padding: 2px 8px; text-align: center;" class="combo-price-cell">--</td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm combo-adults" 
-                           data-combo-id="${combo.id}" value="${defaultAdults}" min="1" max="${headerValues.adults}"
-                           style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm combo-sell" 
+                           data-combo-id="${combo.id}" value="0" min="0" step="0.01"
+                           style="font-size: 10px; padding: 2px 4px; text-align: center; width: 70px;">
                 </td>
-                <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm combo-extra-bed" 
-                           data-combo-id="${combo.id}" value="0" min="0" max="${headerValues.children}"
-                           ${!combo.extraBedAvailable ? 'disabled title="Extra bed not available"' : ''}
-                           style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                <td style="padding: 2px 8px; text-align: center;">
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <input type="checkbox" class="form-check-input combo-extra-bed-check" data-combo-id="${combo.id}" 
+                               ${!combo.extraBedAvailable ? 'disabled title="Extra bed not available"' : ''}>
+                        <small class="combo-extra-bed-price text-muted" style="font-size: 9px;">${extraBedPrice.toFixed(0)}</small>
+                    </div>
                 </td>
-                <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm combo-child-without" 
-                           data-combo-id="${combo.id}" value="0" min="0" max="${headerValues.children}"
-                           style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                <td style="padding: 2px 8px; text-align: center;">
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <input type="checkbox" class="form-check-input combo-cwb-check" data-combo-id="${combo.id}">
+                        <small class="combo-cwb-price text-muted" style="font-size: 9px;">${cwbPrice.toFixed(0)}</small>
+                    </div>
                 </td>
-                <td style="padding: 2px 8px;" class="combo-price-cell">--</td>
+                <td style="padding: 2px 8px; text-align: center;">
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <input type="checkbox" class="form-check-input combo-cnb-check" data-combo-id="${combo.id}">
+                        <small class="combo-cnb-price text-muted" style="font-size: 9px;">${cnbPrice.toFixed(0)}</small>
+                    </div>
+                </td>
+                <td style="padding: 2px 8px; text-align: center;">
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <input type="checkbox" class="form-check-input combo-infant-check" data-combo-id="${combo.id}">
+                        <small class="combo-infant-price text-muted" style="font-size: 9px;">${infantPrice.toFixed(0)}</small>
+                    </div>
+                </td>
+                <td style="padding: 2px 8px; text-align: center;">
+                    <input type="checkbox" class="form-check-input combo-supplement-check" data-combo-id="${combo.id}">
+                </td>
             `;
             
             tbody.appendChild(row);
@@ -9387,72 +9472,26 @@
             if (!combo) return;
             const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
             if (!row) return;
-            const adultsInput = row.querySelector('.combo-adults');
-            const childBedInput = row.querySelector('.combo-extra-bed');
-            const childNoBedInput = row.querySelector('.combo-child-without');
-            const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || combo.maxOccupancy || 0);
-
-            let adults = parseInt(adultsInput.value || 0);
-            let childWithBed = parseInt(childBedInput.value || 0);
-            let childWithoutBed = parseInt(childNoBedInput.value || 0);
-            const minAdultsPerRoom = 2;
-
-            // Ensure minimum 2 adults per room
-            if (adults > 0 && adults < minAdultsPerRoom) {
-                adults = minAdultsPerRoom;
-            }
-
-            // Header caps
-            adults = Math.min(adults, headerValues.adults);
-            childWithBed = Math.min(childWithBed, headerValues.children);
-            childWithoutBed = Math.min(childWithoutBed, headerValues.children);
-
-            // Max occupancy check
-            let totalOcc = adults + childWithBed + childWithoutBed;
-            if (maxOccupancy && totalOcc > maxOccupancy) {
-                const allowedChildren = Math.max(0, maxOccupancy - adults);
-                if (childWithBed + childWithoutBed > allowedChildren) {
-                    const available = allowedChildren;
-                    // prioritize with bed, trim without bed if needed
-                    if (childWithBed > available) {
-                        childWithBed = available;
-                        childWithoutBed = 0;
-                    } else {
-                        childWithoutBed = Math.max(0, available - childWithBed);
-                    }
-                }
-                totalOcc = adults + childWithBed + childWithoutBed;
-            }
-
-            adultsInput.value = adults;
-            childBedInput.value = childWithBed;
-            childNoBedInput.value = childWithoutBed;
-
+            
+            // New simplified structure - calculate average room price per night
             const perNight = computePerNightRoomPrice(combo, {
-                adults,
-                childWithBed,
-                childWithoutBed
+                adults: 2,  // Default 2 adults for pricing
+                childWithBed: 0,
+                childWithoutBed: 0
             });
             combo.price = perNight;
+            
             const priceCell = row.querySelector('.combo-price-cell');
+            const sellInput = row.querySelector('.combo-sell');
+            
             if (priceCell) {
-                // Debug first combo calculation
-                if (window.currentRoomCombinations && window.currentRoomCombinations.indexOf(combo) === 0) {
-                    console.log('Price calc result for first combo:', {
-                        perNight: perNight,
-                        isFinite: Number.isFinite(perNight),
-                        roomData: combo.roomData,
-                        weekday_price: combo.roomData?.weekday_price,
-                        weekend_price: combo.roomData?.weekend_price,
-                        double_weekday_price: combo.roomData?.double_weekday_price,
-                        double_weekend_price: combo.roomData?.double_weekend_price,
-                        dates: getStayDates().length,
-                        occupancy: { adults, childWithBed, childWithoutBed }
-                    });
-                }
                 // Display price - show 0.00 if price is 0, or '--' if invalid/NaN
                 if (Number.isFinite(perNight)) {
                     priceCell.textContent = perNight.toFixed(2);
+                    // Also update the sell input if it's empty or 0
+                    if (sellInput && (!sellInput.value || sellInput.value === '0' || parseFloat(sellInput.value) === 0)) {
+                        sellInput.value = perNight.toFixed(2);
+                    }
                 } else {
                     priceCell.textContent = '--';
                     console.warn('Invalid price calculated:', perNight, 'for combo:', combo.id);
@@ -9460,11 +9499,11 @@
             }
         };
 
-        // Function to distribute total pax across all checked rooms intelligently
-        // Example: 7 pax = 3 rooms with 2 pax each + 1 room with 1 pax
+        // Function to calculate rooms needed based on pax and update room counts
         const distributePaxAcrossRooms = () => {
             const headerValues = getHeaderValues();
-            const totalPax = headerValues.adults + headerValues.children;
+            const totalAdults = headerValues.adults || 0;
+            const totalChildren = headerValues.children || 0;
             
             // Get all checked combinations
             const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
@@ -9473,316 +9512,53 @@
                 return;
             }
             
-            // Collect all checked room data
-            const checkedRooms = [];
-            checkedBoxes.forEach(checkbox => {
+            // Default adults per room is 2 (double sharing)
+            const defaultAdultsPerRoom = 2;
+            const totalPax = totalAdults + totalChildren;
+            
+            // Calculate rooms needed: pax/2 rounded up
+            const roomsNeeded = Math.ceil(totalPax / defaultAdultsPerRoom);
+            
+            // Update rooms count for each checked room
+            checkedBoxes.forEach((checkbox, index) => {
                 const comboId = checkbox.getAttribute('data-combo-id');
                 const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
                 if (!row) return;
                 
+                const roomsInput = row.querySelector('.combo-rooms');
                 const combo = window.currentRoomCombinations.find(c => c.id === comboId);
-                if (!combo) return;
                 
-                const roomsInput = row.querySelector('.combo-rooms');
-                const adultsInput = row.querySelector('.combo-adults');
-                const extraBedInput = row.querySelector('.combo-extra-bed');
-                const childWithoutInput = row.querySelector('.combo-child-without');
-                const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || 0);
-                const extraBedAvailable = row.getAttribute('data-extra-bed-available') === 'true';
-                
-                checkedRooms.push({
-                    comboId: comboId,
-                    row: row,
-                    roomsInput: roomsInput,
-                    adultsInput: adultsInput,
-                    extraBedInput: extraBedInput,
-                    childWithoutInput: childWithoutInput,
-                    maxOccupancy: maxOccupancy,
-                    extraBedAvailable: extraBedAvailable,
-                    combo: combo
-                });
-            });
-            
-            if (checkedRooms.length === 0) {
-                return;
-            }
-            
-            // If only one room is checked, set default to 2 pax and calculate rooms needed
-            if (checkedRooms.length === 1) {
-                const room = checkedRooms[0];
-                const defaultPaxPerRoom = 2;
-                const roomsNeeded = Math.ceil(totalPax / defaultPaxPerRoom);
-                
-                room.adultsInput.value = defaultPaxPerRoom;
-                room.extraBedInput.value = 0;
-                room.childWithoutInput.value = 0;
-                room.roomsInput.value = roomsNeeded;
-                
-                // Recalculate price
-                recalcPrice(room.comboId);
-                return;
-            }
-            
-            // Multiple rooms: distribute pax intelligently
-            // Strategy: Ensure minimum 2 adults per room, then distribute remainder intelligently
-            const minAdultsPerRoom = 2;
-            const defaultPaxPerRoom = 2;
-            
-            // Calculate total rooms needed (minimum 2 adults per room)
-            const totalRoomsNeeded = Math.ceil(totalPax / minAdultsPerRoom);
-            
-            // Initialize all checked rooms with 0 rooms
-            checkedRooms.forEach(room => {
-                room.roomsInput.value = 0;
-                room.adultsInput.value = minAdultsPerRoom;
-                room.extraBedInput.value = 0;
-                room.childWithoutInput.value = 0;
-            });
-            
-            let remainingPax = totalPax;
-            let totalRoomsAssigned = 0;
-            
-            // First pass: Assign at least 1 room with 2 adults to each checked combination
-            // This ensures each room type gets at least 1 room with minimum 2 adults
-            checkedRooms.forEach((room, index) => {
-                if (remainingPax >= minAdultsPerRoom && totalRoomsAssigned < totalRoomsNeeded) {
-                    room.roomsInput.value = 1;
-                    room.adultsInput.value = minAdultsPerRoom;
-                    room.extraBedInput.value = 0;
-                    room.childWithoutInput.value = 0;
-                    remainingPax -= minAdultsPerRoom;
-                    totalRoomsAssigned += 1;
-                }
-            });
-            
-            // Second pass: Distribute remaining pax and additional rooms
-            // Strategy: Add rooms with 2 adults each until we can't fit another full room
-            while (remainingPax >= minAdultsPerRoom && totalRoomsAssigned < totalRoomsNeeded) {
-                // Find the room combination with the least rooms assigned
-                let minRoomsRoom = checkedRooms[0];
-                let minRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                
-                checkedRooms.forEach(room => {
-                    const currentRooms = parseInt(room.roomsInput.value || 0);
-                    if (currentRooms < minRooms) {
-                        minRooms = currentRooms;
-                        minRoomsRoom = room;
-                    }
-                });
-                
-                // Add one more room with 2 adults to balance distribution
-                const currentRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                minRoomsRoom.roomsInput.value = currentRooms + 1;
-                minRoomsRoom.adultsInput.value = minAdultsPerRoom;
-                remainingPax -= minAdultsPerRoom;
-                totalRoomsAssigned += 1;
-            }
-            
-            // Third pass: Handle remaining pax (if less than 2, add to last room or add extra room)
-            if (remainingPax > 0 && remainingPax < minAdultsPerRoom) {
-                // Try to add remaining pax to the last room that was assigned
-                // Check if we can add it to an existing room without exceeding max occupancy
-                let addedToExisting = false;
-                
-                for (let i = checkedRooms.length - 1; i >= 0; i--) {
-                    const room = checkedRooms[i];
-                    const currentRooms = parseInt(room.roomsInput.value || 0);
-                    
-                    if (currentRooms > 0) {
-                        const currentAdults = parseInt(room.adultsInput.value || minAdultsPerRoom);
-                        const maxOccupancy = room.maxOccupancy || 999; // Default to high value if not set
-                        const currentOccupancy = currentAdults + parseInt(room.extraBedInput.value || 0) + parseInt(room.childWithoutInput.value || 0);
-                        
-                        // Check if we can add remaining pax to this room's last room
-                        if (currentOccupancy + remainingPax <= maxOccupancy) {
-                            // Add to adults (since we're ensuring minimum 2 adults, this is safe)
-                            room.adultsInput.value = currentAdults + remainingPax;
-                            remainingPax = 0;
-                            addedToExisting = true;
-                            break;
-                        }
-                    }
+                // First checked room gets all the rooms, others get 0
+                if (index === 0) {
+                    if (roomsInput) roomsInput.value = Math.max(1, roomsNeeded);
+                } else {
+                    if (roomsInput) roomsInput.value = 0;
                 }
                 
-                // If couldn't add to existing room, add a new room with minimum 2 adults
-                // The extra pax will be distributed across rooms
-                if (!addedToExisting) {
-                    // Find room with least rooms to add one more
-                    let minRoomsRoom = checkedRooms[0];
-                    let minRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                    
-                    checkedRooms.forEach(room => {
-                        const currentRooms = parseInt(room.roomsInput.value || 0);
-                        if (currentRooms < minRooms) {
-                            minRooms = currentRooms;
-                            minRoomsRoom = room;
-                        }
-                    });
-                    
-                    const currentRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                    minRoomsRoom.roomsInput.value = currentRooms + 1;
-                    // Set to minimum 2 adults (remaining pax will be handled by adjusting other rooms)
-                    minRoomsRoom.adultsInput.value = minAdultsPerRoom;
-                    
-                    // Now we have extra capacity, redistribute to balance
-                    // Add the remaining pax to the room that can accommodate it
-                    const totalExtraCapacity = minAdultsPerRoom - remainingPax;
-                    if (totalExtraCapacity > 0) {
-                        // Find a room that can take the extra capacity
-                        for (let i = 0; i < checkedRooms.length; i++) {
-                            const room = checkedRooms[i];
-                            const currentAdults = parseInt(room.adultsInput.value || minAdultsPerRoom);
-                            const maxOccupancy = room.maxOccupancy || 999;
-                            const currentOccupancy = currentAdults + parseInt(room.extraBedInput.value || 0) + parseInt(room.childWithoutInput.value || 0);
-                            
-                            if (currentOccupancy + totalExtraCapacity <= maxOccupancy) {
-                                room.adultsInput.value = currentAdults + totalExtraCapacity;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Recalculate prices for all rooms
-            checkedRooms.forEach(room => {
-                if (parseInt(room.roomsInput.value || 0) > 0) {
-                    recalcPrice(room.comboId);
+                // Update pricing
+                recalcPrice(comboId);
+                
+                // Update pricing summary for first combo
+                if (index === 0 && combo && typeof updatePricingSummary === 'function') {
+                    updatePricingSummary(combo);
                 }
             });
         };
-        
-        // Function to validate and adjust total occupancy to match total pax
-        const validateTotalOccupancy = () => {
-            const headerValues = getHeaderValues();
-            const totalPax = headerValues.adults + headerValues.children;
-            const minAdultsPerRoom = 2;
-            
-            // Get all checked combinations
-            const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
-            
-            if (checkedBoxes.length === 0) {
-                return;
-            }
-            
-            // Calculate current total occupancy and check for minimum adults per room
-            let totalOccupancy = 0;
-            let needsRedistribution = false;
-            const roomData = [];
-            
-            checkedBoxes.forEach(checkbox => {
-                const comboId = checkbox.getAttribute('data-combo-id');
-                const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
-                if (!row) return;
-                
-                const roomsInput = row.querySelector('.combo-rooms');
-                const adultsInput = row.querySelector('.combo-adults');
-                const extraBedInput = row.querySelector('.combo-extra-bed');
-                const childWithoutInput = row.querySelector('.combo-child-without');
-                
-                const rooms = parseInt(roomsInput.value || 1);
-                let adults = parseInt(adultsInput.value || 2);
-                const extraBed = parseInt(extraBedInput.value || 0);
-                const childWithout = parseInt(childWithoutInput.value || 0);
-                
-                // Ensure minimum 2 adults per room
-                if (adults < minAdultsPerRoom && rooms > 0) {
-                    adults = minAdultsPerRoom;
-                    adultsInput.value = minAdultsPerRoom;
-                    needsRedistribution = true;
-                }
-                
-                const occupancyPerRoom = adults + extraBed + childWithout;
-                const comboOccupancy = rooms * occupancyPerRoom;
-                totalOccupancy += comboOccupancy;
-                
-                roomData.push({
-                    comboId: comboId,
-                    row: row,
-                    roomsInput: roomsInput,
-                    adultsInput: adultsInput,
-                    extraBedInput: extraBedInput,
-                    childWithoutInput: childWithoutInput,
-                    rooms: rooms,
-                    adults: adults,
-                    extraBed: extraBed,
-                    childWithout: childWithout,
-                    occupancyPerRoom: occupancyPerRoom,
-                    comboOccupancy: comboOccupancy
-                });
-            });
-            
-            // If total occupancy doesn't match total pax or minimum adults violated, redistribute
-            if (totalOccupancy !== totalPax || needsRedistribution) {
-                distributePaxAcrossRooms();
-            }
-        };
-        
-        // Add validation event listeners
-        tbody.querySelectorAll('.combo-adults').forEach(input => {
-            input.addEventListener('input', function() {
-                const max = parseInt(this.getAttribute('max'));
-                const comboId = this.getAttribute('data-combo-id');
-                const minAdultsPerRoom = 2;
-                let adults = parseInt(this.value || minAdultsPerRoom);
-                
-                // Ensure minimum 2 adults per room
-                if (adults < minAdultsPerRoom) {
-                    adults = minAdultsPerRoom;
-                    this.value = minAdultsPerRoom;
-                    alert(`Minimum ${minAdultsPerRoom} adults required per room.`);
-                }
-                
-                if (adults > max) {
-                    adults = max;
-                    this.value = max;
-                    alert(`Adults cannot exceed ${max} (header value)`);
-                }
-                
-                // If adults changed to 3 and extra bed is available, adjust rooms
-                const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
-                if (row) {
-                    const extraBedAvailable = row.getAttribute('data-extra-bed-available') === 'true';
-                    
-                    if (adults > 2 && !extraBedAvailable) {
-                        // If extra bed not available, limit to 2 adults
-                        adults = 2;
-                        this.value = 2;
-                        alert('Extra bed not available. Maximum 2 adults per room.');
-                    }
-                }
-                
-                recalcPrice(comboId);
-                // Redistribute pax across all checked rooms when pax changes
-                distributePaxAcrossRooms();
-                validateTotalOccupancy();
-            });
-        });
-        
-        tbody.querySelectorAll('.combo-extra-bed, .combo-child-without').forEach(input => {
-            input.addEventListener('input', function() {
-                const max = parseInt(this.getAttribute('max'));
-                const comboId = this.getAttribute('data-combo-id');
-                
-                if (parseInt(this.value) > max) {
-                    this.value = max;
-                    alert(`Children count cannot exceed ${max} (header value)`);
-                }
-                
-                recalcPrice(comboId);
-                // Redistribute pax across all checked rooms when pax changes
-                distributePaxAcrossRooms();
-                validateTotalOccupancy();
-            });
-        });
         
         // Add event listener for room count changes
         tbody.querySelectorAll('.combo-rooms').forEach(input => {
             input.addEventListener('input', function() {
                 const comboId = this.getAttribute('data-combo-id');
                 recalcPrice(comboId);
-                // When room quantity changes, redistribute pax to match total
-                validateTotalOccupancy();
+            });
+        });
+        
+        // Add event listener for sell input changes
+        tbody.querySelectorAll('.combo-sell').forEach(input => {
+            input.addEventListener('input', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                // Mark as user-edited
+                this.setAttribute('data-user-edited', 'true');
             });
         });
         
@@ -9792,35 +9568,25 @@
                 const comboId = this.getAttribute('data-combo-id');
                 const isChecked = this.checked;
                 
-                // When checkbox is toggled, redistribute pax across all checked rooms
+                // When checkbox is toggled, update room counts
                 if (isChecked) {
-                    // When checking a room, set default values first
                     const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
                     if (row) {
-                        const adultsInput = row.querySelector('.combo-adults');
-                        const extraBedInput = row.querySelector('.combo-extra-bed');
-                        const childWithoutInput = row.querySelector('.combo-child-without');
                         const roomsInput = row.querySelector('.combo-rooms');
-                        
-                        // Set default: 2 pax per room
-                        if (!adultsInput.value || parseInt(adultsInput.value) === 0) {
-                            adultsInput.value = 2;
-                        }
-                        if (!extraBedInput.value) {
-                            extraBedInput.value = 0;
-                        }
-                        if (!childWithoutInput.value) {
-                            childWithoutInput.value = 0;
-                        }
                         if (!roomsInput.value || parseInt(roomsInput.value) === 0) {
                             roomsInput.value = 1;
                         }
                     }
+                    
+                    // Calculate rooms needed and update
+                    distributePaxAcrossRooms();
+                    
+                    // Update pricing summary when checkbox is checked
+                    const combo = window.currentRoomCombinations.find(c => c.id === comboId);
+                    if (combo && typeof updatePricingSummary === 'function') {
+                        updatePricingSummary(combo);
+                    }
                 }
-                
-                // Redistribute pax across all checked rooms
-                distributePaxAcrossRooms();
-                validateTotalOccupancy();
             });
         });
 
@@ -9915,14 +9681,16 @@
             return (!isNaN(num) && num >= 0) ? num : 0;
         };
         
-        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        // Use child_with_bed and child_without_bed prices from the rooms table
+        const childWithBedPrice = parsePrice(room.child_with_bed || room.childWithBed || 0);
+        const childWithoutBedPrice = parsePrice(room.child_without_bed || room.childWithoutBed || 0);
         const childBreakfastPrice = parsePrice(room.child_breakfast_price || room.childBreakfastPrice || 0);
         const childLunchPrice = parsePrice(room.child_lunch_price || room.childLunchPrice || 0);
         const childDinnerPrice = parsePrice(room.child_dinner_price || room.childDinnerPrice || 0);
         
         if (!dates.length) {
-            // If no dates, calculate base price
-            let basePrice = isWithBed ? extraBedPrice : 0;
+            // If no dates, calculate base price using child_with_bed or child_without_bed from database
+            let basePrice = isWithBed ? childWithBedPrice : childWithoutBedPrice;
             
             // Add meal costs
             const mealCost = computeMealCost(room, mealPlan, 0, 1); // 0 adults, 1 child
@@ -9932,7 +9700,8 @@
         // Calculate average price across all nights
         let totalPrice = 0;
         dates.forEach(() => {
-            let nightPrice = isWithBed ? extraBedPrice : 0;
+            // Use child_with_bed or child_without_bed price from database
+            let nightPrice = isWithBed ? childWithBedPrice : childWithoutBedPrice;
             // Add meal costs (meals are per night)
             const mealCost = computeMealCost(room, mealPlan, 0, 1);
             totalPrice += nightPrice + mealCost;
@@ -9941,6 +9710,95 @@
         return dates.length ? (totalPrice / dates.length) : 0;
     }
     
+    // Helper function to compute weekday-only price
+    function computeWeekdayPrice(combo, occupancy) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        const weekdaySingle = parsePrice(room.weekday_price || room.weekdayPrice || 0);
+        const doubleWeekday = parsePrice(room.double_weekday_price || room.doubleWeekdayPrice || room.weekday_price || room.weekdayPrice || 0);
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
+        const adults = parseInt(occupancy.adults || 0);
+        const childWithBed = parseInt(occupancy.childWithBed || 0);
+        const occupantsWithBed = adults + childWithBed;
+        const isSingleOccupancy = occupantsWithBed <= 1;
+        const isTripleOccupancy = occupantsWithBed >= 3;
+        
+        let basePrice = isSingleOccupancy ? weekdaySingle : (doubleWeekday || weekdaySingle);
+        
+        if (isTripleOccupancy) {
+            const extraBedsNeeded = occupantsWithBed - 2;
+            basePrice += extraBedPrice * extraBedsNeeded;
+        }
+        
+        const mealCost = computeMealCost(room, mealPlan, adults, (occupancy.childWithBed || 0) + (occupancy.childWithoutBed || 0));
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute weekend-only price
+    function computeWeekendPrice(combo, occupancy) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        const weekendSingle = parsePrice(room.weekend_price || room.weekendPrice || room.weekday_price || room.weekdayPrice || 0);
+        const doubleWeekend = parsePrice(room.double_weekend_price || room.doubleWeekendPrice || room.double_weekday_price || room.doubleWeekdayPrice || room.weekend_price || room.weekendPrice || 0);
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
+        const adults = parseInt(occupancy.adults || 0);
+        const childWithBed = parseInt(occupancy.childWithBed || 0);
+        const occupantsWithBed = adults + childWithBed;
+        const isSingleOccupancy = occupantsWithBed <= 1;
+        const isTripleOccupancy = occupantsWithBed >= 3;
+        
+        let basePrice = isSingleOccupancy ? weekendSingle : (doubleWeekend || weekendSingle);
+        
+        if (isTripleOccupancy) {
+            const extraBedsNeeded = occupantsWithBed - 2;
+            basePrice += extraBedPrice * extraBedsNeeded;
+        }
+        
+        const mealCost = computeMealCost(room, mealPlan, adults, (occupancy.childWithBed || 0) + (occupancy.childWithoutBed || 0));
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute child weekday price
+    function computeChildWeekdayPrice(combo, isWithBed) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        // Use child_with_bed and child_without_bed prices from the rooms table
+        const childWithBedPrice = parsePrice(room.child_with_bed || room.childWithBed || 0);
+        const childWithoutBedPrice = parsePrice(room.child_without_bed || room.childWithoutBed || 0);
+        let basePrice = isWithBed ? childWithBedPrice : childWithoutBedPrice;
+        const mealCost = computeMealCost(room, mealPlan, 0, 1); // 0 adults, 1 child
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute child weekend price (same as weekday for children since extra bed price is constant)
+    function computeChildWeekendPrice(combo, isWithBed) {
+        // Child prices typically don't differ between weekday/weekend (extra bed is flat rate)
+        return computeChildWeekdayPrice(combo, isWithBed);
+    }
+
     // Update pricing summary at the bottom
     function updatePricingSummary(combo) {
         if (!combo) return;
@@ -9964,6 +9822,29 @@
         const childWithoutBedCost = calculateChildPricing(combo, false);
         const infantCost = 0; // Infants typically free
         
+        // Calculate weekday prices
+        const singleWeekday = computeWeekdayPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
+        const twinWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
+        const tripleWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
+        const childWithBedWeekday = computeChildWeekdayPrice(combo, true);
+        const childWithoutBedWeekday = computeChildWeekdayPrice(combo, false);
+        
+        // Calculate weekend prices
+        const singleWeekend = computeWeekendPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
+        const twinWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
+        const tripleWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
+        const childWithBedWeekend = computeChildWeekendPrice(combo, true);
+        const childWithoutBedWeekend = computeChildWeekendPrice(combo, false);
+        
+        // Get extra bed price for display
+        const room = combo.roomData || {};
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
         // Round all prices to next 0 (ceiling)
         const singleCostRounded = roundToNextZero(singleCost);
         const twinCostRounded = roundToNextZero(twinCost);
@@ -9972,7 +9853,28 @@
         const childWithoutBedCostRounded = roundToNextZero(childWithoutBedCost);
         const infantCostRounded = roundToNextZero(infantCost);
         
-        // Update Cost display (read-only text)
+        // Update Weekday Cost display
+        const updateEl = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = Number.isFinite(value) ? roundToNextZero(value).toFixed(2) : '--';
+        };
+        
+        updateEl('pricingSummarySingleWeekdayCost', singleWeekday);
+        updateEl('pricingSummaryTwinWeekdayCost', twinWeekday);
+        updateEl('pricingSummaryTripleWeekdayCost', tripleWeekday);
+        updateEl('pricingSummaryChildWithBedWeekdayCost', childWithBedWeekday);
+        updateEl('pricingSummaryChildWithoutBedWeekdayCost', childWithoutBedWeekday);
+        updateEl('pricingSummaryInfantWeekdayCost', 0);
+        
+        // Update Weekend Cost display
+        updateEl('pricingSummarySingleWeekendCost', singleWeekend);
+        updateEl('pricingSummaryTwinWeekendCost', twinWeekend);
+        updateEl('pricingSummaryTripleWeekendCost', tripleWeekend);
+        updateEl('pricingSummaryChildWithBedWeekendCost', childWithBedWeekend);
+        updateEl('pricingSummaryChildWithoutBedWeekendCost', childWithoutBedWeekend);
+        updateEl('pricingSummaryInfantWeekendCost', 0);
+        
+        // Update Average Cost display
         const singleCostEl = document.getElementById('pricingSummarySingleCost');
         const twinCostEl = document.getElementById('pricingSummaryTwinCost');
         const tripleCostEl = document.getElementById('pricingSummaryTripleCost');
@@ -9986,6 +9888,10 @@
         if (childWithBedCostEl) childWithBedCostEl.textContent = Number.isFinite(childWithBedCostRounded) ? childWithBedCostRounded.toFixed(2) : '--';
         if (childWithoutBedCostEl) childWithoutBedCostEl.textContent = Number.isFinite(childWithoutBedCostRounded) ? childWithoutBedCostRounded.toFixed(2) : '--';
         if (infantCostEl) infantCostEl.textContent = Number.isFinite(infantCostRounded) ? infantCostRounded.toFixed(2) : '--';
+        
+        // Update extra bed price display
+        const extraBedPriceEl = document.getElementById('pricingSummaryExtraBedPrice');
+        if (extraBedPriceEl) extraBedPriceEl.textContent = '$' + extraBedPrice.toFixed(2);
         
         // Update Sell inputs (editable, default to cost value if empty)
         const singleSellEl = document.getElementById('pricingSummarySingleSell');
@@ -10104,27 +10010,34 @@
             const combo = window.currentRoomCombinations.find(c => c.id === comboId);
             
             if (combo) {
-                // Get the input values for this combination
+                // Get the input values for this combination (new simplified structure)
                 const roomsInput = document.querySelector(`.combo-rooms[data-combo-id="${comboId}"]`);
-                const adultsInput = document.querySelector(`.combo-adults[data-combo-id="${comboId}"]`);
-                const extraBedInput = document.querySelector(`.combo-extra-bed[data-combo-id="${comboId}"]`);
-                const childWithoutInput = document.querySelector(`.combo-child-without[data-combo-id="${comboId}"]`);
+                const sellInput = document.querySelector(`.combo-sell[data-combo-id="${comboId}"]`);
+                const extraBedCheck = document.querySelector(`.combo-extra-bed-check[data-combo-id="${comboId}"]`);
+                const cwbCheck = document.querySelector(`.combo-cwb-check[data-combo-id="${comboId}"]`);
+                const cnbCheck = document.querySelector(`.combo-cnb-check[data-combo-id="${comboId}"]`);
+                const infantCheck = document.querySelector(`.combo-infant-check[data-combo-id="${comboId}"]`);
+                const supplementCheck = document.querySelector(`.combo-supplement-check[data-combo-id="${comboId}"]`);
                 
-                const adultsVal = parseInt(adultsInput?.value || 0);
-                const extraBedVal = parseInt(extraBedInput?.value || 0);
-                const childWithoutVal = parseInt(childWithoutInput?.value || 0);
-                const totalOcc = adultsVal + extraBedVal + childWithoutVal;
-                if (combo.maxOccupancy && totalOcc > combo.maxOccupancy) {
-                    alert(`Total occupants (${totalOcc}) cannot exceed max occupancy ${combo.maxOccupancy} for this room.`);
-                    return;
-                }
+                // Get prices from room data
+                const extraBedPrice = parseFloat(combo.extraBedPrice || combo.roomData?.extra_bed_price || 0);
+                const cwbPrice = parseFloat(combo.roomData?.child_with_bed_price || combo.roomData?.cwb_price || 0);
+                const cnbPrice = parseFloat(combo.roomData?.child_without_bed_price || combo.roomData?.cnb_price || 0);
+                const infantPrice = parseFloat(combo.roomData?.infant_price || combo.roomData?.babycot_price || 0);
 
                 selectedCombos.push({
                     ...combo,
                     rooms: parseInt(roomsInput?.value || 1),
-                    adultsPerRoom: adultsVal,
-                    extraBed: extraBedVal,
-                    childWithoutBed: childWithoutVal
+                    sell: parseFloat(sellInput?.value || combo.price || 0),
+                    hasExtraBed: extraBedCheck?.checked || false,
+                    extraBedPrice: extraBedCheck?.checked ? extraBedPrice : 0,
+                    hasCwb: cwbCheck?.checked || false,
+                    cwbPrice: cwbCheck?.checked ? cwbPrice : 0,
+                    hasCnb: cnbCheck?.checked || false,
+                    cnbPrice: cnbCheck?.checked ? cnbPrice : 0,
+                    hasInfant: infantCheck?.checked || false,
+                    infantPrice: infantCheck?.checked ? infantPrice : 0,
+                    supplement: supplementCheck?.checked || false
                 });
             } else {
                 console.warn('Combo not found for ID:', comboId);
@@ -10189,19 +10102,21 @@
             checkOut: checkOut,
             nights: nights,
             rooms: combo.rooms,
-            adultsPerRoom: combo.adultsPerRoom,
-            extraBed: combo.extraBed,
-            childWithoutBed: combo.childWithoutBed,
+            // New simplified structure
+            hasExtraBed: combo.hasExtraBed || false,
+            hasCwb: combo.hasCwb || false,
+            hasCnb: combo.hasCnb || false,
+            hasInfant: combo.hasInfant || false,
             mealPlan: combo.mealPlan, // Keep value for backward compatibility
             mealPlanLabel: combo.mealPlanLabel || combo.mealPlan, // Label format for single tour package
-            supplement: '',
+            supplement: combo.supplement || false,
             roomPrice: combo.price,
-            cost: singleCost || combo.price || 0,
-            sell: singleSell || combo.price || 0,
+            cost: combo.price || 0, // Avg cost per night
+            sell: combo.sell || combo.price || 0, // Sell price
             extraBedPrice: combo.extraBedPrice || 0,
-            cwb: combo.extraBed || 0,
-            cnb: combo.childWithoutBed || 0,
-            infant: 0, // Infant count per room combination (can be set per room if needed)
+            cwbPrice: combo.cwbPrice || 0,
+            cnbPrice: combo.cnbPrice || 0,
+            infantPrice: combo.infantPrice || 0,
             // Store room and bed data for reference
             roomData: combo.roomData,
             bedData: combo.bedData
@@ -10582,6 +10497,10 @@
                 const arrivalChild = parseInt(document.getElementById('arrivalChild')?.value || child);
                 const arrivalInfant = parseInt(document.getElementById('arrivalInfant')?.value || infant);
                 
+                // Get cost and sell from input fields
+                const arrivalCost = parseFloat(document.getElementById('arrivalCost')?.value || 0);
+                const arrivalSell = parseFloat(document.getElementById('arrivalSell')?.value || 0);
+                
                 const arrivalDestinationSelect = document.getElementById('arrivalDestination');
                 const arrivalDestinationId = arrivalDestinationSelect?.value || '';
                 const arrivalDestinationName = arrivalDestinationSelect?.selectedOptions[0]?.getAttribute('data-name') || '';
@@ -10646,6 +10565,10 @@
                             // Calculate prices
                             const prices = calculateTransferPrice(zonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
                             
+                            // Use manual cost/sell if provided, otherwise use calculated prices
+                            const finalCost = arrivalCost > 0 ? arrivalCost : prices.cost;
+                            const finalSell = arrivalSell > 0 ? arrivalSell : prices.sell;
+                            
                             // Update existing transfer
                             transferList[transferIndex] = {
                                 ...transferList[transferIndex],
@@ -10659,17 +10582,19 @@
                                 way: arrivalTransferWay,
                                 adults: arrivalAdults,
                                 child: arrivalChild,
-                                cost: prices.cost,
-                                sell: prices.sell,
+                                cost: finalCost,
+                                sell: finalSell,
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
                             
                             // Update arrival/departure entry prices
-                            arrivalDepartureList[index].adultCost = prices.cost;
-                            arrivalDepartureList[index].adultSell = prices.sell;
-                            arrivalDepartureList[index].childCost = prices.cost;
-                            arrivalDepartureList[index].childSell = prices.sell;
+                            arrivalDepartureList[index].cost = finalCost;
+                            arrivalDepartureList[index].sell = finalSell;
+                            arrivalDepartureList[index].adultCost = finalCost;
+                            arrivalDepartureList[index].adultSell = finalSell;
+                            arrivalDepartureList[index].childCost = finalCost;
+                            arrivalDepartureList[index].childSell = finalSell;
                         } else {
                             // Remove transfer if unchecked
                             transferList.splice(transferIndex, 1);
@@ -10717,6 +10642,10 @@
                     // Calculate prices
                     const prices = calculateTransferPrice(zonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
                     
+                    // Use manual cost/sell if provided, otherwise use calculated prices
+                    const finalCost = arrivalCost > 0 ? arrivalCost : prices.cost;
+                    const finalSell = arrivalSell > 0 ? arrivalSell : prices.sell;
+                    
                     // Create new transfer if checked and doesn't exist
                     const transferId = generateId('transfer');
                     transferList.push({
@@ -10736,17 +10665,19 @@
                         hasTransfer: true,
                         adults: arrivalAdults,
                         child: arrivalChild,
-                        cost: prices.cost,
-                        sell: prices.sell,
+                        cost: finalCost,
+                        sell: finalSell,
                         zonePrivatePrice: prices.privatePrice,
                         zoneSharedPrice: prices.sharedPrice,
                         taxIncluded: false
                     });
                     arrivalDepartureList[index].transferId = transferId;
-                    arrivalDepartureList[index].adultCost = prices.cost;
-                    arrivalDepartureList[index].adultSell = prices.sell;
-                    arrivalDepartureList[index].childCost = prices.cost;
-                    arrivalDepartureList[index].childSell = prices.sell;
+                    arrivalDepartureList[index].cost = finalCost;
+                    arrivalDepartureList[index].sell = finalSell;
+                    arrivalDepartureList[index].adultCost = finalCost;
+                    arrivalDepartureList[index].adultSell = finalSell;
+                    arrivalDepartureList[index].childCost = finalCost;
+                    arrivalDepartureList[index].childSell = finalSell;
                 }
             } else if (item.type === 'Departure' && departureDateTime && departurePortId) {
                 const departureTransfer = document.getElementById('departureTransfer')?.checked || false;
@@ -10763,6 +10694,10 @@
                 const departureAdults = parseInt(document.getElementById('departureAdults')?.value || adults);
                 const departureChild = parseInt(document.getElementById('departureChild')?.value || child);
                 const departureInfant = parseInt(document.getElementById('departureInfant')?.value || infant);
+                
+                // Get cost and sell from input fields
+                const departureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
+                const departureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
                 
                 const departureDestinationSelect = document.getElementById('departureDestination');
                 const departureDestinationId = departureDestinationSelect?.value || '';
@@ -10828,6 +10763,10 @@
                             // Calculate prices
                             const prices = calculateTransferPrice(zonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
                             
+                            // Use manual cost/sell if provided, otherwise use calculated prices
+                            const finalCost = departureCost > 0 ? departureCost : prices.cost;
+                            const finalSell = departureSell > 0 ? departureSell : prices.sell;
+                            
                             // Update existing transfer
                             transferList[transferIndex] = {
                                 ...transferList[transferIndex],
@@ -10841,17 +10780,19 @@
                                 way: departureTransferWay,
                                 adults: departureAdults,
                                 child: departureChild,
-                                cost: prices.cost,
-                                sell: prices.sell,
+                                cost: finalCost,
+                                sell: finalSell,
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
                             
                             // Update arrival/departure entry prices
-                            arrivalDepartureList[index].adultCost = prices.cost;
-                            arrivalDepartureList[index].adultSell = prices.sell;
-                            arrivalDepartureList[index].childCost = prices.cost;
-                            arrivalDepartureList[index].childSell = prices.sell;
+                            arrivalDepartureList[index].cost = finalCost;
+                            arrivalDepartureList[index].sell = finalSell;
+                            arrivalDepartureList[index].adultCost = finalCost;
+                            arrivalDepartureList[index].adultSell = finalSell;
+                            arrivalDepartureList[index].childCost = finalCost;
+                            arrivalDepartureList[index].childSell = finalSell;
                         } else {
                             // Remove transfer if unchecked
                             transferList.splice(transferIndex, 1);
@@ -10887,6 +10828,10 @@
                     // Calculate prices
                     const prices = calculateTransferPrice(zonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
                     
+                    // Use manual cost/sell if provided, otherwise use calculated prices
+                    const finalCost = departureCost > 0 ? departureCost : prices.cost;
+                    const finalSell = departureSell > 0 ? departureSell : prices.sell;
+                    
                     // Create new transfer if checked and doesn't exist
                     const transferId = generateId('transfer');
                     transferList.push({
@@ -10906,17 +10851,19 @@
                         hasTransfer: true,
                         adults: departureAdults,
                         child: departureChild,
-                        cost: prices.cost,
-                        sell: prices.sell,
+                        cost: finalCost,
+                        sell: finalSell,
                         zonePrivatePrice: prices.privatePrice,
                         zoneSharedPrice: prices.sharedPrice,
                         taxIncluded: false
                     });
                     arrivalDepartureList[index].transferId = transferId;
-                    arrivalDepartureList[index].adultCost = prices.cost;
-                    arrivalDepartureList[index].adultSell = prices.sell;
-                    arrivalDepartureList[index].childCost = prices.cost;
-                    arrivalDepartureList[index].childSell = prices.sell;
+                    arrivalDepartureList[index].cost = finalCost;
+                    arrivalDepartureList[index].sell = finalSell;
+                    arrivalDepartureList[index].adultCost = finalCost;
+                    arrivalDepartureList[index].adultSell = finalSell;
+                    arrivalDepartureList[index].childCost = finalCost;
+                    arrivalDepartureList[index].childSell = finalSell;
                 }
                 
                 // Handle arrival guide - only if arrival is properly booked (has date and port)
@@ -11746,7 +11693,7 @@
 
         // Close modal
         const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-        accommodationModal.hide();
+        if (accommodationModal) accommodationModal.hide();
 
         // Clear fields - use header values for pax counts
         const headerValues = getHeaderValues();
@@ -11931,6 +11878,14 @@
                 // Calculate vehicle price
                 const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
                 
+                // Get manual cost/sell from input fields
+                const manualArrivalCost = parseFloat(document.getElementById('arrivalCost')?.value || 0);
+                const manualArrivalSell = parseFloat(document.getElementById('arrivalSell')?.value || 0);
+                
+                // Use manual cost/sell if provided, otherwise use calculated price
+                const finalArrivalCost = manualArrivalCost > 0 ? manualArrivalCost : arrivalVehiclePrice;
+                const finalArrivalSell = manualArrivalSell > 0 ? manualArrivalSell : arrivalVehiclePrice;
+                
                 arrivalDepartureList.push({
                     id: arrivalId,
                     dateTime: arrivalDateTime,
@@ -11939,11 +11894,13 @@
                     flightNo: arrivalFlightNo || '-',
                     type: 'Arrival',
                     adultsQty: adults,
-                    adultCost: arrivalVehiclePrice,
-                    adultSell: arrivalVehiclePrice, // Default: cost = sell
+                    cost: finalArrivalCost,
+                    sell: finalArrivalSell,
+                    adultCost: finalArrivalCost,
+                    adultSell: finalArrivalSell,
                     childQty: child,
-                    childCost: arrivalVehiclePrice,
-                    childSell: arrivalVehiclePrice, // Default: cost = sell
+                    childCost: finalArrivalCost,
+                    childSell: finalArrivalSell,
                     infantQty: infant,
                     amount: 0,
                     hasTransfer: arrivalTransfer,
@@ -11966,6 +11923,14 @@
                 // Calculate vehicle price
                 const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
                 
+                // Get manual cost/sell from input fields
+                const manualDepartureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
+                const manualDepartureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
+                
+                // Use manual cost/sell if provided, otherwise use calculated price
+                const finalDepartureCost = manualDepartureCost > 0 ? manualDepartureCost : departureVehiclePrice;
+                const finalDepartureSell = manualDepartureSell > 0 ? manualDepartureSell : departureVehiclePrice;
+                
                 arrivalDepartureList.push({
                     id: departureId,
                     dateTime: departureDateTime,
@@ -11974,11 +11939,13 @@
                     flightNo: departureFlightNo || '-',
                     type: 'Departure',
                     adultsQty: adults,
-                    adultCost: departureVehiclePrice,
-                    adultSell: departureVehiclePrice, // Default: cost = sell
+                    cost: finalDepartureCost,
+                    sell: finalDepartureSell,
+                    adultCost: finalDepartureCost,
+                    adultSell: finalDepartureSell,
                     childQty: child,
-                    childCost: departureVehiclePrice,
-                    childSell: departureVehiclePrice, // Default: cost = sell
+                    childCost: finalDepartureCost,
+                    childSell: finalDepartureSell,
                     infantQty: infant,
                     amount: 0,
                     hasTransfer: departureTransfer,
@@ -12166,7 +12133,7 @@
             
             // Close modal
             const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-            accommodationModal.hide();
+            if (accommodationModal) accommodationModal.hide();
             
             // Reset arrival and departure guide checkboxes to prevent them from being processed again
             const arrivalGuideCheckbox = document.getElementById('arrivalGuideCheckbox');
@@ -12263,6 +12230,14 @@
                 const arrivalTransferWay = 'one-way';
                 const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
                 
+                // Get manual cost/sell from input fields
+                const manualArrivalCost = parseFloat(document.getElementById('arrivalCost')?.value || 0);
+                const manualArrivalSell = parseFloat(document.getElementById('arrivalSell')?.value || 0);
+                
+                // Use manual cost/sell if provided, otherwise use calculated price
+                const finalArrivalCost = manualArrivalCost > 0 ? manualArrivalCost : arrivalVehiclePrice;
+                const finalArrivalSell = manualArrivalSell > 0 ? manualArrivalSell : arrivalVehiclePrice;
+                
                 const arrival = {
                     id: arrivalId,
                     dateTime: arrivalDateTime,
@@ -12271,11 +12246,13 @@
                     flightNo: arrivalFlightNo || '-',
                     type: 'Arrival',
                     adultsQty: adults,
-                    adultCost: arrivalVehiclePrice,
-                    adultSell: arrivalVehiclePrice, // Default: cost = sell
+                    cost: finalArrivalCost,
+                    sell: finalArrivalSell,
+                    adultCost: finalArrivalCost,
+                    adultSell: finalArrivalSell,
                     childQty: child,
-                    childCost: arrivalVehiclePrice,
-                    childSell: arrivalVehiclePrice, // Default: cost = sell
+                    childCost: finalArrivalCost,
+                    childSell: finalArrivalSell,
                     infantQty: infant,
                     amount: 0,
                     hasTransfer: arrivalTransfer,
@@ -12342,6 +12319,14 @@
                 const departureTransferWay = 'one-way';
                 const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
                 
+                // Get manual cost/sell from input fields
+                const manualDepartureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
+                const manualDepartureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
+                
+                // Use manual cost/sell if provided, otherwise use calculated price
+                const finalDepartureCost = manualDepartureCost > 0 ? manualDepartureCost : departureVehiclePrice;
+                const finalDepartureSell = manualDepartureSell > 0 ? manualDepartureSell : departureVehiclePrice;
+                
                 const departure = {
                     id: departureId,
                     dateTime: departureDateTime,
@@ -12350,11 +12335,13 @@
                     flightNo: departureFlightNo || '-',
                     type: 'Departure',
                     adultsQty: adults,
-                    adultCost: departureVehiclePrice,
-                    adultSell: departureVehiclePrice, // Default: cost = sell
+                    cost: finalDepartureCost,
+                    sell: finalDepartureSell,
+                    adultCost: finalDepartureCost,
+                    adultSell: finalDepartureSell,
                     childQty: child,
-                    childCost: departureVehiclePrice,
-                    childSell: departureVehiclePrice, // Default: cost = sell
+                    childCost: finalDepartureCost,
+                    childSell: finalDepartureSell,
                     infantQty: infant,
                     amount: 0,
                     hasTransfer: departureTransfer,
@@ -12609,7 +12596,7 @@
 
         // Close modal
         const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-        accommodationModal.hide();
+        if (accommodationModal) accommodationModal.hide();
 
         // Clear temp list and arrival/departure fields
         selectedHotelsTemp = [];
@@ -12690,13 +12677,12 @@
                 <td><input type="datetime-local" value="${checkOutValue}" onchange="updateAccommodationField(${index}, 'checkOut', this.value); recalculateNights(${index})" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
                 <td><input type="number" value="${hotel.nights}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${hotel.rooms}" min="1" onchange="updateAccommodationField(${index}, 'rooms', this.value)"></td>
-                <td><input type="number" value="${hotel.adultsPerRoom}" min="1" onchange="updateAccommodationField(${index}, 'adultsPerRoom', this.value)"></td>
                 <td><input type="text" value="${(hotel.cost || hotel.roomPrice || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${(parseFloat(hotel.extraBedPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'extraBedPrice', parseFloat(this.value) || 0)"></td>
-                <td><input type="number" value="${hotel.cwb || hotel.extraBed || 0}" min="0" onchange="updateAccommodationField(${index}, 'cwb', parseInt(this.value) || 0); updateAccommodationField(${index}, 'extraBed', parseInt(this.value) || 0)"></td>
-                <td><input type="number" value="${hotel.cnb || hotel.childWithoutBed || 0}" min="0" onchange="updateAccommodationField(${index}, 'cnb', parseInt(this.value) || 0); updateAccommodationField(${index}, 'childWithoutBed', parseInt(this.value) || 0)"></td>
-                <td><input type="number" value="${hotel.infant || 0}" min="0" onchange="updateAccommodationField(${index}, 'infant', parseInt(this.value) || 0)"></td>
+                <td><input type="number" value="${(parseFloat(hotel.cwbPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'cwbPrice', parseFloat(this.value) || 0)"></td>
+                <td><input type="number" value="${(parseFloat(hotel.cnbPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'cnbPrice', parseFloat(this.value) || 0)"></td>
+                <td><input type="number" value="${(parseFloat(hotel.infantPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'infantPrice', parseFloat(this.value) || 0)"></td>
                 <td style="text-align: center;"><input type="checkbox" ${hotel.supplement ? 'checked' : ''} onchange="updateAccommodationField(${index}, 'supplement', this.checked)"></td>
             </tr>
         `;
@@ -13124,6 +13110,8 @@
             departureGuideSection.style.display = 'block';
         }
         
+        // Note: Cost/sell fields are inside transfer details section and will be shown/hidden by toggle functions
+        
         // Trigger toggle functions to show transfer sections when transfer is checked
         toggleArrivalTransferFields();
         toggleDepartureTransferFields();
@@ -13173,7 +13161,7 @@
             // Clear all arrival/departure fields ONLY if in ADD mode (not EDIT mode)
             if (window.isAddingNewArrivalDeparture) {
                 // Set arrival date to header start date with default time (00:00)
-                const tourStartDate = document.getElementById('tourStartDate')?.value;
+                const tourStartDate = getHeaderStartInput()?.value;
                 if (tourStartDate) {
                     document.getElementById('arrivalDateTime').value = tourStartDate + 'T00:00';
                 } else {
@@ -13214,7 +13202,7 @@
                 }
                 
                 // Set departure date to header end date with default time (00:00)
-                const tourEndDate = document.getElementById('tourEndDate')?.value;
+                const tourEndDate = getHeaderEndInput()?.value;
                 if (tourEndDate) {
                     document.getElementById('departureDateTime').value = tourEndDate + 'T00:00';
                 } else {
@@ -13546,6 +13534,9 @@
                     document.getElementById('arrivalAdults').value = arrivalDeparture.adultsQty || 2;
                     document.getElementById('arrivalChild').value = arrivalDeparture.childQty || 0;
                     document.getElementById('arrivalInfant').value = arrivalDeparture.infantQty || 0;
+                    // Populate cost and sell
+                    document.getElementById('arrivalCost').value = arrivalDeparture.cost || arrivalDeparture.adultCost || 0;
+                    document.getElementById('arrivalSell').value = arrivalDeparture.sell || arrivalDeparture.adultSell || 0;
                     
                     // Sync guide counts with transfer values
                     syncArrivalGuideCounts();
@@ -13559,7 +13550,32 @@
                                 arrivalGuideSection.style.display = 'block';
                             }
                             document.getElementById('arrivalGuideCheckbox').checked = true;
-                            document.getElementById('arrivalGuide').value = guideEntry.guideId;
+                            
+                            // Try to find guide ID by matching guide name if guideId is empty
+                            let guideIdToSet = guideEntry.guideId || guideEntry.guide_id || '';
+                            if (!guideIdToSet && guideEntry.guideName) {
+                                const arrivalGuideSelect = document.getElementById('arrivalGuide');
+                                if (arrivalGuideSelect) {
+                                    const guideOption = Array.from(arrivalGuideSelect.options).find(opt => {
+                                        const optName = opt.getAttribute('data-name') || '';
+                                        return optName === guideEntry.guideName || optName.trim() === guideEntry.guideName.trim();
+                                    });
+                                    if (guideOption) {
+                                        guideIdToSet = guideOption.value;
+                                    }
+                                }
+                            }
+                            
+                            document.getElementById('arrivalGuide').value = guideIdToSet;
+                            // Populate adult and child quantities
+                            const arrivalGuideAdultQty = document.getElementById('arrivalGuideAdultQty');
+                            const arrivalGuideChildQty = document.getElementById('arrivalGuideChildQty');
+                            if (arrivalGuideAdultQty) {
+                                arrivalGuideAdultQty.value = guideEntry.adultsQty || guideEntry.adults || 0;
+                            }
+                            if (arrivalGuideChildQty) {
+                                arrivalGuideChildQty.value = guideEntry.childQty || guideEntry.children || 0;
+                            }
                             const arrivalGuideFieldsRow = document.getElementById('arrivalGuideFieldsRow');
                             if (arrivalGuideFieldsRow) {
                                 arrivalGuideFieldsRow.style.display = 'block';
@@ -13607,6 +13623,9 @@
                     document.getElementById('departureAdults').value = arrivalDeparture.adultsQty || 2;
                     document.getElementById('departureChild').value = arrivalDeparture.childQty || 0;
                     document.getElementById('departureInfant').value = arrivalDeparture.infantQty || 0;
+                    // Populate cost and sell
+                    document.getElementById('departureCost').value = arrivalDeparture.cost || arrivalDeparture.adultCost || 0;
+                    document.getElementById('departureSell').value = arrivalDeparture.sell || arrivalDeparture.adultSell || 0;
                     
                     // Sync guide counts with transfer values
                     syncDepartureGuideCounts();
@@ -13620,7 +13639,32 @@
                                 departureGuideSection.style.display = 'block';
                             }
                             document.getElementById('departureGuideCheckbox').checked = true;
-                            document.getElementById('departureGuide').value = guideEntry.guideId;
+                            
+                            // Try to find guide ID by matching guide name if guideId is empty
+                            let guideIdToSet = guideEntry.guideId || guideEntry.guide_id || '';
+                            if (!guideIdToSet && guideEntry.guideName) {
+                                const departureGuideSelect = document.getElementById('departureGuide');
+                                if (departureGuideSelect) {
+                                    const guideOption = Array.from(departureGuideSelect.options).find(opt => {
+                                        const optName = opt.getAttribute('data-name') || '';
+                                        return optName === guideEntry.guideName || optName.trim() === guideEntry.guideName.trim();
+                                    });
+                                    if (guideOption) {
+                                        guideIdToSet = guideOption.value;
+                                    }
+                                }
+                            }
+                            
+                            document.getElementById('departureGuide').value = guideIdToSet;
+                            // Populate adult and child quantities
+                            const departureGuideAdultQty = document.getElementById('departureGuideAdultQty');
+                            const departureGuideChildQty = document.getElementById('departureGuideChildQty');
+                            if (departureGuideAdultQty) {
+                                departureGuideAdultQty.value = guideEntry.adultsQty || guideEntry.adults || 0;
+                            }
+                            if (departureGuideChildQty) {
+                                departureGuideChildQty.value = guideEntry.childQty || guideEntry.children || 0;
+                            }
                             const departureGuideFieldsRow = document.getElementById('departureGuideFieldsRow');
                             if (departureGuideFieldsRow) {
                                 departureGuideFieldsRow.style.display = 'block';
@@ -14183,12 +14227,15 @@
                     // Build table rows - one row per ticket
                     let html = '';
                     data.attractions.forEach(attr => {
-                        console.log('Attraction:', attr.name, 'Tickets:', attr.tickets);
+                        console.log('Attraction:', attr.name, 'attraction_type:', attr.attraction_type, 'Tickets:', attr.tickets);
                         
                         // Determine attraction type and label
-                        const attractionType = attr.attraction_type ?? 1;
-                        const isAttraction = (attractionType == 2);
+                        // attraction_type: 1 = Tour Sites, 2 = Attraction
+                        // Parse as integer to handle both string and number values
+                        const attractionType = parseInt(attr.attraction_type) || 1;
+                        const isAttraction = (attractionType === 2);
                         const typeLabel = isAttraction ? 'Attraction' : 'Tour Sites';
+                        console.log(`  -> ${attr.name}: type=${attractionType}, isAttraction=${isAttraction}, label=${typeLabel}`);
                         
                         // If attraction has tickets, create a row for each ticket
                         if (attr.tickets && attr.tickets.length > 0) {
@@ -14419,6 +14466,10 @@
                             filterAttractionVehiclesByServiceType(transferTypeSelect);
                         });
                         console.log('✓ Auto-selected vehicles in attraction popup based on pax and seat capacity');
+                        
+                        // Apply the attraction type filter based on radio button selection (default: attractions only)
+                        filterAttractionsByType();
+                        console.log('✓ Applied attraction type filter');
                     }, 100);
                 } else {
                     tbody.innerHTML = '<tr><td colspan="15" class="text-center text-muted" style="padding: 20px;">No attractions found for this destination</td></tr>';
@@ -14430,16 +14481,29 @@
             });
     }
     
-    // Filter attractions by type
+    // Filter attractions by type (attraction_type: 1 = Tour Sites, 2 = Attraction)
     function filterAttractionsByType(type) {
+        // If no type passed, get from radio button
+        if (!type) {
+            const selectedRadio = document.querySelector('input[name="attractionTypeFilter"]:checked');
+            type = selectedRadio ? selectedRadio.value : 'attraction';
+        }
+        
         const rows = document.querySelectorAll('.attraction-row');
         
         if (type === 'all') {
             rows.forEach(row => row.style.display = '');
-        } else {
+        } else if (type === 'attraction') {
+            // Show only attractions (attraction_type = 2)
             rows.forEach(row => {
-                const rowType = row.getAttribute('data-attraction-type');
-                row.style.display = (rowType === type) ? '' : 'none';
+                const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
+                row.style.display = (rowType === 2) ? '' : 'none';
+            });
+        } else if (type === 'toursite') {
+            // Show only tour sites (attraction_type = 1)
+            rows.forEach(row => {
+                const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
+                row.style.display = (rowType === 1) ? '' : 'none';
             });
         }
     }
@@ -14767,6 +14831,7 @@
             // Create guide_options object if guide is selected
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
+                const guideOptionForPrice = guideSelect.options[guideSelect.selectedIndex];
                 guide_options = {
                     guideId: guideId,
                     guide_id: guideId,
@@ -14784,8 +14849,8 @@
                     child_qty: childQty,
                     childrenQty: childQty,
                     children_qty: childQty,
-                    cost: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0,
-                    sell: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0,
+                    cost: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0,
+                    sell: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0,
                     serviceType: 'Full Day',
                     service_type: 'Full Day',
                     tourActivity: `${attractionName} - ${guideName}`,
@@ -14832,7 +14897,7 @@
             
             // Close modal
             const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-            tourModal.hide();
+            if (tourModal) tourModal.hide();
             
             // Reset checkboxes
             document.getElementById('selectAllAttractions').checked = false;
@@ -15183,7 +15248,7 @@
         
         // Close modal
         const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-        tourModal.hide();
+        if (tourModal) tourModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllAttractions').checked = false;
@@ -15198,7 +15263,7 @@
     }
     
     // Add another attraction (keep modal open)
-    function addAnotherAttraction() {
+    async function addAnotherAttraction() {
         // Save current selections without closing
         const selectedRows = document.querySelectorAll('.attraction-checkbox:checked');
         
@@ -15207,12 +15272,14 @@
             return;
         }
         
-        // Process selected attractions (same logic as saveAndCloseAttractions)
-        saveAndCloseAttractions();
+        // Process selected attractions (same logic as saveAndCloseAttractions) - wait for it to complete
+        await saveAndCloseAttractions();
         
-        // Reopen the modal
-        const tourModal = new bootstrap.Modal(document.getElementById('tourModal'));
-        tourModal.show();
+        // Reopen the modal after save completes
+        setTimeout(() => {
+            const tourModal = new bootstrap.Modal(document.getElementById('tourModal'));
+            tourModal.show();
+        }, 300);
     }
     
     // Save tour
@@ -15360,7 +15427,7 @@
         
         // Close modal
         const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-        tourModal.hide();
+        if (tourModal) tourModal.hide();
     }
     
     // Update tour table
@@ -15937,7 +16004,7 @@
         
         // Close modal
         const guideModal = bootstrap.Modal.getInstance(document.getElementById('guideModal'));
-        guideModal.hide();
+        if (guideModal) guideModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllGuides').checked = false;
@@ -16151,7 +16218,22 @@
             
             // If linked to a meal/restaurant, find and edit the meal
             if (guide.linkedTo === 'restaurant') {
-                const mealIndex = mealList.findIndex(meal => meal.guideId === guide.id || meal.guideId === guide.guide_id);
+                // Try multiple matching strategies
+                let mealIndex = mealList.findIndex(meal => meal.guideId === guide.id || meal.guideId === guide.guide_id);
+                
+                // Fallback: match by restaurant name if guide has it
+                if (mealIndex === -1 && guide.restaurantName) {
+                    mealIndex = mealList.findIndex(meal => meal.restaurantName === guide.restaurantName);
+                }
+                
+                // Fallback: match by guideId field in guide_options
+                if (mealIndex === -1 && guide.guideId) {
+                    mealIndex = mealList.findIndex(meal => 
+                        (meal.guide_options && meal.guide_options.guideId === guide.guideId) ||
+                        (meal.guideInfo && meal.guideInfo.guideId === guide.guideId)
+                    );
+                }
+                
                 if (mealIndex !== -1) {
                     editMeal(mealIndex);
                     return;
@@ -16671,7 +16753,7 @@
         recalculateTotals();
         
         const miscModal = bootstrap.Modal.getInstance(document.getElementById('miscModal'));
-        miscModal.hide();
+        if (miscModal) miscModal.hide();
     }
     
     // Add another miscellaneous item
@@ -17487,8 +17569,8 @@
         }
         
         try {
-            // Build the URL with numeric restaurant ID
-            const url = `{{ route('fetch-meals-by-restaurant') }}?restaurant_id=${restaurantId}`;
+            // Build the URL with numeric restaurant ID - use EnquiryFormPro route
+            const url = `{{ route('enquiry-form-pro.fetch-meals-by-restaurant') }}?restaurant_id=${restaurantId}`;
             console.log('Fetching meals from URL:', url);
             
             // Fetch meals from web route (uses session auth, better for Blade templates)
@@ -17607,63 +17689,67 @@
         mealsTableBody.innerHTML = '';
         
         // Count meals by type for summary
-        let breakfastCount = 0, lunchCount = 0, dinnerCount = 0;
+        let buffetCount = 0, setMenuCount = 0;
         
         // Debug: Log all meals to see their structure
         console.log('All meals from restaurant:', restaurantMeals);
         
         // Add new rows for each meal/dish
         restaurantMeals.forEach((meal, index) => {
-            // Determine meal type/period
-            // API returns: 'Breakfast', 'Lunch', 'Dinner' as strings, or 1, 2, 3 as numbers
-            let mealType = 'dinner'; // default
-            let originalType = meal.meal_period || meal.type || '';
+            // Determine meal type from 'type' column: 1=Buffet, 2=Set Menu
+            let mealTypeLabel = meal.type_label || 'Other';
+            let mealType = meal.type || 0;
             
-            // Convert to string for comparison
-            let typeValue = String(originalType).trim();
+            // Count by type
+            if (mealType == 1) buffetCount++;
+            else if (mealType == 2) setMenuCount++;
             
-            console.log(`Meal: "${meal.name}", Original Type: "${originalType}" (${typeof originalType}), Type Value: "${typeValue}"`);
+            // Category: 1=Alcoholic, 2=Non-Alcoholic, 3=Beverage
+            let categoryLabel = meal.category_label || '';
             
-            // Map values to meal types
-            if (typeValue === '1' || typeValue.toLowerCase() === 'breakfast' || typeValue.toLowerCase() === 'bf') {
-                mealType = 'breakfast';
-                breakfastCount++;
-            } else if (typeValue === '2' || typeValue.toLowerCase() === 'lunch' || typeValue.toLowerCase() === 'l') {
-                mealType = 'lunch';
-                lunchCount++;
-            } else if (typeValue === '3' || typeValue.toLowerCase() === 'dinner' || typeValue.toLowerCase() === 'd') {
-                mealType = 'dinner';
-                dinnerCount++;
-            } else {
-                // Fallback: Try to guess from meal name
-                const mealNameLower = (meal.name || '').toLowerCase();
-                if (mealNameLower.includes('breakfast') || mealNameLower.includes('morning') || mealNameLower.includes('bf')) {
-                    mealType = 'breakfast';
-                    breakfastCount++;
-                } else if (mealNameLower.includes('lunch') || mealNameLower.includes('afternoon')) {
-                    mealType = 'lunch';
-                    lunchCount++;
-                } else if (mealNameLower.includes('dinner') || mealNameLower.includes('evening')) {
-                    mealType = 'dinner';
-                    dinnerCount++;
-                } else {
-                    // Default to dinner if we can't determine
-                    mealType = 'dinner';
-                    dinnerCount++;
-                }
-            }
+            // Item Type (for Set Menu): 1=Veg, 2=Non-Veg
+            let itemTypeLabel = meal.item_type_label || '';
+            
+            // Item description with ellipsis
+            let itemDescription = meal.item_description || '';
+            let shortDescription = itemDescription.length > 50 ? itemDescription.substring(0, 50) + '...' : itemDescription;
+            
+            // Meal period for display (Breakfast/Lunch/Dinner)
+            let mealPeriod = meal.meal_period_label || '';
+            
+            console.log(`Meal: "${meal.name}", Type: "${mealTypeLabel}", Category: "${categoryLabel}", Item Type: "${itemTypeLabel}"`);
             
             const row = document.createElement('tr');
             row.className = 'meal-row';
             row.setAttribute('data-meal-id', meal.meal_id);
             row.setAttribute('data-meal-name', meal.name);
-            row.setAttribute('data-meal-type', mealType);
+            row.setAttribute('data-meal-type', mealTypeLabel);
+            row.setAttribute('data-meal-type-id', mealType); // 1=Buffet, 2=Set Menu
+            row.setAttribute('data-meal-category', categoryLabel);
+            row.setAttribute('data-item-type', itemTypeLabel);
             row.setAttribute('data-restaurant-id', restaurantId);
             row.setAttribute('data-restaurant-name', restaurantName);
             
+            // For Set Menu (type=2), quantities are readonly and synced from header
+            const isSetMenu = mealType == 2;
+            const headerValues = getHeaderValues();
+            const setMenuReadonly = isSetMenu ? 'readonly style="font-size: 10px; padding: 2px 4px; text-align: center; background-color: #e9ecef; cursor: not-allowed;"' : 'style="font-size: 10px; padding: 2px 4px; text-align: center;"';
+            const setMenuAdultValue = isSetMenu ? headerValues.adults : 0;
+            const setMenuChildValue = isSetMenu ? headerValues.children : 0;
+            const setMenuInfantValue = isSetMenu ? headerValues.infants : 0;
+            
             // Parse prices from database - both cost and sell should be the same value from database
-            const adultPrice = parseFloat(meal.adult_price || meal.price || 0).toFixed(2);
-            const childPrice = parseFloat(meal.child_price || meal.price || 0).toFixed(2);
+            // Use explicit null check to avoid treating 0 as falsy
+            const adultPrice = parseFloat(
+                (meal.adult_price !== null && meal.adult_price !== undefined && meal.adult_price !== '') 
+                    ? meal.adult_price 
+                    : ((meal.price !== null && meal.price !== undefined && meal.price !== '') ? meal.price : 0)
+            ).toFixed(2);
+            const childPrice = parseFloat(
+                (meal.child_price !== null && meal.child_price !== undefined && meal.child_price !== '') 
+                    ? meal.child_price 
+                    : ((meal.price !== null && meal.price !== undefined && meal.price !== '') ? meal.price : 0)
+            ).toFixed(2);
             
             // Use the same database price for both cost and sell (no calculation)
             const adultCostPrice = adultPrice;
@@ -17671,34 +17757,68 @@
             const childCostPrice = childPrice;
             const childSellPrice = childPrice;
             
-            // Icon based on meal type
+            // Icon and color based on meal type (Buffet vs Set Menu)
             let mealIcon = 'ri-restaurant-fill';
             let iconColor = 'text-success';
-            if (mealType === 'breakfast') {
-                mealIcon = 'ri-cup-line';
-                iconColor = 'text-warning';
-            } else if (mealType === 'lunch') {
-                mealIcon = 'ri-restaurant-2-line';
+            if (mealType == 1) { // Buffet
+                mealIcon = 'ri-bowl-line';
+                iconColor = 'text-primary';
+            } else if (mealType == 2) { // Set Menu
+                mealIcon = 'ri-file-list-3-line';
                 iconColor = 'text-info';
-            } else if (mealType === 'dinner') {
-                mealIcon = 'ri-restaurant-fill';
-                iconColor = 'text-success';
             }
+            
+            // Buffet/Set Menu badge
+            let mealTypeBadge = '';
+            if (mealType == 1) { // Buffet
+                mealTypeBadge = '<span class="badge bg-primary ms-1" style="font-size: 9px;">🍽️ Buffet</span>';
+            } else if (mealType == 2) { // Set Menu
+                mealTypeBadge = '<span class="badge bg-info ms-1" style="font-size: 9px;">📋 Set Menu</span>';
+            }
+            
+            // Veg/Non-Veg icon for Set Menu
+            let vegIcon = '';
+            if (mealType == 2 && itemTypeLabel) { // Set Menu
+                if (meal.item_type == 1) { // Veg
+                    vegIcon = '<span class="badge bg-success ms-1" style="font-size: 9px;">🥬 Veg</span>';
+                } else if (meal.item_type == 2) { // Non-Veg
+                    vegIcon = '<span class="badge bg-danger ms-1" style="font-size: 9px;">🍖 Non-Veg</span>';
+                }
+            }
+            
+            // Category badge
+            let categoryBadge = '';
+            if (categoryLabel) {
+                let badgeClass = 'bg-secondary';
+                if (meal.category == 1) badgeClass = 'bg-warning text-dark'; // Alcoholic
+                else if (meal.category == 2) badgeClass = 'bg-success'; // Non-Alcoholic
+                else if (meal.category == 3) badgeClass = 'bg-info'; // Beverage
+                categoryBadge = `<span class="badge ${badgeClass} ms-1" style="font-size: 9px;">${categoryLabel}</span>`;
+            }
+            
+            // Escape description for tooltip
+            const escapedDescription = itemDescription.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
             
             row.innerHTML = `
                 <td style="padding: 2px 8px; text-align: center;">
                     <input type="checkbox" class="meal-checkbox" data-meal-id="${meal.meal_id}" onchange="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <i class="${mealIcon} ${iconColor} me-1" style="font-size: 14px;"></i>
-                    ${meal.name}
-                    <small class="text-muted ms-2">(${mealType.charAt(0).toUpperCase() + mealType.slice(1)})</small>
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                            <strong>${mealPeriod || mealTypeLabel}</strong>
+                            ${mealTypeBadge}
+                            ${categoryBadge}
+                            ${vegIcon}
+                        </div>
+                        ${itemDescription ? `<small class="text-muted" style="font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; cursor: pointer;" title="${escapedDescription}">${shortDescription}</small>` : ''}
+                    </div>
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${meal.meal_id}" value="1" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
+                    <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="${setMenuAdultValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="text" class="form-control form-control-sm meal-adult-cost" data-meal-id="${meal.meal_id}" value="SGD ${adultCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
@@ -17707,7 +17827,7 @@
                     <input type="text" class="form-control form-control-sm meal-adult-sell" data-meal-id="${meal.meal_id}" value="SGD ${adultSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
+                    <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="${setMenuChildValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="text" class="form-control form-control-sm meal-child-cost" data-meal-id="${meal.meal_id}" value="SGD ${childCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
@@ -17716,7 +17836,7 @@
                     <input type="text" class="form-control form-control-sm meal-child-sell" data-meal-id="${meal.meal_id}" value="SGD ${childSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
+                    <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="${setMenuInfantValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="text" class="form-control form-control-sm meal-infant-cost" data-meal-id="${meal.meal_id}" value="SGD 0.00" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
@@ -17739,43 +17859,56 @@
         updateMealTotalAmount();
         
         // Auto-fill adult/child/infant counts from header for all newly created rows
-        const headerValues = getHeaderValues();
+        // Skip Set Menu rows (type=2) as they are already readonly and synced from header
+        const headerValuesForMeals = getHeaderValues();
         document.querySelectorAll('.meal-adult-qty').forEach(input => {
-            if (!input.value || input.value == '0') input.value = headerValues.adults;
-            input.setAttribute('max', headerValues.adults);
+            const row = input.closest('tr');
+            const isSetMenuRow = row && row.getAttribute('data-meal-type-id') == 2;
+            if (isSetMenuRow) return; // Skip Set Menu rows - already set
+            
+            if (!input.value || input.value == '0') input.value = headerValuesForMeals.adults;
+            input.setAttribute('max', headerValuesForMeals.adults);
             // Remove any existing listeners to avoid duplicates
             const newInput = input.cloneNode(true);
             input.parentNode.replaceChild(newInput, input);
             newInput.addEventListener('input', function() {
-                if (parseInt(this.value) > headerValues.adults) {
-                    this.value = headerValues.adults;
-                    alert(`Adults cannot exceed ${headerValues.adults} (header value)`);
+                if (parseInt(this.value) > headerValuesForMeals.adults) {
+                    this.value = headerValuesForMeals.adults;
+                    alert(`Adults cannot exceed ${headerValuesForMeals.adults} (header value)`);
                 }
             });
         });
         document.querySelectorAll('.meal-child-qty').forEach(input => {
-            if (!input.value || input.value == '0') input.value = headerValues.children;
-            input.setAttribute('max', headerValues.children);
+            const row = input.closest('tr');
+            const isSetMenuRow = row && row.getAttribute('data-meal-type-id') == 2;
+            if (isSetMenuRow) return; // Skip Set Menu rows - already set
+            
+            if (!input.value || input.value == '0') input.value = headerValuesForMeals.children;
+            input.setAttribute('max', headerValuesForMeals.children);
             // Remove any existing listeners to avoid duplicates
             const newInput = input.cloneNode(true);
             input.parentNode.replaceChild(newInput, input);
             newInput.addEventListener('input', function() {
-                if (parseInt(this.value) > headerValues.children) {
-                    this.value = headerValues.children;
-                    alert(`Children cannot exceed ${headerValues.children} (header value)`);
+                if (parseInt(this.value) > headerValuesForMeals.children) {
+                    this.value = headerValuesForMeals.children;
+                    alert(`Children cannot exceed ${headerValuesForMeals.children} (header value)`);
                 }
             });
         });
         document.querySelectorAll('.meal-infant-qty').forEach(input => {
-            if (!input.value || input.value == '0') input.value = headerValues.infants;
-            input.setAttribute('max', headerValues.infants);
+            const row = input.closest('tr');
+            const isSetMenuRow = row && row.getAttribute('data-meal-type-id') == 2;
+            if (isSetMenuRow) return; // Skip Set Menu rows - already set
+            
+            if (!input.value || input.value == '0') input.value = headerValuesForMeals.infants;
+            input.setAttribute('max', headerValuesForMeals.infants);
             // Remove any existing listeners to avoid duplicates
             const newInput = input.cloneNode(true);
             input.parentNode.replaceChild(newInput, input);
             newInput.addEventListener('input', function() {
-                if (parseInt(this.value) > headerValues.infants) {
-                    this.value = headerValues.infants;
-                    alert(`Infants cannot exceed ${headerValues.infants} (header value)`);
+                if (parseInt(this.value) > headerValuesForMeals.infants) {
+                    this.value = headerValuesForMeals.infants;
+                    alert(`Infants cannot exceed ${headerValuesForMeals.infants} (header value)`);
                 }
             });
         });
@@ -17785,17 +17918,15 @@
         // Debug: Log meal type counts
         console.log('Meal Type Summary:', {
             total: restaurantMeals.length,
-            breakfast: breakfastCount,
-            lunch: lunchCount,
-            dinner: dinnerCount
+            buffet: buffetCount,
+            setMenu: setMenuCount
         });
         
         // Show success message with meal type breakdown
         let summaryMessage = `Loaded ${restaurantMeals.length} dish(es) from ${restaurantName}`;
         const breakdown = [];
-        if (breakfastCount > 0) breakdown.push(`${breakfastCount} Breakfast`);
-        if (lunchCount > 0) breakdown.push(`${lunchCount} Lunch`);
-        if (dinnerCount > 0) breakdown.push(`${dinnerCount} Dinner`);
+        if (buffetCount > 0) breakdown.push(`${buffetCount} Buffet`);
+        if (setMenuCount > 0) breakdown.push(`${setMenuCount} Set Menu`);
         
         if (breakdown.length > 0) {
             summaryMessage += ` (${breakdown.join(', ')})`;
@@ -18159,6 +18290,7 @@
                         guideList[existingGuideIndex].sell = price;
                         guideList[existingGuideIndex].adultsQty = restaurantGuideAdultQty;
                         guideList[existingGuideIndex].childQty = restaurantGuideChildQty;
+                        guideId = oldMeal.guideId; // Keep the existing entry ID
                     }
                 }
             } else {
@@ -18171,28 +18303,29 @@
             // Create guide_options object if guide is selected
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
+                const guideOptionForPrice = guideSelect.selectedOptions[0];
                 const hoursSelect = document.getElementById('restaurantGuideHours');
                 const hours = parseInt(hoursSelect?.value || '12') || 12;
                 let price = 0;
                 switch(hours) {
                     case 2:
-                        price = parseFloat(guideOption?.getAttribute('data-two-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-two-hour-price') || '0') || 0;
                         break;
                     case 4:
-                        price = parseFloat(guideOption?.getAttribute('data-four-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-four-hour-price') || '0') || 0;
                         break;
                     case 6:
-                        price = parseFloat(guideOption?.getAttribute('data-six-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-six-hour-price') || '0') || 0;
                         break;
                     case 8:
-                        price = parseFloat(guideOption?.getAttribute('data-eight-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-eight-hour-price') || '0') || 0;
                         break;
                     case 10:
-                        price = parseFloat(guideOption?.getAttribute('data-ten-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-ten-hour-price') || '0') || 0;
                         break;
                     case 12:
                     default:
-                        price = parseFloat(guideOption?.getAttribute('data-twelve-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0;
                         break;
                 }
                 
@@ -18611,7 +18744,7 @@
                     infantSell: infantSell,
                     transferId: transferId, // Shared transfer ID
                     transferInfo: transferInfo, // Shared transfer info
-                    guideId: guideId, // Shared guide ID
+                    guideId: guideEntryId, // Guide entry ID (links to guideList entry)
                     guideInfo: guideInfo, // Shared guide info
                     guide_options: guide_options // Shared guide options
                 };
@@ -18631,7 +18764,7 @@
         
         // Close modal
         const mealModal = bootstrap.Modal.getInstance(document.getElementById('mealModal'));
-        mealModal.hide();
+        if (mealModal) mealModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllMeals').checked = false;
@@ -18758,7 +18891,7 @@
         
         // Close modal
         const mealModal = bootstrap.Modal.getInstance(document.getElementById('mealModal'));
-        mealModal.hide();
+        if (mealModal) mealModal.hide();
     }
     
     // Update meal table
@@ -18788,13 +18921,20 @@
                 dateTimeValue = dateTimeValue + 'T' + defaultTime;
             }
             
+            // Format meal type for display (capitalize first letter) - show Breakfast/Lunch/Dinner
+            const displayMealType = meal.mealType ? (meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)) : 'Meal';
+            
+            // Get Buffet or Set Menu text
+            const mealSpecificType = meal.mealSpecificType || '';
+            const mealSpecificDisplay = mealSpecificType ? ` (${mealSpecificType.replace(/🍽️|📋/g, '').trim()})` : '';
+            
             return `
             <tr>
                 <td><input type="checkbox" class="meal-checkbox" value="${meal.id}"></td>
                 <td><input type="datetime-local" value="${dateTimeValue}" onchange="updateMealField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
                 <td>
                     <a href="javascript:void(0)" onclick="editMeal(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
-                        ${meal.restaurantName || 'Restaurant'} - ${meal.mealType || meal.mealName || 'Meal'}
+                        ${meal.restaurantName || 'Restaurant'} - ${displayMealType}${mealSpecificDisplay}
                     </a>
                 </td>
                 <td><input type="number" value="${meal.adultsQty}" onchange="updateMealField(${index}, 'adultsQty', this.value)"></td>
@@ -18848,7 +18988,7 @@
                 <input type="checkbox" class="meal-checkbox" data-meal-id="${mealId}">
             </td>
             <td style="padding: 2px 8px;">
-                ${mealName} <small class="text-muted">(${mealType})</small>
+                <strong>${mealType}</strong>
             </td>
             <td style="padding: 2px 8px;">
                 <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${mealId}" value="${meal.mealCount ?? 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
@@ -18969,7 +19109,10 @@
                 
                 if (restaurantTransferCheckbox) {
                     restaurantTransferCheckbox.checked = true;
-                    toggleRestaurantTransferFields(); // Show the fields
+                    // Just show the section directly, don't call toggle which sets defaults
+                    if (restaurantTransferDetailsSection) {
+                        restaurantTransferDetailsSection.style.display = 'block';
+                    }
                 }
                 
                 // Get transfer info - prioritize meal.transferInfo, then lookup from transferList
@@ -19103,34 +19246,63 @@
             const restaurantGuideCheckbox = document.getElementById('restaurantGuideCheckbox');
             const restaurantGuideDetailsSection = document.getElementById('restaurantGuideDetailsSection');
             
-            if (meal.guideId || meal.guideInfo) {
+            if (meal.guideId || meal.guideInfo || meal.guide_options) {
                 console.log('=== Populating Guide Section for Edit ===');
-                console.log('Guide data:', meal.guideInfo);
+                console.log('Guide data:', meal.guideInfo || meal.guide_options);
                 
                 if (restaurantGuideCheckbox) {
                     restaurantGuideCheckbox.checked = true;
-                    toggleRestaurantGuideFields(); // Show the fields
+                    // Just show the section directly
+                    if (restaurantGuideDetailsSection) {
+                        restaurantGuideDetailsSection.style.display = 'block';
+                    }
                 }
                 
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
                 const guideSelect = document.getElementById('restaurantGuideSelect');
                 const hoursSelect = document.getElementById('restaurantGuideHours');
-                if (guideSelect && meal.guideId) {
+                const adultQtyInput = document.getElementById('restaurantGuideAdultQty');
+                const childQtyInput = document.getElementById('restaurantGuideChildQty');
+                
+                // Get guide info - prioritize guideInfo or guide_options from meal, then lookup from guideList
+                let guideInfo = null;
+                if (meal.guideInfo && Object.keys(meal.guideInfo).length > 0) {
+                    guideInfo = meal.guideInfo;
+                } else if (meal.guide_options && Object.keys(meal.guide_options).length > 0) {
+                    guideInfo = meal.guide_options;
+                } else if (meal.guideId) {
                     // Find guide entry in guideList to get actual guide ID and hours
                     const guideEntry = guideList.find(g => String(g.id) === String(meal.guideId));
                     if (guideEntry) {
-                        guideSelect.value = guideEntry.guideId; // Use actual guide ID, not entry ID
-                        if (hoursSelect && guideEntry.hours) {
-                            hoursSelect.value = guideEntry.hours;
-                        }
-                        updateRestaurantGuidePricing(); // Update pricing based on hours
-                        console.log('Set guide to:', guideEntry.guideId, 'Hours:', guideEntry.hours);
-                    } else {
-                        // Fallback: try using meal.guideId directly (might be actual guide ID)
-                        guideSelect.value = meal.guideId;
-                        console.log('Set guide to (fallback):', meal.guideId);
+                        guideInfo = guideEntry;
                     }
+                }
+                
+                if (guideSelect && guideInfo) {
+                    // Use guideId from guideInfo (could be guideId or guide_id)
+                    const guideIdToUse = guideInfo.guideId || guideInfo.guide_id || meal.guideId;
+                    guideSelect.value = guideIdToUse;
+                    console.log('Set guide to:', guideIdToUse);
+                    
+                    if (hoursSelect && guideInfo.hours) {
+                        hoursSelect.value = guideInfo.hours;
+                        console.log('Set hours to:', guideInfo.hours);
+                    }
+                    
+                    if (adultQtyInput && guideInfo.adultsQty !== undefined) {
+                        adultQtyInput.value = guideInfo.adultsQty || guideInfo.adults_qty || 0;
+                    }
+                    
+                    if (childQtyInput && guideInfo.childQty !== undefined) {
+                        childQtyInput.value = guideInfo.childQty || guideInfo.child_qty || 0;
+                    }
+                    
+                    updateRestaurantGuidePricing(); // Update pricing based on hours
+                } else if (guideSelect && meal.guideId) {
+                    // Fallback: try using meal.guideId directly (might be actual guide ID)
+                    guideSelect.value = meal.guideId;
+                    console.log('Set guide to (fallback):', meal.guideId);
                 }
             } else {
                 console.log('No guide data for this meal');
@@ -20408,7 +20580,7 @@
     // Calculate transfer price based on type and way
     function calculateTransferPrice(zonePrice, type, way, adults, child, vehicleOption = null) {
         let basePrice = 0;
-        const totalPax = (parseInt(adults) || 0) + (parseInt(child) || 0);
+        const totalPax = Math.max(1, (parseInt(adults) || 0) + (parseInt(child) || 0));
         
         // Get zone prices
         let zonePrivatePrice = zonePrice.private_price || 0;
@@ -20420,15 +20592,15 @@
         
         // Get base price based on type (SIC or Private)
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared prices are already per person - use directly without multiplying
-            basePrice = zoneSharedPrice || 0;
+            // Shared prices are per person - multiply by total passengers
+            basePrice = (zoneSharedPrice || 0) * totalPax;
         } else {
             // Private prices are fixed for the vehicle (not per person)
             basePrice = zonePrivatePrice || 0;
         }
         
         // Apply way multiplier (both-way = 2x, one-way = 1x)
-        if (way === 'both-way' || way === 'both') {
+        if (way === 'both-way' || way === 'both' || way === '2-way' || way === 'Two Way' || way === 'Both Way') {
             basePrice = basePrice * 2;
         }
         
@@ -20443,7 +20615,8 @@
             sell: sellPrice,
             basePrice: basePrice,
             sharedPrice: zoneSharedPrice,
-            privatePrice: zonePrivatePrice
+            privatePrice: zonePrivatePrice,
+            totalPax: totalPax
         };
     }
     
@@ -20766,7 +20939,7 @@
         recalculateTotals();
         
         const transferModal = bootstrap.Modal.getInstance(document.getElementById('transferModal'));
-        transferModal.hide();
+        if (transferModal) transferModal.hide();
     }
     
     // Edit transfer
@@ -21453,26 +21626,43 @@
                 const totalHotelCost = nights * hotelCostPerNight;
                 const totalHotelSell = nights * hotelSellPerNight;
                 
+                // Get extra bed and child pricing from hotel object
+                const extraBedPricePerNight = parseFloat(hotel.extraBedPrice) || 0;
+                const cwbPricePerNight = parseFloat(hotel.cwbPrice) || 0;
+                const cnbPricePerNight = parseFloat(hotel.cnbPrice) || 0;
+                const infantPricePerNight = parseFloat(hotel.infantPrice) || 0;
+                
                 // Calculate per-person cost based on sharing
-                // Add local transfer contributions to both cost and sell prices
-                // Single = 1 person, Twin = 2 people, Triple = 3 people
-                const singleCost = totalHotelCost + (tourCostPerPax * 1) + (transferCostPerPax * 1) + guideSingleCost + localTransferSingleCost;
-                const singleSell = totalHotelSell + (tourSellPerPax * 1) + (transferSellPerPax * 1) + guideSingleSell + localTransferSingleSell;
+                // New formulas as per user request:
+                // Single = sell * nights
+                // Twin = (sell * nights) / 2
+                // Triple = ((sell * nights) + (extra bed amount * nights)) / 3
+                // Child with bed = child with bed amount * nights
+                // Child without bed = child without bed amount * nights
+                // Infant = infant amount * nights
                 
-                const twinCost = (totalHotelCost / 2) + (tourCostPerPax * 2) + (transferCostPerPax * 2) + guideTwinCost + localTransferTwinCost;
-                const twinSell = (totalHotelSell / 2) + (tourSellPerPax * 2) + (transferSellPerPax * 2) + guideTwinSell + localTransferTwinSell;
+                const singleCost = totalHotelCost + tourCostPerPax + transferCostPerPax + guideSingleCost + localTransferSingleCost;
+                const singleSell = totalHotelSell + tourSellPerPax + transferSellPerPax + guideSingleSell + localTransferSingleSell;
                 
-                const tripleCost = (totalHotelCost / 3) + (tourCostPerPax * 3) + (transferCostPerPax * 3) + guideTripleCost + localTransferTripleCost;
-                const tripleSell = (totalHotelSell / 3) + (tourSellPerPax * 3) + (transferSellPerPax * 3) + guideTripleSell + localTransferTripleSell;
+                const twinCost = (totalHotelCost / 2) + tourCostPerPax + transferCostPerPax + guideTwinCost + localTransferTwinCost;
+                const twinSell = (totalHotelSell / 2) + tourSellPerPax + transferSellPerPax + guideTwinSell + localTransferTwinSell;
                 
-                const childWithBedCost = childCostPerPax;
-                const childWithBedSell = childSellPerPax;
+                // Triple includes extra bed
+                const totalExtraBedCost = extraBedPricePerNight * nights;
+                const tripleCost = ((totalHotelCost + totalExtraBedCost) / 3) + tourCostPerPax + transferCostPerPax + guideTripleCost + localTransferTripleCost;
+                const tripleSell = ((totalHotelSell + totalExtraBedCost) / 3) + tourSellPerPax + transferSellPerPax + guideTripleSell + localTransferTripleSell;
                 
-                const childWithoutBedCost = childCostPerPax * 0.8;
-                const childWithoutBedSell = childSellPerPax * 0.8;
+                // Child with bed = CWB price * nights + child tour costs
+                const childWithBedCost = (cwbPricePerNight * nights) + childCostPerPax;
+                const childWithBedSell = (cwbPricePerNight * nights) + childSellPerPax;
                 
-                const infantCost = 0;
-                const infantSell = 0;
+                // Child without bed = CNB price * nights + child tour costs
+                const childWithoutBedCost = (cnbPricePerNight * nights) + childCostPerPax;
+                const childWithoutBedSell = (cnbPricePerNight * nights) + childSellPerPax;
+                
+                // Infant = infant price * nights
+                const infantCost = infantPricePerNight * nights;
+                const infantSell = infantPricePerNight * nights;
                 
                 // Round all prices to next 0 (ceiling)
                 const singleCostRounded = roundToNextZero(singleCost);
@@ -23169,8 +23359,8 @@
         // Get values from header fields
         const destinationSelect = document.getElementById('destinationSelect');
         const destination = destinationSelect?.value || '';
-        const startDate = document.getElementById('tourStartDate')?.value;
-        const endDate = document.getElementById('tourEndDate')?.value;
+        const startDate = getHeaderStartInput()?.value;
+        const endDate = getHeaderEndInput()?.value;
         const adults = parseInt(document.getElementById('adultCountInput')?.value) || 0;
         const children = parseInt(document.getElementById('childCountInput')?.value) || 0;
         const infants = parseInt(document.getElementById('infantCountInput')?.value) || 0;
@@ -23221,6 +23411,10 @@
         formData.append('markup_type', markupType);
         formData.append('discount_value', discountValue);
         formData.append('discount_type', discountType);
+        
+        // Add tour type (FIT or GROUP)
+        const tourType = document.querySelector('input[name="type"]:checked')?.value || 'FIT';
+        formData.append('tour_type', tourType);
         
         // Transform and add service data in required format (await async functions)
         const { entryPortData, exitPortData } = await transformArrivalDepartureData();
