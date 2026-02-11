@@ -708,12 +708,13 @@ class HotelRestaurantController extends Controller
             }
         }
         
-        // Determine the correct DMC ID for filtering meals
+        // Determine the correct DMC ID for filtering meals (ensure string for consistent DB comparison)
         $filterDmcId = $dmc_id;
         if($auth_user->role_id != 1 && $auth_user->role_id != 20) {
             // For non-admin users, use their own DMC ID
             $filterDmcId = $auth_user->userId;
         }
+        $filterDmcId = $filterDmcId !== null && $filterDmcId !== '' ? (string) $filterDmcId : null;
         
         // If restaurant_id is provided, filter for that specific restaurant
         if($restaurant_id) {
@@ -727,9 +728,9 @@ class HotelRestaurantController extends Controller
                 $restaurantDmcIds = $selectedRestaurant->getSelectedDmcIds();
                 if($auth_user->role_id == 1 || $auth_user->role_id == 20 || in_array($auth_user->userId, $restaurantDmcIds)) {
                     $restaurants = collect([$selectedRestaurant]);
-                    $restaurantIds = [$restaurant_id];
                     // Filter meals for the specific restaurant and correct DMC
-                    $meals = Meal::where('restaurant_id', $restaurant_id)
+                    $meals = Meal::with('restaurant')
+                        ->where('restaurant_id', $restaurant_id)
                         ->where('dmc_id', $filterDmcId)
                         ->get();
                 } else {
@@ -742,24 +743,38 @@ class HotelRestaurantController extends Controller
                 $meals = collect();
             }
         } else {
-            // Default behavior - show restaurants the user has access to
+            // Default behavior - show restaurants for this hotel so the dropdown is populated
             if($auth_user->role_id == 1 || $auth_user->role_id == 20) {
-                // Admin users can see all restaurants for the hotel
+                // Admin: show all active restaurants for this hotel
                 $restaurants = Restaurant::where('owned_by', $hotel_id)
                     ->where('is_active', 1)
                     ->get();
             } else {
-                // Regular DMC users only see their restaurants
+                // DMC users: only restaurants assigned to them for this hotel
                 $restaurants = Restaurant::where('owned_by', $hotel_id)
                     ->where('is_active', 1)
                     ->whereJsonContains('dmc_id', $auth_user->userId)
                     ->get();
+                
+                // For DMC users: if they have exactly one restaurant, auto-select it (show in disabled format)
+                if ($restaurants->count() == 1) {
+                    $selectedRestaurant = $restaurants->first();
+                }
             }
             
-            $restaurantIds = $restaurants->pluck('restaurant_id');
-            $meals = Meal::whereIn('restaurant_id', $restaurantIds)
-                ->where('dmc_id', $filterDmcId)
-                ->get();
+            // Load meals by dmc_id for the selected DMC, restricted to restaurants owned by this hotel.
+            // This ensures DMC's meals show even when restaurant list is built differently.
+            if ($filterDmcId !== null && $filterDmcId !== '0') {
+                $meals = Meal::with('restaurant')
+                    ->where('dmc_id', $filterDmcId)
+                    ->whereHas('restaurant', function ($q) use ($hotel_id) {
+                        $q->where('owned_by', $hotel_id)->where('is_active', 1);
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            } else {
+                $meals = collect();
+            }
         }
         
         return view('hotel.add-meals', compact('restaurants', 'meals', 'hotel', 'userDMC', 'dmcs', 'auth_user', 'selectedRestaurant'));
@@ -946,8 +961,29 @@ class HotelRestaurantController extends Controller
             }
         }
 
-        $restaurants = Restaurant::where('restaurant_id', $meal->restaurant_id)->where('is_active', 1)->get();
-        return view('hotel.edit-meals', compact('meal', 'restaurants'));
+        // All restaurants for this hotel (so user can change restaurant in dropdown)
+        $restaurants = Restaurant::where('owned_by', $restaurant->owned_by)
+            ->where('is_active', 1)
+            ->get();
+
+        // For back link to hotel meals list: use meal's dmc_id and restaurant's hotel
+        $hotel_id = $restaurant->owned_by;
+        $dmc_id = $meal->dmc_id;
+        if (!$dmc_id && $restaurants->isNotEmpty()) {
+            $dmcIds = $restaurant->getSelectedDmcIds();
+            $dmc_id = !empty($dmcIds) ? $dmcIds[0] : $auth_user->userId;
+        }
+        if (!$dmc_id) {
+            $dmc_id = $auth_user->userId;
+        }
+
+        // View expects $meals (single meal) and $restaurants; pass hotel context for Back link
+        return view('hotel.edit-meals', [
+            'meals' => $meal,
+            'restaurants' => $restaurants,
+            'hotel_id' => $hotel_id,
+            'dmc_id' => $dmc_id,
+        ]);
     }
 
     //update
