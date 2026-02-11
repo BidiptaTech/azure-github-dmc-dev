@@ -2019,8 +2019,15 @@
                                     </optgroup>
                                 </select>
                             </div>
+                            <div class="col-1" id="arrivalTransferTypeField">
+                                <label class="form-label small">Type</label>
+                                <select class="form-select form-select-sm" id="arrivalTransferType" style="font-size: 10px;" onchange="filterArrivalVehiclesByServiceType()">
+                                    <option value="P">Private</option>
+                                    <option value="S" selected>Shared</option>
+                                </select>
+                            </div>
                             <div class="col-2" id="arrivalVehicleTypeField">
-                                <label class="form-label small">Vehicle Type</label>
+                                <label class="form-label small">Vehicle</label>
                                 <select class="form-select form-select-sm" id="arrivalVehicleType" style="font-size: 10px;" onchange="updateArrivalVehiclePricing()">
                                     <option value="">Select Vehicle</option>
                                     @php
@@ -2062,23 +2069,9 @@
                                     <option value="both-way">2-Way</option>
                                 </select>
                             </div>
-                            <div class="col-2" id="arrivalTransferTypeField">
-                                <label class="form-label small">Type</label>
-                                <select class="form-select form-select-sm" id="arrivalTransferType" style="font-size: 10px;" onchange="filterArrivalVehiclesByServiceType()">
-                                    <option value="P">Private</option>
-                                    <option value="S" selected>Shared</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-1">
-                            <div class="col-2" id="arrivalCostField">
-                                <label class="form-label small">Cost</label>
-                                <input type="number" class="form-control form-control-sm" id="arrivalCost" value="0" min="0" step="0.01" style="font-size: 10px;">
-                            </div>
-                            <div class="col-2" id="arrivalSellField">
-                                <label class="form-label small">Sell</label>
-                                <input type="number" class="form-control form-control-sm" id="arrivalSell" value="0" min="0" step="0.01" style="font-size: 10px;">
-                            </div>
+                            <!-- Cost and Sell fields removed - prices auto-calculated from vehicle selection -->
+                            <input type="hidden" id="arrivalCost" value="0">
+                            <input type="hidden" id="arrivalSell" value="0">
                         </div>
                     </div>
                     
@@ -2194,8 +2187,15 @@
                                     </optgroup>
                                 </select>
                             </div>
+                            <div class="col-1" id="departureTransferTypeField">
+                                <label class="form-label small">Type</label>
+                                <select class="form-select form-select-sm" id="departureTransferType" style="font-size: 10px;" onchange="filterDepartureVehiclesByServiceType()">
+                                    <option value="P">Private</option>
+                                    <option value="S" selected>Shared</option>
+                                </select>
+                            </div>
                             <div class="col-2" id="departureVehicleTypeField">
-                                <label class="form-label small">Vehicle Type</label>
+                                <label class="form-label small">Vehicle</label>
                                 <select class="form-select form-select-sm" id="departureVehicleType" style="font-size: 10px;" onchange="updateDepartureVehiclePricing()">
                                     <option value="">Select Vehicle</option>
                                     @php
@@ -2237,23 +2237,9 @@
                                     <option value="both-way">2-Way</option>
                                 </select>
                             </div>
-                            <div class="col-2" id="departureTransferTypeField">
-                                <label class="form-label small">Type</label>
-                                <select class="form-select form-select-sm" id="departureTransferType" style="font-size: 10px;" onchange="filterDepartureVehiclesByServiceType()">
-                                    <option value="P">Private</option>
-                                    <option value="S" selected>Shared</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-1">
-                            <div class="col-2" id="departureCostField">
-                                <label class="form-label small">Cost</label>
-                                <input type="number" class="form-control form-control-sm" id="departureCost" value="0" min="0" step="0.01" style="font-size: 10px;">
-                            </div>
-                            <div class="col-2" id="departureSellField">
-                                <label class="form-label small">Sell</label>
-                                <input type="number" class="form-control form-control-sm" id="departureSell" value="0" min="0" step="0.01" style="font-size: 10px;">
-                            </div>
+                            <!-- Cost and Sell fields removed - prices auto-calculated from vehicle selection -->
+                            <input type="hidden" id="departureCost" value="0">
+                            <input type="hidden" id="departureSell" value="0">
                         </div>
                     </div>
                     
@@ -2437,19 +2423,19 @@
                                     <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="{{ $attr->id }}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                 </td>
                                 <td style="padding: 2px 8px;">
-                                    <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="{{ $attr->id }}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                                    <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="{{ $attr->id }}" value="0.00" style="font-size: 10px; padding: 2px 4px;">
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     <input type="number" class="form-control form-control-sm attraction-child-qty" data-attr-id="{{ $attr->id }}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                 </td>
                                 <td style="padding: 2px 8px;">
-                                    <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="{{ $attr->id }}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                                    <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="{{ $attr->id }}" value="0.00" style="font-size: 10px; padding: 2px 4px;">
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     <input type="number" class="form-control form-control-sm attraction-infant-qty" data-attr-id="{{ $attr->id }}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                 </td>
                                 <td style="padding: 2px 8px;">
-                                    <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="{{ $attr->id }}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                                    <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="{{ $attr->id }}" value="0.00" style="font-size: 10px; padding: 2px 4px;">
                                 </td>
                                 <td style="padding: 2px 8px; text-align: center;">
                                     <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="{{ $attr->id }}" {{ $isAttraction ? 'checked' : '' }} onchange="onAttractionTransferCheckboxChange(this)">
@@ -2944,10 +2930,10 @@
                         </div>
                         <div class="d-flex align-items-center gap-3">
                             <div>
-                                <strong>Total COST:</strong> <input type="text" class="form-control form-control-sm d-inline-block" id="mealTotalCost" value="SGD 0.00" readonly style="width: 120px; font-size: 11px; padding: 2px 6px; background-color: #e9ecef;">
+                                <strong>Total COST:</strong> <input type="text" class="form-control form-control-sm d-inline-block" id="mealTotalCost" value="0.00" readonly style="width: 120px; font-size: 11px; padding: 2px 6px; background-color: #e9ecef;">
                             </div>
                             <div>
-                                <strong>Total SELL:</strong> <input type="text" class="form-control form-control-sm d-inline-block" id="mealTotalSell" value="SGD 0.00" readonly style="width: 120px; font-size: 11px; padding: 2px 6px; background-color: #e9ecef;">
+                                <strong>Total SELL:</strong> <input type="text" class="form-control form-control-sm d-inline-block" id="mealTotalSell" value="0.00" readonly style="width: 120px; font-size: 11px; padding: 2px 6px; background-color: #e9ecef;">
                             </div>
                         </div>
                     </div>
@@ -4207,14 +4193,8 @@
             setTimeout(() => filterArrivalVehiclesByServiceType(), 100);
             // Sync guide counts when transfer section is shown
             setTimeout(() => syncArrivalGuideCounts(), 150);
-        } else {
-            // When transfer is unchecked, also uncheck the guide checkbox and hide guide fields
-            const guideCheckbox = document.getElementById('arrivalGuideCheckbox');
-            if (guideCheckbox) {
-                guideCheckbox.checked = false;
-                toggleArrivalGuideFields(); // This will hide the guide fields
-            }
         }
+        // NOTE: Guide selection is now independent of transfer - do NOT auto-uncheck/hide guide when transfer is unchecked
     }
     
     // Toggle arrival guide fields visibility
@@ -4280,14 +4260,8 @@
             setTimeout(() => filterDepartureVehiclesByServiceType(), 100);
             // Sync guide counts when transfer section is shown
             setTimeout(() => syncDepartureGuideCounts(), 150);
-        } else {
-            // When transfer is unchecked, also uncheck the guide checkbox and hide guide fields
-            const guideCheckbox = document.getElementById('departureGuideCheckbox');
-            if (guideCheckbox) {
-                guideCheckbox.checked = false;
-                toggleDepartureGuideFields(); // This will hide the guide fields
-            }
         }
+        // NOTE: Guide selection is now independent of transfer - do NOT auto-uncheck/hide guide when transfer is unchecked
     }
     
     // Toggle departure guide fields visibility
@@ -8219,6 +8193,24 @@
         // Load accommodations
         ordersByType.accommodation.forEach((order, idx) => {
             try {
+                // Calculate nights from dates
+                const checkInDate = order.check_in_date || order.checkIn || '';
+                const checkOutDate = order.check_out_date || order.checkOut || '';
+                let nights = 1;
+                if (checkInDate && checkOutDate) {
+                    const checkIn = new Date(checkInDate);
+                    const checkOut = new Date(checkOutDate);
+                    if (checkOut > checkIn) {
+                        nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+                    }
+                }
+                
+                // Get prices first to determine checkbox states
+                const extraBedPriceVal = parseFloat(order.extra_bed_price || order.extraBedPrice || 0);
+                const cwbPriceVal = parseFloat(order.cwb_price || order.cwbPrice || order.child_with_bed_price || order.child_with_bed || 0);
+                const cnbPriceVal = parseFloat(order.cnb_price || order.cnbPrice || order.child_without_bed_price || order.child_without_bed || 0);
+                const infantPriceVal = parseFloat(order.infant_price || order.infantPrice || order.baby_cot_price || order.babyCotPrice || 0);
+                
                 const hotelData = {
                     id: generateId('accommodation'),
                     orderId: order.id || order.order_id,
@@ -8229,14 +8221,26 @@
                     bedType: order.bed_type || '',
                     bedId: order.bed_id || '',
                     rooms: parseInt(order.number_of_rooms || order.rooms || 1),
-                    checkIn: order.check_in_date || order.checkIn || '',
-                    checkOut: order.check_out_date || order.checkOut || '',
+                    checkIn: checkInDate,
+                    checkOut: checkOutDate,
+                    nights: nights,
                     mealPlan: order.meal_plan || order.mealPlan || 'room only',
                     cost: parseFloat(order.cost || 0),
                     sell: parseFloat(order.price || order.sell || 0),
                     destination: order.destination || order.city || '',
                     adultsPerRoom: parseInt(order.head_count || 2),
                     maxOccupancy: parseInt(order.max_occupancy || 2),
+                    // Extra bed and child pricing
+                    extraBedPrice: extraBedPriceVal,
+                    cwbPrice: cwbPriceVal,
+                    cnbPrice: cnbPriceVal,
+                    infantPrice: infantPriceVal,
+                    // Checkbox states - only true if explicitly set (NOT based on price > 0)
+                    hasExtraBed: order.has_extra_bed === true || order.has_extra_bed === 1 || order.hasExtraBed === true,
+                    hasCwb: order.has_cwb === true || order.has_cwb === 1 || order.hasCwb === true,
+                    hasCnb: order.has_cnb === true || order.has_cnb === 1 || order.hasCnb === true,
+                    hasInfant: order.has_infant === true || order.has_infant === 1 || order.hasInfant === true,
+                    supplement: order.supplement || false,
                     arrivalDepartureIds: [],
                     transferIds: []
                 };
@@ -8839,6 +8843,22 @@
                     console.log('Header End Date set to:', tourEndDate.value);
                     updateEndDate(); // Trigger header validation
                 }
+            });
+        }
+        
+        // Add event listener to reset flags when accommodation modal is closed
+        const accommodationModalElement = document.getElementById('accommodationModal');
+        if (accommodationModalElement) {
+            accommodationModalElement.addEventListener('hidden.bs.modal', function() {
+                // Reset all arrival/departure mode flags
+                window.isArrivalDepartureOnlyMode = false;
+                window.willOpenArrivalDepartureOnly = false;
+                window.editingArrivalDepartureIndex = null;
+                window.editingArrivalDepartureType = null;
+                window.isEditingArrivalDeparture = false;
+                window.isAddingNewArrivalDeparture = false;
+                window.editingAccommodationIndex = null;
+                console.log('Accommodation modal closed, all flags reset');
             });
         }
     });
@@ -9627,21 +9647,8 @@
                                 bedTypeText += ` (${bed.adult_count}A+${bed.child_count}C)`;
                             }
                             
-                            // Add extra bed info if available
-                            if (bed.extra_bed) {
-                                bedTypeText += ` + Extra Bed`;
-                                if (bed.extra_bed_price) {
-                                    bedTypeText += ` ($${bed.extra_bed_price})`;
-                                }
-                            }
-                            
-                            // Add baby cot info if available
-                            if (bed.baby_cot) {
-                                bedTypeText += ` + Baby Cot`;
-                                if (bed.baby_cot_price) {
-                                    bedTypeText += ` ($${bed.baby_cot_price})`;
-                                }
-                            }
+                            // Extra bed and baby cot info removed from bed type text
+                            // These are now shown separately in the table columns
                             
                             // Ensure room data includes all price fields explicitly
                             const roomDataWithPrices = {
@@ -9661,6 +9668,8 @@
                                 // Child with bed and child without bed prices from rooms table
                                 child_with_bed: firstRoom.child_with_bed,
                                 child_without_bed: firstRoom.child_without_bed,
+                                // Baby cot / infant price from bed data
+                                baby_cot_price: bed.baby_cot_price || 0,
                                 breakfast_included: firstRoom.breakfast_included,
                                 max_occupancy: bed.max_occupancy || firstRoom.max_occupancy || 2,
                                 room_type: firstRoom.room_type,
@@ -9837,9 +9846,23 @@
             
             // Get extra bed, CWB, CNB, Infant prices from room data
             const extraBedPrice = parseFloat(combo.extraBedPrice || combo.roomData?.extra_bed_price || 0);
-            const cwbPrice = parseFloat(combo.roomData?.child_with_bed_price || combo.roomData?.cwb_price || 0);
-            const cnbPrice = parseFloat(combo.roomData?.child_without_bed_price || combo.roomData?.cnb_price || 0);
-            const infantPrice = parseFloat(combo.roomData?.infant_price || combo.roomData?.babycot_price || 0);
+            const cwbPrice = parseFloat(combo.roomData?.child_with_bed || combo.roomData?.childWithBed || combo.roomData?.cwb_price || 0);
+            const cnbPrice = parseFloat(combo.roomData?.child_without_bed || combo.roomData?.childWithoutBed || combo.roomData?.cnb_price || 0);
+            const infantPrice = parseFloat(combo.babyCotPrice || combo.roomData?.baby_cot_price || combo.bedData?.baby_cot_price || 0);
+            
+            // Debug logging for child prices
+            console.log('Room combo prices:', {
+                comboId: combo.id,
+                roomType: combo.roomType,
+                extraBedPrice,
+                cwbPrice,
+                cnbPrice,
+                infantPrice,
+                roomData_child_with_bed: combo.roomData?.child_with_bed,
+                roomData_child_without_bed: combo.roomData?.child_without_bed,
+                babyCotPrice: combo.babyCotPrice,
+                bedData_baby_cot_price: combo.bedData?.baby_cot_price
+            });
             
             row.innerHTML = `
                 <td style="padding: 2px 8px; text-align: center;">
@@ -9863,25 +9886,33 @@
                     <div class="d-flex align-items-center justify-content-center gap-1">
                         <input type="checkbox" class="form-check-input combo-extra-bed-check" data-combo-id="${combo.id}" 
                                ${!combo.extraBedAvailable ? 'disabled title="Extra bed not available"' : ''}>
-                        <small class="combo-extra-bed-price text-muted" style="font-size: 9px;">${extraBedPrice.toFixed(0)}</small>
+                        <input type="number" class="form-control form-control-sm combo-extra-bed-price" data-combo-id="${combo.id}" 
+                               value="${extraBedPrice.toFixed(0)}" min="0" step="0.01" disabled
+                               style="font-size: 9px; padding: 1px 2px; text-align: center; width: 50px;">
                     </div>
                 </td>
                 <td style="padding: 2px 8px; text-align: center;">
                     <div class="d-flex align-items-center justify-content-center gap-1">
                         <input type="checkbox" class="form-check-input combo-cwb-check" data-combo-id="${combo.id}">
-                        <small class="combo-cwb-price text-muted" style="font-size: 9px;">${cwbPrice.toFixed(0)}</small>
+                        <input type="number" class="form-control form-control-sm combo-cwb-price" data-combo-id="${combo.id}" 
+                               value="${cwbPrice.toFixed(0)}" min="0" step="0.01" disabled
+                               style="font-size: 9px; padding: 1px 2px; text-align: center; width: 50px;">
                     </div>
                 </td>
                 <td style="padding: 2px 8px; text-align: center;">
                     <div class="d-flex align-items-center justify-content-center gap-1">
                         <input type="checkbox" class="form-check-input combo-cnb-check" data-combo-id="${combo.id}">
-                        <small class="combo-cnb-price text-muted" style="font-size: 9px;">${cnbPrice.toFixed(0)}</small>
+                        <input type="number" class="form-control form-control-sm combo-cnb-price" data-combo-id="${combo.id}" 
+                               value="${cnbPrice.toFixed(0)}" min="0" step="0.01" disabled
+                               style="font-size: 9px; padding: 1px 2px; text-align: center; width: 50px;">
                     </div>
                 </td>
                 <td style="padding: 2px 8px; text-align: center;">
                     <div class="d-flex align-items-center justify-content-center gap-1">
                         <input type="checkbox" class="form-check-input combo-infant-check" data-combo-id="${combo.id}">
-                        <small class="combo-infant-price text-muted" style="font-size: 9px;">${infantPrice.toFixed(0)}</small>
+                        <input type="number" class="form-control form-control-sm combo-infant-price" data-combo-id="${combo.id}" 
+                               value="${infantPrice.toFixed(0)}" min="0" step="0.01" disabled
+                               style="font-size: 9px; padding: 1px 2px; text-align: center; width: 50px;">
                     </div>
                 </td>
                 <td style="padding: 2px 8px; text-align: center;">
@@ -9984,6 +10015,47 @@
                 const comboId = this.getAttribute('data-combo-id');
                 // Mark as user-edited
                 this.setAttribute('data-user-edited', 'true');
+            });
+        });
+        
+        // Add event listeners for Extra Bed, CWB, CNB, Infant checkboxes to enable/disable price inputs
+        tbody.querySelectorAll('.combo-extra-bed-check').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                const priceInput = tbody.querySelector(`.combo-extra-bed-price[data-combo-id="${comboId}"]`);
+                if (priceInput) {
+                    priceInput.disabled = !this.checked;
+                }
+            });
+        });
+        
+        tbody.querySelectorAll('.combo-cwb-check').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                const priceInput = tbody.querySelector(`.combo-cwb-price[data-combo-id="${comboId}"]`);
+                if (priceInput) {
+                    priceInput.disabled = !this.checked;
+                }
+            });
+        });
+        
+        tbody.querySelectorAll('.combo-cnb-check').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                const priceInput = tbody.querySelector(`.combo-cnb-price[data-combo-id="${comboId}"]`);
+                if (priceInput) {
+                    priceInput.disabled = !this.checked;
+                }
+            });
+        });
+        
+        tbody.querySelectorAll('.combo-infant-check').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                const priceInput = tbody.querySelector(`.combo-infant-price[data-combo-id="${comboId}"]`);
+                if (priceInput) {
+                    priceInput.disabled = !this.checked;
+                }
             });
         });
         
@@ -10446,22 +10518,22 @@
                 
                 // Get prices from room data
                 const extraBedPrice = parseFloat(combo.extraBedPrice || combo.roomData?.extra_bed_price || 0);
-                const cwbPrice = parseFloat(combo.roomData?.child_with_bed_price || combo.roomData?.cwb_price || 0);
-                const cnbPrice = parseFloat(combo.roomData?.child_without_bed_price || combo.roomData?.cnb_price || 0);
-                const infantPrice = parseFloat(combo.roomData?.infant_price || combo.roomData?.babycot_price || 0);
+                const cwbPrice = parseFloat(combo.roomData?.child_with_bed || combo.roomData?.childWithBed || combo.roomData?.cwb_price || 0);
+                const cnbPrice = parseFloat(combo.roomData?.child_without_bed || combo.roomData?.childWithoutBed || combo.roomData?.cnb_price || 0);
+                const infantPrice = parseFloat(combo.babyCotPrice || combo.roomData?.baby_cot_price || combo.bedData?.baby_cot_price || 0);
 
                 selectedCombos.push({
                     ...combo,
                     rooms: parseInt(roomsInput?.value || 1),
                     sell: parseFloat(sellInput?.value || combo.price || 0),
                     hasExtraBed: extraBedCheck?.checked || false,
-                    extraBedPrice: extraBedCheck?.checked ? extraBedPrice : 0,
+                    extraBedPrice: extraBedPrice, // Always store price, checkbox controls usage
                     hasCwb: cwbCheck?.checked || false,
-                    cwbPrice: cwbCheck?.checked ? cwbPrice : 0,
+                    cwbPrice: cwbPrice, // Always store price, checkbox controls usage
                     hasCnb: cnbCheck?.checked || false,
-                    cnbPrice: cnbCheck?.checked ? cnbPrice : 0,
+                    cnbPrice: cnbPrice, // Always store price, checkbox controls usage
                     hasInfant: infantCheck?.checked || false,
-                    infantPrice: infantCheck?.checked ? infantPrice : 0,
+                    infantPrice: infantPrice, // Always store price, checkbox controls usage
                     supplement: supplementCheck?.checked || false
                 });
             } else {
@@ -12255,6 +12327,18 @@
                 mealPlan: mealPlan,
                 mealPlanLabel: mealPlanLabel,
                 roomPrice: roomPrice,
+                // Extra bed and child pricing from checkboxes
+                hasExtraBed: combo.hasExtraBed || false,
+                extraBedPrice: combo.extraBedPrice || 0,
+                hasCwb: combo.hasCwb || false,
+                cwbPrice: combo.cwbPrice || 0,
+                hasCnb: combo.hasCnb || false,
+                cnbPrice: combo.cnbPrice || 0,
+                hasInfant: combo.hasInfant || false,
+                infantPrice: combo.infantPrice || 0,
+                cost: combo.price || 0,
+                sell: combo.sell || combo.price || 0,
+                supplement: combo.supplement || false,
                 // Store arrival/departure info with accommodation
                 arrivalDateTime: arrivalDateTime,
                 arrivalPortId: arrivalPortId,
@@ -12576,16 +12660,24 @@
             const departureGuideCheckbox = document.getElementById('departureGuideCheckbox');
             if (arrivalGuideCheckbox) {
                 arrivalGuideCheckbox.checked = false;
-                const arrivalGuideDropdownField = document.getElementById('arrivalGuideDropdownField');
-                if (arrivalGuideDropdownField) {
-                    arrivalGuideDropdownField.style.display = 'none';
+                const arrivalGuideFieldsRow = document.getElementById('arrivalGuideFieldsRow');
+                if (arrivalGuideFieldsRow) {
+                    arrivalGuideFieldsRow.style.display = 'none';
+                }
+                const arrivalGuideHeaderRow = document.getElementById('arrivalGuideHeaderRow');
+                if (arrivalGuideHeaderRow) {
+                    arrivalGuideHeaderRow.style.display = 'none';
                 }
             }
             if (departureGuideCheckbox) {
                 departureGuideCheckbox.checked = false;
-                const departureGuideDropdownField = document.getElementById('departureGuideDropdownField');
-                if (departureGuideDropdownField) {
-                    departureGuideDropdownField.style.display = 'none';
+                const departureGuideFieldsRow = document.getElementById('departureGuideFieldsRow');
+                if (departureGuideFieldsRow) {
+                    departureGuideFieldsRow.style.display = 'none';
+                }
+                const departureGuideHeaderRow = document.getElementById('departureGuideHeaderRow');
+                if (departureGuideHeaderRow) {
+                    departureGuideHeaderRow.style.display = 'none';
                 }
             }
             
@@ -13070,6 +13162,12 @@
                 checkOutValue = checkOutValue + 'T10:00';
             }
             
+            // Determine displayed prices - show actual price only if checkbox is checked, otherwise show 0
+            const displayExtraBedPrice = hotel.hasExtraBed ? (parseFloat(hotel.extraBedPrice) || 0).toFixed(2) : '0.00';
+            const displayCwbPrice = hotel.hasCwb ? (parseFloat(hotel.cwbPrice) || 0).toFixed(2) : '0.00';
+            const displayCnbPrice = hotel.hasCnb ? (parseFloat(hotel.cnbPrice) || 0).toFixed(2) : '0.00';
+            const displayInfantPrice = hotel.hasInfant ? (parseFloat(hotel.infantPrice) || 0).toFixed(2) : '0.00';
+            
             return `
             <tr>
                 <td><input type="checkbox" class="accommodation-checkbox" value="${hotel.id}"></td>
@@ -13087,10 +13185,10 @@
                 <td><input type="number" value="${hotel.rooms}" min="1" onchange="updateAccommodationField(${index}, 'rooms', this.value)" style="width: 50px;"></td>
                 <td><input type="text" value="${(hotel.cost || hotel.roomPrice || 0).toFixed(2)}" readonly style="background-color: #f5f5f5; width: 70px;"></td>
                 <td><input type="number" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)" style="width: 70px;"></td>
-                <td><input type="number" value="${(parseFloat(hotel.extraBedPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'extraBedPrice', parseFloat(this.value) || 0)" style="width: 70px;"></td>
-                <td><input type="number" value="${(parseFloat(hotel.cwbPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'cwbPrice', parseFloat(this.value) || 0)" style="width: 70px;"></td>
-                <td><input type="number" value="${(parseFloat(hotel.cnbPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'cnbPrice', parseFloat(this.value) || 0)" style="width: 70px;"></td>
-                <td><input type="number" value="${(parseFloat(hotel.infantPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'infantPrice', parseFloat(this.value) || 0)" style="width: 70px;"></td>
+                <td><input type="text" value="${displayExtraBedPrice}" readonly style="background-color: #f5f5f5; width: 70px;" title="Edit in popup to change"></td>
+                <td><input type="text" value="${displayCwbPrice}" readonly style="background-color: #f5f5f5; width: 70px;" title="Edit in popup to change"></td>
+                <td><input type="text" value="${displayCnbPrice}" readonly style="background-color: #f5f5f5; width: 70px;" title="Edit in popup to change"></td>
+                <td><input type="text" value="${displayInfantPrice}" readonly style="background-color: #f5f5f5; width: 70px;" title="Edit in popup to change"></td>
                 <td style="text-align: center;"><input type="checkbox" ${hotel.supplement ? 'checked' : ''} onchange="updateAccommodationField(${index}, 'supplement', this.checked)"></td>
             </tr>
         `;
@@ -13257,16 +13355,16 @@
                             sellInput.value = hotel.sell || hotel.roomPrice || 0;
                         }
                         if (extraBedCheck) {
-                            extraBedCheck.checked = hotel.hasExtraBed || (hotel.extraBedPrice && parseFloat(hotel.extraBedPrice) > 0);
+                            extraBedCheck.checked = hotel.hasExtraBed === true;
                         }
                         if (cwbCheck) {
-                            cwbCheck.checked = hotel.hasCwb || (hotel.cwbPrice && parseFloat(hotel.cwbPrice) > 0);
+                            cwbCheck.checked = hotel.hasCwb === true;
                         }
                         if (cnbCheck) {
-                            cnbCheck.checked = hotel.hasCnb || (hotel.cnbPrice && parseFloat(hotel.cnbPrice) > 0);
+                            cnbCheck.checked = hotel.hasCnb === true;
                         }
                         if (infantCheck) {
-                            infantCheck.checked = hotel.hasInfant || (hotel.infantPrice && parseFloat(hotel.infantPrice) > 0);
+                            infantCheck.checked = hotel.hasInfant === true;
                         }
                         if (supplementCheck) {
                             supplementCheck.checked = hotel.supplement || false;
@@ -13319,6 +13417,14 @@
         console.log('=== Editing Accommodation ===');
         console.log('Hotel data:', hotel);
         
+        // IMPORTANT: Reset arrival/departure mode flags to ensure hotel popup opens correctly
+        window.isArrivalDepartureOnlyMode = false;
+        window.willOpenArrivalDepartureOnly = false;
+        window.editingArrivalDepartureIndex = null;
+        window.editingArrivalDepartureType = null;
+        window.isEditingArrivalDeparture = false;
+        window.isAddingNewArrivalDeparture = false;
+        
         // Set editing mode
         window.editingAccommodationIndex = index;
         
@@ -13332,6 +13438,15 @@
         if (arrivalDepartureSection) {
             arrivalDepartureSection.style.display = 'none';
         }
+        
+        // Show hotel sections (in case they were hidden by arrival/departure mode)
+        document.getElementById('hotelSelectionRow1').style.display = 'flex';
+        const hotelSelectionRow2 = document.getElementById('hotelSelectionRow2');
+        if (hotelSelectionRow2) hotelSelectionRow2.style.display = 'flex';
+        
+        // Reset modal title to hotel mode
+        document.getElementById('modalTitleIcon').className = 'ri-hotel-line me-2';
+        document.getElementById('modalTitleText').textContent = 'Edit Hotel';
         
         // Change the save button text to "Update"
         document.getElementById('saveAccommodationBtnText').textContent = 'Update Accommodation';
@@ -14876,19 +14991,19 @@
                                             <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                         </td>
                                         <td style="padding: 2px 8px;">
-                                            <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="SGD ${parseFloat(ticket.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                                            <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${parseFloat(ticket.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             <input type="number" class="form-control form-control-sm attraction-child-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.children || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                         </td>
                                         <td style="padding: 2px 8px;">
-                                            <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="SGD ${parseFloat(ticket.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                                            <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${parseFloat(ticket.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             <input type="number" class="form-control form-control-sm attraction-infant-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.infants || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                         </td>
                                         <td style="padding: 2px 8px;">
-                                            <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                                            <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="0.00" style="font-size: 10px; padding: 2px 4px;">
                                         </td>
                                         <td style="padding: 2px 8px; text-align: center;">
                                             <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" ${isAttraction ? 'checked' : ''} onchange="onAttractionTransferCheckboxChange(this)">
@@ -14947,19 +15062,19 @@
                                         <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                     </td>
                                     <td style="padding: 2px 8px;">
-                                        <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="SGD ${parseFloat(attr.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                                        <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${parseFloat(attr.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         <input type="number" class="form-control form-control-sm attraction-child-qty" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${headerValues.children || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                     </td>
                                     <td style="padding: 2px 8px;">
-                                        <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="SGD ${parseFloat(attr.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                                        <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${parseFloat(attr.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         <input type="number" class="form-control form-control-sm attraction-infant-qty" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${headerValues.infants || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                     </td>
                                     <td style="padding: 2px 8px;">
-                                        <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                                        <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="0.00" style="font-size: 10px; padding: 2px 4px;">
                                     </td>
                                     <td style="padding: 2px 8px; text-align: center;">
                                         <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" ${isAttraction ? 'checked' : ''} onchange="onAttractionTransferCheckboxChange(this)">
@@ -15170,11 +15285,11 @@
             
             // Get values from the row
             const adultsQty = parseInt(row.querySelector('.attraction-adult-qty').value) || 0;
-            const adultCharge = row.querySelector('.attraction-adult-charge').value || 'SGD 0.00';
+            const adultCharge = row.querySelector('.attraction-adult-charge').value || '0.00';
             const childQty = parseInt(row.querySelector('.attraction-child-qty').value) || 0;
-            const childCharge = row.querySelector('.attraction-child-charge').value || 'SGD 0.00';
+            const childCharge = row.querySelector('.attraction-child-charge').value || '0.00';
             const infantQty = parseInt(row.querySelector('.attraction-infant-qty').value) || 0;
-            const infantCharge = row.querySelector('.attraction-infant-charge').value || 'SGD 0.00';
+            const infantCharge = row.querySelector('.attraction-infant-charge').value || '0.00';
             const transferChecked = row.querySelector('.attraction-transfer-checkbox').checked;
             const transferDestinationSelect = row.querySelector('.attraction-transfer-destination');
             const transferDestination = transferDestinationSelect?.value || '';
@@ -15539,11 +15654,11 @@
             
             // Get values from the row
             const adultsQty = parseInt(row.querySelector('.attraction-adult-qty').value) || 0;
-            const adultCharge = row.querySelector('.attraction-adult-charge').value || 'SGD 0.00';
+            const adultCharge = row.querySelector('.attraction-adult-charge').value || '0.00';
             const childQty = parseInt(row.querySelector('.attraction-child-qty').value) || 0;
-            const childCharge = row.querySelector('.attraction-child-charge').value || 'SGD 0.00';
+            const childCharge = row.querySelector('.attraction-child-charge').value || '0.00';
             const infantQty = parseInt(row.querySelector('.attraction-infant-qty').value) || 0;
-            const infantCharge = row.querySelector('.attraction-infant-charge').value || 'SGD 0.00';
+            const infantCharge = row.querySelector('.attraction-infant-charge').value || '0.00';
             const transferChecked = row.querySelector('.attraction-transfer-checkbox').checked;
             const transferDestinationSelect = row.querySelector('.attraction-transfer-destination');
             const transferDestination = transferDestinationSelect?.value || '';
@@ -16084,11 +16199,11 @@
                     </a>
                 </td>
                 <td><input type="number" value="${tour.adultsQty}" onchange="updateTourField(${index}, 'adultsQty', this.value)"></td>
-                <td><input type="text" value="${tour.adultCost}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${tour.adultSell}" onchange="updateTourField(${index}, 'adultSell', this.value)" step="1"></td>
+                <td><input type="text" value="${parseFloat(String(tour.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(tour.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'adultSell', this.value)" step="1"></td>
                 <td><input type="number" value="${tour.childQty}" onchange="updateTourField(${index}, 'childQty', this.value)"></td>
-                <td><input type="text" value="${tour.childCost}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${tour.childSell}" onchange="updateTourField(${index}, 'childSell', this.value)" step="1"></td>
+                <td><input type="text" value="${parseFloat(String(tour.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'childSell', this.value)" step="1"></td>
                 <td style="text-align: center;"><input type="checkbox" ${tour.supplement ? 'checked' : ''} onchange="updateTourField(${index}, 'supplement', this.checked)"></td>
             </tr>
         `;
@@ -16134,19 +16249,19 @@
                     if (adultQty) adultQty.value = tour.adultsQty || 0;
                     
                     const adultCharge = row.querySelector('.attraction-adult-charge');
-                    if (adultCharge) adultCharge.value = `SGD ${parseFloat(tour.adultCost || 0).toFixed(2)}`;
+                    if (adultCharge) adultCharge.value = `${parseFloat(String(tour.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
                     
                     const childQty = row.querySelector('.attraction-child-qty');
                     if (childQty) childQty.value = tour.childQty || 0;
                     
                     const childCharge = row.querySelector('.attraction-child-charge');
-                    if (childCharge) childCharge.value = `SGD ${parseFloat(tour.childCost || 0).toFixed(2)}`;
+                    if (childCharge) childCharge.value = `${parseFloat(String(tour.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
                     
                     const infantQty = row.querySelector('.attraction-infant-qty');
                     if (infantQty) infantQty.value = tour.infantQty || 0;
                     
                     const infantCharge = row.querySelector('.attraction-infant-charge');
-                    if (infantCharge) infantCharge.value = `SGD ${parseFloat(tour.infantCost || 0).toFixed(2)}`;
+                    if (infantCharge) infantCharge.value = `${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
                     
                     // Populate transfer info if available
                     const transferCheckbox = row.querySelector('.attraction-transfer-checkbox');
@@ -16329,10 +16444,13 @@
             }
         }
         
-        // Set default date
+        // Set default date with 10:00 AM time
         const guideDate = document.getElementById('guideDate');
         if (guideDate) {
-            guideDate.value = getDefaultServiceDate();
+            // Get date part from getDefaultServiceDate but use 10:00 AM as default time
+            const defaultDate = getDefaultServiceDate();
+            const datePart = defaultDate.split('T')[0];
+            guideDate.value = `${datePart}T10:00`;
         }
         
         // Clear guides table
@@ -17260,19 +17378,19 @@
                             <input type="number" class="form-control form-control-sm misc-adult-qty" data-item-id="misc_${item.mis_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                         </td>
                         <td style="padding: 2px 8px;">
-                            <input type="text" class="form-control form-control-sm misc-adult-charge" data-item-id="misc_${item.mis_id}" value="SGD ${parseFloat(item.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                            <input type="text" class="form-control form-control-sm misc-adult-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
                         </td>
                         <td style="padding: 2px 8px;">
                             <input type="number" class="form-control form-control-sm misc-child-qty" data-item-id="misc_${item.mis_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                         </td>
                         <td style="padding: 2px 8px;">
-                            <input type="text" class="form-control form-control-sm misc-child-charge" data-item-id="misc_${item.mis_id}" value="SGD ${parseFloat(item.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                            <input type="text" class="form-control form-control-sm misc-child-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
                         </td>
                         <td style="padding: 2px 8px;">
                             <input type="number" class="form-control form-control-sm misc-infant-qty" data-item-id="misc_${item.mis_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                         </td>
                         <td style="padding: 2px 8px;">
-                            <input type="text" class="form-control form-control-sm misc-infant-charge" data-item-id="misc_${item.mis_id}" value="SGD ${parseFloat(item.infant_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                            <input type="text" class="form-control form-control-sm misc-infant-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.infant_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
                         </td>
                     </tr>
                 `).join('');
@@ -17364,11 +17482,11 @@
             
             // Get values from the row
             const adultsQty = parseInt(row.querySelector('.misc-adult-qty').value) || 0;
-            const adultCharge = row.querySelector('.misc-adult-charge').value || 'SGD 0.00';
+            const adultCharge = row.querySelector('.misc-adult-charge').value || '0.00';
             const childQty = parseInt(row.querySelector('.misc-child-qty').value) || 0;
-            const childCharge = row.querySelector('.misc-child-charge').value || 'SGD 0.00';
+            const childCharge = row.querySelector('.misc-child-charge').value || '0.00';
             const infantQty = parseInt(row.querySelector('.misc-infant-qty').value) || 0;
-            const infantCharge = row.querySelector('.misc-infant-charge').value || 'SGD 0.00';
+            const infantCharge = row.querySelector('.misc-infant-charge').value || '0.00';
             
             // Parse charges
             const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
@@ -17407,11 +17525,11 @@
                 
                 // Get values from the row
                 const adultsQty = parseInt(row.querySelector('.misc-adult-qty').value) || 0;
-                const adultCharge = row.querySelector('.misc-adult-charge').value || 'SGD 0.00';
+                const adultCharge = row.querySelector('.misc-adult-charge').value || '0.00';
                 const childQty = parseInt(row.querySelector('.misc-child-qty').value) || 0;
-                const childCharge = row.querySelector('.misc-child-charge').value || 'SGD 0.00';
+                const childCharge = row.querySelector('.misc-child-charge').value || '0.00';
                 const infantQty = parseInt(row.querySelector('.misc-infant-qty').value) || 0;
-                const infantCharge = row.querySelector('.misc-infant-charge').value || 'SGD 0.00';
+                const infantCharge = row.querySelector('.misc-infant-charge').value || '0.00';
                 
                 // Parse charges
                 const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
@@ -17482,14 +17600,14 @@
                     </a>
                 </td>
                 <td><input type="number" value="${item.adultsQty}" onchange="updateMiscField(${index}, 'adultsQty', this.value)"></td>
-                <td><input type="text" value="${item.adultCost}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${item.adultSell}" onchange="updateMiscField(${index}, 'adultSell', this.value)" step="1"></td>
+                <td><input type="text" value="${parseFloat(String(item.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(item.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'adultSell', this.value)" step="1"></td>
                 <td><input type="number" value="${item.childQty}" onchange="updateMiscField(${index}, 'childQty', this.value)"></td>
-                <td><input type="text" value="${item.childCost}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${item.childSell}" onchange="updateMiscField(${index}, 'childSell', this.value)" step="1"></td>
+                <td><input type="text" value="${parseFloat(String(item.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(item.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'childSell', this.value)" step="1"></td>
                 <td><input type="number" value="${item.infantQty}" onchange="updateMiscField(${index}, 'infantQty', this.value)"></td>
-                <td><input type="text" value="${item.infantCost}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${item.infantSell}" onchange="updateMiscField(${index}, 'infantSell', this.value)" step="1"></td>
+                <td><input type="text" value="${parseFloat(String(item.infantCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(item.infantSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'infantSell', this.value)" step="1"></td>
                 <td style="text-align: center;"><input type="checkbox" ${item.supplement ? 'checked' : ''} onchange="updateMiscSupplement(${index}, this.checked)"></td>
             </tr>
         `).join('');
@@ -17562,11 +17680,11 @@
                 };
                 
                 setVal('.misc-adult-qty', item.adultsQty);
-                setVal('.misc-adult-charge', 'SGD ' + (item.adultCost || 0));
+                setVal('.misc-adult-charge', parseFloat(String(item.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
                 setVal('.misc-child-qty', item.childQty);
-                setVal('.misc-child-charge', 'SGD ' + (item.childCost || 0));
+                setVal('.misc-child-charge', parseFloat(String(item.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
                 setVal('.misc-infant-qty', item.infantQty);
-                setVal('.misc-infant-charge', 'SGD ' + (item.infantCost || 0));
+                setVal('.misc-infant-charge', parseFloat(String(item.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
                 
                 // Scroll the row into view
                 targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -17686,8 +17804,8 @@
         });
         
         // Update the total fields
-        mealTotalCostField.value = `SGD ${totalCost.toFixed(2)}`;
-        mealTotalSellField.value = `SGD ${totalSell.toFixed(2)}`;
+        mealTotalCostField.value = `${totalCost.toFixed(2)}`;
+        mealTotalSellField.value = `${totalSell.toFixed(2)}`;
         
         // Update record count
         if (mealRecordCount) {
@@ -18520,28 +18638,28 @@
                     <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="${setMenuAdultValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-adult-cost" data-meal-id="${meal.meal_id}" value="SGD ${adultCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
+                    <input type="text" class="form-control form-control-sm meal-adult-cost" data-meal-id="${meal.meal_id}" value="${adultCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-adult-sell" data-meal-id="${meal.meal_id}" value="SGD ${adultSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
+                    <input type="text" class="form-control form-control-sm meal-adult-sell" data-meal-id="${meal.meal_id}" value="${adultSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="${setMenuChildValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-child-cost" data-meal-id="${meal.meal_id}" value="SGD ${childCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
+                    <input type="text" class="form-control form-control-sm meal-child-cost" data-meal-id="${meal.meal_id}" value="${childCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-child-sell" data-meal-id="${meal.meal_id}" value="SGD ${childSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
+                    <input type="text" class="form-control form-control-sm meal-child-sell" data-meal-id="${meal.meal_id}" value="${childSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="${setMenuInfantValue}" min="0" ${setMenuReadonly} ${isSetMenu ? '' : 'oninput="updateMealTotalAmount()"'}>
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-infant-cost" data-meal-id="${meal.meal_id}" value="SGD 0.00" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
+                    <input type="text" class="form-control form-control-sm meal-infant-cost" data-meal-id="${meal.meal_id}" value="0.00" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-infant-sell" data-meal-id="${meal.meal_id}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
+                    <input type="text" class="form-control form-control-sm meal-infant-sell" data-meal-id="${meal.meal_id}" value="0.00" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
             `;
             
@@ -18704,14 +18822,14 @@
             // Get values from the row
             const mealCount = parseInt(row.querySelector('.meal-count').value) || 0;
             const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
-            const adultCostValue = row.querySelector('.meal-adult-cost')?.value || 'SGD 0.00';
-            const adultSellValue = row.querySelector('.meal-adult-sell')?.value || 'SGD 0.00';
+            const adultCostValue = row.querySelector('.meal-adult-cost')?.value || '0.00';
+            const adultSellValue = row.querySelector('.meal-adult-sell')?.value || '0.00';
             const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
-            const childCostValue = row.querySelector('.meal-child-cost')?.value || 'SGD 0.00';
-            const childSellValue = row.querySelector('.meal-child-sell')?.value || 'SGD 0.00';
+            const childCostValue = row.querySelector('.meal-child-cost')?.value || '0.00';
+            const childSellValue = row.querySelector('.meal-child-sell')?.value || '0.00';
             const infantQty = parseInt(row.querySelector('.meal-infant-qty').value) || 0;
-            const infantCostValue = row.querySelector('.meal-infant-cost')?.value || 'SGD 0.00';
-            const infantSellValue = row.querySelector('.meal-infant-sell')?.value || 'SGD 0.00';
+            const infantCostValue = row.querySelector('.meal-infant-cost')?.value || '0.00';
+            const infantSellValue = row.querySelector('.meal-infant-sell')?.value || '0.00';
             
             // Get transfer info from restaurant transfer section (not per-row)
             const transferChecked = document.getElementById('restaurantTransferCheckbox')?.checked || false;
@@ -19324,14 +19442,14 @@
                 // Get values from the row
                 const mealCount = parseInt(row.querySelector('.meal-count').value) || 0;
                 const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
-                const adultCostValue = row.querySelector('.meal-adult-cost')?.value || 'SGD 0.00';
-                const adultSellValue = row.querySelector('.meal-adult-sell')?.value || 'SGD 0.00';
+                const adultCostValue = row.querySelector('.meal-adult-cost')?.value || '0.00';
+                const adultSellValue = row.querySelector('.meal-adult-sell')?.value || '0.00';
                 const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
-                const childCostValue = row.querySelector('.meal-child-cost')?.value || 'SGD 0.00';
-                const childSellValue = row.querySelector('.meal-child-sell')?.value || 'SGD 0.00';
+                const childCostValue = row.querySelector('.meal-child-cost')?.value || '0.00';
+                const childSellValue = row.querySelector('.meal-child-sell')?.value || '0.00';
                 const infantQty = parseInt(row.querySelector('.meal-infant-qty').value) || 0;
-                const infantCostValue = row.querySelector('.meal-infant-cost')?.value || 'SGD 0.00';
-                const infantSellValue = row.querySelector('.meal-infant-sell')?.value || 'SGD 0.00';
+                const infantCostValue = row.querySelector('.meal-infant-cost')?.value || '0.00';
+                const infantSellValue = row.querySelector('.meal-infant-sell')?.value || '0.00';
                 
                 // Parse cost and sell prices separately
                 const adultCost = parseFloat(adultCostValue.replace(/[^0-9.]/g, '')) || 0;
@@ -19612,11 +19730,11 @@
                     </a>
                 </td>
                 <td><input type="number" value="${meal.adultsQty}" onchange="updateMealField(${index}, 'adultsQty', this.value)"></td>
-                <td><input type="text" value="${meal.adultCost}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${meal.adultSell}" onchange="updateMealField(${index}, 'adultSell', this.value)" step="1"></td>
+                <td><input type="text" value="${parseFloat(String(meal.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(meal.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'adultSell', this.value)" step="1"></td>
                 <td><input type="number" value="${meal.childQty}" onchange="updateMealField(${index}, 'childQty', this.value)"></td>
-                <td><input type="text" value="${meal.childCost}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${meal.childSell}" onchange="updateMealField(${index}, 'childSell', this.value)" step="1"></td>
+                <td><input type="text" value="${parseFloat(String(meal.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(meal.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'childSell', this.value)" step="1"></td>
                 <td style="text-align: center;"><input type="checkbox" ${meal.supplement ? 'checked' : ''} onchange="updateMealSupplement(${index}, this.checked)"></td>
             </tr>
         `;
@@ -20083,11 +20201,11 @@
             
             setVal('.meal-count', meal.mealCount);
             setVal('.meal-adult-qty', meal.adultsQty);
-            setVal('.meal-adult-charge', 'SGD ' + (meal.adultCost || 0));
+            setVal('.meal-adult-charge', parseFloat(String(meal.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
             setVal('.meal-child-qty', meal.childQty);
-            setVal('.meal-child-charge', 'SGD ' + (meal.childCost || 0));
+            setVal('.meal-child-charge', parseFloat(String(meal.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
             setVal('.meal-infant-qty', meal.infantQty);
-            setVal('.meal-infant-charge', 'SGD ' + (meal.infantCost || 0));
+            setVal('.meal-infant-charge', parseFloat(String(meal.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
             
             // Transfer fields
             const transferCheckbox = rowToUse.querySelector(`.meal-transfer-checkbox[data-meal-id="${mealId}"]`);
@@ -22452,10 +22570,19 @@
                 // Initialize with object values as fallback
                 let hotelCostPerNight = parseFloat(hotel.cost || hotel.roomPrice || 0);
                 let hotelSellPerNight = parseFloat(hotel.sell || hotel.roomPrice || 0);
-                let extraBedPrice = parseFloat(hotel.extraBedPrice || 0);
-                let cwbPrice = parseFloat(hotel.cwbPrice || 0);
-                let cnbPrice = parseFloat(hotel.cnbPrice || 0);
-                let infantPrice = parseFloat(hotel.infantPrice || 0);
+                
+                // Check if extra bed, cwb, cnb, infant checkboxes are selected
+                // If not selected, these prices should be 0 (not included in calculations)
+                const hasExtraBed = hotel.hasExtraBed === true;
+                const hasCwb = hotel.hasCwb === true;
+                const hasCnb = hotel.hasCnb === true;
+                const hasInfant = hotel.hasInfant === true;
+                
+                // Only use prices if the corresponding checkbox is checked
+                let extraBedPrice = hasExtraBed ? parseFloat(hotel.extraBedPrice || 0) : 0;
+                let cwbPrice = hasCwb ? parseFloat(hotel.cwbPrice || 0) : 0;
+                let cnbPrice = hasCnb ? parseFloat(hotel.cnbPrice || 0) : 0;
+                let infantPrice = hasInfant ? parseFloat(hotel.infantPrice || 0) : 0;
                 
                 // ALWAYS try to get current value from table row (for edit form)
                 // Table values are the source of truth - they show what user sees/edits
@@ -22482,10 +22609,10 @@
                         const nightsInput = matchingRow.querySelector('td:nth-child(5) input');
                         const costInput = matchingRow.querySelector('td:nth-child(7) input');
                         const sellInput = matchingRow.querySelector('td:nth-child(8) input[type="number"]');
-                        const extraBedInput = matchingRow.querySelector('td:nth-child(9) input[type="number"]');
-                        const cwbInput = matchingRow.querySelector('td:nth-child(10) input[type="number"]');
-                        const cnbInput = matchingRow.querySelector('td:nth-child(11) input[type="number"]');
-                        const infantInput = matchingRow.querySelector('td:nth-child(12) input[type="number"]');
+                        const extraBedInput = matchingRow.querySelector('td:nth-child(9) input');
+                        const cwbInput = matchingRow.querySelector('td:nth-child(10) input');
+                        const cnbInput = matchingRow.querySelector('td:nth-child(11) input');
+                        const infantInput = matchingRow.querySelector('td:nth-child(12) input');
                         
                         // Always use table values - they are the displayed/actual values
                         if (nightsInput && nightsInput.value !== '') {
@@ -22500,19 +22627,20 @@
                             const tableSellValue = parseFloat(sellInput.value);
                             if (!isNaN(tableSellValue)) hotelSellPerNight = tableSellValue;
                         }
-                        if (extraBedInput && extraBedInput.value !== '') {
+                        // Only read table values if the corresponding checkbox is checked
+                        if (hasExtraBed && extraBedInput && extraBedInput.value !== '') {
                             const tableValue = parseFloat(extraBedInput.value);
                             if (!isNaN(tableValue)) extraBedPrice = tableValue;
                         }
-                        if (cwbInput && cwbInput.value !== '') {
+                        if (hasCwb && cwbInput && cwbInput.value !== '') {
                             const tableValue = parseFloat(cwbInput.value);
                             if (!isNaN(tableValue)) cwbPrice = tableValue;
                         }
-                        if (cnbInput && cnbInput.value !== '') {
+                        if (hasCnb && cnbInput && cnbInput.value !== '') {
                             const tableValue = parseFloat(cnbInput.value);
                             if (!isNaN(tableValue)) cnbPrice = tableValue;
                         }
-                        if (infantInput && infantInput.value !== '') {
+                        if (hasInfant && infantInput && infantInput.value !== '') {
                             const tableValue = parseFloat(infantInput.value);
                             if (!isNaN(tableValue)) infantPrice = tableValue;
                         }
