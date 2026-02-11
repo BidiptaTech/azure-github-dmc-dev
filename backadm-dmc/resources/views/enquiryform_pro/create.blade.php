@@ -10721,192 +10721,6 @@
                     arrivalDepartureList[index].childCost = finalCost;
                     arrivalDepartureList[index].childSell = finalSell;
                 }
-            } else if (item.type === 'Departure' && departureDateTime && departurePortId) {
-                const departureTransfer = document.getElementById('departureTransfer')?.checked || false;
-                const departureTransferWay = 'one-way';
-                const departureTransferType = document.getElementById('departureTransferType')?.value || 'S';
-                
-                // Get both vehicle_id (value), vehicle type, and vehicle name
-                const departureVehicleSelect = document.getElementById('departureVehicleType');
-                const departureVehicleId = departureVehicleSelect?.value || '';
-                const departureVehicleOption = departureVehicleSelect?.selectedOptions[0];
-                const departureVehicleType = departureVehicleOption?.getAttribute('data-type') || '';
-                const departureVehicleName = departureVehicleOption?.text || '';
-                
-                const departureAdults = parseInt(document.getElementById('departureAdults')?.value || adults);
-                const departureChild = parseInt(document.getElementById('departureChild')?.value || child);
-                const departureInfant = parseInt(document.getElementById('departureInfant')?.value || infant);
-                
-                // Get cost and sell from input fields
-                const departureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
-                const departureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
-                
-                const departureDestinationSelect = document.getElementById('departureDestination');
-                const departureDestinationId = departureDestinationSelect?.value || '';
-                const departureDestinationName = departureDestinationSelect?.selectedOptions[0]?.getAttribute('data-name') || '';
-                
-                arrivalDepartureList[index] = {
-                    ...item,
-                    dateTime: departureDateTime,
-                    portId: departurePortId,
-                    portName: departurePortName,
-                    flightNo: departureFlightNo || '-',
-                    adultsQty: departureAdults,
-                    childQty: departureChild,
-                    infantQty: departureInfant,
-                    hasTransfer: departureTransfer,
-                    transferWay: departureTransferWay,
-                    transferType: departureTransferType,
-                    vehicleId: departureVehicleId,
-                    vehicleType: departureVehicleType,
-                    vehicleName: departureVehicleName,
-                    transferDestinationId: departureDestinationId,
-                    transferDestinationName: departureDestinationName
-                };
-                
-                // Handle transfer: update if exists and checked, remove if unchecked
-                if (item.transferId) {
-                    const transferIndex = transferList.findIndex(t => t.id === item.transferId);
-                    if (transferIndex !== -1) {
-                        if (departureTransfer) {
-                            // Fetch zone price for departure transfer (destination to port)
-                            let zonePrice = { private_price: 0, shared_price: 0 };
-                            if (departureVehicleId && departurePortId && departureDestinationId) {
-                                const departureDestinationSelect = document.getElementById('departureDestination');
-                                const departureDestinationOption = departureDestinationSelect?.selectedOptions[0];
-                                const departureDestinationType = departureDestinationOption?.getAttribute('data-type') || 'hotel';
-                                
-                                // Use port ID directly (value is already numeric ID)
-                                let actualPortId = departurePortId;
-                                
-                                // Get the unique ID - value is already the correct ID
-                                // For hotels, use hotel_unique_id from value (already set correctly)
-                                // For others, use the value directly (already numeric ID)
-                                let actualDestinationId = departureDestinationId;
-                                if (departureDestinationType === 'hotel') {
-                                    // Value is already hotel_unique_id, but verify with data attribute as fallback
-                                    const hotelUniqueId = departureDestinationOption?.getAttribute('data-hotel-unique-id');
-                                    if (hotelUniqueId) {
-                                        actualDestinationId = hotelUniqueId;
-                                    }
-                                }
-                                
-                                // For departure: pickup is destination, drop is port
-                                zonePrice = await fetchZonePrice(
-                                    departureVehicleId,
-                                    actualDestinationId,
-                                    departureDestinationType,
-                                    actualPortId,
-                                    'port',
-                                    dmcId
-                                );
-                            }
-                            
-                            // Calculate prices
-                            const prices = calculateTransferPrice(zonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
-                            
-                            // Use manual cost/sell if provided, otherwise use calculated prices
-                            const finalCost = departureCost > 0 ? departureCost : prices.cost;
-                            const finalSell = departureSell > 0 ? departureSell : prices.sell;
-                            
-                            // Update existing transfer
-                            transferList[transferIndex] = {
-                                ...transferList[transferIndex],
-                                dateTime: departureDateTime,
-                                portName: departurePortName,
-                                destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
-                                vehicleId: departureVehicleId,
-                                vehicleType: departureVehicleType,
-                                vehicleName: departureVehicleName,
-                                type: departureTransferType,
-                                way: departureTransferWay,
-                                adults: departureAdults,
-                                child: departureChild,
-                                cost: finalCost,
-                                sell: finalSell,
-                                zonePrivatePrice: prices.privatePrice,
-                                zoneSharedPrice: prices.sharedPrice
-                            };
-                            
-                            // Update arrival/departure entry prices
-                            arrivalDepartureList[index].cost = finalCost;
-                            arrivalDepartureList[index].sell = finalSell;
-                            arrivalDepartureList[index].adultCost = finalCost;
-                            arrivalDepartureList[index].adultSell = finalSell;
-                            arrivalDepartureList[index].childCost = finalCost;
-                            arrivalDepartureList[index].childSell = finalSell;
-                        } else {
-                            // Remove transfer if unchecked
-                            transferList.splice(transferIndex, 1);
-                            arrivalDepartureList[index].transferId = null;
-                            arrivalDepartureList[index].adultCost = 0;
-                            arrivalDepartureList[index].adultSell = 0;
-                            arrivalDepartureList[index].childCost = 0;
-                            arrivalDepartureList[index].childSell = 0;
-                        }
-                    }
-                } else if (departureTransfer) {
-                    // Fetch zone price for departure transfer (destination to port)
-                    let zonePrice = { private_price: 0, shared_price: 0 };
-                    if (departureVehicleId && departurePortId && departureDestinationId) {
-                        const departureDestinationSelect = document.getElementById('departureDestination');
-                        const departureDestinationOption = departureDestinationSelect?.selectedOptions[0];
-                        const departureDestinationType = departureDestinationOption?.getAttribute('data-type') || 'hotel';
-                        
-                        // Use port ID directly (value is already numeric ID)
-                        let actualPortId = departurePortId;
-                        
-                        // For departure: pickup is destination, drop is port
-                        zonePrice = await fetchZonePrice(
-                            departureVehicleId,
-                            departureDestinationId,
-                            departureDestinationType,
-                            actualPortId,
-                            'port',
-                            dmcId
-                        );
-                    }
-                    
-                    // Calculate prices
-                    const prices = calculateTransferPrice(zonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
-                    
-                    // Use manual cost/sell if provided, otherwise use calculated prices
-                    const finalCost = departureCost > 0 ? departureCost : prices.cost;
-                    const finalSell = departureSell > 0 ? departureSell : prices.sell;
-                    
-                    // Create new transfer if checked and doesn't exist
-                    const transferId = generateId('transfer');
-                    transferList.push({
-                        id: transferId,
-                        transportMode: 'local',
-                        isStandalone: false,
-                        sourceType: 'departure',
-                        sourceId: item.id,
-                        dateTime: departureDateTime,
-                        portName: departurePortName,
-                        destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
-                        vehicleId: departureVehicleId,
-                        vehicleType: departureVehicleType,
-                        vehicleName: departureVehicleName,
-                        type: departureTransferType,
-                        way: departureTransferWay,
-                        hasTransfer: true,
-                        adults: departureAdults,
-                        child: departureChild,
-                        cost: finalCost,
-                        sell: finalSell,
-                        zonePrivatePrice: prices.privatePrice,
-                        zoneSharedPrice: prices.sharedPrice,
-                        taxIncluded: false
-                    });
-                    arrivalDepartureList[index].transferId = transferId;
-                    arrivalDepartureList[index].cost = finalCost;
-                    arrivalDepartureList[index].sell = finalSell;
-                    arrivalDepartureList[index].adultCost = finalCost;
-                    arrivalDepartureList[index].adultSell = finalSell;
-                    arrivalDepartureList[index].childCost = finalCost;
-                    arrivalDepartureList[index].childSell = finalSell;
-                }
                 
                 // Handle arrival guide - only if arrival is properly booked (has date and port)
                 const arrivalGuideChecked = document.getElementById('arrivalGuideCheckbox')?.checked || false;
@@ -10917,7 +10731,7 @@
                 const arrivalGuideChildQty = parseInt(document.getElementById('arrivalGuideChildQty')?.value || '0') || 0;
                 
                 // Find existing guide in guideList
-                const existingGuideIndex = item.guideId ? guideList.findIndex(g => String(g.id) === String(item.guideId)) : -1;
+                const existingArrivalGuideIndex = item.guideId ? guideList.findIndex(g => String(g.id) === String(item.guideId)) : -1;
                 
                 if (arrivalGuideChecked && arrivalGuideSelect && arrivalGuideSelect.value && arrivalDateTime && arrivalPortId) {
                     const arrivalGuideId = arrivalGuideSelect.value;
@@ -10930,10 +10744,10 @@
                     const priceAttr = arrivalGuideOption?.getAttribute('data-twelve-hour-price') || '0';
                     const guidePrice = parseFloat(priceAttr) || 0;
                     
-                    if (existingGuideIndex !== -1) {
+                    if (existingArrivalGuideIndex !== -1) {
                         // Update existing guide
-                        guideList[existingGuideIndex] = {
-                            ...guideList[existingGuideIndex],
+                        guideList[existingArrivalGuideIndex] = {
+                            ...guideList[existingArrivalGuideIndex],
                             dateTime: arrivalDateTime,
                             tourActivity: `Arrival Guide - ${arrivalPortName}`,
                             language: arrivalGuideLanguages || 'N/A',
@@ -10945,7 +10759,7 @@
                             adultsQty: arrivalGuideAdultQty,
                             childQty: arrivalGuideChildQty
                         };
-                        arrivalDepartureList[index].guideId = guideList[existingGuideIndex].id;
+                        arrivalDepartureList[index].guideId = guideList[existingArrivalGuideIndex].id;
                     } else {
                         // Add new guide entry
                         const guideEntryId = generateId('guide');
@@ -10971,8 +10785,8 @@
                     }
                 } else {
                     // Remove guide if unchecked
-                    if (existingGuideIndex !== -1) {
-                        guideList.splice(existingGuideIndex, 1);
+                    if (existingArrivalGuideIndex !== -1) {
+                        guideList.splice(existingArrivalGuideIndex, 1);
                     }
                     arrivalDepartureList[index].guideId = null;
                 }
@@ -14101,11 +13915,18 @@
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
         
-        // Also remove associated transfers
+        // Also remove associated transfers and guides
         arrivalDepartureList.forEach(item => {
             if (idsToRemove.includes(String(item.id))) {
+                // Remove linked transfer
                 if (item.transferId) {
                     transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
+                    console.log('Removed linked transfer for arrival/departure:', item.transferId);
+                }
+                // Remove linked guide
+                if (item.guideId) {
+                    guideList = guideList.filter(g => String(g.id) !== String(item.guideId));
+                    console.log('Removed linked guide for arrival/departure:', item.guideId);
                 }
             }
         });
@@ -14113,6 +13934,7 @@
         arrivalDepartureList = arrivalDepartureList.filter(item => !idsToRemove.includes(String(item.id)));
         updateArrivalDepartureTable();
         updateTransferTable();
+        updateGuideTable();
         recalculateHeaderDatesFromServices();
         recalculateTotals();
     }
@@ -21310,8 +21132,19 @@
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
         
+        // Collect linked guide IDs to remove (guides linked to local transfers being deleted)
+        const guideIdsToRemove = [];
+        
         // Before removing transfers, uncheck transfer checkboxes in linked services
         idsToRemove.forEach(transferIdToRemove => {
+            // Find the transfer being removed to check for linked guide
+            const transferToRemove = transferList.find(t => String(t.id) === String(transferIdToRemove));
+            if (transferToRemove && transferToRemove.guideId) {
+                // Add linked guide to removal list
+                guideIdsToRemove.push(String(transferToRemove.guideId));
+                console.log('Will remove linked guide for local transfer:', transferToRemove.guideId);
+            }
+            
             // Uncheck transfer checkbox in tours (but keep guide if checked)
             tourList.forEach(tour => {
                 if (tour.transferId && String(tour.transferId) === String(transferIdToRemove)) {
@@ -21356,11 +21189,18 @@
         // Now remove the transfers
         transferList = transferList.filter(transfer => !idsToRemove.includes(String(transfer.id)));
         
+        // Remove linked guides from guideList
+        if (guideIdsToRemove.length > 0) {
+            guideList = guideList.filter(guide => !guideIdsToRemove.includes(String(guide.id)));
+            console.log('Removed linked guides:', guideIdsToRemove);
+        }
+        
         // Update all affected tables
         updateTransferTable();
         updateTourTable();
         updateMealTable();
         updateArrivalDepartureTable();
+        updateGuideTable();
         recalculateHeaderDatesFromServices();
         recalculateTotals();
     }
@@ -21637,8 +21477,9 @@
             if (transferTableBody) {
                 const tableRows = Array.from(transferTableBody.querySelectorAll('tr'));
                 if (transferIndex < tableRows.length) {
-                    const sellInput = tableRows[transferIndex].querySelector('td:nth-child(11) input[type="number"]');
-                    const costInput = tableRows[transferIndex].querySelector('td:nth-child(10) input[type="number"]');
+                    // Cost is type="text" (readonly), Sell is type="number"
+                    const sellInput = tableRows[transferIndex].querySelector('td:nth-child(11) input');
+                    const costInput = tableRows[transferIndex].querySelector('td:nth-child(10) input');
                     if (sellInput && sellInput.value !== '') {
                         listSellValue = parseFloat(sellInput.value) || 0;
                     }
@@ -21648,54 +21489,33 @@
                 }
             }
             
-            // Determine transfer type
-            const type = (transfer.type || '').toString().toLowerCase();
-            const isPrivate = type === 'p' || type === 'private';
-            const isShared = type === 's' || type === 'sic' || type === 'shared';
-            
             // Get passenger count
             const adults = parseInt(transfer.adults || transfer.adultsQty || 0) || 0;
             const child = parseInt(transfer.child || transfer.childQty || 0) || 0;
-            const totalPax = adults + child;
+            const totalPax = Math.max(1, adults + child);
+            
+            // Determine transfer type
+            const type = (transfer.type || '').toString().toLowerCase();
+            const isPrivate = type === 'p' || type === 'private';
             
             let singleSellContribution = 0;
             let singleCostContribution = 0;
             
-            if (isShared) {
-                // Shared: Use cost/sell values directly (already per person)
-                singleSellContribution = listSellValue || 0;
-                singleCostContribution = listCostValue || 0;
-                
-                // If cost is not set, fall back to sell value
-                if (singleCostContribution === 0 && singleSellContribution > 0) {
-                    singleCostContribution = singleSellContribution;
-                }
-            } else if (isPrivate) {
-                // Private: Divide total vehicle price by passenger count
-                if (totalPax > 0 && listSellValue > 0) {
-                    singleSellContribution = Math.ceil(listSellValue / totalPax);
-                } else {
-                    singleSellContribution = listSellValue || 0;
-                }
-                if (totalPax > 0 && listCostValue > 0) {
-                    singleCostContribution = Math.ceil(listCostValue / totalPax);
-                } else {
-                    singleCostContribution = listCostValue || 0;
-                }
-                
-                // If cost is not set, fall back to sell value
-                if (singleCostContribution === 0 && singleSellContribution > 0) {
-                    singleCostContribution = singleSellContribution;
-                }
+            // Calculate based on type:
+            // Shared: tablePrice × pax (per person pricing)
+            // Private: tablePrice only (fixed vehicle price)
+            if (isPrivate) {
+                singleCostContribution = listCostValue;
+                singleSellContribution = listSellValue;
             } else {
-                // Unknown type: use value directly (treat as per-person)
-                singleSellContribution = listSellValue || 0;
-                singleCostContribution = listCostValue || 0;
-                
-                // If cost is not set, fall back to sell value
-                if (singleCostContribution === 0 && singleSellContribution > 0) {
-                    singleCostContribution = singleSellContribution;
-                }
+                // Shared/SIC: multiply by pax
+                singleCostContribution = listCostValue * totalPax;
+                singleSellContribution = listSellValue * totalPax;
+            }
+            
+            // If sell is not set, fall back to cost value
+            if (singleSellContribution === 0 && singleCostContribution > 0) {
+                singleSellContribution = singleCostContribution;
             }
             
             // Add to totals
@@ -21705,11 +21525,11 @@
             }
         });
         
-        // Calculate twin and triple (multiply single by 2 and 3)
-        const localTransferTwinCost = localTransferSingleCost * 2;
-        const localTransferTripleCost = localTransferSingleCost * 3;
-        const localTransferTwinSell = localTransferSingleSell * 2;
-        const localTransferTripleSell = localTransferSingleSell * 3;
+        // Local transfer totals are the same for single, twin, triple (sum of table values, no multiplication)
+        const localTransferTwinCost = localTransferSingleCost;
+        const localTransferTripleCost = localTransferSingleCost;
+        const localTransferTwinSell = localTransferSingleSell;
+        const localTransferTripleSell = localTransferSingleSell;
         
         // Add accommodation rows (exclude items with supplement checked)
         if (accommodationList.length > 0) {
@@ -22866,7 +22686,8 @@
                             vehicle_type: linkedTransfer.vehicleType || '',
                             seating_capacity: linkedTransfer.capacity || 0
                         },
-                        cost: parseFloat(linkedTransfer.sell) || 0,
+                        cost: parseFloat(linkedTransfer.cost) || 0,
+                        sell: parseFloat(linkedTransfer.sell) || 0,
                         pickup_location_name: pickupName,
                         destination_name: dropoffName
                     };
@@ -23034,7 +22855,8 @@
                         vehicle_type: transferSource.vehicleType || '',
                         seating_capacity: transferSource.capacity || 0
                     },
-                    cost: parseFloat(transferSource.sell || transferSource.adultSell || 0),
+                    cost: parseFloat(transferSource.cost || transferSource.adultCost || 0),
+                    sell: parseFloat(transferSource.sell || transferSource.adultSell || 0),
                     pickup_location_name: pickupName,
                     destination_name: dropoffName
                 };
