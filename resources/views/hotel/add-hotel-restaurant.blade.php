@@ -710,7 +710,7 @@
                                 <th>Calendar</th>
                                 <th>Status</th>
                                 {{-- @if(hasPermission('edit restaurant') || hasPermission('delete restaurant')) --}}
-                                    <th>Action</th>
+                                    <th style="width: 100px;">Action</th>
                                 {{-- @endif --}}
                             </tr>
                         </thead>
