@@ -266,6 +266,8 @@ class EditTourController extends Controller
             'meal_plan' => 'nullable|string|max:255',
             'number_of_persons' => 'nullable|integer|min:1',
             'total_price' => 'nullable|numeric|min:0',
+            'child_with_bed' => 'nullable|string',
+            'child_without_bed' => 'nullable|string',
         ]);
 
         try {
@@ -392,6 +394,23 @@ class EditTourController extends Controller
             }
             if (!array_key_exists('days_display', $currentPayload)) {
                 $currentPayload['days_display'] = $originalPayload['days_display'] ?? '';
+            }
+
+            // Update child_with_bed and child_without_bed if provided
+            if ($request->has('child_with_bed')) {
+                $decoded = json_decode($request->input('child_with_bed'), true);
+                $currentPayload['child_with_bed'] = is_array($decoded) ? $decoded : null;
+            }
+            if ($request->has('child_without_bed')) {
+                $decoded = json_decode($request->input('child_without_bed'), true);
+                $currentPayload['child_without_bed'] = is_array($decoded) ? $decoded : null;
+            }
+            // Clear if not provided (user unchecked)
+            if (!$request->has('child_with_bed')) {
+                $currentPayload['child_with_bed'] = null;
+            }
+            if (!$request->has('child_without_bed')) {
+                $currentPayload['child_without_bed'] = null;
             }
 
             // Step 5: Ensure hotelDetails exists and preserve all fields
@@ -767,6 +786,9 @@ class EditTourController extends Controller
                 'bookingDate' => is_array($currentPayload['bookingDate'] ?? []) ? $currentPayload['bookingDate'] : [],
                 // Transfer options if provided
                 'transfer_options' => $currentPayload['transfer_options'] ?? ['transfer_required' => false],
+                // Child pricing (when child with bed / child without bed checkboxes are checked)
+                'child_with_bed' => $currentPayload['child_with_bed'] ?? null,
+                'child_without_bed' => $currentPayload['child_without_bed'] ?? null,
             ];
             
             // Ensure hotelDetails has all required fields

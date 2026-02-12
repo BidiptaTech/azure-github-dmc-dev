@@ -666,6 +666,22 @@
                                 </div>
                             </div>
                             
+                            <!-- Child pricing (shown only when selected room has child_with_bed/child_without_bed prices) -->
+                            <div id="hotelChildPricingSection" class="row g-2 mb-3" style="display: none;">
+                                <div id="hotelChildWithBedWrap" class="col-md-6" style="display: none;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithBed">
+                                        <label class="form-check-label" for="chkChildWithBed">Child with Bed <small class="text-muted" id="childWithBedPriceLabel"></small></label>
+                                    </div>
+                                </div>
+                                <div id="hotelChildWithoutBedWrap" class="col-md-6" style="display: none;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithoutBed">
+                                        <label class="form-check-label" for="chkChildWithoutBed">Child without Bed <small class="text-muted" id="childWithoutBedPriceLabel"></small></label>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <!-- Transfer Required Section -->
                             {{-- <div class="row g-3 mt-2">
                                 <div class="col-md-2">
@@ -2074,7 +2090,21 @@
                                 }]
                             }],
                             
-                            // Calculate total price: stored room price (already includes all nights) × number of rooms + meal costs
+                            // Child pricing (child_with_bed, child_without_bed) - include in JSON when present
+                            child_with_bed: (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? {
+                                enabled: true,
+                                price: parseFloat(hotel.childWithBedPrice) || 0,
+                                children: Math.max(children || (parseInt(hotel.children) || 0), 1),
+                                total_cost: (parseFloat(hotel.childWithBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            } : null,
+                            child_without_bed: (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? {
+                                enabled: true,
+                                price: parseFloat(hotel.childWithoutBedPrice) || 0,
+                                children: Math.max(children || (parseInt(hotel.children) || 0), 1),
+                                total_cost: (parseFloat(hotel.childWithoutBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            } : null,
+                            
+                            // Calculate total price: stored room price (already includes all nights) × number of rooms + meal costs + child costs
                             totalPrice: (() => {
                                 // Use the stored price from when the hotel was added
                                 // This price already includes the correct weekday/weekend calculation for all nights
@@ -2089,6 +2119,8 @@
                                 
                                 const numRooms = parseInt(hotel.numberOfRooms) || 1;
                                 const numNights = parseInt(hotel.totalNights) || 1;
+                                const numChildrenForCwb = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? Math.max(children || (parseInt(hotel.children) || 0), 1) : 0;
+                                const numChildrenForCnb = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? Math.max(children || (parseInt(hotel.children) || 0), 1) : 0;
                                 
                                 // Calculate room cost (price already includes all nights, just multiply by rooms)
                                 const roomCost = totalRoomPrice * numRooms;
@@ -2109,8 +2141,12 @@
                                     console.log(`Extra bed cost: ${extraPersons} extra persons × $${hotel.extraBedPrice} × ${numRooms} rooms × ${numNights} nights = $${extraBedCost}`);
                                 }
                                 
-                                const total = roomCost + mealCost + extraBedCost;
-                                console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room cost: $${roomCost}, Meal cost: $${mealCost}, Extra bed cost: $${extraBedCost}, Total: $${total}`);
+                                // Calculate child with bed and child without bed costs
+                                const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * numChildrenForCwb * numRooms * numNights : 0;
+                                const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * numChildrenForCnb * numRooms * numNights : 0;
+                                
+                                const total = roomCost + mealCost + extraBedCost + cwbCost + cnbCost;
+                                console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room cost: $${roomCost}, Meal cost: $${mealCost}, Extra bed cost: $${extraBedCost}, Child with bed: $${cwbCost}, Child without bed: $${cnbCost}, Total: $${total}`);
                                 
                                 // Log weekday/weekend breakdown if available
                                 if (hotel.weekdayNights || hotel.weekendNights) {
@@ -2139,6 +2175,8 @@
                         hotelDataArray.forEach((hotel, index) => {
                             console.log(`Hotel ${index + 1} (${hotel.hotelDetails.hotel_name}):`);
                             console.log(`  - Calculated totalPrice: $${hotel.totalPrice}`);
+                            if (hotel.child_with_bed) console.log(`  - Child with bed: $${hotel.child_with_bed.total_cost} (${hotel.child_with_bed.children} children @ $${hotel.child_with_bed.price})`);
+                            if (hotel.child_without_bed) console.log(`  - Child without bed: $${hotel.child_without_bed.total_cost} (${hotel.child_without_bed.children} children @ $${hotel.child_without_bed.price})`);
                             console.log(`  - Room type: ${hotel.rooms[0].room_type}`);
                             console.log(`  - Bed type: ${hotel.rooms[0].beds[0].bed_type}`);
                             console.log(`  - Tour ID: ${hotel.tour_id}`);
@@ -11452,6 +11490,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 option.dataset.breakfast = sampleRoom.breakfast || 0;
                                 option.dataset.lunch = sampleRoom.lunch || 0;
                                 option.dataset.dinner = sampleRoom.dinner || 0;
+                                option.dataset.childWithBed = sampleRoom.child_with_bed || 0;
+                                option.dataset.childWithoutBed = sampleRoom.child_without_bed || 0;
                                 roomTypeSelect.appendChild(option);
                                 
                                 console.log(`Added room type option: ${roomType} with price $${price} (${isSingleOccupancy ? 'Single' : 'Double'} ${isWeekend ? 'Weekend' : 'Weekday'})`);
@@ -11640,6 +11680,44 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Show/hide child pricing checkboxes based on room having child_with_bed and child_without_bed prices
+    window.updateHotelChildPricingVisibility = function(roomType) {
+        const section = document.getElementById('hotelChildPricingSection');
+        const cwbWrap = document.getElementById('hotelChildWithBedWrap');
+        const cnbWrap = document.getElementById('hotelChildWithoutBedWrap');
+        const chkCwb = document.getElementById('chkChildWithBed');
+        const chkCnb = document.getElementById('chkChildWithoutBed');
+        const cwbLabel = document.getElementById('childWithBedPriceLabel');
+        const cnbLabel = document.getElementById('childWithoutBedPriceLabel');
+        if (!section || !cwbWrap || !cnbWrap) return;
+        if (!roomType || !window.roomData || !Array.isArray(window.roomData)) {
+            section.style.display = 'none';
+            cwbWrap.style.display = 'none';
+            cnbWrap.style.display = 'none';
+            if (chkCwb) chkCwb.checked = false;
+            if (chkCnb) chkCnb.checked = false;
+            return;
+        }
+        const room = window.roomData.find(function(r){ return r.room_type === roomType; });
+        if (!room) {
+            section.style.display = 'none';
+            cwbWrap.style.display = 'none';
+            cnbWrap.style.display = 'none';
+            if (chkCwb) chkCwb.checked = false;
+            if (chkCnb) chkCnb.checked = false;
+            return;
+        }
+        const cwbPrice = parseFloat(room.child_with_bed) || 0;
+        const cnbPrice = parseFloat(room.child_without_bed) || 0;
+        cwbWrap.style.display = cwbPrice > 0 ? 'block' : 'none';
+        cnbWrap.style.display = cnbPrice > 0 ? 'block' : 'none';
+        section.style.display = (cwbPrice > 0 || cnbPrice > 0) ? 'flex' : 'none';
+        if (chkCwb) chkCwb.checked = false;
+        if (chkCnb) chkCnb.checked = false;
+        if (cwbLabel) cwbLabel.textContent = cwbPrice > 0 ? '($' + cwbPrice.toFixed(2) + ')' : '';
+        if (cnbLabel) cnbLabel.textContent = cnbPrice > 0 ? '($' + cnbPrice.toFixed(2) + ')' : '';
+    };
+
     // Update bed types for selected room type
     window.updateBedTypesForRoom = function(roomType) {
         const bedTypeSelect = document.getElementById('bedTypeSelect');
@@ -11647,8 +11725,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!roomType || !window.roomData) {
             if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+            if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(null);
             return;
         }
+        if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(roomType);
         
         // Get the selected room type option to access pricing data
         const selectedRoomOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
@@ -11665,6 +11745,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (selectedRooms.length === 0) {
             if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">No rooms of this type</option>';
+            if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(null);
             return;
         }
         
@@ -12621,6 +12702,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear selected bed info
         window.selectedBedInfo = null;
         
+        // Hide child pricing checkboxes
+        if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(null);
+        
         console.log('Room type dependent fields cleared');
     }
 
@@ -12819,6 +12903,27 @@ document.addEventListener('DOMContentLoaded', function() {
         // SGD is now a fixed prefix, value is already numeric
         const customRoomPriceNum = parseFloat(customRoomPrice);
 
+        // Child pricing from rooms table (child_with_bed, child_without_bed)
+        let childWithBedPrice = 0, childWithoutBedPrice = 0;
+        const rtVal = roomTypeSelect ? roomTypeSelect.value : '';
+        const rtOpt = rtVal ? Array.from(roomTypeSelect.options || []).find(function(o){ return o.value === rtVal; }) : null;
+        if (rtOpt && rtOpt.dataset) {
+            childWithBedPrice = parseFloat(rtOpt.dataset.childWithBed) || 0;
+            childWithoutBedPrice = parseFloat(rtOpt.dataset.childWithoutBed) || 0;
+        }
+        if ((childWithBedPrice === 0 || childWithoutBedPrice === 0) && window.roomData && Array.isArray(window.roomData)) {
+            const room = window.roomData.find(function(r){ return r.room_type === roomType; });
+            if (room) {
+                if (childWithBedPrice === 0) childWithBedPrice = parseFloat(room.child_with_bed) || 0;
+                if (childWithoutBedPrice === 0) childWithoutBedPrice = parseFloat(room.child_without_bed) || 0;
+            }
+        }
+        const chkCwb = document.getElementById('chkChildWithBed');
+        const chkCnb = document.getElementById('chkChildWithoutBed');
+        const childWithBedEnabled = chkCwb ? chkCwb.checked : false;
+        const childWithoutBedEnabled = chkCnb ? chkCnb.checked : false;
+        const numChildren = parseInt(document.getElementById('children').value) || 0;
+
         console.log('Custom room price:', customRoomPrice);
         console.log('Weekday nights*storedWeekdayPrice:', weekdayNights*storedWeekdayPrice);
         console.log('Weekend nights*storedWeekendPrice:', weekendNights*storedWeekendPrice);
@@ -12861,7 +12966,12 @@ document.addEventListener('DOMContentLoaded', function() {
             checkInDate: checkInDate.format('MMM DD'),
             checkOutDate: checkOutDate.format('MMM DD'),
             totalNights: nightNumbers.length,
-            transferOptions: transferOptions // Store transfer options with this hotel
+            transferOptions: transferOptions,
+            childWithBedEnabled: childWithBedEnabled,
+            childWithoutBedEnabled: childWithoutBedEnabled,
+            childWithBedPrice: childWithBedPrice,
+            childWithoutBedPrice: childWithoutBedPrice,
+            children: numChildren
         };
         
         console.log('=== ADDING HOTEL ===');
@@ -12959,6 +13069,10 @@ document.addEventListener('DOMContentLoaded', function() {
                      width: '100%'
                  });
              }
+             const chkCwb = document.getElementById('chkChildWithBed');
+             const chkCnb = document.getElementById('chkChildWithoutBed');
+             if (chkCwb) chkCwb.checked = false;
+             if (chkCnb) chkCnb.checked = false;
          } catch (error) {
              console.error('Error resetting Select2 dropdowns:', error);
          }
@@ -13088,7 +13202,11 @@ document.addEventListener('DOMContentLoaded', function() {
              `;
          } else {
              let hotelsHtml = '';
+             const currentChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
              selectedHotels.forEach((hotel, index) => {
+                 const numChildren = currentChildren || (parseInt(hotel.children) || 0);
+                 const cwbChildren = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? Math.max(numChildren, 1) : numChildren;
+                 const cnbChildren = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? Math.max(numChildren, 1) : numChildren;
                  hotelsHtml += `
                      <div class="card mb-3" style="border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
                          <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem;">
@@ -13230,7 +13348,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                             ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy ? `
                                                 <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                     <span>Extra Bed Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.extraBedPrice} × ${hotel.selectedPersons - hotel.maxOccupancy} × ${hotel.numberOfRooms} × ${hotel.totalNights} = $${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
+                                                </div>
+                                            ` : ''}
+                                            ${(hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0 ? `
+                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
+                                                    <span>Child with Bed:</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${((parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
+                                                </div>
+                                            ` : ''}
+                                            ${(hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0 ? `
+                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
+                                                    <span>Child without Bed:</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${((parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
                                                 </div>
                                             ` : ''}
                                             <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
@@ -13258,7 +13388,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     }
                                                     const extraBedCost = (hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy) ? 
                                                         hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights : 0;
-                                                    return roomCost + mealCost + extraBedCost;
+                                                    const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
+                                                    const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
+                                                    return (roomCost + mealCost + extraBedCost + cwbCost + cnbCost).toFixed(2);
                                                 })()}</span>
                                             </div>
                                         </div>
@@ -13329,9 +13461,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Calculate extra bed cost
                     const extraBedCost = (h.extraBedPrice && h.extraBedPrice > 0 && h.selectedPersons > h.maxOccupancy) ? 
                         h.extraBedPrice * (h.selectedPersons - h.maxOccupancy) * (h.numberOfRooms || 1) * (h.totalNights || 1) : 0;
-                    
-                    // Total price includes room cost + meal cost + extra bed cost
-                    return sum + roomCost + mealCost + extraBedCost;
+                    const headerChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
+                    const hNumChildren = headerChildren || (parseInt(h.children) || 0);
+                    const hCwbChildren = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
+                    const hCnbChildren = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
+                    const cwbCost = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? (parseFloat(h.childWithBedPrice) || 0) * hCwbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
+                    const cnbCost = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? (parseFloat(h.childWithoutBedPrice) || 0) * hCnbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
+                    return sum + roomCost + mealCost + extraBedCost + cwbCost + cnbCost;
                 }, 0);
                  
                  const formattedPrice = totalPrice.toLocaleString('en-US', {
