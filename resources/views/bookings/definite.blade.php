@@ -11089,10 +11089,32 @@ window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, booking
                 return;
             }
 
-            var fullData = restaurantData.restaurantDetails || restaurantData.restaurant_details || restaurantData;
+            // Handle restaurantData - could be array, object with nested properties, or direct object
+            var dataSource = restaurantData;
+            if (Array.isArray(restaurantData) && restaurantData.length > 0) {
+                dataSource = restaurantData[0];
+            }
+            
+            // Check restaurant_details which may contain the JSON array data
+            var restaurantDetailsData = null;
+            if (restaurantData?.restaurant_details) {
+                if (Array.isArray(restaurantData.restaurant_details) && restaurantData.restaurant_details.length > 0) {
+                    restaurantDetailsData = restaurantData.restaurant_details[0];
+                } else if (typeof restaurantData.restaurant_details === 'object') {
+                    restaurantDetailsData = restaurantData.restaurant_details;
+                }
+            }
+            
+            var fullData = dataSource?.restaurantDetails || dataSource?.restaurant_details || dataSource;
             if (fullData && typeof fullData === 'object' && (fullData.restaurant_details && typeof fullData.restaurant_details === 'object')) {
                 fullData = fullData.restaurant_name !== undefined ? fullData : (fullData.restaurant_details || fullData);
             }
+            
+            // Also handle if fullData is still an array
+            if (Array.isArray(fullData) && fullData.length > 0) {
+                fullData = fullData[0];
+            }
+            
             var safeStr = function(v, max) {
                 if (v == null || typeof v !== 'string' && typeof v !== 'number') return '';
                 var s = String(v).replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}]/gu, '').replace(/\s+/g, ' ').trim();
@@ -11100,10 +11122,44 @@ window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, booking
             };
 
             // Build a very compact, fixed-size payload so it never exceeds the QR capacity.
+            // Check restaurantId in multiple locations including restaurant_details array - ensure we get a valid value
+            var restaurantId = '';
+            // First check restaurantDetailsData (from restaurant_details array)
+            if (restaurantDetailsData?.restaurantId != null && restaurantDetailsData?.restaurantId !== false && restaurantDetailsData?.restaurantId !== '') {
+                restaurantId = String(restaurantDetailsData.restaurantId);
+            } else if (restaurantDetailsData?.restaurant_id != null && restaurantDetailsData?.restaurant_id !== false && restaurantDetailsData?.restaurant_id !== '') {
+                restaurantId = String(restaurantDetailsData.restaurant_id);
+            } 
+            // Then check fullData
+            else if (fullData?.restaurantId != null && fullData?.restaurantId !== false && fullData?.restaurantId !== '') {
+                restaurantId = String(fullData.restaurantId);
+            } else if (fullData?.restaurant_id != null && fullData?.restaurant_id !== false && fullData?.restaurant_id !== '') {
+                restaurantId = String(fullData.restaurant_id);
+            } 
+            // Then check dataSource
+            else if (dataSource?.restaurantId != null && dataSource?.restaurantId !== false && dataSource?.restaurantId !== '') {
+                restaurantId = String(dataSource.restaurantId);
+            } else if (dataSource?.restaurant_id != null && dataSource?.restaurant_id !== false && dataSource?.restaurant_id !== '') {
+                restaurantId = String(dataSource.restaurant_id);
+            } 
+            // Then check direct array access
+            else if (Array.isArray(restaurantData) && restaurantData[0]?.restaurantId != null && restaurantData[0]?.restaurantId !== false && restaurantData[0]?.restaurantId !== '') {
+                restaurantId = String(restaurantData[0].restaurantId);
+            } else if (Array.isArray(restaurantData) && restaurantData[0]?.restaurant_id != null && restaurantData[0]?.restaurant_id !== false && restaurantData[0]?.restaurant_id !== '') {
+                restaurantId = String(restaurantData[0].restaurant_id);
+            } 
+            // Finally check restaurantData directly
+            else if (restaurantData?.restaurantId != null && restaurantData?.restaurantId !== false && restaurantData?.restaurantId !== '') {
+                restaurantId = String(restaurantData.restaurantId);
+            } else if (restaurantData?.restaurant_id != null && restaurantData?.restaurant_id !== false && restaurantData?.restaurant_id !== '') {
+                restaurantId = String(restaurantData.restaurant_id);
+            }
+            
             var qrPayload = {
                 tid: tourId,
-                bid: fullData?.booking_id ?? fullData?.bookingId ?? restaurantData?.booking_id ?? '',
+                bid: fullData?.booking_id ?? fullData?.bookingId ?? dataSource?.booking_id ?? '',
                 r: safeStr(fullData?.restaurant_name || fullData?.restaurantName || 'Restaurant', 60),
+                rid: restaurantId,
                 rd: safeStr(fullData?.booking_date || fullData?.bookingDate || '', 12),
                 rt: safeStr(fullData?.visit_time || fullData?.visitTime || '', 12),
                 mt: safeStr(fullData?.meal_type || fullData?.mealType || '', 20),
