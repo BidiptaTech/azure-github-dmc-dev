@@ -59,6 +59,7 @@
         table-layout: fixed;
         width: 100%;
         margin-bottom: 0;
+        background-color: #fff;
     }
     
     #toursTable thead th {
@@ -68,23 +69,25 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        background-color: #f8f9fa;
     }
     
     #toursTable tbody td {
         padding: 0.5rem 0.5rem;
         vertical-align: top;
         overflow: hidden;
+        background-color: #fff;
     }
     
     #toursTable tbody tr {
         height: auto;
         min-height: 50px;
     }
-    /* When any service icon in this row is hovered, raise whole row above next rows so tooltip is visible */
+    /* When any service icon in this row is hovered, raise whole row above next rows so tooltip is visible (low z-index so modals stay on top) */
     #toursTable tbody tr:has(.service-icon-wrapper:hover),
     #toursTable tbody tr.service-tooltip-row-active {
         position: relative;
-        z-index: 9999;
+        z-index: 10;
     }
     
     /* Services column: professional soft-badge style (light bg, colored icon) */
@@ -148,7 +151,7 @@
         margin: 3px;
     }
     #toursTable .service-icon-wrapper:hover {
-        z-index: 9999;
+        z-index: 10;
     }
     /* In-cell tooltip hidden – we use a body-level tooltip so it’s never clipped */
     #toursTable .service-icon-tooltip {
@@ -166,7 +169,7 @@
         white-space: nowrap;
         border-radius: 0.375rem;
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        z-index: 99999;
+        z-index: 1100;
         pointer-events: none;
         display: none;
         left: 0;
