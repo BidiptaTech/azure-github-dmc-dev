@@ -7404,8 +7404,23 @@
                 return;
             }
             
+            // Ensure dateValue is a string before processing
+            let dateValueStr = dateValue;
+            if (typeof dateValue !== 'string') {
+                // Handle Date objects
+                if (dateValue instanceof Date) {
+                    dateValueStr = dateValue.toISOString().split('T')[0];
+                } else if (dateValue && typeof dateValue === 'object') {
+                    // Handle objects that might have a date property
+                    dateValueStr = String(dateValue.date || dateValue.dateTime || dateValue.value || dateValue);
+                } else {
+                    dateValueStr = String(dateValue);
+                }
+                console.log('expandHeaderDatesIfNeeded: Converted dateValue to string:', dateValueStr);
+            }
+            
             // Extract date part from datetime-local if needed (normalize to ISO)
-            const rawDateOnly = isDateTime ? dateValue.split('T')[0] : dateValue;
+            const rawDateOnly = isDateTime ? dateValueStr.split('T')[0] : dateValueStr;
             const dateOnly = normalizeDateToYYYYMMDD(rawDateOnly);
             const currentStartISO = getHeaderInputISO(tourStart);
             const currentEndISO = getHeaderInputISO(tourEnd);
@@ -12706,215 +12721,36 @@
         // Convert selected combinations to hotel entries
         selectedHotelsTemp = convertCombinationsToHotels(selectedCombinations);
 
-        // Process Arrival/Departure information
-        const arrivalDateTime = document.getElementById('arrivalDateTime').value;
-        const arrivalPortSelect = document.getElementById('arrivalPort');
-        const arrivalPortId = arrivalPortSelect.value;
-        const arrivalPortName = arrivalPortSelect.selectedOptions[0]?.text || '';
-        const arrivalFlightNo = document.getElementById('arrivalFlightNo').value;
-        const departureDateTime = document.getElementById('departureDateTime').value;
-        const departurePortSelect = document.getElementById('departurePort');
-        const departurePortId = departurePortSelect.value;
-        const departurePortName = departurePortSelect.selectedOptions[0]?.text || '';
-        const departureFlightNo = document.getElementById('departureFlightNo').value;
-
         // Get pax numbers from header
         const adults = parseInt(document.getElementById('adultCountInput')?.value || 0);
         const child = parseInt(document.getElementById('childCountInput')?.value || 0);
         const infant = parseInt(document.getElementById('infantCountInput')?.value || 0);
 
-        const newArrivalDepartureIds = [];
-
-        // Store arrival/departure data with each hotel in temp list first
-        selectedHotelsTemp = selectedHotelsTemp.map(hotel => ({
-            ...hotel,
-            arrivalDateTime: arrivalDateTime,
-            arrivalPortId: arrivalPortId,
-            arrivalPortName: arrivalPortName,
-            arrivalFlightNo: arrivalFlightNo,
-            departureDateTime: departureDateTime,
-            departurePortId: departurePortId,
-            departurePortName: departurePortName,
-            departureFlightNo: departureFlightNo,
-            arrivalDepartureIds: []
-        }));
-
-        // Note: Standalone arrival/departure entries are only created via saveArrivalDepartureOnly() function
-        // When saving accommodation, we create accommodation-linked entries below (not standalone)
+        // NOTE: Arrival/Departure entries are NOT created when adding hotels normally
+        // Arrival/Departure should ONLY be added via the "Add Arrival/Departure" button (saveArrivalDepartureOnly function)
+        // Hotels do not have arrival/departure options - they are separate services
         
         // Add to main accommodation list
         const startIndex = accommodationList.length;
         accommodationList = [...accommodationList, ...selectedHotelsTemp];
         
-        // Check if hotel transfer is checked - if so, don't add arrival/departure
+        // Check if hotel transfer is checked
         const hotelTransferChecked = document.getElementById('hotelTransferCheckbox')?.checked || false;
         
-        // Now create arrival/departure entries linked to each hotel
-        // Skip arrival/departure if hotel transfer is checked
+        // Initialize each hotel with empty arrivalDepartureIds (no auto-creation of arrival/departure)
         selectedHotelsTemp.forEach((hotel, idx) => {
             const accommodationIdx = startIndex + idx;
-            const hotelArrivalDepartureIds = [];
             
-            // Add Arrival if provided (but not when hotel transfer is checked)
-            if (!hotelTransferChecked && arrivalDateTime && arrivalPortId) {
-                const arrivalId = generateId('arrdep');
-                const arrivalTransfer = document.getElementById('arrivalTransfer')?.checked || false;
-                // Get vehicle type name from data attribute instead of value (which is vehicle_id)
-                const arrivalVehicleSelect = document.getElementById('arrivalVehicleType');
-                const arrivalVehicleType = arrivalVehicleSelect?.selectedOptions[0]?.getAttribute('data-type') || '';
-                const arrivalTransferType = document.getElementById('arrivalTransferType')?.value || 'S';
-                const arrivalTransferWay = 'one-way';
-                const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
-                
-                const arrival = {
-                    id: arrivalId,
-                    dateTime: arrivalDateTime,
-                    portId: arrivalPortId,
-                    portName: arrivalPortName,
-                    flightNo: arrivalFlightNo || '-',
-                    type: 'Arrival',
-                    adultsQty: adults,
-                    adultCost: arrivalVehiclePrice,
-                    adultSell: arrivalVehiclePrice, // Default: cost = sell
-                    childQty: child,
-                    childCost: arrivalVehiclePrice,
-                    childSell: arrivalVehiclePrice, // Default: cost = sell
-                    infantQty: infant,
-                    amount: 0,
-                    hasTransfer: arrivalTransfer,
-                    transferWay: arrivalTransferWay,
-                    transferType: arrivalTransferType,
-                    vehicleType: arrivalVehicleType,
-                    supplement: '',
-                    accommodationIndex: accommodationIdx
-                };
-                // Handle arrival guide
-                const arrivalGuideChecked = document.getElementById('arrivalGuideCheckbox')?.checked || false;
-                const arrivalGuideSelect = document.getElementById('arrivalGuide');
-                
-                // Get adult and child quantities from modal inputs
-                const arrivalGuideAdultQty = parseInt(document.getElementById('arrivalGuideAdultQty')?.value || '0') || 0;
-                const arrivalGuideChildQty = parseInt(document.getElementById('arrivalGuideChildQty')?.value || '0') || 0;
-                
-                if (arrivalGuideChecked && arrivalGuideSelect && arrivalGuideSelect.value) {
-                    const arrivalGuideId = arrivalGuideSelect.value;
-                    const arrivalGuideOption = arrivalGuideSelect.selectedOptions[0];
-                    const arrivalGuideName = arrivalGuideOption?.getAttribute('data-name') || arrivalGuideOption?.text || '';
-                    const arrivalGuideLanguages = arrivalGuideOption?.getAttribute('data-languages') || '';
-                    
-                    // Guide price is fixed for 12 hours, not dependent on pax or hours
-                    // Use the 12-hour price directly without dividing or multiplying
-                    const priceAttr = arrivalGuideOption?.getAttribute('data-twelve-hour-price') || '0';
-                    const guidePrice = parseFloat(priceAttr) || 0;
-                    
-                    // Add guide entry to guideList
-                    const guideEntryId = generateId('guide');
-                    const guideEntry = {
-                        id: guideEntryId,
-                        dateTime: arrivalDateTime,
-                        tourActivity: `Arrival Guide - ${arrivalPortName}`,
-                        language: arrivalGuideLanguages || 'N/A',
-                        guideName: arrivalGuideName,
-                        guideId: arrivalGuideId,
-                        hours: 12, // Default 12 hours (standard default)
-                        cost: guidePrice, // Fixed price for 12 hours
-                        sell: guidePrice, // Fixed price for 12 hours
-                        supplement: false,
-                        isStandalone: false,
-                        linkedTo: 'arrival',
-                        arrivalId: arrivalId,
-                        adultsQty: arrivalGuideAdultQty,
-                        childQty: arrivalGuideChildQty
-                    };
-                    guideList.push(guideEntry);
-                    arrival.guideId = guideEntryId;
-                }
-                
-                arrivalDepartureList.push(arrival);
-                hotelArrivalDepartureIds.push(arrivalId);
-            }
-
-            // Add Departure if provided (but not when hotel transfer is checked)
-            if (!hotelTransferChecked && departureDateTime && departurePortId) {
-                const departureId = generateId('arrdep');
-                const departureTransfer = document.getElementById('departureTransfer')?.checked || false;
-                // Get vehicle type name from data attribute instead of value (which is vehicle_id)
-                const departureVehicleSelect = document.getElementById('departureVehicleType');
-                const departureVehicleType = departureVehicleSelect?.selectedOptions[0]?.getAttribute('data-type') || '';
-                const departureTransferType = document.getElementById('departureTransferType')?.value || 'S';
-                const departureTransferWay = 'one-way';
-                const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
-                
-                const departure = {
-                    id: departureId,
-                    dateTime: departureDateTime,
-                    portId: departurePortId,
-                    portName: departurePortName,
-                    flightNo: departureFlightNo || '-',
-                    type: 'Departure',
-                    adultsQty: adults,
-                    adultCost: departureVehiclePrice,
-                    adultSell: departureVehiclePrice, // Default: cost = sell
-                    childQty: child,
-                    childCost: departureVehiclePrice,
-                    childSell: departureVehiclePrice, // Default: cost = sell
-                    infantQty: infant,
-                    amount: 0,
-                    hasTransfer: departureTransfer,
-                    transferWay: departureTransferWay,
-                    transferType: departureTransferType,
-                    vehicleType: departureVehicleType,
-                    supplement: '',
-                    accommodationIndex: accommodationIdx
-                };
-                // Handle departure guide
-                const departureGuideChecked = document.getElementById('departureGuideCheckbox')?.checked || false;
-                const departureGuideSelect = document.getElementById('departureGuide');
-                
-                // Get adult and child quantities from modal inputs
-                const departureGuideAdultQty = parseInt(document.getElementById('departureGuideAdultQty')?.value || '0') || 0;
-                const departureGuideChildQty = parseInt(document.getElementById('departureGuideChildQty')?.value || '0') || 0;
-                
-                if (departureGuideChecked && departureGuideSelect && departureGuideSelect.value) {
-                    const departureGuideId = departureGuideSelect.value;
-                    const departureGuideOption = departureGuideSelect.selectedOptions[0];
-                    const departureGuideName = departureGuideOption?.getAttribute('data-name') || departureGuideOption?.text || '';
-                    const departureGuideLanguages = departureGuideOption?.getAttribute('data-languages') || '';
-                    
-                    // Guide price is fixed for 12 hours, not dependent on pax or hours
-                    // Use the 12-hour price directly without dividing or multiplying
-                    const priceAttr = departureGuideOption?.getAttribute('data-twelve-hour-price') || '0';
-                    const guidePrice = parseFloat(priceAttr) || 0;
-                    
-                    // Add guide entry to guideList
-                    const guideEntryId = generateId('guide');
-                    const guideEntry = {
-                        id: guideEntryId,
-                        dateTime: departureDateTime,
-                        tourActivity: `Departure Guide - ${departurePortName}`,
-                        language: departureGuideLanguages || 'N/A',
-                        guideName: departureGuideName,
-                        guideId: departureGuideId,
-                        hours: 12, // Default 12 hours (standard default)
-                        cost: guidePrice, // Fixed price for 12 hours
-                        sell: guidePrice, // Fixed price for 12 hours
-                        supplement: false,
-                        isStandalone: false,
-                        linkedTo: 'departure',
-                        departureId: departureId,
-                        adultsQty: departureGuideAdultQty,
-                        childQty: departureGuideChildQty
-                    };
-                    guideList.push(guideEntry);
-                    departure.guideId = guideEntryId;
-                }
-                
-                arrivalDepartureList.push(departure);
-                hotelArrivalDepartureIds.push(departureId);
-            }
+            // Initialize empty arrays - arrival/departure are added separately via Add Arrival/Departure button
+            accommodationList[accommodationIdx].arrivalDepartureIds = [];
             
-            // Update the accommodation with the IDs
-            accommodationList[accommodationIdx].arrivalDepartureIds = hotelArrivalDepartureIds;
+            // REMOVED: Auto-creation of arrival/departure entries
+            // Arrival/departure should only be created via saveArrivalDepartureOnly() function
+            
+            // DISABLED: Auto-creation of arrival/departure entries removed
+            // Hotels do NOT have arrival/departure options
+            // Arrival/Departure should ONLY be added via the "Add Arrival/Departure" button
+            // which uses the saveArrivalDepartureOnly() function
         });
         
         // Process Hotel Transfer ONCE for all rooms of this hotel (not per room)
@@ -22668,12 +22504,13 @@
                 const tripleCost = ((totalCost + totalExtraBed) / 3) + tourCostPerPax + transferCostPerPax + guideTripleCost + localTransferTripleCost;
                 const tripleSell = ((totalSell + totalExtraBed) / 3) + tourSellPerPax + transferSellPerPax + guideTripleSell + localTransferTripleSell;
                 
-                // Child prices = price per night * nights
-                const childWithBedCost = cwbPrice * nights;
-                const childWithBedSell = cwbPrice * nights;
+                // Child prices = (hotel child price per night * nights) + child costs from other services
+                // Child costs from tours, meals, attractions, restaurants, miscellaneous should be added here
+                const childWithBedCost = (cwbPrice * nights) + childCostPerPax;
+                const childWithBedSell = (cwbPrice * nights) + childSellPerPax;
                 
-                const childWithoutBedCost = cnbPrice * nights;
-                const childWithoutBedSell = cnbPrice * nights;
+                const childWithoutBedCost = (cnbPrice * nights) + childCostPerPax;
+                const childWithoutBedSell = (cnbPrice * nights) + childSellPerPax;
                 
                 const infantCost = infantPrice * nights;
                 const infantSell = infantPrice * nights;
