@@ -93,7 +93,7 @@
     
     .row-1-fields .row {
         margin: 0;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         align-items: center;
     }
     
@@ -940,15 +940,16 @@
         window.existingTourData = {
             tour_id: {{ $tour->tour_id ?? 'null' }},
             display_id: '{{ $tour->display_id ?? '' }}',
-            customer_name: '{{ $tour->customer_name ?? '' }}',
-            email: '{{ $tour->email ?? '' }}',
-            phone: '{{ $tour->phone ?? '' }}',
-            adults: {{ $tour->adults ?? 2 }},
-            children: {{ $tour->children ?? 0 }},
-            infants: {{ $tour->infants ?? 0 }},
-            tour_start_date: '{{ $tour->tour_start_date ?? '' }}',
-            tour_end_date: '{{ $tour->tour_end_date ?? '' }}',
-            country: '{{ $tour->country ?? '' }}',
+            // Customer info from orders JSON (via initialData)
+            customer_name: '{{ $initialData['customer_name'] ?? '' }}',
+            phone: '{{ $initialData['contact_number'] ?? '' }}',
+            salutation: '{{ $initialData['salutation'] ?? 'Mr' }}',
+            adults: {{ $tour->adult ?? 2 }},
+            children: {{ $tour->child ?? 0 }},
+            infants: {{ $tour->infant ?? 0 }},
+            tour_start_date: '{{ $initialData['tour_start_date'] ?? '' }}',
+            tour_end_date: '{{ $initialData['tour_end_date'] ?? '' }}',
+            country: '{{ $tour->destination ?? '' }}',
             agency_id: {{ $tour->agency_id ?? 'null' }},
             agent_id: {{ $tour->agent_id ?? 'null' }},
             status: '{{ $tour->status ?? '' }}',
@@ -5582,18 +5583,26 @@
                 break;
         }
 
+        // Meal prices should NOT be multiplied by pax count - they are per room/unit prices
         let total = 0;
         if (mealFlags.breakfast) {
-            total += (breakfastIncluded ? 0 : (breakfastPriceAdult * adultsCount));
-            total += (breakfastIncluded ? 0 : (childBreakfastPrice * childCount));
+            total += (breakfastIncluded ? 0 : breakfastPriceAdult);
+            // Child breakfast price is separate if applicable
+            if (childCount > 0) {
+                total += (breakfastIncluded ? 0 : childBreakfastPrice);
+            }
         }
         if (mealFlags.lunch) {
-            total += lunchPriceAdult * adultsCount;
-            total += childLunchPrice * childCount;
+            total += lunchPriceAdult;
+            if (childCount > 0) {
+                total += childLunchPrice;
+            }
         }
         if (mealFlags.dinner) {
-            total += dinnerPriceAdult * adultsCount;
-            total += childDinnerPrice * childCount;
+            total += dinnerPriceAdult;
+            if (childCount > 0) {
+                total += childDinnerPrice;
+            }
         }
         return total;
     }
@@ -7396,8 +7405,23 @@
                 return;
             }
             
+            // Ensure dateValue is a string before processing
+            let dateValueStr = dateValue;
+            if (typeof dateValue !== 'string') {
+                // Handle Date objects
+                if (dateValue instanceof Date) {
+                    dateValueStr = dateValue.toISOString().split('T')[0];
+                } else if (dateValue && typeof dateValue === 'object') {
+                    // Handle objects that might have a date property
+                    dateValueStr = String(dateValue.date || dateValue.dateTime || dateValue.value || dateValue);
+                } else {
+                    dateValueStr = String(dateValue);
+                }
+                console.log('expandHeaderDatesIfNeeded: Converted dateValue to string:', dateValueStr);
+            }
+            
             // Extract date part from datetime-local if needed (normalize to ISO)
-            const rawDateOnly = isDateTime ? dateValue.split('T')[0] : dateValue;
+            const rawDateOnly = isDateTime ? dateValueStr.split('T')[0] : dateValueStr;
             const dateOnly = normalizeDateToYYYYMMDD(rawDateOnly);
             const currentStartISO = getHeaderInputISO(tourStart);
             const currentEndISO = getHeaderInputISO(tourEnd);
@@ -9814,11 +9838,13 @@
         
         // Get header values for validation
         const headerValues = getHeaderValues();
-        const totalPax = headerValues.adults + headerValues.children;
+        // Room calculation should only use adults, not children
+        // Children don't require additional rooms - they share with adults
+        const totalAdultsForRooms = headerValues.adults;
         
-        // Calculate initial rooms based on pax: pax/2 rounded up (default 2 adults per room)
-        // Example: 7 pax / 2 = 3.5 = 4 rooms
-        const initialRooms = Math.ceil(totalPax / 2);
+        // Calculate initial rooms based on adults only: adults/2 rounded up (default 2 adults per room)
+        // Example: 4 adults / 2 = 2 rooms (children share with adults)
+        const initialRooms = Math.ceil(totalAdultsForRooms / 2);
         
         const headerInfoEl = document.getElementById('roomComboHeaderInfo');
         const adultsBadge = document.getElementById('headerAdultsBadge');
@@ -9970,10 +9996,11 @@
             
             // Default adults per room is 2 (double sharing)
             const defaultAdultsPerRoom = 2;
-            const totalPax = totalAdults + totalChildren;
+            // Room calculation should only use adults, not children
+            // Children don't require additional rooms - they share with adults
             
-            // Calculate rooms needed: pax/2 rounded up
-            const roomsNeeded = Math.ceil(totalPax / defaultAdultsPerRoom);
+            // Calculate rooms needed: adults/2 rounded up (children share with adults)
+            const roomsNeeded = Math.ceil(totalAdults / defaultAdultsPerRoom);
             
             // Update rooms count for each checked room
             checkedBoxes.forEach((checkbox, index) => {
@@ -12698,215 +12725,36 @@
         // Convert selected combinations to hotel entries
         selectedHotelsTemp = convertCombinationsToHotels(selectedCombinations);
 
-        // Process Arrival/Departure information
-        const arrivalDateTime = document.getElementById('arrivalDateTime').value;
-        const arrivalPortSelect = document.getElementById('arrivalPort');
-        const arrivalPortId = arrivalPortSelect.value;
-        const arrivalPortName = arrivalPortSelect.selectedOptions[0]?.text || '';
-        const arrivalFlightNo = document.getElementById('arrivalFlightNo').value;
-        const departureDateTime = document.getElementById('departureDateTime').value;
-        const departurePortSelect = document.getElementById('departurePort');
-        const departurePortId = departurePortSelect.value;
-        const departurePortName = departurePortSelect.selectedOptions[0]?.text || '';
-        const departureFlightNo = document.getElementById('departureFlightNo').value;
-
         // Get pax numbers from header
         const adults = parseInt(document.getElementById('adultCountInput')?.value || 0);
         const child = parseInt(document.getElementById('childCountInput')?.value || 0);
         const infant = parseInt(document.getElementById('infantCountInput')?.value || 0);
 
-        const newArrivalDepartureIds = [];
-
-        // Store arrival/departure data with each hotel in temp list first
-        selectedHotelsTemp = selectedHotelsTemp.map(hotel => ({
-            ...hotel,
-            arrivalDateTime: arrivalDateTime,
-            arrivalPortId: arrivalPortId,
-            arrivalPortName: arrivalPortName,
-            arrivalFlightNo: arrivalFlightNo,
-            departureDateTime: departureDateTime,
-            departurePortId: departurePortId,
-            departurePortName: departurePortName,
-            departureFlightNo: departureFlightNo,
-            arrivalDepartureIds: []
-        }));
-
-        // Note: Standalone arrival/departure entries are only created via saveArrivalDepartureOnly() function
-        // When saving accommodation, we create accommodation-linked entries below (not standalone)
+        // NOTE: Arrival/Departure entries are NOT created when adding hotels normally
+        // Arrival/Departure should ONLY be added via the "Add Arrival/Departure" button (saveArrivalDepartureOnly function)
+        // Hotels do not have arrival/departure options - they are separate services
         
         // Add to main accommodation list
         const startIndex = accommodationList.length;
         accommodationList = [...accommodationList, ...selectedHotelsTemp];
         
-        // Check if hotel transfer is checked - if so, don't add arrival/departure
+        // Check if hotel transfer is checked
         const hotelTransferChecked = document.getElementById('hotelTransferCheckbox')?.checked || false;
         
-        // Now create arrival/departure entries linked to each hotel
-        // Skip arrival/departure if hotel transfer is checked
+        // Initialize each hotel with empty arrivalDepartureIds (no auto-creation of arrival/departure)
         selectedHotelsTemp.forEach((hotel, idx) => {
             const accommodationIdx = startIndex + idx;
-            const hotelArrivalDepartureIds = [];
             
-            // Add Arrival if provided (but not when hotel transfer is checked)
-            if (!hotelTransferChecked && arrivalDateTime && arrivalPortId) {
-                const arrivalId = generateId('arrdep');
-                const arrivalTransfer = document.getElementById('arrivalTransfer')?.checked || false;
-                // Get vehicle type name from data attribute instead of value (which is vehicle_id)
-                const arrivalVehicleSelect = document.getElementById('arrivalVehicleType');
-                const arrivalVehicleType = arrivalVehicleSelect?.selectedOptions[0]?.getAttribute('data-type') || '';
-                const arrivalTransferType = document.getElementById('arrivalTransferType')?.value || 'S';
-                const arrivalTransferWay = 'one-way';
-                const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
-                
-                const arrival = {
-                    id: arrivalId,
-                    dateTime: arrivalDateTime,
-                    portId: arrivalPortId,
-                    portName: arrivalPortName,
-                    flightNo: arrivalFlightNo || '-',
-                    type: 'Arrival',
-                    adultsQty: adults,
-                    adultCost: arrivalVehiclePrice,
-                    adultSell: arrivalVehiclePrice, // Default: cost = sell
-                    childQty: child,
-                    childCost: arrivalVehiclePrice,
-                    childSell: arrivalVehiclePrice, // Default: cost = sell
-                    infantQty: infant,
-                    amount: 0,
-                    hasTransfer: arrivalTransfer,
-                    transferWay: arrivalTransferWay,
-                    transferType: arrivalTransferType,
-                    vehicleType: arrivalVehicleType,
-                    supplement: '',
-                    accommodationIndex: accommodationIdx
-                };
-                // Handle arrival guide
-                const arrivalGuideChecked = document.getElementById('arrivalGuideCheckbox')?.checked || false;
-                const arrivalGuideSelect = document.getElementById('arrivalGuide');
-                
-                // Get adult and child quantities from modal inputs
-                const arrivalGuideAdultQty = parseInt(document.getElementById('arrivalGuideAdultQty')?.value || '0') || 0;
-                const arrivalGuideChildQty = parseInt(document.getElementById('arrivalGuideChildQty')?.value || '0') || 0;
-                
-                if (arrivalGuideChecked && arrivalGuideSelect && arrivalGuideSelect.value) {
-                    const arrivalGuideId = arrivalGuideSelect.value;
-                    const arrivalGuideOption = arrivalGuideSelect.selectedOptions[0];
-                    const arrivalGuideName = arrivalGuideOption?.getAttribute('data-name') || arrivalGuideOption?.text || '';
-                    const arrivalGuideLanguages = arrivalGuideOption?.getAttribute('data-languages') || '';
-                    
-                    // Guide price is fixed for 12 hours, not dependent on pax or hours
-                    // Use the 12-hour price directly without dividing or multiplying
-                    const priceAttr = arrivalGuideOption?.getAttribute('data-twelve-hour-price') || '0';
-                    const guidePrice = parseFloat(priceAttr) || 0;
-                    
-                    // Add guide entry to guideList
-                    const guideEntryId = generateId('guide');
-                    const guideEntry = {
-                        id: guideEntryId,
-                        dateTime: arrivalDateTime,
-                        tourActivity: `Arrival Guide - ${arrivalPortName}`,
-                        language: arrivalGuideLanguages || 'N/A',
-                        guideName: arrivalGuideName,
-                        guideId: arrivalGuideId,
-                        hours: 12, // Default 12 hours (standard default)
-                        cost: guidePrice, // Fixed price for 12 hours
-                        sell: guidePrice, // Fixed price for 12 hours
-                        supplement: false,
-                        isStandalone: false,
-                        linkedTo: 'arrival',
-                        arrivalId: arrivalId,
-                        adultsQty: arrivalGuideAdultQty,
-                        childQty: arrivalGuideChildQty
-                    };
-                    guideList.push(guideEntry);
-                    arrival.guideId = guideEntryId;
-                }
-                
-                arrivalDepartureList.push(arrival);
-                hotelArrivalDepartureIds.push(arrivalId);
-            }
-
-            // Add Departure if provided (but not when hotel transfer is checked)
-            if (!hotelTransferChecked && departureDateTime && departurePortId) {
-                const departureId = generateId('arrdep');
-                const departureTransfer = document.getElementById('departureTransfer')?.checked || false;
-                // Get vehicle type name from data attribute instead of value (which is vehicle_id)
-                const departureVehicleSelect = document.getElementById('departureVehicleType');
-                const departureVehicleType = departureVehicleSelect?.selectedOptions[0]?.getAttribute('data-type') || '';
-                const departureTransferType = document.getElementById('departureTransferType')?.value || 'S';
-                const departureTransferWay = 'one-way';
-                const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
-                
-                const departure = {
-                    id: departureId,
-                    dateTime: departureDateTime,
-                    portId: departurePortId,
-                    portName: departurePortName,
-                    flightNo: departureFlightNo || '-',
-                    type: 'Departure',
-                    adultsQty: adults,
-                    adultCost: departureVehiclePrice,
-                    adultSell: departureVehiclePrice, // Default: cost = sell
-                    childQty: child,
-                    childCost: departureVehiclePrice,
-                    childSell: departureVehiclePrice, // Default: cost = sell
-                    infantQty: infant,
-                    amount: 0,
-                    hasTransfer: departureTransfer,
-                    transferWay: departureTransferWay,
-                    transferType: departureTransferType,
-                    vehicleType: departureVehicleType,
-                    supplement: '',
-                    accommodationIndex: accommodationIdx
-                };
-                // Handle departure guide
-                const departureGuideChecked = document.getElementById('departureGuideCheckbox')?.checked || false;
-                const departureGuideSelect = document.getElementById('departureGuide');
-                
-                // Get adult and child quantities from modal inputs
-                const departureGuideAdultQty = parseInt(document.getElementById('departureGuideAdultQty')?.value || '0') || 0;
-                const departureGuideChildQty = parseInt(document.getElementById('departureGuideChildQty')?.value || '0') || 0;
-                
-                if (departureGuideChecked && departureGuideSelect && departureGuideSelect.value) {
-                    const departureGuideId = departureGuideSelect.value;
-                    const departureGuideOption = departureGuideSelect.selectedOptions[0];
-                    const departureGuideName = departureGuideOption?.getAttribute('data-name') || departureGuideOption?.text || '';
-                    const departureGuideLanguages = departureGuideOption?.getAttribute('data-languages') || '';
-                    
-                    // Guide price is fixed for 12 hours, not dependent on pax or hours
-                    // Use the 12-hour price directly without dividing or multiplying
-                    const priceAttr = departureGuideOption?.getAttribute('data-twelve-hour-price') || '0';
-                    const guidePrice = parseFloat(priceAttr) || 0;
-                    
-                    // Add guide entry to guideList
-                    const guideEntryId = generateId('guide');
-                    const guideEntry = {
-                        id: guideEntryId,
-                        dateTime: departureDateTime,
-                        tourActivity: `Departure Guide - ${departurePortName}`,
-                        language: departureGuideLanguages || 'N/A',
-                        guideName: departureGuideName,
-                        guideId: departureGuideId,
-                        hours: 12, // Default 12 hours (standard default)
-                        cost: guidePrice, // Fixed price for 12 hours
-                        sell: guidePrice, // Fixed price for 12 hours
-                        supplement: false,
-                        isStandalone: false,
-                        linkedTo: 'departure',
-                        departureId: departureId,
-                        adultsQty: departureGuideAdultQty,
-                        childQty: departureGuideChildQty
-                    };
-                    guideList.push(guideEntry);
-                    departure.guideId = guideEntryId;
-                }
-                
-                arrivalDepartureList.push(departure);
-                hotelArrivalDepartureIds.push(departureId);
-            }
+            // Initialize empty arrays - arrival/departure are added separately via Add Arrival/Departure button
+            accommodationList[accommodationIdx].arrivalDepartureIds = [];
             
-            // Update the accommodation with the IDs
-            accommodationList[accommodationIdx].arrivalDepartureIds = hotelArrivalDepartureIds;
+            // REMOVED: Auto-creation of arrival/departure entries
+            // Arrival/departure should only be created via saveArrivalDepartureOnly() function
+            
+            // DISABLED: Auto-creation of arrival/departure entries removed
+            // Hotels do NOT have arrival/departure options
+            // Arrival/Departure should ONLY be added via the "Add Arrival/Departure" button
+            // which uses the saveArrivalDepartureOnly() function
         });
         
         // Process Hotel Transfer ONCE for all rooms of this hotel (not per room)
@@ -20510,14 +20358,20 @@
                 ? `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)">`
                 : `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)" style="opacity: 0.7;">`;
             
-            // Display stored cost/sell directly - no multiplication needed
-            // Cost and sell are stored as unit prices (per person for shared, per vehicle for private)
+            // Display cost/sell with bothway multiplier applied for local transfers
+            // For bothway local transfers, multiply by 2 for the row display
             const storedSell = parseFloat(transfer.sell || 0);
             const storedCost = parseFloat(transfer.cost || 0);
             
-            // Use stored values directly
-            let displayCost = storedCost;
-            let displaySell = storedSell > 0 ? storedSell : storedCost;
+            // Check if this is a bothway local transfer
+            const isBothway = transfer.transportMode === 'local' && 
+                              (transfer.way === 'both-way' || transfer.way === 'Both Way' || 
+                               transfer.way === 'both' || transfer.way === 'two-way' || transfer.way === 'return');
+            const wayMultiplier = isBothway ? 2 : 1;
+            
+            // Apply multiplier for display
+            let displayCost = storedCost * wayMultiplier;
+            let displaySell = (storedSell > 0 ? storedSell : storedCost) * wayMultiplier;
             
             return `
             <tr>
@@ -22325,13 +22179,45 @@
         const children = parseInt(document.getElementById('childCountInput')?.value || 0);
         
         // Calculate tour costs per pax (exclude items with supplement checked)
-        tourList.forEach(tour => {
+        // Read from table inputs for current values
+        const tourTableBody = document.getElementById('tourTableBody');
+        tourList.forEach((tour, tourIndex) => {
             // Only include if supplement is not checked
             if (!tour.supplement) {
-                tourCostPerPax += tour.adultCost;
-                tourSellPerPax += tour.adultSell;
-                childCostPerPax += tour.childCost;
-                childSellPerPax += tour.childSell;
+                let adultCost = parseFloat(tour.adultCost || 0);
+                let adultSell = parseFloat(tour.adultSell || 0);
+                let childCost = parseFloat(tour.childCost || 0);
+                let childSell = parseFloat(tour.childSell || 0);
+                
+                // Try to get current values from table row if available
+                if (tourTableBody) {
+                    const tableRows = Array.from(tourTableBody.querySelectorAll('tr'));
+                    if (tourIndex < tableRows.length) {
+                        // Tour table columns: 1-checkbox, 2-date, 3-tour name, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-supplement
+                        const adultCostInput = tableRows[tourIndex].querySelector('td:nth-child(5) input');
+                        const adultSellInput = tableRows[tourIndex].querySelector('td:nth-child(6) input');
+                        const childCostInput = tableRows[tourIndex].querySelector('td:nth-child(8) input');
+                        const childSellInput = tableRows[tourIndex].querySelector('td:nth-child(9) input');
+                        
+                        if (adultCostInput && adultCostInput.value !== '') {
+                            adultCost = parseFloat(adultCostInput.value) || 0;
+                        }
+                        if (adultSellInput && adultSellInput.value !== '') {
+                            adultSell = parseFloat(adultSellInput.value) || 0;
+                        }
+                        if (childCostInput && childCostInput.value !== '') {
+                            childCost = parseFloat(childCostInput.value) || 0;
+                        }
+                        if (childSellInput && childSellInput.value !== '') {
+                            childSell = parseFloat(childSellInput.value) || 0;
+                        }
+                    }
+                }
+                
+                tourCostPerPax += adultCost;
+                tourSellPerPax += adultSell;
+                childCostPerPax += childCost;
+                childSellPerPax += childSell;
             }
         });
         
@@ -22350,24 +22236,88 @@
         });
         
         // Calculate meal costs per pax (exclude items with supplement checked)
-        mealList.forEach(meal => {
+        // Read from table inputs for current values
+        const mealTableBody = document.getElementById('mealTableBody');
+        mealList.forEach((meal, mealIndex) => {
             // Only include if supplement is not checked
             if (!meal.supplement) {
-                tourCostPerPax += meal.adultCost;
-                tourSellPerPax += meal.adultSell;
-                childCostPerPax += meal.childCost;
-                childSellPerPax += meal.childSell;
+                let adultCost = parseFloat(meal.adultCost || 0);
+                let adultSell = parseFloat(meal.adultSell || 0);
+                let childCost = parseFloat(meal.childCost || 0);
+                let childSell = parseFloat(meal.childSell || 0);
+                
+                // Try to get current values from table row if available
+                if (mealTableBody) {
+                    const tableRows = Array.from(mealTableBody.querySelectorAll('tr'));
+                    if (mealIndex < tableRows.length) {
+                        // Meal table columns: 1-checkbox, 2-date, 3-restaurant, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-supplement
+                        const adultCostInput = tableRows[mealIndex].querySelector('td:nth-child(5) input');
+                        const adultSellInput = tableRows[mealIndex].querySelector('td:nth-child(6) input');
+                        const childCostInput = tableRows[mealIndex].querySelector('td:nth-child(8) input');
+                        const childSellInput = tableRows[mealIndex].querySelector('td:nth-child(9) input');
+                        
+                        if (adultCostInput && adultCostInput.value !== '') {
+                            adultCost = parseFloat(adultCostInput.value) || 0;
+                        }
+                        if (adultSellInput && adultSellInput.value !== '') {
+                            adultSell = parseFloat(adultSellInput.value) || 0;
+                        }
+                        if (childCostInput && childCostInput.value !== '') {
+                            childCost = parseFloat(childCostInput.value) || 0;
+                        }
+                        if (childSellInput && childSellInput.value !== '') {
+                            childSell = parseFloat(childSellInput.value) || 0;
+                        }
+                    }
+                }
+                
+                tourCostPerPax += adultCost;
+                tourSellPerPax += adultSell;
+                childCostPerPax += childCost;
+                childSellPerPax += childSell;
             }
         });
         
         // Calculate miscellaneous costs per pax (exclude items with supplement checked)
-        miscList.forEach(misc => {
+        // Read from table inputs for current values
+        const miscTableBody = document.getElementById('miscTableBody');
+        miscList.forEach((misc, miscIndex) => {
             // Only include if supplement is not checked
             if (!misc.supplement) {
-                tourCostPerPax += parseFloat(misc.adultCost || 0);
-                tourSellPerPax += parseFloat(misc.adultSell || 0);
-                childCostPerPax += parseFloat(misc.childCost || 0);
-                childSellPerPax += parseFloat(misc.childSell || 0);
+                let adultCost = parseFloat(misc.adultCost || 0);
+                let adultSell = parseFloat(misc.adultSell || 0);
+                let childCost = parseFloat(misc.childCost || 0);
+                let childSell = parseFloat(misc.childSell || 0);
+                
+                // Try to get current values from table row if available
+                if (miscTableBody) {
+                    const tableRows = Array.from(miscTableBody.querySelectorAll('tr'));
+                    if (miscIndex < tableRows.length) {
+                        // Misc table columns: 1-checkbox, 2-date, 3-item, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-infant qty, 11-infant cost, 12-infant sell, 13-supplement
+                        const adultCostInput = tableRows[miscIndex].querySelector('td:nth-child(5) input');
+                        const adultSellInput = tableRows[miscIndex].querySelector('td:nth-child(6) input');
+                        const childCostInput = tableRows[miscIndex].querySelector('td:nth-child(8) input');
+                        const childSellInput = tableRows[miscIndex].querySelector('td:nth-child(9) input');
+                        
+                        if (adultCostInput && adultCostInput.value !== '') {
+                            adultCost = parseFloat(adultCostInput.value) || 0;
+                        }
+                        if (adultSellInput && adultSellInput.value !== '') {
+                            adultSell = parseFloat(adultSellInput.value) || 0;
+                        }
+                        if (childCostInput && childCostInput.value !== '') {
+                            childCost = parseFloat(childCostInput.value) || 0;
+                        }
+                        if (childSellInput && childSellInput.value !== '') {
+                            childSell = parseFloat(childSellInput.value) || 0;
+                        }
+                    }
+                }
+                
+                tourCostPerPax += adultCost;
+                tourSellPerPax += adultSell;
+                childCostPerPax += childCost;
+                childSellPerPax += childSell;
             }
         });
         
@@ -22468,6 +22418,10 @@
         // All local transfers are in transferList with transportMode === 'local'
         let localTransferSingleCost = 0;
         let localTransferSingleSell = 0;
+        let localTransferTwinCost = 0;
+        let localTransferTwinSell = 0;
+        let localTransferTripleCost = 0;
+        let localTransferTripleSell = 0;
         
         // Get all local transfers (from all sources: Arrival, Departure, Hotel, Restaurant, Attraction, Local Transport)
         // Exclude items with supplement checked
@@ -22498,31 +22452,46 @@
                 }
             }
             
-            let singleSellContribution = 0;
-            let singleCostContribution = 0;
+            // Check if this is a bothway transfer - apply multiplier
+            const isBothway = transfer.way === 'both-way' || transfer.way === 'Both Way' || 
+                              transfer.way === 'both' || transfer.way === 'two-way' || transfer.way === 'return';
+            const wayMultiplier = isBothway ? 2 : 1;
             
-            // Simply use the table values directly - they are already the final totals
-            // No additional multiplication needed
-            singleCostContribution = listCostValue;
-            singleSellContribution = listSellValue;
+            // Apply bothway multiplier to the base values
+            let baseCost = listCostValue * wayMultiplier;
+            let baseSell = listSellValue * wayMultiplier;
             
             // If sell is not set, fall back to cost value
-            if (singleSellContribution === 0 && singleCostContribution > 0) {
-                singleSellContribution = singleCostContribution;
+            if (baseSell === 0 && baseCost > 0) {
+                baseSell = baseCost;
             }
             
-            // Add to totals
-            if (singleSellContribution > 0 || singleCostContribution > 0) {
-                localTransferSingleCost += singleCostContribution;
-                localTransferSingleSell += singleSellContribution;
+            // Check if this is a private transfer - for private transfers, divide by occupancy
+            const transferType = (transfer.type || '').toString().toLowerCase();
+            const isPrivate = transferType === 'p' || transferType === 'private';
+            
+            // Add to totals with occupancy division for private transfers
+            if (baseSell > 0 || baseCost > 0) {
+                // Single: full price
+                localTransferSingleCost += baseCost;
+                localTransferSingleSell += baseSell;
+                
+                if (isPrivate) {
+                    // Twin: divide by 2 for private transfers
+                    localTransferTwinCost += ceilIfDecimal(baseCost / 2);
+                    localTransferTwinSell += ceilIfDecimal(baseSell / 2);
+                    // Triple: divide by 3 for private transfers
+                    localTransferTripleCost += ceilIfDecimal(baseCost / 3);
+                    localTransferTripleSell += ceilIfDecimal(baseSell / 3);
+                } else {
+                    // Shared: same price for all occupancies (per person price)
+                    localTransferTwinCost += baseCost;
+                    localTransferTwinSell += baseSell;
+                    localTransferTripleCost += baseCost;
+                    localTransferTripleSell += baseSell;
+                }
             }
         });
-        
-        // Local transfer totals are the same for single, twin, triple (sum of table values, no multiplication)
-        const localTransferTwinCost = localTransferSingleCost;
-        const localTransferTripleCost = localTransferSingleCost;
-        const localTransferTwinSell = localTransferSingleSell;
-        const localTransferTripleSell = localTransferSingleSell;
         
         // Add accommodation rows (exclude items with supplement checked)
         if (accommodationList.length > 0) {
@@ -22635,12 +22604,13 @@
                 const tripleCost = ((totalCost + totalExtraBed) / 3) + tourCostPerPax + transferCostPerPax + guideTripleCost + localTransferTripleCost;
                 const tripleSell = ((totalSell + totalExtraBed) / 3) + tourSellPerPax + transferSellPerPax + guideTripleSell + localTransferTripleSell;
                 
-                // Child prices = price per night * nights
-                const childWithBedCost = cwbPrice * nights;
-                const childWithBedSell = cwbPrice * nights;
+                // Child prices = (hotel child price per night * nights) + child costs from other services
+                // Child costs from tours, meals, attractions, restaurants, miscellaneous should be added here
+                const childWithBedCost = (cwbPrice * nights) + childCostPerPax;
+                const childWithBedSell = (cwbPrice * nights) + childSellPerPax;
                 
-                const childWithoutBedCost = cnbPrice * nights;
-                const childWithoutBedSell = cnbPrice * nights;
+                const childWithoutBedCost = (cnbPrice * nights) + childCostPerPax;
+                const childWithoutBedSell = (cnbPrice * nights) + childSellPerPax;
                 
                 const infantCost = infantPrice * nights;
                 const infantSell = infantPrice * nights;
@@ -23515,31 +23485,32 @@
                 mealPlanLabel = mealPlanLabel.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
             }
             
-            // Create bed object matching the working format exactly
+            // Get the actual database room_id
+            const databaseRoomId = hotel.databaseRoomId || hotel.roomData?.room_id || hotel.roomData?.id || actualBedId || '';
+            
+            // Create bed object with clean structure
             const bedObject = {
-                bed_id: String(actualBedId || ""), // Actual database bed_id as string
-                bed_type: cleanBedType, // Raw bed type without formatting
-                room_type: cleanBedType, // Also set room_type for compatibility
+                bed_id: String(actualBedId || ""),
+                bed_type: cleanBedType,
                 baby_cot: 0,
                 head_count: parseInt(hotel.adultsPerRoom) || 2,
-                max_occupancy: parseInt(hotel.maxOccupancy) || 2,
-                cost: roomCost,
+                max_occupancy: parseInt(hotel.maxOccupancy) || 3,
                 price: roomSell,
-                sell: roomSell,
-                mealTypes: [mealPlanLabel], // Use label format
+                mealTypes: [mealPlanLabel],
                 selectedMeals: {
                     meal_1: {
-                        type: mealPlanLabel, // Use label format
+                        type: mealPlanLabel,
                         price: 0
                     }
                 }
             };
             
+            // Use database room_id for proper matching
             const rooms = [{
-                room_id: `room_${Date.now()}_${hotelIdx}`, // Generated room_id (matching working format)
+                room_id: parseInt(databaseRoomId) || databaseRoomId,
                 room_type: hotel.roomType || "",
                 number_of_rooms: numberOfRooms,
-                beds: [bedObject] // Only beds array (matching working format)
+                beds: [bedObject]
             }];
             
             // Find linked transfer for this hotel
@@ -23560,7 +23531,9 @@
                 way: linkedTransfer.way
             } : null);
             
+            // Build cleaner hotel data structure matching the correct format
             const hotelData = {
+                // Customer info
                 fullName: customerInfo.fullName || "",
                 email: customerInfo.email || "",
                 phone: customerInfo.phone || "",
@@ -23570,19 +23543,13 @@
                 state: customerInfo.state || "",
                 zip: customerInfo.zip || "",
                 specialRequests: customerInfo.specialRequests || "",
+                
+                // Booking identifiers
                 id: hotel.id || null,
                 bookingType: "enquiry",
                 bookingDate: [checkInDate, checkOutDate],
-                checkIn: checkInDate,
-                checkOut: checkOutDate,
-                checkInTime: checkInTime,
-                checkOutTime: checkOutTime,
-                hotel_unique_id: hotel.hotel_unique_id || hotel.hotelId || "",
-                hotelName: hotel.hotelName || "",
-                hotelImage: hotel.hotelImage || hotel.image || "",
-                city: hotel.city || hotel.destination || "",
-                country: hotel.country || hotel.destination || "Singapore",
-                destination: hotel.destination || hotel.city || "Singapore",
+                
+                // Hotel details (clean structure without room/bed/meal info)
                 hotelDetails: {
                     hotel_id: hotel.hotel_unique_id || hotel.hotelId || "",
                     hotel_name: hotel.hotelName || "",
@@ -23590,50 +23557,21 @@
                     location: hotel.destination || hotel.location || "Singapore",
                     checkInTime: checkInTime,
                     checkOutTime: checkOutTime,
-                    cancellation_charge: null,
-                    room_type: hotel.roomType || "",
-                    bed_type: cleanBedType,
-                    meal_plan: mealPlanLabel
+                    cancellation_charge: null
                 },
-                // Top-level fields for easy access
-                roomType: hotel.roomType || "",
-                room_type: hotel.roomType || "",
-                bedType: cleanBedType,
-                bed_type: cleanBedType,
-                bedId: actualBedId,
-                bedTypeRaw: rawBedType,
-                roomId: hotel.roomId || actualBedId,
-                mealPlan: mealPlanLabel,
-                meal_plan: mealPlanLabel,
-                mealPlanLabel: mealPlanLabel,
-                mealTypes: [mealPlanLabel],
-                adultsQty: parseInt(hotel.adultsQty) || 0,
-                childQty: parseInt(hotel.childQty) || 0,
-                infantQty: parseInt(hotel.infantQty) || 0,
-                adultsPerRoom: parseInt(hotel.adultsPerRoom) || 2,
-                maxOccupancy: parseInt(hotel.maxOccupancy) || 2,
-                rooms: numberOfRooms,
-                numberOfRooms: numberOfRooms,
-                nights: parseInt(hotel.nights) || 1,
+                
+                // Pricing mode
                 priceMode: "dmc",
-                priceModeId: dmcId || "",
-                roomsArray: rooms,
-                totalCost: totalCost,
+                priceModeId: parseInt(dmcId) || null,
+                
+                // Rooms array (using 'rooms' instead of 'roomsArray')
+                rooms: rooms,
+                
+                // Pricing
                 totalPrice: totalPrice,
-                cost: roomCost,
                 price: totalPrice,
-                sell: roomSell,
-                roomPrice: roomPrice,
-                adultCost: parseFloat(hotel.adultCost) || roomCost,
-                childCost: parseFloat(hotel.childCost) || 0,
-                infantCost: parseFloat(hotel.infantCost) || 0,
-                adultSell: parseFloat(hotel.adultSell) || roomSell,
-                childSell: parseFloat(hotel.childSell) || 0,
-                infantSell: parseFloat(hotel.infantSell) || 0,
-                supplement: hotel.supplement || false,
-                arrivalTransferId: hotel.arrivalTransferId || null,
-                departureTransferId: hotel.departureTransferId || null,
-                transferIds: hotel.transferIds || [],
+                
+                // Transfer options
                 transfer_options: hotelTransferData ? {
                     transfer_required: true,
                     type: hotelTransferData.type || linkedTransfer?.type || "Private",
@@ -23655,8 +23593,18 @@
                     pickup_location_name: linkedTransfer?.pickup || "",
                     destination_name: linkedTransfer?.dropoff || ""
                 } : null,
+                
+                // Tour ID
                 tour_id: hotel.tour_id || defaultTourId || null,
-                dmc_id: dmcId || ""
+                
+                // Essential top-level fields for controller compatibility
+                // These are needed for unique key generation and service_date extraction
+                checkIn: checkInDate,
+                checkOut: checkOutDate,
+                hotel_unique_id: hotel.hotel_unique_id || hotel.hotelId || "",
+                hotelName: hotel.hotelName || "",
+                roomType: hotel.roomType || "",
+                bedType: cleanBedType
             };
             
             return hotelData;
@@ -24406,6 +24354,14 @@
         // Add tour type (FIT or GROUP)
         const tourType = document.querySelector('input[name="type"]:checked')?.value || 'FIT';
         formData.append('tour_type', tourType);
+        
+        // Add customer details (salutation, name, contact)
+        const salutation = document.getElementById('salutationSelect')?.value || 'Mr';
+        const customerName = document.getElementById('customerNameInput')?.value || 'To Be Advised';
+        const contactNumber = document.getElementById('contactNumberInput')?.value || '';
+        formData.append('salutation', salutation);
+        formData.append('customer_name', customerName);
+        formData.append('contact_number', contactNumber);
         
         // Transform and add service data in required format (await async functions)
         const { entryPortData, exitPortData } = await transformArrivalDepartureData();
@@ -25820,6 +25776,7 @@
     
     /**
      * Load existing tour header data (customer info, dates, etc.)
+     * Customer info (name, phone, salutation) comes from orders JSON via initialData
      */
     function loadExistingTourData() {
         if (!window.existingTourData) {
@@ -25830,20 +25787,25 @@
         console.log('Loading tour header data...');
         const tour = window.existingTourData;
         
-        // Customer Information
-        const customerNameInput = document.getElementById('customerName') || document.querySelector('input[name="customer_name"]');
+        // Customer Information - from orders JSON (already extracted by controller into window.existingTourData)
+        const customerNameInput = document.getElementById('customerNameInput');
         if (customerNameInput && tour.customer_name) {
             customerNameInput.value = tour.customer_name;
+            console.log('Set customer name to:', tour.customer_name);
         }
         
-        const emailInput = document.getElementById('customerEmail') || document.querySelector('input[name="email"]');
-        if (emailInput && tour.email) {
-            emailInput.value = tour.email;
-        }
-        
-        const phoneInput = document.getElementById('customerPhone') || document.querySelector('input[name="phone"]');
+        // Contact/Phone
+        const phoneInput = document.getElementById('contactNumberInput');
         if (phoneInput && tour.phone) {
             phoneInput.value = tour.phone;
+            console.log('Set phone to:', tour.phone);
+        }
+        
+        // Salutation
+        const salutationSelect = document.getElementById('salutationSelect');
+        if (salutationSelect && tour.salutation) {
+            salutationSelect.value = tour.salutation;
+            console.log('Set salutation to:', tour.salutation);
         }
         
         // Pax counts
@@ -26681,8 +26643,9 @@
         
         // Extract hotel details
         const hotelDetails = data.hotelDetails || data.hotel_details || {};
-        const rooms = data.rooms || [];
-        const firstRoom = rooms.length > 0 ? rooms[0] : {};
+        // Support both new 'rooms' format and old 'roomsArray' format for backward compatibility
+        const roomsArray = data.rooms || data.roomsArray || [];
+        const firstRoom = Array.isArray(roomsArray) && roomsArray.length > 0 ? roomsArray[0] : {};
         const firstBed = firstRoom.beds && firstRoom.beds.length > 0 ? firstRoom.beds[0] : {};
         
         // Extract meal plan - check multiple possible locations
@@ -26706,6 +26669,9 @@
         // Otherwise use order.order_id or generate a new one
         const originalFrontendId = data.id || null;
         
+        // Extract number of rooms - check firstRoom.number_of_rooms first, then fall back to data.numberOfRooms
+        const numberOfRooms = parseInt(firstRoom.number_of_rooms) || parseInt(data.numberOfRooms) || parseInt(data.number_of_rooms) || 1;
+        
         const hotel = {
             id: originalFrontendId || order.order_id || generateId('hotel'),
             bookingId: order.booking_id || order.bookingId || null, // Store booking_id for matching linked transfers
@@ -26716,7 +26682,7 @@
             checkIn: checkIn,
             checkOut: checkOut,
             nights: nights,
-            rooms: firstRoom.number_of_rooms || data.rooms || 1,
+            rooms: numberOfRooms, // Number of rooms (integer)
             adultsPerRoom: firstBed.head_count || data.adultsPerRoom || data.adults_per_room || 2,
             extraBed: firstBed.baby_cot || data.extraBed || data.extra_bed || 0,
             cwb: firstBed.baby_cot || data.cwb || 0,
@@ -26729,10 +26695,11 @@
             bedType: firstBed.bed_type || data.bedType || data.bed_type || '',
             bedTypeRaw: firstBed.bed_type || data.bedType || data.bed_type || '',
             bedId: firstBed.bed_id || data.bedId || data.bed_id || '',
-            maxOccupancy: firstBed.max_occupancy || data.maxOccupancy || data.max_occupancy || 2,
+            databaseRoomId: firstRoom.room_id || data.databaseRoomId || '', // Store database room_id for proper matching
+            maxOccupancy: firstBed.max_occupancy || data.maxOccupancy || data.max_occupancy || 3,
             cost: parseFloat(firstBed.cost || data.cost || 0),
-            sell: parseFloat(firstBed.sell || firstBed.price || data.sell || 0),
-            roomPrice: parseFloat(firstBed.sell || firstBed.price || data.sell || 0),
+            sell: parseFloat(firstBed.sell || firstBed.price || data.sell || data.price || 0),
+            roomPrice: parseFloat(firstBed.sell || firstBed.price || data.sell || data.price || 0),
             extraBedPrice: parseFloat(data.extraBedPrice || data.extra_bed_price || 0),
             cwbPrice: parseFloat(data.cwbPrice || data.cwb_price || data.child_with_bed_price || 0),
             cnbPrice: parseFloat(data.cnbPrice || data.cnb_price || data.child_without_bed_price || 0),
@@ -26743,9 +26710,8 @@
             hasCnb: data.hasCnb === true || data.has_cnb === true || data.has_cnb === 1,
             hasInfant: data.hasInfant === true || data.has_infant === true || data.has_infant === 1,
             bedData: firstBed,
-            rooms: data.rooms || [],
+            roomData: firstRoom, // Store full room data for transformation
             hotelDetails: hotelDetails,
-            destination: data.destination || data.country || data.city || '',
             country: data.country || data.destination || '',
             city: data.city || data.destination || '',
             supplement: data.supplement || false,
