@@ -9382,11 +9382,13 @@
         
         // Get header values for validation
         const headerValues = getHeaderValues();
-        const totalPax = headerValues.adults + headerValues.children;
+        // Room calculation should only use adults, not children
+        // Children don't require additional rooms - they share with adults
+        const totalAdultsForRooms = headerValues.adults;
         
-        // Calculate initial rooms based on pax: pax/2 rounded up (default 2 adults per room)
-        // Example: 7 pax / 2 = 3.5 = 4 rooms
-        const initialRooms = Math.ceil(totalPax / 2);
+        // Calculate initial rooms based on adults only: adults/2 rounded up (default 2 adults per room)
+        // Example: 4 adults / 2 = 2 rooms (children share with adults)
+        const initialRooms = Math.ceil(totalAdultsForRooms / 2);
         
         const headerInfoEl = document.getElementById('roomComboHeaderInfo');
         const adultsBadge = document.getElementById('headerAdultsBadge');
@@ -9538,10 +9540,11 @@
             
             // Default adults per room is 2 (double sharing)
             const defaultAdultsPerRoom = 2;
-            const totalPax = totalAdults + totalChildren;
+            // Room calculation should only use adults, not children
+            // Children don't require additional rooms - they share with adults
             
-            // Calculate rooms needed: pax/2 rounded up
-            const roomsNeeded = Math.ceil(totalPax / defaultAdultsPerRoom);
+            // Calculate rooms needed: adults/2 rounded up (children share with adults)
+            const roomsNeeded = Math.ceil(totalAdults / defaultAdultsPerRoom);
             
             // Update rooms count for each checked room
             checkedBoxes.forEach((checkbox, index) => {
@@ -21132,13 +21135,45 @@
         const children = parseInt(document.getElementById('childCountInput')?.value || 0);
         
         // Calculate tour costs per pax (exclude items with supplement checked)
-        tourList.forEach(tour => {
+        // Read from table inputs for current values
+        const tourTableBody = document.getElementById('tourTableBody');
+        tourList.forEach((tour, tourIndex) => {
             // Only include if supplement is not checked
             if (!tour.supplement) {
-                tourCostPerPax += tour.adultCost;
-                tourSellPerPax += tour.adultSell;
-                childCostPerPax += tour.childCost;
-                childSellPerPax += tour.childSell;
+                let adultCost = parseFloat(tour.adultCost || 0);
+                let adultSell = parseFloat(tour.adultSell || 0);
+                let childCost = parseFloat(tour.childCost || 0);
+                let childSell = parseFloat(tour.childSell || 0);
+                
+                // Try to get current values from table row if available
+                if (tourTableBody) {
+                    const tableRows = Array.from(tourTableBody.querySelectorAll('tr'));
+                    if (tourIndex < tableRows.length) {
+                        // Tour table columns: 1-checkbox, 2-date, 3-tour name, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-supplement
+                        const adultCostInput = tableRows[tourIndex].querySelector('td:nth-child(5) input');
+                        const adultSellInput = tableRows[tourIndex].querySelector('td:nth-child(6) input');
+                        const childCostInput = tableRows[tourIndex].querySelector('td:nth-child(8) input');
+                        const childSellInput = tableRows[tourIndex].querySelector('td:nth-child(9) input');
+                        
+                        if (adultCostInput && adultCostInput.value !== '') {
+                            adultCost = parseFloat(adultCostInput.value) || 0;
+                        }
+                        if (adultSellInput && adultSellInput.value !== '') {
+                            adultSell = parseFloat(adultSellInput.value) || 0;
+                        }
+                        if (childCostInput && childCostInput.value !== '') {
+                            childCost = parseFloat(childCostInput.value) || 0;
+                        }
+                        if (childSellInput && childSellInput.value !== '') {
+                            childSell = parseFloat(childSellInput.value) || 0;
+                        }
+                    }
+                }
+                
+                tourCostPerPax += adultCost;
+                tourSellPerPax += adultSell;
+                childCostPerPax += childCost;
+                childSellPerPax += childSell;
             }
         });
         
@@ -21157,24 +21192,88 @@
         });
         
         // Calculate meal costs per pax (exclude items with supplement checked)
-        mealList.forEach(meal => {
+        // Read from table inputs for current values
+        const mealTableBody = document.getElementById('mealTableBody');
+        mealList.forEach((meal, mealIndex) => {
             // Only include if supplement is not checked
             if (!meal.supplement) {
-                tourCostPerPax += meal.adultCost;
-                tourSellPerPax += meal.adultSell;
-                childCostPerPax += meal.childCost;
-                childSellPerPax += meal.childSell;
+                let adultCost = parseFloat(meal.adultCost || 0);
+                let adultSell = parseFloat(meal.adultSell || 0);
+                let childCost = parseFloat(meal.childCost || 0);
+                let childSell = parseFloat(meal.childSell || 0);
+                
+                // Try to get current values from table row if available
+                if (mealTableBody) {
+                    const tableRows = Array.from(mealTableBody.querySelectorAll('tr'));
+                    if (mealIndex < tableRows.length) {
+                        // Meal table columns: 1-checkbox, 2-date, 3-restaurant, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-supplement
+                        const adultCostInput = tableRows[mealIndex].querySelector('td:nth-child(5) input');
+                        const adultSellInput = tableRows[mealIndex].querySelector('td:nth-child(6) input');
+                        const childCostInput = tableRows[mealIndex].querySelector('td:nth-child(8) input');
+                        const childSellInput = tableRows[mealIndex].querySelector('td:nth-child(9) input');
+                        
+                        if (adultCostInput && adultCostInput.value !== '') {
+                            adultCost = parseFloat(adultCostInput.value) || 0;
+                        }
+                        if (adultSellInput && adultSellInput.value !== '') {
+                            adultSell = parseFloat(adultSellInput.value) || 0;
+                        }
+                        if (childCostInput && childCostInput.value !== '') {
+                            childCost = parseFloat(childCostInput.value) || 0;
+                        }
+                        if (childSellInput && childSellInput.value !== '') {
+                            childSell = parseFloat(childSellInput.value) || 0;
+                        }
+                    }
+                }
+                
+                tourCostPerPax += adultCost;
+                tourSellPerPax += adultSell;
+                childCostPerPax += childCost;
+                childSellPerPax += childSell;
             }
         });
         
         // Calculate miscellaneous costs per pax (exclude items with supplement checked)
-        miscList.forEach(misc => {
+        // Read from table inputs for current values
+        const miscTableBody = document.getElementById('miscTableBody');
+        miscList.forEach((misc, miscIndex) => {
             // Only include if supplement is not checked
             if (!misc.supplement) {
-                tourCostPerPax += parseFloat(misc.adultCost || 0);
-                tourSellPerPax += parseFloat(misc.adultSell || 0);
-                childCostPerPax += parseFloat(misc.childCost || 0);
-                childSellPerPax += parseFloat(misc.childSell || 0);
+                let adultCost = parseFloat(misc.adultCost || 0);
+                let adultSell = parseFloat(misc.adultSell || 0);
+                let childCost = parseFloat(misc.childCost || 0);
+                let childSell = parseFloat(misc.childSell || 0);
+                
+                // Try to get current values from table row if available
+                if (miscTableBody) {
+                    const tableRows = Array.from(miscTableBody.querySelectorAll('tr'));
+                    if (miscIndex < tableRows.length) {
+                        // Misc table columns: 1-checkbox, 2-date, 3-item, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-infant qty, 11-infant cost, 12-infant sell, 13-supplement
+                        const adultCostInput = tableRows[miscIndex].querySelector('td:nth-child(5) input');
+                        const adultSellInput = tableRows[miscIndex].querySelector('td:nth-child(6) input');
+                        const childCostInput = tableRows[miscIndex].querySelector('td:nth-child(8) input');
+                        const childSellInput = tableRows[miscIndex].querySelector('td:nth-child(9) input');
+                        
+                        if (adultCostInput && adultCostInput.value !== '') {
+                            adultCost = parseFloat(adultCostInput.value) || 0;
+                        }
+                        if (adultSellInput && adultSellInput.value !== '') {
+                            adultSell = parseFloat(adultSellInput.value) || 0;
+                        }
+                        if (childCostInput && childCostInput.value !== '') {
+                            childCost = parseFloat(childCostInput.value) || 0;
+                        }
+                        if (childSellInput && childSellInput.value !== '') {
+                            childSell = parseFloat(childSellInput.value) || 0;
+                        }
+                    }
+                }
+                
+                tourCostPerPax += adultCost;
+                tourSellPerPax += adultSell;
+                childCostPerPax += childCost;
+                childSellPerPax += childSell;
             }
         });
         
@@ -23179,6 +23278,14 @@
         // Add tour type (FIT or GROUP)
         const tourType = document.querySelector('input[name="type"]:checked')?.value || 'FIT';
         formData.append('tour_type', tourType);
+        
+        // Add customer details (salutation, name, contact)
+        const salutation = document.getElementById('salutationSelect')?.value || 'Mr';
+        const customerName = document.getElementById('customerNameInput')?.value || 'To Be Advised';
+        const contactNumber = document.getElementById('contactNumberInput')?.value || '';
+        formData.append('salutation', salutation);
+        formData.append('customer_name', customerName);
+        formData.append('contact_number', contactNumber);
         
         // Transform and add service data in required format (await async functions)
         const { entryPortData, exitPortData } = await transformArrivalDepartureData();
