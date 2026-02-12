@@ -1347,6 +1347,32 @@
         font-weight: 500;
     }
     
+    .guide-summary {
+        background: rgba(248, 250, 252, 0.95);
+        border-radius: 3px;
+        padding: 6px 8px;
+        border-left: 3px solid #6366f1;
+    }
+    /* Compact guide line inside attraction card - small and professional */
+    .guide-inline {
+        font-size: 11px;
+        color: #475569;
+        margin-top: 4px;
+        padding: 4px 0;
+        border-top: 1px solid #e2e8f0;
+    }
+    .guide-inline small {
+        font-size: 11px !important;
+    }
+    .guide-inline .guide-label {
+        color: #64748b;
+        font-weight: 600;
+    }
+    .guide-inline .guide-badge {
+        font-size: 10px;
+        padding: 1px 6px;
+        font-weight: 500;
+    }
     .ticket-summary {
         background: rgba(255, 255, 255, 0.8);
         border-radius: 3px;
@@ -3382,6 +3408,31 @@
                                                                 <span class="service-detail-label">To:</span> {{ $serviceName }}
                                                             </p>
                                                             
+                                                            @php
+                                                                $guideOptions = $data['guide_options'] ?? null;
+                                                            @endphp
+                                                            @if(!empty($guideOptions) && !empty($guideOptions['guide_required']) && !empty($guideOptions['guide_name']))
+                                                                <div class="guide-inline">
+                                                                    <small>
+                                                                        <i class="fas fa-user-tie me-1"></i>
+                                                                        <span class="guide-label">Guide:</span> {{ $guideOptions['guide_name'] }}
+                                                                        @if(!empty($guideOptions['language']))
+                                                                            <span class="badge guide-badge bg-light text-dark border ms-1">{{ $guideOptions['language'] }}</span>
+                                                                        @endif
+                                                                        @if(!empty($guideOptions['hours']) || !empty($guideOptions['package_hours']))
+                                                                            <span class="text-muted">• {{ $guideOptions['hours'] ?? $guideOptions['package_hours'] }} hr(s)</span>
+                                                                        @endif
+                                                                        @if(!empty($guideOptions['pickup_time']))
+                                                                            @php $pt = $guideOptions['pickup_time']; $pt = preg_match('/^\d{2}:\d{2}/', $pt) ? substr($pt, 0, 5) : $pt; @endphp
+                                                                            <span class="text-muted">• {{ $pt }}</span>
+                                                                        @endif
+                                                                        @if(isset($guideOptions['total_price']) && $priceHide == 0)
+                                                                            <span class="text-success fw-semibold">• SGD {{ number_format((float)$guideOptions['total_price'], 2) }}</span>
+                                                                        @endif
+                                                                    </small>
+                                                                </div>
+                                                            @endif
+                                                            
                                                             @if(!empty($remark))
                                                                 <div class="service-remark">
                                                                     <span class="service-detail-label">Remark:</span> {{ $remark }}
@@ -3515,6 +3566,32 @@
                                                                                         <i class="fas fa-car me-1"></i>
                                                                                         {{ $selection == 'withoutTransport' ? 'Without Transport' : 'With Transport' }}
                                                                                     </span>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Guide Details (when guide_options present for this attraction) - compact inline -->
+                                                                            @php
+                                                                                $guideOptions = $attractionData['guide_options'] ?? null;
+                                                                            @endphp
+                                                                            @if(!empty($guideOptions) && !empty($guideOptions['guide_required']) && !empty($guideOptions['guide_name']))
+                                                                                <div class="guide-inline">
+                                                                                    <small>
+                                                                                        <i class="fas fa-user-tie me-1"></i>
+                                                                                        <span class="guide-label">Guide:</span> {{ $guideOptions['guide_name'] }}
+                                                                                        @if(!empty($guideOptions['language']))
+                                                                                            <span class="badge guide-badge bg-light text-dark border ms-1">{{ $guideOptions['language'] }}</span>
+                                                                                        @endif
+                                                                                        @if(!empty($guideOptions['hours']) || !empty($guideOptions['package_hours']))
+                                                                                            <span class="text-muted">• {{ $guideOptions['hours'] ?? $guideOptions['package_hours'] }} hr(s)</span>
+                                                                                        @endif
+                                                                                        @if(!empty($guideOptions['pickup_time']))
+                                                                                            @php $pt = $guideOptions['pickup_time']; $pt = preg_match('/^\d{2}:\d{2}/', $pt) ? substr($pt, 0, 5) : $pt; @endphp
+                                                                                            <span class="text-muted">• {{ $pt }}</span>
+                                                                                        @endif
+                                                                                        @if(isset($guideOptions['total_price']) && $priceHide == 0)
+                                                                                            <span class="text-success fw-semibold">• SGD {{ number_format((float)$guideOptions['total_price'], 2) }}</span>
+                                                                                        @endif
+                                                                                    </small>
                                                                                 </div>
                                                                             @endif
                                                                         </div>
@@ -6781,6 +6858,14 @@
             const confirmationNumber = attraction.data?.confirmationNumber || attraction.data?.confirmation_no || attraction.data?.confirmation_number || '';
             const specialRequests = attraction.data?.specialRequests || '';
             
+            // Guide options (when attraction has guide)
+            const guideOptions = attraction.data?.guide_options || null;
+            const guideName = guideOptions?.guide_name || '';
+            const guideLanguage = guideOptions?.language || '';
+            const guideHours = guideOptions?.hours ?? guideOptions?.package_hours ?? '';
+            const guidePickupTime = guideOptions?.pickup_time || '';
+            const guideTotalPrice = guideOptions?.total_price ?? '';
+            
             // Format date
             const formatDateForDisplay = (dateStr) => {
                 if (!dateStr) return '';
@@ -6867,6 +6952,20 @@
                     'Country :', country || 'N/A',
                     'Confirmation Number :', confirmationNumber || 'N/A',
                     '', ''
+                ]);
+            }
+            
+            // Guide row (when attraction has guide_options)
+            if (guideOptions && guideOptions.guide_required && guideName) {
+                tableBody.push([
+                    'Guide Name :', guideName || 'N/A',
+                    'Language :', guideLanguage || 'N/A',
+                    'Hours :', guideHours ? guideHours.toString() : 'N/A',
+                    'Guide Pickup Time :', formatTime(guidePickupTime) || 'N/A'
+                ]);
+                tableBody.push([
+                    'Guide Total Price :', guideTotalPrice ? 'SGD ' + parseFloat(guideTotalPrice).toFixed(2) : 'N/A',
+                    '', '', ''
                 ]);
             }
             
