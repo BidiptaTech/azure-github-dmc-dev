@@ -19,7 +19,7 @@
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 Update Meal Information
-                <a href="{{ route('meals.restaurant_create', $meals->restaurant_id) }}" class="btn btn-sm btn-outline-danger">
+                <a href="{{ route('hotel-meals-create', ['dmc_id' => $dmc_id ?? $meals->dmc_id ?? auth()->user()->userId, 'hotel_id' => $hotel_id ?? optional($meals->restaurant)->owned_by ?? '']) }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
@@ -76,7 +76,7 @@
                                 <!-- Meal Type -->
                                 <div class="col-md-3 mb-3">
                                     <label for="meal_type" class="form-label"><strong>Meals</strong><span class="text-danger">*</span></label>
-                                    <select class="form-control" name="meal_type" required>
+                                    <select id="meal_type" class="form-control" name="meal_type" required onchange="toggleFields()">
                                         <option value="">Select</option>
                                         <option value="1" {{ $meals->type == "1" ? 'selected' : '' }}>Buffet</option>
                                         <option value="2" {{ $meals->type == "2" ? 'selected' : '' }}>Set Menu</option>
@@ -88,7 +88,7 @@
                                 </div>
 
                                 <!-- Item Name -->
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-3 mb-3" id="item_name_container" style="display: none;">
                                     <label for="name" class="form-label"><strong>Item Name</strong><span class="text-danger">*</span></label>
                                     <input value="{{$meals->name}}" type="text" class="form-control" name="name" placeholder="Enter Meal Name (e.g. buffet)">
                                     @error('name')
@@ -97,7 +97,7 @@
                                 </div>
 
                                 <!-- Item Price -->
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-3 mb-3" id="item_price_container" style="display: none;">
                                     <label for="price" class="form-label"><strong>Item Price</strong><span class="text-danger">*</span></label>
                                     <input value="{{$meals->price}}" type="text" class="form-control" id="price" name="price" 
                                            placeholder="Enter Item Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
@@ -241,82 +241,69 @@
 
 <script>
     function toggleFields() {
-        var mealType = document.querySelector("select[name='meal_type']").value;
-        var itemNameContainer = document.querySelector("input[name='name']").parentElement;
-        var itemPriceContainer = document.querySelector("input[name='price']").parentElement;
-        var itemFileContainer = document.querySelector("input[name='item_file']").parentElement;
+        var mealType = document.getElementById("meal_type") ? document.getElementById("meal_type").value : document.querySelector("select[name='meal_type']").value;
+        var itemNameContainer = document.getElementById("item_name_container");
+        var itemPriceContainer = document.getElementById("item_price_container");
+        var itemFileContainer = document.getElementById("item_file_container");
+        var adultPriceContainer = document.getElementById("adult_price_container");
+        var childPriceContainer = document.getElementById("child_price_container");
+        var vegContainer = document.getElementById("veg_container");
         var itemNameInput = document.querySelector("input[name='name']");
         var itemPriceInput = document.querySelector("input[name='price']");
         var itemFileInput = document.querySelector("input[name='item_file']");
         var adultPriceInput = document.querySelector("input[name='adult_price']");
         var childPriceInput = document.querySelector("input[name='child_price']");
-        var adultPriceContainer = document.getElementById("adult_price_container");
-        var childPriceContainer = document.getElementById("child_price_container");
-        var vegContainer = document.getElementById("veg_container");
 
         if (mealType === "1" || mealType === "2") { // Buffet or Set Menu
-            itemFileContainer.style.display = "block";
-            itemNameContainer.style.display = "none";
-            if(mealType === "1"){
-                adultPriceContainer.style.display = "block";
-                childPriceContainer.style.display = "block";
-                vegContainer.style.display = "none";
-                itemPriceContainer.style.display = "none";
-                itemFileInput.removeAttribute("required");
-                itemPriceInput.value = "";
-                itemPriceInput.removeAttribute("required");
-                
-                // Set validation for adult and child prices
+            if (itemFileContainer) itemFileContainer.style.display = "block";
+            if (itemNameContainer) itemNameContainer.style.display = "none";
+
+            if (mealType === "1") { // Buffet: show adult_price, child_price
+                if (adultPriceContainer) adultPriceContainer.style.display = "block";
+                if (childPriceContainer) childPriceContainer.style.display = "block";
+                if (vegContainer) vegContainer.style.display = "none";
+                if (itemPriceContainer) itemPriceContainer.style.display = "none";
+                if (itemPriceInput) { itemPriceInput.value = ""; itemPriceInput.removeAttribute("required"); }
                 if (adultPriceInput) adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
                 if (childPriceInput) childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
+            } else { // Set Menu: show item_price
+                if (adultPriceContainer) adultPriceContainer.style.display = "none";
+                if (childPriceContainer) childPriceContainer.style.display = "none";
+                if (itemPriceContainer) itemPriceContainer.style.display = "block";
+                if (vegContainer) vegContainer.style.display = "block";
+                if (itemPriceInput) {
+                    itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
+                    itemPriceInput.setAttribute("required", "required");
+                }
             }
-            else{
-                adultPriceContainer.style.display = "none";
-                childPriceContainer.style.display = "none";
-                itemPriceContainer.style.display = "block";
-                vegContainer.style.display = "block";
-                
-                // Set validation for item price
-                if (itemPriceInput) itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
-            }
-
-            // Clear hidden fields
-            itemNameInput.value = "";
-            
-            itemNameInput.removeAttribute("required");
+            if (itemNameInput) itemNameInput.removeAttribute("required");
         } else if (mealType === "3") { // A-La-Carte
-            itemFileContainer.style.display = "none";
-            itemNameContainer.style.display = "block";
-            itemPriceContainer.style.display = "block";
-            adultPriceContainer.style.display = "none";
-            childPriceContainer.style.display = "none";
-            vegContainer.style.display = "block";
-
-            // Clear hidden file input
-            itemFileInput.value = "";
-            itemFileInput.removeAttribute("required");
-            itemNameInput.setAttribute("required", "required");
-            itemPriceInput.setAttribute("required", "required");
-            
-            // Set validation for item price
+            if (itemFileContainer) itemFileContainer.style.display = "none";
+            if (itemNameContainer) itemNameContainer.style.display = "block";
+            if (itemPriceContainer) itemPriceContainer.style.display = "block";
+            if (adultPriceContainer) adultPriceContainer.style.display = "none";
+            if (childPriceContainer) childPriceContainer.style.display = "none";
+            if (vegContainer) vegContainer.style.display = "block";
+            if (itemFileInput) { itemFileInput.value = ""; itemFileInput.removeAttribute("required"); }
+            if (itemNameInput) itemNameInput.setAttribute("required", "required");
+            if (itemPriceInput) itemPriceInput.setAttribute("required", "required");
             if (itemPriceInput) itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
-        } else { // Default case (no selection)
-            itemFileContainer.style.display = "none";
-            itemNameContainer.style.display = "none";
-            itemPriceContainer.style.display = "none";
-            // Clear all fields
-            itemNameInput.value = "";
-            itemPriceInput.value = "";
-            itemFileInput.value = "";
-            itemNameInput.removeAttribute("required");
-            itemPriceInput.removeAttribute("required");
-            itemFileInput.removeAttribute("required");
+        } else { // Default (no selection)
+            if (itemFileContainer) itemFileContainer.style.display = "none";
+            if (itemNameContainer) itemNameContainer.style.display = "none";
+            if (itemPriceContainer) itemPriceContainer.style.display = "none";
+            if (adultPriceContainer) adultPriceContainer.style.display = "none";
+            if (childPriceContainer) childPriceContainer.style.display = "none";
+            if (itemNameInput) itemNameInput.removeAttribute("required");
+            if (itemPriceInput) itemPriceInput.removeAttribute("required");
+            if (itemFileInput) itemFileInput.removeAttribute("required");
         }
     }
     document.addEventListener("DOMContentLoaded", function () {
         toggleFields();
     });
-    document.querySelector("select[name='meal_type']").addEventListener("change", toggleFields);
+    var mealTypeSelect = document.getElementById("meal_type") || document.querySelector("select[name='meal_type']");
+    if (mealTypeSelect) mealTypeSelect.addEventListener("change", toggleFields);
 
 //     function toggleFields() {
 //     var mealType = document.querySelector("select[name='meal_type']").value;

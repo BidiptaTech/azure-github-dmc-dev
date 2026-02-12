@@ -14,7 +14,7 @@
     background: url("data:image/svg+xml;utf8,<svg fill='black' height='10' viewBox='0 0 20 20' width='10' xmlns='http://www.w3.org/2000/svg'><path d='M5 7l5 5 5-5z'/></svg>")
         no-repeat right 6px center;
     background-size: 10px;
-}
+ }
 </style>
     <div class="container-fluid">
         <div class="row mb-3">

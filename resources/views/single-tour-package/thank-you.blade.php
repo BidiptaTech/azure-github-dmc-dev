@@ -114,7 +114,7 @@
                                 <i class="ri-dashboard-line me-2"></i>Back to Dashboard
                             </a>
 
-                            <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tourDetails['tour_id']]) }}" class="btn btn-outline-secondary btn-lg px-4" target="_blank">
+                            <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}" class="btn btn-outline-secondary btn-lg px-4" target="_blank">
                                 <i class="ri-file-download-line me-2"></i>Download Quotation
                             </a>
 
