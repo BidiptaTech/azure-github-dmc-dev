@@ -1171,9 +1171,7 @@ class EnquiryFormPro extends Controller
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
             $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
             $tour->created_by = $user->userId; // Store the user ID who created the tour
-            $tour->salutation = $request->input('salutation', 'Mr'); // Mr, Mrs, Ms, Dr
-            $tour->customer_name = $request->input('customer_name', 'To Be Advised');
-            $tour->contact_number = $request->input('contact_number', '');
+            // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             
             // Store main guest data as JSON
             if ($request->has('mainguest') && $request->mainguest) {
@@ -2529,11 +2527,57 @@ class EnquiryFormPro extends Controller
             $destinationsArray = array_values($destinationsArray);
         }
         
+        // Extract customer info from orders JSON (fullname, phone, salutation)
+        $customerName = 'To Be Advised';
+        $contactNumber = '';
+        $salutation = 'Mr';
+        
+        if ($orders && count($orders) > 0) {
+            $firstOrder = $orders[0];
+            // Check direct properties on order
+            if (!empty($firstOrder->fullname)) {
+                $customerName = $firstOrder->fullname;
+            } elseif (!empty($firstOrder->fullName)) {
+                $customerName = $firstOrder->fullName;
+            }
+            
+            if (!empty($firstOrder->phone)) {
+                $contactNumber = $firstOrder->phone;
+            }
+            
+            if (!empty($firstOrder->salutation)) {
+                $salutation = $firstOrder->salutation;
+            }
+            
+            // Also check inside data field if present
+            if ($customerName === 'To Be Advised' || empty($contactNumber)) {
+                $orderData = $firstOrder->data ?? null;
+                if (is_string($orderData)) {
+                    $orderData = json_decode($orderData, true);
+                }
+                if (is_array($orderData)) {
+                    // Handle array format (data can be array of objects)
+                    if (isset($orderData[0]) && is_array($orderData[0])) {
+                        $orderData = $orderData[0];
+                    }
+                    if ($customerName === 'To Be Advised') {
+                        $customerName = $orderData['fullname'] ?? $orderData['fullName'] ?? $customerName;
+                    }
+                    if (empty($contactNumber)) {
+                        $contactNumber = $orderData['phone'] ?? $contactNumber;
+                    }
+                    if ($salutation === 'Mr' && !empty($orderData['salutation'])) {
+                        $salutation = $orderData['salutation'];
+                    }
+                }
+            }
+        }
+        
         $initialData = [
             'tour_type' => $tour->tour_type ?? 'FIT',
-            'salutation' => $tour->salutation ?? 'Mr',
-            'customer_name' => $tour->customer_name ?? 'To Be Advised',
-            'contact_number' => $tour->contact_number ?? '',
+            'salutation' => $salutation,
+            'customer_name' => $customerName,
+            'contact_number' => $contactNumber,
             'agency_id' => $tour->agent->agency_id ?? null,
             'agent_id' => $tour->agent_id ?? null,
             'agent_name' => $agent->name ?? '',
@@ -2730,9 +2774,7 @@ class EnquiryFormPro extends Controller
             $tour->city = $request->city ?? null;
             $tour->child_ages = $request->child_ages ?? null;
             $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
-            $tour->salutation = $request->input('salutation', 'Mr'); // Mr, Mrs, Ms, Dr
-            $tour->customer_name = $request->input('customer_name', 'To Be Advised');
-            $tour->contact_number = $request->input('contact_number', '');
+            // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             
             // Update main guest data as JSON
             if ($request->has('mainguest')) {
