@@ -940,15 +940,16 @@
         window.existingTourData = {
             tour_id: {{ $tour->tour_id ?? 'null' }},
             display_id: '{{ $tour->display_id ?? '' }}',
-            customer_name: '{{ $tour->customer_name ?? '' }}',
-            email: '{{ $tour->email ?? '' }}',
-            phone: '{{ $tour->phone ?? '' }}',
-            adults: {{ $tour->adults ?? 2 }},
-            children: {{ $tour->children ?? 0 }},
-            infants: {{ $tour->infants ?? 0 }},
-            tour_start_date: '{{ $tour->tour_start_date ?? '' }}',
-            tour_end_date: '{{ $tour->tour_end_date ?? '' }}',
-            country: '{{ $tour->country ?? '' }}',
+            // Customer info from orders JSON (via initialData)
+            customer_name: '{{ $initialData['customer_name'] ?? '' }}',
+            phone: '{{ $initialData['contact_number'] ?? '' }}',
+            salutation: '{{ $initialData['salutation'] ?? 'Mr' }}',
+            adults: {{ $tour->adult ?? 2 }},
+            children: {{ $tour->child ?? 0 }},
+            infants: {{ $tour->infant ?? 0 }},
+            tour_start_date: '{{ $initialData['tour_start_date'] ?? '' }}',
+            tour_end_date: '{{ $initialData['tour_end_date'] ?? '' }}',
+            country: '{{ $tour->destination ?? '' }}',
             agency_id: {{ $tour->agency_id ?? 'null' }},
             agent_id: {{ $tour->agent_id ?? 'null' }},
             status: '{{ $tour->status ?? '' }}',
@@ -23484,31 +23485,32 @@
                 mealPlanLabel = mealPlanLabel.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
             }
             
-            // Create bed object matching the working format exactly
+            // Get the actual database room_id
+            const databaseRoomId = hotel.databaseRoomId || hotel.roomData?.room_id || hotel.roomData?.id || actualBedId || '';
+            
+            // Create bed object with clean structure
             const bedObject = {
-                bed_id: String(actualBedId || ""), // Actual database bed_id as string
-                bed_type: cleanBedType, // Raw bed type without formatting
-                room_type: cleanBedType, // Also set room_type for compatibility
+                bed_id: String(actualBedId || ""),
+                bed_type: cleanBedType,
                 baby_cot: 0,
                 head_count: parseInt(hotel.adultsPerRoom) || 2,
-                max_occupancy: parseInt(hotel.maxOccupancy) || 2,
-                cost: roomCost,
+                max_occupancy: parseInt(hotel.maxOccupancy) || 3,
                 price: roomSell,
-                sell: roomSell,
-                mealTypes: [mealPlanLabel], // Use label format
+                mealTypes: [mealPlanLabel],
                 selectedMeals: {
                     meal_1: {
-                        type: mealPlanLabel, // Use label format
+                        type: mealPlanLabel,
                         price: 0
                     }
                 }
             };
             
+            // Use database room_id for proper matching
             const rooms = [{
-                room_id: `room_${Date.now()}_${hotelIdx}`, // Generated room_id (matching working format)
+                room_id: parseInt(databaseRoomId) || databaseRoomId,
                 room_type: hotel.roomType || "",
                 number_of_rooms: numberOfRooms,
-                beds: [bedObject] // Only beds array (matching working format)
+                beds: [bedObject]
             }];
             
             // Find linked transfer for this hotel
@@ -23529,7 +23531,9 @@
                 way: linkedTransfer.way
             } : null);
             
+            // Build cleaner hotel data structure matching the correct format
             const hotelData = {
+                // Customer info
                 fullName: customerInfo.fullName || "",
                 email: customerInfo.email || "",
                 phone: customerInfo.phone || "",
@@ -23539,19 +23543,13 @@
                 state: customerInfo.state || "",
                 zip: customerInfo.zip || "",
                 specialRequests: customerInfo.specialRequests || "",
+                
+                // Booking identifiers
                 id: hotel.id || null,
                 bookingType: "enquiry",
                 bookingDate: [checkInDate, checkOutDate],
-                checkIn: checkInDate,
-                checkOut: checkOutDate,
-                checkInTime: checkInTime,
-                checkOutTime: checkOutTime,
-                hotel_unique_id: hotel.hotel_unique_id || hotel.hotelId || "",
-                hotelName: hotel.hotelName || "",
-                hotelImage: hotel.hotelImage || hotel.image || "",
-                city: hotel.city || hotel.destination || "",
-                country: hotel.country || hotel.destination || "Singapore",
-                destination: hotel.destination || hotel.city || "Singapore",
+                
+                // Hotel details (clean structure without room/bed/meal info)
                 hotelDetails: {
                     hotel_id: hotel.hotel_unique_id || hotel.hotelId || "",
                     hotel_name: hotel.hotelName || "",
@@ -23559,69 +23557,21 @@
                     location: hotel.destination || hotel.location || "Singapore",
                     checkInTime: checkInTime,
                     checkOutTime: checkOutTime,
-                    cancellation_charge: null,
-                    room_type: hotel.roomType || "",
-                    bed_type: cleanBedType,
-                    meal_plan: mealPlanLabel
+                    cancellation_charge: null
                 },
-                // Top-level fields for easy access
-                roomType: hotel.roomType || "",
-                room_type: hotel.roomType || "",
-                bedType: cleanBedType,
-                bed_type: cleanBedType,
-                bedId: actualBedId,
-                bedTypeRaw: rawBedType,
-                roomId: hotel.roomId || actualBedId,
-                mealPlan: mealPlanLabel,
-                meal_plan: mealPlanLabel,
-                mealPlanLabel: mealPlanLabel,
-                mealTypes: [mealPlanLabel],
-                adultsQty: parseInt(hotel.adultsQty) || 0,
-                childQty: parseInt(hotel.childQty) || 0,
-                infantQty: parseInt(hotel.infantQty) || 0,
-                adultsPerRoom: parseInt(hotel.adultsPerRoom) || 2,
-                maxOccupancy: parseInt(hotel.maxOccupancy) || 2,
-                rooms: numberOfRooms,
-                numberOfRooms: numberOfRooms,
-                nights: parseInt(hotel.nights) || 1,
+                
+                // Pricing mode
                 priceMode: "dmc",
-                priceModeId: dmcId || "",
-                roomsArray: rooms,
-                totalCost: totalCost,
+                priceModeId: parseInt(dmcId) || null,
+                
+                // Rooms array (using 'rooms' instead of 'roomsArray')
+                rooms: rooms,
+                
+                // Pricing
                 totalPrice: totalPrice,
-                cost: roomCost,
                 price: totalPrice,
-                sell: roomSell,
-                roomPrice: roomPrice,
-                adultCost: parseFloat(hotel.adultCost) || roomCost,
-                childCost: parseFloat(hotel.childCost) || 0,
-                infantCost: parseFloat(hotel.infantCost) || 0,
-                adultSell: parseFloat(hotel.adultSell) || roomSell,
-                childSell: parseFloat(hotel.childSell) || 0,
-                infantSell: parseFloat(hotel.infantSell) || 0,
-                supplement: hotel.supplement || false,
-                // Extra bed, CWB, CNB, Infant checkbox states and prices
-                hasExtraBed: hotel.hasExtraBed || false,
-                has_extra_bed: hotel.hasExtraBed || false,
-                extraBedPrice: parseFloat(hotel.extraBedPrice) || 0,
-                extra_bed_price: parseFloat(hotel.extraBedPrice) || 0,
-                hasCwb: hotel.hasCwb || false,
-                has_cwb: hotel.hasCwb || false,
-                cwbPrice: parseFloat(hotel.cwbPrice) || 0,
-                cwb_price: parseFloat(hotel.cwbPrice) || 0,
-                child_with_bed_price: parseFloat(hotel.cwbPrice) || 0,
-                hasCnb: hotel.hasCnb || false,
-                has_cnb: hotel.hasCnb || false,
-                cnbPrice: parseFloat(hotel.cnbPrice) || 0,
-                cnb_price: parseFloat(hotel.cnbPrice) || 0,
-                child_without_bed_price: parseFloat(hotel.cnbPrice) || 0,
-                hasInfant: hotel.hasInfant || false,
-                has_infant: hotel.hasInfant || false,
-                infantPrice: parseFloat(hotel.infantPrice) || 0,
-                infant_price: parseFloat(hotel.infantPrice) || 0,
-                arrivalTransferId: hotel.arrivalTransferId || null,
-                departureTransferId: hotel.departureTransferId || null,
-                transferIds: hotel.transferIds || [],
+                
+                // Transfer options
                 transfer_options: hotelTransferData ? {
                     transfer_required: true,
                     type: hotelTransferData.type || linkedTransfer?.type || "Private",
@@ -23643,8 +23593,18 @@
                     pickup_location_name: linkedTransfer?.pickup || "",
                     destination_name: linkedTransfer?.dropoff || ""
                 } : null,
+                
+                // Tour ID
                 tour_id: hotel.tour_id || defaultTourId || null,
-                dmc_id: dmcId || ""
+                
+                // Essential top-level fields for controller compatibility
+                // These are needed for unique key generation and service_date extraction
+                checkIn: checkInDate,
+                checkOut: checkOutDate,
+                hotel_unique_id: hotel.hotel_unique_id || hotel.hotelId || "",
+                hotelName: hotel.hotelName || "",
+                roomType: hotel.roomType || "",
+                bedType: cleanBedType
             };
             
             return hotelData;
@@ -25816,6 +25776,7 @@
     
     /**
      * Load existing tour header data (customer info, dates, etc.)
+     * Customer info (name, phone, salutation) comes from orders JSON via initialData
      */
     function loadExistingTourData() {
         if (!window.existingTourData) {
@@ -25826,20 +25787,25 @@
         console.log('Loading tour header data...');
         const tour = window.existingTourData;
         
-        // Customer Information
-        const customerNameInput = document.getElementById('customerName') || document.querySelector('input[name="customer_name"]');
+        // Customer Information - from orders JSON (already extracted by controller into window.existingTourData)
+        const customerNameInput = document.getElementById('customerNameInput');
         if (customerNameInput && tour.customer_name) {
             customerNameInput.value = tour.customer_name;
+            console.log('Set customer name to:', tour.customer_name);
         }
         
-        const emailInput = document.getElementById('customerEmail') || document.querySelector('input[name="email"]');
-        if (emailInput && tour.email) {
-            emailInput.value = tour.email;
-        }
-        
-        const phoneInput = document.getElementById('customerPhone') || document.querySelector('input[name="phone"]');
+        // Contact/Phone
+        const phoneInput = document.getElementById('contactNumberInput');
         if (phoneInput && tour.phone) {
             phoneInput.value = tour.phone;
+            console.log('Set phone to:', tour.phone);
+        }
+        
+        // Salutation
+        const salutationSelect = document.getElementById('salutationSelect');
+        if (salutationSelect && tour.salutation) {
+            salutationSelect.value = tour.salutation;
+            console.log('Set salutation to:', tour.salutation);
         }
         
         // Pax counts
@@ -26677,8 +26643,9 @@
         
         // Extract hotel details
         const hotelDetails = data.hotelDetails || data.hotel_details || {};
-        const rooms = data.rooms || [];
-        const firstRoom = rooms.length > 0 ? rooms[0] : {};
+        // Support both new 'rooms' format and old 'roomsArray' format for backward compatibility
+        const roomsArray = data.rooms || data.roomsArray || [];
+        const firstRoom = Array.isArray(roomsArray) && roomsArray.length > 0 ? roomsArray[0] : {};
         const firstBed = firstRoom.beds && firstRoom.beds.length > 0 ? firstRoom.beds[0] : {};
         
         // Extract meal plan - check multiple possible locations
@@ -26702,6 +26669,9 @@
         // Otherwise use order.order_id or generate a new one
         const originalFrontendId = data.id || null;
         
+        // Extract number of rooms - check firstRoom.number_of_rooms first, then fall back to data.numberOfRooms
+        const numberOfRooms = parseInt(firstRoom.number_of_rooms) || parseInt(data.numberOfRooms) || parseInt(data.number_of_rooms) || 1;
+        
         const hotel = {
             id: originalFrontendId || order.order_id || generateId('hotel'),
             bookingId: order.booking_id || order.bookingId || null, // Store booking_id for matching linked transfers
@@ -26712,7 +26682,7 @@
             checkIn: checkIn,
             checkOut: checkOut,
             nights: nights,
-            rooms: firstRoom.number_of_rooms || data.rooms || 1,
+            rooms: numberOfRooms, // Number of rooms (integer)
             adultsPerRoom: firstBed.head_count || data.adultsPerRoom || data.adults_per_room || 2,
             extraBed: firstBed.baby_cot || data.extraBed || data.extra_bed || 0,
             cwb: firstBed.baby_cot || data.cwb || 0,
@@ -26725,10 +26695,11 @@
             bedType: firstBed.bed_type || data.bedType || data.bed_type || '',
             bedTypeRaw: firstBed.bed_type || data.bedType || data.bed_type || '',
             bedId: firstBed.bed_id || data.bedId || data.bed_id || '',
-            maxOccupancy: firstBed.max_occupancy || data.maxOccupancy || data.max_occupancy || 2,
+            databaseRoomId: firstRoom.room_id || data.databaseRoomId || '', // Store database room_id for proper matching
+            maxOccupancy: firstBed.max_occupancy || data.maxOccupancy || data.max_occupancy || 3,
             cost: parseFloat(firstBed.cost || data.cost || 0),
-            sell: parseFloat(firstBed.sell || firstBed.price || data.sell || 0),
-            roomPrice: parseFloat(firstBed.sell || firstBed.price || data.sell || 0),
+            sell: parseFloat(firstBed.sell || firstBed.price || data.sell || data.price || 0),
+            roomPrice: parseFloat(firstBed.sell || firstBed.price || data.sell || data.price || 0),
             extraBedPrice: parseFloat(data.extraBedPrice || data.extra_bed_price || 0),
             cwbPrice: parseFloat(data.cwbPrice || data.cwb_price || data.child_with_bed_price || 0),
             cnbPrice: parseFloat(data.cnbPrice || data.cnb_price || data.child_without_bed_price || 0),
@@ -26739,9 +26710,8 @@
             hasCnb: data.hasCnb === true || data.has_cnb === true || data.has_cnb === 1,
             hasInfant: data.hasInfant === true || data.has_infant === true || data.has_infant === 1,
             bedData: firstBed,
-            rooms: data.rooms || [],
+            roomData: firstRoom, // Store full room data for transformation
             hotelDetails: hotelDetails,
-            destination: data.destination || data.country || data.city || '',
             country: data.country || data.destination || '',
             city: data.city || data.destination || '',
             supplement: data.supplement || false,
