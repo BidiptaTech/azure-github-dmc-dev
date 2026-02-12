@@ -5582,18 +5582,26 @@
                 break;
         }
 
+        // Meal prices should NOT be multiplied by pax count - they are per room/unit prices
         let total = 0;
         if (mealFlags.breakfast) {
-            total += (breakfastIncluded ? 0 : (breakfastPriceAdult * adultsCount));
-            total += (breakfastIncluded ? 0 : (childBreakfastPrice * childCount));
+            total += (breakfastIncluded ? 0 : breakfastPriceAdult);
+            // Child breakfast price is separate if applicable
+            if (childCount > 0) {
+                total += (breakfastIncluded ? 0 : childBreakfastPrice);
+            }
         }
         if (mealFlags.lunch) {
-            total += lunchPriceAdult * adultsCount;
-            total += childLunchPrice * childCount;
+            total += lunchPriceAdult;
+            if (childCount > 0) {
+                total += childLunchPrice;
+            }
         }
         if (mealFlags.dinner) {
-            total += dinnerPriceAdult * adultsCount;
-            total += childDinnerPrice * childCount;
+            total += dinnerPriceAdult;
+            if (childCount > 0) {
+                total += childDinnerPrice;
+            }
         }
         return total;
     }
@@ -14742,11 +14750,18 @@
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
         
-        // Also remove associated transfers
+        // Also remove associated transfers and guides
         arrivalDepartureList.forEach(item => {
             if (idsToRemove.includes(String(item.id))) {
+                // Remove linked transfer
                 if (item.transferId) {
                     transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
+                    console.log('Removed linked transfer for arrival/departure:', item.transferId);
+                }
+                // Remove linked guide
+                if (item.guideId) {
+                    guideList = guideList.filter(g => String(g.id) !== String(item.guideId));
+                    console.log('Removed linked guide for arrival/departure:', item.guideId);
                 }
             }
         });
@@ -14754,6 +14769,7 @@
         arrivalDepartureList = arrivalDepartureList.filter(item => !idsToRemove.includes(String(item.id)));
         updateArrivalDepartureTable();
         updateTransferTable();
+        updateGuideTable();
         recalculateHeaderDatesFromServices();
         recalculateTotals();
     }
@@ -20502,38 +20518,20 @@
                 ? `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)">`
                 : `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)" style="opacity: 0.7;">`;
             
-            // Normalize pricing using zone rates, type, and way
-            const pricing = getLocalTransferPricing(transfer);
+            // Display cost/sell with bothway multiplier applied for local transfers
+            // For bothway local transfers, multiply by 2 for the row display
             const storedSell = parseFloat(transfer.sell || 0);
             const storedCost = parseFloat(transfer.cost || 0);
             
-            // IMPORTANT: For transfers loaded from JSON/database, cost/sell are already the correct totals
-            // (both-way prices are already doubled, one-way are single)
-            // Only use wayMultiplier for NEW transfers that don't have stored prices
-            // Check if this is a loaded transfer (has stored prices) vs a new transfer
-            const isLoadedTransfer = storedCost > 0 || storedSell > 0;
+            // Check if this is a bothway local transfer
+            const isBothway = transfer.transportMode === 'local' && 
+                              (transfer.way === 'both-way' || transfer.way === 'Both Way' || 
+                               transfer.way === 'both' || transfer.way === 'two-way' || transfer.way === 'return');
+            const wayMultiplier = isBothway ? 2 : 1;
             
-            let displayCost = pricing.totalPrice;
-            if (isLoadedTransfer && storedCost > 0) {
-                // Use stored cost directly - it's already correct for both-way
-                displayCost = storedCost;
-            } else if (displayCost === 0 && storedCost > 0) {
-                // Fallback: only multiply if no computed price and we have stored cost
-                displayCost = storedCost;
-            }
-            
-            // Default to computed total; honor manual sell overrides when present
-            let displaySell = pricing.totalPrice;
-            if (isLoadedTransfer && storedSell > 0) {
-                // Use stored sell directly - it's already correct for both-way
-                displaySell = storedSell;
-            } else if (storedSell > 0 && storedSell !== storedCost) {
-                // Manual override - use as-is
-                displaySell = storedSell;
-            } else if (displaySell === 0 && storedCost > 0) {
-                // Fallback: use stored cost
-                displaySell = storedCost;
-            }
+            // Apply multiplier for display
+            let displayCost = storedCost * wayMultiplier;
+            let displaySell = (storedSell > 0 ? storedSell : storedCost) * wayMultiplier;
             
             return `
             <tr>
@@ -21464,7 +21462,6 @@
     
     // Calculate transfer price based on type and way
     function calculateTransferPrice(zonePrice, type, way, adults, child, vehicleOption = null) {
-        let basePrice = 0;
         const totalPax = Math.max(1, (parseInt(adults) || 0) + (parseInt(child) || 0));
         
         // Get zone prices
@@ -21475,30 +21472,29 @@
         // Zone prices should remain 0 to indicate missing mapping
         // User must either: 1) Add zone mapping in settings, or 2) Manually enter prices
         
-        // Get base price based on type (SIC or Private)
+        // Store the UNIT price (not multiplied by pax or way)
+        // Shared: per person price, Private: per vehicle price
+        // Multiplication happens only in footer totals calculation
+        let costPrice = 0;
+        let sellPrice = 0;
+        
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared prices are per person - multiply by total passengers
-            basePrice = (zoneSharedPrice || 0) * totalPax;
+            // Shared: store per person price (no pax multiplication)
+            costPrice = zoneSharedPrice || 0;
+            sellPrice = zoneSharedPrice || 0;
         } else {
-            // Private prices are fixed for the vehicle (not per person)
-            basePrice = zonePrivatePrice || 0;
+            // Private: store per vehicle price (no pax multiplication)
+            costPrice = zonePrivatePrice || 0;
+            sellPrice = zonePrivatePrice || 0;
         }
         
-        // Apply way multiplier (both-way = 2x, one-way = 1x)
-        if (way === 'both-way' || way === 'both' || way === '2-way' || way === 'Two Way' || way === 'Both Way') {
-            basePrice = basePrice * 2;
-        }
-        
-        let costPrice = basePrice;
-        let sellPrice = basePrice;
-        
-        // Private transfers are already fixed price, no need to divide by pax
-        // (Previous logic was incorrect - private should be fixed price, not per person)
+        // DO NOT apply way multiplier here - store unit price only
+        // Way multiplier is already handled in display/table rendering
         
         return {
             cost: costPrice,
             sell: sellPrice,
-            basePrice: basePrice,
+            basePrice: costPrice,
             sharedPrice: zoneSharedPrice,
             privatePrice: zonePrivatePrice,
             totalPax: totalPax
@@ -22138,8 +22134,19 @@
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
         
+        // Collect linked guide IDs to remove (guides linked to local transfers being deleted)
+        const guideIdsToRemove = [];
+        
         // CASCADE: Remove transfer links from parent services
         idsToRemove.forEach(transferIdToRemove => {
+            // Find the transfer being removed to check for linked guide
+            const transferToRemove = transferList.find(t => String(t.id) === String(transferIdToRemove));
+            if (transferToRemove && transferToRemove.guideId) {
+                // Add linked guide to removal list
+                guideIdsToRemove.push(String(transferToRemove.guideId));
+                console.log('Will remove linked guide for local transfer:', transferToRemove.guideId);
+            }
+            
             // Remove from tours
             tourList.forEach(tour => {
                 if (tour.transferId && String(tour.transferId) === String(transferIdToRemove)) {
@@ -22204,12 +22211,19 @@
         // Remove transfers from transferList
         transferList = transferList.filter(transfer => !idsToRemove.includes(String(transfer.id)));
         
+        // Remove linked guides from guideList
+        if (guideIdsToRemove.length > 0) {
+            guideList = guideList.filter(guide => !guideIdsToRemove.includes(String(guide.id)));
+            console.log('Removed linked guides:', guideIdsToRemove);
+        }
+        
         // Update all affected tables
         updateTransferTable();
         updateTourTable();
         updateAccommodationTable();
         updateMealTable();
         updateArrivalDepartureTable();
+        updateGuideTable();
         recalculateHeaderDatesFromServices();
         recalculateTotals();
     }
@@ -22468,6 +22482,10 @@
         // All local transfers are in transferList with transportMode === 'local'
         let localTransferSingleCost = 0;
         let localTransferSingleSell = 0;
+        let localTransferTwinCost = 0;
+        let localTransferTwinSell = 0;
+        let localTransferTripleCost = 0;
+        let localTransferTripleSell = 0;
         
         // Get all local transfers (from all sources: Arrival, Departure, Hotel, Restaurant, Attraction, Local Transport)
         // Exclude items with supplement checked
@@ -22486,8 +22504,9 @@
             if (transferTableBody) {
                 const tableRows = Array.from(transferTableBody.querySelectorAll('tr'));
                 if (transferIndex < tableRows.length) {
-                    const sellInput = tableRows[transferIndex].querySelector('td:nth-child(11) input[type="number"]');
-                    const costInput = tableRows[transferIndex].querySelector('td:nth-child(10) input[type="number"]');
+                    // Cost is type="text" (readonly), Sell is type="number"
+                    const sellInput = tableRows[transferIndex].querySelector('td:nth-child(11) input');
+                    const costInput = tableRows[transferIndex].querySelector('td:nth-child(10) input');
                     if (sellInput && sellInput.value !== '') {
                         listSellValue = parseFloat(sellInput.value) || 0;
                     }
@@ -22497,68 +22516,46 @@
                 }
             }
             
-            // Determine transfer type
-            const type = (transfer.type || '').toString().toLowerCase();
-            const isPrivate = type === 'p' || type === 'private';
-            const isShared = type === 's' || type === 'sic' || type === 'shared';
+            // Check if this is a bothway transfer - apply multiplier
+            const isBothway = transfer.way === 'both-way' || transfer.way === 'Both Way' || 
+                              transfer.way === 'both' || transfer.way === 'two-way' || transfer.way === 'return';
+            const wayMultiplier = isBothway ? 2 : 1;
             
-            // Get passenger count
-            const adults = parseInt(transfer.adults || transfer.adultsQty || 0) || 0;
-            const child = parseInt(transfer.child || transfer.childQty || 0) || 0;
-            const totalPax = adults + child;
+            // Apply bothway multiplier to the base values
+            let baseCost = listCostValue * wayMultiplier;
+            let baseSell = listSellValue * wayMultiplier;
             
-            let singleSellContribution = 0;
-            let singleCostContribution = 0;
-            
-            if (isShared) {
-                // Shared: Use cost/sell values directly (already per person)
-                singleSellContribution = listSellValue || 0;
-                singleCostContribution = listCostValue || 0;
-                
-                // If cost is not set, fall back to sell value
-                if (singleCostContribution === 0 && singleSellContribution > 0) {
-                    singleCostContribution = singleSellContribution;
-                }
-            } else if (isPrivate) {
-                // Private: Divide total vehicle price by passenger count
-                if (totalPax > 0 && listSellValue > 0) {
-                    singleSellContribution = Math.ceil(listSellValue / totalPax);
-                } else {
-                    singleSellContribution = listSellValue || 0;
-                }
-                if (totalPax > 0 && listCostValue > 0) {
-                    singleCostContribution = Math.ceil(listCostValue / totalPax);
-                } else {
-                    singleCostContribution = listCostValue || 0;
-                }
-                
-                // If cost is not set, fall back to sell value
-                if (singleCostContribution === 0 && singleSellContribution > 0) {
-                    singleCostContribution = singleSellContribution;
-                }
-            } else {
-                // Unknown type: use value directly (treat as per-person)
-                singleSellContribution = listSellValue || 0;
-                singleCostContribution = listCostValue || 0;
-                
-                // If cost is not set, fall back to sell value
-                if (singleCostContribution === 0 && singleSellContribution > 0) {
-                    singleCostContribution = singleSellContribution;
-                }
+            // If sell is not set, fall back to cost value
+            if (baseSell === 0 && baseCost > 0) {
+                baseSell = baseCost;
             }
             
-            // Add to totals
-            if (singleSellContribution > 0 || singleCostContribution > 0) {
-                localTransferSingleCost += singleCostContribution;
-                localTransferSingleSell += singleSellContribution;
+            // Check if this is a private transfer - for private transfers, divide by occupancy
+            const transferType = (transfer.type || '').toString().toLowerCase();
+            const isPrivate = transferType === 'p' || transferType === 'private';
+            
+            // Add to totals with occupancy division for private transfers
+            if (baseSell > 0 || baseCost > 0) {
+                // Single: full price
+                localTransferSingleCost += baseCost;
+                localTransferSingleSell += baseSell;
+                
+                if (isPrivate) {
+                    // Twin: divide by 2 for private transfers
+                    localTransferTwinCost += ceilIfDecimal(baseCost / 2);
+                    localTransferTwinSell += ceilIfDecimal(baseSell / 2);
+                    // Triple: divide by 3 for private transfers
+                    localTransferTripleCost += ceilIfDecimal(baseCost / 3);
+                    localTransferTripleSell += ceilIfDecimal(baseSell / 3);
+                } else {
+                    // Shared: same price for all occupancies (per person price)
+                    localTransferTwinCost += baseCost;
+                    localTransferTwinSell += baseSell;
+                    localTransferTripleCost += baseCost;
+                    localTransferTripleSell += baseSell;
+                }
             }
         });
-        
-        // Calculate twin and triple (multiply single by 2 and 3)
-        const localTransferTwinCost = localTransferSingleCost * 2;
-        const localTransferTripleCost = localTransferSingleCost * 3;
-        const localTransferTwinSell = localTransferSingleSell * 2;
-        const localTransferTripleSell = localTransferSingleSell * 3;
         
         // Add accommodation rows (exclude items with supplement checked)
         if (accommodationList.length > 0) {
@@ -23667,6 +23664,25 @@
                 childSell: parseFloat(hotel.childSell) || 0,
                 infantSell: parseFloat(hotel.infantSell) || 0,
                 supplement: hotel.supplement || false,
+                // Extra bed, CWB, CNB, Infant checkbox states and prices
+                hasExtraBed: hotel.hasExtraBed || false,
+                has_extra_bed: hotel.hasExtraBed || false,
+                extraBedPrice: parseFloat(hotel.extraBedPrice) || 0,
+                extra_bed_price: parseFloat(hotel.extraBedPrice) || 0,
+                hasCwb: hotel.hasCwb || false,
+                has_cwb: hotel.hasCwb || false,
+                cwbPrice: parseFloat(hotel.cwbPrice) || 0,
+                cwb_price: parseFloat(hotel.cwbPrice) || 0,
+                child_with_bed_price: parseFloat(hotel.cwbPrice) || 0,
+                hasCnb: hotel.hasCnb || false,
+                has_cnb: hotel.hasCnb || false,
+                cnbPrice: parseFloat(hotel.cnbPrice) || 0,
+                cnb_price: parseFloat(hotel.cnbPrice) || 0,
+                child_without_bed_price: parseFloat(hotel.cnbPrice) || 0,
+                hasInfant: hotel.hasInfant || false,
+                has_infant: hotel.hasInfant || false,
+                infantPrice: parseFloat(hotel.infantPrice) || 0,
+                infant_price: parseFloat(hotel.infantPrice) || 0,
                 arrivalTransferId: hotel.arrivalTransferId || null,
                 departureTransferId: hotel.departureTransferId || null,
                 transferIds: hotel.transferIds || [],
@@ -26772,6 +26788,12 @@
             extraBedPrice: parseFloat(data.extraBedPrice || data.extra_bed_price || 0),
             cwbPrice: parseFloat(data.cwbPrice || data.cwb_price || data.child_with_bed_price || 0),
             cnbPrice: parseFloat(data.cnbPrice || data.cnb_price || data.child_without_bed_price || 0),
+            infantPrice: parseFloat(data.infantPrice || data.infant_price || data.baby_cot_price || 0),
+            // Checkbox states - only true if explicitly set
+            hasExtraBed: data.hasExtraBed === true || data.has_extra_bed === true || data.has_extra_bed === 1,
+            hasCwb: data.hasCwb === true || data.has_cwb === true || data.has_cwb === 1,
+            hasCnb: data.hasCnb === true || data.has_cnb === true || data.has_cnb === 1,
+            hasInfant: data.hasInfant === true || data.has_infant === true || data.has_infant === 1,
             bedData: firstBed,
             rooms: data.rooms || [],
             hotelDetails: hotelDetails,
