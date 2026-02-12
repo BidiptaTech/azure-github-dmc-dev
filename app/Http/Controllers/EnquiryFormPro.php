@@ -1171,6 +1171,9 @@ class EnquiryFormPro extends Controller
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
             $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
             $tour->created_by = $user->userId; // Store the user ID who created the tour
+            $tour->salutation = $request->input('salutation', 'Mr'); // Mr, Mrs, Ms, Dr
+            $tour->customer_name = $request->input('customer_name', 'To Be Advised');
+            $tour->contact_number = $request->input('contact_number', '');
             
             // Store main guest data as JSON
             if ($request->has('mainguest') && $request->mainguest) {
@@ -2727,6 +2730,9 @@ class EnquiryFormPro extends Controller
             $tour->city = $request->city ?? null;
             $tour->child_ages = $request->child_ages ?? null;
             $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
+            $tour->salutation = $request->input('salutation', 'Mr'); // Mr, Mrs, Ms, Dr
+            $tour->customer_name = $request->input('customer_name', 'To Be Advised');
+            $tour->contact_number = $request->input('contact_number', '');
             
             // Update main guest data as JSON
             if ($request->has('mainguest')) {
