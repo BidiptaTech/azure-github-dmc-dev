@@ -22356,31 +22356,32 @@
                 mealPlanLabel = mealPlanLabel.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
             }
             
-            // Create bed object matching the working format exactly
+            // Get the actual database room_id
+            const databaseRoomId = hotel.databaseRoomId || hotel.roomData?.room_id || hotel.roomData?.id || actualBedId || '';
+            
+            // Create bed object with clean structure
             const bedObject = {
-                bed_id: String(actualBedId || ""), // Actual database bed_id as string
-                bed_type: cleanBedType, // Raw bed type without formatting
-                room_type: cleanBedType, // Also set room_type for compatibility
+                bed_id: String(actualBedId || ""),
+                bed_type: cleanBedType,
                 baby_cot: 0,
                 head_count: parseInt(hotel.adultsPerRoom) || 2,
-                max_occupancy: parseInt(hotel.maxOccupancy) || 2,
-                cost: roomCost,
+                max_occupancy: parseInt(hotel.maxOccupancy) || 3,
                 price: roomSell,
-                sell: roomSell,
-                mealTypes: [mealPlanLabel], // Use label format
+                mealTypes: [mealPlanLabel],
                 selectedMeals: {
                     meal_1: {
-                        type: mealPlanLabel, // Use label format
+                        type: mealPlanLabel,
                         price: 0
                     }
                 }
             };
             
+            // Use database room_id for proper matching
             const rooms = [{
-                room_id: `room_${Date.now()}_${hotelIdx}`, // Generated room_id (matching working format)
+                room_id: parseInt(databaseRoomId) || databaseRoomId,
                 room_type: hotel.roomType || "",
                 number_of_rooms: numberOfRooms,
-                beds: [bedObject] // Only beds array (matching working format)
+                beds: [bedObject]
             }];
             
             // Find linked transfer for this hotel
@@ -22401,7 +22402,9 @@
                 way: linkedTransfer.way
             } : null);
             
+            // Build cleaner hotel data structure matching the correct format
             const hotelData = {
+                // Customer info
                 fullName: customerInfo.fullName || "",
                 email: customerInfo.email || "",
                 phone: customerInfo.phone || "",
@@ -22411,19 +22414,13 @@
                 state: customerInfo.state || "",
                 zip: customerInfo.zip || "",
                 specialRequests: customerInfo.specialRequests || "",
+                
+                // Booking identifiers
                 id: hotel.id || null,
                 bookingType: "enquiry",
                 bookingDate: [checkInDate, checkOutDate],
-                checkIn: checkInDate,
-                checkOut: checkOutDate,
-                checkInTime: checkInTime,
-                checkOutTime: checkOutTime,
-                hotel_unique_id: hotel.hotel_unique_id || hotel.hotelId || "",
-                hotelName: hotel.hotelName || "",
-                hotelImage: hotel.hotelImage || hotel.image || "",
-                city: hotel.city || hotel.destination || "",
-                country: hotel.country || hotel.destination || "Singapore",
-                destination: hotel.destination || hotel.city || "Singapore",
+                
+                // Hotel details (clean structure without room/bed/meal info)
                 hotelDetails: {
                     hotel_id: hotel.hotel_unique_id || hotel.hotelId || "",
                     hotel_name: hotel.hotelName || "",
@@ -22431,69 +22428,21 @@
                     location: hotel.destination || hotel.location || "Singapore",
                     checkInTime: checkInTime,
                     checkOutTime: checkOutTime,
-                    cancellation_charge: null,
-                    room_type: hotel.roomType || "",
-                    bed_type: cleanBedType,
-                    meal_plan: mealPlanLabel
+                    cancellation_charge: null
                 },
-                // Top-level fields for easy access
-                roomType: hotel.roomType || "",
-                room_type: hotel.roomType || "",
-                bedType: cleanBedType,
-                bed_type: cleanBedType,
-                bedId: actualBedId,
-                bedTypeRaw: rawBedType,
-                roomId: hotel.roomId || actualBedId,
-                mealPlan: mealPlanLabel,
-                meal_plan: mealPlanLabel,
-                mealPlanLabel: mealPlanLabel,
-                mealTypes: [mealPlanLabel],
-                adultsQty: parseInt(hotel.adultsQty) || 0,
-                childQty: parseInt(hotel.childQty) || 0,
-                infantQty: parseInt(hotel.infantQty) || 0,
-                adultsPerRoom: parseInt(hotel.adultsPerRoom) || 2,
-                maxOccupancy: parseInt(hotel.maxOccupancy) || 2,
-                rooms: numberOfRooms,
-                numberOfRooms: numberOfRooms,
-                nights: parseInt(hotel.nights) || 1,
+                
+                // Pricing mode
                 priceMode: "dmc",
-                priceModeId: dmcId || "",
-                roomsArray: rooms,
-                totalCost: totalCost,
+                priceModeId: parseInt(dmcId) || null,
+                
+                // Rooms array (using 'rooms' instead of 'roomsArray')
+                rooms: rooms,
+                
+                // Pricing
                 totalPrice: totalPrice,
-                cost: roomCost,
                 price: totalPrice,
-                sell: roomSell,
-                roomPrice: roomPrice,
-                adultCost: parseFloat(hotel.adultCost) || roomCost,
-                childCost: parseFloat(hotel.childCost) || 0,
-                infantCost: parseFloat(hotel.infantCost) || 0,
-                adultSell: parseFloat(hotel.adultSell) || roomSell,
-                childSell: parseFloat(hotel.childSell) || 0,
-                infantSell: parseFloat(hotel.infantSell) || 0,
-                supplement: hotel.supplement || false,
-                // Extra bed, CWB, CNB, Infant checkbox states and prices
-                hasExtraBed: hotel.hasExtraBed || false,
-                has_extra_bed: hotel.hasExtraBed || false,
-                extraBedPrice: parseFloat(hotel.extraBedPrice) || 0,
-                extra_bed_price: parseFloat(hotel.extraBedPrice) || 0,
-                hasCwb: hotel.hasCwb || false,
-                has_cwb: hotel.hasCwb || false,
-                cwbPrice: parseFloat(hotel.cwbPrice) || 0,
-                cwb_price: parseFloat(hotel.cwbPrice) || 0,
-                child_with_bed_price: parseFloat(hotel.cwbPrice) || 0,
-                hasCnb: hotel.hasCnb || false,
-                has_cnb: hotel.hasCnb || false,
-                cnbPrice: parseFloat(hotel.cnbPrice) || 0,
-                cnb_price: parseFloat(hotel.cnbPrice) || 0,
-                child_without_bed_price: parseFloat(hotel.cnbPrice) || 0,
-                hasInfant: hotel.hasInfant || false,
-                has_infant: hotel.hasInfant || false,
-                infantPrice: parseFloat(hotel.infantPrice) || 0,
-                infant_price: parseFloat(hotel.infantPrice) || 0,
-                arrivalTransferId: hotel.arrivalTransferId || null,
-                departureTransferId: hotel.departureTransferId || null,
-                transferIds: hotel.transferIds || [],
+                
+                // Transfer options
                 transfer_options: hotelTransferData ? {
                     transfer_required: true,
                     type: hotelTransferData.type || linkedTransfer?.type || "Private",
@@ -22515,8 +22464,18 @@
                     pickup_location_name: linkedTransfer?.pickup || "",
                     destination_name: linkedTransfer?.dropoff || ""
                 } : null,
+                
+                // Tour ID
                 tour_id: hotel.tour_id || defaultTourId || null,
-                dmc_id: dmcId || ""
+                
+                // Essential top-level fields for controller compatibility
+                // These are needed for unique key generation and service_date extraction
+                checkIn: checkInDate,
+                checkOut: checkOutDate,
+                hotel_unique_id: hotel.hotel_unique_id || hotel.hotelId || "",
+                hotelName: hotel.hotelName || "",
+                roomType: hotel.roomType || "",
+                bedType: cleanBedType
             };
             
             return hotelData;
