@@ -25882,36 +25882,32 @@
         console.log('Loading tour header data...');
         const tour = window.existingTourData;
         
-        // Customer Information
-        const customerNameInput = document.getElementById('customerName') || document.querySelector('input[name="customer_name"]');
+        // Customer Information - use correct input IDs
+        const customerNameInput = document.getElementById('customerNameInput') || document.querySelector('input[name="customer_name"]');
         if (customerNameInput && tour.customer_name) {
             customerNameInput.value = tour.customer_name;
         }
         
-        const emailInput = document.getElementById('customerEmail') || document.querySelector('input[name="email"]');
-        if (emailInput && tour.email) {
-            emailInput.value = tour.email;
+        // Contact number input
+        const contactNumberInput = document.getElementById('contactNumberInput') || document.querySelector('input[name="contact_number"]');
+        if (contactNumberInput && (tour.contact_number || tour.phone)) {
+            contactNumberInput.value = tour.contact_number || tour.phone;
         }
         
-        const phoneInput = document.getElementById('customerPhone') || document.querySelector('input[name="phone"]');
-        if (phoneInput && tour.phone) {
-            phoneInput.value = tour.phone;
+        // Pax counts - use correct input IDs (adultCountInput, childCountInput, infantCountInput)
+        const adultsInput = document.getElementById('adultCountInput') || document.getElementById('adults') || document.querySelector('input[name="adults"]');
+        if (adultsInput && (tour.adults || tour.adult_count)) {
+            adultsInput.value = tour.adults || tour.adult_count || 2;
         }
         
-        // Pax counts
-        const adultsInput = document.getElementById('adults') || document.querySelector('input[name="adults"]');
-        if (adultsInput) {
-            adultsInput.value = tour.adults || 2;
-        }
-        
-        const childrenInput = document.getElementById('children') || document.querySelector('input[name="children"]');
+        const childrenInput = document.getElementById('childCountInput') || document.getElementById('children') || document.querySelector('input[name="children"]');
         if (childrenInput) {
-            childrenInput.value = tour.children || 0;
+            childrenInput.value = tour.children || tour.child_count || 0;
         }
         
-        const infantsInput = document.getElementById('infants') || document.querySelector('input[name="infants"]');
+        const infantsInput = document.getElementById('infantCountInput') || document.getElementById('infants') || document.querySelector('input[name="infants"]');
         if (infantsInput) {
-            infantsInput.value = tour.infants || 0;
+            infantsInput.value = tour.infants || tour.infant_count || 0;
         }
         
         // Dates
@@ -26130,6 +26126,23 @@
                     return; // Skip to next order
                 }
                 
+                // Handle meal/restaurant orders with array support (like hotels)
+                if (orderType === 'meal' || orderType === 'meals' || orderType === 'restaurant') {
+                    // Handle both array and single object formats
+                    const mealDataArray = Array.isArray(orderData) ? orderData : [orderData];
+                    
+                    console.log(`Processing ${mealDataArray.length} meal(s) in order ${order.id}`);
+                    
+                    // Process each meal in the array
+                    mealDataArray.forEach((mealData, mealIndex) => {
+                        if (mealData) {
+                            console.log(`Loading meal ${mealIndex + 1} of ${mealDataArray.length} from order ${order.id}:`, mealData.restaurantName || mealData.restaurant_name);
+                            loadMealOrder(mealData, order);
+                        }
+                    });
+                    return; // Skip to next order
+                }
+                
                 // For other order types, extract the first element if it's an array
                 // IMPORTANT: The data field is stored as an array with a single object for non-hotel orders
                 if (Array.isArray(orderData) && orderData.length > 0) {
@@ -26154,13 +26167,17 @@
                     case 'entry_port':
                     case 'arrival':
                     case 'arrivals':
-                        loadArrivalOrder(orderData, order);
+                        // Skip arrival loading - already loaded by loadExistingOrdersIntoArrays via service_type
+                        // This prevents duplicate entries
+                        console.log('Skipping arrival - already loaded via loadExistingOrdersIntoArrays');
                         break;
                     
                     case 'exit_port':
                     case 'departure':
                     case 'departures':
-                        loadDepartureOrder(orderData, order);
+                        // Skip departure loading - already loaded by loadExistingOrdersIntoArrays via service_type
+                        // This prevents duplicate entries
+                        console.log('Skipping departure - already loaded via loadExistingOrdersIntoArrays');
                         break;
                     
                     case 'tour':
@@ -26168,12 +26185,6 @@
                     case 'attraction':
                     case 'attractions':
                         loadTourOrder(orderData, order);
-                        break;
-                    
-                    case 'meal':
-                    case 'meals':
-                    case 'restaurant':
-                        loadMealOrder(orderData, order);
                         break;
                     
                     case 'transfer':
