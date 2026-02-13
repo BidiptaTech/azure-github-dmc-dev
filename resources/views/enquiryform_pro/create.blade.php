@@ -18170,16 +18170,11 @@
             let transferEntryId = null;
             
             if (transferChecked && transferDestination) {
-                // First, calculate total adults and child from all selected meals
-                let totalAdults = 0;
-                let totalChild = 0;
-                selectedRows.forEach(checkbox => {
-                    const row = checkbox.closest('tr');
-                    const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
-                    const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
-                    totalAdults += adultsQty;
-                    totalChild += childQty;
-                });
+                // Get PAX from the first selected meal (all meals in a restaurant booking typically have same PAX)
+                // DO NOT sum PAX across meals - the transfer PAX should be the actual number of people traveling
+                const firstRow = selectedRows[0]?.closest('tr');
+                const totalAdults = parseInt(firstRow?.querySelector('.meal-adult-qty')?.value) || 0;
+                const totalChild = parseInt(firstRow?.querySelector('.meal-child-qty')?.value) || 0;
                 
                 transferEntryId = generateId('transfer');
                 
@@ -22753,6 +22748,8 @@
                     },
                     cost: parseFloat(transferSource.cost || transferSource.adultCost || 0),
                     sell: parseFloat(transferSource.sell || transferSource.adultSell || 0),
+                    adults: parseInt(transferSource.adults || transferSource.adultsQty) || 0,
+                    child: parseInt(transferSource.child || transferSource.childQty) || 0,
                     pickup_location_name: pickupName,
                     destination_name: dropoffName
                 };
