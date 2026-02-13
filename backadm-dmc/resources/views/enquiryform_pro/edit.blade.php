@@ -27524,15 +27524,19 @@
         
         // Check if this transfer is linked to a meal/restaurant/attraction
         // These should be loaded from their parent service, not duplicated here
-        const isLinked = data.isStandalone === false ||
-                         data.sourceType === 'meal' ||
+        // NOTE: Hotel/accommodation transfers should NOT be skipped - they are loaded directly here
+        const isLinkedToMealOrTour = (data.sourceType === 'meal' ||
                          data.sourceType === 'tour' ||
                          data.sourceType === 'attraction' ||
                          data.source_type === 'meal' ||
                          data.source_type === 'tour' ||
-                         data.source_type === 'attraction';
+                         data.source_type === 'attraction') &&
+                         data.sourceType !== 'hotel' &&
+                         data.sourceType !== 'accommodation' &&
+                         data.source_type !== 'hotel' &&
+                         data.source_type !== 'accommodation';
         
-        if (isLinked) {
+        if (isLinkedToMealOrTour) {
             console.log('Skipping linked transfer (will be loaded from parent service):', data);
             return;
         }
