@@ -19374,6 +19374,26 @@
             let displayCost = storedCost;
             let displaySell = storedSell > 0 ? storedSell : storedCost;
             
+            // Get current type and way for dropdowns
+            const currentType = transfer.type || 'S';
+            const currentWay = transfer.way || 'one-way';
+            
+            // Create type dropdown (only for local transfers)
+            const typeDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) 
+                ? `<select onchange="updateTransferField(${index}, 'type', this.value)" style="width: 70px; font-size: 11px; padding: 2px 4px;">
+                    <option value="S" ${(currentType === 'S' || currentType === 'sic' || currentType === 'Shared') ? 'selected' : ''}>Shared</option>
+                    <option value="P" ${(currentType === 'P' || currentType === 'private' || currentType === 'Private') ? 'selected' : ''}>Private</option>
+                   </select>`
+                : getTypeClass(transfer);
+            
+            // Create way dropdown (only for local transfers)
+            const wayDropdown = (transfer.transportMode === 'local' || !transfer.transportMode)
+                ? `<select onchange="updateTransferField(${index}, 'way', this.value)" style="width: 80px; font-size: 11px; padding: 2px 4px;">
+                    <option value="one-way" ${(currentWay === 'one-way' || currentWay === 'One Way') ? 'selected' : ''}>One Way</option>
+                    <option value="both-way" ${(currentWay === 'both-way' || currentWay === 'Both Way' || currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way') ? 'selected' : ''}>Both Way</option>
+                   </select>`
+                : getWayType(transfer);
+            
             return `
             <tr>
                 <td>${checkboxHtml}</td>
@@ -19383,8 +19403,8 @@
                 </td>
                 <td>${getModeIcon(transfer.transportMode || 'local')}</td>
                 <td>${getVehicleType(transfer)}</td>
-                <td>${getTypeClass(transfer)}</td>
-                <td>${getWayType(transfer)}</td>
+                <td>${typeDropdown}</td>
+                <td>${wayDropdown}</td>
                 <td><input type="number" value="${adults}" onchange="updateTransferField(${index}, 'adults', this.value)" style="width: 50px;"></td>
                 <td><input type="number" value="${child}" onchange="updateTransferField(${index}, 'child', this.value)" style="width: 50px;"></td>
                 <td><input type="text" value="${displayCost}" readonly style="width: 70px; background-color: #f5f5f5;"></td>
@@ -19425,6 +19445,45 @@
                 }
                 
                 // Update the transfer table to reflect the change
+                updateTransferTable();
+            }
+            
+            // If type or way changes for local transfers, recalculate cost/sell based on zone prices
+            if ((field === 'type' || field === 'way') && transfer.transportMode === 'local') {
+                const zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
+                const zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+                
+                // Get current type and way
+                const currentType = transfer.type || 'P';
+                const currentWay = transfer.way || 'one-way';
+                
+                // Get base price based on type (shared or private)
+                let basePrice = 0;
+                if (currentType === 'S' || currentType === 'sic' || currentType === 'Shared') {
+                    basePrice = zoneSharedPrice;
+                } else {
+                    basePrice = zonePrivatePrice;
+                }
+                
+                // Apply way multiplier - both-way costs double
+                const isBothway = currentWay === 'both-way' || currentWay === 'Both Way' || 
+                                  currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way';
+                const wayMultiplier = isBothway ? 2 : 1;
+                
+                // Update cost and sell with new calculated values
+                transfer.cost = basePrice * wayMultiplier;
+                transfer.sell = basePrice * wayMultiplier;
+                
+                console.log('Recalculated transfer price:', {
+                    type: currentType,
+                    way: currentWay,
+                    basePrice: basePrice,
+                    wayMultiplier: wayMultiplier,
+                    newCost: transfer.cost,
+                    newSell: transfer.sell
+                });
+                
+                // Refresh the transfer table to show new prices
                 updateTransferTable();
             }
             
@@ -20314,29 +20373,31 @@
         // Zone prices should remain 0 to indicate missing mapping
         // User must either: 1) Add zone mapping in settings, or 2) Manually enter prices
         
-        // Store the UNIT price (not multiplied by pax or way)
+        // Calculate base price based on type
         // Shared: per person price, Private: per vehicle price
-        // Multiplication happens only in footer totals calculation
-        let costPrice = 0;
-        let sellPrice = 0;
+        let basePrice = 0;
         
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared: store per person price (no pax multiplication)
-            costPrice = zoneSharedPrice || 0;
-            sellPrice = zoneSharedPrice || 0;
+            // Shared: per person price
+            basePrice = zoneSharedPrice || 0;
         } else {
-            // Private: store per vehicle price (no pax multiplication)
-            costPrice = zonePrivatePrice || 0;
-            sellPrice = zonePrivatePrice || 0;
+            // Private: per vehicle price
+            basePrice = zonePrivatePrice || 0;
         }
         
-        // DO NOT apply way multiplier here - store unit price only
-        // Way multiplier is already handled in display/table rendering
+        // Apply way multiplier - both-way costs double
+        const isBothway = way === 'both-way' || way === 'Both Way' || 
+                          way === 'both' || way === 'two-way' || way === 'return' || way === '2way';
+        const wayMultiplier = isBothway ? 2 : 1;
+        
+        // Final price includes way multiplier
+        let costPrice = basePrice * wayMultiplier;
+        let sellPrice = basePrice * wayMultiplier;
         
         return {
             cost: costPrice,
             sell: sellPrice,
-            basePrice: costPrice,
+            basePrice: basePrice,
             sharedPrice: zoneSharedPrice,
             privatePrice: zonePrivatePrice,
             totalPax: totalPax
