@@ -28,14 +28,9 @@
                                 <p class="mb-0 small">Package ID: {{ $multiRestaurant->package_id ?? 'N/A' }}</p>
                             </div>
                             <div>
-                                <a href="{{ route('multiResturant.index') }}" class="btn btn-light me-2">
+                                <a href="{{ route('multiResturant.index') }}" class="btn btn-light">
                                     <i class="mdi mdi-arrow-left me-1"></i> Back to List
                                 </a>
-                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 11)
-                                <a href="{{ route('multiResturant.edit', Crypt::encrypt($multiRestaurant->id)) }}" class="btn btn-warning">
-                                    <i class="mdi mdi-pencil-outline me-1"></i> Edit Package
-                                </a>
-                                @endif
                             </div>
                         </div>
                     </div>
@@ -55,13 +50,40 @@
                     </div>
                     <div class="card-body py-3">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <div class="p-2 border rounded bg-light-subtle">
-                                    <h6 class="text-muted mb-1">Price</h6>
-                                    <h5 class="fw-semibold text-success mb-0">${{ number_format($multiRestaurant->price, 2) }}</h5>
+                                    <h6 class="text-muted mb-1">Adult Price</h6>
+                                    <h5 class="fw-semibold text-success mb-0">${{ number_format($multiRestaurant->adult_price ?? 0, 2) }}</h5>
                                 </div>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
+                                <div class="p-2 border rounded bg-light-subtle">
+                                    <h6 class="text-muted mb-1">Child Price</h6>
+                                    <h5 class="fw-semibold text-success mb-0">
+                                        @if(isset($multiRestaurant->child_price) && $multiRestaurant->child_price !== null)
+                                            ${{ number_format($multiRestaurant->child_price, 2) }}
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                    </h5>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="p-2 border rounded bg-light-subtle">
+                                    <h6 class="text-muted mb-1">Company</h6>
+                                    <h6 class="fw-semibold mb-0">
+                                        @if(!empty($multiRestaurant->dmc_id))
+                                            @php
+                                                $dmcUser = \App\Models\User::where('dmcId', $multiRestaurant->dmc_id)->first();
+                                            @endphp
+                                            {{ $dmcUser->company_name ?? 'DMC #' . $multiRestaurant->dmc_id }}
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                    </h6>
+                                </div>
+                            </div>
+                            <div class="col-md-12 mb-0">
                                 <div class="p-2 border rounded bg-light-subtle">
                                     <h6 class="text-muted mb-1">Status</h6>
                                     <h6 class="mb-0">
@@ -95,17 +117,25 @@
                                 <table class="table table-hover align-middle">
                                     <thead class="table-light">
                                         <tr>
-                                            <th class="text-center" width="80">#</th>
+                                            <th class="text-center" width="80">Image</th>
                                             <th>Restaurant Name</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($multiRestaurant->getRestaurantsList() as $key => $restaurant)
+                                        @foreach($multiRestaurant->getRestaurantsList() as $restaurant)
+                                            @php
+                                                $img = $restaurant->master_image ?? '';
+                                                $imgSrc = $img ? (strpos($img, 'http') === 0 || strpos($img, '/') === 0 ? $img : '/'.$img) : null;
+                                            @endphp
                                             <tr>
                                                 <td class="text-center">
-                                                    <div class="avatar avatar-sm bg-primary rounded-circle">
-                                                        <span class="avatar-initial">{{ $key + 1 }}</span>
-                                                    </div>
+                                                    @if($imgSrc)
+                                                        <img src="{{ $imgSrc }}" alt="{{ $restaurant->name ?? 'Restaurant' }}" class="rounded-circle object-fit-cover" style="width: 48px; height: 48px; object-fit: cover;">
+                                                    @else
+                                                        <div class="avatar avatar-sm bg-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                                            <i class="mdi mdi-silverware-fork-knife text-white" style="font-size: 1.25rem;"></i>
+                                                        </div>
+                                                    @endif
                                                 </td>
                                                 <td>
                                                     <div class="d-flex align-items-center">

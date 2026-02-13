@@ -18170,16 +18170,11 @@
             let transferEntryId = null;
             
             if (transferChecked && transferDestination) {
-                // First, calculate total adults and child from all selected meals
-                let totalAdults = 0;
-                let totalChild = 0;
-                selectedRows.forEach(checkbox => {
-                    const row = checkbox.closest('tr');
-                    const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
-                    const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
-                    totalAdults += adultsQty;
-                    totalChild += childQty;
-                });
+                // Get PAX from the first selected meal (all meals in a restaurant booking typically have same PAX)
+                // DO NOT sum PAX across meals - the transfer PAX should be the actual number of people traveling
+                const firstRow = selectedRows[0]?.closest('tr');
+                const totalAdults = parseInt(firstRow?.querySelector('.meal-adult-qty')?.value) || 0;
+                const totalChild = parseInt(firstRow?.querySelector('.meal-child-qty')?.value) || 0;
                 
                 transferEntryId = generateId('transfer');
                 
@@ -18347,7 +18342,12 @@
                         break;
                 }
                 
+                // Create guide entry for guide table (ONE guide entry for all meals at this restaurant)
+                // Generate guideEntryId FIRST so we can include it in guideInfo
+                guideEntryId = generateId('guide');
+                
                 guideInfo = {
+                    id: guideEntryId, // Include entry ID so it can be used for duplicate detection when loading
                     guideId: guideId,
                     guideName: guideOption?.getAttribute('data-name') || guideOption?.text || '',
                     languages: guideOption?.getAttribute('data-languages') || '',
@@ -18358,9 +18358,6 @@
                     childQty: restaurantGuideChildQty
                 };
                 console.log('Guide selected for meals:', guideInfo, 'Hours:', hours, 'Price:', price);
-                
-                // Create guide entry for guide table (ONE guide entry for all meals at this restaurant)
-                guideEntryId = generateId('guide');
                 const guideEntry = {
                     id: guideEntryId,
                     dateTime: dateTime,
@@ -19070,8 +19067,43 @@
         mealModal.show();
     }
     
+    // Helper function to fill meal row values
+    function fillMealRowValues(row, mealId, meal) {
+        const setVal = (selector, value) => {
+            const el = row.querySelector(`${selector}[data-meal-id="${mealId}"]`);
+            if (el) el.value = value ?? el.value;
+        };
+        
+        setVal('.meal-count', meal.mealCount);
+        setVal('.meal-adult-qty', meal.adultsQty);
+        setVal('.meal-adult-cost', parseFloat(String(meal.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-adult-sell', parseFloat(String(meal.adultSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-child-qty', meal.childQty);
+        setVal('.meal-child-cost', parseFloat(String(meal.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-child-sell', parseFloat(String(meal.childSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-infant-qty', meal.infantQty);
+        setVal('.meal-infant-cost', parseFloat(String(meal.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-infant-sell', parseFloat(String(meal.infantSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+    }
+    
     // Helper function to populate meal form fields for editing
     function populateMealFormForEdit(meal) {
+        console.log('populateMealFormForEdit called with meal:', meal);
+        
+        // Find ALL related meals that were added together (share same transferId or guideId AND same restaurant)
+        // This ensures all meals from the same popup submission are checked
+        const relatedMeals = mealList.filter(m => {
+            if (m.restaurantId !== meal.restaurantId) return false;
+            // If they share the same transferId or guideId (and it's not null), they were added together
+            if (meal.transferId && m.transferId === meal.transferId) return true;
+            if (meal.guideId && m.guideId === meal.guideId) return true;
+            // Also include the meal itself
+            if (m.id === meal.id) return true;
+            return false;
+        });
+        
+        console.log('Related meals to check:', relatedMeals.map(m => ({ id: m.id, mealName: m.mealName, mealType: m.mealType })));
+        
         // Find matching meal row (by mealId or meal name)
         const rows = Array.from(document.querySelectorAll('.meal-row'));
         const targetRow = rows.find(r => {
@@ -19090,71 +19122,30 @@
         // Reset all checkboxes first
         document.querySelectorAll('.meal-checkbox').forEach(cb => cb.checked = false);
         
-        if (rowToUse) {
-            const mealId = rowToUse.getAttribute('data-meal-id');
+        // Check ALL related meals, not just the one being edited
+        rows.forEach(r => {
+            const rowMealId = r.getAttribute('data-meal-id');
+            const rowName = r.getAttribute('data-meal-name');
             
-            // Check the row
-            const checkbox = rowToUse.querySelector(`.meal-checkbox[data-meal-id="${mealId}"]`);
-            if (checkbox) checkbox.checked = true;
+            // Check if this row matches any of the related meals
+            const matchingRelatedMeal = relatedMeals.find(relMeal => 
+                (relMeal.mealId && String(relMeal.mealId) === String(rowMealId)) || 
+                (relMeal.mealName && String(relMeal.mealName) === String(rowName))
+            );
             
-            // Fill editable fields on the row
-            const setVal = (selector, value) => {
-                const el = rowToUse.querySelector(`${selector}[data-meal-id="${mealId}"]`);
-                if (el) el.value = value ?? el.value;
-            };
-            
-            setVal('.meal-count', meal.mealCount);
-            setVal('.meal-adult-qty', meal.adultsQty);
-            setVal('.meal-adult-charge', parseFloat(String(meal.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
-            setVal('.meal-child-qty', meal.childQty);
-            setVal('.meal-child-charge', parseFloat(String(meal.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
-            setVal('.meal-infant-qty', meal.infantQty);
-            setVal('.meal-infant-charge', parseFloat(String(meal.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
-            
-            // Transfer fields
-            const transferCheckbox = rowToUse.querySelector(`.meal-transfer-checkbox[data-meal-id="${mealId}"]`);
-            if (transferCheckbox) {
-                const hasTransfer = !!meal.transferInfo || !!meal.transferId;
-                console.log('Has transfer:', hasTransfer, 'transferInfo:', meal.transferInfo, 'transferId:', meal.transferId);
-                transferCheckbox.checked = hasTransfer;
-                if (hasTransfer) {
-                    // Try to get transfer info from transferList if transferId exists
-                    let tInfo = meal.transferInfo || {};
-                    if (meal.transferId) {
-                        const linkedTransfer = transferList.find(t => t.id === meal.transferId);
-                        console.log('Looking for transfer with id:', meal.transferId, 'Found:', linkedTransfer);
-                        if (linkedTransfer) {
-                            tInfo = {
-                                destination: linkedTransfer.destination,
-                                vehicleId: linkedTransfer.vehicleId || '',
-                                vehicleType: linkedTransfer.vehicleType || 'sedan',
-                                type: linkedTransfer.mode === 'Private' ? 'private' : 'sic',
-                                way: linkedTransfer.way === 'Both Way' ? 'both-way' : 'one-way',
-                                isDestinationPickup: linkedTransfer.isDestinationPickup || false
-                            };
-                        }
-                    }
-                    console.log('Setting transfer values:', tInfo);
-                    setVal('.meal-transfer-destination', tInfo.destination);
-                    setVal('.meal-vehicle-type', tInfo.vehicleId || tInfo.vehicleType || '');
-                    setVal('.meal-transfer-type', tInfo.type || 'S');
-                    const direction = tInfo.way === 'both-way' || tInfo.way === 'Both Way' || tInfo.way === '2way' ? '2way' : '1way';
-                    setVal('.meal-direction', direction);
+            if (matchingRelatedMeal) {
+                const checkbox = r.querySelector(`.meal-checkbox[data-meal-id="${rowMealId}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                    console.log('Checked related meal:', rowName || rowMealId);
+                    // Fill in values for this meal
+                    fillMealRowValues(r, rowMealId, matchingRelatedMeal);
                 }
             }
-            
-            // Optional and Supplement checkboxes
-            const optionalCheckbox = rowToUse.querySelector(`.meal-optional-checkbox[data-meal-id="${mealId}"]`);
-            if (optionalCheckbox && meal.optional) {
-                optionalCheckbox.checked = meal.optional;
-            }
-            
-            const supplementCheckbox = rowToUse.querySelector(`.meal-supplement-checkbox[data-meal-id="${mealId}"]`);
-            if (supplementCheckbox && meal.supplement) {
-                supplementCheckbox.checked = meal.supplement;
-            }
-            
-            // Scroll the row into view
+        });
+        
+        // Scroll the primary row into view
+        if (rowToUse) {
             rowToUse.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
             console.warn('populateMealFormForEdit: no matching meal row found for', meal.mealName || meal.mealId);
@@ -19374,20 +19365,34 @@
                 ? `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)">`
                 : `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)" style="opacity: 0.7;">`;
             
-            // Display cost/sell with bothway multiplier applied for local transfers
-            // For bothway local transfers, multiply by 2 for the row display
+            // Display direct cost/sell values - NO multiplier for bothway
+            // The stored cost/sell already represents the total price for this transfer
             const storedSell = parseFloat(transfer.sell || 0);
             const storedCost = parseFloat(transfer.cost || 0);
             
-            // Check if this is a bothway local transfer
-            const isBothway = transfer.transportMode === 'local' && 
-                              (transfer.way === 'both-way' || transfer.way === 'Both Way' || 
-                               transfer.way === 'both' || transfer.way === 'two-way' || transfer.way === 'return');
-            const wayMultiplier = isBothway ? 2 : 1;
+            // Use direct values without multiplier
+            let displayCost = storedCost;
+            let displaySell = storedSell > 0 ? storedSell : storedCost;
             
-            // Apply multiplier for display
-            let displayCost = storedCost * wayMultiplier;
-            let displaySell = (storedSell > 0 ? storedSell : storedCost) * wayMultiplier;
+            // Get current type and way for dropdowns
+            const currentType = transfer.type || 'S';
+            const currentWay = transfer.way || 'one-way';
+            
+            // Create type dropdown (only for local transfers)
+            const typeDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) 
+                ? `<select onchange="updateTransferField(${index}, 'type', this.value)" style="width: 70px; font-size: 11px; padding: 2px 4px;">
+                    <option value="S" ${(currentType === 'S' || currentType === 'sic' || currentType === 'Shared') ? 'selected' : ''}>Shared</option>
+                    <option value="P" ${(currentType === 'P' || currentType === 'private' || currentType === 'Private') ? 'selected' : ''}>Private</option>
+                   </select>`
+                : getTypeClass(transfer);
+            
+            // Create way dropdown (only for local transfers)
+            const wayDropdown = (transfer.transportMode === 'local' || !transfer.transportMode)
+                ? `<select onchange="updateTransferField(${index}, 'way', this.value)" style="width: 80px; font-size: 11px; padding: 2px 4px;">
+                    <option value="one-way" ${(currentWay === 'one-way' || currentWay === 'One Way') ? 'selected' : ''}>One Way</option>
+                    <option value="both-way" ${(currentWay === 'both-way' || currentWay === 'Both Way' || currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way') ? 'selected' : ''}>Both Way</option>
+                   </select>`
+                : getWayType(transfer);
             
             return `
             <tr>
@@ -19398,8 +19403,8 @@
                 </td>
                 <td>${getModeIcon(transfer.transportMode || 'local')}</td>
                 <td>${getVehicleType(transfer)}</td>
-                <td>${getTypeClass(transfer)}</td>
-                <td>${getWayType(transfer)}</td>
+                <td>${typeDropdown}</td>
+                <td>${wayDropdown}</td>
                 <td><input type="number" value="${adults}" onchange="updateTransferField(${index}, 'adults', this.value)" style="width: 50px;"></td>
                 <td><input type="number" value="${child}" onchange="updateTransferField(${index}, 'child', this.value)" style="width: 50px;"></td>
                 <td><input type="text" value="${displayCost}" readonly style="width: 70px; background-color: #f5f5f5;"></td>
@@ -19440,6 +19445,45 @@
                 }
                 
                 // Update the transfer table to reflect the change
+                updateTransferTable();
+            }
+            
+            // If type or way changes for local transfers, recalculate cost/sell based on zone prices
+            if ((field === 'type' || field === 'way') && transfer.transportMode === 'local') {
+                const zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
+                const zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+                
+                // Get current type and way
+                const currentType = transfer.type || 'P';
+                const currentWay = transfer.way || 'one-way';
+                
+                // Get base price based on type (shared or private)
+                let basePrice = 0;
+                if (currentType === 'S' || currentType === 'sic' || currentType === 'Shared') {
+                    basePrice = zoneSharedPrice;
+                } else {
+                    basePrice = zonePrivatePrice;
+                }
+                
+                // Apply way multiplier - both-way costs double
+                const isBothway = currentWay === 'both-way' || currentWay === 'Both Way' || 
+                                  currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way';
+                const wayMultiplier = isBothway ? 2 : 1;
+                
+                // Update cost and sell with new calculated values
+                transfer.cost = basePrice * wayMultiplier;
+                transfer.sell = basePrice * wayMultiplier;
+                
+                console.log('Recalculated transfer price:', {
+                    type: currentType,
+                    way: currentWay,
+                    basePrice: basePrice,
+                    wayMultiplier: wayMultiplier,
+                    newCost: transfer.cost,
+                    newSell: transfer.sell
+                });
+                
+                // Refresh the transfer table to show new prices
                 updateTransferTable();
             }
             
@@ -20329,29 +20373,31 @@
         // Zone prices should remain 0 to indicate missing mapping
         // User must either: 1) Add zone mapping in settings, or 2) Manually enter prices
         
-        // Store the UNIT price (not multiplied by pax or way)
+        // Calculate base price based on type
         // Shared: per person price, Private: per vehicle price
-        // Multiplication happens only in footer totals calculation
-        let costPrice = 0;
-        let sellPrice = 0;
+        let basePrice = 0;
         
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared: store per person price (no pax multiplication)
-            costPrice = zoneSharedPrice || 0;
-            sellPrice = zoneSharedPrice || 0;
+            // Shared: per person price
+            basePrice = zoneSharedPrice || 0;
         } else {
-            // Private: store per vehicle price (no pax multiplication)
-            costPrice = zonePrivatePrice || 0;
-            sellPrice = zonePrivatePrice || 0;
+            // Private: per vehicle price
+            basePrice = zonePrivatePrice || 0;
         }
         
-        // DO NOT apply way multiplier here - store unit price only
-        // Way multiplier is already handled in display/table rendering
+        // Apply way multiplier - both-way costs double
+        const isBothway = way === 'both-way' || way === 'Both Way' || 
+                          way === 'both' || way === 'two-way' || way === 'return' || way === '2way';
+        const wayMultiplier = isBothway ? 2 : 1;
+        
+        // Final price includes way multiplier
+        let costPrice = basePrice * wayMultiplier;
+        let sellPrice = basePrice * wayMultiplier;
         
         return {
             cost: costPrice,
             sell: sellPrice,
-            basePrice: costPrice,
+            basePrice: basePrice,
             sharedPrice: zoneSharedPrice,
             privatePrice: zonePrivatePrice,
             totalPax: totalPax
@@ -21408,14 +21454,10 @@
                 }
             }
             
-            // Check if this is a bothway transfer - apply multiplier
-            const isBothway = transfer.way === 'both-way' || transfer.way === 'Both Way' || 
-                              transfer.way === 'both' || transfer.way === 'two-way' || transfer.way === 'return';
-            const wayMultiplier = isBothway ? 2 : 1;
-            
-            // Apply bothway multiplier to the base values
-            let baseCost = listCostValue * wayMultiplier;
-            let baseSell = listSellValue * wayMultiplier;
+            // Use direct row cost/sell values - NO multiplication for bothway
+            // The cost/sell in the table already represents the total price for this transfer
+            let baseCost = listCostValue;
+            let baseSell = listSellValue;
             
             // If sell is not set, fall back to cost value
             if (baseSell === 0 && baseCost > 0) {
@@ -22753,6 +22795,8 @@
                     },
                     cost: parseFloat(transferSource.cost || transferSource.adultCost || 0),
                     sell: parseFloat(transferSource.sell || transferSource.adultSell || 0),
+                    adults: parseInt(transferSource.adults || transferSource.adultsQty) || 0,
+                    child: parseInt(transferSource.child || transferSource.childQty) || 0,
                     pickup_location_name: pickupName,
                     destination_name: dropoffName
                 };

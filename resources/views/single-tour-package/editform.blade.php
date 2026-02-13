@@ -3402,6 +3402,20 @@
                                                     <select class="form-select border-2" style="height: 35px;" name="restaurant_name" id="restaurant_name_{{ $order->booking_id }}" onchange="loadRestaurantMealsForEdit({{ $order->booking_id }})" required>
                                                         <option value="">Select Restaurant</option>
                                                         @php
+                                                            // Add Multi Restaurant options at the top
+                                                            $multiRestaurantSelected = false;
+                                                            if (isset($multiRestaurants) && count($multiRestaurants) > 0) {
+                                                                foreach ($multiRestaurants as $mr) {
+                                                                    $mrValue = 'multi_restaurant_' . $mr->id;
+                                                                    $mrPrice = $mr->adult_price ?? $mr->price ?? 0;
+                                                                    $mrCurrency = $mr->currency ?? 'SGD';
+                                                                    $mrName = $mr->package_name ?? 'Multi Restaurant Package';
+                                                                    $isSelected = ($restaurantName === $mrName || strpos($restaurantName, 'Multi Restaurant') !== false);
+                                                                    if ($isSelected) $multiRestaurantSelected = true;
+                                                                    echo '<option value="' . htmlspecialchars($mrValue) . '" ' . ($isSelected ? 'selected' : '') . ' data-multi-restaurant-id="' . $mr->id . '">' . htmlspecialchars($mrName . ' - ' . $mrCurrency . ' ' . number_format((float)$mrPrice, 2, '.', '')) . '</option>';
+                                                                }
+                                                            }
+                                                            
                                                             $tourCountry = $tour->destination ?? '';
                                                             $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
                                                                 // Check if restaurant has country field directly
@@ -3413,7 +3427,7 @@
                                                             });
                                                         @endphp
                                                         @foreach($filteredRestaurants as $restaurant)
-                                                            <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name ? 'selected' : '' }} 
+                                                            <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name && !$multiRestaurantSelected ? 'selected' : '' }} 
                                                                 data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}"
                                                                 data-restaurant-data="{{ json_encode($restaurant) }}">
                                                                 {{ $restaurant->name }}
@@ -3425,7 +3439,7 @@
                                                                 @endif
                                                             </option>
                                                         @endforeach
-                                                        @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName))
+                                                        @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName) && !$multiRestaurantSelected)
                                                             <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
                                                         @endif
                                                     </select>
@@ -3456,7 +3470,12 @@
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
-                                                    <input type="text" class="form-control border-2" style="height: 35px;" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
+                                                    <select class="form-select border-2" style="height: 35px;" name="time_slot" id="time_slot_{{ $order->booking_id }}">
+                                                        <option value="">Select Time Slot</option>
+                                                        @if($timeSlot)
+                                                            <option value="{{ $timeSlot }}" selected>{{ $timeSlot }}</option>
+                                                        @endif
+                                                    </select>
                                                     <small class="text-muted d-block mt-1">Available time slots</small>
                                                 </div>
                                                 <div class="col-md-3">
@@ -3474,7 +3493,7 @@
                                             </div>
                                             
                                             <!-- Transport for this restaurant -->
-                                            <div class="border rounded-3 p-3 bg-light mb-3">
+                                            <div class="border rounded-3 p-3 bg-light mb-3" id="restaurant_transport_section_{{ $order->booking_id }}">
                                             <div class="row g-2 align-items-center">
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold d-block mb-2">Need transport for this restaurants?</label>
@@ -5562,6 +5581,14 @@
                                 </h6>
                                 <div class="row g-2">
                                     <div class="col-12">
+                                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem 0.75rem; background: #ffffff; border-radius: 6px; border: 1px solid #e9ecef;">
+                                            <span class="fw-semibold" style="color: #495057; font-size: 0.8rem;">Meal Price:</span>
+                                            <span class="fw-bold" id="modal_restaurant_meal_price_display" style="color: #28a745; font-size: 0.9rem;">$ 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem 0.75rem; background: #ffffff; border-radius: 6px; border: 1px solid #e9ecef;">
+                                            <span class="fw-semibold" style="color: #495057; font-size: 0.8rem;">Transport Price:</span>
+                                            <span class="fw-bold" id="modal_restaurant_transport_price_display" style="color: #667eea; font-size: 0.9rem;">$ 0.00</span>
+                                        </div>
                                         <div class="d-flex justify-content-between align-items-center rounded" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 0.75rem 1rem;">
                                             <span class="fw-semibold text-white" style="font-size: 0.85rem;">Total Price:</span>
                                             <span class="fw-bold text-white" id="modal_restaurant_total_price_display" style="font-size: 1.1rem;">$ 0.00</span>
@@ -8533,6 +8560,14 @@
             } else if (input.hasClass('restaurant-guest-input')) {
                 adults = parseInt($('#restaurant_adult_count_' + bookingId).val() || '0', 10) || 0;
                 children = parseInt($('#restaurant_child_count_' + bookingId).val() || '0', 10) || 0;
+                
+                // Check if Multi Restaurant is selected and update price
+                const restaurantSelect = document.getElementById('restaurant_name_' + bookingId);
+                if (restaurantSelect && restaurantSelect.value && String(restaurantSelect.value).startsWith('multi_restaurant_')) {
+                    if (typeof updateMultiRestaurantPriceForEdit === 'function') {
+                        updateMultiRestaurantPriceForEdit(bookingId);
+                    }
+                }
             }
             
             // Calculate total pax (adults + children + seniors + infants)
@@ -17202,6 +17237,9 @@
     }
     
     function initializeRestaurantModal() {
+        // Add Multi Restaurant options at the top when modal initializes
+        addMultiRestaurantOptions();
+        
         // Check if already initialized to prevent duplicate event listeners
         if (window.restaurantModalInitialized) {
             // Just update the guest data and summary
@@ -17288,6 +17326,22 @@
                 console.log('Restaurant native change event triggered');
                 onRestaurantSelection();
             });
+            
+            // Ensure Multi Restaurant options are added when modal opens
+            setTimeout(function() {
+                addMultiRestaurantOptions();
+                var currentValue = $restaurantSelect.val() || restaurantSelect.value;
+                if (currentValue && String(currentValue).startsWith('multi_restaurant_')) {
+                    console.log('Multi Restaurant already selected on modal open, initializing...');
+                    if (typeof handleModalMultiRestaurantSelected === 'function') {
+                        handleModalMultiRestaurantSelected(currentValue);
+                    }
+                }
+                // Refresh Select2 to show Multi Restaurant options
+                if ($restaurantSelect.data('select2')) {
+                    $restaurantSelect.trigger('change.select2');
+                }
+            }, 200);
         }
         if (mealTypeSelect) {
             // Use jQuery Select2 event for Select2 dropdowns, fallback to native change
@@ -17684,6 +17738,285 @@
         return `${hours}:${minutes} ${period}`;
     }
 
+    // Function to add Multi Restaurant options at the top of restaurant dropdown
+    function addMultiRestaurantOptions() {
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        if (!restaurantSelect) return;
+        
+        // Initialize window.multiRestaurants from PHP data
+        if (typeof window.multiRestaurants === 'undefined') {
+            window.multiRestaurants = @json($multiRestaurants ?? []);
+        }
+        
+        // Remove any existing Multi Restaurant options first
+        var existingOptions = Array.from(restaurantSelect.options);
+        existingOptions.forEach(function(opt) {
+            if (opt.value && String(opt.value).startsWith('multi_restaurant_')) {
+                opt.remove();
+            }
+        });
+        
+        // Add Multi Restaurant options at the top (after "Search Restaurant" option)
+        var firstOption = restaurantSelect.querySelector('option[value=""]');
+        var insertAfter = firstOption || null;
+        
+        (window.multiRestaurants || []).forEach(function(m) {
+            const option = document.createElement('option');
+            option.value = 'multi_restaurant_' + m.id;
+            const price = m.adult_price ?? m.price ?? 0;
+            const currency = m.currency || 'SGD';
+            const packageName = m.package_name || 'Multi Restaurant';
+            // Format: "Package Name - Currency Price" (same as create form)
+            option.textContent = packageName + ' - ' + currency + ' ' + price;
+            option.setAttribute('data-multi-restaurant', JSON.stringify(m));
+            option.dataset.adultPrice = String(price);
+            option.dataset.packageName = packageName;
+            
+            if (insertAfter) {
+                insertAfter.insertAdjacentElement('afterend', option);
+                insertAfter = option;
+            } else {
+                restaurantSelect.appendChild(option);
+            }
+        });
+        
+        // Update restaurant count to show Multi Restaurant count if no city selected
+        var restaurantCountEl = document.getElementById('restaurant_count');
+        if (restaurantCountEl && (window.multiRestaurants || []).length > 0) {
+            var multiCount = (window.multiRestaurants || []).length;
+            var cityEl = document.getElementById('modal_restaurant_city');
+            var cityName = cityEl ? cityEl.textContent.trim() : '';
+            if (!cityName || cityName === '') {
+                restaurantCountEl.textContent = multiCount + ' Multi Restaurant' + (multiCount !== 1 ? 's' : '') + ' available';
+            }
+        }
+    }
+
+    // Handle Multi Restaurant selection in modal - always sets dish to "Buffet"
+    function handleModalMultiRestaurantSelected(value) {
+        const mrId = value.replace('multi_restaurant_', '');
+        window.multiRestaurants = window.multiRestaurants || @json($multiRestaurants ?? []);
+        const mr = (window.multiRestaurants || []).find(m => String(m.id) === mrId);
+        if (!mr) {
+            console.error('Multi Restaurant not found:', mrId);
+            return;
+        }
+        
+        console.log('Handling Multi Restaurant selection:', mr);
+        
+        // Hide transport section
+        const transportToggle = document.getElementById('modal_need_restaurant_transport');
+        const transportWrapCol = transportToggle ? transportToggle.closest('.col-12') : null;
+        if (transportWrapCol) {
+            transportWrapCol.style.display = 'none';
+            if (transportToggle) transportToggle.checked = false;
+        }
+        
+        // Set dish to "Buffet" (always Buffet for Multi Restaurant) - keep enabled so form submits/validates
+        const dishSelect = document.getElementById('modal_restaurant_dish');
+        if (dishSelect) {
+            dishSelect.innerHTML = '';
+            const buffetOpt = document.createElement('option');
+            buffetOpt.value = 'buffet';
+            buffetOpt.textContent = 'Buffet';
+            buffetOpt.setAttribute('data-dish', JSON.stringify({ name: 'Buffet', item_description: 'Buffet', price: 0 }));
+            dishSelect.appendChild(buffetOpt);
+            dishSelect.value = 'buffet';
+            
+            // Update hidden dish name field
+            const dishNameHidden = document.getElementById('modal_restaurant_dish_name');
+            if (dishNameHidden) dishNameHidden.value = 'Buffet';
+        }
+        
+        // Populate meal types with time ranges from Multi Restaurant
+        const mealSelect = document.getElementById('modal_restaurant_meal_type');
+        if (mealSelect) {
+            mealSelect.innerHTML = '<option value="">Select Meal Type</option>';
+            
+            if (mr.breakfast && mr.breakfast_time) {
+                const breakfastOpt = document.createElement('option');
+                breakfastOpt.value = 'Breakfast';
+                breakfastOpt.textContent = 'Breakfast';
+                breakfastOpt.setAttribute('data-time-range', mr.breakfast_time);
+                mealSelect.appendChild(breakfastOpt);
+            }
+            
+            if (mr.lunch && mr.lunch_time) {
+                const lunchOpt = document.createElement('option');
+                lunchOpt.value = 'Lunch';
+                lunchOpt.textContent = 'Lunch';
+                lunchOpt.setAttribute('data-time-range', mr.lunch_time);
+                mealSelect.appendChild(lunchOpt);
+            }
+            
+            if (mr.dinner && mr.dinner_time) {
+                const dinnerOpt = document.createElement('option');
+                dinnerOpt.value = 'Dinner';
+                dinnerOpt.textContent = 'Dinner';
+                dinnerOpt.setAttribute('data-time-range', mr.dinner_time);
+                mealSelect.appendChild(dinnerOpt);
+            }
+            
+            // Set up meal type change handler to populate time slots
+            const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
+            const mealChangeHandler = function() {
+                const opt = mealSelect.options[mealSelect.selectedIndex];
+                const range = opt && opt.getAttribute('data-time-range');
+                console.log('Meal type changed for Multi Restaurant:', opt ? opt.value : 'none', 'Time range:', range);
+                if (range && timeSlotSelect) {
+                    console.log('Populating time slots from range:', range);
+                    populateModalTimeSlotsFromRange(range);
+                } else if (timeSlotSelect) {
+                    timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+                }
+                // Update price when meal type changes
+                if (typeof updateModalMultiRestaurantPrice === 'function') {
+                    updateModalMultiRestaurantPrice();
+                }
+            };
+            
+            // Remove old listeners and add new one
+            mealSelect.removeEventListener('change', mealChangeHandler);
+            mealSelect.addEventListener('change', mealChangeHandler);
+            
+            // Handle Select2 if initialized
+            const $mealSelect = $(mealSelect);
+            if ($mealSelect.data('select2')) {
+                $mealSelect.off('select2:select select2:change');
+                $mealSelect.on('select2:select', function(e) {
+                    console.log('Meal type Select2 select for Multi Restaurant');
+                    mealChangeHandler();
+                });
+                $mealSelect.on('select2:change', function(e) {
+                    console.log('Meal type Select2 change for Multi Restaurant');
+                    mealChangeHandler();
+                });
+            }
+            
+            // Auto-select first meal type if available
+            if (mealSelect.options.length > 1) {
+                mealSelect.selectedIndex = 1;
+                setTimeout(function() {
+                    mealChangeHandler();
+                    // Trigger Select2 change if initialized
+                    if ($mealSelect.data('select2')) {
+                        $mealSelect.trigger('change.select2');
+                    }
+                }, 50);
+            }
+            
+            // Also listen to time slot changes for price updates
+            if (timeSlotSelect) {
+                // Remove old listeners
+                timeSlotSelect.removeEventListener('change', timeSlotSelect._multiRestaurantPriceHandler);
+                
+                // Create new handler
+                timeSlotSelect._multiRestaurantPriceHandler = function() {
+                    if (typeof updateModalMultiRestaurantPrice === 'function') {
+                        updateModalMultiRestaurantPrice();
+                    }
+                };
+                
+                timeSlotSelect.addEventListener('change', timeSlotSelect._multiRestaurantPriceHandler);
+                
+                // Handle Select2 if initialized
+                const $timeSlotSelect = $(timeSlotSelect);
+                if ($timeSlotSelect.data('select2')) {
+                    $timeSlotSelect.off('select2:select select2:change');
+                    $timeSlotSelect.on('select2:select', timeSlotSelect._multiRestaurantPriceHandler);
+                    $timeSlotSelect.on('select2:change', timeSlotSelect._multiRestaurantPriceHandler);
+                }
+            }
+        }
+        
+        // Update restaurant name display
+        const nameEl = document.getElementById('selected_restaurant_name');
+        if (nameEl) nameEl.textContent = mr.package_name || 'Multi Restaurant';
+        
+        // Show restaurant details container
+        const restaurantDetailsContainer = document.getElementById('restaurant_details_container');
+        if (restaurantDetailsContainer) {
+            restaurantDetailsContainer.style.display = 'block';
+        }
+        
+        // Update price
+        if (typeof updateModalMultiRestaurantPrice === 'function') {
+            updateModalMultiRestaurantPrice();
+        }
+    }
+    
+    // Update Multi Restaurant price in modal
+    function updateModalMultiRestaurantPrice() {
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        if (!restaurantSelect) return;
+        
+        const selectedValue = restaurantSelect.value;
+        if (!selectedValue || !String(selectedValue).startsWith('multi_restaurant_')) return;
+        
+        const mrId = selectedValue.replace('multi_restaurant_', '');
+        window.multiRestaurants = window.multiRestaurants || @json($multiRestaurants ?? []);
+        const mr = (window.multiRestaurants || []).find(m => String(m.id) === mrId);
+        if (!mr) return;
+        
+        try {
+            const pax = getPax();
+            // Get adults count (male + female)
+            const adults = pax.adults || Math.max(1, pax.maleCount + pax.femaleCount);
+            // Get children count
+            const children = parseInt(pax.children || 0) || 0;
+            
+            // Get prices from Multi Restaurant
+            const adultPrice = parseFloat(mr.adult_price ?? mr.price ?? 0) || 0;
+            const childPrice = parseFloat(mr.child_price ?? 0) || 0;
+            
+            // Calculate: adults * adult_price + children * child_price
+            const adultTotal = adultPrice * adults;
+            const childTotal = childPrice * children;
+            const mealTotal = adultTotal + childTotal;
+            
+            console.log('Multi Restaurant Price Calculation:', {
+                paxData: pax,
+                adults: adults,
+                children: children,
+                adultPrice: adultPrice,
+                childPrice: childPrice,
+                calculation: `${adults} × ${adultPrice} + ${children} × ${childPrice}`,
+                adultTotal: adultTotal,
+                childTotal: childTotal,
+                mealTotal: mealTotal
+            });
+            
+            const totalPriceInput = document.getElementById('modal_restaurant_total_price');
+            if (totalPriceInput) {
+                totalPriceInput.value = mealTotal.toFixed(2);
+            }
+            
+            const currency = mr.currency || 'SGD';
+            
+            // Update meal price display
+            const mealPriceDisplay = document.getElementById('modal_restaurant_meal_price_display');
+            if (mealPriceDisplay) {
+                mealPriceDisplay.textContent = currency + ' ' + mealTotal.toFixed(2);
+            }
+            
+            // Update total price display
+            const totalPriceDisplay = document.getElementById('modal_restaurant_total_price_display');
+            if (totalPriceDisplay) {
+                // Get transport price
+                const transportPrice = parseFloat(document.getElementById('modal_restaurant_transport_price')?.value || 0) || 0;
+                const grandTotal = mealTotal + transportPrice;
+                totalPriceDisplay.textContent = currency + ' ' + grandTotal.toFixed(2);
+            }
+            
+            // Update price grid (this will handle transport price display)
+            if (typeof updateRestaurantModalPriceGrid === 'function') {
+                updateRestaurantModalPriceGrid();
+            }
+        } catch (error) {
+            console.error('Error updating Multi Restaurant price:', error);
+        }
+    }
+
     function loadRestaurantsForCity(city, country) {
         const restaurantSelect = document.getElementById('modal_restaurant_select');
         const restaurantCount = document.getElementById('restaurant_count');
@@ -17696,8 +18029,26 @@
             modalRestaurantCity.textContent = city || '';
         }
         
-        // Clear existing options
+        // Clear existing options (but preserve Multi Restaurant)
+        var multiRestaurantOptions = [];
+        Array.from(restaurantSelect.options).forEach(function(opt) {
+            if (opt.value && String(opt.value).startsWith('multi_restaurant_')) {
+                multiRestaurantOptions.push(opt.cloneNode(true));
+            }
+        });
+        
         restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+        
+        // Re-add Multi Restaurant options at top FIRST
+        multiRestaurantOptions.forEach(function(opt) {
+            restaurantSelect.appendChild(opt);
+        });
+        
+        // If no Multi Restaurant options were preserved, add them fresh
+        if (multiRestaurantOptions.length === 0) {
+            addMultiRestaurantOptions();
+        }
+        
         console.log('City:', city);
         console.log('Country:', country);
         // For demo purposes, show sample restaurants
@@ -17712,7 +18063,7 @@
         const restaurants = restaurantsArray.filter(restaurant => restaurant.city == city);
         console.log('Restaurants:', restaurants);
         
-        // Add restaurant options
+        // Add restaurant options (after Multi Restaurant)
         restaurants.forEach(restaurant => {
             const option = document.createElement('option');
             option.value = restaurant.restaurant_id;
@@ -17721,7 +18072,13 @@
             restaurantSelect.appendChild(option);
         });
         
-        restaurantCount.textContent = restaurants.length;
+        const multiCount = multiRestaurantOptions.length || (window.multiRestaurants || []).length;
+        var cityName = modalRestaurantCity ? modalRestaurantCity.textContent.trim() : '';
+        if (cityName && cityName !== '') {
+            restaurantCount.textContent = (restaurants.length + multiCount) + ' in ' + cityName;
+        } else {
+            restaurantCount.textContent = multiCount + ' Multi Restaurant' + (multiCount !== 1 ? 's' : '') + ' available';
+        }
         
         // Refresh Select2 if it's initialized on restaurant select to show new options
         const $restaurantSelect = $(restaurantSelect);
@@ -17758,7 +18115,13 @@
                     }
                     onRestaurantSelection();
                 });
+                
+                // Ensure Multi Restaurant options are still at top after Select2 refresh
+                addMultiRestaurantOptions();
             }, 100);
+        } else {
+            // If Select2 is not initialized, ensure Multi Restaurant options are visible
+            addMultiRestaurantOptions();
         }
         
         // Clear dependent fields when city changes
@@ -17775,9 +18138,14 @@
         const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
         const restaurantSelect = document.getElementById('modal_restaurant_select');
         
+        // Skip if Multi Restaurant is selected (it has its own handler)
+        if (restaurantSelect && restaurantSelect.value && String(restaurantSelect.value).startsWith('multi_restaurant_')) {
+            return;
+        }
+        
         if (!mealSelect || !mealSelect.value) {
-            dishSelect.innerHTML = '<option value="">Select Dish</option>';
-            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            if (dishSelect) dishSelect.innerHTML = '<option value="">Select Dish</option>';
+            if (timeSlotSelect) timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
             return;
         }
         
@@ -17788,9 +18156,31 @@
         
         const mealData = JSON.parse(selectedMealOption.getAttribute('data-meal'));
         const pax = getPax();
-        const adultPrice = mealData.adult_price * (pax.maleCount + pax.femaleCount);
-        const childPrice = mealData.child_price * pax.children;
-        const totalPrice = adultPrice + childPrice;
+        
+        // Calculate adults: male + female
+        const adults = pax.adults || Math.max(1, pax.maleCount + pax.femaleCount);
+        const children = parseInt(pax.children || 0) || 0;
+        
+        // Get prices from meal data
+        const adultPricePerPerson = parseFloat(mealData.adult_price || 0) || 0;
+        const childPricePerPerson = parseFloat(mealData.child_price || 0) || 0;
+        
+        // Calculate: adults * adult_price + children * child_price
+        const adultTotal = adultPricePerPerson * adults;
+        const childTotal = childPricePerPerson * children;
+        const totalPrice = adultTotal + childTotal;
+        
+        console.log('Normal Restaurant Price Calculation:', {
+            paxData: pax,
+            adults: adults,
+            children: children,
+            adultPricePerPerson: adultPricePerPerson,
+            childPricePerPerson: childPricePerPerson,
+            calculation: `${adults} × ${adultPricePerPerson} + ${children} × ${childPricePerPerson}`,
+            adultTotal: adultTotal,
+            childTotal: childTotal,
+            totalPrice: totalPrice
+        });
         
         // Update hidden total price field
         const totalPriceInput = document.getElementById('modal_restaurant_total_price');
@@ -17800,7 +18190,7 @@
         
         const mealPriceSection = document.getElementById('meal-price-section');
         if (mealPriceSection) {
-            mealPriceSection.textContent = 'Adult Price: '+adultPrice + ' - ' + 'Child Price: '+childPrice+', Total Price: '+totalPrice;
+            mealPriceSection.textContent = 'Adult Price: '+adultTotal.toFixed(2) + ' (' + adults + ' × ' + adultPricePerPerson + ') - ' + 'Child Price: '+childTotal.toFixed(2) + ' (' + children + ' × ' + childPricePerPerson + '), Total Price: '+totalPrice.toFixed(2);
         }
         
         // Update price grid
@@ -17842,33 +18232,178 @@
     }
     
     function getPax() {
+        // Always prefer input fields if they exist
         const maleInput = document.getElementById('modal_male_count');
         const femaleInput = document.getElementById('modal_female_count');
         const childrenInput = document.getElementById('modal_children');
-
-        function calculatePax() {
-            const maleCount = parseInt(maleInput.value) || 0;
-            const femaleCount = parseInt(femaleInput.value) || 0;
-            const children = parseInt(childrenInput.value) || 0;
-
-            const pax = maleCount + femaleCount;
-            const result = {
-                pax: pax,
-                maleCount: maleCount,
-                femaleCount: femaleCount,
-                children: children
-            };
-            console.log("Total Pax:", pax);
-            return result;
+        
+        let maleCount = 0;
+        let femaleCount = 0;
+        let children = 0;
+        
+        // Read from input fields first (these are the source of truth)
+        if (maleInput && maleInput.value !== null && maleInput.value !== undefined) {
+            maleCount = parseInt(maleInput.value) || 0;
+        }
+        if (femaleInput && femaleInput.value !== null && femaleInput.value !== undefined) {
+            femaleCount = parseInt(femaleInput.value) || 0;
+        }
+        if (childrenInput && childrenInput.value !== null && childrenInput.value !== undefined) {
+            children = parseInt(childrenInput.value) || 0;
+        }
+        
+        // If inputs don't exist or are empty, try reading from guest summary badges as fallback
+        if (!maleInput || !femaleInput || (maleCount === 0 && femaleCount === 0)) {
+            const guestSummary = document.getElementById('modal_restaurant_guest_summary');
+            if (guestSummary) {
+                // Parse guest summary badges
+                const badges = guestSummary.querySelectorAll('.badge');
+                badges.forEach(badge => {
+                    const text = badge.textContent.trim();
+                    const icon = badge.querySelector('i');
+                    if (icon) {
+                        const iconClass = icon.className;
+                        if (iconClass.includes('men-line') || iconClass.includes('ri-men')) {
+                            const match = text.match(/(\d+)/);
+                            if (match) {
+                                const parsed = parseInt(match[1]) || 0;
+                                if (!maleInput || maleCount === 0) maleCount = parsed;
+                            }
+                        } else if (iconClass.includes('women-line') || iconClass.includes('ri-women')) {
+                            const match = text.match(/(\d+)/);
+                            if (match) {
+                                const parsed = parseInt(match[1]) || 0;
+                                if (!femaleInput || femaleCount === 0) femaleCount = parsed;
+                            }
+                        } else if (iconClass.includes('user-smile-line') || iconClass.includes('ri-user-smile')) {
+                            const match = text.match(/(\d+)/);
+                            if (match) {
+                                const parsed = parseInt(match[1]) || 0;
+                                if (!childrenInput || children === 0) children = parsed;
+                            }
+                        }
+                    }
+                });
+            }
         }
 
-        // Attach event listeners
-        maleInput.addEventListener('change', calculatePax);
-        femaleInput.addEventListener('change', calculatePax);
-        childrenInput.addEventListener('change', calculatePax);
-
-        // Initial calculation
-        return calculatePax();
+        // Calculate total adults (male + female), ensure at least 1
+        const adults = Math.max(1, maleCount + femaleCount);
+        const result = {
+            pax: adults + children,
+            adults: adults,
+            maleCount: maleCount,
+            femaleCount: femaleCount,
+            children: children
+        };
+        console.log("getPax result:", result, "from inputs:", {
+            maleInput: maleInput?.value,
+            femaleInput: femaleInput?.value,
+            childrenInput: childrenInput?.value
+        });
+        return result;
+    }
+    
+    // Function to populate time slots from a time range string (for Multi Restaurant)
+    function populateModalTimeSlotsFromRange(rangeStr) {
+        const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
+        if (!timeSlotSelect) {
+            console.error('Time slot select not found');
+            return;
+        }
+        
+        if (!rangeStr || typeof rangeStr !== 'string') {
+            console.error('Invalid time range:', rangeStr);
+            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            return;
+        }
+        
+        console.log('Populating time slots from range:', rangeStr);
+        
+        // Parse time range (handles formats like "08:00-10:00", "08:00 to 10:00", etc.)
+        const rangeParts = rangeStr.split(/[-to]/i).map(s => s.trim());
+        
+        if (rangeParts.length < 2) {
+            // Single time point, create one option
+            const time = parseTime(rangeParts[0]);
+            if (time) {
+                timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+                const option = document.createElement('option');
+                option.value = formatTime24(time);
+                option.textContent = formatTime12(time);
+                timeSlotSelect.appendChild(option);
+            } else {
+                timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            }
+            return;
+        }
+        
+        const startTime = parseTime(rangeParts[0]);
+        const endTime = parseTime(rangeParts[1]);
+        
+        if (!startTime || !endTime) {
+            console.error('Failed to parse time range:', rangeStr);
+            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            return;
+        }
+        
+        // Normalize dates to same day for proper comparison
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setHours(startTime.getHours(), startTime.getMinutes(), startTime.getSeconds(), 0);
+        
+        const endDate = new Date(today);
+        endDate.setHours(endTime.getHours(), endTime.getMinutes(), endTime.getSeconds(), 0);
+        
+        // If end time is before start time, assume it's next day
+        if (endDate < startDate) {
+            endDate.setDate(endDate.getDate() + 1);
+        }
+        
+        // Generate 30-minute intervals
+        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+        let currentTime = new Date(startDate);
+        let iterationCount = 0;
+        const maxIterations = 100; // Safety limit
+        
+        while (currentTime <= endDate && iterationCount < maxIterations) {
+            const timeValue = formatTime24(currentTime);
+            const timeDisplay = formatTime12(currentTime);
+            
+            const option = document.createElement('option');
+            option.value = timeValue;
+            option.textContent = timeDisplay;
+            timeSlotSelect.appendChild(option);
+            
+            // Add 30 minutes
+            currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+            iterationCount++;
+        }
+        
+        console.log('Generated', iterationCount, 'time slots');
+        
+        // Auto-select first time slot if available
+        if (timeSlotSelect.options.length > 1) {
+            timeSlotSelect.selectedIndex = 1;
+        }
+        
+        // Refresh Select2 if initialized
+        const $timeSlotSelect = $(timeSlotSelect);
+        if ($timeSlotSelect.data('select2')) {
+            $timeSlotSelect.trigger('change.select2');
+        } else {
+            // Trigger change event manually for native select
+            if (timeSlotSelect.options.length > 1) {
+                timeSlotSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        
+        // Update price after time slots are populated
+        setTimeout(function() {
+            if (typeof updateModalMultiRestaurantPrice === 'function') {
+                updateModalMultiRestaurantPrice();
+            }
+        }, 100);
     }
 
     
@@ -17905,11 +18440,98 @@
             selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
         }
         
+        // Check if Multi Restaurant is selected
+        if (selectedValue && String(selectedValue).startsWith('multi_restaurant_')) {
+            // Handle Multi Restaurant selection
+            if (typeof handleModalMultiRestaurantSelected === 'function') {
+                handleModalMultiRestaurantSelected(selectedValue);
+            } else {
+                // Fallback: basic Multi Restaurant handling
+                const mrId = selectedValue.replace('multi_restaurant_', '');
+                window.multiRestaurants = window.multiRestaurants || @json($multiRestaurants ?? []);
+                const mr = (window.multiRestaurants || []).find(m => String(m.id) === mrId);
+                
+                if (mr) {
+                    // Hide transport section
+                    const transportToggle = document.getElementById('modal_need_restaurant_transport');
+                    const transportWrapCol = transportToggle ? transportToggle.closest('.col-12') : null;
+                    if (transportWrapCol) {
+                        transportWrapCol.style.display = 'none';
+                        if (transportToggle) transportToggle.checked = false;
+                    }
+                    
+                    // Set dish to "Buffet" (always Buffet for Multi Restaurant) - keep enabled so form submits/validates
+                    if (dishSelect) {
+                        dishSelect.innerHTML = '';
+                        const buffetOpt = document.createElement('option');
+                        buffetOpt.value = 'buffet';
+                        buffetOpt.textContent = 'Buffet';
+                        buffetOpt.setAttribute('data-dish', JSON.stringify({ name: 'Buffet', item_description: 'Buffet', price: 0 }));
+                        dishSelect.appendChild(buffetOpt);
+                        dishSelect.value = 'buffet';
+                    }
+                    
+                    // Populate meal types with time ranges from Multi Restaurant
+                    if (mealSelect) {
+                        mealSelect.innerHTML = '<option value="">Select Meal Type</option>';
+                        
+                        if (mr.breakfast && mr.breakfast_time) {
+                            const breakfastOpt = document.createElement('option');
+                            breakfastOpt.value = 'breakfast';
+                            breakfastOpt.textContent = 'Breakfast';
+                            breakfastOpt.setAttribute('data-time-range', mr.breakfast_time);
+                            mealSelect.appendChild(breakfastOpt);
+                        }
+                        
+                        if (mr.lunch && mr.lunch_time) {
+                            const lunchOpt = document.createElement('option');
+                            lunchOpt.value = 'lunch';
+                            lunchOpt.textContent = 'Lunch';
+                            lunchOpt.setAttribute('data-time-range', mr.lunch_time);
+                            mealSelect.appendChild(lunchOpt);
+                        }
+                        
+                        if (mr.dinner && mr.dinner_time) {
+                            const dinnerOpt = document.createElement('option');
+                            dinnerOpt.value = 'dinner';
+                            dinnerOpt.textContent = 'Dinner';
+                            dinnerOpt.setAttribute('data-time-range', mr.dinner_time);
+                            mealSelect.appendChild(dinnerOpt);
+                        }
+                    }
+                    
+                    // Update restaurant name display
+                    const nameEl = document.getElementById('selected_restaurant_name');
+                    if (nameEl) nameEl.textContent = mr.package_name || 'Multi Restaurant';
+                    
+                    // Hide restaurant details container or show minimal info
+                    if (restaurantDetailsContainer) {
+                        restaurantDetailsContainer.style.display = 'block';
+                    }
+                }
+            }
+            return; // Exit early for Multi Restaurant
+        }
+        
+        // Show transport section for normal restaurants
+        const transportToggle = document.getElementById('modal_need_restaurant_transport');
+        const transportWrapCol = transportToggle ? transportToggle.closest('.col-12') : null;
+        if (transportWrapCol) {
+            transportWrapCol.style.display = 'block';
+        }
+        
+        // Re-enable dish select for normal restaurants
+        if (dishSelect) {
+            dishSelect.disabled = false;
+            dishSelect.style.backgroundColor = '';
+            dishSelect.style.cursor = '';
+        }
+        
         // Clear dependent dropdowns
         if (mealSelect) {
             mealSelect.innerHTML = '<option value="">Select Meal</option>';
         }
-        if (dishSelect) {
+        if (dishSelect && !dishSelect.disabled) {
             dishSelect.innerHTML = '<option value="">Select Dish</option>';
         }
         if (timeSlotSelect) {
@@ -17989,6 +18611,20 @@
                         });
                         $mealSelect.attr('data-select2-initialized', 'true');
                         console.log('Select2 reinitialized on meal select with', mealSelect.options.length, 'options');
+                        
+                        // Auto-select first meal type and trigger price calculation
+                        if (mealSelect.options.length > 1) {
+                            setTimeout(function() {
+                                mealSelect.selectedIndex = 1;
+                                if (typeof onMealTypeSelection === 'function') {
+                                    onMealTypeSelection();
+                                }
+                                // Trigger Select2 change if initialized
+                                if ($mealSelect.data('select2')) {
+                                    $mealSelect.val(mealSelect.value).trigger('change.select2');
+                                }
+                            }, 100);
+                        }
                     }, 50);
                 } else {
                     console.warn('No meals found in restaurant data, attempting to fetch from API', {
@@ -18010,6 +18646,17 @@
                 if (restaurantDetailsContainer) {
                     restaurantDetailsContainer.style.display = 'block';
                 }
+                
+                // Reset price when restaurant changes
+                const totalPriceInput = document.getElementById('modal_restaurant_total_price');
+                if (totalPriceInput) {
+                    totalPriceInput.value = '0.00';
+                }
+                
+                // Update price grid to show 0 initially
+                if (typeof updateRestaurantModalPriceGrid === 'function') {
+                    updateRestaurantModalPriceGrid();
+                }
             } catch (error) {
                 console.error('Error in onRestaurantSelection:', error);
                 if (restaurantDetailsContainer) {
@@ -18020,11 +18667,20 @@
             if (restaurantDetailsContainer) {
                 restaurantDetailsContainer.style.display = 'none';
             }
+            
+            // Reset price when no restaurant selected
+            const totalPriceInput = document.getElementById('modal_restaurant_total_price');
+            if (totalPriceInput) {
+                totalPriceInput.value = '0.00';
+            }
+            
+            // Update price grid
+            if (typeof updateRestaurantModalPriceGrid === 'function') {
+                updateRestaurantModalPriceGrid();
+            }
         }
         
         // Validate form after restaurant selection
-        validateRestaurantForm();
-        
         validateRestaurantForm();
     }
     
@@ -18410,28 +19066,40 @@
                 return;
             }
             
-            // Also check against current pax value
+            // Update the field value
+            field.value = newValue;
+            
+            // Update pax and summary (this will recalculate pax properly)
+            updateModalGuestSummary();
+            
+            // Check if new total exceeds pax after update
             const paxValue = parseInt(document.getElementById('modal_pax')?.value || '0') || 0;
-            if (newPax > paxValue) {
+            const finalTotal = (fieldId === 'modal_children' ? newValue : childrenValue) + 
+                              (fieldId === 'modal_male_count' ? newValue : maleValue) + 
+                              (fieldId === 'modal_female_count' ? newValue : femaleValue);
+            
+            if (finalTotal > paxValue && paxValue > 0) {
+                // Revert the change if it exceeds pax
+                field.value = currentValue;
+                updateModalGuestSummary();
                 showNotification('Total of children, males, and females cannot exceed pax count', 'warning');
                 return;
             }
-            
-            field.value = newValue;
-            updateModalGuestSummary();
         }
     }
 
     function decrementCount(fieldId) {
         const field = document.getElementById(fieldId);
-        const currentValue = parseInt(field.value);
-        const minValue = parseInt(field.min);
+        if (!field) return;
+        
+        const currentValue = parseInt(field.value || '0') || 0;
+        const minValue = parseInt(field.min || '0') || 0;
         
         if (fieldId === 'modal_pax') {
             // For pax, check if decrementing would make it less than the sum of other fields
-            const childrenValue = parseInt(document.getElementById('modal_children').value);
-            const maleValue = parseInt(document.getElementById('modal_male_count').value);
-            const femaleValue = parseInt(document.getElementById('modal_female_count').value);
+            const childrenValue = parseInt(document.getElementById('modal_children')?.value || '0') || 0;
+            const maleValue = parseInt(document.getElementById('modal_male_count')?.value || '0') || 0;
+            const femaleValue = parseInt(document.getElementById('modal_female_count')?.value || '0') || 0;
             const totalOthers = childrenValue + maleValue + femaleValue;
             
             if (currentValue > totalOthers && currentValue > minValue) {
@@ -18441,7 +19109,7 @@
                 showNotification('Pax cannot be less than the sum of children, males, and females', 'warning');
             }
         } else {
-            // For other fields, just decrement normally
+            // For other fields, just decrement normally if above minimum
             if (currentValue > minValue) {
                 field.value = currentValue - 1;
                 updateModalGuestSummary();
@@ -18553,6 +19221,23 @@
             }
         }
         
+        // Update price if Multi Restaurant is selected
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        if (restaurantSelect && restaurantSelect.value && String(restaurantSelect.value).startsWith('multi_restaurant_')) {
+            if (typeof updateModalMultiRestaurantPrice === 'function') {
+                setTimeout(function() {
+                    updateModalMultiRestaurantPrice();
+                }, 50);
+            }
+        } else if (restaurantSelect && restaurantSelect.value) {
+            // Update price for normal restaurants too
+            if (typeof onMealTypeSelection === 'function') {
+                setTimeout(function() {
+                    onMealTypeSelection();
+                }, 50);
+            }
+        }
+        
         // Validate total doesn't exceed pax
         const total = children + maleCount + femaleCount;
         if (total > pax) {
@@ -18629,6 +19314,23 @@
         };
 
         updateModalGuestSummary();
+        
+        // Update Multi Restaurant price if Multi Restaurant is selected
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        if (restaurantSelect && restaurantSelect.value && String(restaurantSelect.value).startsWith('multi_restaurant_')) {
+            if (typeof updateModalMultiRestaurantPrice === 'function') {
+                setTimeout(function() {
+                    updateModalMultiRestaurantPrice();
+                }, 100);
+            }
+        } else {
+            // Update price for normal restaurants too
+            if (typeof onMealTypeSelection === 'function') {
+                setTimeout(function() {
+                    onMealTypeSelection();
+                }, 100);
+            }
+        }
         
         // Trigger validation on restaurant transport passengers if it exists
         const modalRestaurantPassengers = $('#modal_restaurant_transport_passengers');
@@ -20266,6 +20968,27 @@
             return;
         }
         
+        const selectedValue = selectedOption.value;
+        
+        // Check if Multi Restaurant is selected
+        if (selectedValue && String(selectedValue).startsWith('multi_restaurant_')) {
+            handleMultiRestaurantSelectedForEdit(bookingId, selectedValue);
+            return;
+        }
+        
+        // Show transport section for normal restaurants
+        const transportSection = document.getElementById(`restaurant_transport_section_${bookingId}`);
+        if (transportSection) {
+            transportSection.style.display = 'block';
+        }
+        
+        // Re-enable dish select for normal restaurants
+        if (dishTypeSelect) {
+            dishTypeSelect.disabled = false;
+            dishTypeSelect.style.backgroundColor = '';
+            dishTypeSelect.style.cursor = '';
+        }
+        
         // Try to get restaurant data from data attribute
         const restaurantDataStr = selectedOption.getAttribute('data-restaurant-data');
         const restaurantId = selectedOption.getAttribute('data-restaurant-id');
@@ -20359,6 +21082,326 @@
         }
     }
     
+    // Handle Multi Restaurant selection in edit form
+    function handleMultiRestaurantSelectedForEdit(bookingId, value) {
+        const mrId = value.replace('multi_restaurant_', '');
+        window.multiRestaurants = window.multiRestaurants || @json($multiRestaurants ?? []);
+        const mr = (window.multiRestaurants || []).find(m => String(m.id) === mrId);
+        if (!mr) {
+            console.error('Multi Restaurant not found:', mrId);
+            return;
+        }
+        
+        console.log('Handling Multi Restaurant for edit booking:', bookingId, mr);
+        
+        // Hide transport section
+        const transportSection = document.getElementById(`restaurant_transport_section_${bookingId}`);
+        if (transportSection) {
+            transportSection.style.display = 'none';
+        }
+        
+        // Get elements
+        const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
+        const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+        const timeSlotSelect = document.getElementById(`time_slot_${bookingId}`);
+        
+        // Set dish to "Buffet" only
+        if (dishTypeSelect) {
+            dishTypeSelect.innerHTML = '<option value="buffet">Buffet</option>';
+            dishTypeSelect.value = 'buffet';
+            dishTypeSelect.disabled = false; // Keep enabled for validation
+            dishTypeSelect.style.backgroundColor = '';
+            dishTypeSelect.style.cursor = '';
+        }
+        
+        // Populate meal types with time ranges
+        if (mealTypeSelect) {
+            mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
+            
+            // Helper function to format time range - handles "08:00-10:00" format correctly
+            function formatTimeRangeForLabel(rangeStr) {
+                if (!rangeStr || typeof rangeStr !== 'string') {
+                    console.log('formatTimeRangeForLabel: Invalid input:', rangeStr, 'Type:', typeof rangeStr);
+                    return '';
+                }
+                
+                const trimmed = rangeStr.trim();
+                if (!trimmed) {
+                    console.log('formatTimeRangeForLabel: Empty after trim');
+                    return '';
+                }
+                
+                console.log('formatTimeRangeForLabel: Processing:', trimmed);
+                
+                // Handle formats like "08:00-10:00" or "08:00 to 10:00"
+                const parts = trimmed.split(/[-to]/i).map(s => s.trim()).filter(s => s);
+                
+                if (parts.length >= 2) {
+                    console.log('formatTimeRangeForLabel: Split into parts:', parts);
+                    const start = parseTime(parts[0]);
+                    const end = parseTime(parts[1]);
+                    console.log('formatTimeRangeForLabel: Parsed start:', start, 'end:', end);
+                    
+                    if (start && end && start instanceof Date && end instanceof Date) {
+                        try {
+                            const startFormatted = formatTime12(start);
+                            const endFormatted = formatTime12(end);
+                            const formatted = startFormatted + ' to ' + endFormatted;
+                            console.log('formatTimeRangeForLabel: Formatted result:', formatted);
+                            return formatted;
+                        } catch (e) {
+                            console.error('formatTimeRangeForLabel: Error formatting times:', e);
+                            // Fallback: return the original range if formatting fails
+                            return trimmed.replace(/-/g, ' to ');
+                        }
+                    } else {
+                        console.error('formatTimeRangeForLabel: Failed to parse times. Start:', start, 'End:', end, 'Parts:', parts);
+                        // Fallback: return the original range if parsing fails
+                        return trimmed.replace(/-/g, ' to ');
+                    }
+                }
+                
+                if (parts.length === 1 && parts[0]) {
+                    const t = parseTime(parts[0]);
+                    if (t && t instanceof Date) {
+                        try {
+                            return formatTime12(t);
+                        } catch (e) {
+                            console.error('formatTimeRangeForLabel: Error formatting single time:', e);
+                            return parts[0];
+                        }
+                    }
+                }
+                
+                console.log('formatTimeRangeForLabel: No valid format found, returning empty');
+                return '';
+            }
+            
+            // Debug: Log the Multi Restaurant data to see what we're getting
+            console.log('Multi Restaurant data for booking', bookingId, ':', JSON.stringify(mr, null, 2));
+            
+            // Check breakfast - use breakfast flag OR breakfast_time exists
+            if ((mr.breakfast || mr.breakfast_time) && mr.breakfast_time && typeof mr.breakfast_time === 'string' && mr.breakfast_time.trim()) {
+                const timeRange = mr.breakfast_time.trim();
+                console.log('Processing Breakfast with time range:', timeRange);
+                const label = formatTimeRangeForLabel(timeRange);
+                const opt = document.createElement('option');
+                opt.value = 'Breakfast';
+                opt.textContent = label ? '🌅 Breakfast - ' + label : '🌅 Breakfast';
+                opt.setAttribute('data-time-range', timeRange);
+                mealTypeSelect.appendChild(opt);
+                console.log('Added Breakfast option:', opt.textContent, 'with data-time-range:', timeRange);
+            } else if (mr.breakfast) {
+                // If breakfast flag is true but no time, still add option
+                const opt = document.createElement('option');
+                opt.value = 'Breakfast';
+                opt.textContent = '🌅 Breakfast';
+                opt.setAttribute('data-time-range', '');
+                mealTypeSelect.appendChild(opt);
+                console.log('Added Breakfast option without time range');
+            }
+            
+            // Check lunch - use lunch flag OR lunch_time exists
+            if ((mr.lunch || mr.lunch_time) && mr.lunch_time && typeof mr.lunch_time === 'string' && mr.lunch_time.trim()) {
+                const timeRange = mr.lunch_time.trim();
+                console.log('Processing Lunch with time range:', timeRange);
+                const label = formatTimeRangeForLabel(timeRange);
+                const opt = document.createElement('option');
+                opt.value = 'Lunch';
+                opt.textContent = label ? '☀ Lunch - ' + label : '☀ Lunch';
+                opt.setAttribute('data-time-range', timeRange);
+                mealTypeSelect.appendChild(opt);
+                console.log('Added Lunch option:', opt.textContent, 'with data-time-range:', timeRange);
+            } else if (mr.lunch) {
+                // If lunch flag is true but no time, still add option
+                const opt = document.createElement('option');
+                opt.value = 'Lunch';
+                opt.textContent = '☀ Lunch';
+                opt.setAttribute('data-time-range', '');
+                mealTypeSelect.appendChild(opt);
+                console.log('Added Lunch option without time range');
+            }
+            
+            // Check dinner - use dinner flag OR dinner_time exists
+            if ((mr.dinner || mr.dinner_time) && mr.dinner_time && typeof mr.dinner_time === 'string' && mr.dinner_time.trim()) {
+                const timeRange = mr.dinner_time.trim();
+                console.log('Processing Dinner with time range:', timeRange);
+                const label = formatTimeRangeForLabel(timeRange);
+                const opt = document.createElement('option');
+                opt.value = 'Dinner';
+                opt.textContent = label ? '🌙 Dinner - ' + label : '🌙 Dinner';
+                opt.setAttribute('data-time-range', timeRange);
+                mealTypeSelect.appendChild(opt);
+                console.log('Added Dinner option:', opt.textContent, 'with data-time-range:', timeRange);
+            } else if (mr.dinner) {
+                // If dinner flag is true but no time, still add option
+                const opt = document.createElement('option');
+                opt.value = 'Dinner';
+                opt.textContent = '🌙 Dinner';
+                opt.setAttribute('data-time-range', '');
+                mealTypeSelect.appendChild(opt);
+                console.log('Added Dinner option without time range');
+            }
+            
+            // Set up meal type change handler
+            mealTypeSelect.removeEventListener('change', mealTypeSelect._multiRestaurantHandler);
+            mealTypeSelect._multiRestaurantHandler = function() {
+                const opt = this.options[this.selectedIndex];
+                const range = opt && opt.getAttribute('data-time-range');
+                if (range && timeSlotSelect) {
+                    populateTimeSlotsForEdit(bookingId, range);
+                } else if (timeSlotSelect) {
+                    timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+                }
+                // Update price when meal type changes
+                updateMultiRestaurantPriceForEdit(bookingId);
+            };
+            mealTypeSelect.addEventListener('change', mealTypeSelect._multiRestaurantHandler);
+            
+            // Auto-select first meal type if available
+            if (mealTypeSelect.options.length > 1) {
+                mealTypeSelect.selectedIndex = 1;
+                setTimeout(function() {
+                    mealTypeSelect._multiRestaurantHandler.call(mealTypeSelect);
+                }, 50);
+            }
+        }
+        
+        // Update price immediately
+        updateMultiRestaurantPriceForEdit(bookingId);
+    }
+    
+    // Populate time slots for Multi Restaurant in edit form
+    function populateTimeSlotsForEdit(bookingId, rangeStr) {
+        const timeSlotSelect = document.getElementById(`time_slot_${bookingId}`);
+        if (!timeSlotSelect || !rangeStr) return;
+        
+        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+        
+        // Parse time range
+        const rangeParts = rangeStr.split(/[-to]/i).map(s => s.trim());
+        
+        if (rangeParts.length < 2) {
+            // Single time point
+            const time = parseTime(rangeParts[0]);
+            if (time) {
+                const opt = document.createElement('option');
+                opt.value = formatTime24(time);
+                opt.textContent = formatTime12(time);
+                timeSlotSelect.appendChild(opt);
+            }
+            return;
+        }
+        
+        const startTime = parseTime(rangeParts[0]);
+        const endTime = parseTime(rangeParts[1]);
+        
+        if (!startTime || !endTime) {
+            console.error('Failed to parse time range:', rangeStr);
+            return;
+        }
+        
+        // Normalize dates to same day
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setHours(startTime.getHours(), startTime.getMinutes(), startTime.getSeconds(), 0);
+        
+        const endDate = new Date(today);
+        endDate.setHours(endTime.getHours(), endTime.getMinutes(), endTime.getSeconds(), 0);
+        
+        // If end time is before start time, assume next day
+        if (endDate < startDate) {
+            endDate.setDate(endDate.getDate() + 1);
+        }
+        
+        // Generate 30-minute intervals
+        let currentTime = new Date(startDate);
+        let iterationCount = 0;
+        const maxIterations = 100;
+        
+        while (currentTime <= endDate && iterationCount < maxIterations) {
+            const opt = document.createElement('option');
+            opt.value = formatTime24(currentTime);
+            opt.textContent = formatTime12(currentTime);
+            timeSlotSelect.appendChild(opt);
+            
+            // Add 30 minutes
+            currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+            iterationCount++;
+        }
+        
+        // Auto-select first time slot if available
+        if (timeSlotSelect.options.length > 1) {
+            timeSlotSelect.selectedIndex = 1;
+        }
+    }
+    
+    // Update Multi Restaurant price in edit form
+    function updateMultiRestaurantPriceForEdit(bookingId) {
+        const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
+        if (!restaurantSelect) return;
+        
+        const selectedValue = restaurantSelect.value;
+        if (!selectedValue || !String(selectedValue).startsWith('multi_restaurant_')) return;
+        
+        const mrId = selectedValue.replace('multi_restaurant_', '');
+        window.multiRestaurants = window.multiRestaurants || @json($multiRestaurants ?? []);
+        const mr = (window.multiRestaurants || []).find(m => String(m.id) === mrId);
+        if (!mr) return;
+        
+        // Get guest counts
+        const adultCountInput = document.getElementById(`restaurant_adult_count_${bookingId}`);
+        const childCountInput = document.getElementById(`restaurant_child_count_${bookingId}`);
+        
+        const adults = parseInt(adultCountInput?.value || 0) || 0;
+        const children = parseInt(childCountInput?.value || 0) || 0;
+        
+        // Ensure at least 1 adult
+        const finalAdults = Math.max(1, adults);
+        
+        // Get prices
+        const adultPrice = parseFloat(mr.adult_price ?? mr.price ?? 0) || 0;
+        const childPrice = parseFloat(mr.child_price ?? 0) || 0;
+        
+        // Calculate: adults × adult_price + children × child_price
+        const adultTotal = adultPrice * finalAdults;
+        const childTotal = childPrice * children;
+        const total = adultTotal + childTotal;
+        
+        // Update total price field
+        const totalPriceInput = document.getElementById(`restaurant_total_price_${bookingId}`);
+        if (totalPriceInput) {
+            totalPriceInput.value = total.toFixed(2);
+        }
+        
+        console.log('Multi Restaurant price updated for booking', bookingId, {
+            adults: finalAdults,
+            children: children,
+            adultPrice: adultPrice,
+            childPrice: childPrice,
+            total: total
+        });
+    }
+    
+    // Initialize Multi Restaurant for existing bookings on page load
+    $(document).ready(function() {
+        // Check all restaurant selects for Multi Restaurant selections
+        $('select[id^="restaurant_name_"]').each(function() {
+            const select = this;
+            const bookingId = select.id.replace('restaurant_name_', '');
+            const selectedValue = select.value;
+            
+            if (selectedValue && String(selectedValue).startsWith('multi_restaurant_')) {
+                // Initialize Multi Restaurant for this booking
+                setTimeout(function() {
+                    if (typeof handleMultiRestaurantSelectedForEdit === 'function') {
+                        handleMultiRestaurantSelectedForEdit(bookingId, selectedValue);
+                    }
+                }, 100);
+            }
+        });
+    });
+    
     function loadDishTypesForEdit(bookingId) {
         const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
         const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
@@ -20366,6 +21409,13 @@
         
         if (!mealTypeSelect || !dishTypeSelect) {
             console.error('Meal type or dish type select not found for booking:', bookingId);
+            return;
+        }
+        
+        // Check if Multi Restaurant is selected
+        const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
+        if (restaurantSelect && restaurantSelect.value && String(restaurantSelect.value).startsWith('multi_restaurant_')) {
+            // Multi Restaurant already handled, skip
             return;
         }
         

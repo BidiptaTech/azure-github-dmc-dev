@@ -18672,18 +18672,22 @@
             const checkbox = selectedRows[0]; // Only use first selected when editing
             const mealItemId = checkbox.getAttribute('data-meal-id'); // This is the meal item from database
             const row = checkbox.closest('tr');
+            if (!row) {
+                alert('Could not find meal row. Please try again.');
+                return;
+            }
             const mealName = row.getAttribute('data-meal-name');
             const mealType = row.getAttribute('data-meal-type') || mealName;
             
-            // Get values from the row
-            const mealCount = parseInt(row.querySelector('.meal-count').value) || 0;
-            const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
+            // Get values from the row (use optional chaining for all selectors)
+            const mealCount = parseInt(row.querySelector('.meal-count')?.value) || 0;
+            const adultsQty = parseInt(row.querySelector('.meal-adult-qty')?.value) || 0;
             const adultCostValue = row.querySelector('.meal-adult-cost')?.value || '0.00';
             const adultSellValue = row.querySelector('.meal-adult-sell')?.value || '0.00';
-            const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
+            const childQty = parseInt(row.querySelector('.meal-child-qty')?.value) || 0;
             const childCostValue = row.querySelector('.meal-child-cost')?.value || '0.00';
             const childSellValue = row.querySelector('.meal-child-sell')?.value || '0.00';
-            const infantQty = parseInt(row.querySelector('.meal-infant-qty').value) || 0;
+            const infantQty = parseInt(row.querySelector('.meal-infant-qty')?.value) || 0;
             const infantCostValue = row.querySelector('.meal-infant-cost')?.value || '0.00';
             const infantSellValue = row.querySelector('.meal-infant-sell')?.value || '0.00';
             
@@ -19100,29 +19104,16 @@
             let transferEntryId = null;
             
             if (transferChecked && transferDestination) {
-                // First, calculate total adults and child from all selected meals
-                let totalAdults = 0;
-                let totalChild = 0;
-                selectedRows.forEach(checkbox => {
-                    const row = checkbox.closest('tr');
-                    const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
-                    const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
-                    totalAdults += adultsQty;
-                    totalChild += childQty;
-                });
+                // Get PAX from the first selected meal (all meals in a restaurant booking typically have same PAX)
+                // DO NOT sum PAX across meals - the transfer PAX should be the actual number of people traveling
+                const firstRow = selectedRows[0]?.closest('tr');
+                const totalAdults = parseInt(firstRow?.querySelector('.meal-adult-qty')?.value) || 0;
+                const totalChild = parseInt(firstRow?.querySelector('.meal-child-qty')?.value) || 0;
                 
                 transferEntryId = generateId('transfer');
                 
                 // Get "Is PickUp?" checkbox state
                 const isDestinationPickup = document.getElementById('restaurantTransferIsPickup')?.checked || false;
-                
-                transferInfo = {
-                    destination: transferDestinationName,
-                    vehicleType: vehicleType,
-                    type: transferType,
-                    way: transferWay,
-                    isDestinationPickup: isDestinationPickup
-                };
                 
                 // Fetch zone price for restaurant transfer (similar to hotel transfers)
                 let restaurantZonePrice = { private_price: 0, shared_price: 0 };
@@ -19213,6 +19204,34 @@
                 
                 transferList.push(transferEntry);
                 transferId = transferEntryId;
+                
+                // Update transferInfo with all necessary fields from transferEntry
+                transferInfo = {
+                    id: transferEntryId,
+                    destination: transferDestinationName,
+                    destinationId: transferDestination,
+                    vehicleId: vehicleId,
+                    vehicleName: vehicleName,
+                    vehicleType: vehicleType,
+                    capacity: vehicleCapacity,
+                    type: transferType,
+                    way: transferWay,
+                    pickup: pickupName,
+                    dropoff: dropoffName,
+                    isDestinationPickup: isDestinationPickup,
+                    adults: totalAdults,
+                    adultsQty: totalAdults,
+                    child: totalChild,
+                    childQty: totalChild,
+                    adultCost: restaurantTransferCost,
+                    adultSell: restaurantTransferSell,
+                    childCost: restaurantTransferCost,
+                    childSell: restaurantTransferSell,
+                    cost: restaurantTransferCost,
+                    sell: restaurantTransferSell,
+                    zonePrivatePrice: restaurantZonePrice.private_price,
+                    zoneSharedPrice: restaurantZonePrice.shared_price
+                };
             }
             
             // Get guide info from restaurant guide section (shared by all meals)
@@ -19257,15 +19276,22 @@
                         break;
                 }
                 
+                // Create guide entry for guide table (ONE guide entry for all meals at this restaurant)
+                // Generate guideEntryId FIRST so we can include it in guideInfo
+                guideEntryId = generateId('guide');
+                
                 guideInfo = {
+                    id: guideEntryId, // Include entry ID so it can be used for duplicate detection when loading
                     guideId: guideId,
                     guideName: guideOption?.getAttribute('data-name') || guideOption?.text || '',
-                    languages: guideOption?.getAttribute('data-languages') || ''
+                    languages: guideOption?.getAttribute('data-languages') || '',
+                    hours: hours,
+                    cost: price,
+                    sell: price,
+                    adultsQty: restaurantGuideAdultQty,
+                    childQty: restaurantGuideChildQty
                 };
                 console.log('Guide selected for meals:', guideInfo, 'Hours:', hours, 'Price:', price);
-                
-                // Create guide entry for guide table (ONE guide entry for all meals at this restaurant)
-                guideEntryId = generateId('guide');
                 const guideEntry = {
                     id: guideEntryId,
                     dateTime: dateTime,
@@ -19292,18 +19318,22 @@
             selectedRows.forEach((checkbox, index) => {
                 const mealId = checkbox.getAttribute('data-meal-id');
                 const row = checkbox.closest('tr');
+                if (!row) {
+                    console.warn('Could not find row for checkbox:', checkbox);
+                    return; // Skip this iteration
+                }
                 const mealName = row.getAttribute('data-meal-name');
                 const mealType = row.getAttribute('data-meal-type') || mealName;
                 
-                // Get values from the row
-                const mealCount = parseInt(row.querySelector('.meal-count').value) || 0;
-                const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
+                // Get values from the row (use optional chaining for all selectors)
+                const mealCount = parseInt(row.querySelector('.meal-count')?.value) || 0;
+                const adultsQty = parseInt(row.querySelector('.meal-adult-qty')?.value) || 0;
                 const adultCostValue = row.querySelector('.meal-adult-cost')?.value || '0.00';
                 const adultSellValue = row.querySelector('.meal-adult-sell')?.value || '0.00';
-                const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
+                const childQty = parseInt(row.querySelector('.meal-child-qty')?.value) || 0;
                 const childCostValue = row.querySelector('.meal-child-cost')?.value || '0.00';
                 const childSellValue = row.querySelector('.meal-child-sell')?.value || '0.00';
-                const infantQty = parseInt(row.querySelector('.meal-infant-qty').value) || 0;
+                const infantQty = parseInt(row.querySelector('.meal-infant-qty')?.value) || 0;
                 const infantCostValue = row.querySelector('.meal-infant-cost')?.value || '0.00';
                 const infantSellValue = row.querySelector('.meal-infant-sell')?.value || '0.00';
                 
@@ -19988,10 +20018,43 @@
         mealModal.show();
     }
     
+    // Helper function to fill meal row values
+    function fillMealRowValues(row, mealId, meal) {
+        const setVal = (selector, value) => {
+            const el = row.querySelector(`${selector}[data-meal-id="${mealId}"]`);
+            if (el) el.value = value ?? el.value;
+        };
+        
+        setVal('.meal-count', meal.mealCount);
+        setVal('.meal-adult-qty', meal.adultsQty);
+        setVal('.meal-adult-cost', parseFloat(String(meal.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-adult-sell', parseFloat(String(meal.adultSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-child-qty', meal.childQty);
+        setVal('.meal-child-cost', parseFloat(String(meal.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-child-sell', parseFloat(String(meal.childSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-infant-qty', meal.infantQty);
+        setVal('.meal-infant-cost', parseFloat(String(meal.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-infant-sell', parseFloat(String(meal.infantSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+    }
+    
     // Helper function to populate meal form fields for editing
     function populateMealFormForEdit(meal) {
         console.log('populateMealFormForEdit called with meal:', meal);
         console.log('Looking for mealId:', meal.mealId, 'mealName:', meal.mealName);
+        
+        // Find ALL related meals that were added together (share same transferId or guideId AND same restaurant)
+        // This ensures all meals from the same popup submission are checked
+        const relatedMeals = mealList.filter(m => {
+            if (m.restaurantId !== meal.restaurantId) return false;
+            // If they share the same transferId or guideId (and it's not null), they were added together
+            if (meal.transferId && m.transferId === meal.transferId) return true;
+            if (meal.guideId && m.guideId === meal.guideId) return true;
+            // Also include the meal itself
+            if (m.id === meal.id) return true;
+            return false;
+        });
+        
+        console.log('Related meals to check:', relatedMeals.map(m => ({ id: m.id, mealName: m.mealName, mealType: m.mealType })));
         
         // Find matching meal row (by mealId or meal name)
         const rows = Array.from(document.querySelectorAll('.meal-row'));
@@ -20016,24 +20079,37 @@
             // Wait a bit and try again - meals might still be loading
             setTimeout(() => {
                 const retryRows = Array.from(document.querySelectorAll('.meal-row'));
-                const retryRow = retryRows.find(r => {
+                
+                // Check all related meals
+                relatedMeals.forEach(relMeal => {
+                    const retryRow = retryRows.find(r => {
+                        const rowMealId = r.getAttribute('data-meal-id');
+                        const rowName = r.getAttribute('data-meal-name');
+                        return (relMeal.mealId && String(relMeal.mealId) === String(rowMealId)) || 
+                               (relMeal.mealName && String(relMeal.mealName) === String(rowName));
+                    });
+                    
+                    if (retryRow) {
+                        console.log('Found matching row on retry for:', relMeal.mealName);
+                        const mealId = retryRow.getAttribute('data-meal-id');
+                        const checkbox = retryRow.querySelector(`.meal-checkbox[data-meal-id="${mealId}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            // Fill in values for this meal
+                            fillMealRowValues(retryRow, mealId, relMeal);
+                        }
+                    }
+                });
+                
+                // Scroll to first matching row
+                const firstMatchRow = retryRows.find(r => {
                     const rowMealId = r.getAttribute('data-meal-id');
                     const rowName = r.getAttribute('data-meal-name');
                     return (meal.mealId && String(meal.mealId) === String(rowMealId)) || 
                            (meal.mealName && String(meal.mealName) === String(rowName));
                 });
-                
-                if (retryRow) {
-                    console.log('Found matching row on retry');
-                    const mealId = retryRow.getAttribute('data-meal-id');
-                    const checkbox = retryRow.querySelector(`.meal-checkbox[data-meal-id="${mealId}"]`);
-                    if (checkbox) {
-                        checkbox.checked = true;
-                        retryRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                } else {
-                    console.warn('Still no matching row found after retry, creating one');
-                    ensureMealRowForEdit(meal);
+                if (firstMatchRow) {
+                    firstMatchRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 500);
             return; // Exit early, will be handled by setTimeout
@@ -20042,71 +20118,30 @@
         // Reset all checkboxes first
         document.querySelectorAll('.meal-checkbox').forEach(cb => cb.checked = false);
         
-        if (rowToUse) {
-            const mealId = rowToUse.getAttribute('data-meal-id');
+        // Check ALL related meals, not just the one being edited
+        rows.forEach(r => {
+            const rowMealId = r.getAttribute('data-meal-id');
+            const rowName = r.getAttribute('data-meal-name');
             
-            // Check the row
-            const checkbox = rowToUse.querySelector(`.meal-checkbox[data-meal-id="${mealId}"]`);
-            if (checkbox) checkbox.checked = true;
+            // Check if this row matches any of the related meals
+            const matchingRelatedMeal = relatedMeals.find(relMeal => 
+                (relMeal.mealId && String(relMeal.mealId) === String(rowMealId)) || 
+                (relMeal.mealName && String(relMeal.mealName) === String(rowName))
+            );
             
-            // Fill editable fields on the row
-            const setVal = (selector, value) => {
-                const el = rowToUse.querySelector(`${selector}[data-meal-id="${mealId}"]`);
-                if (el) el.value = value ?? el.value;
-            };
-            
-            setVal('.meal-count', meal.mealCount);
-            setVal('.meal-adult-qty', meal.adultsQty);
-            setVal('.meal-adult-charge', parseFloat(String(meal.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
-            setVal('.meal-child-qty', meal.childQty);
-            setVal('.meal-child-charge', parseFloat(String(meal.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
-            setVal('.meal-infant-qty', meal.infantQty);
-            setVal('.meal-infant-charge', parseFloat(String(meal.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
-            
-            // Transfer fields
-            const transferCheckbox = rowToUse.querySelector(`.meal-transfer-checkbox[data-meal-id="${mealId}"]`);
-            if (transferCheckbox) {
-                const hasTransfer = !!meal.transferInfo || !!meal.transferId;
-                console.log('Has transfer:', hasTransfer, 'transferInfo:', meal.transferInfo, 'transferId:', meal.transferId);
-                transferCheckbox.checked = hasTransfer;
-                if (hasTransfer) {
-                    // Try to get transfer info from transferList if transferId exists
-                    let tInfo = meal.transferInfo || {};
-                    if (meal.transferId) {
-                        const linkedTransfer = transferList.find(t => t.id === meal.transferId);
-                        console.log('Looking for transfer with id:', meal.transferId, 'Found:', linkedTransfer);
-                        if (linkedTransfer) {
-                            tInfo = {
-                                destination: linkedTransfer.destination,
-                                vehicleId: linkedTransfer.vehicleId || '',
-                                vehicleType: linkedTransfer.vehicleType || 'sedan',
-                                type: linkedTransfer.mode === 'Private' ? 'private' : 'sic',
-                                way: linkedTransfer.way === 'Both Way' ? 'both-way' : 'one-way',
-                                isDestinationPickup: linkedTransfer.isDestinationPickup || false
-                            };
-                        }
-                    }
-                    console.log('Setting transfer values:', tInfo);
-                    setVal('.meal-transfer-destination', tInfo.destination);
-                    setVal('.meal-vehicle-type', tInfo.vehicleId || tInfo.vehicleType || '');
-                    setVal('.meal-transfer-type', tInfo.type || 'S');
-                    const direction = tInfo.way === 'both-way' || tInfo.way === 'Both Way' || tInfo.way === '2way' ? '2way' : '1way';
-                    setVal('.meal-direction', direction);
+            if (matchingRelatedMeal) {
+                const checkbox = r.querySelector(`.meal-checkbox[data-meal-id="${rowMealId}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                    console.log('Checked related meal:', rowName || rowMealId);
+                    // Fill in values for this meal
+                    fillMealRowValues(r, rowMealId, matchingRelatedMeal);
                 }
             }
-            
-            // Optional and Supplement checkboxes
-            const optionalCheckbox = rowToUse.querySelector(`.meal-optional-checkbox[data-meal-id="${mealId}"]`);
-            if (optionalCheckbox && meal.optional) {
-                optionalCheckbox.checked = meal.optional;
-            }
-            
-            const supplementCheckbox = rowToUse.querySelector(`.meal-supplement-checkbox[data-meal-id="${mealId}"]`);
-            if (supplementCheckbox && meal.supplement) {
-                supplementCheckbox.checked = meal.supplement;
-            }
-            
-            // Scroll the row into view
+        });
+        
+        // Scroll the primary row into view
+        if (rowToUse) {
             rowToUse.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
             console.warn('populateMealFormForEdit: no matching meal row found for', meal.mealName || meal.mealId);
@@ -20358,20 +20393,34 @@
                 ? `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)">`
                 : `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)" style="opacity: 0.7;">`;
             
-            // Display cost/sell with bothway multiplier applied for local transfers
-            // For bothway local transfers, multiply by 2 for the row display
+            // Display direct cost/sell values - NO multiplier for bothway
+            // The stored cost/sell already represents the total price for this transfer
             const storedSell = parseFloat(transfer.sell || 0);
             const storedCost = parseFloat(transfer.cost || 0);
             
-            // Check if this is a bothway local transfer
-            const isBothway = transfer.transportMode === 'local' && 
-                              (transfer.way === 'both-way' || transfer.way === 'Both Way' || 
-                               transfer.way === 'both' || transfer.way === 'two-way' || transfer.way === 'return');
-            const wayMultiplier = isBothway ? 2 : 1;
+            // Use direct values without multiplier
+            let displayCost = storedCost;
+            let displaySell = storedSell > 0 ? storedSell : storedCost;
             
-            // Apply multiplier for display
-            let displayCost = storedCost * wayMultiplier;
-            let displaySell = (storedSell > 0 ? storedSell : storedCost) * wayMultiplier;
+            // Get current type and way for dropdowns
+            const currentType = transfer.type || 'S';
+            const currentWay = transfer.way || 'one-way';
+            
+            // Create type dropdown (only for local transfers)
+            const typeDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) 
+                ? `<select onchange="updateTransferField(${index}, 'type', this.value)" style="width: 70px; font-size: 11px; padding: 2px 4px;">
+                    <option value="S" ${(currentType === 'S' || currentType === 'sic' || currentType === 'Shared') ? 'selected' : ''}>Shared</option>
+                    <option value="P" ${(currentType === 'P' || currentType === 'private' || currentType === 'Private') ? 'selected' : ''}>Private</option>
+                   </select>`
+                : getTypeClass(transfer);
+            
+            // Create way dropdown (only for local transfers)
+            const wayDropdown = (transfer.transportMode === 'local' || !transfer.transportMode)
+                ? `<select onchange="updateTransferField(${index}, 'way', this.value)" style="width: 80px; font-size: 11px; padding: 2px 4px;">
+                    <option value="one-way" ${(currentWay === 'one-way' || currentWay === 'One Way') ? 'selected' : ''}>One Way</option>
+                    <option value="both-way" ${(currentWay === 'both-way' || currentWay === 'Both Way' || currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way') ? 'selected' : ''}>Both Way</option>
+                   </select>`
+                : getWayType(transfer);
             
             return `
             <tr>
@@ -20382,8 +20431,8 @@
                 </td>
                 <td>${getModeIcon(transfer.transportMode || 'local')}</td>
                 <td>${getVehicleType(transfer)}</td>
-                <td>${getTypeClass(transfer)}</td>
-                <td>${getWayType(transfer)}</td>
+                <td>${typeDropdown}</td>
+                <td>${wayDropdown}</td>
                 <td><input type="number" value="${adults}" onchange="updateTransferField(${index}, 'adults', this.value)" style="width: 50px;"></td>
                 <td><input type="number" value="${child}" onchange="updateTransferField(${index}, 'child', this.value)" style="width: 50px;"></td>
                 <td><input type="text" value="${displayCost}" readonly style="width: 70px; background-color: #f5f5f5;"></td>
@@ -20424,6 +20473,45 @@
                 }
                 
                 // Update the transfer table to reflect the change
+                updateTransferTable();
+            }
+            
+            // If type or way changes for local transfers, recalculate cost/sell based on zone prices
+            if ((field === 'type' || field === 'way') && transfer.transportMode === 'local') {
+                const zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
+                const zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+                
+                // Get current type and way
+                const currentType = transfer.type || 'P';
+                const currentWay = transfer.way || 'one-way';
+                
+                // Get base price based on type (shared or private)
+                let basePrice = 0;
+                if (currentType === 'S' || currentType === 'sic' || currentType === 'Shared') {
+                    basePrice = zoneSharedPrice;
+                } else {
+                    basePrice = zonePrivatePrice;
+                }
+                
+                // Apply way multiplier - both-way costs double
+                const isBothway = currentWay === 'both-way' || currentWay === 'Both Way' || 
+                                  currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way';
+                const wayMultiplier = isBothway ? 2 : 1;
+                
+                // Update cost and sell with new calculated values
+                transfer.cost = basePrice * wayMultiplier;
+                transfer.sell = basePrice * wayMultiplier;
+                
+                console.log('Recalculated transfer price:', {
+                    type: currentType,
+                    way: currentWay,
+                    basePrice: basePrice,
+                    wayMultiplier: wayMultiplier,
+                    newCost: transfer.cost,
+                    newSell: transfer.sell
+                });
+                
+                // Refresh the transfer table to show new prices
                 updateTransferTable();
             }
             
@@ -21312,29 +21400,31 @@
         // Zone prices should remain 0 to indicate missing mapping
         // User must either: 1) Add zone mapping in settings, or 2) Manually enter prices
         
-        // Store the UNIT price (not multiplied by pax or way)
+        // Calculate base price based on type
         // Shared: per person price, Private: per vehicle price
-        // Multiplication happens only in footer totals calculation
-        let costPrice = 0;
-        let sellPrice = 0;
+        let basePrice = 0;
         
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared: store per person price (no pax multiplication)
-            costPrice = zoneSharedPrice || 0;
-            sellPrice = zoneSharedPrice || 0;
+            // Shared: per person price
+            basePrice = zoneSharedPrice || 0;
         } else {
-            // Private: store per vehicle price (no pax multiplication)
-            costPrice = zonePrivatePrice || 0;
-            sellPrice = zonePrivatePrice || 0;
+            // Private: per vehicle price
+            basePrice = zonePrivatePrice || 0;
         }
         
-        // DO NOT apply way multiplier here - store unit price only
-        // Way multiplier is already handled in display/table rendering
+        // Apply way multiplier - both-way costs double
+        const isBothway = way === 'both-way' || way === 'Both Way' || 
+                          way === 'both' || way === 'two-way' || way === 'return' || way === '2way';
+        const wayMultiplier = isBothway ? 2 : 1;
+        
+        // Final price includes way multiplier
+        let costPrice = basePrice * wayMultiplier;
+        let sellPrice = basePrice * wayMultiplier;
         
         return {
             cost: costPrice,
             sell: sellPrice,
-            basePrice: costPrice,
+            basePrice: basePrice,
             sharedPrice: zoneSharedPrice,
             privatePrice: zonePrivatePrice,
             totalPax: totalPax
@@ -22452,14 +22542,10 @@
                 }
             }
             
-            // Check if this is a bothway transfer - apply multiplier
-            const isBothway = transfer.way === 'both-way' || transfer.way === 'Both Way' || 
-                              transfer.way === 'both' || transfer.way === 'two-way' || transfer.way === 'return';
-            const wayMultiplier = isBothway ? 2 : 1;
-            
-            // Apply bothway multiplier to the base values
-            let baseCost = listCostValue * wayMultiplier;
-            let baseSell = listSellValue * wayMultiplier;
+            // Use direct row cost/sell values - NO multiplication for bothway
+            // The cost/sell in the table already represents the total price for this transfer
+            let baseCost = listCostValue;
+            let baseSell = listSellValue;
             
             // If sell is not set, fall back to cost value
             if (baseSell === 0 && baseCost > 0) {
@@ -23871,7 +23957,10 @@
                             vehicle_type: linkedTransfer.vehicleType || '',
                             seating_capacity: linkedTransfer.capacity || 0
                         },
-                        cost: parseFloat(linkedTransfer.sell) || 0,
+                        cost: parseFloat(linkedTransfer.cost) || 0,
+                        sell: parseFloat(linkedTransfer.sell) || 0,
+                        adults: parseInt(linkedTransfer.adults || linkedTransfer.adultsQty) || 0,
+                        child: parseInt(linkedTransfer.child || linkedTransfer.childQty) || 0,
                         pickup_location_name: pickupName,
                         destination_name: dropoffName
                     };
@@ -26764,10 +26853,14 @@
             guideInfo: null
         };
         
-        // Check for transferInfo directly in data (priority) or transfer_options
+        // Check for transferInfo directly in data (priority) or transfer_options or transferId
         const transferInfo = data.transferInfo || null;
         const transferOptions = data.transfer_options || null;
-        const hasTransfer = transferInfo || (transferOptions && transferOptions.transfer_required);
+        // Check multiple possible indicators that a transfer exists
+        const hasTransfer = transferInfo || 
+                           data.transferId || 
+                           data.hasTransfer === true ||
+                           (transferOptions && (transferOptions.transfer_required || transferOptions.vehicle_id || transferOptions.destination_name || transferOptions.cost));
         
         if (hasTransfer) {
             if (!Array.isArray(transferList)) {
@@ -26781,21 +26874,54 @@
                 const vehicleDetails = transferOptions.vehicle_details || {};
                 transferData = {
                     id: data.transferId || generateId('transfer'),
-                    destination: transferOptions.destination_name || tour.attractionName || '',
-                    destinationId: null,
-                    vehicleId: transferOptions.vehicle_id || '',
-                    vehicleName: vehicleDetails.vehicle_name || '',
-                    vehicleType: vehicleDetails.vehicle_type || '',
-                    type: transferOptions.type || 'S',
-                    way: transferOptions.way || 'one-way',
-                    pickup: transferOptions.pickup_location_name || '',
-                    dropoff: transferOptions.destination_name || tour.attractionName || '',
-                    isDestinationPickup: false,
-                    cost: parseFloat(transferOptions.cost || 0),
-                    sell: parseFloat(transferOptions.cost || 0),
-                    adults: tour.adultsQty,
-                    child: tour.childQty
+                    destination: transferOptions.destination_name || transferOptions.destination || tour.attractionName || '',
+                    destinationId: transferOptions.destinationId || transferOptions.destination_id || null,
+                    vehicleId: transferOptions.vehicle_id || transferOptions.vehicleId || '',
+                    vehicleName: vehicleDetails.vehicle_name || vehicleDetails.vehicleName || transferOptions.vehicleName || '',
+                    vehicleType: vehicleDetails.vehicle_type || vehicleDetails.vehicleType || transferOptions.vehicleType || '',
+                    type: transferOptions.type || transferOptions.transferType || 'S',
+                    way: transferOptions.way || transferOptions.transferWay || 'both-way',
+                    pickup: transferOptions.pickup_location_name || transferOptions.pickup || '',
+                    dropoff: transferOptions.destination_name || transferOptions.dropoff || tour.attractionName || '',
+                    isDestinationPickup: transferOptions.isDestinationPickup || false,
+                    cost: parseFloat(transferOptions.cost || transferOptions.Cost || 0),
+                    sell: parseFloat(transferOptions.sell || transferOptions.Sell || transferOptions.cost || 0),
+                    adults: parseInt(transferOptions.adults || transferOptions.adultsQty) || tour.adultsQty || 0,
+                    child: parseInt(transferOptions.child || transferOptions.childQty) || tour.childQty || 0,
+                    zonePrivatePrice: parseFloat(transferOptions.zonePrivatePrice || 0),
+                    zoneSharedPrice: parseFloat(transferOptions.zoneSharedPrice || 0)
                 };
+            }
+            
+            // If still no transferData but we have transferId, try to get it from the transferList
+            if (!transferData && data.transferId) {
+                const existingTransferById = transferList.find(t => String(t.id) === String(data.transferId));
+                if (existingTransferById) {
+                    // Transfer already exists in list, just link to it
+                    tour.transferId = data.transferId;
+                    tour.transferInfo = {
+                        id: existingTransferById.id,
+                        destination: existingTransferById.dropoff || existingTransferById.destination || '',
+                        destinationId: existingTransferById.destinationId || null,
+                        vehicleId: existingTransferById.vehicleId || '',
+                        vehicleName: existingTransferById.vehicleName || '',
+                        vehicleType: existingTransferById.vehicleType || '',
+                        type: existingTransferById.type || 'S',
+                        way: existingTransferById.way || 'both-way',
+                        pickup: existingTransferById.pickup || '',
+                        dropoff: existingTransferById.dropoff || '',
+                        isDestinationPickup: existingTransferById.isDestinationPickup || false,
+                        cost: parseFloat(existingTransferById.cost || 0),
+                        sell: parseFloat(existingTransferById.sell || 0),
+                        adults: parseInt(existingTransferById.adults) || 0,
+                        child: parseInt(existingTransferById.child) || 0,
+                        zonePrivatePrice: parseFloat(existingTransferById.zonePrivatePrice || 0),
+                        zoneSharedPrice: parseFloat(existingTransferById.zoneSharedPrice || 0)
+                    };
+                    console.log('Linked tour to existing transfer by ID:', data.transferId);
+                    // Skip further processing since transfer is already linked
+                    transferData = null;
+                }
             }
             
             if (transferData) {
@@ -26813,68 +26939,113 @@
                 
                 // Map way
                 let transferWay = transferData.way || 'one-way';
-                if (transferWay === 'both-way' || transferWay === '2way' || transferWay === 'two-way') {
+                if (transferWay === 'both-way' || transferWay === '2way' || transferWay === 'two-way' || transferWay === 'Both Way') {
                     transferWay = 'both-way';
-                } else if (transferWay === 'one-way' || transferWay === '1way') {
+                } else if (transferWay === 'one-way' || transferWay === '1way' || transferWay === 'One Way') {
                     transferWay = 'one-way';
                 }
                 
-                const transferId = transferData.id || data.transferId || generateId('transfer');
+                // Check if this transfer already exists (shared transfer for multiple attractions from SAME popup submission)
+                const savedTransferId = transferData.id || data.transferId || '';
+                const existingTransfer = savedTransferId ? transferList.find(t => t.id === savedTransferId) : null;
                 
-                const transferEntry = {
-                    id: transferId,
-                    transportMode: 'local',
-                    dateTime: tour.dateTime,
-                    pickup: transferData.pickup || '',
-                    pickupName: transferData.pickup || '',
-                    dropoff: transferData.dropoff || transferData.destination || tour.attractionName || '',
-                    dropName: transferData.dropoff || transferData.destination || tour.attractionName || '',
-                    destination: `${transferData.pickup || 'Pickup'} → ${transferData.dropoff || transferData.destination || tour.attractionName || 'Attraction'}`,
-                    vehicleId: transferData.vehicleId || '',
-                    vehicleType: transferData.vehicleType || '',
-                    vehicleName: transferData.vehicleName || '',
-                    type: transferType,
-                    way: transferWay,
-                    hasTransfer: true,
-                    adults: transferData.adults || tour.adultsQty,
-                    child: transferData.child || tour.childQty,
-                    infant: tour.infantQty,
-                    cost: parseFloat(transferData.cost || 0),
-                    sell: parseFloat(transferData.sell || transferData.cost || 0),
-                    zonePrivatePrice: 0,
-                    zoneSharedPrice: 0,
-                    taxIncluded: false,
-                    supplement: tour.supplement,
-                    isStandalone: false,
-                    sourceType: 'tour',
-                    sourceId: tour.id,
-                    isDestinationPickup: transferData.isDestinationPickup || false,
-                    destinationId: transferData.destinationId || null
-                };
+                // Use existing transfer's ID if found, otherwise use saved ID or generate new one
+                const transferId = existingTransfer ? existingTransfer.id : (savedTransferId || generateId('transfer'));
                 
-                transferList.push(transferEntry);
+                if (!existingTransfer) {
+                    // Only create new transfer entry if it doesn't already exist
+                    // Build pickup and dropoff names from available data
+                    let pickupName = transferData.pickup || transferData.pickupName || '';
+                    let dropoffName = transferData.dropoff || transferData.dropName || transferData.destination || '';
+                    
+                    // If service field exists, parse it (format: "Pickup / Dropoff")
+                    if (transferData.service && transferData.service.includes('/')) {
+                        const serviceParts = transferData.service.split('/').map(s => s.trim());
+                        if (serviceParts.length >= 2) {
+                            if (!pickupName) pickupName = serviceParts[0];
+                            if (!dropoffName) dropoffName = serviceParts[1];
+                        }
+                    }
+                    
+                    // If isDestinationPickup is true, the destination is actually pickup and attraction is dropoff
+                    if (transferData.isDestinationPickup) {
+                        if (!pickupName && transferData.destination) pickupName = transferData.destination;
+                        if (!dropoffName) dropoffName = tour.attractionName;
+                    } else {
+                        // Default: attraction is pickup, destination is dropoff
+                        if (!pickupName) pickupName = tour.attractionName || 'Attraction';
+                        if (!dropoffName && transferData.destination) dropoffName = transferData.destination;
+                    }
+                    
+                    // Fallback to attraction name if still empty
+                    if (!pickupName) pickupName = tour.attractionName || 'Pickup';
+                    if (!dropoffName) dropoffName = tour.attractionName || 'Dropoff';
+                    
+                    const transferEntry = {
+                        id: transferId,
+                        transportMode: 'local',
+                        dateTime: tour.dateTime,
+                        pickup: pickupName,
+                        pickupName: pickupName,
+                        dropoff: dropoffName,
+                        dropName: dropoffName,
+                        service: `${pickupName} / ${dropoffName}`,
+                        destination: `${pickupName} → ${dropoffName}`,
+                        attractionName: tour.attractionName || '', // Store attraction name for reference
+                        vehicleId: transferData.vehicleId || '',
+                        vehicleType: transferData.vehicleType || '',
+                        vehicleName: transferData.vehicleName || '',
+                        type: transferType,
+                        way: transferWay,
+                        hasTransfer: true,
+                        adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || tour.adultsQty || 0,
+                        child: parseInt(transferData.child) || parseInt(transferData.childQty) || tour.childQty || 0,
+                        infant: tour.infantQty || 0,
+                        cost: parseFloat(transferData.cost || 0),
+                        sell: parseFloat(transferData.sell || transferData.cost || 0),
+                        zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
+                        zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
+                        taxIncluded: false,
+                        supplement: tour.supplement,
+                        isStandalone: false,
+                        sourceType: 'tour',
+                        sourceId: tour.id,
+                        isDestinationPickup: transferData.isDestinationPickup || false,
+                        destinationId: transferData.destinationId || null
+                    };
+                    
+                    transferList.push(transferEntry);
+                    console.log('Created transfer entry from tour:', transferEntry);
+                } else {
+                    console.log('Transfer already exists, linking tour to existing transfer:', transferId);
+                }
+                
                 tour.transferId = transferId;
+                
+                // Get the transfer entry we just created or the existing one
+                const transferEntryForInfo = existingTransfer || transferList.find(t => t.id === transferId);
                 
                 // Store transferInfo in tour object for editing
                 tour.transferInfo = {
                     id: transferId,
-                    destination: transferData.destination || transferData.dropoff || tour.attractionName || '',
+                    destination: transferEntryForInfo?.dropoff || transferData.destination || transferData.dropoff || tour.attractionName || '',
                     destinationId: transferData.destinationId || null,
                     vehicleId: transferData.vehicleId || '',
                     vehicleName: transferData.vehicleName || '',
                     vehicleType: transferData.vehicleType || '',
                     type: transferType,
                     way: transferWay,
-                    pickup: transferData.pickup || '',
-                    dropoff: transferData.dropoff || transferData.destination || tour.attractionName || '',
+                    pickup: transferEntryForInfo?.pickup || transferData.pickup || '',
+                    dropoff: transferEntryForInfo?.dropoff || transferData.dropoff || transferData.destination || tour.attractionName || '',
                     isDestinationPickup: transferData.isDestinationPickup || false,
                     cost: parseFloat(transferData.cost || 0),
                     sell: parseFloat(transferData.sell || transferData.cost || 0),
-                    adults: transferData.adults || tour.adultsQty,
-                    child: transferData.child || tour.childQty
+                    adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || tour.adultsQty || 0,
+                    child: parseInt(transferData.child) || parseInt(transferData.childQty) || tour.childQty || 0,
+                    zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
+                    zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0)
                 };
                 
-                console.log('Created transfer entry from tour:', transferEntry);
                 console.log('Stored transferInfo in tour:', tour.transferInfo);
             }
         }
@@ -26915,45 +27086,59 @@
                 const languagesArray = Array.isArray(languages) ? languages : (languages ? [languages] : ['N/A']);
                 const attractionName = tour.attractionName || data.attraction_name || data.attractionName || '';
                 
-                // Format tour activity: "Attraction Name - Guide Name" (matching the format used when adding guides through attraction modal)
-                const tourActivityText = guideName ? `${attractionName} - ${guideName}` : (attractionName ? `${attractionName} (Guide)` : 'Attraction Guide');
+                // Check if this guide already exists in guideList (shared guide for multiple tours from SAME popup submission)
+                const savedGuideId = guideData.id || data.guideId || '';
+                const existingGuide = savedGuideId ? guideList.find(g => g.id === savedGuideId) : null;
                 
-                const guideEntry = {
-                    id: guideData.id || data.guideId || order.order_id || generateId('guide'),
-                    dateTime: data.dateTime || data.date || data.bookingDate || tour.dateTime,
-                    tourActivity: tourActivityText,
-                    tourName: tourActivityText,
-                    language: Array.isArray(languagesArray) && languagesArray.length > 0 ? languagesArray[0] : (typeof languages === 'string' ? languages : 'N/A'),
-                    languages: languagesArray,
-                    guideName: guideName,
-                    name: guideName,
-                    guideId: guideId,
-                    guide_id: guideId,
-                    hours: parseInt(guideData.hours || 12),
-                    cost: parseFloat(guideData.cost || 0),
-                    sell: parseFloat(guideData.sell || 0),
-                    adultsQty: parseInt(guideData.adultsQty || tour.adultsQty || 0),
-                    adults: parseInt(guideData.adultsQty || tour.adultsQty || 0),
-                    childQty: parseInt(guideData.childQty || tour.childQty || 0),
-                    children: parseInt(guideData.childQty || tour.childQty || 0),
-                    adultCost: parseFloat(guideData.cost || 0),
-                    childCost: 0,
-                    adultSell: parseFloat(guideData.sell || 0),
-                    childSell: 0,
-                    supplement: false,
-                    isStandalone: false,
-                    linkedTo: 'tour',
-                    sourceType: 'tour',
-                    sourceId: tour.id,
-                    attractionName: tour.attractionName || data.attraction_name || data.attractionName || ''
-                };
+                // Use existing guide's ID if found, otherwise use saved ID or generate new one
+                const guideEntryId = existingGuide ? existingGuide.id : (savedGuideId || generateId('guide'));
                 
-                guideList.push(guideEntry);
-                tour.guideId = guideEntry.id;
+                if (!existingGuide) {
+                    // Only create new guide entry if it doesn't already exist
+                    // Format tour activity: "Attraction Name - Guide Name" (matching the format used when adding guides through attraction modal)
+                    const tourActivityText = guideName ? `${attractionName} - ${guideName}` : (attractionName ? `${attractionName} (Guide)` : 'Attraction Guide');
+                    
+                    const guideEntry = {
+                        id: guideEntryId,
+                        dateTime: data.dateTime || data.date || data.bookingDate || tour.dateTime,
+                        tourActivity: tourActivityText,
+                        tourName: tourActivityText,
+                        language: Array.isArray(languagesArray) && languagesArray.length > 0 ? languagesArray[0] : (typeof languages === 'string' ? languages : 'N/A'),
+                        languages: languagesArray,
+                        guideName: guideName,
+                        name: guideName,
+                        guideId: guideId,
+                        guide_id: guideId,
+                        hours: parseInt(guideData.hours || 12),
+                        cost: parseFloat(guideData.cost || 0),
+                        sell: parseFloat(guideData.sell || 0),
+                        adultsQty: parseInt(guideData.adultsQty || tour.adultsQty || 0),
+                        adults: parseInt(guideData.adultsQty || tour.adultsQty || 0),
+                        childQty: parseInt(guideData.childQty || tour.childQty || 0),
+                        children: parseInt(guideData.childQty || tour.childQty || 0),
+                        adultCost: parseFloat(guideData.cost || 0),
+                        childCost: 0,
+                        adultSell: parseFloat(guideData.sell || 0),
+                        childSell: 0,
+                        supplement: false,
+                        isStandalone: false,
+                        linkedTo: 'tour',
+                        sourceType: 'tour',
+                        sourceId: tour.id,
+                        attractionName: attractionName
+                    };
+                    
+                    guideList.push(guideEntry);
+                    console.log('Created guide entry from tour:', guideEntry);
+                } else {
+                    console.log('Guide already exists, linking tour to existing guide:', guideEntryId);
+                }
+                
+                tour.guideId = guideEntryId;
                 
                 // Store guideInfo in tour object for editing
                 tour.guideInfo = {
-                    id: guideEntry.id,
+                    id: guideEntryId,
                     guide_id: guideId,
                     guideId: guideId,
                     name: guideName,
@@ -26967,7 +27152,6 @@
                     sell: parseFloat(guideData.sell || 0)
                 };
                 
-                console.log('Loaded embedded guide from tour:', guideEntry);
                 console.log('Stored guideInfo in tour:', tour.guideInfo);
             }
         }
@@ -27016,10 +27200,14 @@
             guideInfo: null
         };
         
-        // Check for transferInfo directly in data (priority) or transfer_options
+        // Check for transferInfo directly in data (priority) or transfer_options or transferId
         const transferInfo = data.transferInfo || null;
         const transferOptions = data.transfer_options || null;
-        const hasTransfer = transferInfo || (transferOptions && transferOptions.transfer_required);
+        // Check multiple possible indicators that a transfer exists
+        const hasTransfer = transferInfo || 
+                           data.transferId || 
+                           data.hasTransfer === true ||
+                           (transferOptions && (transferOptions.transfer_required || transferOptions.vehicle_id || transferOptions.destination_name || transferOptions.cost));
         
         if (hasTransfer) {
             if (!Array.isArray(transferList)) {
@@ -27033,21 +27221,54 @@
                 const vehicleDetails = transferOptions.vehicle_details || {};
                 transferData = {
                     id: data.transferId || generateId('transfer'),
-                    destination: transferOptions.destination_name || meal.restaurantName || '',
-                    destinationId: null,
-                    vehicleId: transferOptions.vehicle_id || '',
-                    vehicleName: vehicleDetails.vehicle_name || '',
-                    vehicleType: vehicleDetails.vehicle_type || '',
-                    type: transferOptions.type || 'S',
-                    way: transferOptions.way || 'one-way',
-                    pickup: transferOptions.pickup_location_name || '',
-                    dropoff: transferOptions.destination_name || meal.restaurantName || '',
-                    isDestinationPickup: false,
-                    cost: parseFloat(transferOptions.cost || 0),
-                    sell: parseFloat(transferOptions.cost || 0),
-                    adults: meal.adultsQty,
-                    child: meal.childQty
+                    destination: transferOptions.destination_name || transferOptions.destination || meal.restaurantName || '',
+                    destinationId: transferOptions.destinationId || transferOptions.destination_id || null,
+                    vehicleId: transferOptions.vehicle_id || transferOptions.vehicleId || '',
+                    vehicleName: vehicleDetails.vehicle_name || vehicleDetails.vehicleName || transferOptions.vehicleName || '',
+                    vehicleType: vehicleDetails.vehicle_type || vehicleDetails.vehicleType || transferOptions.vehicleType || '',
+                    type: transferOptions.type || transferOptions.transferType || 'S',
+                    way: transferOptions.way || transferOptions.transferWay || 'both-way',
+                    pickup: transferOptions.pickup_location_name || transferOptions.pickup || '',
+                    dropoff: transferOptions.destination_name || transferOptions.dropoff || meal.restaurantName || '',
+                    isDestinationPickup: transferOptions.isDestinationPickup || false,
+                    cost: parseFloat(transferOptions.cost || transferOptions.Cost || 0),
+                    sell: parseFloat(transferOptions.sell || transferOptions.Sell || transferOptions.cost || 0),
+                    adults: parseInt(transferOptions.adults || transferOptions.adultsQty) || meal.adultsQty || 0,
+                    child: parseInt(transferOptions.child || transferOptions.childQty) || meal.childQty || 0,
+                    zonePrivatePrice: parseFloat(transferOptions.zonePrivatePrice || 0),
+                    zoneSharedPrice: parseFloat(transferOptions.zoneSharedPrice || 0)
                 };
+            }
+            
+            // If still no transferData but we have transferId, try to get it from the transferList
+            if (!transferData && data.transferId) {
+                const existingTransferById = transferList.find(t => String(t.id) === String(data.transferId));
+                if (existingTransferById) {
+                    // Transfer already exists in list, just link to it
+                    meal.transferId = data.transferId;
+                    meal.transferInfo = {
+                        id: existingTransferById.id,
+                        destination: existingTransferById.dropoff || existingTransferById.destination || '',
+                        destinationId: existingTransferById.destinationId || null,
+                        vehicleId: existingTransferById.vehicleId || '',
+                        vehicleName: existingTransferById.vehicleName || '',
+                        vehicleType: existingTransferById.vehicleType || '',
+                        type: existingTransferById.type || 'S',
+                        way: existingTransferById.way || 'both-way',
+                        pickup: existingTransferById.pickup || '',
+                        dropoff: existingTransferById.dropoff || '',
+                        isDestinationPickup: existingTransferById.isDestinationPickup || false,
+                        cost: parseFloat(existingTransferById.cost || 0),
+                        sell: parseFloat(existingTransferById.sell || 0),
+                        adults: parseInt(existingTransferById.adults) || 0,
+                        child: parseInt(existingTransferById.child) || 0,
+                        zonePrivatePrice: parseFloat(existingTransferById.zonePrivatePrice || 0),
+                        zoneSharedPrice: parseFloat(existingTransferById.zoneSharedPrice || 0)
+                    };
+                    console.log('Linked meal to existing transfer by ID:', data.transferId);
+                    // Skip further processing since transfer is already linked
+                    transferData = null;
+                }
             }
             
             if (transferData) {
@@ -27071,62 +27292,110 @@
                     transferWay = 'one-way';
                 }
                 
-                const transferId = transferData.id || data.transferId || generateId('transfer');
+                // Check if this transfer already exists in transferList (shared transfer for multiple meals from SAME popup submission)
+                // Match by: the saved transferInfo.id - this is the unique ID generated when meals were added together
+                // Different popup submissions will have different transfer IDs even for same restaurant
+                const savedTransferId = transferData.id || data.transferId || '';
+                const existingTransfer = savedTransferId ? transferList.find(t => t.id === savedTransferId) : null;
                 
-                const transferEntry = {
-                    id: transferId,
-                    transportMode: 'local',
-                    dateTime: meal.dateTime,
-                    pickup: transferData.pickup || '',
-                    pickupName: transferData.pickup || '',
-                    dropoff: transferData.dropoff || transferData.destination || meal.restaurantName || '',
-                    dropName: transferData.dropoff || transferData.destination || meal.restaurantName || '',
-                    destination: `${transferData.pickup || 'Pickup'} → ${transferData.dropoff || transferData.destination || meal.restaurantName || 'Restaurant'}`,
-                    vehicleId: transferData.vehicleId || '',
-                    vehicleType: transferData.vehicleType || '',
-                    vehicleName: transferData.vehicleName || '',
-                    type: transferType,
-                    way: transferWay,
-                    hasTransfer: true,
-                    adults: transferData.adults || meal.adultsQty,
-                    child: transferData.child || meal.childQty,
-                    infant: meal.infantQty,
-                    cost: parseFloat(transferData.cost || 0),
-                    sell: parseFloat(transferData.sell || transferData.cost || 0),
-                    zonePrivatePrice: 0,
-                    zoneSharedPrice: 0,
-                    taxIncluded: false,
-                    supplement: meal.supplement,
-                    isStandalone: false,
-                    sourceType: 'meal',
-                    sourceId: meal.id,
-                    isDestinationPickup: transferData.isDestinationPickup || false,
-                    destinationId: transferData.destinationId || null
-                };
+                // Use existing transfer's ID if found, otherwise use saved ID or generate new one
+                const transferId = existingTransfer ? existingTransfer.id : (savedTransferId || generateId('transfer'));
                 
-                transferList.push(transferEntry);
+                if (!existingTransfer) {
+                    // Only create new transfer entry if it doesn't already exist
+                    // Build pickup and dropoff names from available data
+                    let pickupName = transferData.pickup || transferData.pickupName || '';
+                    let dropoffName = transferData.dropoff || transferData.dropName || transferData.destination || '';
+                    
+                    // If service field exists, parse it (format: "Pickup / Dropoff")
+                    if (transferData.service && transferData.service.includes('/')) {
+                        const serviceParts = transferData.service.split('/').map(s => s.trim());
+                        if (serviceParts.length >= 2) {
+                            if (!pickupName) pickupName = serviceParts[0];
+                            if (!dropoffName) dropoffName = serviceParts[1];
+                        }
+                    }
+                    
+                    // If isDestinationPickup is true, the destination is actually pickup and restaurant is dropoff
+                    if (transferData.isDestinationPickup) {
+                        if (!pickupName && transferData.destination) pickupName = transferData.destination;
+                        if (!dropoffName) dropoffName = meal.restaurantName;
+                    } else {
+                        // Default: restaurant is pickup, destination is dropoff
+                        if (!pickupName) pickupName = meal.restaurantName || 'Restaurant';
+                        if (!dropoffName && transferData.destination) dropoffName = transferData.destination;
+                    }
+                    
+                    // Fallback to restaurant name if still empty
+                    if (!pickupName) pickupName = meal.restaurantName || 'Pickup';
+                    if (!dropoffName) dropoffName = meal.restaurantName || 'Dropoff';
+                    
+                    const transferEntry = {
+                        id: transferId,
+                        transportMode: 'local',
+                        dateTime: meal.dateTime,
+                        pickup: pickupName,
+                        pickupName: pickupName,
+                        dropoff: dropoffName,
+                        dropName: dropoffName,
+                        service: `${pickupName} / ${dropoffName}`,
+                        destination: `${pickupName} → ${dropoffName}`,
+                        restaurantName: meal.restaurantName || '', // Store restaurant name for reference
+                        vehicleId: transferData.vehicleId || '',
+                        vehicleType: transferData.vehicleType || '',
+                        vehicleName: transferData.vehicleName || '',
+                        type: transferType,
+                        way: transferWay,
+                        hasTransfer: true,
+                        // Use transfer's own PAX, not meal's PAX (to prevent multiplication)
+                        adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || 0,
+                        child: parseInt(transferData.child) || parseInt(transferData.childQty) || 0,
+                        infant: parseInt(transferData.infant) || 0,
+                        cost: parseFloat(transferData.cost || 0),
+                        sell: parseFloat(transferData.sell || transferData.cost || 0),
+                        zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
+                        zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
+                        taxIncluded: false,
+                        supplement: meal.supplement,
+                        isStandalone: false,
+                        sourceType: 'meal',
+                        sourceId: meal.id,
+                        isDestinationPickup: transferData.isDestinationPickup || false,
+                        destinationId: transferData.destinationId || null
+                    };
+                    
+                    transferList.push(transferEntry);
+                    console.log('Created transfer entry from meal:', transferEntry);
+                } else {
+                    console.log('Transfer already exists, linking meal to existing transfer:', transferId);
+                }
+                
                 meal.transferId = transferId;
                 
-                // Store transferInfo in meal object for editing
+                // Get the transfer entry we just created or the existing one
+                const transferEntryForInfo = existingTransfer || transferList.find(t => t.id === transferId);
+                
+                // Store transferInfo in meal object for editing (use transfer's own PAX)
                 meal.transferInfo = {
                     id: transferId,
-                    destination: transferData.destination || transferData.dropoff || meal.restaurantName || '',
+                    destination: transferEntryForInfo?.dropoff || transferData.destination || transferData.dropoff || meal.restaurantName || '',
                     destinationId: transferData.destinationId || null,
                     vehicleId: transferData.vehicleId || '',
                     vehicleName: transferData.vehicleName || '',
                     vehicleType: transferData.vehicleType || '',
                     type: transferType,
                     way: transferWay,
-                    pickup: transferData.pickup || '',
-                    dropoff: transferData.dropoff || transferData.destination || meal.restaurantName || '',
+                    pickup: transferEntryForInfo?.pickup || transferData.pickup || '',
+                    dropoff: transferEntryForInfo?.dropoff || transferData.dropoff || transferData.destination || meal.restaurantName || '',
                     isDestinationPickup: transferData.isDestinationPickup || false,
                     cost: parseFloat(transferData.cost || 0),
                     sell: parseFloat(transferData.sell || transferData.cost || 0),
-                    adults: transferData.adults || meal.adultsQty,
-                    child: transferData.child || meal.childQty
+                    adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || 0,
+                    child: parseInt(transferData.child) || parseInt(transferData.childQty) || 0,
+                    zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
+                    zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0)
                 };
                 
-                console.log('Created transfer entry from meal:', transferEntry);
                 console.log('Stored transferInfo in meal:', meal.transferInfo);
             }
         }
@@ -27153,8 +27422,8 @@
                     guideName: guideOptions.guideName || guideOptions.guide_name || guideOptions.name || '',
                     languages: guideOptions.languages || guideOptions.language || 'N/A',
                     hours: guideOptions.hours || guideOptions.service_hours || 12,
-                    adultsQty: guideOptions.adultsQty || guideOptions.adults_qty || meal.adultsQty || 0,
-                    childQty: guideOptions.childQty || guideOptions.child_qty || meal.childQty || 0,
+                    adultsQty: guideOptions.adultsQty || guideOptions.adults_qty || 0,
+                    childQty: guideOptions.childQty || guideOptions.child_qty || 0,
                     cost: parseFloat(guideOptions.cost || guideOptions.Cost || 0),
                     sell: parseFloat(guideOptions.sell || guideOptions.Sell || 0)
                 };
@@ -27168,45 +27437,62 @@
                 const restaurantName = meal.restaurantName || data.restaurant_name || data.restaurantName || '';
                 const mealType = meal.mealType || data.meal_type || data.mealType || 'Meal';
                 
-                // Format tour activity: "Restaurant Name - Guide Name" (matching the format used when adding guides through restaurant modal)
-                const tourActivityText = guideName ? `${restaurantName} - ${guideName}` : (restaurantName ? `Restaurant Guide - ${restaurantName}` : 'Restaurant Guide');
+                // Check if this guide already exists in guideList (shared guide for multiple meals from SAME popup submission)
+                // Match by: the saved guideInfo.id - this is the unique ID generated when meals were added together
+                // Different popup submissions will have different guide IDs even for same restaurant
+                const savedGuideId = guideData.id || data.guideId || '';
+                const existingGuide = savedGuideId ? guideList.find(g => g.id === savedGuideId) : null;
                 
-                const guideEntry = {
-                    id: guideData.id || data.guideId || order.order_id || generateId('guide'),
-                    dateTime: data.dateTime || data.date || data.bookingDate || meal.dateTime,
-                    tourActivity: tourActivityText,
-                    tourName: tourActivityText,
-                    language: Array.isArray(languagesArray) && languagesArray.length > 0 ? languagesArray[0] : (typeof languages === 'string' ? languages : 'N/A'),
-                    languages: languagesArray,
-                    guideName: guideName,
-                    name: guideName,
-                    guideId: guideId,
-                    guide_id: guideId,
-                    hours: parseInt(guideData.hours || 12),
-                    cost: parseFloat(guideData.cost || 0),
-                    sell: parseFloat(guideData.sell || 0),
-                    adultsQty: parseInt(guideData.adultsQty || meal.adultsQty || 0),
-                    adults: parseInt(guideData.adultsQty || meal.adultsQty || 0),
-                    childQty: parseInt(guideData.childQty || meal.childQty || 0),
-                    children: parseInt(guideData.childQty || meal.childQty || 0),
-                    adultCost: parseFloat(guideData.cost || 0),
-                    childCost: 0,
-                    adultSell: parseFloat(guideData.sell || 0),
-                    childSell: 0,
-                    supplement: false,
-                    isStandalone: false,
-                    linkedTo: 'restaurant',
-                    sourceType: 'meal',
-                    sourceId: meal.id,
-                    restaurantName: restaurantName
-                };
+                // Use existing guide's ID if found, otherwise use saved ID or generate new one
+                const guideEntryId = existingGuide ? existingGuide.id : (savedGuideId || generateId('guide'));
                 
-                guideList.push(guideEntry);
-                meal.guideId = guideEntry.id;
+                if (!existingGuide) {
+                    // Only create new guide entry if it doesn't already exist
+                    // Format tour activity: "Restaurant Name - Guide Name"
+                    const tourActivityText = guideName ? `${restaurantName} - ${guideName}` : (restaurantName ? `Restaurant Guide - ${restaurantName}` : 'Restaurant Guide');
+                    
+                    const guideEntry = {
+                        id: guideEntryId,
+                        dateTime: data.dateTime || data.date || data.bookingDate || meal.dateTime,
+                        tourActivity: tourActivityText,
+                        tourName: tourActivityText,
+                        language: Array.isArray(languagesArray) && languagesArray.length > 0 ? languagesArray[0] : (typeof languages === 'string' ? languages : 'N/A'),
+                        languages: languagesArray,
+                        guideName: guideName,
+                        name: guideName,
+                        guideId: guideId,
+                        guide_id: guideId,
+                        hours: parseInt(guideData.hours || 12),
+                        cost: parseFloat(guideData.cost || 0),
+                        sell: parseFloat(guideData.sell || 0),
+                        // Use guide's own PAX, not meal's PAX (to prevent multiplication)
+                        adultsQty: parseInt(guideData.adultsQty) || 0,
+                        adults: parseInt(guideData.adultsQty) || 0,
+                        childQty: parseInt(guideData.childQty) || 0,
+                        children: parseInt(guideData.childQty) || 0,
+                        adultCost: parseFloat(guideData.cost || 0),
+                        childCost: 0,
+                        adultSell: parseFloat(guideData.sell || 0),
+                        childSell: 0,
+                        supplement: false,
+                        isStandalone: false,
+                        linkedTo: 'restaurant',
+                        sourceType: 'meal',
+                        sourceId: meal.id,
+                        restaurantName: restaurantName
+                    };
+                    
+                    guideList.push(guideEntry);
+                    console.log('Created guide entry from meal:', guideEntry);
+                } else {
+                    console.log('Guide already exists, linking meal to existing guide:', guideEntryId);
+                }
                 
-                // Store guideInfo in meal object for editing
+                meal.guideId = guideEntryId;
+                
+                // Store guideInfo in meal object for editing (use guide's own PAX)
                 meal.guideInfo = {
-                    id: guideEntry.id,
+                    id: guideEntryId,
                     guide_id: guideId,
                     guideId: guideId,
                     name: guideName,
@@ -27214,13 +27500,12 @@
                     languages: languagesArray,
                     language: Array.isArray(languagesArray) && languagesArray.length > 0 ? languagesArray[0] : (typeof languages === 'string' ? languages : 'N/A'),
                     hours: parseInt(guideData.hours || 12),
-                    adultsQty: parseInt(guideData.adultsQty || meal.adultsQty || 0),
-                    childQty: parseInt(guideData.childQty || meal.childQty || 0),
+                    adultsQty: parseInt(guideData.adultsQty) || 0,
+                    childQty: parseInt(guideData.childQty) || 0,
                     cost: parseFloat(guideData.cost || 0),
                     sell: parseFloat(guideData.sell || 0)
                 };
                 
-                console.log('Loaded embedded guide from meal (restaurant guide):', guideEntry);
                 console.log('Stored guideInfo in meal:', meal.guideInfo);
             }
         }
@@ -27235,6 +27520,35 @@
     function loadTransferOrder(data, order) {
         if (!Array.isArray(transferList)) {
             transferList = [];
+        }
+        
+        // Check if this transfer is linked to a meal/restaurant/attraction
+        // These should be loaded from their parent service, not duplicated here
+        // NOTE: Hotel/accommodation transfers should NOT be skipped - they are loaded directly here
+        const isLinkedToMealOrTour = (data.sourceType === 'meal' ||
+                         data.sourceType === 'tour' ||
+                         data.sourceType === 'attraction' ||
+                         data.source_type === 'meal' ||
+                         data.source_type === 'tour' ||
+                         data.source_type === 'attraction') &&
+                         data.sourceType !== 'hotel' &&
+                         data.sourceType !== 'accommodation' &&
+                         data.source_type !== 'hotel' &&
+                         data.source_type !== 'accommodation';
+        
+        if (isLinkedToMealOrTour) {
+            console.log('Skipping linked transfer (will be loaded from parent service):', data);
+            return;
+        }
+        
+        // Check if transfer with this order_id already exists (already loaded from meal/tour)
+        const transferId = order.order_id || data.id;
+        if (transferId) {
+            const existingTransfer = transferList.find(t => String(t.id) === String(transferId));
+            if (existingTransfer) {
+                console.log('Transfer already exists in list, skipping duplicate:', transferId);
+                return;
+            }
         }
         
         // Extract pickup and dropoff information from various possible fields
@@ -27502,65 +27816,87 @@
             guideList = [];
         }
         
-        // CRITICAL FIX: Load all guides by default unless explicitly marked as non-standalone
-        // Most guides from DB are standalone
-        if (data.isStandalone !== false && !data.linkedTo) {
-            // Handle languages - can be array or string
-            let languagesValue = data.languages || data.language || 'English';
-            if (Array.isArray(languagesValue)) {
-                languagesValue = languagesValue.length > 0 ? languagesValue : ['English'];
-            } else if (typeof languagesValue === 'string') {
-                languagesValue = languagesValue ? [languagesValue] : ['English'];
-            }
-            
-            // Get dateTime - try multiple field names
-            let dateTimeValue = data.dateTime || data.date || data.pickupdate || data.bookingDate || '';
-            if (dateTimeValue && !dateTimeValue.includes('T') && dateTimeValue.length === 10) {
-                // If it's just a date (YYYY-MM-DD), add default time
-                dateTimeValue = dateTimeValue + 'T09:00';
-            }
-            
-            const guide = {
-                id: order.order_id || data.id || generateId('guide'),
-                dateTime: dateTimeValue,
-                tourActivity: data.tour_activity || data.tourActivity || '',
-                tourName: data.tour_activity || data.tourActivity || '',
-                language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
-                languages: languagesValue,
-                guideName: data.guide_name || data.guideName || '',
-                name: data.guide_name || data.guideName || '',
-                guideId: data.guide_id || data.guideId || 0,
-                guide_id: data.guide_id || data.guideId || 0,
-                hours: parseInt(data.hours || data.entrytime || 12),
-                adultsQty: parseInt(data.adults || data.adultsQty || 0),
-                adults: parseInt(data.adults || data.adultsQty || 0),
-                childQty: parseInt(data.children || data.childQty || 0),
-                children: parseInt(data.children || data.childQty || 0),
-                adultCost: parseFloat(data.adultCost || data.adult_cost || data.basePrice || data.cost || 0),
-                childCost: parseFloat(data.childCost || data.child_cost || 0),
-                adultSell: parseFloat(data.adultSell || data.adult_sell || data.sell || 0),
-                childSell: parseFloat(data.childSell || data.child_sell || 0),
-                cost: parseFloat(data.cost || data.adultCost || data.adult_cost || 0),
-                sell: parseFloat(data.sell || data.adultSell || data.adult_sell || 0),
-                basePrice: parseFloat(data.basePrice || data.adultCost || data.adult_cost || 0),
-                supplement: data.supplement || false,
-                destination: data.destination || data.country || data.city || '',
-                country: data.country || data.destination || '',
-                city: data.city || data.destination || '',
-                image: data.image || '',
-                experience: data.experience || 0,
-                booking_id: data.booking_id || 0,
-                isStandalone: true,
-                linkedTo: null,
-                sourceType: null,
-                sourceId: null
-            };
-            
-            guideList.push(guide);
-            console.log('Loaded standalone guide:', guide);
-        } else {
+        // Check if this guide is linked to a meal/restaurant/attraction
+        // These should be loaded from their parent service, not duplicated here
+        const isLinked = data.isStandalone === false || 
+                         data.linkedTo === 'restaurant' || 
+                         data.linkedTo === 'attraction' || 
+                         data.linkedTo === 'tour' ||
+                         data.linkedTo === 'arrival' ||
+                         data.linkedTo === 'departure' ||
+                         data.linkedTo === 'local_transport' ||
+                         data.sourceType === 'meal' ||
+                         data.sourceType === 'tour' ||
+                         data.sourceType === 'transfer';
+        
+        if (isLinked) {
             console.log('Skipping linked guide (will be loaded from parent service):', data);
+            return;
         }
+        
+        // Check if guide with this order_id already exists (already loaded from meal/transfer)
+        const guideId = order.order_id || data.id;
+        if (guideId) {
+            const existingGuide = guideList.find(g => String(g.id) === String(guideId));
+            if (existingGuide) {
+                console.log('Guide already exists in list, skipping duplicate:', guideId);
+                return;
+            }
+        }
+        
+        // Handle languages - can be array or string
+        let languagesValue = data.languages || data.language || 'English';
+        if (Array.isArray(languagesValue)) {
+            languagesValue = languagesValue.length > 0 ? languagesValue : ['English'];
+        } else if (typeof languagesValue === 'string') {
+            languagesValue = languagesValue ? [languagesValue] : ['English'];
+        }
+        
+        // Get dateTime - try multiple field names
+        let dateTimeValue = data.dateTime || data.date || data.pickupdate || data.bookingDate || '';
+        if (dateTimeValue && !dateTimeValue.includes('T') && dateTimeValue.length === 10) {
+            // If it's just a date (YYYY-MM-DD), add default time
+            dateTimeValue = dateTimeValue + 'T09:00';
+        }
+        
+        const guide = {
+            id: order.order_id || data.id || generateId('guide'),
+            dateTime: dateTimeValue,
+            tourActivity: data.tour_activity || data.tourActivity || '',
+            tourName: data.tour_activity || data.tourActivity || '',
+            language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
+            languages: languagesValue,
+            guideName: data.guide_name || data.guideName || '',
+            name: data.guide_name || data.guideName || '',
+            guideId: data.guide_id || data.guideId || 0,
+            guide_id: data.guide_id || data.guideId || 0,
+            hours: parseInt(data.hours || data.entrytime || 12),
+            adultsQty: parseInt(data.adults || data.adultsQty || 0),
+            adults: parseInt(data.adults || data.adultsQty || 0),
+            childQty: parseInt(data.children || data.childQty || 0),
+            children: parseInt(data.children || data.childQty || 0),
+            adultCost: parseFloat(data.adultCost || data.adult_cost || data.basePrice || data.cost || 0),
+            childCost: parseFloat(data.childCost || data.child_cost || 0),
+            adultSell: parseFloat(data.adultSell || data.adult_sell || data.sell || 0),
+            childSell: parseFloat(data.childSell || data.child_sell || 0),
+            cost: parseFloat(data.cost || data.adultCost || data.adult_cost || 0),
+            sell: parseFloat(data.sell || data.adultSell || data.adult_sell || 0),
+            basePrice: parseFloat(data.basePrice || data.adultCost || data.adult_cost || 0),
+            supplement: data.supplement || false,
+            destination: data.destination || data.country || data.city || '',
+            country: data.country || data.destination || '',
+            city: data.city || data.destination || '',
+            image: data.image || '',
+            experience: data.experience || 0,
+            booking_id: data.booking_id || 0,
+            isStandalone: true,
+            linkedTo: null,
+            sourceType: null,
+            sourceId: null
+        };
+        
+        guideList.push(guide);
+        console.log('Loaded standalone guide:', guide);
     }
     
     /**
