@@ -27171,15 +27171,44 @@
                 
                 if (!existingTransfer) {
                     // Only create new transfer entry if it doesn't already exist
+                    // Build pickup and dropoff names from available data
+                    let pickupName = transferData.pickup || transferData.pickupName || '';
+                    let dropoffName = transferData.dropoff || transferData.dropName || transferData.destination || '';
+                    
+                    // If service field exists, parse it (format: "Pickup / Dropoff")
+                    if (transferData.service && transferData.service.includes('/')) {
+                        const serviceParts = transferData.service.split('/').map(s => s.trim());
+                        if (serviceParts.length >= 2) {
+                            if (!pickupName) pickupName = serviceParts[0];
+                            if (!dropoffName) dropoffName = serviceParts[1];
+                        }
+                    }
+                    
+                    // If isDestinationPickup is true, the destination is actually pickup and restaurant is dropoff
+                    if (transferData.isDestinationPickup) {
+                        if (!pickupName && transferData.destination) pickupName = transferData.destination;
+                        if (!dropoffName) dropoffName = meal.restaurantName;
+                    } else {
+                        // Default: restaurant is pickup, destination is dropoff
+                        if (!pickupName) pickupName = meal.restaurantName || 'Restaurant';
+                        if (!dropoffName && transferData.destination) dropoffName = transferData.destination;
+                    }
+                    
+                    // Fallback to restaurant name if still empty
+                    if (!pickupName) pickupName = meal.restaurantName || 'Pickup';
+                    if (!dropoffName) dropoffName = meal.restaurantName || 'Dropoff';
+                    
                     const transferEntry = {
                         id: transferId,
                         transportMode: 'local',
                         dateTime: meal.dateTime,
-                        pickup: transferData.pickup || '',
-                        pickupName: transferData.pickup || '',
-                        dropoff: transferData.dropoff || transferData.destination || meal.restaurantName || '',
-                        dropName: transferData.dropoff || transferData.destination || meal.restaurantName || '',
-                        destination: `${transferData.pickup || 'Pickup'} → ${transferData.dropoff || transferData.destination || meal.restaurantName || 'Restaurant'}`,
+                        pickup: pickupName,
+                        pickupName: pickupName,
+                        dropoff: dropoffName,
+                        dropName: dropoffName,
+                        service: `${pickupName} / ${dropoffName}`,
+                        destination: `${pickupName} → ${dropoffName}`,
+                        restaurantName: meal.restaurantName || '', // Store restaurant name for reference
                         vehicleId: transferData.vehicleId || '',
                         vehicleType: transferData.vehicleType || '',
                         vehicleName: transferData.vehicleName || '',
@@ -27187,13 +27216,13 @@
                         way: transferWay,
                         hasTransfer: true,
                         // Use transfer's own PAX, not meal's PAX (to prevent multiplication)
-                        adults: parseInt(transferData.adults) || 0,
-                        child: parseInt(transferData.child) || 0,
+                        adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || 0,
+                        child: parseInt(transferData.child) || parseInt(transferData.childQty) || 0,
                         infant: parseInt(transferData.infant) || 0,
                         cost: parseFloat(transferData.cost || 0),
                         sell: parseFloat(transferData.sell || transferData.cost || 0),
-                        zonePrivatePrice: 0,
-                        zoneSharedPrice: 0,
+                        zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
+                        zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
                         taxIncluded: false,
                         supplement: meal.supplement,
                         isStandalone: false,
@@ -27211,23 +27240,28 @@
                 
                 meal.transferId = transferId;
                 
+                // Get the transfer entry we just created or the existing one
+                const transferEntryForInfo = existingTransfer || transferList.find(t => t.id === transferId);
+                
                 // Store transferInfo in meal object for editing (use transfer's own PAX)
                 meal.transferInfo = {
                     id: transferId,
-                    destination: transferData.destination || transferData.dropoff || meal.restaurantName || '',
+                    destination: transferEntryForInfo?.dropoff || transferData.destination || transferData.dropoff || meal.restaurantName || '',
                     destinationId: transferData.destinationId || null,
                     vehicleId: transferData.vehicleId || '',
                     vehicleName: transferData.vehicleName || '',
                     vehicleType: transferData.vehicleType || '',
                     type: transferType,
                     way: transferWay,
-                    pickup: transferData.pickup || '',
-                    dropoff: transferData.dropoff || transferData.destination || meal.restaurantName || '',
+                    pickup: transferEntryForInfo?.pickup || transferData.pickup || '',
+                    dropoff: transferEntryForInfo?.dropoff || transferData.dropoff || transferData.destination || meal.restaurantName || '',
                     isDestinationPickup: transferData.isDestinationPickup || false,
                     cost: parseFloat(transferData.cost || 0),
                     sell: parseFloat(transferData.sell || transferData.cost || 0),
-                    adults: parseInt(transferData.adults) || 0,
-                    child: parseInt(transferData.child) || 0
+                    adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || 0,
+                    child: parseInt(transferData.child) || parseInt(transferData.childQty) || 0,
+                    zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
+                    zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0)
                 };
                 
                 console.log('Stored transferInfo in meal:', meal.transferInfo);
@@ -27354,6 +27388,31 @@
     function loadTransferOrder(data, order) {
         if (!Array.isArray(transferList)) {
             transferList = [];
+        }
+        
+        // Check if this transfer is linked to a meal/restaurant/attraction
+        // These should be loaded from their parent service, not duplicated here
+        const isLinked = data.isStandalone === false ||
+                         data.sourceType === 'meal' ||
+                         data.sourceType === 'tour' ||
+                         data.sourceType === 'attraction' ||
+                         data.source_type === 'meal' ||
+                         data.source_type === 'tour' ||
+                         data.source_type === 'attraction';
+        
+        if (isLinked) {
+            console.log('Skipping linked transfer (will be loaded from parent service):', data);
+            return;
+        }
+        
+        // Check if transfer with this order_id already exists (already loaded from meal/tour)
+        const transferId = order.order_id || data.id;
+        if (transferId) {
+            const existingTransfer = transferList.find(t => String(t.id) === String(transferId));
+            if (existingTransfer) {
+                console.log('Transfer already exists in list, skipping duplicate:', transferId);
+                return;
+            }
         }
         
         // Extract pickup and dropoff information from various possible fields
@@ -27621,65 +27680,87 @@
             guideList = [];
         }
         
-        // CRITICAL FIX: Load all guides by default unless explicitly marked as non-standalone
-        // Most guides from DB are standalone
-        if (data.isStandalone !== false && !data.linkedTo) {
-            // Handle languages - can be array or string
-            let languagesValue = data.languages || data.language || 'English';
-            if (Array.isArray(languagesValue)) {
-                languagesValue = languagesValue.length > 0 ? languagesValue : ['English'];
-            } else if (typeof languagesValue === 'string') {
-                languagesValue = languagesValue ? [languagesValue] : ['English'];
-            }
-            
-            // Get dateTime - try multiple field names
-            let dateTimeValue = data.dateTime || data.date || data.pickupdate || data.bookingDate || '';
-            if (dateTimeValue && !dateTimeValue.includes('T') && dateTimeValue.length === 10) {
-                // If it's just a date (YYYY-MM-DD), add default time
-                dateTimeValue = dateTimeValue + 'T09:00';
-            }
-            
-            const guide = {
-                id: order.order_id || data.id || generateId('guide'),
-                dateTime: dateTimeValue,
-                tourActivity: data.tour_activity || data.tourActivity || '',
-                tourName: data.tour_activity || data.tourActivity || '',
-                language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
-                languages: languagesValue,
-                guideName: data.guide_name || data.guideName || '',
-                name: data.guide_name || data.guideName || '',
-                guideId: data.guide_id || data.guideId || 0,
-                guide_id: data.guide_id || data.guideId || 0,
-                hours: parseInt(data.hours || data.entrytime || 12),
-                adultsQty: parseInt(data.adults || data.adultsQty || 0),
-                adults: parseInt(data.adults || data.adultsQty || 0),
-                childQty: parseInt(data.children || data.childQty || 0),
-                children: parseInt(data.children || data.childQty || 0),
-                adultCost: parseFloat(data.adultCost || data.adult_cost || data.basePrice || data.cost || 0),
-                childCost: parseFloat(data.childCost || data.child_cost || 0),
-                adultSell: parseFloat(data.adultSell || data.adult_sell || data.sell || 0),
-                childSell: parseFloat(data.childSell || data.child_sell || 0),
-                cost: parseFloat(data.cost || data.adultCost || data.adult_cost || 0),
-                sell: parseFloat(data.sell || data.adultSell || data.adult_sell || 0),
-                basePrice: parseFloat(data.basePrice || data.adultCost || data.adult_cost || 0),
-                supplement: data.supplement || false,
-                destination: data.destination || data.country || data.city || '',
-                country: data.country || data.destination || '',
-                city: data.city || data.destination || '',
-                image: data.image || '',
-                experience: data.experience || 0,
-                booking_id: data.booking_id || 0,
-                isStandalone: true,
-                linkedTo: null,
-                sourceType: null,
-                sourceId: null
-            };
-            
-            guideList.push(guide);
-            console.log('Loaded standalone guide:', guide);
-        } else {
+        // Check if this guide is linked to a meal/restaurant/attraction
+        // These should be loaded from their parent service, not duplicated here
+        const isLinked = data.isStandalone === false || 
+                         data.linkedTo === 'restaurant' || 
+                         data.linkedTo === 'attraction' || 
+                         data.linkedTo === 'tour' ||
+                         data.linkedTo === 'arrival' ||
+                         data.linkedTo === 'departure' ||
+                         data.linkedTo === 'local_transport' ||
+                         data.sourceType === 'meal' ||
+                         data.sourceType === 'tour' ||
+                         data.sourceType === 'transfer';
+        
+        if (isLinked) {
             console.log('Skipping linked guide (will be loaded from parent service):', data);
+            return;
         }
+        
+        // Check if guide with this order_id already exists (already loaded from meal/transfer)
+        const guideId = order.order_id || data.id;
+        if (guideId) {
+            const existingGuide = guideList.find(g => String(g.id) === String(guideId));
+            if (existingGuide) {
+                console.log('Guide already exists in list, skipping duplicate:', guideId);
+                return;
+            }
+        }
+        
+        // Handle languages - can be array or string
+        let languagesValue = data.languages || data.language || 'English';
+        if (Array.isArray(languagesValue)) {
+            languagesValue = languagesValue.length > 0 ? languagesValue : ['English'];
+        } else if (typeof languagesValue === 'string') {
+            languagesValue = languagesValue ? [languagesValue] : ['English'];
+        }
+        
+        // Get dateTime - try multiple field names
+        let dateTimeValue = data.dateTime || data.date || data.pickupdate || data.bookingDate || '';
+        if (dateTimeValue && !dateTimeValue.includes('T') && dateTimeValue.length === 10) {
+            // If it's just a date (YYYY-MM-DD), add default time
+            dateTimeValue = dateTimeValue + 'T09:00';
+        }
+        
+        const guide = {
+            id: order.order_id || data.id || generateId('guide'),
+            dateTime: dateTimeValue,
+            tourActivity: data.tour_activity || data.tourActivity || '',
+            tourName: data.tour_activity || data.tourActivity || '',
+            language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
+            languages: languagesValue,
+            guideName: data.guide_name || data.guideName || '',
+            name: data.guide_name || data.guideName || '',
+            guideId: data.guide_id || data.guideId || 0,
+            guide_id: data.guide_id || data.guideId || 0,
+            hours: parseInt(data.hours || data.entrytime || 12),
+            adultsQty: parseInt(data.adults || data.adultsQty || 0),
+            adults: parseInt(data.adults || data.adultsQty || 0),
+            childQty: parseInt(data.children || data.childQty || 0),
+            children: parseInt(data.children || data.childQty || 0),
+            adultCost: parseFloat(data.adultCost || data.adult_cost || data.basePrice || data.cost || 0),
+            childCost: parseFloat(data.childCost || data.child_cost || 0),
+            adultSell: parseFloat(data.adultSell || data.adult_sell || data.sell || 0),
+            childSell: parseFloat(data.childSell || data.child_sell || 0),
+            cost: parseFloat(data.cost || data.adultCost || data.adult_cost || 0),
+            sell: parseFloat(data.sell || data.adultSell || data.adult_sell || 0),
+            basePrice: parseFloat(data.basePrice || data.adultCost || data.adult_cost || 0),
+            supplement: data.supplement || false,
+            destination: data.destination || data.country || data.city || '',
+            country: data.country || data.destination || '',
+            city: data.city || data.destination || '',
+            image: data.image || '',
+            experience: data.experience || 0,
+            booking_id: data.booking_id || 0,
+            isStandalone: true,
+            linkedTo: null,
+            sourceType: null,
+            sourceId: null
+        };
+        
+        guideList.push(guide);
+        console.log('Loaded standalone guide:', guide);
     }
     
     /**
