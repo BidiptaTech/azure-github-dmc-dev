@@ -26853,10 +26853,14 @@
             guideInfo: null
         };
         
-        // Check for transferInfo directly in data (priority) or transfer_options
+        // Check for transferInfo directly in data (priority) or transfer_options or transferId
         const transferInfo = data.transferInfo || null;
         const transferOptions = data.transfer_options || null;
-        const hasTransfer = transferInfo || (transferOptions && transferOptions.transfer_required);
+        // Check multiple possible indicators that a transfer exists
+        const hasTransfer = transferInfo || 
+                           data.transferId || 
+                           data.hasTransfer === true ||
+                           (transferOptions && (transferOptions.transfer_required || transferOptions.vehicle_id || transferOptions.destination_name || transferOptions.cost));
         
         if (hasTransfer) {
             if (!Array.isArray(transferList)) {
@@ -26870,21 +26874,54 @@
                 const vehicleDetails = transferOptions.vehicle_details || {};
                 transferData = {
                     id: data.transferId || generateId('transfer'),
-                    destination: transferOptions.destination_name || tour.attractionName || '',
-                    destinationId: null,
-                    vehicleId: transferOptions.vehicle_id || '',
-                    vehicleName: vehicleDetails.vehicle_name || '',
-                    vehicleType: vehicleDetails.vehicle_type || '',
-                    type: transferOptions.type || 'S',
-                    way: transferOptions.way || 'one-way',
-                    pickup: transferOptions.pickup_location_name || '',
-                    dropoff: transferOptions.destination_name || tour.attractionName || '',
-                    isDestinationPickup: false,
-                    cost: parseFloat(transferOptions.cost || 0),
-                    sell: parseFloat(transferOptions.cost || 0),
-                    adults: tour.adultsQty,
-                    child: tour.childQty
+                    destination: transferOptions.destination_name || transferOptions.destination || tour.attractionName || '',
+                    destinationId: transferOptions.destinationId || transferOptions.destination_id || null,
+                    vehicleId: transferOptions.vehicle_id || transferOptions.vehicleId || '',
+                    vehicleName: vehicleDetails.vehicle_name || vehicleDetails.vehicleName || transferOptions.vehicleName || '',
+                    vehicleType: vehicleDetails.vehicle_type || vehicleDetails.vehicleType || transferOptions.vehicleType || '',
+                    type: transferOptions.type || transferOptions.transferType || 'S',
+                    way: transferOptions.way || transferOptions.transferWay || 'both-way',
+                    pickup: transferOptions.pickup_location_name || transferOptions.pickup || '',
+                    dropoff: transferOptions.destination_name || transferOptions.dropoff || tour.attractionName || '',
+                    isDestinationPickup: transferOptions.isDestinationPickup || false,
+                    cost: parseFloat(transferOptions.cost || transferOptions.Cost || 0),
+                    sell: parseFloat(transferOptions.sell || transferOptions.Sell || transferOptions.cost || 0),
+                    adults: parseInt(transferOptions.adults || transferOptions.adultsQty) || tour.adultsQty || 0,
+                    child: parseInt(transferOptions.child || transferOptions.childQty) || tour.childQty || 0,
+                    zonePrivatePrice: parseFloat(transferOptions.zonePrivatePrice || 0),
+                    zoneSharedPrice: parseFloat(transferOptions.zoneSharedPrice || 0)
                 };
+            }
+            
+            // If still no transferData but we have transferId, try to get it from the transferList
+            if (!transferData && data.transferId) {
+                const existingTransferById = transferList.find(t => String(t.id) === String(data.transferId));
+                if (existingTransferById) {
+                    // Transfer already exists in list, just link to it
+                    tour.transferId = data.transferId;
+                    tour.transferInfo = {
+                        id: existingTransferById.id,
+                        destination: existingTransferById.dropoff || existingTransferById.destination || '',
+                        destinationId: existingTransferById.destinationId || null,
+                        vehicleId: existingTransferById.vehicleId || '',
+                        vehicleName: existingTransferById.vehicleName || '',
+                        vehicleType: existingTransferById.vehicleType || '',
+                        type: existingTransferById.type || 'S',
+                        way: existingTransferById.way || 'both-way',
+                        pickup: existingTransferById.pickup || '',
+                        dropoff: existingTransferById.dropoff || '',
+                        isDestinationPickup: existingTransferById.isDestinationPickup || false,
+                        cost: parseFloat(existingTransferById.cost || 0),
+                        sell: parseFloat(existingTransferById.sell || 0),
+                        adults: parseInt(existingTransferById.adults) || 0,
+                        child: parseInt(existingTransferById.child) || 0,
+                        zonePrivatePrice: parseFloat(existingTransferById.zonePrivatePrice || 0),
+                        zoneSharedPrice: parseFloat(existingTransferById.zoneSharedPrice || 0)
+                    };
+                    console.log('Linked tour to existing transfer by ID:', data.transferId);
+                    // Skip further processing since transfer is already linked
+                    transferData = null;
+                }
             }
             
             if (transferData) {
@@ -27163,10 +27200,14 @@
             guideInfo: null
         };
         
-        // Check for transferInfo directly in data (priority) or transfer_options
+        // Check for transferInfo directly in data (priority) or transfer_options or transferId
         const transferInfo = data.transferInfo || null;
         const transferOptions = data.transfer_options || null;
-        const hasTransfer = transferInfo || (transferOptions && transferOptions.transfer_required);
+        // Check multiple possible indicators that a transfer exists
+        const hasTransfer = transferInfo || 
+                           data.transferId || 
+                           data.hasTransfer === true ||
+                           (transferOptions && (transferOptions.transfer_required || transferOptions.vehicle_id || transferOptions.destination_name || transferOptions.cost));
         
         if (hasTransfer) {
             if (!Array.isArray(transferList)) {
@@ -27180,21 +27221,54 @@
                 const vehicleDetails = transferOptions.vehicle_details || {};
                 transferData = {
                     id: data.transferId || generateId('transfer'),
-                    destination: transferOptions.destination_name || meal.restaurantName || '',
-                    destinationId: null,
-                    vehicleId: transferOptions.vehicle_id || '',
-                    vehicleName: vehicleDetails.vehicle_name || '',
-                    vehicleType: vehicleDetails.vehicle_type || '',
-                    type: transferOptions.type || 'S',
-                    way: transferOptions.way || 'one-way',
-                    pickup: transferOptions.pickup_location_name || '',
-                    dropoff: transferOptions.destination_name || meal.restaurantName || '',
-                    isDestinationPickup: false,
-                    cost: parseFloat(transferOptions.cost || 0),
-                    sell: parseFloat(transferOptions.sell || transferOptions.cost || 0),
-                    adults: parseInt(transferOptions.adults) || 0,
-                    child: parseInt(transferOptions.child) || 0
+                    destination: transferOptions.destination_name || transferOptions.destination || meal.restaurantName || '',
+                    destinationId: transferOptions.destinationId || transferOptions.destination_id || null,
+                    vehicleId: transferOptions.vehicle_id || transferOptions.vehicleId || '',
+                    vehicleName: vehicleDetails.vehicle_name || vehicleDetails.vehicleName || transferOptions.vehicleName || '',
+                    vehicleType: vehicleDetails.vehicle_type || vehicleDetails.vehicleType || transferOptions.vehicleType || '',
+                    type: transferOptions.type || transferOptions.transferType || 'S',
+                    way: transferOptions.way || transferOptions.transferWay || 'both-way',
+                    pickup: transferOptions.pickup_location_name || transferOptions.pickup || '',
+                    dropoff: transferOptions.destination_name || transferOptions.dropoff || meal.restaurantName || '',
+                    isDestinationPickup: transferOptions.isDestinationPickup || false,
+                    cost: parseFloat(transferOptions.cost || transferOptions.Cost || 0),
+                    sell: parseFloat(transferOptions.sell || transferOptions.Sell || transferOptions.cost || 0),
+                    adults: parseInt(transferOptions.adults || transferOptions.adultsQty) || meal.adultsQty || 0,
+                    child: parseInt(transferOptions.child || transferOptions.childQty) || meal.childQty || 0,
+                    zonePrivatePrice: parseFloat(transferOptions.zonePrivatePrice || 0),
+                    zoneSharedPrice: parseFloat(transferOptions.zoneSharedPrice || 0)
                 };
+            }
+            
+            // If still no transferData but we have transferId, try to get it from the transferList
+            if (!transferData && data.transferId) {
+                const existingTransferById = transferList.find(t => String(t.id) === String(data.transferId));
+                if (existingTransferById) {
+                    // Transfer already exists in list, just link to it
+                    meal.transferId = data.transferId;
+                    meal.transferInfo = {
+                        id: existingTransferById.id,
+                        destination: existingTransferById.dropoff || existingTransferById.destination || '',
+                        destinationId: existingTransferById.destinationId || null,
+                        vehicleId: existingTransferById.vehicleId || '',
+                        vehicleName: existingTransferById.vehicleName || '',
+                        vehicleType: existingTransferById.vehicleType || '',
+                        type: existingTransferById.type || 'S',
+                        way: existingTransferById.way || 'both-way',
+                        pickup: existingTransferById.pickup || '',
+                        dropoff: existingTransferById.dropoff || '',
+                        isDestinationPickup: existingTransferById.isDestinationPickup || false,
+                        cost: parseFloat(existingTransferById.cost || 0),
+                        sell: parseFloat(existingTransferById.sell || 0),
+                        adults: parseInt(existingTransferById.adults) || 0,
+                        child: parseInt(existingTransferById.child) || 0,
+                        zonePrivatePrice: parseFloat(existingTransferById.zonePrivatePrice || 0),
+                        zoneSharedPrice: parseFloat(existingTransferById.zoneSharedPrice || 0)
+                    };
+                    console.log('Linked meal to existing transfer by ID:', data.transferId);
+                    // Skip further processing since transfer is already linked
+                    transferData = null;
+                }
             }
             
             if (transferData) {
