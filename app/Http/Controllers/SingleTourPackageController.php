@@ -31,6 +31,7 @@ use Illuminate\Support\Facades\Schema;
 use App\Models\Agency;
 use App\Models\Tax;
 use App\Models\Guest;
+use App\Models\MultiRestaurant;
 
 class SingleTourPackageController extends Controller
 {
@@ -222,11 +223,31 @@ class SingleTourPackageController extends Controller
 
         $UserDmc = User::select('userId','zone_on')->where('userId', $userDmcId)->first();
         $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
+
+        // Multi Restaurant (Buffet) packages for this DMC – one package per DMC, show at top of restaurant section
+        $multiRestaurants = collect();
+        if (Schema::hasColumn('multi_restaurants', 'dmc_id')) {
+            $multiRestaurant = MultiRestaurant::where('dmc_id', (int) $userDmcId)
+                ->where('status', 1)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            if ($multiRestaurant) {
+                $multiRestaurants = collect([$multiRestaurant]);
+            }
+        } else {
+            // Fallback: if no dmc_id column, get first active one
+            $multiRestaurant = MultiRestaurant::where('status', 1)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            if ($multiRestaurant) {
+                $multiRestaurants = collect([$multiRestaurant]);
+            }
+        }
         
         // Pass restaurant_data for detailed display
         $restaurant_data = isset($enquiry->restaurant_ids) ? json_decode($enquiry->restaurant_ids, true) : [];
         
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data', 'entryDropoffLocation', 'exitPickupLocation'));
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data', 'multiRestaurants', 'entryDropoffLocation', 'exitPickupLocation'));
     }
     
     /**
@@ -978,6 +999,26 @@ class SingleTourPackageController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Multi Restaurant (Buffet) packages for this DMC – one package per DMC, show in restaurant modal
+        $multiRestaurants = collect();
+        if (Schema::hasColumn('multi_restaurants', 'dmc_id')) {
+            $multiRestaurant = MultiRestaurant::where('dmc_id', (int) $userDmcId)
+                ->where('status', 1)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            if ($multiRestaurant) {
+                $multiRestaurants = collect([$multiRestaurant]);
+            }
+        } else {
+            // Fallback: if no dmc_id column, get first active one
+            $multiRestaurant = MultiRestaurant::where('status', 1)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            if ($multiRestaurant) {
+                $multiRestaurants = collect([$multiRestaurant]);
+            }
+        }
+
         $orders = Order::where('tour_id', $tourId)
             ->whereNull('deleted_at')
             ->orderBy('created_at', 'desc')
@@ -1081,7 +1122,8 @@ class SingleTourPackageController extends Controller
             'hotelOrders',
             'tourDays',
             'cities',
-            'UserDmc'
+            'UserDmc',
+            'multiRestaurants'
         ));
     }
 
