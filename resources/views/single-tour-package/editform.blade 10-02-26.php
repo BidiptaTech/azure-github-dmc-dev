@@ -623,32 +623,6 @@
             background-size: 12px;
             padding-right: 28px;
         }
-
-        /* Compact hotel booking modal (no scrolling, first-glance layout) */
-        #hotelBookingModal .modal-body {
-            max-height: 65vh;
-            padding: 0.75rem;
-        }
-
-        #hotelBookingModal .card {
-            padding: 0.5rem !important;
-        }
-
-        #hotelBookingModal .modern-select,
-        #hotelBookingModal .modern-input {
-            height: 32px;
-            font-size: 0.78rem;
-        }
-
-        #hotelBookingModal .form-label {
-            margin-bottom: 0.2rem;
-            font-size: 0.72rem;
-        }
-
-        #hotelBookingModal small,
-        #hotelBookingModal .form-text {
-            font-size: 0.65rem;
-        }
 </style>
 
 <div class="content-wrapper excel-form">
@@ -922,15 +896,6 @@
                                     $numberOfPersons = 0;
                                     $hotelId = $hotelDetails['hotel_id'] ?? '';
                                     $totalPrice = $hotelInfo['totalPrice'] ?? $hotelInfo['price'] ?? 0;
-
-                                    // Child pricing from processed data (if previously saved)
-                                    $childWithBedData = $hotelInfo['child_with_bed'] ?? null;
-                                    $childWithoutBedData = $hotelInfo['child_without_bed'] ?? null;
-                                    $childWithBedEnabled = is_array($childWithBedData) && ($childWithBedData['enabled'] ?? false);
-                                    $childWithoutBedEnabled = is_array($childWithoutBedData) && ($childWithoutBedData['enabled'] ?? false);
-                                    // Default JSON payloads so controller always receives valid JSON when checked
-                                    $childWithBedJson = $childWithBedData ? json_encode($childWithBedData) : json_encode(['enabled' => true]);
-                                    $childWithoutBedJson = $childWithoutBedData ? json_encode($childWithoutBedData) : json_encode(['enabled' => true]);
                                     
                                     if (!empty($rooms) && is_array($rooms)) {
                                         $firstRoom = $rooms[0] ?? [];
@@ -1246,9 +1211,6 @@
                                                                             option.dataset.roomId = sampleRoom.room_id;
                                                                             option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
                                                                             option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
-                                                                            // Child pricing from rooms table
-                                                                            option.dataset.childWithBed = sampleRoom.child_with_bed || 0;
-                                                                            option.dataset.childWithoutBed = sampleRoom.child_without_bed || 0;
                                                                             // Preserve existing selection if it matches
                                                                             if (roomType === existingRoomType) {
                                                                                 option.selected = true;
@@ -1256,8 +1218,6 @@
                                                                                 setTimeout(() => {
                                                                                     loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(roomType);
                                                                                     updateHotelPrice_{{ $hotelOrder->booking_id }}();
-                                                                                    updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(roomType);
-                                                                                    updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
                                                                                 }, 100);
                                                                             }
                                                                             roomTypeSelect.appendChild(option);
@@ -1266,13 +1226,6 @@
                                                                     
                                                                     roomTypeSelect.disabled = false;
                                                                     console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
-                                                                    
-                                                                    // Update price grid if room type is already selected
-                                                                    if (existingRoomType) {
-                                                                        setTimeout(() => {
-                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
-                                                                        }, 200);
-                                                                    }
                                                                 } else {
                                                                     roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
                                                                 }
@@ -1506,11 +1459,8 @@
                                                         
                                                         const mealPlans = [];
                                                         
-                                                        // Add Room Only only when DMC (created_by user) is allowed to show prices (price_hide != 1)
-                                                        const dmcPriceHide = {{ isset($dmcUser) && ($dmcUser->price_hide ?? 0) == 1 ? 1 : 0 }};
-                                                        if (!dmcPriceHide) {
-                                                            mealPlans.push({ value: 'room_only', text: `Room Only${paxInfo}` });
-                                                        }
+                                                        // Always add Room Only
+                                                        mealPlans.push({ value: 'room_only', text: `Room Only${paxInfo}` });
                                                         
                                                         // Add meal plans only if available in room data
                                                         if (hasBreakfast) {
@@ -1554,26 +1504,18 @@
                                                                     const planValue = plan.value.toLowerCase().trim();
                                                                     const planText = plan.text.toLowerCase().trim();
                                                                     
-                                                                    // Normalize special characters for comparison
-                                                                    const normalizedExisting = existingValue.replace(/[&\s]/g, '_').replace(/_+/g, '_');
-                                                                    const normalizedPlan = planValue.replace(/[&\s]/g, '_').replace(/_+/g, '_');
-                                                                    
                                                                     // Try multiple matching strategies
                                                                     const match1 = planValue === existingValue;
-                                                                    const match2 = normalizedPlan === normalizedExisting;
-                                                                    const match3 = planValue.includes(existingValue.replace(/\s+/g, '_'));
-                                                                    const match4 = planText.includes(existingValue);
-                                                                    const match5 = existingValue.includes(planValue);
-                                                                    const match6 = existingValue.replace(/\s+/g, '_') === planValue;
-                                                                    const match7 = existingValue.replace(/\s+/g, '') === planValue.replace(/_/g, '');
-                                                                    const match8 = normalizedPlan.includes(normalizedExisting) || normalizedExisting.includes(normalizedPlan);
+                                                                    const match2 = planValue.includes(existingValue.replace(/\s+/g, '_'));
+                                                                    const match3 = planText.includes(existingValue);
+                                                                    const match4 = existingValue.includes(planValue);
+                                                                    const match5 = existingValue.replace(/\s+/g, '_') === planValue;
+                                                                    const match6 = existingValue.replace(/\s+/g, '') === planValue.replace(/_/g, '');
                                                                     
-                                                                    // Also check common meal plan variations - improved matching
+                                                                    // Also check common meal plan variations
                                                                     const mealPlanVariations = {
                                                                         'room only': ['room_only'],
                                                                         'bed & breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
-                                                                        'bed_&_breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
-                                                                        'bed_and_breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
                                                                         'room with breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
                                                                         'breakfast only': ['breakfast_only'],
                                                                         'lunch only': ['lunch_only'],
@@ -1585,16 +1527,7 @@
                                                                     
                                                                     let variationMatch = false;
                                                                     for (const [key, values] of Object.entries(mealPlanVariations)) {
-                                                                        // Check if existing value matches key (normalized)
-                                                                        const normalizedKey = key.toLowerCase().replace(/[&\s]/g, '_').replace(/_+/g, '_');
-                                                                        const normalizedExistingForMatch = existingValue.replace(/[&\s]/g, '_').replace(/_+/g, '_');
-                                                                        
-                                                                        if ((normalizedExistingForMatch.includes(normalizedKey) || normalizedKey.includes(normalizedExistingForMatch)) && values.includes(planValue)) {
-                                                                            variationMatch = true;
-                                                                            break;
-                                                                        }
-                                                                        // Also check direct value match
-                                                                        if (values.includes(existingValue) && values.includes(planValue)) {
+                                                                        if (existingValue.includes(key) && values.includes(planValue)) {
                                                                             variationMatch = true;
                                                                             break;
                                                                         }
@@ -1607,14 +1540,7 @@
                                                                         }
                                                                     }
                                                                     
-                                                                    // Direct check for bed_&_breakfast variations
-                                                                    if (!variationMatch && (existingValue === 'bed_&_breakfast' || existingValue === 'bed_and_breakfast' || existingValue.includes('bed') && existingValue.includes('breakfast'))) {
-                                                                        if (planValue === 'bed_&_breakfast' || planValue === 'bed_and_breakfast') {
-                                                                            variationMatch = true;
-                                                                        }
-                                                                    }
-                                                                    
-                                                                    if (match1 || match2 || match3 || match4 || match5 || match6 || match7 || match8 || variationMatch) {
+                                                                    if (match1 || match2 || match3 || match4 || match5 || match6 || variationMatch) {
                                                                         option.selected = true;
                                                                         mealPlanSelected = true;
                                                                     }
@@ -1627,14 +1553,6 @@
                                                             console.log(`Loaded ${mealPlans.length} meal plan options dynamically from room data with pax info`);
                                                             if (existingMealPlan && mealPlanSelected) {
                                                                 console.log(`Meal plan "${existingMealPlan}" was automatically selected`);
-                                                                // Auto-update hotel price grid so meal price appears on initial load
-                                                                setTimeout(() => {
-                                                                    try {
-                                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
-                                                                    } catch (e) {
-                                                                        console.error('Error updating hotel price grid after meal plan auto-select:', e);
-                                                                    }
-                                                                }, 150);
                                                             }
                                                         } else {
                                                             mealPlanSelect.innerHTML = '<option value="">No meal plans available for this room</option>';
@@ -1735,251 +1653,6 @@
                                                         
                                                         window.roomData_{{ $hotelOrder->booking_id }} = null;
                                                     }
-
-                                                    // Show/hide child pricing checkboxes based on room having child_with_bed and child_without_bed prices
-                                                    function updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(roomType) {
-                                                        const wrapCwb = document.getElementById('child_with_bed_wrap_{{ $hotelOrder->booking_id }}');
-                                                        const wrapCnb = document.getElementById('child_without_bed_wrap_{{ $hotelOrder->booking_id }}');
-                                                        const chkCwb = document.getElementById('child_with_bed_{{ $hotelOrder->booking_id }}');
-                                                        const chkCnb = document.getElementById('child_without_bed_{{ $hotelOrder->booking_id }}');
-                                                        const labelCwb = document.getElementById('child_with_bed_price_label_{{ $hotelOrder->booking_id }}');
-                                                        const labelCnb = document.getElementById('child_without_bed_price_label_{{ $hotelOrder->booking_id }}');
-                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
-
-                                                        if (!wrapCwb || !wrapCnb) {
-                                                            return;
-                                                        }
-
-                                                        // Store initial checked state from PHP (if checkbox has checked attribute)
-                                                        if (chkCwb && !chkCwb.hasAttribute('data-initial-state-set')) {
-                                                            chkCwb.dataset.initialChecked = chkCwb.checked ? 'true' : 'false';
-                                                            chkCwb.setAttribute('data-initial-state-set', 'true');
-                                                        }
-                                                        if (chkCnb && !chkCnb.hasAttribute('data-initial-state-set')) {
-                                                            chkCnb.dataset.initialChecked = chkCnb.checked ? 'true' : 'false';
-                                                            chkCnb.setAttribute('data-initial-state-set', 'true');
-                                                        }
-
-                                                        if (!roomType || !Array.isArray(roomData)) {
-                                                            wrapCwb.style.display = 'none';
-                                                            wrapCnb.style.display = 'none';
-                                                            if (chkCwb) chkCwb.checked = false;
-                                                            if (chkCnb) chkCnb.checked = false;
-                                                            if (labelCwb) labelCwb.textContent = '';
-                                                            if (labelCnb) labelCnb.textContent = '';
-                                                            return;
-                                                        }
-
-                                                        const room = roomData.find(function(r){ return r.room_type === roomType; });
-                                                        if (!room) {
-                                                            wrapCwb.style.display = 'none';
-                                                            wrapCnb.style.display = 'none';
-                                                            if (chkCwb) chkCwb.checked = false;
-                                                            if (chkCnb) chkCnb.checked = false;
-                                                            if (labelCwb) labelCwb.textContent = '';
-                                                            if (labelCnb) labelCnb.textContent = '';
-                                                            return;
-                                                        }
-
-                                                        const cwbPrice = parseFloat(room.child_with_bed) || 0;
-                                                        const cnbPrice = parseFloat(room.child_without_bed) || 0;
-
-                                                        wrapCwb.style.display = cwbPrice > 0 ? 'block' : 'none';
-                                                        wrapCnb.style.display = cnbPrice > 0 ? 'block' : 'none';
-
-                                                        if (labelCwb) {
-                                                            labelCwb.textContent = cwbPrice > 0 ? '($' + cwbPrice.toFixed(2) + ')' : '';
-                                                        }
-                                                        if (labelCnb) {
-                                                            labelCnb.textContent = cnbPrice > 0 ? '($' + cnbPrice.toFixed(2) + ')' : '';
-                                                        }
-
-                                                        // Restore initial checked state if price is available, otherwise uncheck
-                                                        if (chkCwb) {
-                                                            if (cwbPrice <= 0) {
-                                                                chkCwb.checked = false;
-                                                            } else if (chkCwb.dataset.initialChecked === 'true') {
-                                                                // Restore initial checked state from PHP
-                                                                chkCwb.checked = true;
-                                                            }
-                                                        }
-                                                        
-                                                        if (chkCnb) {
-                                                            if (cnbPrice <= 0) {
-                                                                chkCnb.checked = false;
-                                                            } else if (chkCnb.dataset.initialChecked === 'true') {
-                                                                // Restore initial checked state from PHP
-                                                                chkCnb.checked = true;
-                                                            }
-                                                        }
-                                                    }
-                                                    
-                                                    // Function to update hotel price breakdown grid
-                                                    function updateHotelPriceGrid_{{ $hotelOrder->booking_id }}() {
-                                                        const gridBody = document.getElementById('hotel_price_grid_body_{{ $hotelOrder->booking_id }}');
-                                                        const grandTotalEl = document.getElementById('hotel_grand_total_{{ $hotelOrder->booking_id }}');
-                                                        
-                                                        if (!gridBody || !grandTotalEl) {
-                                                            return;
-                                                        }
-                                                        
-                                                        const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
-                                                        if (!formDiv) {
-                                                            return;
-                                                        }
-                                                        
-                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
-                                                        const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
-                                                        const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
-                                                        const checkInInput = formDiv.querySelector('input[name="check_in_date"]');
-                                                        const checkOutInput = formDiv.querySelector('input[name="check_out_date"]');
-                                                        const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
-                                                        const childWithBedCheckbox = formDiv.querySelector('input[name="child_with_bed"]');
-                                                        const childWithoutBedCheckbox = formDiv.querySelector('input[name="child_without_bed"]');
-                                                        const childrenInput = document.getElementById('children');
-                                                        
-                                                        const selectedRoomType = roomTypeSelect ? roomTypeSelect.value : '';
-                                                        const numberOfRooms = parseInt(numberOfRoomsInput ? numberOfRoomsInput.value : '1') || 1;
-                                                        const numberOfPersons = parseInt(numberOfPersonsInput ? numberOfPersonsInput.value : '1') || 1;
-                                                        const childrenCount = parseInt(childrenInput ? childrenInput.value : '0') || 0;
-                                                        
-                                                        // Calculate number of nights
-                                                        let numberOfNights = 1;
-                                                        if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
-                                                            const checkIn = new Date(checkInInput.value);
-                                                            const checkOut = new Date(checkOutInput.value);
-                                                            numberOfNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-                                                            if (numberOfNights <= 0) numberOfNights = 1;
-                                                        }
-                                                        
-                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
-                                                        const selectedRoom = roomData.find(room => room.room_type === selectedRoomType);
-                                                        
-                                                        if (!selectedRoom || !selectedRoomType) {
-                                                            gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Select room type to see price breakdown</div>';
-                                                            grandTotalEl.textContent = '$0.00';
-                                                            return;
-                                                        }
-                                                        
-                                                        // Calculate room price
-                                                        const isSingleOccupancy = numberOfPersons <= 1;
-                                                        const pricePerNight = isSingleOccupancy 
-                                                            ? parseFloat(selectedRoom.weekday_price || 0)
-                                                            : parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        const roomSubtotal = pricePerNight * numberOfNights * numberOfRooms;
-                                                        
-                                                        // Calculate meal plan price (if meal plan has price)
-                                                        let mealPlanPrice = 0;
-                                                        let mealPlanSubtotal = 0;
-                                                        const selectedMealPlan = mealPlanSelect ? mealPlanSelect.value : '';
-                                                        if (selectedMealPlan && selectedMealPlan !== 'room_only' && selectedRoom) {
-                                                            // Try to get meal prices from room data
-                                                            const breakfastPrice = parseFloat(selectedRoom.breakfast_price || 0);
-                                                            const lunchPrice = parseFloat(selectedRoom.lunch_price || 0);
-                                                            const dinnerPrice = parseFloat(selectedRoom.dinner_price || 0);
-                                                            
-                                                            // Calculate meal plan price based on selected plan
-                                                            if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
-                                                                mealPlanPrice = breakfastPrice + lunchPrice + dinnerPrice;
-                                                            } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch')) {
-                                                                mealPlanPrice = breakfastPrice + lunchPrice;
-                                                            } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('dinner')) {
-                                                                mealPlanPrice = breakfastPrice + dinnerPrice;
-                                                            } else if (selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
-                                                                mealPlanPrice = lunchPrice + dinnerPrice;
-                                                            } else if (selectedMealPlan.includes('breakfast')) {
-                                                                mealPlanPrice = breakfastPrice;
-                                                            } else if (selectedMealPlan.includes('lunch')) {
-                                                                mealPlanPrice = lunchPrice;
-                                                            } else if (selectedMealPlan.includes('dinner')) {
-                                                                mealPlanPrice = dinnerPrice;
-                                                            }
-                                                            
-                                                            mealPlanSubtotal = mealPlanPrice * numberOfPersons * numberOfNights * numberOfRooms;
-                                                        }
-                                                        
-                                                        // Calculate child with bed price
-                                                        let childWithBedPrice = 0;
-                                                        let childWithBedSubtotal = 0;
-                                                        const childWithBedChecked = childWithBedCheckbox && childWithBedCheckbox.checked;
-                                                        if (childWithBedChecked && selectedRoom) {
-                                                            childWithBedPrice = parseFloat(selectedRoom.child_with_bed || 0);
-                                                            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-                                                            childWithBedSubtotal = childWithBedPrice * effectiveChildren * numberOfNights * numberOfRooms;
-                                                        }
-                                                        
-                                                        // Calculate child without bed price
-                                                        let childWithoutBedPrice = 0;
-                                                        let childWithoutBedSubtotal = 0;
-                                                        const childWithoutBedChecked = childWithoutBedCheckbox && childWithoutBedCheckbox.checked;
-                                                        if (childWithoutBedChecked && selectedRoom) {
-                                                            childWithoutBedPrice = parseFloat(selectedRoom.child_without_bed || 0);
-                                                            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-                                                            childWithoutBedSubtotal = childWithoutBedPrice * effectiveChildren * numberOfNights * numberOfRooms;
-                                                        }
-                                                        
-                                                        // Build card-style grid HTML with icons
-                                                        let gridHTML = '';
-                                                        
-                                                        // Room price row - card style with icon
-                                                        const roomLabel = numberOfNights === 1 ? 'weekday' : `${numberOfNights} weekday${numberOfNights > 1 ? 's' : ''}`;
-                                                        gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
-                                                            <div class="d-flex align-items-center">
-                                                                <i class="ri-hotel-line me-2" style="font-size: 1rem; color: #dc2626;"></i>
-                                                                <span style="color: #475569;"><strong>Room Price:</strong></span>
-                                                            </div>
-                                                            <span style="color: #1e293b; font-weight: 500;">$${roomSubtotal.toFixed(2)} <small class="text-muted">(${roomLabel} @ $${pricePerNight.toFixed(2)}/night x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''})</small></span>
-                                                        </div>`;
-                                                        
-                                                        // Meal plan row (only if meal plan selected and has price)
-                                                        if (mealPlanSubtotal > 0) {
-                                                            gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
-                                                                <div class="d-flex align-items-center">
-                                                                    <i class="ri-restaurant-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
-                                                                    <span style="color: #475569;"><strong>Meal Cost:</strong></span>
-                                                                </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${mealPlanSubtotal.toFixed(2)}</span>
-                                                            </div>`;
-                                                        }
-                                                        
-                                                        // Child with bed row (only if checked and has price)
-                                                        if (childWithBedSubtotal > 0) {
-                                                            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-                                                            gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
-                                                                <div class="d-flex align-items-center">
-                                                                    <i class="ri-user-smile-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
-                                                                    <span style="color: #475569;"><strong>Child with Bed:</strong></span>
-                                                                </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${childWithBedSubtotal.toFixed(2)}</span>
-                                                            </div>`;
-                                                        }
-                                                        
-                                                        // Child without bed row (only if checked and has price)
-                                                        if (childWithoutBedSubtotal > 0) {
-                                                            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-                                                            gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
-                                                                <div class="d-flex align-items-center">
-                                                                    <i class="ri-user-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
-                                                                    <span style="color: #475569;"><strong>Child without Bed:</strong></span>
-                                                                </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${childWithoutBedSubtotal.toFixed(2)}</span>
-                                                            </div>`;
-                                                        }
-                                                        
-                                                        gridBody.innerHTML = gridHTML;
-                                                        
-                                                        // Calculate and display grand total
-                                                        const grandTotal = roomSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
-                                                        grandTotalEl.textContent = '$' + grandTotal.toFixed(2);
-                                                        
-                                                        // Update the Total Price input field to match the grid total
-                                                        const totalPriceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
-                                                        if (totalPriceInput && grandTotal > 0) {
-                                                            totalPriceInput.value = grandTotal.toFixed(2);
-                                                            // Clear manual edit flag since we're auto-updating from grid
-                                                            totalPriceInput.dataset.manualEdit = 'false';
-                                                        }
-                                                    }
                                                     
                                                     // Function to update hotel price based on room type and number of rooms
                                                     function updateHotelPrice_{{ $hotelOrder->booking_id }}(forceUpdate = false) {
@@ -2062,9 +1735,6 @@
                                                             // Only clear if current value is 0 (don't overwrite saved values)
                                                             priceInput.value = '0.00';
                                                         }
-                                                        
-                                                        // Update price grid
-                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
                                                     }
                                                     
                                                     // Track manual price edits - attach event listener immediately
@@ -2089,29 +1759,24 @@
                                                         if (hotelSelect && hotelSelect.value) {
                                                             updateHotelId_{{ $hotelOrder->booking_id }}(hotelSelect.value);
                                                         }
-                                                        
-                                                        // Initialize price grid after a short delay to ensure all data is loaded
-                                                        setTimeout(() => {
-                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
-                                                        }, 500);
                                                     });
                                                 </script>
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-check-line me-1 text-primary"></i>Check-in Date</label>
-                                                <input type="date" class="form-control border-2" style="height: 35px;" name="check_in_date" value="{{ $checkInValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <input type="date" class="form-control border-2" style="height: 35px;" name="check_in_date" value="{{ $checkInValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-close-line me-1 text-danger"></i>Check-out Date</label>
-                                                <input type="date" class="form-control border-2" style="height: 35px;" name="check_out_date" value="{{ $checkOutValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <input type="date" class="form-control border-2" style="height: 35px;" name="check_out_date" value="{{ $checkOutValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-door-open-line me-1 text-info"></i>Number of Rooms</label>
-                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-home-4-line me-1 text-secondary"></i>Room Type</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(this.value); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <select class="form-select border-2" style="height: 35px;" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Room Type</option>
                                                     @if($roomType)
                                                         <option value="{{ $roomType }}" selected>{{ $roomType }}</option>
@@ -2129,7 +1794,7 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-restaurant-line me-1 text-success"></i>Meal Plan</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}">
                                                     <option value="">Select Meal Plan</option>
                                                     @if($mealPlan)
                                                         <option value="{{ $mealPlan }}" selected>{{ $mealPlan }}</option>
@@ -2138,48 +1803,8 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Number of Persons (Pax)</label>
-                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                 <small class="text-muted d-block mt-1" id="pax_info_{{ $hotelOrder->booking_id }}"></small>
-                                            </div>
-                                            <div class="col-md-3" id="child_with_bed_wrap_{{ $hotelOrder->booking_id }}" style="display: none;">
-                                                <label class="form-label fw-semibold text-muted mb-2 d-block">
-                                                    <i class="ri-user-smile-line me-1 text-info"></i>Child with Bed
-                                                    <small class="text-muted" id="child_with_bed_price_label_{{ $hotelOrder->booking_id }}"></small>
-                                                </label>
-                                                <div class="form-check">
-                                                    <input
-                                                        class="form-check-input"
-                                                        type="checkbox"
-                                                        name="child_with_bed"
-                                                        id="child_with_bed_{{ $hotelOrder->booking_id }}"
-                                                        value="{{ $childWithBedJson }}"
-                                                        {{ $childWithBedEnabled ? 'checked' : '' }}
-                                                        onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();"
-                                                    >
-                                                    <label class="form-check-label" for="child_with_bed_{{ $hotelOrder->booking_id }}">
-                                                        Child with bed
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3" id="child_without_bed_wrap_{{ $hotelOrder->booking_id }}" style="display: none;">
-                                                <label class="form-label fw-semibold text-muted mb-2 d-block">
-                                                    <i class="ri-user-line me-1 text-warning"></i>Child without Bed
-                                                    <small class="text-muted" id="child_without_bed_price_label_{{ $hotelOrder->booking_id }}"></small>
-                                                </label>
-                                                <div class="form-check">
-                                                    <input
-                                                        class="form-check-input"
-                                                        type="checkbox"
-                                                        name="child_without_bed"
-                                                        id="child_without_bed_{{ $hotelOrder->booking_id }}"
-                                                        value="{{ $childWithoutBedJson }}"
-                                                        {{ $childWithoutBedEnabled ? 'checked' : '' }}
-                                                        onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();"
-                                                    >
-                                                    <label class="form-check-label" for="child_without_bed_{{ $hotelOrder->booking_id }}">
-                                                        Child without bed
-                                                    </label>
-                                                </div>
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2">
@@ -2192,39 +1817,6 @@
                                                 <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room & rooms</small>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Price Breakdown Grid -->
-                                        <div class="row mt-2">
-                                            <div class="col-12">
-                                                <div class="card shadow-sm" style="border-radius: 8px; border: 2px solid #60a5fa; overflow: hidden;">
-                                                    <!-- Header Section -->
-                                                    <div style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">
-                                                        <div class="d-flex align-items-center">
-                                                            <i class="ri-hotel-line me-2" style="font-size: 1.1rem; color: #2563eb;"></i>
-                                                            <span class="fw-bold" style="font-size: 0.85rem; color: #1e293b;">Hotel Pricing Details</span>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- Content Section -->
-                                                    <div class="card-body p-3" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
-                                                        <div id="hotel_price_grid_body_{{ $hotelOrder->booking_id }}">
-                                                            <div class="text-muted text-center py-2" style="font-size: 0.75rem;">
-                                                                Select room type to see price breakdown
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <!-- Total Section -->
-                                                        <div class="border-top pt-2 mt-2" style="border-color: #93c5fd !important;">
-                                                            <div class="d-flex justify-content-between align-items-center">
-                                                                <span class="fw-bold" style="font-size: 0.8rem; color: #1e40af;">Total:</span>
-                                                                <span class="fw-bold" style="font-size: 0.9rem; color: #198754;" id="hotel_grand_total_{{ $hotelOrder->booking_id }}">$0.00</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                             <div class="text-muted small" id="hotel_feedback_{{ $hotelOrder->booking_id }}"></div>
                                             <button type="button" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;" onclick="updateExistingHotel(event, {{ $hotelOrder->booking_id }})">
@@ -2366,33 +1958,9 @@
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Pick Up Time</label>
                                                 @php
-                                                    $time12 = $pickupTime ? date('h:i', strtotime($pickupTime)) : '';
-                                                    $ampm  = $pickupTime ? date('A', strtotime($pickupTime)) : 'AM';
+                                                    $time24 = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
                                                 @endphp
-                                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px;">
-                                                    <input
-                                                        type="text"
-                                                        class="form-control text-center"
-                                                        id="arrival_pickup_time_input_{{ $order->booking_id }}"
-                                                        placeholder="10:30"
-                                                        maxlength="5"
-                                                        value="{{ $time12 }}"
-                                                        style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
-                                                        oninput="formatTimeInput(this); syncArrivalPickupTime({{ $order->booking_id }})"
-                                                        onchange="syncArrivalPickupTime({{ $order->booking_id }})"
-                                                    >
-                                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                    <select
-                                                        class="form-select border-2"
-                                                        id="arrival_pickup_time_ampm_{{ $order->booking_id }}"
-                                                        style="width: 60px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                                        onchange="syncArrivalPickupTime({{ $order->booking_id }})"
-                                                    >
-                                                        <option value="AM" {{ $ampm === 'AM' ? 'selected' : '' }}>AM</option>
-                                                        <option value="PM" {{ $ampm === 'PM' ? 'selected' : '' }}>PM</option>
-                                                    </select>
-                                                </div>
-                                                <input type="hidden" name="pickup_time" id="arrival_pickup_time_{{ $order->booking_id }}" value="{{ $time12 ? ($time12.' '.$ampm) : '' }}">
+                                                <input type="time" class="form-control border-2" style="height: 35px;" name="pickup_time" value="{{ $time24 }}" required>
                                             </div>
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
@@ -3242,33 +2810,12 @@
                                                 </div>
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
-                                                    @php
-                                                        $guideTime = $pickupTimeAMPM ?: '';
-                                                    @endphp
-                                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px;">
-                                                        <input
-                                                            type="text"
-                                                            class="form-control text-center"
-                                                            id="guide_pickup_time_input_{{ $order->booking_id }}"
-                                                            placeholder="10:30"
-                                                            maxlength="5"
-                                                            value="{{ $guideTime ? \Carbon\Carbon::parse($guideTime)->format('h:i') : '' }}"
-                                                            style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
-                                                            oninput="formatTimeInput(this); syncGuideEditPickupTime({{ $order->booking_id }})"
-                                                            onchange="syncGuideEditPickupTime({{ $order->booking_id }})"
-                                                        >
-                                                        <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                        <select
-                                                            class="form-select border-0"
-                                                            id="guide_pickup_time_ampm_{{ $order->booking_id }}"
-                                                            style="width: 80px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                                            onchange="syncGuideEditPickupTime({{ $order->booking_id }})"
-                                                        >
-                                                            <option value="AM" {{ Str::endsWith($guideTime, 'AM') ? 'selected' : '' }}>AM</option>
-                                                            <option value="PM" {{ Str::endsWith($guideTime, 'PM') ? 'selected' : '' }}>PM</option>
-                                                        </select>
-                                                    </div>
-                                                    <input type="hidden" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" value="{{ $guideTime }}">
+                                                    <select class="form-select border-2" style="height: 35px;" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Guide First</option>
+                                                        @if($pickupTimeAMPM)
+                                                            <option value="{{ $pickupTimeAMPM }}" selected>{{ $pickupTimeAMPM }}</option>
+                                                        @endif
+                                                    </select>
                                                     <small class="text-muted d-block mt-1">Available times from selected guide</small>
                                                 </div>
                                                 <div class="col-md-6">
@@ -4325,34 +3872,23 @@
                                                                         }
                                                                     }
                                                                 }
-                                                                $departureTimeParts = $departureTimeAMPM ? explode(' ', $departureTimeAMPM) : [];
-                                                                $departureTimeOnly = $departureTimeParts[0] ?? '';
-                                                                $departureAmpm = $departureTimeParts[1] ?? 'AM';
                                                             @endphp
-                                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px;">
-                                                                <input
-                                                                    type="text"
-                                                                    class="form-control text-center"
-                                                                    id="departure_pickup_time_input_{{ $order->booking_id }}"
-                                                                    placeholder="10:30"
-                                                                    maxlength="5"
-                                                                    value="{{ $departureTimeOnly }}"
-                                                                    style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
-                                                                    oninput="formatTimeInput(this); syncDeparturePickupTime({{ $order->booking_id }})"
-                                                                    onchange="syncDeparturePickupTime({{ $order->booking_id }})"
-                                                                >
-                                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                                <select
-                                                                    class="form-select border-2"
-                                                                    id="departure_pickup_time_ampm_{{ $order->booking_id }}"
-                                                                    style="width: 60px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                                                    onchange="syncDeparturePickupTime({{ $order->booking_id }})"
-                                                                >
-                                                                    <option value="AM" {{ $departureAmpm === 'AM' ? 'selected' : '' }}>AM</option>
-                                                                    <option value="PM" {{ $departureAmpm === 'PM' ? 'selected' : '' }}>PM</option>
-                                                                </select>
-                                                            </div>
-                                                            <input type="hidden" name="pickup_time" id="departure_pickup_time_{{ $order->booking_id }}" value="{{ $departureTimeOnly ? ($departureTimeOnly.' '.$departureAmpm) : '' }}">
+                                                            <select class="form-select border-2" style="height: 35px;" name="pickup_time" id="departure_time_{{ $order->booking_id }}" required>
+                                                                <option value="">Select Time</option>
+                                                                @php
+                                                                    // Generate time slots from 12:00 AM to 11:30 PM in 30-minute intervals
+                                                                    $timeSlots = [];
+                                                                    for ($hour = 0; $hour < 24; $hour++) {
+                                                                        for ($minute = 0; $minute < 60; $minute += 30) {
+                                                                            $timeObj = \Carbon\Carbon::createFromTime($hour, $minute, 0);
+                                                                            $timeSlots[] = $timeObj->format('h:i A');
+                                                                        }
+                                                                    }
+                                                                @endphp
+                                                                @foreach($timeSlots as $timeSlot)
+                                                                    <option value="{{ $timeSlot }}" {{ $departureTimeAMPM == $timeSlot ? 'selected' : '' }}>{{ $timeSlot }}</option>
+                                                                @endforeach
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
@@ -4841,32 +4377,10 @@
 
                         <!-- Pickup Time -->
                         <div class="col-12 col-md-6">
-                            <label for="modal_guide_pickup_time_input" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                            <label for="modal_guide_pickup_time" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-time-line me-1" style="color: #fda085;"></i>Pickup Time
                             </label>
-                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px;">
-                                <input
-                                    type="text"
-                                    class="form-control text-center"
-                                    id="modal_guide_pickup_time_input"
-                                    placeholder="10:30"
-                                    maxlength="5"
-                                    style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
-                                    oninput="formatTimeInput(this); syncGuideModalPickupTime()"
-                                    onchange="syncGuideModalPickupTime()"
-                                >
-                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                <select
-                                    class="form-select border-0"
-                                    id="modal_guide_pickup_time_ampm"
-                                    style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                    onchange="syncGuideModalPickupTime()"
-                                >
-                                    <option value="AM">AM</option>
-                                    <option value="PM">PM</option>
-                                </select>
-                            </div>
-                            <input type="hidden" name="pickup_time" id="modal_guide_pickup_time">
+                            <input type="time" class="form-control modern-input" id="modal_guide_pickup_time" name="pickup_time" required style="height: 36px; font-size: 0.8rem;">
                         </div>
 
                         <!-- Guide Details Display -->
@@ -5029,49 +4543,9 @@
                                     </div>
                                     <div class="col-6">
                                         <label for="meal_plan" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Meal Plan</label>
-                                        <select class="form-select modern-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing(); updateHotelModalPrice();" disabled style="height: 36px; font-size: 0.8rem;">
+                                        <select class="form-select modern-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing()" disabled style="height: 36px; font-size: 0.8rem;">
                                             <option value="">Select bed</option>
                                         </select>
-                                    </div>
-                                </div>
-                                
-                                <!-- Child Pricing Options -->
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6" id="child_with_bed_wrap_modal" style="display: none;">
-                                        <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-user-smile-line me-1 text-info"></i>Child with Bed
-                                            <small class="text-muted" id="child_with_bed_price_label_modal"></small>
-                                        </label>
-                                        <div class="form-check">
-                                            <input
-                                                class="form-check-input"
-                                                type="checkbox"
-                                                name="child_with_bed"
-                                                id="child_with_bed_modal"
-                                                onchange="updateHotelModalPrice();"
-                                            >
-                                            <label class="form-check-label" for="child_with_bed_modal" style="font-size: 0.75rem;">
-                                                Child with bed
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-6" id="child_without_bed_wrap_modal" style="display: none;">
-                                        <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-user-line me-1 text-warning"></i>Child without Bed
-                                            <small class="text-muted" id="child_without_bed_price_label_modal"></small>
-                                        </label>
-                                        <div class="form-check">
-                                            <input
-                                                class="form-check-input"
-                                                type="checkbox"
-                                                name="child_without_bed"
-                                                id="child_without_bed_modal"
-                                                onchange="updateHotelModalPrice();"
-                                            >
-                                            <label class="form-check-label" for="child_without_bed_modal" style="font-size: 0.75rem;">
-                                                Child without bed
-                                            </label>
-                                        </div>
                                     </div>
                                 </div>
                                 
@@ -6631,29 +6105,33 @@
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                     <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
                                 </label>
-                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px;">
-                                    <input
-                                        type="text"
-                                        class="form-control text-center"
-                                        id="modal_transport_pickup_time_input"
-                                        placeholder="10:30"
-                                        maxlength="5"
-                                        style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
-                                        oninput="formatTimeInput(this); syncTransportModalPickupTime()"
-                                        onchange="syncTransportModalPickupTime()"
-                                    >
-                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                    <select
-                                        class="form-select border-0"
-                                        id="modal_transport_pickup_time_ampm"
-                                        style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                        onchange="syncTransportModalPickupTime()"
-                                    >
-                                        <option value="AM">AM</option>
-                                        <option value="PM">PM</option>
-                                    </select>
-                                </div>
-                                <input type="hidden" name="pickup_time" id="modal_transport_pickup_time">
+                                <select class="form-select modern-select" id="modal_transport_pickup_time" name="pickup_time" style="height: 36px; font-size: 0.8rem;">
+                                    <option value="">Select Time</option>
+                                    <option value="12:00 AM">12:00 AM</option>
+                                    <option value="01:00 AM">01:00 AM</option>
+                                    <option value="02:00 AM">02:00 AM</option>
+                                    <option value="03:00 AM">03:00 AM</option>
+                                    <option value="04:00 AM">04:00 AM</option>
+                                    <option value="05:00 AM">05:00 AM</option>
+                                    <option value="06:00 AM">06:00 AM</option>
+                                    <option value="07:00 AM">07:00 AM</option>
+                                    <option value="08:00 AM">08:00 AM</option>
+                                    <option value="09:00 AM">09:00 AM</option>
+                                    <option value="10:00 AM">10:00 AM</option>
+                                    <option value="11:00 AM">11:00 AM</option>
+                                    <option value="12:00 PM">12:00 PM</option>
+                                    <option value="01:00 PM">01:00 PM</option>
+                                    <option value="02:00 PM">02:00 PM</option>
+                                    <option value="03:00 PM">03:00 PM</option>
+                                    <option value="04:00 PM">04:00 PM</option>
+                                    <option value="05:00 PM">05:00 PM</option>
+                                    <option value="06:00 PM">06:00 PM</option>
+                                    <option value="07:00 PM">07:00 PM</option>
+                                    <option value="08:00 PM">08:00 PM</option>
+                                    <option value="09:00 PM">09:00 PM</option>
+                                    <option value="10:00 PM">10:00 PM</option>
+                                    <option value="11:00 PM">11:00 PM</option>
+                                </select>
                             </div>
                             <div class="col-md-6 col-lg-3">
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
@@ -7369,30 +6847,8 @@
                                             <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                         </label>
                                         <div class="position-relative">
-                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px; padding-left: 30px;">
-                                                <input
-                                                    type="text"
-                                                    class="form-control text-center"
-                                                    id="modal_dropoff_transport_pickup_time_input"
-                                                    placeholder="10:30"
-                                                    maxlength="5"
-                                                    style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
-                                                    oninput="formatTimeInput(this); syncDropoffTransportModalPickupTime();"
-                                                    onchange="syncDropoffTransportModalPickupTime();"
-                                                >
-                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                <select
-                                                    class="form-select border-0"
-                                                    id="modal_dropoff_transport_pickup_time_ampm"
-                                                    style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                                    onchange="syncDropoffTransportModalPickupTime();"
-                                                >
-                                                    <option value="AM">AM</option>
-                                                    <option value="PM">PM</option>
-                                                </select>
-                                            </div>
+                                            <input type="time" class="form-control border-2" id="modal_dropoff_transport_pickup_time" name="pickup_time" style="padding-left: 45px;">
                                             <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                            <input type="hidden" name="pickup_time" id="modal_dropoff_transport_pickup_time">
                                         </div>
                                     </div>
                                 </div>
@@ -7560,111 +7016,6 @@
             preventDuplicates: true,
             tapToDismiss: true
         };
-    }
-
-    // === Time helpers for edit form (arrival/others) ===
-    // Format time input to HH:MM as user types, clamping hours to 1–12 and minutes to 0–59, with max 12:00
-    function formatTimeInput(input) {
-        // Keep only digits and at most 4 of them (HHMM)
-        let v = input.value.replace(/\D/g, '').slice(0, 4);
-
-        if (v.length === 0) {
-            input.value = '';
-            return;
-        }
-
-        // If we only have hour digits so far, don't force minutes or colon yet
-        if (v.length === 1) {
-            input.value = v;
-            return;
-        }
-
-        // Parse and clamp hour first
-        let rawHour = v.slice(0, 2);
-        let hour = parseInt(rawHour, 10);
-        if (isNaN(hour) || hour <= 0) hour = 12;
-        if (hour > 12) hour = 12;
-
-        if (v.length === 2) {
-            input.value = String(hour).padStart(2, '0');
-            return;
-        }
-
-        // We have both hour and minute digits
-        const minutesRaw = v.slice(2); // "5" or "50"
-
-        // While typing 3 digits, keep minutes as typed (e.g. 115 -> "11:5")
-        if (minutesRaw.length === 1) {
-            const hourStr = String(hour).padStart(2, '0');
-            input.value = `${hourStr}:${minutesRaw}`;
-            return;
-        }
-
-        // When we have 4 digits, clamp minutes to 0–59 and enforce 12:00 max
-        let min = parseInt(minutesRaw, 10);
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-        if (hour === 12 && min > 0) min = 0;
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-        input.value = `${hourStr}:${minStr}`;
-    }
-
-    function syncArrivalPickupTime(bookingId) {
-        const timeInput = document.getElementById(`arrival_pickup_time_input_${bookingId}`);
-        const ampmSelect = document.getElementById(`arrival_pickup_time_ampm_${bookingId}`);
-        const hiddenInput = document.getElementById(`arrival_pickup_time_${bookingId}`);
-        if (!timeInput || !ampmSelect || !hiddenInput) return;
-
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-        if (!timeStr || timeStr.length < 4) {
-            hiddenInput.value = '';
-            return;
-        }
-
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) min = 0;
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-        hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
-    }
-
-    function syncDeparturePickupTime(bookingId) {
-        const timeInput = document.getElementById(`departure_pickup_time_input_${bookingId}`);
-        const ampmSelect = document.getElementById(`departure_pickup_time_ampm_${bookingId}`);
-        const hiddenInput = document.getElementById(`departure_pickup_time_${bookingId}`);
-        if (!timeInput || !ampmSelect || !hiddenInput) return;
-
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-        if (!timeStr || timeStr.length < 4) {
-            hiddenInput.value = '';
-            return;
-        }
-
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) min = 0;
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-        hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
 
     // Generic helper for Yes/No transport toggles (for radio buttons - backward compatibility)
@@ -11280,14 +10631,6 @@
         // Initialize the transport modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeTransportModal();
-            // Set default pickup time to 09:00 AM using the new inputs
-            const timeInput = document.getElementById('modal_transport_pickup_time_input');
-            const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
-            if (timeInput && ampmSelect) {
-                timeInput.value = '09:00';
-                ampmSelect.value = 'AM';
-                syncTransportModalPickupTime();
-            }
         }, 100);
     }
     
@@ -11319,49 +10662,6 @@
         }
         
         showTransportSelectionModal(tourId, country, startDate, endDate, 'exit_port');
-    }
-    
-    // Sync pickup time in transport selection modal (HH:MM + AM/PM, max 12:00)
-    function syncTransportModalPickupTime() {
-        const timeInput = document.getElementById('modal_transport_pickup_time_input');
-        const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
-        const hiddenInput = document.getElementById('modal_transport_pickup_time');
-        if (!timeInput || !ampmSelect || !hiddenInput) return;
-
-        // Take only digits from the visible input and build HH:MM
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-
-        if (!timeStr || timeStr.length < 4) {
-            hiddenInput.value = '';
-            return;
-        }
-
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-
-        // Clamp minutes 0–59
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-
-        // Clamp hours to 1–12
-        if (isNaN(hour) || hour <= 0) hour = 1;
-        if (hour > 12) hour = 12;
-
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) {
-            min = 0;
-        }
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-
-        // Update visible input and hidden field
-        timeInput.value = `${hourStr}:${minStr}`;
-        hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
     
     function showLocalTransferSelectionModal(tourId, country, startDate, endDate, serviceType = null) {
@@ -11482,14 +10782,6 @@
         // Initialize the dropoff transport modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeDropoffTransportModal();
-            // Set default pickup time to 09:00 AM using the new inputs
-            const timeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
-            const ampmSelect = document.getElementById('modal_dropoff_transport_pickup_time_ampm');
-            if (timeInput && ampmSelect) {
-                timeInput.value = '09:00';
-                ampmSelect.value = 'AM';
-                syncDropoffTransportModalPickupTime();
-            }
         }, 100);
     }
     
@@ -11697,13 +10989,9 @@
             dropoffZoneSelect.addEventListener('change', checkDropoffFormCompletion);
         }
         
-        const pickupTimeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
+        const pickupTimeInput = document.getElementById('modal_dropoff_transport_pickup_time');
         if (pickupTimeInput) {
-            pickupTimeInput.addEventListener('input', () => {
-                formatTimeInput(pickupTimeInput);
-                syncDropoffTransportModalPickupTime();
-                checkDropoffFormCompletion();
-            });
+            pickupTimeInput.addEventListener('change', checkDropoffFormCompletion);
         }
         
         const pickupDateInput = document.getElementById('modal_dropoff_transport_pickup_date');
@@ -12372,8 +11660,7 @@
             dropoffZoneType = selectedDropoffOption?.getAttribute('data-type');
         }
         
-        const pickupTimeInput = document.getElementById('modal_transport_pickup_time');
-        const pickupTime = pickupTimeInput ? pickupTimeInput.value : '';
+        const pickupTime = document.getElementById('modal_transport_pickup_time').value;
         const pickupDate = document.getElementById('modal_transport_pickup_date').value;
         
         if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !selectedCity) {
@@ -13111,44 +12398,6 @@
             searchBtn.classList.remove('btn-success');
             searchBtn.classList.add('btn-secondary');
         }
-    }
-
-    // Sync pickup time in dropoff transport modal (HH:MM + AM/PM, max 12:00)
-    function syncDropoffTransportModalPickupTime() {
-        const timeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
-        const ampmSelect = document.getElementById('modal_dropoff_transport_pickup_time_ampm');
-        const hiddenInput = document.getElementById('modal_dropoff_transport_pickup_time');
-        if (!timeInput || !ampmSelect || !hiddenInput) return;
-
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-
-        if (!timeStr || timeStr.length < 4) {
-            hiddenInput.value = '';
-            return;
-        }
-
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-
-        if (isNaN(hour) || hour <= 0) hour = 1;
-        if (hour > 12) hour = 12;
-
-        if (hour === 12 && min > 0) {
-            min = 0;
-        }
-
-        const hourStr = String(hour).padStart(2, '0');
-        const minStr = String(min).padStart(2, '0');
-
-        timeInput.value = `${hourStr}:${minStr}`;
-        hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
 
     function searchDropoffVehicles() {
@@ -15305,8 +14554,6 @@
             bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
             mealPlanSelect.disabled = true;
             mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
-            // Hide child pricing checkboxes
-            updateModalChildPricingVisibility(null);
             return;
         }
         
@@ -15483,11 +14730,8 @@
         const mealPlans = [];
         const roomText = "room";
         
-        // Add "Room Only" option only when DMC (created_by user) is allowed to show prices (price_hide != 1)
-        const dmcPriceHide = {{ isset($dmcUser) && ($dmcUser->price_hide ?? 0) == 1 ? 1 : 0 }};
-        if (!dmcPriceHide) {
-            mealPlans.push(`${roomText} only`);
-        }
+        // Add "Room Only" option first
+        mealPlans.push(`${roomText} only`);
         
         // Add specific meal options based on availability
         if (hasBreakfast) {
@@ -16212,70 +15456,8 @@
             if (numberOfNights <= 0) numberOfNights = 1;
         }
         
-        // Calculate room price: price per night * number of nights * number of rooms
-        const roomSubtotal = pricePerNight * numberOfNights * numberOfRooms;
-        
-        // Calculate meal plan price
-        let mealPlanSubtotal = 0;
-        const mealPlanSelect = document.getElementById('meal_plan');
-        const selectedMealPlan = mealPlanSelect ? mealPlanSelect.value : '';
-        if (selectedMealPlan && selectedMealPlan !== 'room_only') {
-            const breakfastPrice = parseFloat(selectedRoom.breakfast_price || selectedRoom.breakfastPrice || selectedRoom.breakfast || 0);
-            const lunchPrice = parseFloat(selectedRoom.lunch_price || selectedRoom.lunchPrice || selectedRoom.lunch || 0);
-            const dinnerPrice = parseFloat(selectedRoom.dinner_price || selectedRoom.dinnerPrice || selectedRoom.dinner || 0);
-            
-            const mealPlanLower = selectedMealPlan.toLowerCase().trim();
-            let mealPlanPrice = 0;
-            
-            if (mealPlanLower === 'full_board_all_meals' || mealPlanLower === 'all_inclusive') {
-                mealPlanPrice = breakfastPrice + lunchPrice + dinnerPrice;
-            } else if (mealPlanLower === 'half_board_breakfast_lunch') {
-                mealPlanPrice = breakfastPrice + lunchPrice;
-            } else if (mealPlanLower === 'half_board_breakfast_dinner') {
-                mealPlanPrice = breakfastPrice + dinnerPrice;
-            } else if (mealPlanLower === 'half_board_lunch_dinner') {
-                mealPlanPrice = lunchPrice + dinnerPrice;
-            } else if (mealPlanLower === 'bed_&_breakfast' || mealPlanLower === 'bed_and_breakfast' || (mealPlanLower.includes('bed') && mealPlanLower.includes('breakfast'))) {
-                mealPlanPrice = breakfastPrice;
-            } else if (mealPlanLower === 'breakfast_only' || (mealPlanLower.includes('breakfast') && !mealPlanLower.includes('lunch') && !mealPlanLower.includes('dinner'))) {
-                mealPlanPrice = breakfastPrice;
-            } else if (mealPlanLower === 'lunch_only' || (mealPlanLower.includes('lunch') && !mealPlanLower.includes('breakfast') && !mealPlanLower.includes('dinner'))) {
-                mealPlanPrice = lunchPrice;
-            } else if (mealPlanLower === 'dinner_only' || (mealPlanLower.includes('dinner') && !mealPlanLower.includes('breakfast') && !mealPlanLower.includes('lunch'))) {
-                mealPlanPrice = dinnerPrice;
-            } else {
-                if (mealPlanLower.includes('breakfast')) mealPlanPrice += breakfastPrice;
-                if (mealPlanLower.includes('lunch')) mealPlanPrice += lunchPrice;
-                if (mealPlanLower.includes('dinner')) mealPlanPrice += dinnerPrice;
-            }
-            
-            if (mealPlanPrice > 0) {
-                mealPlanSubtotal = mealPlanPrice * numberOfPersons * numberOfNights * numberOfRooms;
-            }
-        }
-        
-        // Calculate child pricing
-        let childWithBedSubtotal = 0;
-        let childWithoutBedSubtotal = 0;
-        const childWithBedCheckbox = document.getElementById('child_with_bed_modal');
-        const childWithoutBedCheckbox = document.getElementById('child_without_bed_modal');
-        const childrenInput = document.getElementById('children');
-        const childrenCount = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
-        
-        if (childWithBedCheckbox && childWithBedCheckbox.checked) {
-            const childWithBedPrice = parseFloat(selectedRoom.child_with_bed || 0);
-            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-            childWithBedSubtotal = childWithBedPrice * effectiveChildren * numberOfNights * numberOfRooms;
-        }
-        
-        if (childWithoutBedCheckbox && childWithoutBedCheckbox.checked) {
-            const childWithoutBedPrice = parseFloat(selectedRoom.child_without_bed || 0);
-            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-            childWithoutBedSubtotal = childWithoutBedPrice * effectiveChildren * numberOfNights * numberOfRooms;
-        }
-        
-        // Calculate total price: room + meal plan + child pricing
-        const totalPrice = roomSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
+        // Calculate total price: price per night * number of nights * number of rooms
+        const totalPrice = pricePerNight * numberOfNights * numberOfRooms;
         
         // Update price input if calculated price is valid
         // Store raw number (no commas) so parseFloat reads full value (e.g. 18000 not 18)
@@ -16294,55 +15476,6 @@
             const priceDisplay = document.getElementById('total_price_modal_display');
             if (priceDisplay) {
                 priceDisplay.textContent = '$0.00';
-            }
-        }
-        
-        // Update child pricing visibility
-        updateModalChildPricingVisibility(selectedRoom);
-    }
-    
-    // Function to show/hide child pricing checkboxes based on room data
-    function updateModalChildPricingVisibility(room) {
-        const childWithBedWrap = document.getElementById('child_with_bed_wrap_modal');
-        const childWithoutBedWrap = document.getElementById('child_without_bed_wrap_modal');
-        const childWithBedPriceLabel = document.getElementById('child_with_bed_price_label_modal');
-        const childWithoutBedPriceLabel = document.getElementById('child_without_bed_price_label_modal');
-        
-        if (!room) {
-            if (childWithBedWrap) childWithBedWrap.style.display = 'none';
-            if (childWithoutBedWrap) childWithoutBedWrap.style.display = 'none';
-            return;
-        }
-        
-        // Check if child_with_bed price exists and is greater than 0
-        const childWithBedPrice = parseFloat(room.child_with_bed || 0);
-        if (childWithBedWrap) {
-            if (childWithBedPrice > 0) {
-                childWithBedWrap.style.display = 'block';
-                if (childWithBedPriceLabel) {
-                    childWithBedPriceLabel.textContent = ` ($${childWithBedPrice.toFixed(2)})`;
-                }
-            } else {
-                childWithBedWrap.style.display = 'none';
-                // Uncheck if hidden
-                const checkbox = document.getElementById('child_with_bed_modal');
-                if (checkbox) checkbox.checked = false;
-            }
-        }
-        
-        // Check if child_without_bed price exists and is greater than 0
-        const childWithoutBedPrice = parseFloat(room.child_without_bed || 0);
-        if (childWithoutBedWrap) {
-            if (childWithoutBedPrice > 0) {
-                childWithoutBedWrap.style.display = 'block';
-                if (childWithoutBedPriceLabel) {
-                    childWithoutBedPriceLabel.textContent = ` ($${childWithoutBedPrice.toFixed(2)})`;
-                }
-            } else {
-                childWithoutBedWrap.style.display = 'none';
-                // Uncheck if hidden
-                const checkbox = document.getElementById('child_without_bed_modal');
-                if (checkbox) checkbox.checked = false;
             }
         }
     }
@@ -16564,38 +15697,6 @@
             bookingData.transfer_options = { transfer_required: false };
         }
         
-        // Add child pricing data if checkboxes are checked
-        const childWithBedCheckbox = document.getElementById('child_with_bed_modal');
-        const childWithoutBedCheckbox = document.getElementById('child_without_bed_modal');
-        const childrenInput = document.getElementById('children');
-        const childrenCount = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
-        
-        if (childWithBedCheckbox && childWithBedCheckbox.checked && roomData) {
-            const childWithBedPrice = parseFloat(roomData.child_with_bed || 0);
-            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-            const nightsForChildren = numberOfNights;
-            
-            bookingData.child_with_bed = {
-                enabled: true,
-                price: childWithBedPrice,
-                children: effectiveChildren,
-                total_cost: childWithBedPrice * effectiveChildren * numberOfRooms * nightsForChildren
-            };
-        }
-        
-        if (childWithoutBedCheckbox && childWithoutBedCheckbox.checked && roomData) {
-            const childWithoutBedPrice = parseFloat(roomData.child_without_bed || 0);
-            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-            const nightsForChildren = numberOfNights;
-            
-            bookingData.child_without_bed = {
-                enabled: true,
-                price: childWithoutBedPrice,
-                children: effectiveChildren,
-                total_cost: childWithoutBedPrice * effectiveChildren * numberOfRooms * nightsForChildren
-            };
-        }
-        
         console.log('Booking data to be sent:', bookingData);
         
         // Create a form
@@ -16686,43 +15787,18 @@
         document.getElementById('modal_guide_select').addEventListener('change', onGuideSelection);
         document.getElementById('modal_guide_duration').addEventListener('change', onDurationSelection);
         document.getElementById('modal_guide_custom_hours').addEventListener('input', validateCustomHours);
-        const modalPickupInput = document.getElementById('modal_guide_pickup_time_input');
-        const modalPickupAmpm = document.getElementById('modal_guide_pickup_time_ampm');
-        if (modalPickupInput) {
-            modalPickupInput.addEventListener('input', function() {
-                formatTimeInput(modalPickupInput);
-                syncGuideModalPickupTime();
-                calculateGuidePrice();
-                validateForm();
-            });
-            modalPickupInput.addEventListener('change', function() {
-                syncGuideModalPickupTime();
-                calculateGuidePrice();
-                validateForm();
-            });
-        }
-        if (modalPickupAmpm) {
-            modalPickupAmpm.addEventListener('change', function() {
-                syncGuideModalPickupTime();
-                calculateGuidePrice();
-                validateForm();
-            });
-        }
+        document.getElementById('modal_guide_pickup_time').addEventListener('change', function() {
+            calculateGuidePrice();
+            validateForm();
+        });
         document.getElementById('modal_guide_service_date').addEventListener('change', function() {
             calculateGuidePrice();
             validateForm();
         });
         document.getElementById('confirm_guide_btn').addEventListener('click', confirmGuideSelection);
         
-        // Set default pickup time to 09:00 AM
-        const modalPickupHidden = document.getElementById('modal_guide_pickup_time');
-        const modalPickupInputEl = document.getElementById('modal_guide_pickup_time_input');
-        const modalPickupAmpmEl = document.getElementById('modal_guide_pickup_time_ampm');
-        if (modalPickupInputEl && modalPickupAmpmEl && modalPickupHidden) {
-            modalPickupInputEl.value = '09:00';
-            modalPickupAmpmEl.value = 'AM';
-            syncGuideModalPickupTime();
-        }
+        // Set default pickup time to 9:00 AM
+        document.getElementById('modal_guide_pickup_time').value = '09:00';
         
         // Set date restrictions and default value
         const startDate = document.getElementById('start_date').value;
@@ -19552,15 +18628,6 @@
                 }
             }
             
-            // Format meal plan type to match modal format (e.g., "bed_&_breakfast" -> "Bed & Breakfast")
-            const formatMealPlanType = (plan) => {
-                if (!plan) return 'Room Only';
-                // Convert underscore format to readable format
-                return plan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            };
-            
-            const formattedMealPlanType = formatMealPlanType(mealPlan);
-            
             // Construct selectedMeals object for each night
             const selectedMeals = {};
             for (let i = 1; i <= numberOfNights; i++) {
@@ -19569,20 +18636,19 @@
                 if (originalRooms.length > 0 && originalRooms[0].beds && originalRooms[0].beds[0]) {
                     const originalSelectedMeals = originalRooms[0].beds[0].selectedMeals || {};
                     const originalMeal = originalSelectedMeals[`meal_${i}`];
-                    // Check both formatted and raw meal plan types for price matching
-                    if (originalMeal && (originalMeal.type === formattedMealPlanType || originalMeal.type === mealPlan)) {
+                    if (originalMeal && originalMeal.type === mealPlan) {
                         mealPrice = originalMeal.price || 0;
                     }
                 }
                 
                 selectedMeals[`meal_${i}`] = {
-                    type: formattedMealPlanType, // Use formatted version to match modal format
+                    type: mealPlan,
                     price: mealPrice
                 };
             }
             
-            // Construct mealTypes array - use formatted version to match modal format
-            const mealTypes = [formattedMealPlanType];
+            // Construct mealTypes array
+            const mealTypes = [mealPlan];
             
             // Build room structure: single room object with number_of_rooms (same format as Add Hotel)
             const roomStructure = {
@@ -19614,11 +18680,6 @@
         const formData = new FormData();
         const inputs = formDiv.querySelectorAll('input, select, textarea');
         inputs.forEach(input => {
-            // child_with_bed / child_without_bed are handled separately below
-            if (input.name === 'child_with_bed' || input.name === 'child_without_bed') {
-                return;
-            }
-
             if (input.type === 'checkbox' || input.type === 'radio') {
                 if (input.checked) {
                     formData.append(input.name, input.value);
@@ -19644,56 +18705,6 @@
         
         // Add rooms_json to form data
         formData.append('rooms_json', roomsJson);
-
-        // Build child_with_bed / child_without_bed JSON from selected room and checkboxes
-        const childWithBedCheckbox = formDiv.querySelector('input[name="child_with_bed"]');
-        const childWithoutBedCheckbox = formDiv.querySelector('input[name="child_without_bed"]');
-        const childrenInput = document.getElementById('children');
-        const childrenCount = parseInt(childrenInput ? childrenInput.value : '0') || 0;
-
-        if (roomType && checkInDate && checkOutDate && (childWithBedCheckbox || childWithoutBedCheckbox)) {
-            const msPerDay = 1000 * 60 * 60 * 24;
-            let nightsForChildren = 1;
-            const checkInDateObj = new Date(checkInDate);
-            const checkOutDateObj = new Date(checkOutDate);
-            if (!isNaN(checkInDateObj) && !isNaN(checkOutDateObj)) {
-                nightsForChildren = Math.max(Math.ceil((checkOutDateObj - checkInDateObj) / msPerDay), 1);
-            }
-
-            const roomDataVarName = 'roomData_' + bookingId;
-            const roomDataForBooking = window[roomDataVarName];
-            if (Array.isArray(roomDataForBooking)) {
-                const room = roomDataForBooking.find(r => r.room_type === roomType);
-                if (room) {
-                    const cwbPrice = parseFloat(room.child_with_bed) || 0;
-                    const cnbPrice = parseFloat(room.child_without_bed) || 0;
-
-                    // Always respect the checkbox state for persistence;
-                    // if childrenCount is 0, default to 1 child so total_cost is still meaningful.
-                    const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
-
-                    if (childWithBedCheckbox && childWithBedCheckbox.checked) {
-                        const childWithBedPayload = {
-                            enabled: true,
-                            price: cwbPrice,
-                            children: effectiveChildren,
-                            total_cost: cwbPrice * effectiveChildren * numberOfRooms * nightsForChildren
-                        };
-                        formData.set('child_with_bed', JSON.stringify(childWithBedPayload));
-                    }
-
-                    if (childWithoutBedCheckbox && childWithoutBedCheckbox.checked) {
-                        const childWithoutBedPayload = {
-                            enabled: true,
-                            price: cnbPrice,
-                            children: effectiveChildren,
-                            total_cost: cnbPrice * effectiveChildren * numberOfRooms * nightsForChildren
-                        };
-                        formData.set('child_without_bed', JSON.stringify(childWithoutBedPayload));
-                    }
-                }
-            }
-        }
 
         // Collect transport data if transport is required
         const needTransportYes = formDiv.querySelector(`#need_hotel_transport_yes_${bookingId}`);

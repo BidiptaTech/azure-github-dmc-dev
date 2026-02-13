@@ -10215,6 +10215,52 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
         if (contentContainer) {
             contentContainer.innerHTML = contentHTML;
         }
+
+        // If a QR image already exists, show it immediately and disable the generate button
+        if (restaurantData.qr_code) {
+            const qrSectionId = `restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}`;
+            const qrContainer = document.getElementById(`restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            const wrapper = document.getElementById(`restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            const generateBtn = document.getElementById(`restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            const downloadBtn = document.getElementById(`restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            const detailsContainer = document.getElementById(`restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+
+            if (qrContainer) {
+                const existingUrl = restaurantData.qr_code;
+                const qrImageUrl = existingUrl.startsWith('http')
+                    ? existingUrl
+                    : "{{ asset('') }}" + existingUrl.replace(/^\/+/, '');
+
+                qrContainer.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = qrImageUrl;
+                img.alt = 'Restaurant booking QR code';
+                img.style.width = '220px';
+                img.style.height = '220px';
+                img.classList.add('img-fluid');
+                qrContainer.appendChild(img);
+            }
+
+            if (wrapper) {
+                wrapper.classList.remove('d-none');
+            }
+
+            if (detailsContainer) {
+                detailsContainer.textContent = 'Scan this code at the restaurant to view the booking details.';
+            }
+
+            if (generateBtn) {
+                generateBtn.disabled = true;
+                generateBtn.classList.add('disabled');
+                generateBtn.innerHTML = '<i class="ri-qr-code-line me-1"></i>QR Generated';
+            }
+
+            if (downloadBtn) {
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('btn-outline-dark');
+                downloadBtn.classList.add('btn-primary');
+            }
+        }
         
         // Add action buttons based on user role and approval status
         const isApproved = restaurantData.restaurant_details?.is_approve == 1 || restaurantData.restaurant_details?.is_approve === '1' || restaurantData.restaurant_details?.is_approve === true || restaurantData.restaurantDetails?.is_approve == 1 || restaurantData.restaurantDetails?.is_approve === '1' || restaurantData.restaurantDetails?.is_approve === true || false;
@@ -10584,6 +10630,7 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
 let qrCodeLibraryPromise = null;
 
 function ensureQRCodeLibrary() {
+    console.log('existingScript............. = ');
     if (window.QRCode) {
         return Promise.resolve();
     }
@@ -10594,7 +10641,7 @@ function ensureQRCodeLibrary() {
 
     qrCodeLibraryPromise = new Promise((resolve, reject) => {
         const existingScript = document.querySelector('script[data-qr-library="qrcodejs"]');
-
+        
         const handleLoaded = () => {
             if (window.QRCode) {
                 resolve();
@@ -10900,6 +10947,77 @@ function applyRestaurantLogoToQRCode(qrContainer, logoData, restaurantName) {
     });
 }
 
+function uploadRestaurantQRCodeImage(qrContainer, bookingId) {
+    try {
+        if (!bookingId) {
+            console.warn('No booking ID available for QR save.');
+            return;
+        }
+
+        if (!qrContainer) {
+            console.warn('QR container not found for booking', bookingId);
+            return;
+        }
+
+        const canvas = qrContainer.querySelector('canvas');
+        const img = qrContainer.querySelector('img');
+
+        let dataUrl = null;
+        if (canvas) {
+            dataUrl = canvas.toDataURL('image/png');
+        } else if (img && img.src && img.src.startsWith('data:image')) {
+            dataUrl = img.src;
+        }
+
+        if (!dataUrl) {
+            console.warn('No QR image data available to upload for booking', bookingId);
+            return;
+        }
+
+        const parts = dataUrl.split(',');
+        if (parts.length !== 2) {
+            console.warn('Unexpected QR data URL format for booking', bookingId);
+            return;
+        }
+
+        const mimeMatch = parts[0].match(/data:(.*?);base64/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+        const byteString = atob(parts[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+
+        const blob = new Blob([ab], { type: mimeType });
+        const file = new File([blob], `restaurant_qr_${bookingId}.png`, { type: mimeType });
+
+        const formData = new FormData();
+        formData.append('qr_code', file);
+
+        fetch(`{{ url('/bookings') }}/${encodeURIComponent(bookingId)}/save-qr`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Failed to save QR code image:', data);
+                } else {
+                    console.log('QR code image saved successfully for booking', bookingId, data);
+                }
+            })
+            .catch(error => {
+                console.error('Error uploading restaurant QR code image:', error);
+            });
+    } catch (error) {
+        console.error('Unexpected error while saving QR code image:', error);
+    }
+}
+
 window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, bookingIndex) {
     const generateBtn = document.getElementById(`restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
     const downloadBtn = document.getElementById(`restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
@@ -10932,31 +11050,131 @@ window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, booking
     ensureQRCodeLibrary()
         .then(() => getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex))
         .then(restaurantData => {
-            const fullData = restaurantData.restaurantDetails || restaurantData.restaurant_details || restaurantData;
+            // If a QR image already exists for this booking, show it and disable generation.
+            if (restaurantData.qr_code) {
+                const existingUrl = restaurantData.qr_code;
+                const qrImageUrl = existingUrl.startsWith('http')
+                    ? existingUrl
+                    : "{{ asset('') }}" + existingUrl.replace(/^\/+/, '');
 
-            const qrPayload = {
-                tour_id: tourId,
-                restaurant: fullData?.restaurant_name || fullData?.restaurantName || 'Restaurant',
-                reservation_date: fullData?.booking_date || fullData?.bookingDate || '',
-                reservation_time: fullData?.visit_time || fullData?.visitTime || '',
-                meal_type: fullData?.meal_type || fullData?.mealType || '',
-                meal_specific_type: fullData?.meal_specific_type || fullData?.mealSpecificType || '',
-                guests: {
-                    adults: Number(fullData?.adult_count ?? fullData?.adultCount ?? 0),
-                    children: Number(fullData?.child_count ?? fullData?.childCount ?? 0)
-                },
-                total_price: Number(fullData?.total_price ?? fullData?.totalPrice ?? 0),
-                reference: fullData?.reference_id || restaurantData?.reference_id || '',
-                provider: fullData?.provider_name || fullData?.providerName || '',
-                contact: {
-                    name: fullData?.full_name || fullData?.fullName || '',
-                    email: fullData?.email || '',
-                    phone: `${fullData?.country_code || fullData?.countryCode || ''} ${fullData?.phone || ''}`.trim()
-                },
-                generated_at: new Date().toISOString()
+                qrContainer.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = qrImageUrl;
+                img.alt = 'Restaurant booking QR code';
+                img.style.width = '220px';
+                img.style.height = '220px';
+                img.classList.add('img-fluid');
+                qrContainer.appendChild(img);
+
+                if (wrapper) {
+                    wrapper.classList.remove('d-none');
+                }
+
+                if (detailsContainer) {
+                    detailsContainer.textContent = 'Scan this code at the restaurant to view the booking details.';
+                }
+
+                if (generateBtn) {
+                    generateBtn.disabled = true;
+                    generateBtn.classList.add('disabled');
+                    generateBtn.innerHTML = '<i class="ri-qr-code-line me-1"></i>QR Generated';
+                }
+
+                if (downloadBtn) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.classList.remove('btn-outline-dark');
+                    downloadBtn.classList.add('btn-primary');
+                }
+
+                return;
+            }
+
+            // Handle restaurantData - could be array, object with nested properties, or direct object
+            var dataSource = restaurantData;
+            if (Array.isArray(restaurantData) && restaurantData.length > 0) {
+                dataSource = restaurantData[0];
+            }
+            
+            // Check restaurant_details which may contain the JSON array data
+            var restaurantDetailsData = null;
+            if (restaurantData?.restaurant_details) {
+                if (Array.isArray(restaurantData.restaurant_details) && restaurantData.restaurant_details.length > 0) {
+                    restaurantDetailsData = restaurantData.restaurant_details[0];
+                } else if (typeof restaurantData.restaurant_details === 'object') {
+                    restaurantDetailsData = restaurantData.restaurant_details;
+                }
+            }
+            
+            var fullData = dataSource?.restaurantDetails || dataSource?.restaurant_details || dataSource;
+            if (fullData && typeof fullData === 'object' && (fullData.restaurant_details && typeof fullData.restaurant_details === 'object')) {
+                fullData = fullData.restaurant_name !== undefined ? fullData : (fullData.restaurant_details || fullData);
+            }
+            
+            // Also handle if fullData is still an array
+            if (Array.isArray(fullData) && fullData.length > 0) {
+                fullData = fullData[0];
+            }
+            
+            var safeStr = function(v, max) {
+                if (v == null || typeof v !== 'string' && typeof v !== 'number') return '';
+                var s = String(v).replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}]/gu, '').replace(/\s+/g, ' ').trim();
+                return (max && s.length > max) ? s.slice(0, max) : s;
             };
 
-            const qrContent = JSON.stringify(qrPayload);
+            // Build a very compact, fixed-size payload so it never exceeds the QR capacity.
+            // Check restaurantId in multiple locations including restaurant_details array - ensure we get a valid value
+            var restaurantId = '';
+            // First check restaurantDetailsData (from restaurant_details array)
+            if (restaurantDetailsData?.restaurantId != null && restaurantDetailsData?.restaurantId !== false && restaurantDetailsData?.restaurantId !== '') {
+                restaurantId = String(restaurantDetailsData.restaurantId);
+            } else if (restaurantDetailsData?.restaurant_id != null && restaurantDetailsData?.restaurant_id !== false && restaurantDetailsData?.restaurant_id !== '') {
+                restaurantId = String(restaurantDetailsData.restaurant_id);
+            } 
+            // Then check fullData
+            else if (fullData?.restaurantId != null && fullData?.restaurantId !== false && fullData?.restaurantId !== '') {
+                restaurantId = String(fullData.restaurantId);
+            } else if (fullData?.restaurant_id != null && fullData?.restaurant_id !== false && fullData?.restaurant_id !== '') {
+                restaurantId = String(fullData.restaurant_id);
+            } 
+            // Then check dataSource
+            else if (dataSource?.restaurantId != null && dataSource?.restaurantId !== false && dataSource?.restaurantId !== '') {
+                restaurantId = String(dataSource.restaurantId);
+            } else if (dataSource?.restaurant_id != null && dataSource?.restaurant_id !== false && dataSource?.restaurant_id !== '') {
+                restaurantId = String(dataSource.restaurant_id);
+            } 
+            // Then check direct array access
+            else if (Array.isArray(restaurantData) && restaurantData[0]?.restaurantId != null && restaurantData[0]?.restaurantId !== false && restaurantData[0]?.restaurantId !== '') {
+                restaurantId = String(restaurantData[0].restaurantId);
+            } else if (Array.isArray(restaurantData) && restaurantData[0]?.restaurant_id != null && restaurantData[0]?.restaurant_id !== false && restaurantData[0]?.restaurant_id !== '') {
+                restaurantId = String(restaurantData[0].restaurant_id);
+            } 
+            // Finally check restaurantData directly
+            else if (restaurantData?.restaurantId != null && restaurantData?.restaurantId !== false && restaurantData?.restaurantId !== '') {
+                restaurantId = String(restaurantData.restaurantId);
+            } else if (restaurantData?.restaurant_id != null && restaurantData?.restaurant_id !== false && restaurantData?.restaurant_id !== '') {
+                restaurantId = String(restaurantData.restaurant_id);
+            }
+            
+            var qrPayload = {
+                tid: tourId,
+                bid: fullData?.booking_id ?? fullData?.bookingId ?? dataSource?.booking_id ?? '',
+                r: safeStr(fullData?.restaurant_name || fullData?.restaurantName || 'Restaurant', 60),
+                rid: restaurantId,
+                rd: safeStr(fullData?.booking_date || fullData?.bookingDate || '', 12),
+                rt: safeStr(fullData?.visit_time || fullData?.visitTime || '', 12),
+                mt: safeStr(fullData?.meal_type || fullData?.mealType || '', 20),
+                ms: safeStr(fullData?.meal_specific_type || fullData?.mealSpecificType || '', 30),
+                g: [
+                    Number(fullData?.adult_count ?? fullData?.adultCount ?? 0),
+                    Number(fullData?.child_count ?? fullData?.childCount ?? 0)
+                ],
+                p: Number(fullData?.total_price ?? fullData?.totalPrice ?? restaurantData?.totalPrice ?? 0),
+                ref: safeStr(fullData?.reference_id || restaurantData?.reference_id || '', 40)
+            };
+
+            var qrContent = JSON.stringify(qrPayload);
+
+            console.log('Restaurant QR final payload length:', qrContent.length, 'content:', qrContent);
 
             qrContainer.innerHTML = '';
 
@@ -10973,13 +11191,26 @@ window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, booking
                 wrapper.classList.remove('d-none');
             }
 
-            const logoData = extractRestaurantLogoData(fullData, qrPayload.restaurant);
+            var restaurantDisplayName = qrPayload.r || 'Restaurant';
+            const logoData = extractRestaurantLogoData(fullData, restaurantDisplayName);
 
-            return applyRestaurantLogoToQRCode(qrContainer, logoData, qrPayload.restaurant)
+            return applyRestaurantLogoToQRCode(qrContainer, logoData, restaurantDisplayName)
                 .catch(overlayError => {
                     console.error('Error overlaying restaurant logo onto QR:', overlayError);
                 })
                 .finally(() => {
+                    try {
+                        const bookingIdInput = document.getElementById(`bookingId_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+                        const bookingId = bookingIdInput?.value || qrPayload.bid;
+                        if (bookingId) {
+                            uploadRestaurantQRCodeImage(qrContainer, bookingId);
+                        } else {
+                            console.warn('Booking ID not available for restaurant QR save.');
+                        }
+                    } catch (idError) {
+                        console.error('Error determining booking ID for QR save:', idError);
+                    }
+
                     if (detailsContainer) {
                         detailsContainer.textContent = 'Scan this code at the restaurant to view the booking details.';
                     }
@@ -24612,6 +24843,7 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
                     is_approve: restaurantBooking.is_approve || false,
                     reference_id: restaurantBooking.reference_id || null,
                     display_due_date: restaurantBooking.display_due_date || null,
+                    qr_code: restaurantBooking.qr_code || null,
                     restaurantDetails: {
                         restaurant_name: restaurantBooking.restaurant_name || 'Cafe Delight',
                         meal_type: restaurantBooking.meal_type || 'Dinner',

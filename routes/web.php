@@ -222,6 +222,7 @@ Route::get('/clear', function () {
             Route::get('/enquiry-form-pro/get-attractions', [EnquiryFormPro::class, 'getAttractionsByDestination'])->name('enquiry-form-pro.get-attractions');
             Route::get('/enquiry-form-pro/get-guides', [EnquiryFormPro::class, 'getGuidesByDestination'])->name('enquiry-form-pro.get-guides');
             Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
+            Route::get('/enquiry-form-pro/fetch-meals-by-restaurant', [EnquiryFormPro::class, 'fetchMealsByRestaurant'])->name('enquiry-form-pro.fetch-meals-by-restaurant');
             
             // Debug route to check DMC data
             Route::get('/debug/dmc-data', function() {
@@ -644,6 +645,7 @@ Route::get('/clear', function () {
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
+        Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         
         // Country and City API routes
@@ -926,6 +928,7 @@ Route::get('/clear', function () {
             Route::post('/invoices/tour/{tourId}/handle-cancellation', [InvoiceController::class, 'handleCancellation'])->name('invoices.handle-cancellation');
         Route::get('/bookings/export-tour-pdf/{tourId}', [BookingsController::class, 'exportTourPDF'])->name('bookings.export-tour-pdf');
         Route::post('/bookings/cancel-tour/{tourId}', [BookingsController::class, 'cancelTour'])->name('bookings.cancel-tour');
+        Route::post('/bookings/{encryptedId}/save-qr', [BookingsController::class, 'saveQrCode'])->name('bookings.save-qr');
         Route::post('/booking/approve-hotel-booking', [HotelBookingController::class, 'approveHotelBooking'])->name('booking.approve.hotel.booking');
         Route::post('/booking/reject-hotel-booking', [HotelBookingController::class, 'rejectHotelBooking'])->name('booking.reject.hotel.booking');
         Route::post('/booking/approve-attraction-booking', [HotelBookingController::class, 'approveAttractionBooking'])->name('booking.approve.attraction.booking');

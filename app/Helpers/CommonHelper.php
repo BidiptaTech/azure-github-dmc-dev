@@ -3214,6 +3214,21 @@ class CommonHelper
                             $segregatedPrices[$serviceKey]['single'] += $singleSharing;
                             $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
                         }
+                        // Handle guide: per adult price (totalPrice / Adults)
+                        elseif ($normalizedType === 'guide') {
+                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
+                            
+                            if ($adultCount > 0) {
+                                $singleSharing = $totalPriceFloat / $adultCount;
+                            } else {
+                                $singleSharing = $totalPriceFloat;
+                            }
+                            
+                            $doubleSharing = $singleSharing;
+                            
+                            $segregatedPrices['guide']['single'] += $singleSharing;
+                            $segregatedPrices['guide']['double'] += $doubleSharing;
+                        }
                         // Default calculation for other service types
                         else {
                             // Get pax count

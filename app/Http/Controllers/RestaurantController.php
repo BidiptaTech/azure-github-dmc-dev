@@ -19,6 +19,10 @@ use App\Models\Country;
 use App\Models\City;
 use App\Models\Order;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash; 
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
+
 
 class RestaurantController extends Controller
 {
@@ -290,6 +294,8 @@ class RestaurantController extends Controller
         $restaurant->lunch_price = $request->input('lunch_price'); // Fixed typo
         $restaurant->dinner_price = $request->input('dinner_price');
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        $restaurant->password = Hash::make($request->input('password'));    //password added
         $restaurant->is_active = $request->input('restaurant_status') == 1 ? 1 : 0;
         $restaurant->images = $img_path ?? null;
         $restaurant->master_image = $master_image ?? null;
@@ -437,6 +443,8 @@ class RestaurantController extends Controller
     {
         // dd($request->all());
         // Validate the incoming request data
+
+        try {
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'nullable|numeric',
@@ -460,6 +468,8 @@ class RestaurantController extends Controller
             'description' => 'required',
             'terms_conditions' => 'required|string',
             'remarks' => 'nullable|string',
+            'restaurant_email' => 'required|email|unique:restaurants,email', //email added
+            'password' => 'required|string|min:8', //password added 
         ]);
 
         
@@ -589,6 +599,8 @@ class RestaurantController extends Controller
         $restaurant->restaurant_id = $restaurantId;
 
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        $restaurant->password = Hash::make($request->input('password'));    //password added
         //$restaurant->is_active = $restaurant->restaurant_status;
         $restaurant->images = $imagePathsJson;
         $restaurant->master_image = $masterImage;
@@ -606,6 +618,12 @@ class RestaurantController extends Controller
         // }
         $restaurant_id = $restaurant->restaurant_id;
         return redirect()->route('meals.restaurant_create', Crypt::encrypt($restaurant_id))->with('success', 'Restaurant added successfully!');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
     }
 
     /*
@@ -642,8 +660,10 @@ class RestaurantController extends Controller
     * Date 07-10-2024
     */
     public function update(Request $request, $id)
+
     {
         // Reset fields for Breakfast if not available
+        try {
         if ($request->breakfast_available != 1) {
             $request->merge([
                 'opening_time_bf' => null,
@@ -735,6 +755,8 @@ class RestaurantController extends Controller
         $restaurant->lunch_price = $request->input('lunch_price');
         $restaurant->dinner_price = $request->input('dinner_price');
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        $restaurant->password = Hash::make($request->input('password'));    //password added
         $restaurant->is_active = $request->input('restaurant_status') == 1 ? 1 : 0;
         $restaurant->description = $request->input('description');
         $restaurant->remarks = $request->input('remarks');
@@ -744,6 +766,32 @@ class RestaurantController extends Controller
         $restaurant->save();
 
         return redirect()->route('restaurant.index')->with('success', 'Restaurant details updated successfully.');
+        } catch (ValidationException $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
+        catch (QueryException $e) {
+            $message = $e->getMessage();
+            if (str_contains($message, 'duplicate key value violates unique constraint')) {
+                $fieldName = null;
+                if (preg_match('/Key\s*\(([^)]+)\)\s*=/', $message, $matches)) {
+                    $fieldName = trim($matches[1]);
+                }
+                $errorMessage = 'ERROR: duplicate key value violates unique constraint for field: '
+                    . ($fieldName ? $fieldName : 'unknown');
+            } else {
+                $errorMessage = 'Database error: ' . $message;
+            }
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $errorMessage);
+            }
+        catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $e->getMessage()->getTraceAsString());
+        }
     }
 
     /*

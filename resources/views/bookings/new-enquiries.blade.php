@@ -53,26 +53,180 @@
         border-radius: 0.375rem;
     }
     
-    /* Compact Table Styles */
+    /* Compact Table Styles - fixed grid so all columns fit and stay in one row */
     #toursTable {
         font-size: 0.875rem;
+        table-layout: fixed;
+        width: 100%;
+        margin-bottom: 0;
+        background-color: #fff;
     }
     
     #toursTable thead th {
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem 0.5rem;
         font-size: 0.8125rem;
         font-weight: 600;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: #f8f9fa;
     }
     
     #toursTable tbody td {
-        padding: 0.5rem 0.75rem;
-        vertical-align: middle;
+        padding: 0.5rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+        background-color: #fff;
     }
     
     #toursTable tbody tr {
         height: auto;
         min-height: 50px;
+    }
+    /* When any service icon in this row is hovered, raise whole row above next rows so tooltip is visible (low z-index so modals stay on top) */
+    #toursTable tbody tr:has(.service-icon-wrapper:hover),
+    #toursTable tbody tr.service-tooltip-row-active {
+        position: relative;
+        z-index: 10;
+    }
+    
+    /* Services column: professional soft-badge style (light bg, colored icon) */
+    #toursTable td:nth-child(5) {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        overflow: visible !important;
+    }
+    #toursTable td:nth-child(5) .services-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 0.35rem;
+        column-gap: 0.35rem;
+        align-items: stretch;
+        max-width: 100%;
+    }
+    #toursTable td:nth-child(5) .service-icon-wrapper {
+        min-width: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    #toursTable .service-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+    }
+    #toursTable .service-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    #toursTable .service-icon-badge i {
+        font-size: 1.05rem;
+        color: var(--service-color, #475569);
+        flex-shrink: 0;
+        line-height: 1;
+    }
+    #toursTable .service-icon-badge[data-clickable="false"] {
+        cursor: default;
+    }
+    #toursTable .service-icon-badge[data-clickable="false"]:hover {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        box-shadow: none;
+    }
+    /* Service icon wrapper for tooltip positioning and spacing */
+    #toursTable .service-icon-wrapper {
+        position: relative;
+        display: inline-flex;
+        z-index: 1;
+        margin: 3px;
+    }
+    #toursTable .service-icon-wrapper:hover {
+        z-index: 10;
+    }
+    /* In-cell tooltip hidden – we use a body-level tooltip so it’s never clipped */
+    #toursTable .service-icon-tooltip {
+        display: none !important;
+    }
+    
+    /* Global tooltip (moved to body by JS) – always on top, never clipped by overflow */
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform: translate(-50%, -100%);
+    }
+    
+    /* Actions column: same soft-badge design as Services */
+    #toursTable td.col-actions {
+        white-space: nowrap;
+        overflow: visible;
+    }
+    #toursTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-content: start;
+        max-width: 100%;
+    }
+    #toursTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
+    }
+    #toursTable .action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+    #toursTable .action-icon-badge i {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+    }
+    #toursTable .action-icon-badge:hover i {
+        color: var(--action-color, #475569);
+    }
+    #toursTable button.action-icon-badge {
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    #toursTable button.action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
     }
     
     /* Compact badges in Services column */
@@ -112,6 +266,58 @@
         height: 28px;
     }
 
+    /* Professional Actions dropdown */
+    #toursTable .dropdown-actions .btn-actions-toggle {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #566a7f;
+        background: #fff;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        min-width: 100px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    #toursTable .dropdown-actions .btn-actions-toggle:hover {
+        border-color: #696cff;
+        color: #696cff;
+        background: rgba(105, 108, 255, 0.04);
+    }
+    #toursTable .dropdown-actions .btn-actions-toggle:focus {
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
+    #toursTable .dropdown-actions .dropdown-menu {
+        min-width: 200px;
+        padding: 0.35rem 0;
+        border-radius: 0.5rem;
+        border: 1px solid #d9dee3;
+        box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.08);
+    }
+    #toursTable .dropdown-actions .dropdown-item {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background 0.15s ease;
+    }
+    #toursTable .dropdown-actions .dropdown-item i {
+        width: 1.25rem;
+        text-align: center;
+        opacity: 0.85;
+    }
+    #toursTable .dropdown-actions .dropdown-item:hover {
+        background: #f5f5f9;
+    }
+    #toursTable .dropdown-actions .dropdown-item.text-danger:hover {
+        background: rgba(234, 84, 85, 0.08);
+        color: #ea5455;
+    }
+    #toursTable .dropdown-actions .dropdown-divider {
+        margin: 0.35rem 0;
+        border-color: #e7e7ed;
+    }
+
     /* Wider buttons for negotiation actions */
     #toursTable .btn-sm.negotiation-btn {
         min-width: 130px;
@@ -120,6 +326,63 @@
         font-size: 0.78rem;
         white-space: nowrap;
         padding: 0.3rem 0.75rem;
+    }
+    /* Negotiation column: keep button within column width */
+    #toursTable td.col-negotiation {
+        min-width: 0;
+    }
+    #toursTable .btn-sm.check-negotiation-btn {
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        white-space: normal;
+        line-height: 1.3;
+        padding: 0.45rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-align: center;
+    }
+    #toursTable .check-negotiation-btn .d-block {
+        display: block !important;
+    }
+    /* Negotiate by Agent – professional modal-trigger button */
+    #toursTable .btn-sm.negotiation-btn.negotiate-by-agent {
+        white-space: normal;
+        min-width: 88px;
+        line-height: 1.25;
+        padding: 0.5rem 0.65rem;
+        border-radius: 0.5rem;
+        border-width: 1px;
+        font-weight: 500;
+        transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+    #toursTable .btn-sm.negotiation-btn.negotiate-by-agent:hover:not(:disabled) {
+        box-shadow: 0 2px 8px rgba(105, 108, 255, 0.25);
+    }
+    #toursTable .btn-sm.negotiation-btn.negotiate-by-agent:focus {
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
+    #toursTable .btn-sm.negotiation-btn.negotiate-by-agent:disabled {
+        opacity: 0.7;
+    }
+    #toursTable .negotiate-by-agent-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.15rem;
+    }
+    #toursTable .negotiate-by-agent-label .negotiate-by-agent-icon {
+        font-size: 1.1rem;
+        opacity: 0.95;
+    }
+    #toursTable .negotiate-by-agent-label .d-block {
+        display: block !important;
+        line-height: 1.25;
+        font-size: 0.75rem;
+    }
+    #toursTable .negotiate-by-agent-label .d-block:first-of-type {
+        font-size: 0.8125rem;
+        font-weight: 600;
     }
     
     /* Compact guest icons section */
@@ -438,30 +701,36 @@
         <div class="card-body">
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
+                    <colgroup>
+                        <col style="width:3%">
+                        <col style="width:13%">
+                        <col style="width:10%">
+                        <col style="width:17%">
+                        @php $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]; @endphp
+                        @if(in_array(auth()->user()->role_id, $role))
+                        <col style="width:14%">
+                        <col style="width:14%">
+                        @endif
+                        <col style="width:14%">
+                        <col style="width:10%">
+                        <col style="width:8%">
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
                             {{-- <th>
                                 <input type="checkbox" class="form-check-input" id="selectAll">
                             </th> --}}
-                            <th>#</th>
-                            <th>Tour Details</th>
-                            <th>Destination</th>
-                            <th>Guests</th>
-                            <th>Agent</th>
-                            <th>Created By</th>
-                            <th>Services</th>
-                            <th>Check-in/Check-out</th>
-                            <th>Created At</th>
-                            <th>Auto Cancel Date</th>
-                            @php
-                                $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
-                            @endphp
+                            <th class="th-tooltip" data-tooltip="#">#</th>
+                            <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
+                            <th class="th-tooltip" data-tooltip="Agent">Agent</th>
+                            <th class="th-tooltip" data-tooltip="Services">Services</th>
                             @if(in_array(auth()->user()->role_id, $role))
-                            <th>Agent Negotiation</th>
-                            <th>Negotiation</th>
+                            <th class="th-tooltip" data-tooltip="Agent Negotiation">Agent Negotiation</th>
+                            <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
                             @endif
-                            <th>Actions</th>
-                            
+                            <th class="th-tooltip" data-tooltip="Actions">Actions</th>
+                            <th class="th-tooltip" data-tooltip="Created">Created</th>
+                            <th class="th-tooltip" data-tooltip="Auto Cancel Date">Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -477,44 +746,34 @@
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
                             </td> --}}
-                            <td>{{ $key + 1 }}</td>
-                            <td>
-                                <div class="d-flex flex-column">
+                            <td class="align-top">{{ $key + 1 }}</td>
+                            <td class="align-top" style="min-width: 200px;">
+                                <div class="d-flex flex-column gap-1">
                                     <strong class="text-primary">{{ $tour->display_id }}</strong>
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
                                     @if($tour->tour_type)
-                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
-                                            {{ $tour->tour_type }}
+                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem;">{{ $tour->tour_type }}</span>
+                                    @endif
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
+                                            @if($tour->check_out_time)<span><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
                                         </small>
+                                    @else
+                                        <small class="text-muted">Check-in/out: Not specified</small>
                                     @endif
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
-                                </div>
-                            </td>
-
-                            <td>
-                                <div class="d-flex gap-3 align-items-center">
-                                    <div class="d-flex align-items-center gap-1" title="Adults">
-                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Children">
-                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Infants">
-                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
+                            <td class="align-top">
                                 <div class="d-flex flex-column">
                                     @if($tour->agent_name)
                                         <span class="fw-medium text-primary">{{ $tour->agent_name }}</span>
@@ -527,12 +786,7 @@
                                     @endif
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
-                                </div>
-                            </td>
-                            <td>
+                            <td class="align-top">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
                                     @php
                                         // Fetch orders for this tour to get actual service data
@@ -565,8 +819,8 @@
                                         $ordersTotalAmount = round($ordersTotalAmount, 2);
                                         
                                         $icons = [
-                                            'hotel' => 'ri-hotel-line',
-                                            'attraction' => 'ri-building-2-line',
+                                            'hotel' => 'ri-hotel-bed-line',
+                                            'attraction' => 'ri-camera-line',
                                             'restaurant' => 'ri-restaurant-2-line',
                                             'guide' => 'ri-user-voice-line',
                                             'entry_port' => 'ri-flight-land-line',
@@ -574,6 +828,29 @@
                                             'travel_hourly' => 'ri-time-line',
                                             'travel_point' => 'ri-route-line',
                                             'local_transport' => 'ri-car-line',
+                                        ];
+                                        $serviceLabels = [
+                                            'hotel' => 'Hotel',
+                                            'attraction' => 'Attraction',
+                                            'restaurant' => 'Restaurant',
+                                            'guide' => 'Guide',
+                                            'entry_port' => 'Arrival',
+                                            'exit_port' => 'Departure',
+                                            'travel_hourly' => 'Local-Tour Hourly',
+                                            'travel_point' => 'Local-Tour Point to Point',
+                                            'local_transport' => 'Local Transport',
+                                        ];
+                                        /* Professional palette: cohesive, good contrast for white icons */
+                                        $serviceColors = [
+                                            'hotel' => '#4338ca',
+                                            'attraction' => '#0f766e',
+                                            'restaurant' => '#c2410c',
+                                            'guide' => '#475569',
+                                            'entry_port' => '#047857',
+                                            'exit_port' => '#0369a1',
+                                            'travel_hourly' => '#b45309',
+                                            'travel_point' => '#5b21b6',
+                                            'local_transport' => '#334155',
                                         ];
                                         
                                         // For debugging
@@ -584,84 +861,45 @@
                                             'serviceData_keys' => array_keys($serviceData)
                                         ];
                                     @endphp
-                                    @foreach($svc as $key=>$count)
+                                    <div class="services-icons-wrap">
+                                    @foreach($svc as $svcKey=>$count)
                                         @if(intval($count) > 0)
-                                            @if(in_array($key, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']))
-                                                <span class="badge bg-light text-dark border" style="cursor: pointer;" 
-                                                      onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
-                                                      data-debug-info="{{ json_encode($debugInfo) }}">
-                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                    @if($key === 'entry_port')
-                                                        Arrival: {{ $count }}
-                                                    @elseif($key === 'exit_port')
-                                                        Departure: {{ $count }}
-                                                    @elseif($key === 'travel_hourly')
-                                                        Local-Tour Hourly: {{ $count }}
-                                                    @elseif($key === 'travel_point')
-                                                        Local-Tour Point to Point: {{ $count }}
-                                                    @elseif($key === 'local_transport')
-                                                        Local Transport: {{ $count }}
-                                                    @else
-                                                        {{ ucfirst($key) }}: {{ $count }}
-                                                    @endif
+                                            @php
+                                                $label = $serviceLabels[$svcKey] ?? ucfirst($svcKey);
+                                                $tooltipText = $label . ': ' . $count;
+                                                $bgColor = $serviceColors[$svcKey] ?? '#6c757d';
+                                                $clickable = in_array($svcKey, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']);
+                                            @endphp
+                                            @if($clickable)
+                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
+                                                    <span class="service-icon-badge"
+                                                          style="--service-color: {{ $bgColor }};"
+                                                          data-clickable="true"
+                                                          onclick="openServiceModal('{{ $svcKey }}', {{ $tour->tour_id }}, event)"
+                                                          data-debug-info="{{ json_encode($debugInfo) }}"
+                                                          role="button"
+                                                          tabindex="0">
+                                                        <i class="{{ $icons[$svcKey] }}"></i>
+                                                    </span>
+                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
                                                 </span>
                                             @else
-                                                <span class="badge bg-light text-dark border">
-                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                    @if($key === 'entry_port')
-                                                        Arrival: {{ $count }}
-                                                    @elseif($key === 'exit_port')
-                                                        Departure: {{ $count }}
-                                                    @elseif($key === 'travel_hourly')
-                                                        Local-Tour Hourly: {{ $count }}
-                                                    @elseif($key === 'travel_point')
-                                                        Local-Tour Point to Point: {{ $count }}
-                                                    @elseif($key === 'local_transport')
-                                                        Local Transport: {{ $count }}
-                                                    @else
-                                                        {{ ucfirst($key) }}: {{ $count }}
-                                                    @endif
+                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
+                                                    <span class="service-icon-badge"
+                                                          style="--service-color: {{ $bgColor }};"
+                                                          data-clickable="false"
+                                                          role="img">
+                                                        <i class="{{ $icons[$svcKey] }}"></i>
+                                                    </span>
+                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
                                                 </span>
                                             @endif
                                         @endif
                                     @endforeach
                                     @if(array_sum(array_map('intval', $svc)) === 0)
-                                        <span class="text-muted">No services</span>
+                                        <span class="text-muted small">No services</span>
                                     @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    @if($tour->check_in_time)
-                                        <small><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('D, M d, Y') }}</small>
-                                    @endif
-                                    @if($tour->check_out_time)
-                                        <small><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('D, M d, Y') }}</small>
-                                    @endif
-                                    @if(!$tour->check_in_time && !$tour->check_out_time)
-                                        <span class="text-muted">Not specified</span>
-                                    @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
-                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    @if($tour->auto_cancel_date)
-                                        <span class="fw-semibold">
-                                            <i class="fas fa-calendar-times text-warning me-1"></i>
-                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('D, M d, Y') }}
-                                        </span>
-                                        <small class="text-muted">
-                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('h:i A') }}
-                                        </small>
-                                    @else
-                                        <span class="text-muted">N/A</span>
-                                    @endif
+                                    </div>
                                 </div>
                             </td>
                             @php
@@ -731,10 +969,10 @@
                                 $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
                             @endphp
                             @if(in_array(auth()->user()->role_id, $role))
-                            <td>
+                            <td class="align-top">
                                 <button 
                                     type="button"
-                                    class="btn btn-sm btn-outline-primary negotiation-btn"
+                                    class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
                                     data-tour-id="{{ $tour->tour_id }}"
                                     data-display-id="{{ e($tour->display_id) }}"
                                     data-actual="{{ $currentActualAmount ?? 0 }}"
@@ -745,13 +983,17 @@
                                     onclick="openAgentNegotiationModal(this)"
                                     {{ $canCheckNegotiation ? 'disabled' : '' }}
                                 >
-                                    Negotiate by Agent
+                                    <span class="negotiate-by-agent-label">
+                                        <i class="ri-handshake-line negotiate-by-agent-icon" aria-hidden="true"></i>
+                                        <span class="d-block">Negotiate</span>
+                                        <span class="d-block small text-muted">By Agent</span>
+                                    </span>
                                 </button>
                             </td>
-                            <td>
+                            <td class="align-top col-negotiation">
                                 <button 
                                     type="button"
-                                    class="btn btn-sm btn-warning negotiation-btn"
+                                    class="btn btn-sm btn-warning negotiation-btn check-negotiation-btn"
                                     data-tour-id="{{ $tour->tour_id }}"
                                     data-enquiry-id="{{ $enquiry->enquiry_id ?? '' }}"
                                     data-price="{{ $settlementAmount }}"
@@ -761,81 +1003,58 @@
                                     onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
                                     {{ $canCheckNegotiation ? '' : 'disabled' }}
                                 >
-                                    Check Negotiation
+                                    Negotiation
                                 </button>
                                 @if(!$canCheckNegotiation)
-                                    <small class="text-muted d-block mt-1">Awaiting agent negotiation</small>
+                                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Awaiting agent</small>
                                 @endif
                             </td>
                             @endif
-                            {{-- <td>
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        Actions
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <a class="dropdown-item" href="{{ route('bookings.view-tour', $tour->tour_id) }}">
-                                                <i class="ri-eye-line me-2"></i> View Details
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="convertToProspect('{{ $tour->tour_id }}')">
-                                                <i class="ri-arrow-right-line me-2"></i> Move to Follow Up
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="convertToTentative('{{ $tour->tour_id }}')">
-                                                <i class="ri-bookmark-line me-2"></i> Mark as Tentative
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item text-danger" href="#" onclick="deleteTour('{{ $tour->tour_id }}')">
-                                                <i class="ri-delete-bin-line me-2"></i> Delete
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </td> --}}
-                            <td>
-                                <div class="d-flex gap-2 justify-content-center">
+                            <td class="align-top col-actions">
+                                <div class="actions-icons-wrap">
                                     @if($tour->is_pro == 0)
                                     <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
-                                       class="btn btn-outline-success btn-sm rounded-circle d-flex align-items-center justify-content-center"
-                                       style="width: 32px; height: 32px;"
-                                       title="Edit Tour">
+                                       class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
                                         <i class="ri-pencil-line"></i>
                                     </a>
                                     @else
                                     <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
-                                       class="btn btn-outline-success btn-sm rounded-circle d-flex align-items-center justify-content-center"
-                                       style="width: 32px; height: 32px;"
-                                       title="Edit Tour">
+                                       class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
                                         <i class="ri-pencil-line"></i>
                                     </a>
                                     @endif
-                                    
-                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
-                                       style="width: 32px; height: 32px;"
-                                       title="Audit Trail">
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
-                                       style="width: 32px; height: 32px;"
-                                       title="Quotation Preview"
-                                       target="_blank">
+                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Quotation Preview" target="_blank">
                                         <i class="ri-file-download-line"></i>
                                     </a>
-                                    <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
-                                            class="btn btn-outline-danger btn-sm rounded-circle d-flex align-items-center justify-content-center" 
-                                            style="width: 32px; height: 32px;"
-                                            id="cancel-btn-{{ $tour->tour_id }}"
-                                            title="Cancel Tour">
+                                    <button type="button" class="action-icon-badge" style="--action-color: #dc2626;" data-tooltip="Cancel Tour" onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', {{ json_encode($tour->display_id) }})" id="cancel-btn-{{ $tour->tour_id }}">
                                         <i class="ri-delete-bin-line"></i>
                                     </button>
+                                </div>
+                            </td>
+                            <td class="align-top">
+                                <div class="d-flex flex-column gap-0">
+                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
+                                    <small class="text-muted">{{ $tour->created_at->format('D, M d, Y') }} · {{ $tour->created_at->format('h:i A') }}</small>
+                                </div>
+                            </td>
+                            <td class="align-top">
+                                <div class="d-flex flex-column">
+                                    @if($tour->auto_cancel_date)
+                                        <span class="fw-semibold">
+                                            <i class="fas fa-calendar-times text-warning me-1"></i>
+                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('D, M d, Y') }}
+                                        </span>
+                                        <small class="text-muted">
+                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('h:i A') }}
+                                        </small>
+                                    @else
+                                        <span class="text-muted">N/A</span>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -845,6 +1064,7 @@
                     </tbody>
                 </table>
             </div>
+            <div id="service-icon-global-tooltip" aria-hidden="true"></div>
 
             {{-- <!-- Pagination -->
             <div class="d-flex justify-content-between align-items-center mt-4">
@@ -919,7 +1139,7 @@
     
     <!-- Negotiate by Agent Modal -->
     <div class="modal fade" id="agentNegotiationModal" tabindex="-1" aria-labelledby="agentNegotiationModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <form class="modal-content" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}" data-action-url="{{ route('tours.agent-negotiation') }}">
                 @csrf
                 <input type="hidden" name="tour_id" id="agent_negotiation_tour_id">
@@ -963,15 +1183,16 @@
                         Negotiated amount cannot exceed the current amount.
                     </div>
                 </div>
-                <div class="modal-footer justify-content-between flex-wrap gap-2">
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-danger" id="agentNegotiationCancelBtn" onclick="submitAgentNegotiation('cancel')">
-                            Cancel Tour
-                        </button>
-                        <button type="button" class="btn btn-outline-success" id="agentNegotiationConfirmBtn" onclick="submitAgentNegotiation('confirm')">
-                            Confirm
-                        </button>
-                    </div>
+                <div class="modal-footer border-0 pt-2 pb-3 px-3 px-md-4 d-flex flex-nowrap align-items-center justify-content-end gap-2" style="background: #f8f9fa;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" aria-label="Close without saving">
+                        Close
+                    </button>
+                    <button type="button" class="btn btn-outline-success" id="agentNegotiationConfirmBtn" onclick="submitAgentNegotiation('confirm')">
+                        Confirm tour
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" id="agentNegotiationCancelBtn" onclick="submitAgentNegotiation('cancel')">
+                        Cancel tour
+                    </button>
                     <button type="button" class="btn btn-primary" id="agentNegotiationSubmitBtn" onclick="submitAgentNegotiation('negotiate')">
                         Negotiate
                     </button>
@@ -4137,9 +4358,9 @@ function testServices() {
         const nonOrderableTargets = [guestsIdx, servicesIdx, agentNegotiationIdx, negotiationIdx, actionsIdx].filter(i => i >= 0);
         const nonSearchableTargets = [agentNegotiationIdx, negotiationIdx, actionsIdx].filter(i => i >= 0);
 
-        // Initialize DataTable with export buttons
+        // Initialize DataTable with export buttons (responsive: false so all columns stay in one row)
         table = $('.datatables-basic').DataTable({
-            responsive: true,
+            responsive: false,
             dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
             buttons: [
                 'copy',
@@ -4182,8 +4403,93 @@ function testServices() {
             ],
             initComplete: function() {
                 console.log('DataTable initialized successfully');
+                setTimeout(initServiceTooltips, 150);
+            },
+            drawCallback: function() {
+                setTimeout(initServiceTooltips, 150);
             }
         });
+        
+        /* Body-level tooltip: show above icon so it’s never clipped by table/overflow */
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        } else {
+            $globalTooltip.appendTo('body'); /* ensure it’s in body, not inside card/table */
+        }
+        $(document).on('mouseenter', '#toursTable .service-icon-wrapper', function() {
+            var $w = $(this);
+            var text = $w.attr('data-tooltip') || $w.find('.service-icon-tooltip').text();
+            if (!text) return;
+            var el = this;
+            var rect = el.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(text);
+        });
+        $(document).on('mouseleave', '#toursTable .service-icon-wrapper', function() {
+            $globalTooltip.hide();
+        });
+        /* Same body-level tooltip for Actions column */
+        $(document).on('mouseenter', '#toursTable .action-icon-badge', function() {
+            var $w = $(this);
+            var text = $w.attr('data-tooltip') || $w.attr('title') || '';
+            if (!text) return;
+            var el = this;
+            var rect = el.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(text);
+        });
+        $(document).on('mouseleave', '#toursTable .action-icon-badge', function() {
+            $globalTooltip.hide();
+        });
+        /* Same body-level tooltip for column headers */
+        $(document).on('mouseenter', '#toursTable thead .th-tooltip', function() {
+            var $w = $(this);
+            var text = $w.attr('data-tooltip') || $w.attr('title') || '';
+            if (!text) return;
+            var el = this;
+            var rect = el.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.bottom + 6) + 'px',
+                transform: 'translate(-50%, 0)'
+            }).text(text);
+        });
+        $(document).on('mouseleave', '#toursTable thead .th-tooltip', function() {
+            $globalTooltip.hide();
+        });
+        
+        function initServiceTooltips() {
+            var selector = '#toursTable .service-icon-circle';
+            var elList = document.querySelectorAll(selector);
+            elList.forEach(function(el) {
+                var titleText = el.getAttribute('data-bs-title') || el.getAttribute('title') || '';
+                if (!titleText) return;
+                try {
+                    var t = window.bootstrap && bootstrap.Tooltip ? bootstrap.Tooltip.getInstance(el) : null;
+                    if (t) t.dispose();
+                    if (window.bootstrap && bootstrap.Tooltip) {
+                        new bootstrap.Tooltip(el, { title: titleText, placement: (el.getAttribute('data-bs-placement') || 'top') });
+                    }
+                } catch (e) { console.warn('Tooltip init:', e); }
+            });
+            if (typeof $ !== 'undefined' && $.fn.tooltip && !window.bootstrap) {
+                $(selector).each(function() {
+                    var $el = $(this);
+                    if ($el.data('bs.tooltip')) $el.tooltip('dispose');
+                    $el.tooltip({ title: $el.attr('title') || $el.data('bs-title'), placement: 'top' });
+                });
+            }
+        }
 
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {

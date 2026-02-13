@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Agency;
 use App\Models\Tax;
+use App\Models\Guest;
 
 class SingleTourPackageController extends Controller
 {
@@ -715,6 +716,9 @@ class SingleTourPackageController extends Controller
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->created_by = Auth::user()->userId;
+            $mainGuestData = null;
+            $additionalGuestData = [];
+
             // Store main guest data as JSON
             if ($request->has('mainguest') && $request->mainguest) {
                 try {
@@ -722,53 +726,87 @@ class SingleTourPackageController extends Controller
                     if (is_string($mainGuestData)) {
                         $mainGuestData = json_decode($mainGuestData, true);
                         if (json_last_error() !== JSON_ERROR_NONE) {
-                            \Log::warning('Invalid JSON in mainguest data', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->mainguest
-                            ]);
+                            \Log::warning('Invalid JSON in mainguest data', ['error' => json_last_error_msg()]);
                             $mainGuestData = null;
                         }
                     }
                     $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
                 } catch (\Exception $e) {
-                    \Log::error('Error processing main guest data', [
-                        'error' => $e->getMessage(),
-                        'tour_id' => $tourId
-                    ]);
-                    // Continue without failing the tour creation
+                    \Log::error('Error processing main guest data', ['error' => $e->getMessage()]);
                     $tour->mainguest = null;
+                    $mainGuestData = null;
                 }
             }
-            
+
             // Store additional guests data as JSON
             if ($request->has('additionalguest') && $request->additionalguest) {
                 try {
                     $additionalGuestData = $request->additionalguest;
                     if (is_string($additionalGuestData)) {
-                        $additionalGuestData = json_decode($additionalGuestData, true);
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            \Log::warning('Invalid JSON in additionalguest data', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->additionalguest
-                            ]);
-                            $additionalGuestData = null;
-                        }
+                        $additionalGuestData = json_decode($additionalGuestData, true) ?? [];
                     }
-                    // Ensure it's an array
                     if (!is_array($additionalGuestData)) {
                         $additionalGuestData = [];
                     }
                     $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
                 } catch (\Exception $e) {
-                    \Log::error('Error processing additional guest data', [
-                        'error' => $e->getMessage(),
-                        'tour_id' => $tourId
-                    ]);
-                    // Continue without failing the tour creation
+                    \Log::error('Error processing additional guest data', ['error' => $e->getMessage()]);
                     $tour->additionalguest = null;
+                    $additionalGuestData = [];
                 }
             }
             $tour->save();
+
+            // Store main guest and additional guests in guests table (if data found)
+            $tourIdForGuests = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+            try {
+                $nextGuestId = function () {
+                    $last = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+                    $id = CommonHelper::createId($last->guest_id ?? 0);
+                    while (Guest::where('guest_id', $id)->exists()) {
+                        $id = CommonHelper::createId($id);
+                    }
+                    return $id;
+                };
+                if (!empty($mainGuestData) && is_array($mainGuestData)) {
+                    Guest::create([
+                        'guest_id' => $nextGuestId(),
+                        'tour_id' => [$tourIdForGuests],
+                        'guest_name' => $mainGuestData['full_name'] ?? 'Guest',
+                        'email' => $mainGuestData['email'] ?? null,
+                        'country_code' => $mainGuestData['country_code'] ?? null,
+                        'contact' => $mainGuestData['phone'] ?? null,
+                        'whatsapp_no' => $mainGuestData['phone'] ?? null,
+                        'passport' => $mainGuestData['passport'] ?? null,
+                        'passport_exp' => !empty($mainGuestData['passport_exp']) ? $mainGuestData['passport_exp'] : null,
+                        'salutation' => $mainGuestData['salutation'] ?? null,
+                    ]);
+                }
+                foreach ($additionalGuestData as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $name = trim((string) ($row['name'] ?? $row['guest_name'] ?? ''));
+                    $contact = trim((string) ($row['contact_no'] ?? $row['contact'] ?? ''));
+                    if ($name === '' && $contact === '') {
+                        continue;
+                    }
+                    Guest::create([
+                        'guest_id' => $nextGuestId(),
+                        'tour_id' => [$tourIdForGuests],
+                        'guest_name' => $name !== '' ? $name : 'Guest',
+                        'email' => !empty($row['email']) ? $row['email'] : null,
+                        'country_code' => $row['country_code'] ?? '+91',
+                        'contact' => $contact !== '' ? $contact : null,
+                        'whatsapp_no' => $contact !== '' ? $contact : null,
+                        'passport' => $row['passport_no'] ?? $row['passport'] ?? null,
+                        'passport_exp' => !empty($row['passport_exp']) ? $row['passport_exp'] : null,
+                        'salutation' => $row['salutation'] ?? null,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error storing guests in guests table', ['tour_id' => $tourId, 'error' => $e->getMessage()]);
+            }
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
             if($request->enquiry_id){
@@ -1801,7 +1839,18 @@ class SingleTourPackageController extends Controller
                 ->where(function ($q) use ($city) {
                     $q->whereRaw('LOWER(city) = ?', [strtolower($city)]);
                 })
-                ->select('hotel_unique_id', 'name', 'city', 'main_image', 'hotel_star_rating', 'latitude', 'longitude', 'check_in_time', 'check_out_time')
+                ->select(
+                    'hotel_unique_id',
+                    'name',
+                    'city',
+                    'main_image',
+                    'hotel_star_rating',
+                    'latitude',
+                    'longitude',
+                    'check_in_time',
+                    'check_out_time',
+                    'weekend_days'
+                )
                 ->orderBy('name')
                 ->get();
 
@@ -1875,7 +1924,8 @@ class SingleTourPackageController extends Controller
                 ->where('created_by', $dmcId) // Filter by DMC ID
                 ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                         'breakfast', 'breakfast_type', 'breakfast_price', 'lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                        'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'rooms_only')
+                        'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'rooms_only',
+                        'child_with_bed', 'child_without_bed')
                 ->orderBy('room_type')
                 ->get();
             // If no rooms found with created_by, try alternative field names
@@ -1891,7 +1941,8 @@ class SingleTourPackageController extends Controller
                     })
                     ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                             'breakfast', 'breakfast_type','breakfast_price','lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id', 'rooms_only')
+                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id', 'rooms_only',
+                            'child_with_bed', 'child_without_bed')
                     ->orderBy('room_type')
                     ->get();
                 
@@ -2754,6 +2805,7 @@ class SingleTourPackageController extends Controller
                                 'vehicle_name' => $vehicle->vehicle_name,
                                 'vehicle_type' => $vehicle->vehicle_type,
                                 'seating_capacity' => $vehicle->seating_capacity,
+                                'city_tour_seating_capacity' => $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity,
                                 'vehicle_model' => $vehicle->vehicle_model,
                                 'image' => $vehicle->image,
                                 'base_price' => $vehicle->base_price,
@@ -2799,7 +2851,7 @@ class SingleTourPackageController extends Controller
                     ->values();
             }
             else{
-                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable', 'dmc_id', 'city', 'country', 'model_year')
+                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'city_tour_seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable', 'dmc_id', 'city', 'country', 'model_year')
                     ->where('dmc_id', $dmcId)
                     ->where('city', $city)
                     ->where('is_available', 1)
@@ -2810,6 +2862,7 @@ class SingleTourPackageController extends Controller
                         'vehicle_name' => $vehicle->vehicle_name,
                         'vehicle_type' => $vehicle->vehicle_type,
                         'seating_capacity' => $vehicle->seating_capacity,
+                        'city_tour_seating_capacity' => $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity,
                         'vehicle_model' => $vehicle->vehicle_model,
                         'image' => $vehicle->image,
                         'base_price' => $vehicle->base_price,
@@ -2970,7 +3023,7 @@ class SingleTourPackageController extends Controller
             // Build query for vehicles
             $query = Vehicle::where('dmc_id', $dmcId)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'city_tour_seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
             
             // Only filter by city if not showing all vehicles
             if (!$showAllVehicles && $city) {
@@ -2985,6 +3038,7 @@ class SingleTourPackageController extends Controller
                     'vehicle_name' => $vehicle->vehicle_name,
                     'vehicle_type' => $vehicle->vehicle_type,
                     'seating_capacity' => $vehicle->seating_capacity,
+                    'city_tour_seating_capacity' => $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity,
                     'vehicle_model' => $vehicle->vehicle_model,
                     'image' => $vehicle->image,
                     'base_price' => $vehicle->base_price,
@@ -3330,6 +3384,10 @@ class SingleTourPackageController extends Controller
                                         
                                         // Transfer Options
                                         'transfer_options' => $hotelBooking['transfer_options'] ?? null,
+                                        
+                                        // Child pricing (when child with bed / child without bed checkboxes are checked)
+                                        'child_with_bed' => $hotelBooking['child_with_bed'] ?? null,
+                                        'child_without_bed' => $hotelBooking['child_without_bed'] ?? null,
                                         
                                         // Tour ID
                                         'tour_id' => $tourId
