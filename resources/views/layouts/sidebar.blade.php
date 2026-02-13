@@ -1214,14 +1214,14 @@
                 </li>
                 @endif
 
-                <!-- Restaurant & Dining -->
-                {{-- @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
-                <li class="menu-item @if(Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) open active @endif">
-                    <a href="javascript:void(0);" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-restaurant-2-line"></i>
-                        <div data-i18n="Restaurant & Dining">Restaurant & Dining</div>
+                <!-- Restaurant -->
+                @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
+                <li class="menu-item @if((Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) || Request::is('multiResturant*')) open @endif">
+                    <a href="#" class="menu-link menu-toggle">
+                        {{-- <i class="menu-icon tf-icons ri-restaurant-2-line"></i> --}}
+                        <div data-i18n="Restaurant">Restaurant</div>
                     </a>
-                    <ul class="menu-sub"> --}}
+                    <ul class="menu-sub">
                         @if(hasPermission('view restaurant'))
                         <li class="menu-item @if(Request::is('restaurant')) active @endif">
                             <a href="{{ route('restaurant.index') }}" class="menu-link" title="Restaurant & Dining" >
@@ -1233,18 +1233,20 @@
                             </a>
                         </li>
                         @endif
-                        {{-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
-                        @if(hasPermission('create restaurant'))
-                        <li class="menu-item @if(Request::is('restaurant/create')) active @endif">
-                            <a href="{{ route('restaurant.create') }}" class="menu-link">
-                                <div data-i18n="Create Restaurant">Create Restaurant</div>
+                        @if(auth()->check() && in_array(auth()->user()->role_id, [1, 11, 20]))
+                        <li class="menu-item @if(Request::is('multiRestaurant*')) active @endif">
+                            <a href="{{ route('multiResturant.index') }}" class="menu-link" title="Multi Restaurants">
+                                {{-- <i class="menu-icon tf-icons ri-restaurant-2-line"></i> --}}
+                                <div data-i18n="Multi Restaurants" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Multi Restaurants</span>
+                                    <span class="tooltip-text">Multi Restaurants</span>
+                                </div>
                             </a>
                         </li>
                         @endif
-                        @endif
                     </ul>
                 </li>
-                @endif --}}
+                @endif
 
                 <!-- Tour Guides -->
                 {{-- @if(hasPermission('view guide') || hasPermission('create guide'))

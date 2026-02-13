@@ -530,6 +530,16 @@ Route::get('/clear', function () {
             Route::get('/fetch-vehicles-by-city-dmc', [SingleTourPackageController::class, 'fetchVehiclesByCityAndDmc'])->name('fetch-vehicles-by-city-dmc');
             Route::get('/fetch-agents-by-agency', [SingleTourPackageController::class, 'fetchAgentsByAgency'])->name('fetch-agents-by-agency');
             Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService')->name('save-service');
+
+            // Multi Restaurants (auth only; controller restricts by role_id 1, 11, 20)
+            Route::get('multiRestaurant', [App\Http\Controllers\multiRestaurantController::class, 'index'])->name('multiResturant.index');
+            Route::get('multiRestaurant/create', [App\Http\Controllers\multiRestaurantController::class, 'create'])->name('multiResturant.create');
+            Route::post('multiRestaurant', [App\Http\Controllers\multiRestaurantController::class, 'store'])->name('multiResturant.store');
+            Route::get('multiRestaurant/{id}', [App\Http\Controllers\multiRestaurantController::class, 'show'])->name('multiResturant.show');
+            Route::get('multiRestaurant/{id}/edit', [App\Http\Controllers\multiRestaurantController::class, 'edit'])->name('multiResturant.edit');
+            Route::put('multiRestaurant/{id}', [App\Http\Controllers\multiRestaurantController::class, 'update'])->name('multiResturant.update');
+            Route::delete('multiRestaurant/{id}', [App\Http\Controllers\multiRestaurantController::class, 'destroy'])->name('multiResturant.destroy');
+
             // authentication check for admin
             Route::group(['middleware' => ['admin']], function () {
             
