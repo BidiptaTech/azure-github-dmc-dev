@@ -5561,11 +5561,14 @@
         const adults = parseInt(occupancy.adults || 0);
         const childWithBed = parseInt(occupancy.childWithBed || 0);
         const childWithoutBed = parseInt(occupancy.childWithoutBed || 0);
+        const totalChildren = childWithBed + childWithoutBed;
         const occupantsWithBed = adults + childWithBed;
 
-        // Determine occupancy type (single, double, triple)
-        const isSingleOccupancy = occupantsWithBed <= 1;
-        const isDoubleOccupancy = occupantsWithBed === 2;
+        // Determine occupancy type based on user requirement:
+        // Single pricing: when adult is 1 AND total children is 0
+        // Double pricing: otherwise (when adult > 1 OR any children exist)
+        const isSingleOccupancy = (adults === 1 && totalChildren === 0);
+        const isDoubleOccupancy = !isSingleOccupancy && occupantsWithBed <= 2;
         const isTripleOccupancy = occupantsWithBed >= 3;
 
         // If dates are not set, return base price
@@ -5578,7 +5581,7 @@
                 basePricePerNight += extraBedPrice * extraBedsNeeded;
             }
             
-            const mealCost = computeMealCost(room, combo.mealPlan, Math.max(adults, 1), childWithBed + childWithoutBed);
+            const mealCost = computeMealCost(room, combo.mealPlan, Math.max(adults, 1), totalChildren);
             return basePricePerNight + mealCost;
         }
 
@@ -9795,8 +9798,13 @@
         
         const adults = parseInt(occupancy.adults || 0);
         const childWithBed = parseInt(occupancy.childWithBed || 0);
+        const childWithoutBed = parseInt(occupancy.childWithoutBed || 0);
+        const totalChildren = childWithBed + childWithoutBed;
         const occupantsWithBed = adults + childWithBed;
-        const isSingleOccupancy = occupantsWithBed <= 1;
+        
+        // Single pricing: when adult is 1 AND total children is 0
+        // Double pricing: otherwise
+        const isSingleOccupancy = (adults === 1 && totalChildren === 0);
         const isTripleOccupancy = occupantsWithBed >= 3;
         
         let basePrice = isSingleOccupancy ? weekdaySingle : (doubleWeekday || weekdaySingle);
@@ -9806,7 +9814,7 @@
             basePrice += extraBedPrice * extraBedsNeeded;
         }
         
-        const mealCost = computeMealCost(room, mealPlan, adults, (occupancy.childWithBed || 0) + (occupancy.childWithoutBed || 0));
+        const mealCost = computeMealCost(room, mealPlan, adults, totalChildren);
         return basePrice + mealCost;
     }
     
@@ -9827,8 +9835,13 @@
         
         const adults = parseInt(occupancy.adults || 0);
         const childWithBed = parseInt(occupancy.childWithBed || 0);
+        const childWithoutBed = parseInt(occupancy.childWithoutBed || 0);
+        const totalChildren = childWithBed + childWithoutBed;
         const occupantsWithBed = adults + childWithBed;
-        const isSingleOccupancy = occupantsWithBed <= 1;
+        
+        // Single pricing: when adult is 1 AND total children is 0
+        // Double pricing: otherwise
+        const isSingleOccupancy = (adults === 1 && totalChildren === 0);
         const isTripleOccupancy = occupantsWithBed >= 3;
         
         let basePrice = isSingleOccupancy ? weekendSingle : (doubleWeekend || weekendSingle);
@@ -9838,7 +9851,7 @@
             basePrice += extraBedPrice * extraBedsNeeded;
         }
         
-        const mealCost = computeMealCost(room, mealPlan, adults, (occupancy.childWithBed || 0) + (occupancy.childWithoutBed || 0));
+        const mealCost = computeMealCost(room, mealPlan, adults, totalChildren);
         return basePrice + mealCost;
     }
     
@@ -22045,123 +22058,93 @@
                     seenKeys.entry_port.add(uniqueKey);
                 }
                 
-                entryPortData.push({
+                // Calculate total price
+                const adultPrice = parseFloat(item.adultSell || item.adultCost || 0);
+                const childPrice = parseFloat(item.childSell || item.childCost || 0);
+                const adultCount = parseInt(item.adultsQty) || 0;
+                const childCount = parseInt(item.childQty) || 0;
+                const totalPrice = (adultPrice * adultCount) + (childPrice * childCount);
+                
+                // Build clean entry_port data structure
+                const entryData = {
                     id: item.id || `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     bookingDate: bookingDate,
-                    date: bookingDate,
-                    dateTime: item.dateTime || "",
-                    pickupdate: bookingDate,
-                    vehicle_id: item.vehicleId || '',
-                    vehicleId: item.vehicleId || '',
-                    image: vehicleDetails.image,
-                    dmc_id: dmcId,
-                    vehicles_name: vehicleDetails.vehicles_name,
-                    vehicle_name: vehicleDetails.vehicles_name,
-                    vehicleName: vehicleDetails.vehicles_name,
+                    vehicles_id: parseInt(item.vehicleId) || 0,
+                    image: vehicleDetails.image || "",
+                    dmc_id: parseInt(dmcId) || 0,
+                    vehicles_name: vehicleDetails.vehicles_name || "",
                     Mode: "dmc",
-                    type: item.transferType || "Private",
-                    transferType: item.transferType || "Private",
-                    vehicle_type: vehicleDetails.vehicle_type || item.vehicleType || "",
-                    vehicleType: vehicleDetails.vehicle_type || item.vehicleType || "",
-                    vehicle_model: vehicleDetails.vehicle_model,
-                    model_year: vehicleDetails.model_year,
-                    seating_capacity: 0,
+                    type: item.transferType === 'P' ? 'Private' : (item.transferType === 'S' ? 'Shared' : item.transferType || "Private"),
+                    vehicle_type: vehicleDetails.vehicle_type || "",
+                    vehicle_model: vehicleDetails.vehicle_model || "",
+                    model_year: vehicleDetails.model_year || "",
+                    seating_capacity: parseInt(vehicleDetails.seating_capacity) || 0,
                     travel_type: "entry_port",
                     entrypickup: item.portName || "",
-                    pickup: item.portName || "",
-                    pickupLocation: item.portName || "",
-                    port_name: item.portName || "",
-                    portName: item.portName || "",
-                    port_id: item.portId || "",
-                    portId: item.portId || "",
                     entrydropoff: item.transferDestinationName || "",
-                    dropoff: item.transferDestinationName || "",
-                    dropoffLocation: item.transferDestinationName || "",
-                    transfer_destination_name: item.transferDestinationName || "",
-                    transferDestinationName: item.transferDestinationName || "",
-                    transfer_destination_id: item.transferDestinationId || "",
-                    transferDestinationId: item.transferDestinationId || "",
-                    flightNumber: item.flightNo || item.flightNumber || "",
-                    flight_number: item.flightNo || item.flightNumber || "",
                     PickupPlaceid: { lat: "", lng: "" },
                     DropoffPlaceid: { lat: "", lng: "" },
+                    pickupdate: bookingDate,
                     entrytime: entrytime,
-                    time: entrytime,
-                    adults: parseInt(item.adultsQty) || 0,
-                    adultsQty: parseInt(item.adultsQty) || 0,
-                    children: parseInt(item.childQty) || 0,
-                    childQty: parseInt(item.childQty) || 0,
-                    infants: parseInt(item.infantQty) || 0,
-                    infantQty: parseInt(item.infantQty) || 0,
+                    adults: adultCount,
+                    children: childCount,
                     componentDayIndex: 0,
-                    adultCost: parseFloat(item.adultCost) || 0,
-                    childCost: parseFloat(item.childCost) || 0,
-                    infantCost: parseFloat(item.infantCost) || 0,
-                    adultSell: parseFloat(item.adultSell) || 0,
-                    childSell: parseFloat(item.childSell) || 0,
-                    infantSell: parseFloat(item.infantSell) || 0,
-                    cost: parseFloat(item.cost) || 0,
-                    sell: parseFloat(item.sell) || 0,
-                    totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
+                    totalPrice: totalPrice,
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
                     Night_End_Time: null,
                     city: destination,
                     country: destination,
-                    fullName: customerInfo.fullName,
-                    email: customerInfo.email,
-                    phone: customerInfo.phone,
-                    countryCode: customerInfo.countryCode,
-                    address1: customerInfo.address1,
-                    address2: customerInfo.address2,
-                    state: customerInfo.state,
-                    zip: customerInfo.zip,
-                    specialRequests: customerInfo.specialRequests,
+                    fullName: customerInfo.fullName || "",
+                    email: customerInfo.email || "",
+                    phone: customerInfo.phone || "",
+                    countryCode: customerInfo.countryCode || "",
+                    address1: customerInfo.address1 || "",
+                    address2: customerInfo.address2 || null,
+                    state: customerInfo.state || null,
+                    zip: customerInfo.zip || "",
+                    specialRequests: customerInfo.specialRequests || null,
                     userInfo: {
-                        fullName: customerInfo.fullName,
-                        email: customerInfo.email,
-                        phone: customerInfo.phone,
-                        countryCode: customerInfo.countryCode,
-                        address1: customerInfo.address1,
-                        address2: customerInfo.address2,
-                        state: customerInfo.state,
-                        zip: customerInfo.zip,
-                        specialRequests: customerInfo.specialRequests
+                        fullName: customerInfo.fullName || "",
+                        email: customerInfo.email || "",
+                        phone: customerInfo.phone || "",
+                        countryCode: customerInfo.countryCode || "",
+                        address1: customerInfo.address1 || "",
+                        address2: customerInfo.address2 || null,
+                        state: customerInfo.state || null,
+                        zip: customerInfo.zip || "",
+                        specialRequests: customerInfo.specialRequests || null
                     },
                     bookingType: "enquiry",
                     supplement: item.supplement || false
-                });
+                };
                 
                 // Add guide_options if arrival has linked guide
                 if (item.guideId) {
                     const linkedGuide = guideList.find(g => g.id === item.guideId);
                     if (linkedGuide) {
-                        const lastEntry = entryPortData[entryPortData.length - 1];
-                        lastEntry.guide_options = {
+                        const guideHours = parseInt(linkedGuide.hours) || 12;
+                        const baseCost = parseFloat(linkedGuide.cost) || 0;
+                        const totalSell = parseFloat(linkedGuide.sell) || baseCost;
+                        const surcharge = totalSell - baseCost;
+                        
+                        entryData.guide_options = {
                             guide_required: true,
-                            guideId: linkedGuide.guide_id || '',
                             guide_id: linkedGuide.guide_id || '',
-                            guideName: linkedGuide.name || linkedGuide.guideName || '',
                             guide_name: linkedGuide.name || linkedGuide.guideName || '',
-                            name: linkedGuide.name || linkedGuide.guideName || '',
-                            hours: parseInt(linkedGuide.hours) || 12,
-                            service_hours: parseInt(linkedGuide.hours) || 12,
-                            serviceType: linkedGuide.serviceType || 'Full Day',
-                            service_type: linkedGuide.serviceType || 'Full Day',
                             language: linkedGuide.language || linkedGuide.languages || '',
-                            languages: linkedGuide.languages || linkedGuide.language || '',
-                            cost: parseFloat(linkedGuide.cost) || 0,
-                            Cost: parseFloat(linkedGuide.cost) || 0,
-                            sell: parseFloat(linkedGuide.sell) || 0,
-                            Sell: parseFloat(linkedGuide.sell) || 0,
-                            tourActivity: `Arrival Guide - ${item.portName}`,
-                            tour_activity: `Arrival Guide - ${item.portName}`,
-                            Activity: `Arrival Guide - ${item.portName}`,
-                            pickup_time: linkedGuide.time || ''
+                            pickup_time: linkedGuide.time || '',
+                            package_hours: String(guideHours),
+                            hours: guideHours,
+                            base_price: baseCost,
+                            surcharge: surcharge > 0 ? surcharge : 0,
+                            total_price: totalSell
                         };
                     }
                 }
+                
+                entryPortData.push(entryData);
             } else if (item.type === 'Departure') {
                 // Extract date and time
                 let bookingDate = normalizeDateToYYYYMMDD(item.dateTime);
@@ -22193,109 +22176,93 @@
                     seenKeys.exit_port.add(uniqueKey);
                 }
                 
-                exitPortData.push({
+                // Calculate total price
+                const adultPrice = parseFloat(item.adultSell || item.adultCost || 0);
+                const childPrice = parseFloat(item.childSell || item.childCost || 0);
+                const adultCount = parseInt(item.adultsQty) || 0;
+                const childCount = parseInt(item.childQty) || 0;
+                const totalPrice = (adultPrice * adultCount) + (childPrice * childCount);
+                
+                // Build clean exit_port data structure
+                const exitData = {
                     id: item.id || `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                    fullName: customerInfo.fullName,
-                    email: customerInfo.email,
-                    phone: customerInfo.phone,
-                    countryCode: customerInfo.countryCode,
-                    address1: customerInfo.address1,
-                    address2: customerInfo.address2,
-                    state: customerInfo.state,
-                    zip: customerInfo.zip,
-                    specialRequests: customerInfo.specialRequests,
                     bookingDate: bookingDate,
-                    date: bookingDate,
-                    dateTime: item.dateTime || "",
-                    exitpickupdate: bookingDate,
-                    vehicle_id: item.vehicleId || '',
-                    vehicleId: item.vehicleId || '',
-                    vehicles_name: vehicleDetails.vehicles_name,
-                    vehicle_name: vehicleDetails.vehicles_name,
-                    vehicleName: vehicleDetails.vehicles_name,
-                    dmc_id: String(dmcId),
+                    vehicles_id: parseInt(item.vehicleId) || 0,
+                    image: vehicleDetails.image || "",
+                    dmc_id: parseInt(dmcId) || 0,
+                    vehicles_name: vehicleDetails.vehicles_name || "",
                     Mode: "dmc",
-                    type: item.transferType || "Shared",
-                    transferType: item.transferType || "Shared",
-                    image: vehicleDetails.image,
+                    type: item.transferType === 'P' ? 'Private' : (item.transferType === 'S' ? 'Shared' : item.transferType || "Shared"),
+                    vehicle_type: vehicleDetails.vehicle_type || "",
+                    vehicle_model: vehicleDetails.vehicle_model || "",
+                    model_year: vehicleDetails.model_year || "",
+                    seating_capacity: parseInt(vehicleDetails.seating_capacity) || 0,
+                    travel_type: "exit_port",
                     exitpickup: item.transferDestinationName || "",
-                    pickup: item.transferDestinationName || "",
-                    pickupLocation: item.transferDestinationName || "",
-                    transfer_destination_name: item.transferDestinationName || "",
-                    transferDestinationName: item.transferDestinationName || "",
-                    transfer_destination_id: item.transferDestinationId || "",
-                    transferDestinationId: item.transferDestinationId || "",
                     exitdropoff: item.portName || "",
-                    dropoff: item.portName || "",
-                    dropoffLocation: item.portName || "",
-                    port_name: item.portName || "",
-                    portName: item.portName || "",
-                    port_id: item.portId || "",
-                    portId: item.portId || "",
-                    flightNumber: item.flightNo || item.flightNumber || "",
-                    flight_number: item.flightNo || item.flightNumber || "",
+                    PickupPlaceid: { lat: "", lng: "" },
+                    DropoffPlaceid: { lat: "", lng: "" },
+                    exitpickupdate: bookingDate,
                     entrytime: entrytime,
-                    time: entrytime,
-                    PickupPlaceid: null,
-                    DropoffPlaceid: null,
-                    adults: parseInt(item.adultsQty) || 0,
-                    adultsQty: parseInt(item.adultsQty) || 0,
-                    children: parseInt(item.childQty) || 0,
-                    childQty: parseInt(item.childQty) || 0,
-                    infants: parseInt(item.infantQty) || 0,
-                    infantQty: parseInt(item.infantQty) || 0,
-                    adultCost: parseFloat(item.adultCost) || 0,
-                    childCost: parseFloat(item.childCost) || 0,
-                    infantCost: parseFloat(item.infantCost) || 0,
-                    adultSell: parseFloat(item.adultSell) || 0,
-                    childSell: parseFloat(item.childSell) || 0,
-                    infantSell: parseFloat(item.infantSell) || 0,
-                    cost: parseFloat(item.cost) || 0,
-                    sell: parseFloat(item.sell) || 0,
-                    totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
+                    adults: adultCount,
+                    children: childCount,
+                    componentDayIndex: 0,
+                    totalPrice: totalPrice,
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
                     Night_End_Time: null,
                     city: destination,
                     country: destination,
-                    vehicle_type: vehicleDetails.vehicle_type || item.vehicleType || "",
-                    vehicleType: vehicleDetails.vehicle_type || item.vehicleType || "",
-                    vehicle_model: vehicleDetails.vehicle_model,
-                    model_year: vehicleDetails.model_year,
-                    seating_capacity: 0,
+                    fullName: customerInfo.fullName || "",
+                    email: customerInfo.email || "",
+                    phone: customerInfo.phone || "",
+                    countryCode: customerInfo.countryCode || "",
+                    address1: customerInfo.address1 || "",
+                    address2: customerInfo.address2 || null,
+                    state: customerInfo.state || null,
+                    zip: customerInfo.zip || "",
+                    specialRequests: customerInfo.specialRequests || null,
+                    userInfo: {
+                        fullName: customerInfo.fullName || "",
+                        email: customerInfo.email || "",
+                        phone: customerInfo.phone || "",
+                        countryCode: customerInfo.countryCode || "",
+                        address1: customerInfo.address1 || "",
+                        address2: customerInfo.address2 || null,
+                        state: customerInfo.state || null,
+                        zip: customerInfo.zip || "",
+                        specialRequests: customerInfo.specialRequests || null
+                    },
+                    bookingType: "enquiry",
                     supplement: item.supplement || false
-                });
+                };
                 
                 // Add guide_options if departure has linked guide
                 if (item.guideId) {
                     const linkedGuide = guideList.find(g => g.id === item.guideId);
                     if (linkedGuide) {
-                        const lastEntry = exitPortData[exitPortData.length - 1];
-                        lastEntry.guide_options = {
+                        const guideHours = parseInt(linkedGuide.hours) || 12;
+                        const baseCost = parseFloat(linkedGuide.cost) || 0;
+                        const totalSell = parseFloat(linkedGuide.sell) || baseCost;
+                        const surcharge = totalSell - baseCost;
+                        
+                        exitData.guide_options = {
                             guide_required: true,
-                            guideId: linkedGuide.guide_id || '',
                             guide_id: linkedGuide.guide_id || '',
-                            guideName: linkedGuide.name || linkedGuide.guideName || '',
                             guide_name: linkedGuide.name || linkedGuide.guideName || '',
-                            name: linkedGuide.name || linkedGuide.guideName || '',
-                            hours: parseInt(linkedGuide.hours) || 12,
-                            service_hours: parseInt(linkedGuide.hours) || 12,
-                            serviceType: linkedGuide.serviceType || 'Full Day',
-                            service_type: linkedGuide.serviceType || 'Full Day',
                             language: linkedGuide.language || linkedGuide.languages || '',
-                            languages: linkedGuide.languages || linkedGuide.language || '',
-                            cost: parseFloat(linkedGuide.cost) || 0,
-                            Cost: parseFloat(linkedGuide.cost) || 0,
-                            sell: parseFloat(linkedGuide.sell) || 0,
-                            Sell: parseFloat(linkedGuide.sell) || 0,
-                            tourActivity: `Departure Guide - ${item.portName}`,
-                            tour_activity: `Departure Guide - ${item.portName}`,
-                            Activity: `Departure Guide - ${item.portName}`,
-                            pickup_time: linkedGuide.time || ''
+                            pickup_time: linkedGuide.time || '',
+                            package_hours: String(guideHours),
+                            hours: guideHours,
+                            base_price: baseCost,
+                            surcharge: surcharge > 0 ? surcharge : 0,
+                            total_price: totalSell
                         };
                     }
                 }
+                
+                exitPortData.push(exitData);
             }
         }
         
@@ -22488,121 +22455,102 @@
         const dmcId = '{{ $dmc_id ?? "" }}';
         
         return tourList.map(tour => {
+            // Calculate total price
+            const adultPrice = parseFloat(tour.adultSell || tour.adultCost || 0);
+            const childPrice = parseFloat(tour.childSell || tour.childCost || 0);
+            const adultCount = parseInt(tour.adultsQty) || 0;
+            const childCount = parseInt(tour.childQty) || 0;
+            const totalPrice = (adultPrice * adultCount) + (childPrice * childCount);
+            
+            // Build clean tour data structure
             const tourData = {
-                fullName: customerInfo.fullName,
-                email: customerInfo.email,
-                phone: customerInfo.phone,
-                countryCode: customerInfo.countryCode,
-                address1: customerInfo.address1,
-                address2: customerInfo.address2,
-                state: customerInfo.state,
-                zip: customerInfo.zip,
-                specialRequests: customerInfo.specialRequests,
-                id: tour.id || null,
+                // Customer info
+                fullName: customerInfo.fullName || "",
+                email: customerInfo.email || "",
+                phone: customerInfo.phone || "",
+                countryCode: customerInfo.countryCode || "",
+                address1: customerInfo.address1 || "",
+                address2: customerInfo.address2 || "",
+                state: customerInfo.state || "",
+                zip: customerInfo.zip || "",
+                specialRequests: customerInfo.specialRequests || "",
+                
+                // Booking info
                 bookingDate: normalizeDateToYYYYMMDD(tour.dateTime),
-                date: normalizeDateToYYYYMMDD(tour.dateTime),
-                dateTime: tour.dateTime || "",
-                startTime: tour.startTime || "",
-                endTime: tour.endTime || "",
                 visitTime: tour.visitTime || "16:00",
-                time: tour.visitTime || "16:00",
-                adultCount: parseInt(tour.adultsQty) || 0,
-                adultsQty: parseInt(tour.adultsQty) || 0,
-                adults: parseInt(tour.adultsQty) || 0,
-                childCount: parseInt(tour.childQty) || 0,
-                childQty: parseInt(tour.childQty) || 0,
-                children: parseInt(tour.childQty) || 0,
-                infantQty: parseInt(tour.infantQty) || 0,
-                infants: parseInt(tour.infantQty) || 0,
+                
+                // Guest counts (clean - no duplicates)
+                adultCount: adultCount,
+                childCount: childCount,
                 seniorCount: 0,
-                AttractionId: tour.attractionId || 0,
-                AttractionID: tour.attractionId || 0,
-                attraction_id: tour.attractionId || 0,
-                attractionId: tour.attractionId || 0,
+                
+                // Attraction info (clean - no duplicates)
+                AttractionId: parseInt(tour.attractionId) || 0,
                 AttractionName: tour.attractionName || "",
-                attraction_name: tour.attractionName || "",
-                attractionName: tour.attractionName || "",
-                destination: tour.destination || "",
-                ticketId: tour.ticketId || 0,
-                ticket_id: tour.ticketId || 0,
+                
+                // Ticket info (clean - no duplicates)
+                ticketId: parseInt(tour.ticketId) || 0,
                 ticketName: tour.ticketName || "",
-                ticket_name: tour.ticketName || "",
-                adultCost: parseFloat(tour.adultCost) || 0,
-                childCost: parseFloat(tour.childCost) || 0,
-                infantCost: parseFloat(tour.infantCost) || 0,
-                adultSell: parseFloat(tour.adultSell) || 0,
-                childSell: parseFloat(tour.childSell) || 0,
-                infantSell: parseFloat(tour.infantSell) || 0,
+                
+                // Ticket details (clean structure)
                 ticket_details: {
-                    ticket_id: tour.ticketId || 0,
-                    ticket_name: tour.ticketName || "",
                     adult_price: parseFloat(tour.adultCost) || 0,
-                    adult_cost: parseFloat(tour.adultCost) || 0,
-                    adult_sell: parseFloat(tour.adultSell) || 0,
                     child_price: parseFloat(tour.childCost) || 0,
-                    child_cost: parseFloat(tour.childCost) || 0,
-                    child_sell: parseFloat(tour.childSell) || 0,
-                    infant_cost: parseFloat(tour.infantCost) || 0,
-                    infant_sell: parseFloat(tour.infantSell) || 0,
                     senior_price: 0,
                     description: tour.description || "",
-                    nri: "residential"
+                    nri: tour.nri || "residential"
                 },
+                
+                // Transport and selection
                 transport: null,
                 Selection: "withoutTransport",
                 mode: "dmc",
-                totalPrice: parseFloat(tour.adultSell || 0) * parseInt(tour.adultsQty || 0) + parseFloat(tour.childSell || 0) * parseInt(tour.childQty || 0),
-                cost: parseFloat(tour.adultCost || 0) * parseInt(tour.adultsQty || 0) + parseFloat(tour.childCost || 0) * parseInt(tour.childQty || 0),
-                sell: parseFloat(tour.adultSell || 0) * parseInt(tour.adultsQty || 0) + parseFloat(tour.childSell || 0) * parseInt(tour.childQty || 0),
-                nri: "residential",
-                bookingType: "enquiry",
-                package_type: 0,
-                package_attraction_id: 0,
+                
+                // Pricing (clean structure)
+                totalPrice: totalPrice,
+                price: totalPrice,
+                prices: {
+                    price: totalPrice
+                },
+                
+                // Other info
+                nri: tour.nri || "residential",
                 dmc_id: dmcId,
-                supplement: tour.supplement || false,
-                transferId: tour.transferId || null,
-                guideId: tour.guideId || null
+                created_by_dmc: dmcId,
+                user_id: "",
+                user_role: "",
+                bookingType: "enquiry",
+                package_type: tour.package_type || 0,
+                package_attraction_id: tour.package_attraction_id || null,
+                
+                // Keep supplement for existing functionality
+                supplement: tour.supplement || false
             };
             
             // Add transfer_options if attraction has linked transfer
             if (tour.transferId) {
                 const linkedTransfer = transferList.find(t => t.id === tour.transferId);
                 if (linkedTransfer) {
-                    // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
-                    // The pickup and dropoff fields are already correctly set based on checkbox state
                     const pickupName = linkedTransfer.pickup || '';
                     const dropoffName = linkedTransfer.dropoff || '';
+                    const transferWay = linkedTransfer.way === 'both-way' ? 'Both Way' : 
+                                       (linkedTransfer.way === 'one-way' ? 'One Way' : linkedTransfer.way);
                     
                     tourData.transfer_options = {
                         transfer_required: true,
                         type: linkedTransfer.type === 'P' ? 'Private' : (linkedTransfer.type === 'S' ? 'Shared' : 'Private'),
+                        way: transferWay,
                         vehicle_id: linkedTransfer.vehicleId || '',
                         vehicle_details: {
+                            vehicle_id: linkedTransfer.vehicleId || '',
                             vehicle_name: linkedTransfer.vehicleName || '',
                             vehicle_type: linkedTransfer.vehicleType || '',
-                            seating_capacity: linkedTransfer.capacity || 0
+                            seating_capacity: parseInt(linkedTransfer.capacity) || 0
                         },
                         cost: parseFloat(linkedTransfer.cost) || 0,
-                        sell: parseFloat(linkedTransfer.sell) || 0,
+                        pickup_location_id: linkedTransfer.pickupId || linkedTransfer.destinationId || '',
                         pickup_location_name: pickupName,
-                        destination_name: dropoffName
-                    };
-                    tourData.transferInfo = {
-                        id: linkedTransfer.id,
-                        destination: linkedTransfer.destination || dropoffName,
-                        destinationId: linkedTransfer.destinationId || null,
-                        vehicleId: linkedTransfer.vehicleId,
-                        vehicleName: linkedTransfer.vehicleName,
-                        vehicleType: linkedTransfer.vehicleType,
-                        type: linkedTransfer.type,
-                        way: linkedTransfer.way,
-                        pickup: pickupName,
-                        dropoff: dropoffName,
-                        isDestinationPickup: linkedTransfer.isDestinationPickup || false,
-                        cost: linkedTransfer.cost,
-                        sell: linkedTransfer.sell,
-                        adults: linkedTransfer.adults,
-                        child: linkedTransfer.child
+                        pickup_time: linkedTransfer.time || ''
                     };
                 }
             }
@@ -22611,48 +22559,22 @@
             if (tour.guideId) {
                 const linkedGuide = guideList.find(g => g.id === tour.guideId);
                 if (linkedGuide) {
+                    const guideHours = parseInt(linkedGuide.hours) || 12;
+                    const baseCost = parseFloat(linkedGuide.cost) || 0;
+                    const totalSell = parseFloat(linkedGuide.sell) || baseCost;
+                    const surcharge = totalSell - baseCost;
+                    
                     tourData.guide_options = {
                         guide_required: true,
-                        guideId: linkedGuide.guide_id || '',
                         guide_id: linkedGuide.guide_id || '',
-                        guideName: linkedGuide.name || '',
                         guide_name: linkedGuide.name || '',
-                        name: linkedGuide.name || '',
-                        hours: parseInt(linkedGuide.hours) || 12,
-                        service_hours: parseInt(linkedGuide.hours) || 12,
-                        serviceType: linkedGuide.serviceType || 'Full Day',
-                        service_type: linkedGuide.serviceType || 'Full Day',
                         language: linkedGuide.language || linkedGuide.languages || '',
-                        languages: linkedGuide.languages || linkedGuide.language || '',
-                        adultsQty: linkedGuide.adultsQty || linkedGuide.adults_qty || 0,
-                        adults_qty: linkedGuide.adultsQty || linkedGuide.adults_qty || 0,
-                        childQty: linkedGuide.childQty || linkedGuide.child_qty || 0,
-                        child_qty: linkedGuide.childQty || linkedGuide.child_qty || 0,
-                        cost: parseFloat(linkedGuide.cost) || 0,
-                        Cost: parseFloat(linkedGuide.cost) || 0,
-                        sell: parseFloat(linkedGuide.sell) || 0,
-                        Sell: parseFloat(linkedGuide.sell) || 0,
-                        base_price: parseFloat(linkedGuide.cost) || 0,
-                        total_price: parseFloat(linkedGuide.sell) || 0,
-                        tourActivity: tour.attractionName || '',
-                        tour_activity: tour.attractionName || '',
-                        Activity: tour.attractionName || '',
-                        pickup_time: linkedGuide.time || ''
-                    };
-                    tourData.guideInfo = {
-                        id: linkedGuide.id,
-                        guide_id: linkedGuide.guide_id,
-                        guideId: linkedGuide.guide_id,
-                        name: linkedGuide.name,
-                        guideName: linkedGuide.name,
-                        language: linkedGuide.language,
-                        languages: linkedGuide.languages,
-                        serviceType: linkedGuide.serviceType,
-                        hours: linkedGuide.hours,
-                        adultsQty: linkedGuide.adultsQty || 0,
-                        childQty: linkedGuide.childQty || 0,
-                        cost: linkedGuide.cost,
-                        sell: linkedGuide.sell
+                        pickup_time: linkedGuide.time || '',
+                        package_hours: String(guideHours),
+                        hours: guideHours,
+                        base_price: baseCost,
+                        surcharge: surcharge > 0 ? surcharge : 0,
+                        total_price: totalSell
                     };
                 }
             }
@@ -22667,173 +22589,131 @@
         const dmcId = '{{ $dmc_id ?? "" }}';
         
         return mealList.map(meal => {
+            // Calculate total price
+            const adultPrice = parseFloat(meal.adultSell || meal.adultCost || 0);
+            const childPrice = parseFloat(meal.childSell || meal.childCost || 0);
+            const adultCount = parseInt(meal.adultsQty) || 0;
+            const childCount = parseInt(meal.childQty) || 0;
+            const totalPrice = (adultPrice * adultCount) + (childPrice * childCount);
+            
+            // Build MealDescription array from meals
+            const mealDescription = (meal.meals || []).map(m => ({
+                item_name: m.item_name || m.name || m.mealName || 'Menu Item',
+                name: m.name || m.item_name || m.mealName || 'Menu Item',
+                price: parseFloat(m.price || m.cost || 0),
+                meal_id: m.meal_id || m.mealId || meal.mealId || '',
+                category: m.category || '',
+                item_type: m.item_type || '',
+                quantity: parseInt(m.quantity) || 1
+            }));
+            
+            // Build clean meal data structure
             const mealData = {
-                fullName: customerInfo.fullName,
-                email: customerInfo.email,
-                phone: customerInfo.phone,
-                countryCode: customerInfo.countryCode,
-                address1: customerInfo.address1,
-                address2: customerInfo.address2,
-                state: customerInfo.state,
-                zip: customerInfo.zip,
-                specialRequests: customerInfo.specialRequests,
-                id: meal.id || null,
+                // Customer info
+                fullName: customerInfo.fullName || "",
+                email: customerInfo.email || "",
+                phone: customerInfo.phone || "",
+                countryCode: customerInfo.countryCode || "",
+                address1: customerInfo.address1 || "",
+                address2: customerInfo.address2 || null,
+                state: customerInfo.state || null,
+                zip: customerInfo.zip || "",
+                specialRequests: customerInfo.specialRequests || null,
+                
+                // Booking info
                 bookingDate: normalizeDateToYYYYMMDD(meal.dateTime),
-                date: normalizeDateToYYYYMMDD(meal.dateTime),
-                dateTime: meal.dateTime || "",
                 visitTime: meal.visitTime || "3:30 PM",
-                time: meal.visitTime || "3:30 PM",
-                adultCount: parseInt(meal.adultsQty) || 0,
-                adultsQty: parseInt(meal.adultsQty) || 0,
-                adults: parseInt(meal.adultsQty) || 0,
-                childCount: parseInt(meal.childQty) || 0,
-                childQty: parseInt(meal.childQty) || 0,
-                children: parseInt(meal.childQty) || 0,
-                infantQty: parseInt(meal.infantQty) || 0,
-                infants: parseInt(meal.infantQty) || 0,
-                restaurantId: meal.restaurantId || 0,
-                restaurant_id: meal.restaurantId || 0,
+                
+                // Guest counts (clean - no duplicates)
+                adultCount: adultCount,
+                childCount: childCount,
+                
+                // Restaurant info (clean - no duplicates)
+                restaurantId: parseInt(meal.restaurantId) || 0,
                 restaurantName: meal.restaurantName || "",
-                restaurant_name: meal.restaurantName || "",
-                destination: meal.destination || "",
+                
+                // Meal info
                 mealType: meal.mealType || "Breakfast",
-                meal_type: meal.mealType || "Breakfast",
                 mealSpecificType: meal.mealSpecificType || "🍽️ Buffet",
-                mealName: meal.mealName || "",
-                meal_name: meal.mealName || "",
-                mealId: meal.mealId || "",
-                meal_id: meal.mealId || "",
-                MealDescription: meal.meals || [],
-                meals: meal.meals || [],
-                mealCount: meal.mealCount || (meal.meals ? meal.meals.length : 0),
-                adultCost: parseFloat(meal.adultCost) || 0,
-                adultSell: parseFloat(meal.adultSell) || 0,
-                childCost: parseFloat(meal.childCost) || 0,
-                childSell: parseFloat(meal.childSell) || 0,
-                infantCost: parseFloat(meal.infantCost) || 0,
-                infantSell: parseFloat(meal.infantSell) || 0,
-                cost: parseFloat(meal.adultCost || 0) * parseInt(meal.adultsQty || 0) + parseFloat(meal.childCost || 0) * parseInt(meal.childQty || 0),
-                sell: parseFloat(meal.adultSell || 0) * parseInt(meal.adultsQty || 0) + parseFloat(meal.childSell || 0) * parseInt(meal.childQty || 0),
-                totalPrice: parseFloat(meal.adultSell || 0) * parseInt(meal.adultsQty || 0) + parseFloat(meal.childSell || 0) * parseInt(meal.childQty || 0),
-                mealPrice: parseFloat(meal.adultSell || 0) * parseInt(meal.adultsQty || 0) + parseFloat(meal.childSell || 0) * parseInt(meal.childQty || 0),
+                MealDescription: mealDescription,
+                
+                // Pricing
+                totalPrice: totalPrice,
+                mealPrice: totalPrice,
                 transport: null,
                 transportPrice: 0,
                 priceTypes: ["dmc"],
                 dmc_id: String(dmcId),
                 bookingType: "enquiry",
-                supplement: meal.supplement || false,
-                transferId: meal.transferId || null
+                
+                // Keep supplement for existing functionality
+                supplement: meal.supplement || false
             };
             
             // Add transfer_options if meal has linked transfer
             // First check if transferInfo exists directly on meal object (from restaurant-level transfer)
             let transferSource = null;
             if (meal.transferInfo && Object.keys(meal.transferInfo).length > 0) {
-                // Use transferInfo directly from meal object
                 transferSource = meal.transferInfo;
             } else if (meal.transferId) {
-                // Fallback: look up transfer from transferList
                 transferSource = transferList.find(t => t.id === meal.transferId);
             }
             
             if (transferSource) {
-                // Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
-                // The pickup and dropoff fields are already set correctly based on checkbox state
                 const pickupName = transferSource.pickup || '';
                 const dropoffName = transferSource.dropoff || '';
+                const transferWay = transferSource.way === 'both-way' ? 'Both Way' : 
+                                   (transferSource.way === 'one-way' ? 'One Way' : transferSource.way);
                 
                 mealData.transfer_options = {
                     transfer_required: true,
                     type: transferSource.type === 'P' ? 'Private' : (transferSource.type === 'S' ? 'Shared' : 'Private'),
+                    way: transferWay,
                     vehicle_id: transferSource.vehicleId || '',
                     vehicle_details: {
+                        vehicle_id: transferSource.vehicleId || '',
                         vehicle_name: transferSource.vehicleName || '',
                         vehicle_type: transferSource.vehicleType || '',
-                        seating_capacity: transferSource.capacity || 0
+                        seating_capacity: String(transferSource.capacity || ''),
+                        private_price: String(transferSource.privatePrice || '0.00'),
+                        shared_price: String(transferSource.sharedPrice || '0.00')
                     },
-                    cost: parseFloat(transferSource.cost || transferSource.adultCost || 0),
-                    sell: parseFloat(transferSource.sell || transferSource.adultSell || 0),
+                    cost: parseFloat(transferSource.cost || 0),
+                    pickup_location_id: transferSource.pickupId || transferSource.destinationId || '',
                     pickup_location_name: pickupName,
-                    destination_name: dropoffName
-                };
-                mealData.transferInfo = {
-                    id: transferSource.id || meal.transferId,
-                    destination: transferSource.destination || dropoffName,
-                    destinationId: transferSource.destinationId || null,
-                    vehicleId: transferSource.vehicleId,
-                    vehicleName: transferSource.vehicleName,
-                    vehicleType: transferSource.vehicleType,
-                    type: transferSource.type,
-                    way: transferSource.way,
-                    pickup: pickupName,
-                    dropoff: dropoffName,
-                    isDestinationPickup: transferSource.isDestinationPickup || false,
-                    cost: transferSource.cost || transferSource.adultCost || 0,
-                    sell: transferSource.sell || transferSource.adultSell || 0,
-                    adults: transferSource.adults || transferSource.adultsQty || 0,
-                    child: transferSource.child || transferSource.childQty || 0
+                    pickup_time: transferSource.time || '',
+                    vehicle_name: transferSource.vehicleName || ''
                 };
             }
             
             // Add guide_options if meal has linked guide
-            // First check if guideInfo or guide_options exists directly on meal object (from restaurant-level guide)
             let guideSource = null;
             if (meal.guideInfo && Object.keys(meal.guideInfo).length > 0) {
-                // Use guideInfo directly from meal object
                 guideSource = meal.guideInfo;
             } else if (meal.guide_options && Object.keys(meal.guide_options).length > 0) {
-                // Use guide_options directly from meal object
                 guideSource = meal.guide_options;
             } else if (meal.guideId) {
-                // Fallback: look up guide from guideList
                 guideSource = guideList.find(g => g.id === meal.guideId);
             }
             
             if (guideSource) {
-                // Use guide_options if it exists, otherwise build from guideSource
-                if (meal.guide_options && Object.keys(meal.guide_options).length > 0) {
-                    mealData.guide_options = meal.guide_options;
-                } else {
-                    mealData.guide_options = {
-                        guideId: guideSource.guideId || guideSource.guide_id || '',
-                        guideName: guideSource.guideName || guideSource.guide_name || guideSource.name || '',
-                        guide_name: guideSource.guideName || guideSource.guide_name || guideSource.name || '',
-                        name: guideSource.guideName || guideSource.guide_name || guideSource.name || '',
-                        tourActivity: guideSource.tourActivity || guideSource.tour_activity || `Restaurant Guide - ${meal.restaurantName || ''}`,
-                        tour_activity: guideSource.tourActivity || guideSource.tour_activity || `Restaurant Guide - ${meal.restaurantName || ''}`,
-                        language: guideSource.language || guideSource.languages || '',
-                        languages: guideSource.language || guideSource.languages || '',
-                        hours: guideSource.hours || 12,
-                        service_hours: guideSource.hours || 12,
-                        serviceType: guideSource.serviceType || (guideSource.hours >= 12 ? 'Full Day' : 'Half Day'),
-                        service_type: guideSource.serviceType || (guideSource.hours >= 12 ? 'Full Day' : 'Half Day'),
-                        adultsQty: guideSource.adultsQty || guideSource.adults_qty || 0,
-                        adults_qty: guideSource.adultsQty || guideSource.adults_qty || 0,
-                        childQty: guideSource.childQty || guideSource.child_qty || 0,
-                        child_qty: guideSource.childQty || guideSource.child_qty || 0,
-                        cost: parseFloat(guideSource.cost || 0),
-                        Cost: parseFloat(guideSource.cost || 0),
-                        sell: parseFloat(guideSource.sell || 0),
-                        Sell: parseFloat(guideSource.sell || 0)
-                    };
-                }
+                const guideHours = parseInt(guideSource.hours || guideSource.package_hours) || 12;
+                const baseCost = parseFloat(guideSource.base_price || guideSource.cost) || 0;
+                const totalSell = parseFloat(guideSource.total_price || guideSource.sell) || baseCost;
+                const surcharge = totalSell - baseCost;
                 
-                // Set guideInfo
-                if (meal.guideInfo && Object.keys(meal.guideInfo).length > 0) {
-                    mealData.guideInfo = meal.guideInfo;
-                } else {
-                    mealData.guideInfo = {
-                        id: guideSource.id,
-                        guideId: guideSource.guideId || guideSource.guide_id,
-                        guideName: guideSource.guideName || guideSource.guide_name || guideSource.name,
-                        language: guideSource.language || guideSource.languages,
-                        hours: guideSource.hours || 12,
-                        adultsQty: guideSource.adultsQty || guideSource.adults_qty || 0,
-                        childQty: guideSource.childQty || guideSource.child_qty || 0,
-                        cost: guideSource.cost || 0,
-                        sell: guideSource.sell || 0
-                    };
-                }
+                mealData.guide_options = {
+                    guide_required: true,
+                    guide_id: guideSource.guide_id || guideSource.guideId || '',
+                    guide_name: guideSource.guide_name || guideSource.guideName || guideSource.name || '',
+                    language: guideSource.language || guideSource.languages || '',
+                    pickup_time: guideSource.pickup_time || guideSource.time || '',
+                    package_hours: String(guideHours),
+                    hours: guideHours,
+                    base_price: baseCost,
+                    surcharge: surcharge > 0 ? surcharge : 0,
+                    total_price: totalSell
+                };
             }
             
             return mealData;
@@ -23028,107 +22908,87 @@
                 pickupZoneId = transfer.from_zone_id;
             }
             
+            // Calculate total price
+            const adultCount = parseInt(transfer.adults) || 0;
+            const childCount = parseInt(transfer.child) || 0;
+            const totalPrice = parseFloat(transfer.sell || transfer.totalPrice || transfer.cost || 0);
+            
+            // Build clean local_transport data structure
             const transferData = {
-                id: transfer.id || null,
                 bookingDate: bookingDate,
-                date: bookingDate,
-                dateTime: transfer.dateTime || "",
-                vehicle_id: transfer.vehicleId || '',
-                vehicleId: transfer.vehicleId || '',
-                vehicles_name: vehicleDetails.vehicles_name,
-                vehicle_name: vehicleDetails.vehicles_name,
-                vehicleName: vehicleDetails.vehicles_name,
-                dmc_id: String(dmcId),
-                image: vehicleDetails.image,
+                vehicles_id: String(transfer.vehicleId || ''),
+                vehicles_name: vehicleDetails.vehicles_name || "",
+                image: vehicleDetails.image || "",
+                dmc_id: parseInt(dmcId) || 0,
                 Mode: "dmc",
-                type: transferTypeLabel, // Use label format for JSON
-                transferType: transferTypeLabel,
-                way: transferWay, // Normalized format
+                type: "local_transfer",
                 entrypickup: pickupName,
-                entrydropoff: dropoffName,
-                pickup: pickupName,
-                dropoff: dropoffName,
-                pickupLocation: pickupName,
+                PickupPlaceid: { lat: "", lng: "" },
                 dropoffLocation: dropoffName,
-                PickupPlaceid: transfer.pickupId || transfer.pickupPlaceid || "",
-                DropoffPlaceid: dropoffZoneId,
-                pickupdate: bookingDate,
+                DropoffPlaceid: { lat: "", lng: "" },
+                exitpickupdate: bookingDate,
                 entrytime: entrytime,
-                time: entrytime,
-                adults: String(parseInt(transfer.adults) || 0),
-                adultsQty: parseInt(transfer.adults) || 0,
-                children: String(parseInt(transfer.child) || 0),
-                child: parseInt(transfer.child) || 0,
-                childQty: parseInt(transfer.child) || 0,
-                infantQty: parseInt(transfer.infant) || 0,
-                infants: parseInt(transfer.infant) || 0,
-                cost: parseFloat(transfer.cost) || 0,
-                sell: parseFloat(transfer.sell) || 0,
-                totalPrice: String(parseFloat(transfer.sell) || 0),
-                to_zone_id: dropoffZoneId,
-                from_zone_id: pickupZoneId,
-                city: destination,
+                adults: String(adultCount),
+                children: String(childCount),
+                selectedHours: String(transfer.selectedHours || transfer.hours || "1"),
+                totalPrice: String(totalPrice.toFixed(2)),
+                Tax: "0",
+                Night_Start_Time: null,
+                Night_End_Time: null,
                 country: destination,
-                fullName: customerInfo.fullName,
-                email: customerInfo.email,
-                phone: customerInfo.phone,
-                countryCode: customerInfo.countryCode,
-                address1: customerInfo.address1,
-                address2: customerInfo.address2,
-                state: customerInfo.state,
-                zip: customerInfo.zip,
-                specialRequests: customerInfo.specialRequests,
+                fullName: customerInfo.fullName || "",
+                email: customerInfo.email || "",
+                phone: customerInfo.phone || "",
+                countryCode: customerInfo.countryCode || "",
+                address1: customerInfo.address1 || "",
+                address2: customerInfo.address2 || null,
+                state: customerInfo.state || null,
+                zip: customerInfo.zip || "",
+                specialRequests: customerInfo.specialRequests || null,
                 userInfo: {
-                    fullName: customerInfo.fullName,
-                    email: customerInfo.email,
-                    phone: customerInfo.phone,
-                    countryCode: customerInfo.countryCode,
-                    address1: customerInfo.address1
+                    fullName: customerInfo.fullName || "",
+                    email: customerInfo.email || "",
+                    phone: customerInfo.phone || "",
+                    address1: customerInfo.address1 || "",
+                    address2: customerInfo.address2 || null,
+                    state: customerInfo.state || null,
+                    zip: customerInfo.zip || ""
                 },
                 bookingType: "enquiry",
-                vehicle_type: vehicleDetails.vehicle_type,
-                vehicleType: vehicleDetails.vehicle_type,
-                vehicle_model: vehicleDetails.vehicle_model,
-                model_year: vehicleDetails.model_year,
-                seating_capacity: vehicleDetails.seating_capacity || transfer.seatingCapacity || transfer.capacity || "",
-                seatingCapacity: transfer.seatingCapacity || transfer.capacity || "",
-                capacity: transfer.seatingCapacity || transfer.capacity || "",
+                service_category: "local_transport",
+                travel_type: "local_transport",
+                tour_id: transfer.tour_id || "",
+                pickup_zone_id: pickupZoneId,
+                dropoff_zone_id: dropoffZoneId,
                 supplement: transfer.supplement !== undefined ? transfer.supplement : false
             };
             
             // Add linked_to_hotel field if this is a hotel-linked transfer
             if (linkedHotelBookingId) {
                 transferData.linked_to_hotel = linkedHotelBookingId;
-                transferData.linkedToHotel = linkedHotelBookingId;
             }
             
             // Add guide_options if transfer has linked guide
             if (transfer.guideId) {
                 const linkedGuide = guideList.find(g => g.id === transfer.guideId);
                 if (linkedGuide) {
+                    const guideHours = parseInt(linkedGuide.hours) || 12;
+                    const baseCost = parseFloat(linkedGuide.cost) || 0;
+                    const totalSell = parseFloat(linkedGuide.sell) || baseCost;
+                    const surcharge = totalSell - baseCost;
+                    
                     transferData.guide_options = {
-                        guideId: linkedGuide.guideId || linkedGuide.guide_id || '',
-                        guideName: linkedGuide.guideName || linkedGuide.guide_name || linkedGuide.name || '',
+                        guide_required: true,
+                        guide_id: linkedGuide.guideId || linkedGuide.guide_id || '',
                         guide_name: linkedGuide.guideName || linkedGuide.guide_name || linkedGuide.name || '',
-                        name: linkedGuide.guideName || linkedGuide.guide_name || linkedGuide.name || '',
-                        tourActivity: linkedGuide.tourActivity || linkedGuide.tour_activity || `${pickupName} → ${dropoffName} (Local Transfer Guide)`,
-                        tour_activity: linkedGuide.tourActivity || linkedGuide.tour_activity || `${pickupName} → ${dropoffName} (Local Transfer Guide)`,
                         language: linkedGuide.language || linkedGuide.languages || '',
-                        languages: linkedGuide.language || linkedGuide.languages || '',
-                        hours: linkedGuide.hours || 12,
-                        service_hours: linkedGuide.hours || 12,
-                        serviceType: linkedGuide.serviceType || 'Full Day',
-                        service_type: linkedGuide.serviceType || 'Full Day',
-                        adultsQty: linkedGuide.adultsQty || linkedGuide.adults_qty || 0,
-                        adults_qty: linkedGuide.adultsQty || linkedGuide.adults_qty || 0,
-                        childQty: linkedGuide.childQty || linkedGuide.child_qty || 0,
-                        child_qty: linkedGuide.childQty || linkedGuide.child_qty || 0,
-                        cost: parseFloat(linkedGuide.cost || 0),
-                        Cost: parseFloat(linkedGuide.cost || 0),
-                        sell: parseFloat(linkedGuide.sell || 0),
-                        Sell: parseFloat(linkedGuide.sell || 0)
+                        pickup_time: linkedGuide.time || '',
+                        package_hours: String(guideHours),
+                        hours: guideHours,
+                        base_price: baseCost,
+                        surcharge: surcharge > 0 ? surcharge : 0,
+                        total_price: totalSell
                     };
-                    transferData.guideId = linkedGuide.id;
                 }
             }
             
