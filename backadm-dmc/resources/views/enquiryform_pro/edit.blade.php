@@ -26902,68 +26902,113 @@
                 
                 // Map way
                 let transferWay = transferData.way || 'one-way';
-                if (transferWay === 'both-way' || transferWay === '2way' || transferWay === 'two-way') {
+                if (transferWay === 'both-way' || transferWay === '2way' || transferWay === 'two-way' || transferWay === 'Both Way') {
                     transferWay = 'both-way';
-                } else if (transferWay === 'one-way' || transferWay === '1way') {
+                } else if (transferWay === 'one-way' || transferWay === '1way' || transferWay === 'One Way') {
                     transferWay = 'one-way';
                 }
                 
-                const transferId = transferData.id || data.transferId || generateId('transfer');
+                // Check if this transfer already exists (shared transfer for multiple attractions from SAME popup submission)
+                const savedTransferId = transferData.id || data.transferId || '';
+                const existingTransfer = savedTransferId ? transferList.find(t => t.id === savedTransferId) : null;
                 
-                const transferEntry = {
-                    id: transferId,
-                    transportMode: 'local',
-                    dateTime: tour.dateTime,
-                    pickup: transferData.pickup || '',
-                    pickupName: transferData.pickup || '',
-                    dropoff: transferData.dropoff || transferData.destination || tour.attractionName || '',
-                    dropName: transferData.dropoff || transferData.destination || tour.attractionName || '',
-                    destination: `${transferData.pickup || 'Pickup'} → ${transferData.dropoff || transferData.destination || tour.attractionName || 'Attraction'}`,
-                    vehicleId: transferData.vehicleId || '',
-                    vehicleType: transferData.vehicleType || '',
-                    vehicleName: transferData.vehicleName || '',
-                    type: transferType,
-                    way: transferWay,
-                    hasTransfer: true,
-                    adults: transferData.adults || tour.adultsQty,
-                    child: transferData.child || tour.childQty,
-                    infant: tour.infantQty,
-                    cost: parseFloat(transferData.cost || 0),
-                    sell: parseFloat(transferData.sell || transferData.cost || 0),
-                    zonePrivatePrice: 0,
-                    zoneSharedPrice: 0,
-                    taxIncluded: false,
-                    supplement: tour.supplement,
-                    isStandalone: false,
-                    sourceType: 'tour',
-                    sourceId: tour.id,
-                    isDestinationPickup: transferData.isDestinationPickup || false,
-                    destinationId: transferData.destinationId || null
-                };
+                // Use existing transfer's ID if found, otherwise use saved ID or generate new one
+                const transferId = existingTransfer ? existingTransfer.id : (savedTransferId || generateId('transfer'));
                 
-                transferList.push(transferEntry);
+                if (!existingTransfer) {
+                    // Only create new transfer entry if it doesn't already exist
+                    // Build pickup and dropoff names from available data
+                    let pickupName = transferData.pickup || transferData.pickupName || '';
+                    let dropoffName = transferData.dropoff || transferData.dropName || transferData.destination || '';
+                    
+                    // If service field exists, parse it (format: "Pickup / Dropoff")
+                    if (transferData.service && transferData.service.includes('/')) {
+                        const serviceParts = transferData.service.split('/').map(s => s.trim());
+                        if (serviceParts.length >= 2) {
+                            if (!pickupName) pickupName = serviceParts[0];
+                            if (!dropoffName) dropoffName = serviceParts[1];
+                        }
+                    }
+                    
+                    // If isDestinationPickup is true, the destination is actually pickup and attraction is dropoff
+                    if (transferData.isDestinationPickup) {
+                        if (!pickupName && transferData.destination) pickupName = transferData.destination;
+                        if (!dropoffName) dropoffName = tour.attractionName;
+                    } else {
+                        // Default: attraction is pickup, destination is dropoff
+                        if (!pickupName) pickupName = tour.attractionName || 'Attraction';
+                        if (!dropoffName && transferData.destination) dropoffName = transferData.destination;
+                    }
+                    
+                    // Fallback to attraction name if still empty
+                    if (!pickupName) pickupName = tour.attractionName || 'Pickup';
+                    if (!dropoffName) dropoffName = tour.attractionName || 'Dropoff';
+                    
+                    const transferEntry = {
+                        id: transferId,
+                        transportMode: 'local',
+                        dateTime: tour.dateTime,
+                        pickup: pickupName,
+                        pickupName: pickupName,
+                        dropoff: dropoffName,
+                        dropName: dropoffName,
+                        service: `${pickupName} / ${dropoffName}`,
+                        destination: `${pickupName} → ${dropoffName}`,
+                        attractionName: tour.attractionName || '', // Store attraction name for reference
+                        vehicleId: transferData.vehicleId || '',
+                        vehicleType: transferData.vehicleType || '',
+                        vehicleName: transferData.vehicleName || '',
+                        type: transferType,
+                        way: transferWay,
+                        hasTransfer: true,
+                        adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || tour.adultsQty || 0,
+                        child: parseInt(transferData.child) || parseInt(transferData.childQty) || tour.childQty || 0,
+                        infant: tour.infantQty || 0,
+                        cost: parseFloat(transferData.cost || 0),
+                        sell: parseFloat(transferData.sell || transferData.cost || 0),
+                        zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
+                        zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
+                        taxIncluded: false,
+                        supplement: tour.supplement,
+                        isStandalone: false,
+                        sourceType: 'tour',
+                        sourceId: tour.id,
+                        isDestinationPickup: transferData.isDestinationPickup || false,
+                        destinationId: transferData.destinationId || null
+                    };
+                    
+                    transferList.push(transferEntry);
+                    console.log('Created transfer entry from tour:', transferEntry);
+                } else {
+                    console.log('Transfer already exists, linking tour to existing transfer:', transferId);
+                }
+                
                 tour.transferId = transferId;
+                
+                // Get the transfer entry we just created or the existing one
+                const transferEntryForInfo = existingTransfer || transferList.find(t => t.id === transferId);
                 
                 // Store transferInfo in tour object for editing
                 tour.transferInfo = {
                     id: transferId,
-                    destination: transferData.destination || transferData.dropoff || tour.attractionName || '',
+                    destination: transferEntryForInfo?.dropoff || transferData.destination || transferData.dropoff || tour.attractionName || '',
                     destinationId: transferData.destinationId || null,
                     vehicleId: transferData.vehicleId || '',
                     vehicleName: transferData.vehicleName || '',
                     vehicleType: transferData.vehicleType || '',
                     type: transferType,
                     way: transferWay,
-                    pickup: transferData.pickup || '',
-                    dropoff: transferData.dropoff || transferData.destination || tour.attractionName || '',
+                    pickup: transferEntryForInfo?.pickup || transferData.pickup || '',
+                    dropoff: transferEntryForInfo?.dropoff || transferData.dropoff || transferData.destination || tour.attractionName || '',
                     isDestinationPickup: transferData.isDestinationPickup || false,
                     cost: parseFloat(transferData.cost || 0),
                     sell: parseFloat(transferData.sell || transferData.cost || 0),
-                    adults: transferData.adults || tour.adultsQty,
-                    child: transferData.child || tour.childQty
+                    adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || tour.adultsQty || 0,
+                    child: parseInt(transferData.child) || parseInt(transferData.childQty) || tour.childQty || 0,
+                    zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
+                    zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0)
                 };
                 
-                console.log('Created transfer entry from tour:', transferEntry);
                 console.log('Stored transferInfo in tour:', tour.transferInfo);
             }
         }
@@ -27004,45 +27049,59 @@
                 const languagesArray = Array.isArray(languages) ? languages : (languages ? [languages] : ['N/A']);
                 const attractionName = tour.attractionName || data.attraction_name || data.attractionName || '';
                 
-                // Format tour activity: "Attraction Name - Guide Name" (matching the format used when adding guides through attraction modal)
-                const tourActivityText = guideName ? `${attractionName} - ${guideName}` : (attractionName ? `${attractionName} (Guide)` : 'Attraction Guide');
+                // Check if this guide already exists in guideList (shared guide for multiple tours from SAME popup submission)
+                const savedGuideId = guideData.id || data.guideId || '';
+                const existingGuide = savedGuideId ? guideList.find(g => g.id === savedGuideId) : null;
                 
-                const guideEntry = {
-                    id: guideData.id || data.guideId || order.order_id || generateId('guide'),
-                    dateTime: data.dateTime || data.date || data.bookingDate || tour.dateTime,
-                    tourActivity: tourActivityText,
-                    tourName: tourActivityText,
-                    language: Array.isArray(languagesArray) && languagesArray.length > 0 ? languagesArray[0] : (typeof languages === 'string' ? languages : 'N/A'),
-                    languages: languagesArray,
-                    guideName: guideName,
-                    name: guideName,
-                    guideId: guideId,
-                    guide_id: guideId,
-                    hours: parseInt(guideData.hours || 12),
-                    cost: parseFloat(guideData.cost || 0),
-                    sell: parseFloat(guideData.sell || 0),
-                    adultsQty: parseInt(guideData.adultsQty || tour.adultsQty || 0),
-                    adults: parseInt(guideData.adultsQty || tour.adultsQty || 0),
-                    childQty: parseInt(guideData.childQty || tour.childQty || 0),
-                    children: parseInt(guideData.childQty || tour.childQty || 0),
-                    adultCost: parseFloat(guideData.cost || 0),
-                    childCost: 0,
-                    adultSell: parseFloat(guideData.sell || 0),
-                    childSell: 0,
-                    supplement: false,
-                    isStandalone: false,
-                    linkedTo: 'tour',
-                    sourceType: 'tour',
-                    sourceId: tour.id,
-                    attractionName: tour.attractionName || data.attraction_name || data.attractionName || ''
-                };
+                // Use existing guide's ID if found, otherwise use saved ID or generate new one
+                const guideEntryId = existingGuide ? existingGuide.id : (savedGuideId || generateId('guide'));
                 
-                guideList.push(guideEntry);
-                tour.guideId = guideEntry.id;
+                if (!existingGuide) {
+                    // Only create new guide entry if it doesn't already exist
+                    // Format tour activity: "Attraction Name - Guide Name" (matching the format used when adding guides through attraction modal)
+                    const tourActivityText = guideName ? `${attractionName} - ${guideName}` : (attractionName ? `${attractionName} (Guide)` : 'Attraction Guide');
+                    
+                    const guideEntry = {
+                        id: guideEntryId,
+                        dateTime: data.dateTime || data.date || data.bookingDate || tour.dateTime,
+                        tourActivity: tourActivityText,
+                        tourName: tourActivityText,
+                        language: Array.isArray(languagesArray) && languagesArray.length > 0 ? languagesArray[0] : (typeof languages === 'string' ? languages : 'N/A'),
+                        languages: languagesArray,
+                        guideName: guideName,
+                        name: guideName,
+                        guideId: guideId,
+                        guide_id: guideId,
+                        hours: parseInt(guideData.hours || 12),
+                        cost: parseFloat(guideData.cost || 0),
+                        sell: parseFloat(guideData.sell || 0),
+                        adultsQty: parseInt(guideData.adultsQty || tour.adultsQty || 0),
+                        adults: parseInt(guideData.adultsQty || tour.adultsQty || 0),
+                        childQty: parseInt(guideData.childQty || tour.childQty || 0),
+                        children: parseInt(guideData.childQty || tour.childQty || 0),
+                        adultCost: parseFloat(guideData.cost || 0),
+                        childCost: 0,
+                        adultSell: parseFloat(guideData.sell || 0),
+                        childSell: 0,
+                        supplement: false,
+                        isStandalone: false,
+                        linkedTo: 'tour',
+                        sourceType: 'tour',
+                        sourceId: tour.id,
+                        attractionName: attractionName
+                    };
+                    
+                    guideList.push(guideEntry);
+                    console.log('Created guide entry from tour:', guideEntry);
+                } else {
+                    console.log('Guide already exists, linking tour to existing guide:', guideEntryId);
+                }
+                
+                tour.guideId = guideEntryId;
                 
                 // Store guideInfo in tour object for editing
                 tour.guideInfo = {
-                    id: guideEntry.id,
+                    id: guideEntryId,
                     guide_id: guideId,
                     guideId: guideId,
                     name: guideName,
@@ -27056,7 +27115,6 @@
                     sell: parseFloat(guideData.sell || 0)
                 };
                 
-                console.log('Loaded embedded guide from tour:', guideEntry);
                 console.log('Stored guideInfo in tour:', tour.guideInfo);
             }
         }
