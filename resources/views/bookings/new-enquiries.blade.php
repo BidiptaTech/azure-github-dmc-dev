@@ -2231,6 +2231,87 @@
                                         </div>
                                     @endif
 
+                                    <!-- Guide Options -->
+                                    @if(isset($booking['guide_options']) && is_array($booking['guide_options']) && (isset($booking['guide_options']['guideId']) || isset($booking['guide_options']['guide_id']) || isset($booking['guide_options']['guideName']) || isset($booking['guide_options']['guide_name']) || isset($booking['guide_options']['name'])))
+                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-info rounded-circle p-2 me-3">
+                                                    <i class="ri-user-voice-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Guide Details</h6>
+                                            </div>
+                                            
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="bg-light rounded p-3 h-100">
+                                                        <div class="mb-2">
+                                                            <small class="text-muted d-block">Guide Name</small>
+                                                            <div class="fw-medium">
+                                                                <i class="ri-user-voice-line me-1"></i>{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}
+                                                            </div>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <small class="text-muted d-block">Service Type</small>
+                                                            <div class="fw-medium">
+                                                                <span class="badge bg-info">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <small class="text-muted d-block">Language</small>
+                                                            <div class="fw-medium">
+                                                                <span class="badge bg-success">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                            </div>
+                                                        </div>
+                                                        @if(isset($booking['guide_options']['tourActivity']) || isset($booking['guide_options']['tour_activity']) || isset($booking['guide_options']['Activity']))
+                                                        <div class="mb-0">
+                                                            <small class="text-muted d-block">Tour Activity</small>
+                                                            <div class="fw-medium text-primary">
+                                                                <i class="ri-map-pin-line me-1"></i>{{ $booking['guide_options']['tourActivity'] ?? $booking['guide_options']['tour_activity'] ?? $booking['guide_options']['Activity'] ?? 'N/A' }}
+                                                            </div>
+                                                        </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="bg-light rounded p-3 h-100">
+                                                        <div class="mb-2">
+                                                            <small class="text-muted d-block">Service Hours</small>
+                                                            <div class="fw-medium">
+                                                                <i class="ri-time-line me-1"></i>{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} Hours
+                                                            </div>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <small class="text-muted d-block">Group Size</small>
+                                                            <div class="row g-1">
+                                                                <div class="col-6">
+                                                                    <div class="bg-white rounded p-1 text-center border">
+                                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['guide_options']['adultsQty'] ?? $booking['guide_options']['adults_qty'] ?? 0 }}</div>
+                                                                        <small class="text-muted" style="font-size: 0.65rem;">Adults</small>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-6">
+                                                                    <div class="bg-white rounded p-1 text-center border">
+                                                                        <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['guide_options']['childQty'] ?? $booking['guide_options']['child_qty'] ?? 0 }}</div>
+                                                                        <small class="text-muted" style="font-size: 0.65rem;">Children</small>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        @if(isset($booking['guide_options']['cost']) && $booking['guide_options']['cost'] > 0)
+                                                        <div class="mb-0">
+                                                            <small class="text-muted d-block">Guide Cost</small>
+                                                            <div class="fs-5 fw-bold text-info">
+                                                                <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format((float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0), 2) }}
+                                                            </div>
+                                                        </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
                                     <!-- Pricing Overview -->
                                     <div class="bg-light rounded p-2 mb-3">
                                         <div class="d-flex align-items-center mb-2">
@@ -2244,23 +2325,42 @@
                                             if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
                                                 $vehicleCost = (float) $booking['transfer_options']['cost'];
                                             }
+                                            $guideCost = 0;
+                                            if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
+                                                $guideCostValue = $booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0;
+                                                if ($guideCostValue > 0) {
+                                                    $guideCost = (float) $guideCostValue;
+                                                }
+                                            }
                                             $mealPrice = $booking['mealPrice'] ?? $booking['totalPrice'] ?? 0;
-                                            $totalPrice = $mealPrice + $vehicleCost;
+                                            $totalPrice = $mealPrice + $vehicleCost + $guideCost;
+                                            $hasTransfer = $vehicleCost > 0;
+                                            $hasGuide = $guideCost > 0;
                                         @endphp
                                         <div class="row g-2">
-                                            <div class="col-md-4">
+                                            <div class="col-md-{{ $hasTransfer && $hasGuide ? '3' : ($hasTransfer || $hasGuide ? '4' : '6') }}">
                                                 <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
                                                     <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($mealPrice, 2) }}</div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            @if($hasTransfer)
+                                            <div class="col-md-{{ $hasGuide ? '3' : '4' }}">
                                                 <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
                                                     <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD {{ number_format($vehicleCost, 2) }}</div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            @endif
+                                            @if($hasGuide)
+                                            <div class="col-md-{{ $hasTransfer ? '3' : '4' }}">
+                                                <div class="text-center p-2 border rounded bg-white" style="border-color: #00cec9 !important;">
+                                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
+                                                    <div class="fw-bold" style="font-size: 0.8rem; color: #00cec9;">SGD {{ number_format($guideCost, 2) }}</div>
+                                                </div>
+                                            </div>
+                                            @endif
+                                            <div class="col-md-{{ $hasTransfer && $hasGuide ? '3' : ($hasTransfer || $hasGuide ? '4' : '6') }}">
                                                 <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
                                                     <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD {{ number_format($totalPrice, 2) }}</div>
@@ -2270,7 +2370,7 @@
                                         <div class="mt-2 text-center">
                                             <small class="text-muted" style="font-size: 0.75rem;">
                                                 <i class="ri-information-line me-1"></i>
-                                                Total Price includes Restaurant Price + Vehicle Price
+                                                Total Price includes Restaurant Price@if($hasTransfer) + Vehicle Price@endif@if($hasGuide) + Guide Price@endif
                                             </small>
                                         </div>
                                     </div>
