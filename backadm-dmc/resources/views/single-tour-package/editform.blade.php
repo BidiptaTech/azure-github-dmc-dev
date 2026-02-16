@@ -1215,6 +1215,8 @@
                                                                     
                                                                     // Store room data for this booking
                                                                     window.roomData_{{ $hotelOrder->booking_id }} = dmcFilteredRooms;
+                                                                    // Store hotel weekend_days from API (e.g. ["Saturday","Sunday"])
+                                                                    window.hotelWeekendDays_{{ $hotelOrder->booking_id }} = (response.weekend_days && Array.isArray(response.weekend_days)) ? response.weekend_days : ['Saturday', 'Sunday'];
                                                                     
                                                                     // Extract unique room types
                                                                     const roomTypes = [...new Set(dmcFilteredRooms.map(room => room.room_type).filter(Boolean))];
@@ -1245,7 +1247,9 @@
                                                                             option.textContent = price > 0 ? `${roomType} - $${price.toFixed(2)}` : roomType;
                                                                             option.dataset.roomId = sampleRoom.room_id;
                                                                             option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
+                                                                            option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
                                                                             option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
+                                                                            option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
                                                                             // Child pricing from rooms table
                                                                             option.dataset.childWithBed = sampleRoom.child_with_bed || 0;
                                                                             option.dataset.childWithoutBed = sampleRoom.child_without_bed || 0;
@@ -1509,32 +1513,32 @@
                                                         // Add Room Only only when DMC (created_by user) is allowed to show prices (price_hide != 1)
                                                         const dmcPriceHide = {{ isset($dmcUser) && ($dmcUser->price_hide ?? 0) == 1 ? 1 : 0 }};
                                                         if (!dmcPriceHide) {
-                                                            mealPlans.push({ value: 'room_only', text: `Room Only${paxInfo}` });
+                                                            mealPlans.push({ value: 'room_only', text: `room only${paxInfo}` });
                                                         }
                                                         
-                                                        // Add meal plans only if available in room data
+                                                        // Add meal plans with same labels as create/reference: "room with breakfast", "room with breakfast + lunch", etc.
                                                         if (hasBreakfast) {
-                                                            mealPlans.push({ value: 'bed_&_breakfast', text: `Bed & Breakfast${paxInfo}` });
-                                                            mealPlans.push({ value: 'breakfast_only', text: `Breakfast Only${paxInfo}` });
+                                                            mealPlans.push({ value: 'bed_&_breakfast', text: `room with breakfast${paxInfo}` });
+                                                            
                                                         }
                                                         if (hasLunch) {
-                                                            mealPlans.push({ value: 'lunch_only', text: `Lunch Only${paxInfo}` });
+                                                            mealPlans.push({ value: 'lunch_only', text: `room with lunch${paxInfo}` });
                                                         }
                                                         if (hasDinner) {
-                                                            mealPlans.push({ value: 'dinner_only', text: `Dinner Only${paxInfo}` });
+                                                            mealPlans.push({ value: 'dinner_only', text: `room with dinner${paxInfo}` });
                                                         }
                                                         if (hasBreakfast && hasLunch) {
-                                                            mealPlans.push({ value: 'half_board_breakfast_lunch', text: `Half Board (Breakfast + Lunch)${paxInfo}` });
+                                                            mealPlans.push({ value: 'half_board_breakfast_lunch', text: `room with breakfast + lunch${paxInfo}` });
                                                         }
                                                         if (hasBreakfast && hasDinner) {
-                                                            mealPlans.push({ value: 'half_board_breakfast_dinner', text: `Half Board (Breakfast + Dinner)${paxInfo}` });
+                                                            mealPlans.push({ value: 'half_board_breakfast_dinner', text: `room with breakfast + dinner${paxInfo}` });
                                                         }
                                                         if (hasLunch && hasDinner) {
-                                                            mealPlans.push({ value: 'half_board_lunch_dinner', text: `Half Board (Lunch + Dinner)${paxInfo}` });
+                                                            mealPlans.push({ value: 'half_board_lunch_dinner', text: `room with lunch + dinner${paxInfo}` });
                                                         }
                                                         if (hasBreakfast && hasLunch && hasDinner) {
-                                                            mealPlans.push({ value: 'full_board_all_meals', text: `Full Board (All Meals)${paxInfo}` });
-                                                            mealPlans.push({ value: 'all_inclusive', text: `All Inclusive${paxInfo}` });
+                                                            
+                                                            mealPlans.push({ value: 'all_inclusive', text: `room with all meals (breakfast + lunch + dinner)${paxInfo}` });
                                                         }
                                                         
                                                         // Populate meal plans dynamically
@@ -1861,41 +1865,101 @@
                                                             return;
                                                         }
                                                         
-                                                        // Calculate room price
+                                                        // Weekend days from hotel (set when rooms loaded)
+                                                        const weekendDays = window.hotelWeekendDays_{{ $hotelOrder->booking_id }} || ['Saturday', 'Sunday'];
                                                         const isSingleOccupancy = numberOfPersons <= 1;
-                                                        const pricePerNight = isSingleOccupancy 
-                                                            ? parseFloat(selectedRoom.weekday_price || 0)
+                                                        const weekdayPricePerNight = isSingleOccupancy 
+                                                            ? parseFloat(selectedRoom.weekday_price || 0) 
                                                             : parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        const roomSubtotal = pricePerNight * numberOfNights * numberOfRooms;
+                                                        const weekendPricePerNight = isSingleOccupancy 
+                                                            ? parseFloat(selectedRoom.weekend_price || selectedRoom.weekday_price || 0) 
+                                                            : parseFloat(selectedRoom.double_weekend_price || selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
                                                         
-                                                        // Calculate meal plan price (if meal plan has price)
-                                                        let mealPlanPrice = 0;
+                                                        // Calculate room price per night: weekday vs weekend
+                                                        let roomSubtotal = 0;
+                                                        let weekdayNights = 0;
+                                                        let weekendNights = 0;
+                                                        if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
+                                                            const checkIn = new Date(checkInInput.value);
+                                                            const checkOut = new Date(checkOutInput.value);
+                                                            for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
+                                                                const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+                                                                const isWeekend = weekendDays.some(function(w) { return String(w).toLowerCase() === dayName.toLowerCase(); });
+                                                                if (isWeekend) {
+                                                                    weekendNights++;
+                                                                    roomSubtotal += weekendPricePerNight * numberOfRooms;
+                                                                } else {
+                                                                    weekdayNights++;
+                                                                    roomSubtotal += weekdayPricePerNight * numberOfRooms;
+                                                                }
+                                                            }
+                                                        }
+                                                        if (roomSubtotal === 0 && numberOfNights >= 1) {
+                                                            roomSubtotal = weekdayPricePerNight * numberOfNights * numberOfRooms;
+                                                            weekdayNights = numberOfNights;
+                                                        }
+                                                        
+                                                        // Meal plan: use saved price only when selected plan matches saved meal type; else use room's meal prices (so changing meal updates price)
                                                         let mealPlanSubtotal = 0;
                                                         const selectedMealPlan = mealPlanSelect ? mealPlanSelect.value : '';
-                                                        if (selectedMealPlan && selectedMealPlan !== 'room_only' && selectedRoom) {
-                                                            // Try to get meal prices from room data
-                                                            const breakfastPrice = parseFloat(selectedRoom.breakfast_price || 0);
-                                                            const lunchPrice = parseFloat(selectedRoom.lunch_price || 0);
-                                                            const dinnerPrice = parseFloat(selectedRoom.dinner_price || 0);
-                                                            
-                                                            // Calculate meal plan price based on selected plan
-                                                            if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
-                                                                mealPlanPrice = breakfastPrice + lunchPrice + dinnerPrice;
-                                                            } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch')) {
-                                                                mealPlanPrice = breakfastPrice + lunchPrice;
-                                                            } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('dinner')) {
-                                                                mealPlanPrice = breakfastPrice + dinnerPrice;
-                                                            } else if (selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
-                                                                mealPlanPrice = lunchPrice + dinnerPrice;
-                                                            } else if (selectedMealPlan.includes('breakfast')) {
-                                                                mealPlanPrice = breakfastPrice;
-                                                            } else if (selectedMealPlan.includes('lunch')) {
-                                                                mealPlanPrice = lunchPrice;
-                                                            } else if (selectedMealPlan.includes('dinner')) {
-                                                                mealPlanPrice = dinnerPrice;
+                                                        if (selectedMealPlan && selectedMealPlan !== 'room_only') {
+                                                            let savedMealPrice = null;
+                                                            let savedMealType = null;
+                                                            const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
+                                                            if (originalJsonEl && originalJsonEl.value) {
+                                                                try {
+                                                                    const orig = JSON.parse(originalJsonEl.value);
+                                                                    const firstRoom = Array.isArray(orig) ? orig[0] : orig;
+                                                                    const beds = firstRoom && firstRoom.beds;
+                                                                    if (beds && beds[0] && beds[0].selectedMeals) {
+                                                                        const firstMeal = beds[0].selectedMeals.meal_1 || Object.values(beds[0].selectedMeals)[0];
+                                                                        if (firstMeal) {
+                                                                            if (typeof firstMeal.price !== 'undefined') savedMealPrice = parseFloat(firstMeal.price) || 0;
+                                                                            if (firstMeal.type) savedMealType = String(firstMeal.type).toLowerCase().trim();
+                                                                        }
+                                                                    }
+                                                                } catch (e) {}
                                                             }
-                                                            
-                                                            mealPlanSubtotal = mealPlanPrice * numberOfPersons * numberOfNights * numberOfRooms;
+                                                            // Map saved meal type to dropdown value for comparison (e.g. "room with breakfast" -> bed_&_breakfast)
+                                                            function savedMealTypeMatchesPlan(savedType, planValue) {
+                                                                if (!savedType || !planValue) return false;
+                                                                const p = planValue.toLowerCase();
+                                                                if (p === 'bed_&_breakfast' || p === 'bed_and_breakfast') return savedType.includes('breakfast') && (savedType.includes('room') || savedType.includes('bed'));
+                                                                if (p === 'breakfast_only') return savedType.includes('breakfast') && !savedType.includes('lunch') && !savedType.includes('dinner');
+                                                                if (p === 'lunch_only') return savedType.includes('lunch') && !savedType.includes('breakfast') && !savedType.includes('dinner');
+                                                                if (p === 'dinner_only') return savedType.includes('dinner') && !savedType.includes('breakfast') && !savedType.includes('lunch');
+                                                                if (p.includes('half_board')) return savedType.includes('half') || (savedType.includes('breakfast') && savedType.includes('lunch')) || (savedType.includes('breakfast') && savedType.includes('dinner')) || (savedType.includes('lunch') && savedType.includes('dinner'));
+                                                                if (p.includes('full_board') || p === 'all_inclusive') return savedType.includes('full') || savedType.includes('all');
+                                                                return false;
+                                                            }
+                                                            const useSavedPrice = savedMealPrice !== null && savedMealPrice > 0 && savedMealType && savedMealTypeMatchesPlan(savedMealType, selectedMealPlan);
+                                                            if (useSavedPrice) {
+                                                                mealPlanSubtotal = savedMealPrice;
+                                                            } else if (selectedRoom) {
+                                                                const breakfastPrice = parseFloat(selectedRoom.breakfast_price || 0);
+                                                                const lunchPrice = parseFloat(selectedRoom.lunch_price || 0);
+                                                                const dinnerPrice = parseFloat(selectedRoom.dinner_price || 0);
+                                                                let mealPlanPrice = 0;
+                                                                // room with all meals: value is full_board_all_meals or all_inclusive (no "breakfast" in value)
+                                                                if (selectedMealPlan === 'full_board_all_meals' || selectedMealPlan === 'all_inclusive') {
+                                                                    mealPlanPrice = breakfastPrice + lunchPrice + dinnerPrice;
+                                                                } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
+                                                                    mealPlanPrice = breakfastPrice + lunchPrice + dinnerPrice;
+                                                                } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch')) {
+                                                                    mealPlanPrice = breakfastPrice + lunchPrice;
+                                                                } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('dinner')) {
+                                                                    mealPlanPrice = breakfastPrice + dinnerPrice;
+                                                                } else if (selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
+                                                                    mealPlanPrice = lunchPrice + dinnerPrice;
+                                                                } else if (selectedMealPlan.includes('breakfast')) {
+                                                                    mealPlanPrice = breakfastPrice;
+                                                                } else if (selectedMealPlan.includes('lunch')) {
+                                                                    mealPlanPrice = lunchPrice;
+                                                                } else if (selectedMealPlan.includes('dinner')) {
+                                                                    mealPlanPrice = dinnerPrice;
+                                                                }
+                                                                mealPlanSubtotal = mealPlanPrice * numberOfPersons * numberOfNights * numberOfRooms;
+                                                            }
                                                         }
                                                         
                                                         // Calculate child with bed price
@@ -1921,14 +1985,22 @@
                                                         // Build card-style grid HTML with icons
                                                         let gridHTML = '';
                                                         
-                                                        // Room price row - card style with icon
-                                                        const roomLabel = numberOfNights === 1 ? 'weekday' : `${numberOfNights} weekday${numberOfNights > 1 ? 's' : ''}`;
+                                                        // Room price row - show weekday/weekend breakdown when applicable
+                                                        let roomLabel = '';
+                                                        if (weekendNights > 0 && weekdayNights > 0) {
+                                                            roomLabel = `${weekdayNights} weekday${weekdayNights > 1 ? 's' : ''} @ $${weekdayPricePerNight.toFixed(2)}/night, ${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ $${weekendPricePerNight.toFixed(2)}/night`;
+                                                        } else if (weekendNights > 0) {
+                                                            roomLabel = `${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ $${weekendPricePerNight.toFixed(2)}/night`;
+                                                        } else {
+                                                            roomLabel = (numberOfNights === 1 ? '1 weekday' : `${numberOfNights} weekday${numberOfNights > 1 ? 's' : ''}`) + ` @ $${weekdayPricePerNight.toFixed(2)}/night`;
+                                                        }
+                                                        roomLabel += ` x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''}`;
                                                         gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
                                                             <div class="d-flex align-items-center">
                                                                 <i class="ri-hotel-line me-2" style="font-size: 1rem; color: #dc2626;"></i>
                                                                 <span style="color: #475569;"><strong>Room Price:</strong></span>
                                                             </div>
-                                                            <span style="color: #1e293b; font-weight: 500;">$${roomSubtotal.toFixed(2)} <small class="text-muted">(${roomLabel} @ $${pricePerNight.toFixed(2)}/night x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''})</small></span>
+                                                            <span style="color: #1e293b; font-weight: 500;">$${roomSubtotal.toFixed(2)} <small class="text-muted">(${roomLabel})</small></span>
                                                         </div>`;
                                                         
                                                         // Meal plan row (only if meal plan selected and has price)
@@ -2027,33 +2099,35 @@
                                                             return;
                                                         }
                                                         
-                                                        // Calculate price based on occupancy (single or double)
                                                         const isSingleOccupancy = numberOfPersons <= 1;
-                                                        let pricePerNight = 0;
+                                                        const weekdayPricePerNight = isSingleOccupancy 
+                                                            ? parseFloat(selectedRoom.weekday_price || 0) 
+                                                            : parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
+                                                        const weekendPricePerNight = isSingleOccupancy 
+                                                            ? parseFloat(selectedRoom.weekend_price || selectedRoom.weekday_price || 0) 
+                                                            : parseFloat(selectedRoom.double_weekend_price || selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
                                                         
-                                                        if (isSingleOccupancy) {
-                                                            pricePerNight = parseFloat(selectedRoom.weekday_price || 0);
-                                                        } else {
-                                                            pricePerNight = parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        }
-                                                        
-                                                        // Calculate number of nights - use the specific form context
                                                         const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
-                                                        let numberOfNights = 1;
+                                                        let totalPrice = 0;
+                                                        let nightCount = 0;
                                                         if (formDiv) {
                                                             const checkInInput = formDiv.querySelector('input[name="check_in_date"]');
                                                             const checkOutInput = formDiv.querySelector('input[name="check_out_date"]');
-                                                            
                                                             if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
                                                                 const checkIn = new Date(checkInInput.value);
                                                                 const checkOut = new Date(checkOutInput.value);
-                                                                numberOfNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-                                                                if (numberOfNights <= 0) numberOfNights = 1;
+                                                                const weekendDays = window.hotelWeekendDays_{{ $hotelOrder->booking_id }} || ['Saturday', 'Sunday'];
+                                                                for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
+                                                                    nightCount++;
+                                                                    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+                                                                    const isWeekend = weekendDays.some(function(w) { return String(w).toLowerCase() === dayName.toLowerCase(); });
+                                                                    totalPrice += (isWeekend ? weekendPricePerNight : weekdayPricePerNight) * numberOfRooms;
+                                                                }
                                                             }
                                                         }
-                                                        
-                                                        // Calculate total price: price per night * number of nights * number of rooms
-                                                        const totalPrice = pricePerNight * numberOfNights * numberOfRooms;
+                                                        if (totalPrice === 0 && nightCount === 0) {
+                                                            totalPrice = weekdayPricePerNight * 1 * numberOfRooms;
+                                                        }
                                                         
                                                         // Update price input if calculated price is valid
                                                         if (totalPrice > 0) {
@@ -2369,23 +2443,24 @@
                                                     $time12 = $pickupTime ? date('h:i', strtotime($pickupTime)) : '';
                                                     $ampm  = $pickupTime ? date('A', strtotime($pickupTime)) : 'AM';
                                                 @endphp
-                                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px;">
+                                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
                                                     <input
                                                         type="text"
-                                                        class="form-control text-center"
+                                                        class="form-control text-center border-0"
                                                         id="arrival_pickup_time_input_{{ $order->booking_id }}"
                                                         placeholder="10:30"
                                                         maxlength="5"
                                                         value="{{ $time12 }}"
-                                                        style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                        style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                         oninput="formatTimeInput(this); syncArrivalPickupTime({{ $order->booking_id }})"
                                                         onchange="syncArrivalPickupTime({{ $order->booking_id }})"
                                                     >
                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                                     <select
-                                                        class="form-select border-2"
+                                                        class="form-select border-0"
                                                         id="arrival_pickup_time_ampm_{{ $order->booking_id }}"
-                                                        style="width: 60px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
+                                                        data-no-select2="true"
+                                                        style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
                                                         onchange="syncArrivalPickupTime({{ $order->booking_id }})"
                                                     >
                                                         <option value="AM" {{ $ampm === 'AM' ? 'selected' : '' }}>AM</option>
@@ -3245,7 +3320,7 @@
                                                     @php
                                                         $guideTime = $pickupTimeAMPM ?: '';
                                                     @endphp
-                                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px;">
+                                                    <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 35px; width: fit-content;">
                                                         <input
                                                             type="text"
                                                             class="form-control text-center"
@@ -3261,6 +3336,7 @@
                                                         <select
                                                             class="form-select border-0"
                                                             id="guide_pickup_time_ampm_{{ $order->booking_id }}"
+                                                            data-no-select2="true"
                                                             style="width: 80px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
                                                             onchange="syncGuideEditPickupTime({{ $order->booking_id }})"
                                                         >
@@ -3412,7 +3488,7 @@
                                                                     $mrName = $mr->package_name ?? 'Multi Restaurant Package';
                                                                     $isSelected = ($restaurantName === $mrName || strpos($restaurantName, 'Multi Restaurant') !== false);
                                                                     if ($isSelected) $multiRestaurantSelected = true;
-                                                                    echo '<option value="' . htmlspecialchars($mrValue) . '" ' . ($isSelected ? 'selected' : '') . ' data-multi-restaurant-id="' . $mr->id . '">' . htmlspecialchars($mrName . ' - ' . $mrCurrency . ' ' . number_format((float)$mrPrice, 2, '.', '')) . '</option>';
+                                                                    echo '<option value="' . htmlspecialchars($mrValue) . '" ' . ($isSelected ? 'selected' : '') . ' data-multi-restaurant-id="' . $mr->id . '" data-adult-price="' . htmlspecialchars((string)$mrPrice) . '">' . htmlspecialchars($mrName) . '</option>';
                                                                 }
                                                             }
                                                             
@@ -4364,6 +4440,7 @@
                                                                 <select
                                                                     class="form-select border-2"
                                                                     id="departure_pickup_time_ampm_{{ $order->booking_id }}"
+                                                                    data-no-select2="true"
                                                                     style="width: 60px; height: 35px; font-size: 0.735rem; box-shadow: none; padding: 0 14px 0 6px;"
                                                                     onchange="syncDeparturePickupTime({{ $order->booking_id }})"
                                                                 >
@@ -4878,6 +4955,7 @@
                                 <select
                                     class="form-select border-0"
                                     id="modal_guide_pickup_time_ampm"
+                                    data-no-select2="true"
                                     style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
                                     onchange="syncGuideModalPickupTime()"
                                 >
@@ -6673,6 +6751,7 @@
                                     <select
                                         class="form-select border-0"
                                         id="modal_transport_pickup_time_ampm"
+                                        data-no-select2="true"
                                         style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
                                         onchange="syncTransportModalPickupTime()"
                                     >
@@ -7411,6 +7490,7 @@
                                                 <select
                                                     class="form-select border-0"
                                                     id="modal_dropoff_transport_pickup_time_ampm"
+                                                    data-no-select2="true"
                                                     style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
                                                     onchange="syncDropoffTransportModalPickupTime();"
                                                 >
@@ -7600,9 +7680,14 @@
             return;
         }
 
-        // If we only have hour digits so far, don't force minutes or colon yet
+        // Single digit: 2–9 auto-pad to 02–09; 1 stays so user can type 10, 11, 12
         if (v.length === 1) {
-            input.value = v;
+            const d = parseInt(v, 10);
+            if (d >= 2 && d <= 9) {
+                input.value = String(d).padStart(2, '0');
+            } else {
+                input.value = v;
+            }
             return;
         }
 
@@ -9801,6 +9886,11 @@
             
             // Skip if data-no-select2 attribute is present
             if ($select.attr('data-no-select2') === 'true') {
+                return;
+            }
+            // Skip AM/PM time dropdowns (no search needed for two options)
+            const id = ($select.attr('id') || '').toString();
+            if (id.indexOf('_ampm') !== -1 || id.endsWith('_ampm')) {
                 return;
             }
             
@@ -17766,8 +17856,8 @@
             const price = m.adult_price ?? m.price ?? 0;
             const currency = m.currency || 'SGD';
             const packageName = m.package_name || 'Multi Restaurant';
-            // Format: "Package Name - Currency Price" (same as create form)
-            option.textContent = packageName + ' - ' + currency + ' ' + price;
+            // Show only package name in dropdown; price kept in data for calculations
+            option.textContent = packageName;
             option.setAttribute('data-multi-restaurant', JSON.stringify(m));
             option.dataset.adultPrice = String(price);
             option.dataset.packageName = packageName;
@@ -17828,48 +17918,49 @@
             if (dishNameHidden) dishNameHidden.value = 'Buffet';
         }
         
-        // Populate meal types with time ranges from Multi Restaurant
+        // Populate meal types from multi_restaurants table: show Breakfast/Lunch/Dinner when corresponding time column exists
         const mealSelect = document.getElementById('modal_restaurant_meal_type');
         if (mealSelect) {
             mealSelect.innerHTML = '<option value="">Select Meal Type</option>';
             
-            if (mr.breakfast && mr.breakfast_time) {
+            var breakfastTime = (mr.breakfast_time != null && mr.breakfast_time !== '') ? String(mr.breakfast_time).trim() : '';
+            if (breakfastTime) {
                 const breakfastOpt = document.createElement('option');
                 breakfastOpt.value = 'Breakfast';
                 breakfastOpt.textContent = 'Breakfast';
-                breakfastOpt.setAttribute('data-time-range', mr.breakfast_time);
+                breakfastOpt.setAttribute('data-time-range', breakfastTime);
                 mealSelect.appendChild(breakfastOpt);
             }
             
-            if (mr.lunch && mr.lunch_time) {
+            var lunchTime = (mr.lunch_time != null && mr.lunch_time !== '') ? String(mr.lunch_time).trim() : '';
+            if (lunchTime) {
                 const lunchOpt = document.createElement('option');
                 lunchOpt.value = 'Lunch';
                 lunchOpt.textContent = 'Lunch';
-                lunchOpt.setAttribute('data-time-range', mr.lunch_time);
+                lunchOpt.setAttribute('data-time-range', lunchTime);
                 mealSelect.appendChild(lunchOpt);
             }
             
-            if (mr.dinner && mr.dinner_time) {
+            var dinnerTime = (mr.dinner_time != null && mr.dinner_time !== '') ? String(mr.dinner_time).trim() : '';
+            if (dinnerTime) {
                 const dinnerOpt = document.createElement('option');
                 dinnerOpt.value = 'Dinner';
                 dinnerOpt.textContent = 'Dinner';
-                dinnerOpt.setAttribute('data-time-range', mr.dinner_time);
+                dinnerOpt.setAttribute('data-time-range', dinnerTime);
                 mealSelect.appendChild(dinnerOpt);
             }
             
-            // Set up meal type change handler to populate time slots
+            // Set up meal type change handler: when Breakfast/Lunch/Dinner selected, show that meal's time range in time slot dropdown
             const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
             const mealChangeHandler = function() {
                 const opt = mealSelect.options[mealSelect.selectedIndex];
-                const range = opt && opt.getAttribute('data-time-range');
-                console.log('Meal type changed for Multi Restaurant:', opt ? opt.value : 'none', 'Time range:', range);
+                const range = opt ? (opt.getAttribute('data-time-range') || '').trim() : '';
+                console.log('Meal type changed for Multi Restaurant:', opt ? opt.value : 'none', 'Time range from table:', range);
                 if (range && timeSlotSelect) {
-                    console.log('Populating time slots from range:', range);
                     populateModalTimeSlotsFromRange(range);
                 } else if (timeSlotSelect) {
                     timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
                 }
-                // Update price when meal type changes
                 if (typeof updateModalMultiRestaurantPrice === 'function') {
                     updateModalMultiRestaurantPrice();
                 }
@@ -17893,16 +17984,15 @@
                 });
             }
             
-            // Auto-select first meal type if available
+            // Auto-select first meal type and populate time slot dropdown from that meal's time range
             if (mealSelect.options.length > 1) {
                 mealSelect.selectedIndex = 1;
                 setTimeout(function() {
                     mealChangeHandler();
-                    // Trigger Select2 change if initialized
                     if ($mealSelect.data('select2')) {
                         $mealSelect.trigger('change.select2');
                     }
-                }, 50);
+                }, 100);
             }
             
             // Also listen to time slot changes for price updates
@@ -18304,28 +18394,35 @@
         return result;
     }
     
-    // Function to populate time slots from a time range string (for Multi Restaurant)
+    // Function to populate time slots from a time range string (for Multi Restaurant in modal)
     function populateModalTimeSlotsFromRange(rangeStr) {
         const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
-        if (!timeSlotSelect) {
-            console.error('Time slot select not found');
-            return;
-        }
+        if (!timeSlotSelect) return;
         
         if (!rangeStr || typeof rangeStr !== 'string') {
-            console.error('Invalid time range:', rangeStr);
+            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            return;
+        }
+        rangeStr = rangeStr.trim();
+        if (!rangeStr) {
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
             return;
         }
         
-        console.log('Populating time slots from range:', rangeStr);
+        // Parse "HH:MM" or "HH:MM:SS" to Date (do not use global parseTime – it returns minutes elsewhere)
+        function parseTimeToDate(timeStr) {
+            if (!timeStr) return null;
+            const m = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (!m) return null;
+            const d = new Date();
+            d.setHours(parseInt(m[1], 10), parseInt(m[2], 10), m[3] ? parseInt(m[3], 10) : 0, 0);
+            return d;
+        }
         
-        // Parse time range (handles formats like "08:00-10:00", "08:00 to 10:00", etc.)
-        const rangeParts = rangeStr.split(/[-to]/i).map(s => s.trim());
+        const rangeParts = rangeStr.split(/\s*-\s*|\s+to\s+/i).map(s => s.trim()).filter(s => s.length > 0);
         
         if (rangeParts.length < 2) {
-            // Single time point, create one option
-            const time = parseTime(rangeParts[0]);
+            const time = parseTimeToDate(rangeParts[0]);
             if (time) {
                 timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
                 const option = document.createElement('option');
@@ -18338,16 +18435,14 @@
             return;
         }
         
-        const startTime = parseTime(rangeParts[0]);
-        const endTime = parseTime(rangeParts[1]);
+        const startTime = parseTimeToDate(rangeParts[0]);
+        const endTime = parseTimeToDate(rangeParts[1]);
         
         if (!startTime || !endTime) {
-            console.error('Failed to parse time range:', rangeStr);
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
             return;
         }
         
-        // Normalize dates to same day for proper comparison
         const today = new Date();
         const startDate = new Date(today);
         startDate.setHours(startTime.getHours(), startTime.getMinutes(), startTime.getSeconds(), 0);
@@ -18471,32 +18566,32 @@
                         dishSelect.value = 'buffet';
                     }
                     
-                    // Populate meal types with time ranges from Multi Restaurant
+                    // Populate meal types from multi_restaurants table (breakfast_time, lunch_time, dinner_time)
                     if (mealSelect) {
                         mealSelect.innerHTML = '<option value="">Select Meal Type</option>';
-                        
-                        if (mr.breakfast && mr.breakfast_time) {
-                            const breakfastOpt = document.createElement('option');
-                            breakfastOpt.value = 'breakfast';
-                            breakfastOpt.textContent = 'Breakfast';
-                            breakfastOpt.setAttribute('data-time-range', mr.breakfast_time);
-                            mealSelect.appendChild(breakfastOpt);
+                        var bt = (mr.breakfast_time != null && mr.breakfast_time !== '') ? String(mr.breakfast_time).trim() : '';
+                        if (bt) {
+                            const o = document.createElement('option');
+                            o.value = 'Breakfast';
+                            o.textContent = 'Breakfast';
+                            o.setAttribute('data-time-range', bt);
+                            mealSelect.appendChild(o);
                         }
-                        
-                        if (mr.lunch && mr.lunch_time) {
-                            const lunchOpt = document.createElement('option');
-                            lunchOpt.value = 'lunch';
-                            lunchOpt.textContent = 'Lunch';
-                            lunchOpt.setAttribute('data-time-range', mr.lunch_time);
-                            mealSelect.appendChild(lunchOpt);
+                        var lt = (mr.lunch_time != null && mr.lunch_time !== '') ? String(mr.lunch_time).trim() : '';
+                        if (lt) {
+                            const o = document.createElement('option');
+                            o.value = 'Lunch';
+                            o.textContent = 'Lunch';
+                            o.setAttribute('data-time-range', lt);
+                            mealSelect.appendChild(o);
                         }
-                        
-                        if (mr.dinner && mr.dinner_time) {
-                            const dinnerOpt = document.createElement('option');
-                            dinnerOpt.value = 'dinner';
-                            dinnerOpt.textContent = 'Dinner';
-                            dinnerOpt.setAttribute('data-time-range', mr.dinner_time);
-                            mealSelect.appendChild(dinnerOpt);
+                        var dt = (mr.dinner_time != null && mr.dinner_time !== '') ? String(mr.dinner_time).trim() : '';
+                        if (dt) {
+                            const o = document.createElement('option');
+                            o.value = 'Dinner';
+                            o.textContent = 'Dinner';
+                            o.setAttribute('data-time-range', dt);
+                            mealSelect.appendChild(o);
                         }
                     }
                     
@@ -21271,19 +21366,28 @@
         updateMultiRestaurantPriceForEdit(bookingId);
     }
     
-    // Populate time slots for Multi Restaurant in edit form
+    // Populate time slots for Multi Restaurant in edit form (from multi_restaurants breakfast_time, lunch_time, dinner_time)
     function populateTimeSlotsForEdit(bookingId, rangeStr) {
         const timeSlotSelect = document.getElementById(`time_slot_${bookingId}`);
         if (!timeSlotSelect || !rangeStr) return;
         
+        rangeStr = String(rangeStr).trim();
         timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
         
-        // Parse time range
-        const rangeParts = rangeStr.split(/[-to]/i).map(s => s.trim());
+        // Parse "08:00-10:00" or "08:00 to 10:00" – use helper that always returns Date (another parseTime in this file returns minutes)
+        const rangeParts = rangeStr.split(/\s*-\s*|\s+to\s+/i).map(s => s.trim()).filter(s => s.length > 0);
+        
+        function parseTimeToDate(timeStr) {
+            if (!timeStr) return null;
+            const m = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (!m) return null;
+            const d = new Date();
+            d.setHours(parseInt(m[1], 10), parseInt(m[2], 10), m[3] ? parseInt(m[3], 10) : 0, 0);
+            return d;
+        }
         
         if (rangeParts.length < 2) {
-            // Single time point
-            const time = parseTime(rangeParts[0]);
+            const time = parseTimeToDate(rangeParts[0]);
             if (time) {
                 const opt = document.createElement('option');
                 opt.value = formatTime24(time);
@@ -21293,15 +21397,13 @@
             return;
         }
         
-        const startTime = parseTime(rangeParts[0]);
-        const endTime = parseTime(rangeParts[1]);
+        const startTime = parseTimeToDate(rangeParts[0]);
+        const endTime = parseTimeToDate(rangeParts[1]);
         
         if (!startTime || !endTime) {
-            console.error('Failed to parse time range:', rangeStr);
             return;
         }
         
-        // Normalize dates to same day
         const today = new Date();
         const startDate = new Date(today);
         startDate.setHours(startTime.getHours(), startTime.getMinutes(), startTime.getSeconds(), 0);
@@ -21309,12 +21411,10 @@
         const endDate = new Date(today);
         endDate.setHours(endTime.getHours(), endTime.getMinutes(), endTime.getSeconds(), 0);
         
-        // If end time is before start time, assume next day
         if (endDate < startDate) {
             endDate.setDate(endDate.getDate() + 1);
         }
         
-        // Generate 30-minute intervals
         let currentTime = new Date(startDate);
         let iterationCount = 0;
         const maxIterations = 100;
@@ -21325,14 +21425,16 @@
             opt.textContent = formatTime12(currentTime);
             timeSlotSelect.appendChild(opt);
             
-            // Add 30 minutes
             currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
             iterationCount++;
         }
         
-        // Auto-select first time slot if available
         if (timeSlotSelect.options.length > 1) {
             timeSlotSelect.selectedIndex = 1;
+        }
+        // Refresh Select2 if present so dropdown shows new options
+        if (typeof $ !== 'undefined' && $(timeSlotSelect).data('select2')) {
+            $(timeSlotSelect).trigger('change.select2');
         }
     }
     
@@ -21412,10 +21514,18 @@
             return;
         }
         
-        // Check if Multi Restaurant is selected
         const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
+        // When Multi Restaurant: update time slot from selected meal type's range (breakfast_time/lunch_time/dinner_time)
         if (restaurantSelect && restaurantSelect.value && String(restaurantSelect.value).startsWith('multi_restaurant_')) {
-            // Multi Restaurant already handled, skip
+            const opt = mealTypeSelect.options[mealTypeSelect.selectedIndex];
+            const range = opt ? (opt.getAttribute('data-time-range') || '').trim() : '';
+            if (range && typeof populateTimeSlotsForEdit === 'function') {
+                populateTimeSlotsForEdit(bookingId, range);
+            } else if (typeof populateTimeSlotsForEdit === 'function') {
+                const timeSlotSelect = document.getElementById(`time_slot_${bookingId}`);
+                if (timeSlotSelect) timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            }
+            updateMultiRestaurantPriceForEdit(bookingId);
             return;
         }
         

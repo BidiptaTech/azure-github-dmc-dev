@@ -3195,7 +3195,7 @@
                                 const dropoffField = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_dropoff_location"]`);
                                 const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
                                 const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
-                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_additional_pickup_time"]`);
+                                const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_additional_pickup_time"]`);
                                 const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_additional_date"]`);
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
@@ -3284,7 +3284,7 @@
                                 
                                 const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
                                 const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
-                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
+                                const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
                                 const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_hourly_date"]`);
                                 const selectedHours = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_selected_hours"]`);
                                 
@@ -3379,7 +3379,7 @@
                                     // Dynamic transport - use indexed field names
                                     vehicleSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_vehicle_id"]`);
                                     serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_service_type"]`);
-                                    timeSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_pickup_time"]`);
+                                    timeSelect = document.querySelector(`[name="day${day}_${section}_${transportIndex}_pickup_time"]`);
                                     dateInput = document.querySelector(`input[name="day${day}_${section}_${transportIndex}_date"]`);
                                 } else {
                                     // Static transport - use non-indexed field names
@@ -3387,7 +3387,7 @@
                                     // For static transport, service type is a radio button, not a select
                                     const serviceTypeRadio = document.querySelector(`input[name="day${day}_${section}_service_type"]:checked`);
                                     serviceTypeSelect = serviceTypeRadio ? { value: serviceTypeRadio.value } : null;
-                                    timeSelect = document.querySelector(`select[name="day${day}_${section}_pickup_time"]`);
+                                    timeSelect = document.querySelector(`[name="day${day}_${section}_pickup_time"]`);
                                     dateInput = document.querySelector(`input[name="day${day}_${section}_date"]`);
                                 }
                                 
@@ -3565,7 +3565,8 @@
                                 const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`) || document.querySelector(`select[name="day${day}_${section}_0_service_type"]`);
                                 // Handle different time and date field names for entry vs exit
                                 const timeFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_time` : `day${day}_${section}${fieldSuffix}_pickup_time`;
-                                const timeSelect = document.querySelector(`select[name="${timeFieldName}"]`);
+                                // Entry uses hidden input [name="dayN_entry_pickup_time"]; exit may use select - query by name only
+                                const timeSelect = document.querySelector(`[name="${timeFieldName}"]`);
                                 
                                 // Date field handling - try section-specific date first, then fallback to travel_dates
                                 let dateInput;
@@ -9699,7 +9700,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const name = m.package_name || 'Buffet';
                 const option = document.createElement('option');
                 option.value = 'multi_restaurant_' + m.id;
-                option.textContent = name + ' - SGD ' + price;
+                option.textContent = name;
                 option.dataset.adultPrice = String(price);
                 option.dataset.packageName = name;
                 selectEl.appendChild(option);
@@ -19634,27 +19635,29 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                              </div>
                          </div>
-                         <div class="col-md-4 local-transfer-field" style="display: none;">
-                             <div class="form-group">
-                                 <label class="form-label fw-semibold text-muted mb-2">
-                                     <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                 </label>
-                                 <div class="position-relative">
-                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_pickup_time" style="padding-left: 35px;">
-                                         <option value="">Select The Time</option>
-                                         ${generateTimeOptions()}
-                                     </select>
-                                     <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                 </div>
-                             </div>
-                         </div>
+                        <div class="col-md-4 local-transfer-field" style="display: none;">
+                            <div class="form-group">
+                                <label class="form-label fw-semibold text-muted mb-2">
+                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                </label>
+                                <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
+                                    <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})">
+                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                    <select class="form-select border-0" id="day${day}_transport_${newIndex}_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})">
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" name="day${day}_transport_${newIndex}_pickup_time" id="day${day}_transport_${newIndex}_pickup_time">
+                            </div>
+                        </div>
                          <div class="col-md-2 local-transfer-field" style="display: none;">
                              <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}',${newIndex})" id="day${day}_transport_${newIndex}_search_btn" disabled>
                                  <i class="ri-search-line me-2"></i>Search
                              </button>
                          </div>
                          
-    <!-- Point To Point Fields (Hidden Initially) -->
+                <!-- Point To Point Fields (Hidden Initially) -->
                                                              <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_pickup_location_field" style="display: none;">
                                         <div class="form-group">
                                             <label class="form-label fw-semibold text-muted mb-2">
@@ -19690,13 +19693,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <label class="form-label fw-semibold text-muted mb-2">
                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                             </label>
-                                            <div class="position-relative">
-                                                <select class="form-select border-1" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 35px;" >
-                                                    <option value="">Select time</option>
-                                                    ${generateTimeOptions()}
+                                            <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
+                                                <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_additional_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})">
+                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                <select class="form-select border-0" id="day${day}_transport_${newIndex}_additional_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})">
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
                                                 </select>
-                                                <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                             </div>
+                                            <input type="hidden" name="day${day}_transport_${newIndex}_additional_pickup_time" id="day${day}_transport_${newIndex}_additional_pickup_time">
                                         </div>
                                     </div>
                                     
@@ -19729,13 +19734,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <label class="form-label fw-semibold text-muted mb-2">
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                  </label>
-                                 <div class="position-relative">
-                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_hourly_pickup_time" style="padding-left: 35px;">
-                                         <option value="">Select time</option>
-                                         ${generateTimeOptions()}
+                                 <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
+                                     <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_hourly_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})">
+                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                     <select class="form-select border-0" id="day${day}_transport_${newIndex}_hourly_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})">
+                                         <option value="AM">AM</option>
+                                         <option value="PM">PM</option>
                                      </select>
-                                     <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                  </div>
+                                 <input type="hidden" name="day${day}_transport_${newIndex}_hourly_pickup_time" id="day${day}_transport_${newIndex}_hourly_pickup_time">
                              </div>
                          </div>
                          <div class="col-md-3 hourly-field" id="day${day}_transport_${newIndex}_hourly_hours_field" style="display: none;">
@@ -20051,12 +20058,15 @@ document.addEventListener('DOMContentLoaded', function() {
              console.error(`Dynamic transport dropoff select not found for index ${newIndex}`);
          }
          
-         // Add event listener for pickup time change in the new transport section
-         const newPickupTimeSelect = container.querySelector(`select[name="day${day}_transport_${newIndex}_pickup_time"]`);
-         if (newPickupTimeSelect) {
-             newPickupTimeSelect.addEventListener('change', function() {
-                 enableSearchButton(day, `transport_${newIndex}`);
-             });
+         // Add event listeners for pickup time (custom widget: input + AM/PM) in the new transport section
+         const newPickupTimeInput = document.getElementById(`day${day}_transport_${newIndex}_pickup_time_input`);
+         const newPickupTimeAmpm = document.getElementById(`day${day}_transport_${newIndex}_pickup_time_ampm`);
+         if (newPickupTimeInput) {
+             newPickupTimeInput.addEventListener('input', function() { syncTransportPickupTimeByIndex(day, newIndex, 'local'); enableSearchButton(day, `transport_${newIndex}`, newIndex); });
+             newPickupTimeInput.addEventListener('change', function() { syncTransportPickupTimeByIndex(day, newIndex, 'local'); enableSearchButton(day, `transport_${newIndex}`, newIndex); });
+         }
+         if (newPickupTimeAmpm) {
+             newPickupTimeAmpm.addEventListener('change', function() { syncTransportPickupTimeByIndex(day, newIndex, 'local'); enableSearchButton(day, `transport_${newIndex}`, newIndex); });
          }
          
          // Add event listeners for Point To Point fields
@@ -20141,12 +20151,15 @@ document.addEventListener('DOMContentLoaded', function() {
              }
          });
          
-         // Pickup time select
-         const additionalPickupTimeSelect = container.querySelector(`select[name="day${day}_transport_${newIndex}_additional_pickup_time"]`);
-         if (additionalPickupTimeSelect) {
-             additionalPickupTimeSelect.addEventListener('change', function() {
-                 enableSearchButton(day, `transport_${newIndex}_additional`, newIndex);
-             });
+         // Pickup time (custom widget: input + AM/PM) for point-to-point
+         const additionalPickupTimeInput = document.getElementById(`day${day}_transport_${newIndex}_additional_pickup_time_input`);
+         const additionalPickupTimeAmpm = document.getElementById(`day${day}_transport_${newIndex}_additional_pickup_time_ampm`);
+         if (additionalPickupTimeInput) {
+             additionalPickupTimeInput.addEventListener('input', function() { syncTransportPickupTimeByIndex(day, newIndex, 'additional'); enableSearchButton(day, `transport_${newIndex}_additional`, newIndex); });
+             additionalPickupTimeInput.addEventListener('change', function() { syncTransportPickupTimeByIndex(day, newIndex, 'additional'); enableSearchButton(day, `transport_${newIndex}_additional`, newIndex); });
+         }
+         if (additionalPickupTimeAmpm) {
+             additionalPickupTimeAmpm.addEventListener('change', function() { syncTransportPickupTimeByIndex(day, newIndex, 'additional'); enableSearchButton(day, `transport_${newIndex}_additional`, newIndex); });
          }
          
          // Set up hourly field listeners for dynamically added transport
@@ -21862,6 +21875,33 @@ function syncTransportHourlyPickupTime(day) {
     const timeInput = document.getElementById(`day${day}_transport_hourly_pickup_time_input`);
     const ampmSelect = document.getElementById(`day${day}_transport_hourly_pickup_time_ampm`);
     const hiddenInput = document.getElementById(`day${day}_transport_hourly_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) {
+        timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    }
+    if (!timeStr || timeStr.length < 4) {
+        hiddenInput.value = '';
+        return;
+    }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    if (hour === 12 && min > 0) min = 0;
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+}
+
+// Sync transport pickup time by day and transport index (for additional transport cards: local, additional, hourly)
+function syncTransportPickupTimeByIndex(day, index, type) {
+    const suffix = type === 'additional' ? '_additional' : (type === 'hourly' ? '_hourly' : '');
+    const prefix = `day${day}_transport_${index}${suffix}`;
+    const timeInput = document.getElementById(`${prefix}_pickup_time_input`);
+    const ampmSelect = document.getElementById(`${prefix}_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`${prefix}_pickup_time`);
     if (!timeInput || !ampmSelect || !hiddenInput) return;
     let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
     if (timeStr.length >= 2) {
@@ -29884,7 +29924,7 @@ function searchHourlyVehicles(day, section) {
 function searchLocalTransferVehicles(day, section) {
     const pickupZoneSelect = document.querySelector(`select[name="day${day}_transport_pickup_zone_id"]`);
     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_transport_dropoff_zone_id"]`);
-    const pickupTime = document.querySelector(`select[name="day${day}_transport_pickup_time"]`);
+    const pickupTime = document.querySelector(`[name="day${day}_transport_pickup_time"]`);
     const pickupDate = document.querySelector(`input[name="day${day}_transport_date"]`);
     
     if (!pickupZoneSelect || !dropoffZoneSelect || !pickupTime || !pickupDate ||
@@ -30167,7 +30207,7 @@ function saveTransportService(day, section, type) {
         };
     } else if (serviceCategory === 'hourly') {
         const pickupLocation = document.querySelector(`input[name="day${day}_${section}_hourly_pickup_location"]`);
-        const pickupTime = document.querySelector(`select[name="day${day}_${section}_hourly_pickup_time"]`);
+        const pickupTime = document.querySelector(`[name="day${day}_${section}_hourly_pickup_time"]`);
         const pickupDate = document.querySelector(`input[name="day${day}_${section}_hourly_pickup_date"]`);
         const serviceType = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
         
@@ -30184,7 +30224,7 @@ function saveTransportService(day, section, type) {
         // Local transfer
         const pickupZoneId = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
         const dropoffZoneId = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
-        const pickupTime = document.querySelector(`select[name="day${day}_${section}_pickup_time"]`);
+        const pickupTime = document.querySelector(`[name="day${day}_${section}_pickup_time"]`);
         const pickupDate = document.querySelector(`input[name="day${day}_${section}_date"]`);
         const serviceType = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
         
