@@ -10050,7 +10050,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         if (data.success && data.zones) {
                             data.zones.forEach(zone => {
-                                pickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                                const zId = zone.zone_id ?? zone.id;
+                                const zName = zone.zone_name ?? zone.name;
+                                const zType = (zone.zone_type ?? zone.type ?? '').toLowerCase();
+                                const option = document.createElement('option');
+                                option.value = zId;
+                                option.textContent = `${zName} (${zType || 'zone'})`;
+                                if (zType) option.setAttribute('data-type', zType);
+                                pickupSelect.appendChild(option);
                             });
                             console.log(`Loaded ${data.zones.length} zones for ${cityName} into ${pickupSelect.name}`);
                         } else {
@@ -27147,20 +27154,20 @@ window.saveService = function(day, type) {
        const user_dmc = UserDmc;
        const zone_status = user_dmc ? user_dmc.zone_on : 1; // Default to 1 if no DMC data
        
-       // Check if this is a local_transfer transport type
-       const localTransferRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="local_transfer"]`);
-       const isLocalTransfer = localTransferRadio && localTransferRadio.checked;
+       // Check if this is a local_transfer transport type (use baseSection so transport_2, transport_3, etc. use their own radio)
+       const localTransferRadioForZones = document.querySelector(`input[name="day${day}_${baseSection}_service_type"][value="local_transfer"]`);
+       const isLocalTransfer = localTransferRadioForZones && localTransferRadioForZones.checked;
+       const isTransportSection = section === 'transport' || /^transport_\d+$/.test(section);
        
        if (zone_status == 1) {
         if (section === 'exit') {
             // For exit port, pickup is typically attraction/restaurant, dropoff is port
             fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || 'attraction';
             toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || 'port';
-        } else if (isLocalTransfer && section === 'transport') {
-            // For local_transfer, read the actual data-type from the selected options
-            // Don't default to 'port' or 'attraction' - use the actual type (hotel, attraction, restaurant, etc.)
-            fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || '';
-            toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || '';
+        } else if (isLocalTransfer && isTransportSection) {
+            // For local_transfer (any transport: transport, transport_2, transport_3...), use selected pickup/dropoff types so correct zone mapping is used
+            fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.getAttribute('data-type') || '';
+            toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.getAttribute('data-type') || '';
             
             // If data-type is missing, try to infer from option text
             if (!fromZoneType && pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text) {
@@ -27208,14 +27215,13 @@ window.saveService = function(day, type) {
              actualToZoneId = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.portId || toZoneId;
          }
          
-         // For local_transfer with hotels/attractions/restaurants, keep the original IDs
-         // The backend will convert them to zone_ids using getActualZoneId
-         if (isLocalTransfer && section === 'transport') {
-             // Don't modify the IDs - pass them as-is to the backend
-             // The backend's getActualZoneId will handle the conversion based on the zone type
-             console.log('Local transfer: keeping original IDs for backend conversion:', {
-                 fromZoneId: fromZoneId,
-                 toZoneId: toZoneId,
+         // For local_transfer (any transport section), use selected pickup/dropoff IDs as-is so the chosen location is mapped correctly
+         if (isLocalTransfer && isTransportSection) {
+             actualFromZoneId = fromZoneId;
+             actualToZoneId = toZoneId;
+             console.log('Local transfer: using selected location IDs for vehicle mapping:', {
+                 fromZoneId: actualFromZoneId,
+                 toZoneId: actualToZoneId,
                  fromZoneType: fromZoneType,
                  toZoneType: toZoneType
              });
