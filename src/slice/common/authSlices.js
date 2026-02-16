@@ -5,7 +5,6 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
 
-import getUserCountry from "./getUserCountry";
 import { BASE_URL } from "@/services/api";
 import { setSelectedDmcId } from '../dmc/dmcSlice';
 
@@ -110,12 +109,9 @@ export const loginUser = createAsyncThunk(
   "auth/loginUser",
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const { country, country_code } = await getUserCountry();
-      // console.log("Country from getUserCountry:", country);
       const response = await axios.post(
         `${BASE_URL}/login`,
         { email, password },
-        { headers: { "user-country": country } },
         { withCredentials: true }
       );
 
@@ -156,7 +152,7 @@ export const loginUser = createAsyncThunk(
           dmc_company_name: dmcCompanyName, // Add dmc_company_name from API response
         } = response.data.user;
 
-        const countryCode = country_code;
+        const countryCode = response.data.user.agent_country_code ?? (user_country?.[0]?.country_code) ?? null;
         // Convert currency symbol from Unicode to string without the semicolon
         const convertedCurrencySymbol = currencySymbol
           .replace(/\\u/g, "&#x")
@@ -261,7 +257,7 @@ export const loginUser = createAsyncThunk(
           secure: true,
           sameSite: "Strict",
         });
-        Cookies.set("countryCode", country_code, {
+        Cookies.set("countryCode", countryCode, {
           expires: expiryDate,
           secure: true,
           sameSite: "Strict",
