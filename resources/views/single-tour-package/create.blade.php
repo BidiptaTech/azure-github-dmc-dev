@@ -6620,6 +6620,15 @@
                      }
                  }
              }
+             // Update restaurant pricing when pax changes so price grid updates
+             if (summaryId.includes('restaurant')) {
+                 const dayMatch = summaryId.match(/day(\d+)_restaurant_(\d+)_guest_summary/);
+                 if (dayMatch && typeof updateRestaurantPricing === 'function') {
+                     setTimeout(() => {
+                         updateRestaurantPricing(dayMatch[1], dayMatch[2]);
+                     }, 100);
+                 }
+             }
          });
          
          console.log(`Updated all service guest fields: ${adults} adults (${male} male, ${female} female), ${children} children, ${infants} infants`);
@@ -9477,7 +9486,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            if (!names.length || grandTotal === 0) {
+            if (!names.length && grandTotal === 0) {
                 headerSpan.textContent = '';
                 // Update right side price display to 0
                 const restaurantTotalPriceEl = document.getElementById('restaurantTotalPrice');
@@ -9653,38 +9662,50 @@ document.addEventListener('DOMContentLoaded', function() {
         const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
         const cityMessage = document.getElementById(`day${day}_restaurant_city_message_${index}`);
         
+        function prependMultiRestaurantOptions(selectEl) {
+            const list = window.multiRestaurants || [];
+            list.forEach(m => {
+                const price = m.adult_price ?? m.price ?? 0;
+                const name = m.package_name || 'Buffet';
+                const option = document.createElement('option');
+                option.value = 'multi_restaurant_' + m.id;
+                option.textContent = name + ' - SGD ' + price;
+                option.dataset.adultPrice = String(price);
+                option.dataset.packageName = name;
+                selectEl.appendChild(option);
+            });
+        }
+
         if (cityName) {
             restaurantSelect.disabled = false;
             restaurantSelect.innerHTML = '<option value="">Loading restaurants...</option>';
             cityMessage.style.display = 'none';
             
-            // Load restaurants for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
             
             fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(response => response.json())
                 .then(data => {
                     restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+                    prependMultiRestaurantOptions(restaurantSelect);
                     
                     if (data.success && data.restaurants) {
-                        console.log('Restaurant data received:', data.restaurants);
                         data.restaurants.forEach(restaurant => {
-                            console.log('Processing restaurant:', restaurant);
                             const option = document.createElement('option');
                             option.value = restaurant.restaurant_id;
-                            option.textContent = `${restaurant.name}`;
+                            option.textContent = restaurant.name;
                             option.dataset.city = restaurant.city;
                             option.dataset.mealTypes = JSON.stringify(restaurant.meal_types || []);
                             restaurantSelect.appendChild(option);
                         });
-                        console.log(`Loaded ${data.restaurants.length} restaurants for ${cityName}`);
                     } else {
-                        restaurantSelect.innerHTML += '<option disabled>No restaurants found in this city</option>';
+                        if ((window.multiRestaurants || []).length === 0) {
+                            restaurantSelect.innerHTML += '<option disabled>No restaurants found in this city</option>';
+                        }
                     }
                     
                     restaurantSelect.disabled = false;
                     
-                    // Load vehicles for transfer if transfer is enabled
                     const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
                     if (transferRequired && transferRequired.value === 'Yes') {
                         loadRestaurantTransferVehicles(day, cityName, index);
@@ -9693,12 +9714,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => {
                     console.error('Error loading restaurants for city:', error);
-                    restaurantSelect.innerHTML = '<option disabled>Error loading restaurants</option>';
+                    restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+                    prependMultiRestaurantOptions(restaurantSelect);
+                    restaurantSelect.innerHTML += '<option disabled>Error loading restaurants</option>';
                     restaurantSelect.disabled = false;
                 });
         } else {
-            restaurantSelect.disabled = true;
-            restaurantSelect.innerHTML = '<option value="">Select city first</option>';
+            restaurantSelect.disabled = false;
+            restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+            prependMultiRestaurantOptions(restaurantSelect);
             cityMessage.style.display = 'block';
         }
     }
@@ -13498,6 +13522,7 @@ document.addEventListener('DOMContentLoaded', function() {
          document.getElementById('transportDayCount').textContent = totalDays + ' Days';
          
          let servicesHTML = '';
+         window.multiRestaurants = @json($multiRestaurants ?? []);
          
         // Only show Day 1 and last day with exit port (if more than 1 day)
         const daysToShow = totalDays > 1 ? [1, totalDays] : [1];
@@ -14368,59 +14393,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                              <div class="col-md-3">
                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                                     <i class="ri-time-line me-1"></i>Pickup Time
                                                  </label>
-                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_pickup_time" id="day${day}_attraction_1_transfer_pickup_time">
-                                                     <option value="">Select Pickup Time</option>
-                                                     <option value="00:00">00:00</option>
-                                                     <option value="00:30">00:30</option>
-                                                     <option value="01:00">01:00</option>
-                                                     <option value="01:30">01:30</option>
-                                                     <option value="02:00">02:00</option>
-                                                     <option value="02:30">02:30</option>
-                                                     <option value="03:00">03:00</option>
-                                                     <option value="03:30">03:30</option>
-                                                     <option value="04:00">04:00</option>
-                                                     <option value="04:30">04:30</option>
-                                                     <option value="05:00">05:00</option>
-                                                     <option value="05:30">05:30</option>
-                                                     <option value="06:00">06:00</option>
-                                                     <option value="06:30">06:30</option>
-                                                     <option value="07:00">07:00</option>
-                                                     <option value="07:30">07:30</option>
-                                                     <option value="08:00">08:00</option>
-                                                     <option value="08:30">08:30</option>
-                                                     <option value="09:00">09:00</option>
-                                                     <option value="09:30">09:30</option>
-                                                     <option value="10:00">10:00</option>
-                                                     <option value="10:30">10:30</option>
-                                                     <option value="11:00">11:00</option>
-                                                     <option value="11:30">11:30</option>
-                                                     <option value="12:00">12:00</option>
-                                                     <option value="12:30">12:30</option>
-                                                     <option value="13:00">13:00</option>
-                                                     <option value="13:30">13:30</option>
-                                                     <option value="14:00">14:00</option>
-                                                     <option value="14:30">14:30</option>
-                                                     <option value="15:00">15:00</option>
-                                                     <option value="15:30">15:30</option>
-                                                     <option value="16:00">16:00</option>
-                                                     <option value="16:30">16:30</option>
-                                                     <option value="17:00">17:00</option>
-                                                     <option value="17:30">17:30</option>
-                                                     <option value="18:00">18:00</option>
-                                                     <option value="18:30">18:30</option>
-                                                     <option value="19:00">19:00</option>
-                                                     <option value="19:30">19:30</option>
-                                                     <option value="20:00">20:00</option>
-                                                     <option value="20:30">20:30</option>
-                                                     <option value="21:00">21:00</option>
-                                                     <option value="21:30">21:30</option>
-                                                     <option value="22:00">22:00</option>
-                                                     <option value="22:30">22:30</option>
-                                                     <option value="23:00">23:00</option>
-                                                     <option value="23:30">23:30</option>
-                                                 </select>
+                                                 <input type="time" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_attraction_1_transfer_pickup_time" id="day${day}_attraction_1_transfer_pickup_time" step="1800">
                                              </div>
                                          </div>
                                      </div>
@@ -14924,16 +14899,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                                          <i class="ri-file-copy-line me-1"></i>Copy
                                                      </button>
                                                  </div>
-                                                 <!-- Basic Information Section -->
-                                                 <div class="mb-4">
-                                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
-                                                         <i class="ri-information-line me-2"></i>Basic Information
-                                                     </h6>
-                                                     <div class="row g-3">
-                                                         <div class="col-md-3">
-                                                             <label class="form-label fw-semibold text-dark">
-                                                                 <i class="ri-building-line me-1 text-primary"></i>City
-                                                             </label>
+                                                <!-- Basic Information Section -->
+                                                <div class="mb-4">
+                                                    <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                        <i class="ri-information-line me-2"></i>Basic Information
+                                                    </h6>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-dark">
+                                                                <i class="ri-building-line me-1 text-primary"></i>City
+                                                            </label>
                                                              <select class="form-select restaurant-city-select shadow-sm" name="day${day}_restaurant_city_1" id="day${day}_restaurant_city_1" onchange="loadRestaurantsForCity(${day}, this.value, 1)" style="border: 1px solid #e5e7eb;">
                                                                  <option value="">Select City</option>
                                                              </select>
@@ -14943,7 +14918,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                              <label class="form-label fw-semibold text-dark">
                                                                  <i class="ri-restaurant-line me-1 text-primary"></i>Select Restaurant
                                                              </label>
-                                                             <select class="form-select restaurant-select shadow-sm" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="console.log('Restaurant changed:', this.value); if(this.value) { loadRestaurantDetails(${day}, this.value, 1); updateRestaurantPricing(${day}, 1); }" disabled style="border: 1px solid #e5e7eb;">
+                                                             <select class="form-select restaurant-select shadow-sm" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="if(this.value && this.value.startsWith('multi_restaurant_')) { handleMultiRestaurantSelected(${day}, 1, this.value); updateRestaurantPricing(${day}, 1); } else if(this.value) { loadRestaurantDetails(${day}, this.value, 1); updateRestaurantPricing(${day}, 1); showRestaurantTransferSection(${day}, 1); } else { updateRestaurantPricing(${day}, 1); showRestaurantTransferSection(${day}, 1); }" disabled style="border: 1px solid #e5e7eb;">
                                                                  <option value="">Select city first</option>
                                                              </select>
                                                          </div>
@@ -15013,7 +14988,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <option value="">Select Time Slot</option>
                                                              </select>
                                                          </div>
-                                                         <div class="col-md-3">
+                                                         <div class="col-md-3" id="day${day}_restaurant_1_transfer_required_col">
                                                              <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                                  <i class="ri-car-line me-1"></i>Transfer Required?
                                                              </label>
@@ -15084,62 +15059,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                                              </div>
                                                              <div class="col-md-3">
                                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                     <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                                                     <i class="ri-time-line me-1"></i>Pickup Time
                                                                  </label>
-                                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_1_transfer_pickup_time" id="day${day}_restaurant_1_transfer_pickup_time">
-                                                                     <option value="">Select Pickup Time</option>
-                                                                     <option value="00:00">00:00</option>
-                                                                     <option value="00:30">00:30</option>
-                                                                     <option value="01:00">01:00</option>
-                                                                     <option value="01:30">01:30</option>
-                                                                     <option value="02:00">02:00</option>
-                                                                     <option value="02:30">02:30</option>
-                                                                     <option value="03:00">03:00</option>
-                                                                     <option value="03:30">03:30</option>
-                                                                     <option value="04:00">04:00</option>
-                                                                     <option value="04:30">04:30</option>
-                                                                     <option value="05:00">05:00</option>
-                                                                     <option value="05:30">05:30</option>
-                                                                     <option value="06:00">06:00</option>
-                                                                     <option value="06:30">06:30</option>
-                                                                     <option value="07:00">07:00</option>
-                                                                     <option value="07:30">07:30</option>
-                                                                     <option value="08:00">08:00</option>
-                                                                     <option value="08:30">08:30</option>
-                                                                     <option value="09:00">09:00</option>
-                                                                     <option value="09:30">09:30</option>
-                                                                     <option value="10:00">10:00</option>
-                                                                     <option value="10:30">10:30</option>
-                                                                     <option value="11:00">11:00</option>
-                                                                     <option value="11:30">11:30</option>
-                                                                     <option value="12:00">12:00</option>
-                                                                     <option value="12:30">12:30</option>
-                                                                     <option value="13:00">13:00</option>
-                                                                     <option value="13:30">13:30</option>
-                                                                     <option value="14:00">14:00</option>
-                                                                     <option value="14:30">14:30</option>
-                                                                     <option value="15:00">15:00</option>
-                                                                     <option value="15:30">15:30</option>
-                                                                     <option value="16:00">16:00</option>
-                                                                     <option value="16:30">16:30</option>
-                                                                     <option value="17:00">17:00</option>
-                                                                     <option value="17:30">17:30</option>
-                                                                     <option value="18:00">18:00</option>
-                                                                     <option value="18:30">18:30</option>
-                                                                     <option value="19:00">19:00</option>
-                                                                     <option value="19:30">19:30</option>
-                                                                     <option value="20:00">20:00</option>
-                                                                     <option value="20:30">20:30</option>
-                                                                     <option value="21:00">21:00</option>
-                                                                     <option value="21:30">21:30</option>
-                                                                     <option value="22:00">22:00</option>
-                                                                     <option value="22:30">22:30</option>
-                                                                     <option value="23:00">23:00</option>
-                                                                     <option value="23:30">23:30</option>
-                                                                 </select>
-                                                                 <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
-                                                                     <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
-                                                                 </small>
+                                                                 <input type="time" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_pickup_time" id="day${day}_restaurant_1_transfer_pickup_time" step="1800">
                                                              </div>
                                                          </div>
                                                      </div>
@@ -16725,62 +16647,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                        <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_transfer_pickup_time" id="day${day}_attraction_${newIndex}_transfer_pickup_time">
-                                        <option value="">Select Pickup Time</option>
-                                        <option value="00:00">00:00</option>
-                                        <option value="00:30">00:30</option>
-                                        <option value="01:00">01:00</option>
-                                        <option value="01:30">01:30</option>
-                                        <option value="02:00">02:00</option>
-                                        <option value="02:30">02:30</option>
-                                        <option value="03:00">03:00</option>
-                                        <option value="03:30">03:30</option>
-                                        <option value="04:00">04:00</option>
-                                        <option value="04:30">04:30</option>
-                                        <option value="05:00">05:00</option>
-                                        <option value="05:30">05:30</option>
-                                        <option value="06:00">06:00</option>
-                                        <option value="06:30">06:30</option>
-                                        <option value="07:00">07:00</option>
-                                        <option value="07:30">07:30</option>
-                                        <option value="08:00">08:00</option>
-                                        <option value="08:30">08:30</option>
-                                        <option value="09:00">09:00</option>
-                                        <option value="09:30">09:30</option>
-                                        <option value="10:00">10:00</option>
-                                        <option value="10:30">10:30</option>
-                                        <option value="11:00">11:00</option>
-                                        <option value="11:30">11:30</option>
-                                        <option value="12:00">12:00</option>
-                                        <option value="12:30">12:30</option>
-                                        <option value="13:00">13:00</option>
-                                        <option value="13:30">13:30</option>
-                                        <option value="14:00">14:00</option>
-                                        <option value="14:30">14:30</option>
-                                        <option value="15:00">15:00</option>
-                                        <option value="15:30">15:30</option>
-                                        <option value="16:00">16:00</option>
-                                        <option value="16:30">16:30</option>
-                                        <option value="17:00">17:00</option>
-                                        <option value="17:30">17:30</option>
-                                        <option value="18:00">18:00</option>
-                                        <option value="18:30">18:30</option>
-                                        <option value="19:00">19:00</option>
-                                        <option value="19:30">19:30</option>
-                                        <option value="20:00">20:00</option>
-                                        <option value="20:30">20:30</option>
-                                        <option value="21:00">21:00</option>
-                                        <option value="21:30">21:30</option>
-                                        <option value="22:00">22:00</option>
-                                        <option value="22:30">22:30</option>
-                                        <option value="23:00">23:00</option>
-                                        <option value="23:30">23:30</option>
-                                    </select>
-                                    <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
-                                        <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
-                                    </small>
+                                    <input type="time" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_attraction_${newIndex}_transfer_pickup_time" id="day${day}_attraction_${newIndex}_transfer_pickup_time" step="1800">
                                 </div>
                             </div>
                         </div>
@@ -17949,6 +17818,109 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
+    // When Multi Restaurant (Buffet) is selected: hide transfer, set Buffet for dish, meal types with times from DB
+    window.handleMultiRestaurantSelected = function(day, index, value) {
+        const id = value.replace('multi_restaurant_', '');
+        const mr = (window.multiRestaurants || []).find(m => String(m.id) === id);
+        if (!mr) return;
+
+        const transferCol = document.getElementById(`day${day}_restaurant_${index}_transfer_required_col`);
+        const transferCard = document.getElementById(`day${day}_restaurant_${index}_transfer_card`);
+        const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+        if (transferCol) transferCol.style.display = 'none';
+        if (transferCard) transferCard.style.display = 'none';
+        if (transferRequired) transferRequired.value = 'No';
+
+        const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
+        const dishSelect = document.getElementById('day' + day + '_dish_' + index);
+        const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+        const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
+        const dishNameHidden = document.getElementById('day' + day + '_restaurant_' + index + '_dish_name');
+
+        function formatTimeRangeForLabel(rangeStr) {
+            if (!rangeStr || typeof rangeStr !== 'string') return '';
+            const parts = rangeStr.split('-').map(s => s.trim());
+            if (parts.length >= 2) {
+                const start = parseTime(parts[0]);
+                const end = parseTime(parts[1]);
+                if (start && end) return formatTime12(start) + ' to ' + formatTime12(end);
+            }
+            if (parts.length === 1 && parts[0]) {
+                const t = parseTime(parts[0]);
+                if (t) return formatTime12(t);
+            }
+            return '';
+        }
+
+        if (mealTypeSelect) {
+            let mealOptions = '<option value="">Select Meal Type</option>';
+            if (mr.breakfast && mr.breakfast_time && typeof mr.breakfast_time === 'string') {
+                const label = formatTimeRangeForLabel(mr.breakfast_time);
+                mealOptions += '<option value="Breakfast" data-time-range="' + (mr.breakfast_time || '').replace(/"/g, '&quot;') + '">\uD83C\uDF05 Breakfast - ' + label + '</option>';
+            }
+            if (mr.lunch && mr.lunch_time && typeof mr.lunch_time === 'string') {
+                const label = formatTimeRangeForLabel(mr.lunch_time);
+                mealOptions += '<option value="Lunch" data-time-range="' + (mr.lunch_time || '').replace(/"/g, '&quot;') + '">\u2600 Lunch - ' + label + '</option>';
+            }
+            if (mr.dinner && mr.dinner_time && typeof mr.dinner_time === 'string') {
+                const label = formatTimeRangeForLabel(mr.dinner_time);
+                mealOptions += '<option value="Dinner" data-time-range="' + (mr.dinner_time || '').replace(/"/g, '&quot;') + '">\uD83C\uDF19 Dinner - ' + label + '</option>';
+            }
+            if (mealOptions === '<option value="">Select Meal Type</option>') {
+                mealOptions += '<option value="Buffet">Buffet</option>';
+            }
+            mealTypeSelect.innerHTML = mealOptions;
+            mealTypeSelect._multiRestaurantDay = day;
+            mealTypeSelect._multiRestaurantIndex = index;
+            mealTypeSelect.removeEventListener('change', mealTypeSelect._multiRestaurantTimeHandler);
+            mealTypeSelect._multiRestaurantTimeHandler = function() {
+                const opt = this.options[this.selectedIndex];
+                const range = opt && opt.dataset.timeRange;
+                const d = this._multiRestaurantDay;
+                const idx = this._multiRestaurantIndex;
+                const slotEl = document.getElementById('day' + d + '_time_slot_' + idx);
+                if (!slotEl) return;
+                if (range) {
+                    const part = range.split('-').map(s => s.trim());
+                    if (part.length >= 2) populateTimeSlots(d, idx, part[0], part[1]);
+                    else slotEl.innerHTML = '<option value="">Select Time Slot</option>';
+                } else {
+                    slotEl.innerHTML = '<option value="">Select Time Slot</option>';
+                }
+            };
+            mealTypeSelect.addEventListener('change', mealTypeSelect._multiRestaurantTimeHandler);
+            if (mealTypeSelect.options.length > 1) {
+                mealTypeSelect.selectedIndex = 1;
+                mealTypeSelect._multiRestaurantTimeHandler.call(mealTypeSelect);
+            }
+        }
+        if (dishContainer) dishContainer.style.display = 'block';
+        if (dishSelect) {
+            dishSelect.innerHTML = '<option value="buffet">Buffet</option>';
+            dishSelect.value = 'buffet';
+        }
+        if (dishNameHidden) dishNameHidden.value = 'Buffet';
+
+        const adultPrice = parseFloat(mr.adult_price ?? mr.price ?? 0);
+        const male = parseInt(document.getElementById('male')?.value || 0);
+        const female = parseInt(document.getElementById('female')?.value || 0);
+        const adults = Math.max(1, male + female);
+        const total = adultPrice * adults;
+        const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+        if (totalPriceField) totalPriceField.value = String(total);
+        if (typeof updateRestaurantTotalDisplay === 'function') updateRestaurantTotalDisplay(day, index);
+    };
+
+    window.showRestaurantTransferSection = function(day, index) {
+        const transferCol = document.getElementById(`day${day}_restaurant_${index}_transfer_required_col`);
+        if (transferCol) transferCol.style.display = 'block';
+        const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+        const transferCard = document.getElementById(`day${day}_restaurant_${index}_transfer_card`);
+        if (transferRequired && transferCard) {
+            transferCard.style.display = transferRequired.value === 'Yes' ? 'block' : 'none';
+        }
+    };
+
     // Function to update restaurant pricing display
     window.updateRestaurantPricing = function(day, index) {
         console.log(`=== UPDATING RESTAURANT PRICING: Day ${day}, Index ${index} ===`);
@@ -17983,8 +17955,64 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!selectedRestaurant || !selectedRestaurant.value) {
             console.log('No restaurant selected, hiding pricing');
             priceDisplay.style.display = 'none';
-            // Update total display (restaurant is 0)
             updateRestaurantTotalDisplay(day, index);
+            return;
+        }
+
+        if (selectedRestaurant.value.startsWith('multi_restaurant_')) {
+            const id = selectedRestaurant.value.replace('multi_restaurant_', '');
+            const mr = (window.multiRestaurants || []).find(m => String(m.id) === id);
+            if (mr && restaurantNameDisplay) restaurantNameDisplay.textContent = mr.package_name || 'Buffet';
+            
+            // Get guest counts from restaurant row's guest summary (not main form)
+            const guestSummaryElement = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
+            let adults = 0;
+            let children = 0;
+            if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                adults = guestInfo.adults || 0;
+                children = guestInfo.children || 0;
+            }
+            
+            // Get prices from Multi Restaurant data
+            const adultPrice = parseFloat(mr ? (mr.adult_price ?? mr.price ?? 0) : 0);
+            const childPrice = parseFloat(mr ? (mr.child_price ?? 0) : 0); // Read child_price from database
+            
+            // Calculate total: (adultPrice × adults) + (childPrice × children)
+            const adultTotal = adults > 0 ? adults * adultPrice : 0;
+            const childTotal = children > 0 ? children * childPrice : 0;
+            const total = adultTotal + childTotal;
+            
+            if (pricingDetailsDisplay) {
+                let pricingHTML = '<div class="small"><strong>Buffet</strong></div>';
+                if (adults > 0 || children > 0) {
+                    pricingHTML += '<div class="mt-2 border-top pt-2">';
+                    pricingHTML += '<div><strong>Calculation:</strong></div>';
+                    if (adults > 0) {
+                        pricingHTML += `<div class="ms-3">${adults} Adults × SGD ${adultPrice.toFixed(2)} = <strong>SGD ${adultTotal.toFixed(2)}</strong></div>`;
+                    }
+                    if (children > 0) {
+                        pricingHTML += `<div class="ms-3">${children} Children × SGD ${childPrice.toFixed(2)} = <strong>SGD ${childTotal.toFixed(2)}</strong></div>`;
+                    }
+                    pricingHTML += `<div class="mt-2"><strong class="text-success">Total: SGD ${total.toFixed(2)}</strong></div>`;
+                    pricingHTML += '</div>';
+                } else {
+                    pricingHTML += '<div class="mt-2 text-muted" style="font-size: 0.85rem;"><i class="ri-information-line me-1"></i>Select guests to calculate total price</div>';
+                }
+                pricingDetailsDisplay.innerHTML = pricingHTML;
+            }
+            
+            const totalDisplay = document.getElementById(`day${day}_restaurant_${index}_total_display`);
+            const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+            if (totalPriceField) {
+                totalPriceField.value = String(total.toFixed(2));
+            }
+            if (totalDisplay && totalPriceField) {
+                totalDisplay.textContent = (parseFloat(totalPriceField.value) || 0).toFixed(2);
+            }
+            priceDisplay.style.display = 'block';
+            if (typeof updateRestaurantTotalDisplay === 'function') updateRestaurantTotalDisplay(day, index);
+            if (typeof window.updateRestaurantSectionSummary === 'function') window.updateRestaurantSectionSummary(day);
             return;
         }
         
@@ -18297,7 +18325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Restaurant</label>
-                            <select class="form-select restaurant-select" name="day${day}_restaurant_${newIndex}" id="day${day}_restaurant_${newIndex}" onchange="console.log('Restaurant changed:', this.value); if(this.value) { loadRestaurantDetails(${day}, this.value, ${newIndex}); updateRestaurantPricing(${day}, ${newIndex}); }" disabled>
+                            <select class="form-select restaurant-select" name="day${day}_restaurant_${newIndex}" id="day${day}_restaurant_${newIndex}" onchange="if(this.value && this.value.startsWith('multi_restaurant_')) { handleMultiRestaurantSelected(${day}, ${newIndex}, this.value); updateRestaurantPricing(${day}, ${newIndex}); } else if(this.value) { loadRestaurantDetails(${day}, this.value, ${newIndex}); updateRestaurantPricing(${day}, ${newIndex}); showRestaurantTransferSection(${day}, ${newIndex}); } else { updateRestaurantPricing(${day}, ${newIndex}); showRestaurantTransferSection(${day}, ${newIndex}); }" disabled>
                                 <option value="">Select city first</option>
                             </select>
                         </div>
@@ -18354,7 +18382,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <option value="">Select Time Slot</option>
                              </select>
                          </div>
-                         <div class="col-md-3">
+                         <div class="col-md-3" id="day${day}_restaurant_${newIndex}_transfer_required_col">
                              <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                  <i class="ri-car-line me-1"></i>Transfer Required?
                              </label>
@@ -18424,62 +18452,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                        <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_${newIndex}_transfer_pickup_time" id="day${day}_restaurant_${newIndex}_transfer_pickup_time">
-                                        <option value="">Select Pickup Time</option>
-                                        <option value="00:00">00:00</option>
-                                        <option value="00:30">00:30</option>
-                                        <option value="01:00">01:00</option>
-                                        <option value="01:30">01:30</option>
-                                        <option value="02:00">02:00</option>
-                                        <option value="02:30">02:30</option>
-                                        <option value="03:00">03:00</option>
-                                        <option value="03:30">03:30</option>
-                                        <option value="04:00">04:00</option>
-                                        <option value="04:30">04:30</option>
-                                        <option value="05:00">05:00</option>
-                                        <option value="05:30">05:30</option>
-                                        <option value="06:00">06:00</option>
-                                        <option value="06:30">06:30</option>
-                                        <option value="07:00">07:00</option>
-                                        <option value="07:30">07:30</option>
-                                        <option value="08:00">08:00</option>
-                                        <option value="08:30">08:30</option>
-                                        <option value="09:00">09:00</option>
-                                        <option value="09:30">09:30</option>
-                                        <option value="10:00">10:00</option>
-                                        <option value="10:30">10:30</option>
-                                        <option value="11:00">11:00</option>
-                                        <option value="11:30">11:30</option>
-                                        <option value="12:00">12:00</option>
-                                        <option value="12:30">12:30</option>
-                                        <option value="13:00">13:00</option>
-                                        <option value="13:30">13:30</option>
-                                        <option value="14:00">14:00</option>
-                                        <option value="14:30">14:30</option>
-                                        <option value="15:00">15:00</option>
-                                        <option value="15:30">15:30</option>
-                                        <option value="16:00">16:00</option>
-                                        <option value="16:30">16:30</option>
-                                        <option value="17:00">17:00</option>
-                                        <option value="17:30">17:30</option>
-                                        <option value="18:00">18:00</option>
-                                        <option value="18:30">18:30</option>
-                                        <option value="19:00">19:00</option>
-                                        <option value="19:30">19:30</option>
-                                        <option value="20:00">20:00</option>
-                                        <option value="20:30">20:30</option>
-                                        <option value="21:00">21:00</option>
-                                        <option value="21:30">21:30</option>
-                                        <option value="22:00">22:00</option>
-                                        <option value="22:30">22:30</option>
-                                        <option value="23:00">23:00</option>
-                                        <option value="23:30">23:30</option>
-                                    </select>
-                                    <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
-                                        <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
-                                    </small>
+                                    <input type="time" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_${newIndex}_transfer_pickup_time" id="day${day}_restaurant_${newIndex}_transfer_pickup_time" step="1800">
                                 </div>
                             </div>
                         </div>
@@ -21232,24 +21207,19 @@ document.addEventListener('DOMContentLoaded', function() {
          const serviceId = modal.getAttribute('data-service-id');
          if (!serviceId) return;
          
-         // Try to get current service guest values from summary
+         // Pre-fill with this service's current guest selection (so modal shows service pax, not tour pax)
          let male = 0, female = 0, children = 0, infants = 0;
          const summaryElement = document.getElementById(serviceId + '_guest_summary');
          
-         if (summaryElement && summaryElement.textContent.trim() !== '1 adults (1 male, 0 female), 0 children - 0 infants') {
-             // Parse existing service guest values from summary text
-             const summaryText = summaryElement.textContent;
-             // Pattern: "X adults (Y male, Z female), W children - V infants" or "X adults (Y male, Z female), W children -V infants"
-             const match = summaryText.match(/(\d+)\s+adults\s+\((\d+)\s+male,\s+(\d+)\s+female\),\s+(\d+)\s+children\s+-\s*(\d+)\s+infants/);
-             if (match) {
-                 male = parseInt(match[2]) || 0;
-                 female = parseInt(match[3]) || 0;
-                 children = parseInt(match[4]) || 0;
-                 infants = parseInt(match[5]) || 0;
-             }
+         if (summaryElement && typeof parseGuestSummary === 'function') {
+             const guestInfo = parseGuestSummary(summaryElement.innerHTML || summaryElement.textContent || '');
+             male = parseInt(guestInfo.male) || 0;
+             female = parseInt(guestInfo.female) || 0;
+             children = parseInt(guestInfo.children) || 0;
+             infants = parseInt(guestInfo.infants) || 0;
          }
          
-         // If no existing values found, use main guest values
+         // Only if service had no summary or all zeros, use main tour guest values
          if (male === 0 && female === 0 && children === 0 && infants === 0) {
              male = parseInt(document.getElementById('male').value) || 0;
              female = parseInt(document.getElementById('female').value) || 0;
@@ -21357,6 +21327,13 @@ document.addEventListener('DOMContentLoaded', function() {
                  const day = dayMatch[1];
                  const index = dayMatch[2];
                  updateAttractionPricing(day, index);
+             }
+         }
+         // Update restaurant pricing when pax is edited so price grid reflects new guests
+         if (serviceId.includes('restaurant') && typeof updateRestaurantPricing === 'function') {
+             const dayMatch = serviceId.match(/day(\d+)_restaurant_(\d+)/);
+             if (dayMatch) {
+                 updateRestaurantPricing(dayMatch[1], dayMatch[2]);
              }
          }
          
