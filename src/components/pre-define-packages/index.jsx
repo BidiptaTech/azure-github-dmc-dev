@@ -547,7 +547,7 @@ const PreDefinePackages = () => {
             gap: isMobile ? 2 : 0
           }}>
             {/* Country Search */}
-            <Box sx={{ 
+            {/* <Box sx={{ 
               flex: isMobile ? '1 1 100%' : '1',
               minWidth: 0,
               borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
@@ -563,7 +563,7 @@ const PreDefinePackages = () => {
                 onLocationSelect={handleLocationSelect} 
                 onCountrySelect={handleCountrySelect}
               />
-            </Box>
+            </Box> */}
 
             {/* City Search */}
             <Box sx={{ 
