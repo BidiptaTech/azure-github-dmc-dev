@@ -3,8 +3,9 @@ name: Build and Deploy PHP App to Azure Web App - dmc-app-dev
 on:
   push:
     branches:
-      -staging
+      - staging
   workflow_dispatch:
+
 
 
 jobs:
