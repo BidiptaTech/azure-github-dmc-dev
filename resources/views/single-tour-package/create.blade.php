@@ -9370,16 +9370,29 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        let cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
         const type = transferType ? transferType.value : '';
         const way = transferWay ? transferWay.value : '';
         const vehicleSelect = transferVehicle;
         let vehicleName = 'N/A';
+        let baseCost = cost;
+        let guestCount = 1;
         
         if (vehicleSelect && vehicleSelect.value) {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
             if (selectedOption) {
                 vehicleName = selectedOption.textContent || 'N/A';
+            }
+        }
+        
+        // For Shared transfer: multiply base cost by restaurant pax (guest count)
+        if (type === 'Shared' && cost > 0) {
+            const guestSummaryElement = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
+            if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                if (guestCount === 0) guestCount = 1;
+                cost = baseCost * guestCount;
             }
         }
         
@@ -9394,6 +9407,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div><strong>Way:</strong> ${way || 'N/A'}</div>
                     <div><strong>Vehicle:</strong> ${vehicleName}</div>
                     ${isAjaxPrice ? '<div class="text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
+                    ${type === 'Shared' && guestCount > 1 ? `<div class="mt-1"><small>Base Cost: $${baseCost.toFixed(2)} × ${guestCount} pax</small></div>` : ''}
                     <div class="mt-2"><strong class="text-success">$${cost.toFixed(2)}${priceSource}</strong></div>
                 </div>
             `;
@@ -9436,9 +9450,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const restaurantTotalField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
         const restaurantTotal = restaurantTotalField ? (parseFloat(restaurantTotalField.value) || 0) : 0;
         
-        // Get transport pricing from cost field
+        // Get transport pricing: for Shared, multiply base cost by restaurant pax
+        let transportTotal = 0;
         const transportCostField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
-        const transportTotal = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        if (transportCostField && transportCostField.value) {
+            const baseTransport = parseFloat(transportCostField.value) || 0;
+            if (transferType && transferType.value === 'Shared' && baseTransport > 0) {
+                const guestSummaryElement = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
+                if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                    const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                    const pax = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                    transportTotal = pax > 0 ? baseTransport * pax : baseTransport;
+                } else {
+                    transportTotal = baseTransport;
+                }
+            } else {
+                transportTotal = baseTransport;
+            }
+        }
         
         // Calculate and display total
         const grandTotal = restaurantTotal + transportTotal;
@@ -14389,12 +14419,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  </select>
                                              </div>
                                              <div class="col-md-4">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                 <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.8rem;">
                                                      <i class="ri-time-line me-1"></i>Pickup Time
                                                  </label>
-                                                 <div id="day${day}_attraction_1_guide_pickup_time_options">
-                                                     <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" disabled>
-                                                         <option value="">Select guide first</option>
+                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                     <input type="text" class="form-control text-center border-0" id="day${day}_attraction_1_guide_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime(${day}, 1)" onchange="syncAttractionGuidePickupTime(${day}, 1)">
+                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                     <select class="form-select border-0" id="day${day}_attraction_1_guide_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionGuidePickupTime(${day}, 1)">
+                                                         <option value="AM">AM</option>
+                                                         <option value="PM">PM</option>
                                                      </select>
                                                  </div>
                                                  <input type="hidden" name="day${day}_attraction_1_guide_pickup_time" id="day${day}_attraction_1_guide_pickup_time">
@@ -15017,7 +15050,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                                      <i class="ri-time-line me-1"></i>Pickup Time
                                                                  </label>
-                                                                 <input type="time" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_pickup_time" id="day${day}_restaurant_1_transfer_pickup_time" step="1800">
+                                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                                     <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_1_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, 1)" onchange="syncRestaurantTransferPickupTime(${day}, 1)">
+                                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                                     <select class="form-select border-0" id="day${day}_restaurant_1_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncRestaurantTransferPickupTime(${day}, 1)">
+                                                                         <option value="AM">AM</option>
+                                                                         <option value="PM">PM</option>
+                                                                     </select>
+                                                                 </div>
+                                                                 <input type="hidden" name="day${day}_restaurant_1_transfer_pickup_time" id="day${day}_restaurant_1_transfer_pickup_time">
                                                              </div>
                                                          </div>
                                                      </div>
@@ -16142,8 +16183,26 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get transport pricing
         let transportPrice = 0;
         const transportCostField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
         if (transportCostField && transportCostField.value) {
-            transportPrice = parseFloat(transportCostField.value) || 0;
+            let baseTransportPrice = parseFloat(transportCostField.value) || 0;
+            // For Shared transfers, multiply by attraction guest count
+            if (transferType && transferType.value === 'Shared' && baseTransportPrice > 0) {
+                const guestSummaryElement = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
+                if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                    const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                    const guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                    if (guestCount > 0) {
+                        transportPrice = baseTransportPrice * guestCount;
+                    } else {
+                        transportPrice = baseTransportPrice; // Default to base if no guests found
+                    }
+                } else {
+                    transportPrice = baseTransportPrice;
+                }
+            } else {
+                transportPrice = baseTransportPrice;
+            }
         }
         
         // Calculate total
@@ -16275,7 +16334,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        let cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
         const type = transferType ? transferType.value : '';
         const way = transferWay ? transferWay.value : '';
         const vehicleSelect = transferVehicle;
@@ -16285,6 +16344,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
             if (selectedOption) {
                 vehicleName = selectedOption.textContent || 'N/A';
+            }
+        }
+        
+        // Get attraction guest count for Shared transfer multiplication
+        let guestCount = 1;
+        let baseCost = cost;
+        if (type === 'Shared' && cost > 0) {
+            const guestSummaryElement = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
+            if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                if (guestCount === 0) guestCount = 1; // Default to 1 if no guests found
+                // Multiply base cost by guest count for Shared transfers
+                cost = baseCost * guestCount;
             }
         }
         
@@ -16299,6 +16372,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="mb-1"><strong>Way:</strong> ${way || 'N/A'}</div>
                     <div class="mb-1"><strong>Vehicle:</strong> ${vehicleName}</div>
                     ${isAjaxPrice ? '<div class="mb-1 text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
+                    ${type === 'Shared' && guestCount > 1 ? `<div class="mb-1"><small>Base Cost: $${baseCost.toFixed(2)} × ${guestCount} guests</small></div>` : ''}
                     <hr class="my-2">
                     <div class="fw-bold text-success">Total: $${cost.toFixed(2)}${priceSource}</div>
                 </div>
@@ -16651,12 +16725,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                    <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
-                                    <div id="day${day}_attraction_${newIndex}_guide_pickup_time_options">
-                                        <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" disabled>
-                                            <option value="">Select guide first</option>
+                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_attraction_${newIndex}_guide_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime(${day}, ${newIndex})" onchange="syncAttractionGuidePickupTime(${day}, ${newIndex})">
+                                        <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                        <select class="form-select border-0" id="day${day}_attraction_${newIndex}_guide_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionGuidePickupTime(${day}, ${newIndex})">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
                                         </select>
                                     </div>
                                     <input type="hidden" name="day${day}_attraction_${newIndex}_guide_pickup_time" id="day${day}_attraction_${newIndex}_guide_pickup_time">
@@ -18418,7 +18495,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
-                                    <input type="time" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_${newIndex}_transfer_pickup_time" id="day${day}_restaurant_${newIndex}_transfer_pickup_time" step="1800">
+                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, ${newIndex})" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
+                                        <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                        <select class="form-select border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
+                                        </select>
+                                    </div>
+                                    <input type="hidden" name="day${day}_restaurant_${newIndex}_transfer_pickup_time" id="day${day}_restaurant_${newIndex}_transfer_pickup_time">
                                 </div>
                             </div>
                         </div>
@@ -21676,6 +21761,50 @@ function syncAttractionTransferPickupTime(day, index) {
     const hour24 = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
     hiddenInput.value = hour24 + ':' + minStr;
+}
+
+// Sync restaurant transfer pickup time from HH:MM input + AM/PM into hidden field (24h "HH:mm" for backend compatibility)
+function syncRestaurantTransferPickupTime(day, index) {
+    const timeInput = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    if (!timeStr || timeStr.length < 4) { hiddenInput.value = ''; return; }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    if (hour === 12 && min > 0) min = 0;
+    if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
+    if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
+    const hour24 = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = hour24 + ':' + minStr;
+}
+
+// Sync attraction guide pickup time from HH:MM input + AM/PM into hidden field (24h "HH:mm:00" for backend compatibility)
+function syncAttractionGuidePickupTime(day, index) {
+    const timeInput = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    if (!timeStr || timeStr.length < 4) { hiddenInput.value = ''; return; }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    if (hour === 12 && min > 0) min = 0;
+    if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
+    if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
+    const hour24 = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = hour24 + ':' + minStr + ':00';
 }
 
 // Sync local-transfer transport pickup time from HH:MM input + AM/PM into hidden field (e.g. "10:30 AM")
