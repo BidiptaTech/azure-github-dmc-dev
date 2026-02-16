@@ -13562,127 +13562,75 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </div>
                               </div>
                               <div id="arrivalTransportSection" class="collapse">
-                                  <div class="card-body bg-light p-4">
+                                  <div class="card-body bg-white p-4">
                                  
                                  <!-- Location & Time Information Section -->
                                  <div class="mb-4">
                                      <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
-                                     ${hasEnquiryLayout ? `
                                      <div class="row g-3">
-                                         <div class="col-12 col-sm-4">
+                                         <div class="col-12 col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" id="modal_local_transfer_city" name="city" style="padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadPortsForCity(this.value)">
-                                                     <option value="">Select city</option>
+                                                 <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" id="modal_local_transfer_city" name="city" onchange="loadPortsForCity(this.value)">
+                                                     <option value="">Select city...</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
-                                         <div class="col-12 col-sm-4">
+                                         <div class="col-12 col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative" id="entry_pickup_container">
                                              </div>
                                          </div>
-                                         <div class="col-12 col-sm-4">
+                                         <div class="col-12 col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
                                              </label>
                                              <div class="position-relative" id="entry_dropoff_container">
                                              </div>
                                          </div>
-                                     </div>
-                                    <div class="row g-3 mt-0">
-                                        <div class="col-12 col-sm-6">
-                                            <label class="form-label fw-semibold text-dark">
-                                                <i class="ri-time-line me-1 text-primary"></i>Pick Up Time
-                                            </label>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
-                                                    <input
-                                                        type="text"
-                                                        class="form-control text-center"
-                                                        id="day${day}_entry_pickup_time_input"
-                                                        placeholder="10:30"
-                                                        maxlength="5"
-                                                        style="border: none; box-shadow: none; width: 56px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
-                                                        oninput="formatTimeInput(this); syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
-                                                        onchange="syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
-                                                    >
-                                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                                    <select
-                                                        class="form-select border-0"
-                                                        id="day${day}_entry_pickup_time_ampm"
-                                                        style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
-                                                        onchange="syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
-                                                    >
-                                                        <option value="AM">AM</option>
-                                                        <option value="PM">PM</option>
-                                                    </select>
-                                                </div>
-                                                <input type="hidden" name="day${day}_entry_pickup_time" id="day${day}_entry_pickup_time">
-                                            </div>
-                                        </div>
-                                        <div class="col-12 col-sm-6 d-flex align-items-end">
-                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 40px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 1.5rem 3rem;">
+                                         <div class="col-12 col-md-2">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-time-line me-1 text-primary"></i>Pick Up Time
+                                             </label>
+                                             <div class="d-flex align-items-center gap-2">
+                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                     <input
+                                                         type="text"
+                                                         class="form-control text-center border-0"
+                                                         id="day${day}_entry_pickup_time_input"
+                                                         placeholder="10:30"
+                                                         maxlength="5"
+                                                         style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                         oninput="formatTimeInput(this); syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
+                                                         onchange="syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
+                                                     >
+                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                     <select
+                                                         class="form-select border-0"
+                                                         id="day${day}_entry_pickup_time_ampm"
+                                                         style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                         onchange="syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
+                                                     >
+                                                         <option value="AM">AM</option>
+                                                         <option value="PM">PM</option>
+                                                     </select>
+                                                 </div>
+                                                 <input type="hidden" name="day${day}_entry_pickup_time" id="day${day}_entry_pickup_time">
+                                             </div>
+                                         </div>
+                                         <div class="col-12 col-md-2 d-flex align-items-end">
+                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer;">
                                                  <i class="ri-search-line me-1"></i> Search
                                              </button>
                                          </div>
                                      </div>
-                                     ` : `
-                                     <div class="row g-3">
-                                         <div class="col-md-2">
-                                             <label class="form-label fw-semibold text-dark">
-                                                 <i class="ri-building-line me-1 text-primary"></i>City
-                                             </label>
-                                             <div class="position-relative">
-                                                 <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" id="modal_local_transfer_city" name="city" style="padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadPortsForCity(this.value)">
-                                                     <option value="">Select city</option>
-                                                 </select>
-                                                 <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                             </div>
-                                         </div>
-                                         <div class="col-md-3">
-                                             <label class="form-label fw-semibold text-dark">
-                                                 <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
-                                             </label>
-                                             <div class="position-relative" id="entry_pickup_container">
-                                             </div>
-                                         </div>
-                                         <div class="col-md-3">
-                                             <label class="form-label fw-semibold text-dark">
-                                                 <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
-                                             </label>
-                                             <div class="position-relative" id="entry_dropoff_container">
-                                             </div>
-                                         </div>
-                                         <div class="col-md-3">
-                                             <label class="form-label fw-semibold text-dark">
-                                                 <i class="ri-time-line me-1 text-primary"></i>Pick Up Time
-                                             </label>
-                                             <div class="d-flex gap-2 align-items-center">
-                                                 <div class="position-relative" style="max-width: 100px;">
-                                                     <input type="text" class="form-control shadow-sm text-center" id="day${day}_entry_pickup_time_input" placeholder="10:30" maxlength="5" style="padding: 0 8px; border: 1px solid #e5e7eb; height: 45px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')" onchange="syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')">
-                                                 </div>
-                                                 <select class="form-select shadow-sm" id="day${day}_entry_pickup_time_ampm" border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;" onchange="syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')">
-                                                     <option value="AM">AM</option>
-                                                     <option value="PM">PM</option>
-                                                 </select>
-                                                 <input type="hidden" name="day${day}_entry_pickup_time" id="day${day}_entry_pickup_time">
-                                             </div>
-                                         </div>
-                                        <div class="col-md-1 d-flex align-items-end">
-                                            <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 40px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 1.5rem 3rem;">
-                                                <i class="ri-search-line me-1"></i> Search
-                                            </button>
-                                        </div>
-                                     </div>
-                                     `}
                                  </div>
                                  
                                  <!-- Vehicle Results Section (Hidden Initially) -->
@@ -13887,7 +13835,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </div>
                               </div>
                               <div id="departureTransportSection" class="collapse">
-                                  <div class="card-body bg-light p-4">
+                                  <div class="card-body bg-white p-4">
                                  
                                  <!-- Location & Time Information Section -->
                                  <div class="mb-4">
@@ -13895,18 +13843,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
                                      <div class="row g-3">
-                                         <div class="col-md-2">
+                                         <div class="col-12 col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
-                                                     <option value="">Select city</option>
+                                                 <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
+                                                     <option value="">Select city...</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
-                                         <div class="col-md-3">
+                                         <div class="col-12 col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
                                              </label>
@@ -13914,7 +13862,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                         <div class="col-md-3">
+                                         <div class="col-12 col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
                                              </label>
@@ -13922,7 +13870,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                        <div class="col-md-2">
+                                        <div class="col-12 col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-time-line me-1 text-primary"></i>Exit Time
                                              </label>
@@ -13949,18 +13897,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                                          <option value="PM">PM</option>
                                                      </select>
                                                  </div>
-                                                 <input type="hidden" name="day${day}_exit_time" id="day${day}_exit_time">
+<input type="hidden" name="day${day}_exit_time" id="day${day}_exit_time">
                                              </div>
-                                         </div>
-                                         <div class="col-md-2 d-flex align-items-end">
-                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 0.5rem 1rem;">
-                                                 <i class="ri-search-line me-1"></i> Search
-                                             </button>
-                                         </div>
-                                     </div>
-                                 </div>
+                                        </div>
+                                         <div class="col-12 col-md-2 d-flex align-items-end">
+                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer;">
+                                                <i class="ri-search-line me-1"></i> Search
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                                  
-                                                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                                                <!-- Vehicle Results Section (Hidden Initially) -->
                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
                                     <div class="col-12 mb-3">
                                         <div class="p-3 rounded-3 shadow-sm" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa;">
@@ -14395,7 +14343,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                      <i class="ri-time-line me-1"></i>Pickup Time
                                                  </label>
-                                                 <input type="time" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_attraction_1_transfer_pickup_time" id="day${day}_attraction_1_transfer_pickup_time" step="1800">
+                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                     <input type="text" class="form-control text-center border-0" id="day${day}_attraction_1_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionTransferPickupTime(${day}, 1)" onchange="syncAttractionTransferPickupTime(${day}, 1)">
+                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                     <select class="form-select border-0" id="day${day}_attraction_1_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionTransferPickupTime(${day}, 1)">
+                                                         <option value="AM">AM</option>
+                                                         <option value="PM">PM</option>
+                                                     </select>
+                                                 </div>
+                                                 <input type="hidden" name="day${day}_attraction_1_transfer_pickup_time" id="day${day}_attraction_1_transfer_pickup_time">
                                              </div>
                                          </div>
                                      </div>
@@ -14661,7 +14617,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     id="day${day}_guide_1_pickup_time_input"
                                                     placeholder="10:30"
                                                     maxlength="5"
-                                                    style="border: none; box-shadow: none; width: 60px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                    style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                     oninput="formatTimeInput(this); syncGuidePickupTime(${day}, 1)"
                                                     onchange="syncGuidePickupTime(${day}, 1)"
                                                 >
@@ -14731,14 +14687,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="col-md-2">
                                         <label class="form-label fw-semibold">Pickup Time</label>
                                         <div id="day${day}_guide_1_pickup_time_options" class="d-flex flex-column align-items-start gap-1" style="overflow: visible; position: relative;">
-                                            <div class="d-inline-flex align-items-center flex-wrap" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); width: 100%; max-width: 100%;">
+                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
                                                 <input
                                                     type="text"
                                                     class="form-control text-center guide-pickup-time-input"
                                                     id="day${day}_guide_1_pickup_time_input"
                                                     placeholder="10:30"
                                                     maxlength="5"
-                                                    style="border: none; box-shadow: none; flex: 1 1 70px; min-width: 0; max-width: 100%; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                    style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                     oninput="formatTimeInput(this); syncGuidePickupTime(${day}, 1)"
                                                     onchange="syncGuidePickupTime(${day}, 1)"
                                                 >
@@ -14746,7 +14702,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <select
                                                     class="form-select border-0 guide-pickup-time-ampm"
                                                     id="day${day}_guide_1_pickup_time_ampm"
-                                                    style="flex: 1 1 70px; min-width: 0; max-width: 100%; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                    style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
                                                     onchange="syncGuidePickupTime(${day}, 1)"
                                                 >
                                                     <option value="AM">AM</option>
@@ -16649,7 +16605,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
-                                    <input type="time" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_attraction_${newIndex}_transfer_pickup_time" id="day${day}_attraction_${newIndex}_transfer_pickup_time" step="1800">
+                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_attraction_${newIndex}_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionTransferPickupTime(${day}, ${newIndex})" onchange="syncAttractionTransferPickupTime(${day}, ${newIndex})">
+                                        <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                        <select class="form-select border-0" id="day${day}_attraction_${newIndex}_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionTransferPickupTime(${day}, ${newIndex})">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
+                                        </select>
+                                    </div>
+                                    <input type="hidden" name="day${day}_attraction_${newIndex}_transfer_pickup_time" id="day${day}_attraction_${newIndex}_transfer_pickup_time">
                                 </div>
                             </div>
                         </div>
@@ -19306,14 +19270,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-md-2">
                             <label class="form-label fw-semibold">Pickup Time</label>
                             <div id="day${day}_guide_${newIndex}_pickup_time_options" class="d-flex flex-column align-items-start gap-1" style="overflow: visible; position: relative;">
-                                <div class="d-inline-flex align-items-center flex-wrap" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); width: 100%; max-width: 100%;">
+                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
                                     <input
                                         type="text"
                                         class="form-control text-center guide-pickup-time-input"
                                         id="day${day}_guide_${newIndex}_pickup_time_input"
                                         placeholder="10:30"
                                         maxlength="5"
-                                        style="border: none; box-shadow: none; flex: 1 1 70px; min-width: 0; max-width: 100%; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                        style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                         oninput="formatTimeInput(this); syncGuidePickupTime(${day}, ${newIndex})"
                                         onchange="syncGuidePickupTime(${day}, ${newIndex})"
                                     >
@@ -19321,7 +19285,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <select
                                         class="form-select border-0 guide-pickup-time-ampm"
                                         id="day${day}_guide_${newIndex}_pickup_time_ampm"
-                                        style="flex: 1 1 70px; min-width: 0; max-width: 100%; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                        style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
                                         onchange="syncGuidePickupTime(${day}, ${newIndex})"
                                     >
                                         <option value="AM">AM</option>
@@ -21567,10 +21531,14 @@ function formatTimeInput(input) {
         return;
     }
 
-    // If we only have hour digits so far, don't force minutes or colon yet
+    // Single digit: 2–9 get leading zero (5→05, 4→04); leave 1 as "1" so user can type 10, 11, 12
     if (v.length === 1) {
-        // Just echo the single digit
-        input.value = v;
+        const d = parseInt(v, 10);
+        if (d >= 2 && d <= 9) {
+            input.value = String(d).padStart(2, '0');
+        } else {
+            input.value = v;
+        }
         return;
     }
 
@@ -21686,6 +21654,28 @@ function syncExitTime(day) {
     const hourStr = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
     hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+}
+
+// Sync attraction transfer pickup time from HH:MM input + AM/PM into hidden field (24h "HH:mm" for backend compatibility)
+function syncAttractionTransferPickupTime(day, index) {
+    const timeInput = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    if (!timeStr || timeStr.length < 4) { hiddenInput.value = ''; return; }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    if (hour === 12 && min > 0) min = 0;
+    if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
+    if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
+    const hour24 = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = hour24 + ':' + minStr;
 }
 
 // Sync local-transfer transport pickup time from HH:MM input + AM/PM into hidden field (e.g. "10:30 AM")
