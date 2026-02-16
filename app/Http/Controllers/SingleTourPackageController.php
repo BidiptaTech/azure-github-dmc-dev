@@ -999,7 +999,7 @@ class SingleTourPackageController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Multi Restaurant (Buffet) packages for this DMC – one package per DMC, show in restaurant modal
+        // Multi Restaurant (Buffet) packages – include breakfast_time, lunch_time, dinner_time for time slot dropdown
         $multiRestaurants = collect();
         if (Schema::hasColumn('multi_restaurants', 'dmc_id')) {
             $multiRestaurant = MultiRestaurant::where('dmc_id', (int) $userDmcId)
@@ -1010,7 +1010,6 @@ class SingleTourPackageController extends Controller
                 $multiRestaurants = collect([$multiRestaurant]);
             }
         } else {
-            // Fallback: if no dmc_id column, get first active one
             $multiRestaurant = MultiRestaurant::where('status', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -2024,13 +2023,24 @@ class SingleTourPackageController extends Controller
                 'rooms_with_dmc_filter' => count($rooms)
             ]);
 
+            // Get hotel weekend_days (JSON array e.g. ["Saturday","Sunday"]) for front-end pricing
+            $weekendDays = ['Saturday', 'Sunday'];
+            $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotelId)->first();
+            if ($hotel && !empty($hotel->weekend_days)) {
+                $decoded = json_decode($hotel->weekend_days, true);
+                if (is_array($decoded) && count($decoded) > 0) {
+                    $weekendDays = $decoded;
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'rooms' => $rooms,
                 'total_rooms' => count($rooms),
                 'hotel_id' => $hotelId,
                 'dmc_id' => $dmcId,
-                'filtered_by_dmc' => true
+                'filtered_by_dmc' => true,
+                'weekend_days' => $weekendDays
             ]);
 
         } catch (\Exception $e) {
