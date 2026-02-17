@@ -13944,7 +13944,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                          <option value="PM">PM</option>
                                                      </select>
                                                  </div>
-<input type="hidden" name="day${day}_exit_time" id="day${day}_exit_time">
+                                <input type="hidden" name="day${day}_exit_time" id="day${day}_exit_time">
                                              </div>
                                         </div>
                                          <div class="col-12 col-md-2 d-flex align-items-end">
@@ -21697,8 +21697,6 @@ function formatTimeInput(input) {
     let min = parseInt(minutesRaw, 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    // If hour is 12, force minutes to 00 so max is 12:00
-    if (hour === 12 && min > 0) min = 0;
 
     const hourStr = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
@@ -21724,8 +21722,6 @@ function syncGuidePickupTime(day, index) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    // If hour is 12, force minutes to 00 so max is 12:00
-    if (hour === 12 && min > 0) min = 0;
     if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
     if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
     const hour24 = String(hour).padStart(2, '0');
@@ -21753,8 +21749,6 @@ function syncEntryPickupTime(day) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    // If hour is 12, force minutes to 00 so max is 12:00
-    if (hour === 12 && min > 0) min = 0;
     const hourStr = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
     hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
@@ -21779,8 +21773,6 @@ function syncExitTime(day) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    // If hour is 12, force minutes to 00 so max is 12:00
-    if (hour === 12 && min > 0) min = 0;
     const hourStr = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
     hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
@@ -21800,7 +21792,6 @@ function syncAttractionTransferPickupTime(day, index) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    if (hour === 12 && min > 0) min = 0;
     if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
     if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
     const hour24 = String(hour).padStart(2, '0');
@@ -21822,7 +21813,6 @@ function syncRestaurantTransferPickupTime(day, index) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    if (hour === 12 && min > 0) min = 0;
     if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
     if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
     const hour24 = String(hour).padStart(2, '0');
@@ -21844,7 +21834,6 @@ function syncAttractionGuidePickupTime(day, index) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    if (hour === 12 && min > 0) min = 0;
     if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
     if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
     const hour24 = String(hour).padStart(2, '0');
@@ -21871,7 +21860,6 @@ function syncTransportPickupTime(day) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    if (hour === 12 && min > 0) min = 0;
     const hourStr = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
     hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
@@ -21896,7 +21884,6 @@ function syncTransportAdditionalPickupTime(day) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    if (hour === 12 && min > 0) min = 0;
     const hourStr = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
     hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
@@ -21921,7 +21908,6 @@ function syncTransportHourlyPickupTime(day) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    if (hour === 12 && min > 0) min = 0;
     const hourStr = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
     hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
@@ -21948,7 +21934,6 @@ function syncTransportPickupTimeByIndex(day, index, type) {
     let min = parseInt((parts[1] || '00').slice(0, 2), 10);
     if (isNaN(min) || min < 0) min = 0;
     if (min > 59) min = 59;
-    if (hour === 12 && min > 0) min = 0;
     const hourStr = String(hour).padStart(2, '0');
     const minStr = String(min).padStart(2, '0');
     hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
