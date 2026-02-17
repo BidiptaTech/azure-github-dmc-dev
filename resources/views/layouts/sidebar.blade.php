@@ -2439,25 +2439,32 @@
 
                     <!-- Row 4: Customer Details -->
                     <div class="row g-2 mb-1">
-                        <div class="col-1">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Sal. <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm" id="salutation" name="salutation" required style="font-size: 10px;">
-                                <option value="">--</option>
+                        <div class="col-2">   <!-- Increased from col-1 -->
+                            <label class="form-label small mb-0" style="font-size: 10px;">
+                                Sal. <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select form-select-sm" id="salutation" name="salutation" required>
                                 <option value="Mr">Mr</option>
                                 <option value="Mrs">Mrs</option>
                                 <option value="Ms">Ms</option>
                                 <option value="Dr">Dr</option>
                             </select>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Customer Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control form-control-sm" id="customerName" name="customer_name" required style="font-size: 10px;">
+                    
+                        <div class="col-5">   <!-- Reduced from col-6 -->
+                            <label class="form-label small mb-0" style="font-size: 10px;">
+                                Customer Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control form-control-sm" id="customerName" name="customer_name" required>
                         </div>
+                    
                         <div class="col-5">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Contact Number</label>
-                            <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number" style="font-size: 10px;">
+                            <label class="form-label small mb-0" style="font-size: 10px;">
+                                Contact Number
+                            </label>
+                            <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number">
                         </div>
-                    </div>
+                    </div>                    
 
                 </div>
                 <div class="modal-footer py-1" style="padding: 8px 15px;">
