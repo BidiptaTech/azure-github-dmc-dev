@@ -2759,10 +2759,29 @@
                                                 </div>
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-ticket-line me-1 text-info"></i>Ticket</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required>
+                                                    <select class="form-select border-2" style="height: 35px;" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required onchange="updateAttractionRowPrice({{ $order->booking_id }})">
                                                         <option value="">Select Ticket</option>
+                                                        @php
+                                                            $selectedAttractionForTicket = $attractionName ? collect($filteredAttractions)->first(function($a) use ($attractionName) { return ($a->name ?? '') == $attractionName; }) : null;
+                                                            $selectedTicketData = null;
+                                                            if ($selectedAttractionForTicket && isset($selectedAttractionForTicket->tickets) && is_array($selectedAttractionForTicket->tickets) && $ticket && $ticket != 'N/A') {
+                                                                foreach ($selectedAttractionForTicket->tickets as $tk) {
+                                                                    $tkName = (is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? ''));
+                                                                    if ($tkName === $ticket) { $selectedTicketData = $tk; break; }
+                                                                }
+                                                            }
+                                                            $adultP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
+                                                            $childP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['child_price'] ?? 0) : ($selectedTicketData->child_price ?? 0)) : 0;
+                                                            $seniorP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['senior_price'] ?? $selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->senior_price ?? $selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
+                                                        @endphp
                                                         @if($ticket && $ticket != 'N/A')
-                                                            <option value="{{ $ticket }}" selected>{{ $ticket }}</option>
+                                                            <option value="{{ $ticket }}" selected
+                                                                @if($selectedTicketData)
+                                                                    data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
+                                                                    data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
+                                                                    data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
+                                                                @endif
+                                                            >{{ $ticket }}</option>
                                                         @endif
                                                     </select>
                                                     <small class="text-muted d-block mt-1">Select an attraction to see available tickets</small>
@@ -3287,7 +3306,7 @@
                                             <div class="row g-3">
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-star-line me-1 text-primary"></i>Guide Name</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="guide_name" id="guide_name_{{ $order->booking_id }}" required>
+                                                    <select class="form-select border-2" style="height: 35px;" name="guide_name" id="guide_name_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" required onchange="populateGuidePackageHoursFromGuide({{ $order->booking_id }}); updateGuideEditRowPrice({{ $order->booking_id }})">
                                                         <option value="">Select Guide</option>
                                                         @php
                                                             $tourCountry = $tour->destination ?? '';
@@ -3329,11 +3348,11 @@
                                                         @endif
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-primary"></i>Pickup Date</label>
                                                     <input type="date" class="form-control border-2" style="height: 35px;" name="pickup_date" id="pickup_date_{{ $order->booking_id }}" value="{{ $pickupDate }}" required>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
                                                     @php
                                                         $guideTime = $pickupTimeAMPM ?: '';
@@ -3365,11 +3384,22 @@
                                                     <input type="hidden" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" value="{{ $guideTime }}">
                                                     <small class="text-muted d-block mt-1">Available times from selected guide</small>
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-hourglass-line me-1 text-warning"></i>Package (Hours)</label>
-                                                    <input type="text" class="form-control border-2" style="height: 35px;" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
+                                                    <select class="form-select border-2 guide-package-hours-select" style="height: 35px;" name="package_hours" id="guide_package_hours_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" required onchange="toggleGuidePackageCustomHours({{ $order->booking_id }}); updateGuideEditRowPrice({{ $order->booking_id }})">
+                                                        <option value="">Select hours</option>
+                                                        @php
+                                                            $hoursOpts = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+                                                            $isCustomHours = $packageHours && !in_array((string)$packageHours, $hoursOpts, true);
+                                                        @endphp
+                                                        @foreach($hoursOpts as $h)
+                                                            <option value="{{ $h }}" {{ ($packageHours !== '' && (string)$packageHours === $h) ? 'selected' : '' }}>{{ $h }} Hour{{ $h != '1' ? 's' : '' }}</option>
+                                                        @endforeach
+                                                        <option value="custom" {{ $isCustomHours ? 'selected' : '' }}>Custom</option>
+                                                    </select>
+                                                    <input type="number" min="1" max="24" class="form-control border-2 mt-1" name="package_custom_hours" id="guide_package_custom_hours_{{ $order->booking_id }}" placeholder="Hours" value="{{ $isCustomHours ? $packageHours : '' }}" style="height: 35px; display: {{ $isCustomHours ? 'block' : 'none' }};" oninput="updateGuideEditRowPrice({{ $order->booking_id }})">
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                     <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
@@ -4932,15 +4962,16 @@
                             <input type="date" class="form-control modern-input" id="modal_guide_service_date" name="service_date" required style="height: 36px; font-size: 0.8rem;">
                         </div>
 
-                        <!-- Duration Selection -->
+                        <!-- Duration Selection (1-12 hours + Custom, same as guide edit form) -->
                         <div class="col-12 col-md-6">
                             <label for="modal_guide_duration" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-time-line me-1" style="color: #fda085;"></i>Select Duration
                             </label>
                             <select class="form-select modern-select" id="modal_guide_duration" name="duration" required style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Duration</option>
-                                <option value="half_day">Half Day (4 hours)</option>
-                                <option value="full_day">Full Day (8 hours)</option>
+                                @foreach(['1','2','3','4','5','6','7','8','9','10','11','12'] as $h)
+                                    <option value="{{ $h }}">{{ $h }} Hour{{ $h != '1' ? 's' : '' }}</option>
+                                @endforeach
                                 <option value="custom">Custom Hours</option>
                             </select>
                         </div>
@@ -5606,7 +5637,10 @@
                                 <div class="row g-2">
                                     <div class="col-12">
                                         <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem 0.75rem; background: #ffffff; border-radius: 6px; border: 1px solid #e9ecef;">
-                                            <span class="fw-semibold" style="color: #495057; font-size: 0.8rem;">Meal Price:</span>
+                                            <div>
+                                                <span class="fw-semibold" style="color: #495057; font-size: 0.8rem;">Meal Price:</span>
+                                                <div id="modal_restaurant_meal_breakdown_display" class="text-muted" style="font-size: 0.7rem; margin-top: 0.15rem; line-height: 1.2;"></div>
+                                            </div>
                                             <span class="fw-bold" id="modal_restaurant_meal_price_display" style="color: #28a745; font-size: 0.9rem;">$ 0.00</span>
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem 0.75rem; background: #ffffff; border-radius: 6px; border: 1px solid #e9ecef;">
@@ -6142,7 +6176,7 @@
                         </div>
 
                         <!-- Attraction Price Display -->
-                        <div class="col-12 mt-2" id="attraction_price_display" style="display: none;">
+                        <!-- <div class="col-12 mt-2" id="attraction_price_display" style="display: none;">
                             <div class="card border-0" style="background: #e7f3ff; border-radius: 8px; padding: 0.75rem; border: 1px solid #b3d9ff;">
                                 <div class="d-flex align-items-center">
                                     <i class="ri-money-dollar-circle-line me-2" style="color: #fa709a; font-size: 1.1rem;"></i>
@@ -6152,20 +6186,21 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> -->
                         
-                        <!-- Guide Section for this attraction -->
+                        <!-- Guide Section for this attraction (toggle, same style as transport) -->
                         <div class="col-12 mt-2">
                             <div class="border-0 rounded-3 p-3" style="background: #f8f9fa; border: 1px solid #e9ecef;">
                                 <div class="row g-2 align-items-center">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold d-block mb-1" style="color: #495057; font-size: 0.85rem;">Do you want a guide?</label>
-                                        <div class="btn-group btn-group-sm" role="group" aria-label="Need guide toggle">
-                                            <input type="radio" class="btn-check" name="modal_need_attraction_guide" id="modal_need_attraction_guide_no" value="no" autocomplete="off" checked>
-                                            <label class="btn btn-outline-secondary" for="modal_need_attraction_guide_no">No</label>
-                                            
-                                            <input type="radio" class="btn-check" name="modal_need_attraction_guide" id="modal_need_attraction_guide_yes" value="yes" autocomplete="off">
-                                            <label class="btn btn-outline-primary" for="modal_need_attraction_guide_yes">Yes</label>
+                                        <label class="form-label fw-semibold d-block mb-2" style="color: #495057; font-size: 0.85rem;">Do you want a guide?</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="text-muted small toggle-label" id="modal_attraction_guide_no" style="font-size: 0.75rem;">No</span>
+                                            <label class="toggle-switch" for="modal_need_attraction_guide">
+                                                <input type="checkbox" class="toggle-switch-input" name="modal_need_attraction_guide" id="modal_need_attraction_guide" value="yes" autocomplete="off">
+                                                <span class="toggle-switch-slider"></span>
+                                            </label>
+                                            <span class="text-muted small toggle-label" id="modal_attraction_guide_yes" style="font-size: 0.75rem;">Yes</span>
                                         </div>
                                     </div>
                                 </div>
@@ -6220,7 +6255,7 @@
                                         </div>
                                     </div>
                                     <div class="row g-2 mt-2">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Package (Hours)</label>
                                             <select class="form-select modern-select" name="modal_attraction_guide_hours" id="modal_attraction_guide_hours" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select Hours</option>
@@ -6239,7 +6274,19 @@
                                             </select>
                                             <input type="number" min="1" class="form-control modern-input mt-2" name="modal_attraction_guide_custom_hours" id="modal_attraction_guide_custom_hours" placeholder="Enter custom hours" style="display: none; height: 36px; font-size: 0.8rem;">
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;"><i class="ri-time-line me-1" style="color: #fa709a;"></i>Pickup Time</label>
+                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; overflow: hidden; height: 36px;">
+                                                <input type="text" class="form-control text-center border-0" id="modal_attraction_guide_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime()" onchange="syncAttractionGuidePickupTime()">
+                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                <select class="form-select border-0" id="modal_attraction_guide_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 8px;" onchange="syncAttractionGuidePickupTime()">
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
+                                            <input type="hidden" name="modal_attraction_guide_pickup_time" id="modal_attraction_guide_pickup_time" value="">
+                                        </div>
+                                        <div class="col-md-4" style="display: none;">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guide Price</label>
                                             <div class="position-relative">
                                                 <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
@@ -6341,6 +6388,20 @@
                                                 <option value="private">Private</option>
                                             </select>
                                         </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;"><i class="ri-time-line me-1" style="color: #fa709a;"></i>Pickup Time</label>
+                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; overflow: hidden; height: 36px;">
+                                                <input type="text" class="form-control text-center border-0" id="modal_attraction_transport_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem;" oninput="formatTimeInput(this); syncAttractionTransportPickupTime()" onchange="syncAttractionTransportPickupTime()">
+                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                <select class="form-select border-0" id="modal_attraction_transport_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 8px;" onchange="syncAttractionTransportPickupTime()">
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
+                                            <input type="hidden" name="modal_attraction_transport_pickup_time" id="modal_attraction_transport_pickup_time" value="">
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mt-2">
                                     <!-- <div class="row g-3 mt-2">
                                         <div class="col-md-2">
                                             <label class="form-label fw-semibold">Seats</label>
@@ -6378,32 +6439,57 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- Price Grid Section -->
-                        <div class="col-12 mt-2">
-                            <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #ffffff; border: 1px solid #e9ecef;">
-                                <div class="card-body p-3">
-                                    <h6 class="fw-bold mb-3" style="color: #495057; font-size: 0.9rem;">
-                                        <i class="ri-money-dollar-circle-line me-2" style="color: #fa709a;"></i>Price Breakdown
-                                    </h6>
-                                    <div class="row g-2">
-                                        <div class="col-md-4">
-                                            <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-                                                <span class="fw-semibold text-white" style="font-size: 0.85rem;">Total Price:</span>
-                                                <span class="fw-bold text-white" id="modal_attraction_total_price_display" style="font-size: 1.1rem;">$ 0.00</span>
+                            <!-- Price Grid Section: Ticket | Transport | Guide segments + Total (like reference) -->
+                            <div class="col-12 mt-2">
+                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #ffffff; border: 1px solid #e9ecef;">
+                                    <div class="card-body p-3">
+                                        <h6 class="fw-bold mb-3" style="color: #495057; font-size: 0.9rem;">
+                                            <i class="ri-money-dollar-circle-line me-2" style="color: #fa709a;"></i>Price Breakdown
+                                        </h6>
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-md-4">
+                                                <div class="rounded p-2 h-100" style="background: #f0f4f8; border: 1px solid #e2e8f0;">
+                                                    <div class="d-flex align-items-center mb-2" style="font-size: 0.8rem; color: #475569;">
+                                                        <i class="ri-ticket-2-line me-1" style="color: #fa709a;"></i>
+                                                        <span class="fw-semibold">Ticket Pricing</span>
+                                                    </div>
+                                                    <div id="modal_attraction_ticket_price_display" class="small" style="font-size: 0.75rem; color: #64748b;">Select ticket to see price</div>
+                                                </div>
                                             </div>
+                                            <div class="col-md-4">
+                                                <div class="rounded p-2 h-100" style="background: #f0f4f8; border: 1px solid #e2e8f0;">
+                                                    <div class="d-flex align-items-center mb-2" style="font-size: 0.8rem; color: #475569;">
+                                                        <i class="ri-car-line me-1" style="color: #fa709a;"></i>
+                                                        <span class="fw-semibold">Transport Pricing</span>
+                                                    </div>
+                                                    <div id="modal_attraction_transport_price_display" class="small" style="font-size: 0.75rem; color: #64748b;">No transport selected</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="rounded p-2 h-100" style="background: #f0f4f8; border: 1px solid #e2e8f0;">
+                                                    <div class="d-flex align-items-center mb-2" style="font-size: 0.8rem; color: #475569;">
+                                                        <i class="ri-user-star-line me-1" style="color: #fa709a;"></i>
+                                                        <span class="fw-semibold">Guide Pricing</span>
+                                                    </div>
+                                                    <div id="modal_attraction_guide_price_display" class="small" style="font-size: 0.75rem; color: #64748b;">No guide selected</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center rounded px-3 py-2" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                                            <span class="fw-bold text-white d-flex align-items-center" style="font-size: 0.95rem;"><i class="ri-calculator-line me-2"></i>Total Price</span>
+                                            <span class="fw-bold text-white" id="modal_attraction_total_price_display" style="font-size: 1.1rem;">{{ $tour->currency ?? '$' }} 0.00</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        
                         <div class="modal-footer border-0" style="padding: 0.75rem 1rem; background: #f8f9fa;">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Cancel</button>
-                <button type="button" class="btn btn-primary btn-sm" id="confirm_attraction_btn" disabled style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; font-size: 0.8rem; padding: 0.4rem 0.8rem; box-shadow: 0 2px 8px rgba(250, 112, 154, 0.3);">
-                    <i class="ri-check-line me-1"></i>Confirm
-                </button>
-            </div>
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Cancel</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="confirm_attraction_btn" disabled style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; font-size: 0.8rem; padding: 0.4rem 0.8rem; box-shadow: 0 2px 8px rgba(250, 112, 154, 0.3);">
+                                <i class="ri-check-line me-1"></i>Confirm
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -6866,7 +6952,7 @@
 
 <!-- Local Transfer Selection Modal -->
 <div class="modal fade" id="localTransferSelectionModal" tabindex="-1" aria-labelledby="localTransferSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="--bs-modal-width: 980px;">
         <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); padding: 0.75rem 1rem;">
                 <div class="d-flex align-items-center">
@@ -6990,33 +7076,15 @@
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
                                         </label>
-                                        <select class="form-select modern-select" id="local_transfer_pickup_time" name="pickup_time" style="height: 36px; font-size: 0.8rem;">
-                                            <option value="">Select Time</option>
-                                            <option value="12:00 AM">12:00 AM</option>
-                                            <option value="01:00 AM">01:00 AM</option>
-                                            <option value="02:00 AM">02:00 AM</option>
-                                            <option value="03:00 AM">03:00 AM</option>
-                                            <option value="04:00 AM">04:00 AM</option>
-                                            <option value="05:00 AM">05:00 AM</option>
-                                            <option value="06:00 AM">06:00 AM</option>
-                                            <option value="07:00 AM">07:00 AM</option>
-                                            <option value="08:00 AM">08:00 AM</option>
-                                            <option value="09:00 AM">09:00 AM</option>
-                                            <option value="10:00 AM">10:00 AM</option>
-                                            <option value="11:00 AM">11:00 AM</option>
-                                            <option value="12:00 PM">12:00 PM</option>
-                                            <option value="01:00 PM">01:00 PM</option>
-                                            <option value="02:00 PM">02:00 PM</option>
-                                            <option value="03:00 PM">03:00 PM</option>
-                                            <option value="04:00 PM">04:00 PM</option>
-                                            <option value="05:00 PM">05:00 PM</option>
-                                            <option value="06:00 PM">06:00 PM</option>
-                                            <option value="07:00 PM">07:00 PM</option>
-                                            <option value="08:00 PM">08:00 PM</option>
-                                            <option value="09:00 PM">09:00 PM</option>
-                                            <option value="10:00 PM">10:00 PM</option>
-                                            <option value="11:00 PM">11:00 PM</option>
-                                        </select>
+                                        <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px;">
+                                            <input type="text" class="form-control text-center" id="local_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferPickupTime()" onchange="syncLocalTransferPickupTime()">
+                                            <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                            <select class="form-select border-0" id="local_transfer_pickup_time_ampm" data-no-select2="true" style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;" onchange="syncLocalTransferPickupTime()">
+                                                <option value="AM">AM</option>
+                                                <option value="PM">PM</option>
+                                            </select>
+                                        </div>
+                                        <input type="hidden" name="pickup_time" id="local_transfer_pickup_time">
                                     </div>
                                     <div class="col-md-6 col-lg-3">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
@@ -7063,39 +7131,22 @@
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
                                         </label>
-                                        <select class="form-select modern-select" id="local_transfer_point_pickup_time" name="point_pickup_time" style="height: 36px; font-size: 0.8rem;">
-                                            <option value="">Select time</option>
-                                            <option value="12:00 AM">12:00 AM</option>
-                                            <option value="01:00 AM">01:00 AM</option>
-                                            <option value="02:00 AM">02:00 AM</option>
-                                            <option value="03:00 AM">03:00 AM</option>
-                                            <option value="04:00 AM">04:00 AM</option>
-                                            <option value="05:00 AM">05:00 AM</option>
-                                            <option value="06:00 AM">06:00 AM</option>
-                                            <option value="07:00 AM">07:00 AM</option>
-                                            <option value="08:00 AM">08:00 AM</option>
-                                            <option value="09:00 AM">09:00 AM</option>
-                                            <option value="10:00 AM">10:00 AM</option>
-                                            <option value="11:00 AM">11:00 AM</option>
-                                            <option value="12:00 PM">12:00 PM</option>
-                                            <option value="01:00 PM">01:00 PM</option>
-                                            <option value="02:00 PM">02:00 PM</option>
-                                            <option value="03:00 PM">03:00 PM</option>
-                                            <option value="04:00 PM">04:00 PM</option>
-                                            <option value="05:00 PM">05:00 PM</option>
-                                            <option value="06:00 PM">06:00 PM</option>
-                                            <option value="07:00 PM">07:00 PM</option>
-                                            <option value="08:00 PM">08:00 PM</option>
-                                            <option value="09:00 PM">09:00 PM</option>
-                                            <option value="10:00 PM">10:00 PM</option>
-                                            <option value="11:00 PM">11:00 PM</option>
-                                        </select>
+                                        <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px;">
+                                            <input type="text" class="form-control text-center" id="local_transfer_point_pickup_time_input" placeholder="10:30" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferPointPickupTime()" onchange="syncLocalTransferPointPickupTime()">
+                                            <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                            <select class="form-select border-0" id="local_transfer_point_pickup_time_ampm" data-no-select2="true" style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;" onchange="syncLocalTransferPointPickupTime()">
+                                                <option value="AM">AM</option>
+                                                <option value="PM">PM</option>
+                                            </select>
+                                        </div>
+                                        <input type="hidden" name="point_pickup_time" id="local_transfer_point_pickup_time">
                                     </div>
                                     <div class="col-md-6 col-lg-2">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
                                         </label>
-                                        <input type="date" class="form-control modern-input" id="local_transfer_point_pickup_date" name="point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
+                                        <input type="date" class="form-control modern-input" id="local_transfer_point_pickup_date_display" placeholder="dd-mm-yyyy" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('d-m-Y') }}" autocomplete="off" style="height: 36px; font-size: 0.8rem;" data-min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" data-max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" oninput="formatPointToPointPickupDateInput(this); syncPointToPointPickupDateFromDisplay()" onblur="syncPointToPointPickupDateFromDisplay()">
+                                        <input type="hidden" name="point_pickup_date" id="local_transfer_point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}">
                                     </div>
                                     <div class="col-md-6 col-lg-2">
                                         <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
@@ -7110,8 +7161,8 @@
                             
                             <!-- Hourly Fields (Hidden Initially) -->
                             <div class="col-12">
-                                <div id="hourly_fields" class="row g-2 hourly-fields d-none">
-                                    <div class="col-md-6 col-lg-3">
+                                <div id="hourly_fields" class="row g-2 g-lg-3 align-items-end hourly-fields d-none">
+                                    <div class="col-6 col-md-4 col-lg-3">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-map-pin-line me-1" style="color: #10b981;"></i>Pick Up Location
                                         </label>
@@ -7122,45 +7173,27 @@
                                             <input type="hidden" name="hourly_pickup_place_id" id="local_transfer_hourly_pickup_place_id">
                                         </div>
                                     </div>
-                                    <div class="col-md-6 col-lg-3">
+                                    <div class="col-6 col-md-4 col-lg-2">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
                                         </label>
-                                        <select class="form-select modern-select" id="local_transfer_hourly_pickup_time" name="hourly_pickup_time" style="height: 36px; font-size: 0.8rem;">
-                                            <option value="">Select time</option>
-                                            <option value="12:00 AM">12:00 AM</option>
-                                            <option value="01:00 AM">01:00 AM</option>
-                                            <option value="02:00 AM">02:00 AM</option>
-                                            <option value="03:00 AM">03:00 AM</option>
-                                            <option value="04:00 AM">04:00 AM</option>
-                                            <option value="05:00 AM">05:00 AM</option>
-                                            <option value="06:00 AM">06:00 AM</option>
-                                            <option value="07:00 AM">07:00 AM</option>
-                                            <option value="08:00 AM">08:00 AM</option>
-                                            <option value="09:00 AM">09:00 AM</option>
-                                            <option value="10:00 AM">10:00 AM</option>
-                                            <option value="11:00 AM">11:00 AM</option>
-                                            <option value="12:00 PM">12:00 PM</option>
-                                            <option value="01:00 PM">01:00 PM</option>
-                                            <option value="02:00 PM">02:00 PM</option>
-                                            <option value="03:00 PM">03:00 PM</option>
-                                            <option value="04:00 PM">04:00 PM</option>
-                                            <option value="05:00 PM">05:00 PM</option>
-                                            <option value="06:00 PM">06:00 PM</option>
-                                            <option value="07:00 PM">07:00 PM</option>
-                                            <option value="08:00 PM">08:00 PM</option>
-                                            <option value="09:00 PM">09:00 PM</option>
-                                            <option value="10:00 PM">10:00 PM</option>
-                                            <option value="11:00 PM">11:00 PM</option>
-                                        </select>
+                                        <div class="d-inline-flex align-items-center w-100" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px; max-width: 140px;">
+                                            <input type="text" class="form-control text-center" id="local_transfer_hourly_pickup_time_input" placeholder="10:30" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferHourlyPickupTime()" onchange="syncLocalTransferHourlyPickupTime()">
+                                            <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                            <select class="form-select border-0" id="local_transfer_hourly_pickup_time_ampm" data-no-select2="true" style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;" onchange="syncLocalTransferHourlyPickupTime()">
+                                                <option value="AM">AM</option>
+                                                <option value="PM">PM</option>
+                                            </select>
+                                        </div>
+                                        <input type="hidden" name="hourly_pickup_time" id="local_transfer_hourly_pickup_time">
                                     </div>
-                                    <div class="col-md-6 col-lg-2">
+                                    <div class="col-6 col-md-4 col-lg-2">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
                                         </label>
                                         <input type="date" class="form-control modern-input" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="" placeholder="dd-mm-yyyy" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
                                     </div>
-                                    <div class="col-md-6 col-lg-3">
+                                    <div class="col-6 col-md-4 col-lg-3">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-time-line me-1" style="color: #06b6d4;"></i>Number of Hours
                                         </label>
@@ -7181,7 +7214,7 @@
                                             <option value="24">24 Hours</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-6 col-lg-2">
+                                    <div class="col-12 col-md-4 col-lg-2">
                                         <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
                                             &nbsp;
                                         </label>
@@ -7211,7 +7244,7 @@
                             <div class="col-12">
                                 <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
                                     <div class="row g-2">
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Vehicle</label>
                                             <select class="form-select modern-select vehicle-select" 
                                                     id="local_transfer_vehicle_id" 
@@ -7222,7 +7255,7 @@
                                             </select>
                                         </div>
 
-                                        <div class="col-md-3">
+                                        <div class="col-md-2">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Service Type</label>
                                             <select class="form-select modern-select" 
                                                     id="local_transfer_service_type" 
@@ -7233,6 +7266,17 @@
                                                 <option value="Shared">Shared</option>
                                                 <option value="Private">Private</option>
                                             </select>
+                                        </div>
+
+                                        <!-- Number of Pax (multiplies price when Shared) -->
+                                        <div class="col-md-2">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                                <i class="ri-user-line me-1" style="color: #06b6d4;"></i>Number of Pax
+                                            </label>
+                                            <input type="number" class="form-control modern-input" id="local_transfer_passengers" name="passengers" min="1" max="{{ max(1, ($tour->adult ?? 0) + ($tour->child ?? 0)) }}" value="1" oninput="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()" style="height: 36px; font-size: 0.8rem;">
+                                            <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
+                                                Shared: price × pax
+                                            </small>
                                         </div>
 
                                         <!-- Manual Price Input (Only available for Point-to-Point) -->
@@ -7258,15 +7302,6 @@
                                             <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
                                                 <i class="ri-information-line me-1"></i>
                                                 Override vehicle price with custom amount
-                                            </small>
-                                        </div>
-
-                                        <!-- Number of Passengers -->
-                                        <div class="col-md-2" style="display: none;">
-                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Passengers</label>
-                                            <input type="number" class="form-control modern-input" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()" style="height: 36px; font-size: 0.8rem;">
-                                            <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
-                                                Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}
                                             </small>
                                         </div>
                                     </div>
@@ -7854,6 +7889,13 @@
                 if (noLabel) {
                     noLabel.classList.remove('active');
                 }
+                // When transport toggle is turned on, refresh price grid so Transport Pricing segment updates
+                if (toggleId === 'modal_need_attraction_transport' && typeof window.updateAttractionModalPriceGrid === 'function') {
+                    window.updateAttractionModalPriceGrid();
+                }
+                if (toggleId === 'modal_need_restaurant_transport' && typeof window.updateRestaurantModalPriceGrid === 'function') {
+                    window.updateRestaurantModalPriceGrid();
+                }
             } else {
                 wrapper.classList.add('d-none');
                 // Highlight No label, unhighlight Yes label
@@ -7866,8 +7908,24 @@
                 // If transport toggle is set to "No", reset transport price
                 if (toggleId === 'modal_need_attraction_transport') {
                     $('#modal_attraction_transport_price').val('0.00');
-                    if (typeof updateAttractionModalPriceGrid === 'function') {
-                        updateAttractionModalPriceGrid();
+                    if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                        window.updateAttractionModalPriceGrid();
+                    }
+                }
+                if (toggleId === 'modal_need_restaurant_transport') {
+                    $('#modal_restaurant_transport_price').val('0');
+                    if (typeof window.updateRestaurantModalPriceGrid === 'function') {
+                        window.updateRestaurantModalPriceGrid();
+                    }
+                }
+                // If guide toggle is set to "No", reset guide price
+                if (toggleId === 'modal_need_attraction_guide') {
+                    $('#modal_attraction_guide_price').val('0.00');
+                    $('#modal_attraction_guide_price_breakdown').hide();
+                    $('#modal_attraction_guide_price_note').text('Select guide and enter hours to see price').show();
+                    window.attractionModalGuideData = null;
+                    if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                        window.updateAttractionModalPriceGrid();
                     }
                 }
             }
@@ -7931,8 +7989,8 @@
         // Modal attraction transport toggle (using toggle switch)
         setupToggleSwitch('modal_need_attraction_transport', 'modal_attraction_transport_details', 'modal_attraction_transport_no', 'modal_attraction_transport_yes');
         
-        // Setup guide toggle for attraction modal
-        setupInlineTransportToggle('modal_need_attraction_guide_yes', 'modal_need_attraction_guide_no', 'modal_attraction_guide_details');
+        // Setup guide toggle for attraction modal (toggle switch, same as transport)
+        setupToggleSwitch('modal_need_attraction_guide', 'modal_attraction_guide_details', 'modal_attraction_guide_no', 'modal_attraction_guide_yes');
     }
     
     // Store guide data globally for attraction modal
@@ -8047,9 +8105,8 @@
             priceInput.val('0.00');
             priceBreakdown.hide();
             priceNote.text('Select guide and enter hours to see price').show();
-            // Update price grid
-            if (typeof updateAttractionModalPriceGrid === 'function') {
-                updateAttractionModalPriceGrid();
+            if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                window.updateAttractionModalPriceGrid();
             }
             return;
         }
@@ -8069,9 +8126,8 @@
             priceInput.val('0.00');
             priceBreakdown.hide();
             priceNote.text('Select hours to see price').show();
-            // Update price grid
-            if (typeof updateAttractionModalPriceGrid === 'function') {
-                updateAttractionModalPriceGrid();
+            if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                window.updateAttractionModalPriceGrid();
             }
             return;
         }
@@ -8162,6 +8218,11 @@
         } else {
             priceBreakdown.hide();
             priceNote.text(`Price for ${hoursNum} hour(s)`).show();
+        }
+        
+        // Push guide price into the Price Breakdown grid
+        if (typeof window.updateAttractionModalPriceGrid === 'function') {
+            window.updateAttractionModalPriceGrid();
         }
     }
     
@@ -9584,30 +9645,58 @@
             updateRestaurantModalPriceGrid();
         }
 
-        // Update restaurant modal price grid
+        // Update restaurant modal price grid (meal + transport = total). Expose on window for toggle/other handlers.
         function updateRestaurantModalPriceGrid() {
+            const totalPriceEl = document.getElementById('modal_restaurant_total_price');
             const mealPrice = parseFloat($('#modal_restaurant_total_price').val()) || 0;
-            const transportPrice = parseFloat($('#modal_restaurant_transport_price').val()) || 0;
+            const transportEl = $('#modal_restaurant_transport_price');
+            const needTransport = document.getElementById('modal_need_restaurant_transport');
+            const transportPrice = (needTransport && needTransport.checked && transportEl.length) ? (parseFloat(transportEl.val()) || 0) : 0;
             const totalPrice = mealPrice + transportPrice;
             const currency = '{{ $tour->currency ?? "$" }}';
             
             $('#modal_restaurant_meal_price_display').text(currency + ' ' + mealPrice.toFixed(2));
+            const breakdown = totalPriceEl && totalPriceEl.getAttribute('data-meal-breakdown');
+            const breakdownEl = document.getElementById('modal_restaurant_meal_breakdown_display');
+            if (breakdownEl) {
+                breakdownEl.textContent = breakdown || '';
+            }
             $('#modal_restaurant_transport_price_display').text(currency + ' ' + transportPrice.toFixed(2));
             $('#modal_restaurant_total_price_display').text(currency + ' ' + totalPrice.toFixed(2));
         }
+        window.updateRestaurantModalPriceGrid = updateRestaurantModalPriceGrid;
 
-        // Recalculate price when return checkbox changes for restaurant modal (only if zone mapped)
+        // When return checkbox changes: recalc transport price (zone) or apply original×2 (manual), then always update grid
         $(document).on('change', '#modal_restaurant_transport_return', function() {
             const priceInput = $('#modal_restaurant_transport_price');
             const zoneMapped = priceInput.data('zone-mapped');
             if (zoneMapped) {
                 calculateModalRestaurantTransportPrice();
+            } else {
+                const orig = parseFloat(priceInput.attr('data-original-price') || priceInput.val()) || 0;
+                if (this.checked) {
+                    priceInput.val((orig * 2).toFixed(2));
+                } else {
+                    priceInput.val(orig.toFixed(2));
+                }
             }
+            if (typeof window.updateRestaurantModalPriceGrid === 'function') window.updateRestaurantModalPriceGrid();
         });
         
-        // Update price grid when manual price is entered
+        // Update price grid when manual price is entered; store one-way price when return unchecked
         $(document).on('input change', '#modal_restaurant_transport_price', function() {
+            const returnChecked = $('#modal_restaurant_transport_return').prop('checked');
+            if (!returnChecked) {
+                const v = parseFloat($(this).val()) || 0;
+                $(this).attr('data-original-price', v.toFixed(2));
+            }
             updateRestaurantModalPriceGrid();
+        });
+        
+        // Update price grid when restaurant transport toggle changes
+        $(document).on('change', '#modal_need_restaurant_transport', function() {
+            if (!this.checked) $('#modal_restaurant_transport_price').val('0');
+            if (typeof window.updateRestaurantModalPriceGrid === 'function') window.updateRestaurantModalPriceGrid();
         });
 
         // Handle attraction modal transport destination change - fetch vehicles and calculate zone-based price
@@ -9735,7 +9824,9 @@
             const selectedOption = vehicleSelect.find('option:selected');
             if (!selectedOption.val() || !selectedOption.val().trim()) {
                 priceInput.val('0.00');
-                updateAttractionModalPriceGrid();
+                if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                    window.updateAttractionModalPriceGrid();
+                }
                 return;
             }
 
@@ -9758,7 +9849,7 @@
                 basePrice = basePrice * 2;
             }
 
-            // Update price input
+            // Update price input (zone-respected price)
             const totalPrice = basePrice.toFixed(2);
             priceInput.val(totalPrice);
             priceInput.attr('readonly', true);
@@ -9766,22 +9857,73 @@
                 priceInput.data('original-price', totalPrice);
             }
             
-            updateAttractionModalPriceGrid();
+            // Push transport price into the Price Breakdown grid
+            if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                window.updateAttractionModalPriceGrid();
+            }
         }
 
-        // Update attraction modal price grid
+        // Update attraction modal price grid: Ticket | Transport | Guide segments + Total (like reference image)
         function updateAttractionModalPriceGrid() {
+            const currency = '{{ $tour->currency ?? "$" }}';
             const ticketPrice = parseFloat($('#modal_attraction_total_price').val()) || 0;
             const transportPrice = parseFloat($('#modal_attraction_transport_price').val()) || 0;
             const guidePrice = parseFloat($('#modal_attraction_guide_price').val()) || 0;
             const totalPrice = ticketPrice + transportPrice + guidePrice;
-            const currency = '{{ $tour->currency ?? "$" }}';
-            
-            $('#modal_attraction_ticket_price_display').text(currency + ' ' + ticketPrice.toFixed(2));
-            $('#modal_attraction_transport_price_display').text(currency + ' ' + transportPrice.toFixed(2));
-            $('#modal_attraction_guide_price_display').text(currency + ' ' + guidePrice.toFixed(2));
+
+            // Ticket segment: when ticket chosen show attraction name, Calculation, Adult/Child/Senior lines, Total in blue
+            const ticketDisplay = $('#modal_attraction_ticket_price_display');
+            if (ticketPrice > 0) {
+                const attractionName = ($('#modal_attraction_select option:selected').text() || '').trim();
+                const ticketOpt = document.getElementById('modal_attraction_ticket');
+                const selectedTicketOption = ticketOpt && ticketOpt.selectedIndex >= 0 ? ticketOpt.options[ticketOpt.selectedIndex] : null;
+                let ticketData = {};
+                if (selectedTicketOption && selectedTicketOption.getAttribute('data-ticket')) {
+                    try { ticketData = JSON.parse(selectedTicketOption.getAttribute('data-ticket')); } catch(e) {}
+                }
+                const guestData = window.attractionModalGuestData || { adults: '1', children: '0', seniors: '0' };
+                const adults = parseInt(guestData.adults || '0', 10) || 0;
+                const children = parseInt(guestData.children || '0', 10) || 0;
+                const seniors = parseInt(guestData.seniors || '0', 10) || 0;
+                const adultPrice = parseFloat(ticketData.adult_price || 0) || 0;
+                const childPrice = parseFloat(ticketData.child_price || 0) || 0;
+                const seniorPrice = parseFloat(ticketData.senior_price || 0) || 0;
+                const lines = [];
+                if (adultPrice > 0) lines.push('Adult: ' + currency + adultPrice.toFixed(2) + ' × ' + adults + ' = ' + currency + (adultPrice * adults).toFixed(2));
+                if (childPrice > 0) lines.push('Child: ' + currency + childPrice.toFixed(2) + ' × ' + children + ' = ' + currency + (childPrice * children).toFixed(2));
+                if (seniorPrice > 0) lines.push('Senior: ' + currency + seniorPrice.toFixed(2) + ' × ' + seniors + ' = ' + currency + (seniorPrice * seniors).toFixed(2));
+                if (lines.length) {
+                    ticketDisplay.html((attractionName ? '<div class="mb-1 fw-semibold" style="color: #334155;">' + attractionName + '</div>' : '') + '<div class="mb-1">Calculation:</div>' + lines.join('<br>') + '<br><span class="fw-bold" style="color: #2563eb;">Total: ' + currency + ticketPrice.toFixed(2) + '</span>');
+                } else {
+                    ticketDisplay.html('<span class="fw-bold" style="color: #2563eb;">Total: ' + currency + ticketPrice.toFixed(2) + '</span>');
+                }
+            } else {
+                ticketDisplay.text('Select ticket to see price');
+            }
+
+            // Transport segment: price when selected and has price; "No pricing mapping found for this route" (red) when selected but no price; "No transport selected" otherwise
+            const transportDisplay = $('#modal_attraction_transport_price_display');
+            const needTransport = document.getElementById('modal_need_attraction_transport') && document.getElementById('modal_need_attraction_transport').checked;
+            if (!needTransport) {
+                transportDisplay.html('<span class="text-muted">No transport selected</span>');
+            } else if (transportPrice > 0) {
+                transportDisplay.text(currency + ' ' + transportPrice.toFixed(2));
+            } else {
+                transportDisplay.html('<span class="text-danger"><i class="ri-error-warning-line me-1"></i>No pricing mapping found for this route</span>');
+            }
+
+            // Guide segment: show price when guide toggle is on AND has a calculated price; otherwise "No guide selected"
+            const guideDisplay = $('#modal_attraction_guide_price_display');
+            const needGuide = document.getElementById('modal_need_attraction_guide') && document.getElementById('modal_need_attraction_guide').checked;
+            if (!needGuide || guidePrice <= 0) {
+                guideDisplay.html('<span class="text-muted">No guide selected</span>');
+            } else {
+                guideDisplay.text(currency + ' ' + guidePrice.toFixed(2));
+            }
+
             $('#modal_attraction_total_price_display').text(currency + ' ' + totalPrice.toFixed(2));
         }
+        window.updateAttractionModalPriceGrid = updateAttractionModalPriceGrid;
 
         // When modal attraction vehicle changes → adjust available transport types based on sharable
         $(document).on('change', '#modal_attraction_transport_vehicle', function() {
@@ -10316,12 +10458,17 @@
                     const ticketText = ticket.name || ticket.ticket_name || ticketValue;
                     ticketOption.value = ticketValue;
                     ticketOption.textContent = ticketText;
-                    
+                    // Price data for inline edit form total calculation
+                    const adultPrice = parseFloat(ticket.adult_price ?? ticket.price ?? 0) || 0;
+                    const childPrice = parseFloat(ticket.child_price ?? 0) || 0;
+                    const seniorPrice = parseFloat(ticket.senior_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
+                    ticketOption.dataset.adultPrice = adultPrice;
+                    ticketOption.dataset.childPrice = childPrice;
+                    ticketOption.dataset.seniorPrice = seniorPrice;
                     // Set selected if it matches current value
                     if (currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
                         ticketOption.selected = true;
                     }
-                    
                     ticketSelect.appendChild(ticketOption);
                 });
             } else {
@@ -10336,6 +10483,24 @@
             console.error('Error parsing attraction data for tickets:', error);
             ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
         }
+    }
+    
+    // Recalculate and set total price for one attraction edit row (bookingId)
+    function updateAttractionRowPrice(bookingId) {
+        const ticketSelect = document.getElementById('ticket_name_' + bookingId);
+        const priceInput = document.getElementById('attraction_total_price_' + bookingId);
+        if (!ticketSelect || !priceInput) return;
+        const opt = ticketSelect.options[ticketSelect.selectedIndex];
+        if (!opt || !opt.value) return;
+        const adultPrice = parseFloat(opt.dataset.adultPrice || 0) || 0;
+        const childPrice = parseFloat(opt.dataset.childPrice || 0) || 0;
+        const seniorPrice = parseFloat(opt.dataset.seniorPrice || 0) || 0;
+        if (adultPrice === 0 && childPrice === 0 && seniorPrice === 0 && (opt.dataset.adultPrice === undefined && opt.dataset.childPrice === undefined)) return;
+        const adults = parseInt(document.getElementById('attraction_adult_count_' + bookingId)?.value || 0, 10) || 0;
+        const children = parseInt(document.getElementById('attraction_child_count_' + bookingId)?.value || 0, 10) || 0;
+        const seniors = parseInt(document.getElementById('attraction_senior_count_' + bookingId)?.value || 0, 10) || 0;
+        const total = (adults * adultPrice) + (children * childPrice) + (seniors * seniorPrice);
+        priceInput.value = (Math.round(total * 100) / 100).toFixed(2);
     }
     
     // Initialize time slot selects for existing attraction forms
@@ -10355,18 +10520,27 @@
                     const currentTimeSlot = timeSlotSelect.value || '';
                     populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect, currentTimeSlot);
                 }
-                
-                // Add change event listener
+                // Add change event listener: update time slots and recalc price when attraction changes
                 attractionSelect.addEventListener('change', function() {
                     populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect);
+                    updateAttractionRowPrice(bookingId);
                 });
             }
-            
             // Initialize tickets on page load if attraction is already selected
             if (ticketSelect && attractionSelect.value) {
                 const currentTicket = ticketSelect.value || '';
                 populateTicketFromAttraction(attractionSelect, ticketSelect, currentTicket);
             }
+            // Recalc price on load if ticket has price data (e.g. after tickets populated)
+            if (ticketSelect) {
+                ticketSelect.addEventListener('change', function() { updateAttractionRowPrice(bookingId); });
+                updateAttractionRowPrice(bookingId);
+            }
+            // Pax inputs: recalc price when adults/children/seniors/infants change
+            ['attraction_adult_count_', 'attraction_child_count_', 'attraction_senior_count_', 'attraction_infants_'].forEach(function(prefix) {
+                const inp = document.getElementById(prefix + bookingId);
+                if (inp) inp.addEventListener('input', function() { updateAttractionRowPrice(bookingId); });
+            });
         });
     }
     
@@ -10891,26 +11065,26 @@
             }
         }
         
-        // Check if guide/transport are set to "No" and reset prices accordingly
-        const needGuideRadio = document.querySelector('input[name="modal_need_attraction_guide"]:checked');
+        // Check if guide/transport toggles are off and reset prices accordingly
+        const needGuideToggle = document.getElementById('modal_need_attraction_guide');
         const needTransportToggle = document.getElementById('modal_need_attraction_transport');
         
-        // If guide is set to "No", reset guide price
-        if (needGuideRadio && needGuideRadio.id === 'modal_need_attraction_guide_no') {
+        // If guide toggle is off, reset guide price
+        if (!needGuideToggle || !needGuideToggle.checked) {
             $('#modal_attraction_guide_price').val('0.00');
             $('#modal_attraction_guide_price_breakdown').hide();
             $('#modal_attraction_guide_price_note').text('Select guide and enter hours to see price').show();
             window.attractionModalGuideData = null;
         }
         
-        // If transport is set to "No" (unchecked), reset transport price
-        if (needTransportToggle && !needTransportToggle.checked) {
+        // If transport toggle is off, reset transport price
+        if (!needTransportToggle || !needTransportToggle.checked) {
             $('#modal_attraction_transport_price').val('0.00');
         }
         
         // Update price grid after resetting prices
-        if (typeof updateAttractionModalPriceGrid === 'function') {
-            updateAttractionModalPriceGrid();
+        if (typeof window.updateAttractionModalPriceGrid === 'function') {
+            window.updateAttractionModalPriceGrid();
         }
         
         validateAttractionForm();
@@ -10954,9 +11128,9 @@
                 
                 ticketPriceDisplay.textContent = `${ticketData.name} - ${priceText}`;
                 
-                // Update price grid
-                if (typeof updateAttractionModalPriceGrid === 'function') {
-                    updateAttractionModalPriceGrid();
+                // Update price grid (use window so it works when called from inline onchange)
+                if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                    window.updateAttractionModalPriceGrid();
                 }
             } catch (error) {
                 console.error('Error parsing ticket data:', error);
@@ -10968,8 +11142,8 @@
             if (totalPriceInput) {
                 totalPriceInput.value = '0';
             }
-            if (typeof updateAttractionModalPriceGrid === 'function') {
-                updateAttractionModalPriceGrid();
+            if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                window.updateAttractionModalPriceGrid();
             }
         }
     }
@@ -11310,8 +11484,6 @@
         const priceDisplay = document.getElementById('attraction_price_display');
         const priceDetails = document.getElementById('attraction_price_details');
         
-        if (!priceDisplay || !priceDetails) return;
-        
         if (selectedOption && selectedOption.value) {
             try {
                 const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket'));
@@ -11321,9 +11493,11 @@
                 let adults = 0;
                 let children = 0;
                 
+                let seniors = 0;
                 if (window.attractionModalGuestData) {
                     adults = parseInt(window.attractionModalGuestData.adults || '0') || 0;
                     children = parseInt(window.attractionModalGuestData.children || '0') || 0;
+                    seniors = parseInt(window.attractionModalGuestData.seniors || '0') || 0;
                 } else {
                     // Fallback to calculating from the form fields
                     const paxElem = document.getElementById('attraction_modal_pax');
@@ -11346,40 +11520,54 @@
                     }
                 }
                 
-                // Calculate prices
-                const adultPrice = parseFloat(ticketData.adult_price || 0) * adults;
-                const childPrice = parseFloat(ticketData.child_price || 0) * children;
-                const totalPrice = adultPrice + childPrice;
+                // Calculate prices (use price as fallback when adult_price missing, e.g. OCBC skyway $28)
+                const adultRate = parseFloat(ticketData.adult_price || ticketData.price || 0);
+                const childRate = parseFloat(ticketData.child_price || 0);
+                const seniorRate = parseFloat(ticketData.senior_price || ticketData.adult_price || ticketData.price || 0);
+                const adultPrice = adultRate * adults;
+                const childPrice = childRate * children;
+                const seniorPrice = seniorRate * seniors;
+                const totalPrice = adultPrice + childPrice + seniorPrice;
                 
                 // Format prices to 2 decimal places
                 const formattedAdultPrice = adultPrice.toFixed(2);
                 const formattedChildPrice = childPrice.toFixed(2);
                 const formattedTotalPrice = totalPrice.toFixed(2);
                 
-                priceDetails.innerHTML = `
-                    <div class="row">
-                        <div class="col-md-4">Adult Price: $${(ticketData.adult_price || 0).toFixed(2)} × ${adults} = $${formattedAdultPrice}</div>
-                        <div class="col-md-4">Child Price: $${(ticketData.child_price || 0).toFixed(2)} × ${children} = $${formattedChildPrice}</div>
-                        <div class="col-md-4"><strong>Total: $${formattedTotalPrice}</strong></div>
-                    </div>
-                `;
+                if (priceDisplay && priceDetails) {
+                    priceDetails.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-4">Adult Price: $${(ticketData.adult_price || 0).toFixed(2)} × ${adults} = $${formattedAdultPrice}</div>
+                            <div class="col-md-4">Child Price: $${(ticketData.child_price || 0).toFixed(2)} × ${children} = $${formattedChildPrice}</div>
+                            <div class="col-md-4"><strong>Total: $${formattedTotalPrice}</strong></div>
+                        </div>
+                    `;
+                    priceDisplay.style.display = 'block';
+                }
                 
-                // Update hidden fields
+                // Always update hidden fields and price grid so Price Breakdown section works
                 const totalPriceField = document.getElementById('modal_attraction_total_price');
                 const ticketIdField = document.getElementById('modal_attraction_ticket_id');
                 const ticketNameField = document.getElementById('modal_attraction_ticket_name');
                 
                 if (totalPriceField) totalPriceField.value = formattedTotalPrice;
-                if (ticketIdField) ticketIdField.value = ticketData.ticket_id;
-                if (ticketNameField) ticketNameField.value = ticketData.name;
+                if (ticketIdField) ticketIdField.value = ticketData.ticket_id || '';
+                if (ticketNameField) ticketNameField.value = ticketData.name || '';
                 
-                priceDisplay.style.display = 'block';
+                if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                    window.updateAttractionModalPriceGrid();
+                }
             } catch (error) {
                 console.error('Error updating attraction pricing:', error);
-                priceDisplay.style.display = 'none';
+                if (priceDisplay) priceDisplay.style.display = 'none';
             }
         } else {
-            priceDisplay.style.display = 'none';
+            const totalPriceField = document.getElementById('modal_attraction_total_price');
+            if (totalPriceField) totalPriceField.value = '0';
+            if (typeof window.updateAttractionModalPriceGrid === 'function') {
+                window.updateAttractionModalPriceGrid();
+            }
+            if (priceDisplay) priceDisplay.style.display = 'none';
         }
     }
     
@@ -11500,6 +11688,133 @@
         const minStr = String(min).padStart(2, '0');
         hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
+
+    function syncAttractionGuidePickupTime() {
+        const timeInput = document.getElementById('modal_attraction_guide_pickup_time_input');
+        const ampmSelect = document.getElementById('modal_attraction_guide_pickup_time_ampm');
+        const hiddenInput = document.getElementById('modal_attraction_guide_pickup_time');
+        if (!timeInput || !ampmSelect || !hiddenInput) return;
+        const digitsOnly = (timeInput.value || '').trim().replace(/\D/g, '');
+        if (digitsOnly.length === 0) { hiddenInput.value = ''; return; }
+        let hour = parseInt(digitsOnly.slice(0, 2), 10) || 1;
+        if (hour > 12) hour = 12; if (hour < 1) hour = 1;
+        let min = 0;
+        if (digitsOnly.length >= 4) { min = parseInt(digitsOnly.slice(2, 4), 10); if (isNaN(min) || min < 0) min = 0; if (min > 59) min = 59; }
+        else if (digitsOnly.length === 3) { min = parseInt(digitsOnly.slice(2, 3) + '0', 10); if (min > 59) min = 59; }
+        hiddenInput.value = String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0') + ' ' + (ampmSelect.value || 'AM');
+    }
+
+    function syncAttractionTransportPickupTime() {
+        const timeInput = document.getElementById('modal_attraction_transport_pickup_time_input');
+        const ampmSelect = document.getElementById('modal_attraction_transport_pickup_time_ampm');
+        const hiddenInput = document.getElementById('modal_attraction_transport_pickup_time');
+        if (!timeInput || !ampmSelect || !hiddenInput) return;
+        const digitsOnly = (timeInput.value || '').trim().replace(/\D/g, '');
+        if (digitsOnly.length === 0) { hiddenInput.value = ''; return; }
+        let hour = parseInt(digitsOnly.slice(0, 2), 10) || 1;
+        if (hour > 12) hour = 12; if (hour < 1) hour = 1;
+        let min = 0;
+        if (digitsOnly.length >= 4) { min = parseInt(digitsOnly.slice(2, 4), 10); if (isNaN(min) || min < 0) min = 0; if (min > 59) min = 59; }
+        else if (digitsOnly.length === 3) { min = parseInt(digitsOnly.slice(2, 3) + '0', 10); if (min > 59) min = 59; }
+        hiddenInput.value = String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0') + ' ' + (ampmSelect.value || 'AM');
+    }
+
+    function syncLocalTransferPickupTime() {
+        const timeInput = document.getElementById('local_transfer_pickup_time_input');
+        const ampmSelect = document.getElementById('local_transfer_pickup_time_ampm');
+        const hiddenInput = document.getElementById('local_transfer_pickup_time');
+        if (!timeInput || !ampmSelect || !hiddenInput) return;
+        const digitsOnly = (timeInput.value || '').trim().replace(/\D/g, '');
+        if (digitsOnly.length === 0) { hiddenInput.value = ''; return; }
+        let hour = parseInt(digitsOnly.slice(0, 2), 10) || 1;
+        if (hour > 12) hour = 12; if (hour < 1) hour = 1;
+        let min = 0;
+        if (digitsOnly.length >= 4) { min = parseInt(digitsOnly.slice(2, 4), 10); if (isNaN(min) || min < 0) min = 0; if (min > 59) min = 59; }
+        else if (digitsOnly.length === 3) { min = parseInt(digitsOnly.slice(2, 3) + '0', 10); if (min > 59) min = 59; }
+        hiddenInput.value = String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0') + ' ' + (ampmSelect.value || 'AM');
+        if (typeof checkLocalTransferZoneFormCompletion === 'function') checkLocalTransferZoneFormCompletion();
+    }
+
+    function syncLocalTransferPointPickupTime() {
+        const timeInput = document.getElementById('local_transfer_point_pickup_time_input');
+        const ampmSelect = document.getElementById('local_transfer_point_pickup_time_ampm');
+        const hiddenInput = document.getElementById('local_transfer_point_pickup_time');
+        if (!timeInput || !ampmSelect || !hiddenInput) return;
+        const digitsOnly = (timeInput.value || '').trim().replace(/\D/g, '');
+        if (digitsOnly.length === 0) { hiddenInput.value = ''; return; }
+        let hour = parseInt(digitsOnly.slice(0, 2), 10) || 1;
+        if (hour > 12) hour = 12; if (hour < 1) hour = 1;
+        let min = 0;
+        if (digitsOnly.length >= 4) { min = parseInt(digitsOnly.slice(2, 4), 10); if (isNaN(min) || min < 0) min = 0; if (min > 59) min = 59; }
+        else if (digitsOnly.length === 3) { min = parseInt(digitsOnly.slice(2, 3) + '0', 10); if (min > 59) min = 59; }
+        hiddenInput.value = String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0') + ' ' + (ampmSelect.value || 'AM');
+        if (typeof checkLocalTransferFormCompletion === 'function') checkLocalTransferFormCompletion();
+    }
+
+    function syncLocalTransferHourlyPickupTime() {
+        const timeInput = document.getElementById('local_transfer_hourly_pickup_time_input');
+        const ampmSelect = document.getElementById('local_transfer_hourly_pickup_time_ampm');
+        const hiddenInput = document.getElementById('local_transfer_hourly_pickup_time');
+        if (!timeInput || !ampmSelect || !hiddenInput) return;
+        const digitsOnly = (timeInput.value || '').trim().replace(/\D/g, '');
+        if (digitsOnly.length === 0) { hiddenInput.value = ''; return; }
+        let hour = parseInt(digitsOnly.slice(0, 2), 10) || 1;
+        if (hour > 12) hour = 12; if (hour < 1) hour = 1;
+        let min = 0;
+        if (digitsOnly.length >= 4) { min = parseInt(digitsOnly.slice(2, 4), 10); if (isNaN(min) || min < 0) min = 0; if (min > 59) min = 59; }
+        else if (digitsOnly.length === 3) { min = parseInt(digitsOnly.slice(2, 3) + '0', 10); if (min > 59) min = 59; }
+        hiddenInput.value = String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0') + ' ' + (ampmSelect.value || 'AM');
+        if (typeof checkHourlyFormCompletion === 'function') checkHourlyFormCompletion();
+    }
+
+    // Point To Point pickup date: display dd-mm-yyyy, submit Y-m-d
+    function parseDdMmYyyyToYmd(str) {
+        if (!str || typeof str !== 'string') return null;
+        const cleaned = str.trim().replace(/\s/g, '');
+        const parts = cleaned.split(/[-/.]/);
+        if (parts.length !== 3) return null;
+        const d = parseInt(parts[0], 10), m = parseInt(parts[1], 10), y = parseInt(parts[2], 10);
+        if (isNaN(d) || isNaN(m) || isNaN(y) || d < 1 || d > 31 || m < 1 || m > 12 || y < 1900 || y > 2100) return null;
+        const date = new Date(y, m - 1, d);
+        if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+        return String(y) + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    }
+    function ymdToDdMmYyyy(ymd) {
+        if (!ymd || typeof ymd !== 'string') return '';
+        const match = ymd.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!match) return '';
+        return match[3] + '-' + match[2] + '-' + match[1];
+    }
+    function formatPointToPointPickupDateInput(el) {
+        if (!el || !el.value) return;
+        let v = el.value.replace(/\D/g, '');
+        if (v.length > 8) v = v.slice(0, 8);
+        if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2);
+        if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+        el.value = v;
+    }
+    function syncPointToPointPickupDateFromDisplay() {
+        const display = document.getElementById('local_transfer_point_pickup_date_display');
+        const hidden = document.getElementById('local_transfer_point_pickup_date');
+        if (!display || !hidden) return;
+        const ymd = parseDdMmYyyyToYmd(display.value);
+        const min = display.getAttribute('data-min') || '';
+        const max = display.getAttribute('data-max') || '';
+        if (ymd) {
+            if (min && ymd < min) { hidden.value = min; display.value = ymdToDdMmYyyy(min); }
+            else if (max && ymd > max) { hidden.value = max; display.value = ymdToDdMmYyyy(max); }
+            else { hidden.value = ymd; display.value = ymdToDdMmYyyy(ymd); }
+        } else if (display.value.trim() === '') {
+            hidden.value = '';
+        }
+        if (typeof checkLocalTransferFormCompletion === 'function') checkLocalTransferFormCompletion();
+    }
+    function syncPointToPointPickupDateToDisplay() {
+        const hidden = document.getElementById('local_transfer_point_pickup_date');
+        const display = document.getElementById('local_transfer_point_pickup_date_display');
+        if (!hidden || !display) return;
+        display.value = ymdToDdMmYyyy(hidden.value);
+    }
     
     function showLocalTransferSelectionModal(tourId, country, startDate, endDate, serviceType = null) {
         console.log('Showing local transfer selection modal with data:', { tourId, country, startDate, endDate, serviceType });
@@ -11568,8 +11883,9 @@
                         // Trigger the change event to update the form
                         if (serviceType === 'travel_hourly' || serviceType === 'hourly') {
                             handleLocalTransferServiceTypeChange('hourly');
-                        } else if (serviceType === 'travel_point' || serviceType === 'point_to_point') {
+                        } else                         if (serviceType === 'travel_point' || serviceType === 'point_to_point') {
                             handleLocalTransferServiceTypeChange('point_to_point');
+                            syncPointToPointPickupDateToDisplay();
                         } else if (serviceType === 'local_transport' || serviceType === 'local_transfer') {
                             handleLocalTransferServiceTypeChange('local_transfer');
                         }
@@ -11761,6 +12077,7 @@
         if (pointToPointRadio) {
             pointToPointRadio.checked = true;
             handleLocalTransferServiceTypeChange('point_to_point');
+            syncPointToPointPickupDateToDisplay();
         } else {
             // Fallback: check if local transfer radio exists
             const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
@@ -14019,9 +14336,9 @@
             let priceMultiplierText = '';
             
             if (isManualPriceUsed) {
-                // Use manual price for point-to-point
+                // Use manual price for point-to-point; when Shared, multiply by pax
                 basePrice = manualPrice;
-                totalPrice = manualPrice;
+                totalPrice = (serviceType === 'Shared') ? (manualPrice * validatedPassengers) : manualPrice;
             } else {
                 // Use vehicle's default pricing
                 if (serviceType == 'Private') {
@@ -14057,6 +14374,9 @@
             
             // Format price calculation for better readability
             let priceCalculationText = '';
+            if (isManualPriceUsed && serviceType === 'Shared') {
+                priceMultiplierText = ` × ${validatedPassengers} pax`;
+            }
             if (isHourlyService && selectedHours > 0 && !isManualPriceUsed) {
                 if (serviceType == 'Private') {
                     const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
@@ -14066,7 +14386,7 @@
                     priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax) = $${totalPrice.toFixed(2)}`;
                 }
             } else {
-                priceCalculationText = `$${basePrice.toFixed(2)}${priceMultiplierText}`;
+                priceCalculationText = `$${basePrice.toFixed(2)}${priceMultiplierText}` + (totalPrice !== basePrice ? ` = $${totalPrice.toFixed(2)}` : '');
             }
             const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
 
@@ -14795,8 +15115,8 @@
         }
         
         // Update price grid
-        if (typeof updateAttractionModalPriceGrid === 'function') {
-            updateAttractionModalPriceGrid();
+        if (typeof window.updateAttractionModalPriceGrid === 'function') {
+            window.updateAttractionModalPriceGrid();
         }
         
         // Build the complex booking data structure in required format
@@ -14872,6 +15192,8 @@
             // Determine way (One Way or Two Way based on return checkbox)
             const way = transportReturn ? 'Two Way' : 'One Way';
             
+            const transportPickupTimeEl = document.getElementById('modal_attraction_transport_pickup_time');
+            const transportPickupTime = transportPickupTimeEl ? (transportPickupTimeEl.value || '').trim() : '';
             // Build transfer_options object
             bookingData[0].transfer_options = {
                 transfer_required: true,
@@ -14882,15 +15204,16 @@
                 seats: transportSeats || '',
                 passengers: transportPassengers || '',
                 price: parseFloat(transportPrice) || 0,
-                vehicle_details: vehicleDetails
+                vehicle_details: vehicleDetails,
+                pickup_time: transportPickupTime
             };
         } else {
             bookingData[0].transfer_options = { transfer_required: false };
         }
         
         // Collect guide data if guide is required
-        const needGuideRadio = document.querySelector('input[name="modal_need_attraction_guide"]:checked');
-        const needGuide = needGuideRadio && needGuideRadio.value === 'yes';
+        const needGuideToggle = document.getElementById('modal_need_attraction_guide');
+        const needGuide = needGuideToggle && needGuideToggle.checked;
         
         if (needGuide) {
             const guideNameSelect = document.getElementById('modal_attraction_guide_name');
@@ -14978,13 +15301,15 @@
                 }
             }
             
+            const guidePickupTimeEl = document.getElementById('modal_attraction_guide_pickup_time');
+            const guidePickupTime = guidePickupTimeEl ? (guidePickupTimeEl.value || '').trim() : (timeSlot || '');
             // Build guide_options object
             bookingData[0].guide_options = {
                 guide_required: true,
                 guide_id: guideId,
                 guide_name: guideName,
                 language: guideLanguage,
-                pickup_time: timeSlot || '',
+                pickup_time: guidePickupTime,
                 package_hours: guidePackageHours,
                 hours: guideHours,
                 base_price: guideBasePrice,
@@ -16880,6 +17205,34 @@
         // loadGuidesForCity(city, country);
     }
     
+    // Sync pickup time in guide selection modal (visible input + AM/PM -> hidden field).
+    function syncGuideModalPickupTime() {
+        const timeInput = document.getElementById('modal_guide_pickup_time_input');
+        const ampmSelect = document.getElementById('modal_guide_pickup_time_ampm');
+        const hiddenInput = document.getElementById('modal_guide_pickup_time');
+        if (!timeInput || !ampmSelect || !hiddenInput) return;
+        const digitsOnly = (timeInput.value || '').trim().replace(/\D/g, '');
+        if (digitsOnly.length === 0) {
+            hiddenInput.value = '';
+            return;
+        }
+        let hour = parseInt(digitsOnly.slice(0, 2), 10) || 1;
+        if (hour > 12) hour = 12;
+        if (hour < 1) hour = 1;
+        let min = 0;
+        if (digitsOnly.length >= 4) {
+            min = parseInt(digitsOnly.slice(2, 4), 10);
+            if (isNaN(min) || min < 0) min = 0;
+            if (min > 59) min = 59;
+        } else if (digitsOnly.length === 3) {
+            min = parseInt(digitsOnly.slice(2, 3) + '0', 10);
+            if (min > 59) min = 59;
+        }
+        const hourStr = String(hour).padStart(2, '0');
+        const minStr = String(min).padStart(2, '0');
+        hiddenInput.value = hourStr + ':' + minStr + ' ' + (ampmSelect.value || 'AM');
+    }
+    
     function initializeGuideModal() {
         // Hide price container initially
         document.getElementById('guide_price_container').style.display = 'none';
@@ -16893,7 +17246,11 @@
         }
         document.getElementById('modal_guide_select').addEventListener('change', onGuideSelection);
         document.getElementById('modal_guide_duration').addEventListener('change', onDurationSelection);
-        document.getElementById('modal_guide_custom_hours').addEventListener('input', validateCustomHours);
+        const modalCustomHoursEl = document.getElementById('modal_guide_custom_hours');
+        if (modalCustomHoursEl) {
+            modalCustomHoursEl.addEventListener('input', function() { validateCustomHours(); calculateGuidePrice(); validateForm(); });
+            modalCustomHoursEl.addEventListener('change', function() { calculateGuidePrice(); validateForm(); });
+        }
         const modalPickupInput = document.getElementById('modal_guide_pickup_time_input');
         const modalPickupAmpm = document.getElementById('modal_guide_pickup_time_ampm');
         if (modalPickupInput) {
@@ -16956,14 +17313,14 @@
         
         // For demo purposes, show sample guides
         // In production, this would fetch from API
-        const all_guides = @json($guides);
-        const guides = all_guides.filter(guide => guide.city == city);
-        console.log('Guides:', guides.languages);
+        const all_guides = @json($guides ?? []);
+        const guides = Array.isArray(all_guides) ? all_guides.filter(guide => (guide.city || '') == city) : [];
         // Add guide options
         guides.forEach(guide => {
             const option = document.createElement('option');
-            option.value = guide.guide_id;
-            option.textContent = `${guide.name} - ${guide.languages.map(language => language.language).join(', ')} `;
+            option.value = guide.guide_id || '';
+            const langList = Array.isArray(guide.languages) ? guide.languages.map(l => (l && (l.language || l)) || '').filter(Boolean).join(', ') : '';
+            option.textContent = (guide.name || 'Guide') + (langList ? ' - ' + langList : '');
             option.setAttribute('data-guide', JSON.stringify(guide));
             guideSelect.appendChild(option);
         });
@@ -17054,6 +17411,35 @@
         confirmBtn.disabled = !isValid;
     }
 
+    // Parse pickup time string (e.g. "07:59 AM" or "19:30") to 24-hour hour (0-23).
+    function parsePickupTimeTo24Hour(pickupTimeStr) {
+        if (!pickupTimeStr) return 0;
+        const parts = pickupTimeStr.split(/\s+/);
+        const timePart = parts[0] || '';
+        const ampm = (parts[1] || '').toUpperCase();
+        const timeMatch = timePart.match(/^(\d{1,2}):(\d{2})/);
+        if (!timeMatch) return 0;
+        let hour = parseInt(timeMatch[1], 10);
+        if (ampm === 'PM') {
+            if (hour !== 12) hour += 12;
+        } else if (ampm === 'AM') {
+            if (hour === 12) hour = 0;
+        }
+        return hour >= 0 && hour <= 23 ? hour : 0;
+    }
+
+    // True if pickup hour (0-23) falls inside night range [nightStart, nightEnd).
+    // Same-day range (e.g. 18:00-19:00): nightStart < nightEnd -> in range if pickupHour >= start && pickupHour < end.
+    // Overnight range (e.g. 22:00-08:00): nightStart > nightEnd -> in range if pickupHour >= start || pickupHour < end.
+    function isPickupInNightRange(pickupHour24, nightStartHour, nightEndHour) {
+        const start = nightStartHour % 24;
+        const end = nightEndHour % 24;
+        if (start > end) {
+            return pickupHour24 >= start || pickupHour24 < end;
+        }
+        return pickupHour24 >= start && pickupHour24 < end;
+    }
+
     // Calculate and display guide price
     function calculateGuidePrice() {
         const guideSelect = document.getElementById('modal_guide_select');
@@ -17077,7 +17463,7 @@
         
         const guideData = JSON.parse(selectedOption.getAttribute('data-guide'));
         
-        // Calculate hours
+        // Calculate hours (1-12 from select, or custom input)
         let hours = 0;
         if (durationSelect.value === 'custom') {
             hours = parseInt(customHoursInput.value) || 0;
@@ -17085,10 +17471,12 @@
                 priceContainer.style.display = 'none';
                 return;
             }
-        } else if (durationSelect.value === 'half_day') {
-            hours = 4;
-        } else if (durationSelect.value === 'full_day') {
-            hours = 8;
+        } else if (durationSelect.value && durationSelect.value !== '') {
+            hours = parseInt(durationSelect.value, 10) || 0;
+            if (hours < 1 || hours > 12) {
+                priceContainer.style.display = 'none';
+                return;
+            }
         } else {
             priceContainer.style.display = 'none';
             return;
@@ -17113,16 +17501,15 @@
             basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 15.00) * hours;
         }
         
-        // Calculate night surcharge if pickup time is within night hours
+        // Night surcharge only when pickup time is inside night_start_time..night_end_time
         let surcharge = 0;
-        const pickupTime = pickupTimeInput.value;
-        const pickupHour = parseInt(pickupTime.split(':')[0]);
-        const nightStartHour = parseInt(guideData.night_start_time?.split(':')[0] || '22');
-        const nightEndHour = parseInt(guideData.night_end_time?.split(':')[0] || '8');
-        
-        // Check if pickup time falls within night hours (typically 10 PM to 8 AM)
-        if (pickupHour >= nightStartHour || pickupHour < nightEndHour) {
-            surcharge = parseFloat(guideData.night_surcharge || 20.00);
+        const pickupTime = (pickupTimeInput.value || '').trim();
+        const pickupHour24 = parsePickupTimeTo24Hour(pickupTime);
+        const nightStartHour = parseInt(String(guideData.night_start_time || '22').split(':')[0], 10) || 22;
+        const nightEndHour = parseInt(String(guideData.night_end_time || '08').split(':')[0], 10) || 8;
+        const inNightRange = isPickupInNightRange(pickupHour24, nightStartHour, nightEndHour);
+        if (inNightRange && guideData.night_surcharge) {
+            surcharge = parseFloat(guideData.night_surcharge || 0);
         }
         
         const totalPrice = basePrice + surcharge;
@@ -17184,10 +17571,9 @@
         const adults = document.getElementById('adults').value || '1';
         const children = document.getElementById('children').value || '0';
         
-        // Calculate hours
-        const hours = duration === 'custom' ? customHours : 
-                     duration === 'half_day' ? '4' : 
-                     duration === 'full_day' ? '8' : '4';
+        // Calculate hours (1-12 from duration select, or custom_hours when duration is 'custom')
+        const hours = duration === 'custom' ? (customHours || '4') : 
+                     (duration && /^\d+$/.test(duration) ? duration : '4');
         
         // Calculate pricing based on guide data
         let basePrice = 0;
@@ -17211,15 +17597,14 @@
             basePrice = parseFloat(guideData.hourly_price || '15.00') * hoursNum;
         }
         
-        // Calculate night surcharge if pickup time is within night hours
+        // Night surcharge only when pickup time is inside night_start_time..night_end_time
         let surcharge = 0;
-        const pickupHour = parseInt(pickupTime.split(':')[0]);
-        const nightStartHour = parseInt(guideData.night_start_time?.split(':')[0] || '0');
-        const nightEndHour = parseInt(guideData.night_end_time?.split(':')[0] || '8');
-        
-        // Check if pickup time falls within night hours
-        if (pickupHour >= nightStartHour || pickupHour < nightEndHour) {
-            surcharge = parseFloat(guideData.night_surcharge || '20.00');
+        const pickupHour24 = parsePickupTimeTo24Hour((pickupTime || '').trim());
+        const nightStartHour = parseInt(String(guideData.night_start_time || '22').split(':')[0], 10) || 22;
+        const nightEndHour = parseInt(String(guideData.night_end_time || '08').split(':')[0], 10) || 8;
+        const inNightRange = isPickupInNightRange(pickupHour24, nightStartHour, nightEndHour);
+        if (inNightRange && guideData.night_surcharge) {
+            surcharge = parseFloat(guideData.night_surcharge || 0);
         }
         
         const totalPrice = basePrice + surcharge;
@@ -18118,7 +18503,7 @@
         }
     }
     
-    // Update Multi Restaurant price in modal
+    // Update Multi Restaurant price in modal (same pax × rate logic as normal restaurant, and same meal-price-section + grid)
     function updateModalMultiRestaurantPrice() {
         const restaurantSelect = document.getElementById('modal_restaurant_select');
         if (!restaurantSelect) return;
@@ -18133,57 +18518,31 @@
         
         try {
             const pax = getPax();
-            // Get adults count (male + female)
             const adults = pax.adults || Math.max(1, pax.maleCount + pax.femaleCount);
-            // Get children count
             const children = parseInt(pax.children || 0) || 0;
             
-            // Get prices from Multi Restaurant
             const adultPrice = parseFloat(mr.adult_price ?? mr.price ?? 0) || 0;
             const childPrice = parseFloat(mr.child_price ?? 0) || 0;
             
-            // Calculate: adults * adult_price + children * child_price
             const adultTotal = adultPrice * adults;
             const childTotal = childPrice * children;
             const mealTotal = adultTotal + childTotal;
             
-            console.log('Multi Restaurant Price Calculation:', {
-                paxData: pax,
-                adults: adults,
-                children: children,
-                adultPrice: adultPrice,
-                childPrice: childPrice,
-                calculation: `${adults} × ${adultPrice} + ${children} × ${childPrice}`,
-                adultTotal: adultTotal,
-                childTotal: childTotal,
-                mealTotal: mealTotal
-            });
-            
             const totalPriceInput = document.getElementById('modal_restaurant_total_price');
             if (totalPriceInput) {
                 totalPriceInput.value = mealTotal.toFixed(2);
+                const currency = '{{ $tour->currency ?? "$" }}';
+                const breakdownText = adults + ' adults × ' + currency + adultPrice.toFixed(2) + ' + ' + children + ' children × ' + currency + childPrice.toFixed(2) + ' = ' + currency + mealTotal.toFixed(2);
+                totalPriceInput.setAttribute('data-meal-breakdown', breakdownText);
             }
             
-            const currency = mr.currency || 'SGD';
-            
-            // Update meal price display
-            const mealPriceDisplay = document.getElementById('modal_restaurant_meal_price_display');
-            if (mealPriceDisplay) {
-                mealPriceDisplay.textContent = currency + ' ' + mealTotal.toFixed(2);
+            const mealPriceSection = document.getElementById('meal-price-section');
+            if (mealPriceSection) {
+                mealPriceSection.textContent = 'Adult Price: ' + adultTotal.toFixed(2) + ' (' + adults + ' × ' + adultPrice + ') - Child Price: ' + childTotal.toFixed(2) + ' (' + children + ' × ' + childPrice + '), Total Price: ' + mealTotal.toFixed(2);
             }
             
-            // Update total price display
-            const totalPriceDisplay = document.getElementById('modal_restaurant_total_price_display');
-            if (totalPriceDisplay) {
-                // Get transport price
-                const transportPrice = parseFloat(document.getElementById('modal_restaurant_transport_price')?.value || 0) || 0;
-                const grandTotal = mealTotal + transportPrice;
-                totalPriceDisplay.textContent = currency + ' ' + grandTotal.toFixed(2);
-            }
-            
-            // Update price grid (this will handle transport price display)
-            if (typeof updateRestaurantModalPriceGrid === 'function') {
-                updateRestaurantModalPriceGrid();
+            if (typeof window.updateRestaurantModalPriceGrid === 'function') {
+                window.updateRestaurantModalPriceGrid();
             }
         } catch (error) {
             console.error('Error updating Multi Restaurant price:', error);
@@ -18355,10 +18714,13 @@
             totalPrice: totalPrice
         });
         
-        // Update hidden total price field
+        // Update hidden total price field and meal breakdown for price grid (rate × pax)
         const totalPriceInput = document.getElementById('modal_restaurant_total_price');
         if (totalPriceInput) {
             totalPriceInput.value = totalPrice.toFixed(2);
+            const currency = '{{ $tour->currency ?? "$" }}';
+            const breakdownText = adults + ' adults × ' + currency + adultPricePerPerson.toFixed(2) + ' + ' + children + ' children × ' + currency + childPricePerPerson.toFixed(2) + ' = ' + currency + totalPrice.toFixed(2);
+            totalPriceInput.setAttribute('data-meal-breakdown', breakdownText);
         }
         
         const mealPriceSection = document.getElementById('meal-price-section');
@@ -18405,7 +18767,22 @@
     }
     
     function getPax() {
-        // Always prefer input fields if they exist
+        // Prefer window.modalGuestData when set (synced from tour or from guest selector confirm) so displayed pax matches calculation
+        if (window.modalGuestData) {
+            const adults = Math.max(1, parseInt(window.modalGuestData.adults) || 0);
+            const children = parseInt(window.modalGuestData.children) || 0;
+            const maleCount = parseInt(window.modalGuestData.male_count) || 0;
+            const femaleCount = parseInt(window.modalGuestData.female_count) || 0;
+            const result = {
+                pax: adults + children,
+                adults: adults,
+                maleCount: maleCount,
+                femaleCount: femaleCount,
+                children: children
+            };
+            return result;
+        }
+        
         const maleInput = document.getElementById('modal_male_count');
         const femaleInput = document.getElementById('modal_female_count');
         const childrenInput = document.getElementById('modal_children');
@@ -18414,7 +18791,6 @@
         let femaleCount = 0;
         let children = 0;
         
-        // Read from input fields first (these are the source of truth)
         if (maleInput && maleInput.value !== null && maleInput.value !== undefined) {
             maleCount = parseInt(maleInput.value) || 0;
         }
@@ -18425,42 +18801,39 @@
             children = parseInt(childrenInput.value) || 0;
         }
         
-        // If inputs don't exist or are empty, try reading from guest summary badges as fallback
         if (!maleInput || !femaleInput || (maleCount === 0 && femaleCount === 0)) {
             const guestSummary = document.getElementById('modal_restaurant_guest_summary');
             if (guestSummary) {
-                // Parse guest summary badges
                 const badges = guestSummary.querySelectorAll('.badge');
                 badges.forEach(badge => {
                     const text = badge.textContent.trim();
                     const icon = badge.querySelector('i');
                     if (icon) {
                         const iconClass = icon.className;
-                        if (iconClass.includes('men-line') || iconClass.includes('ri-men')) {
-                            const match = text.match(/(\d+)/);
+                        if (iconClass.includes('group-line') || iconClass.includes('ri-group')) {
+                            const match = text.match(/(\d+)\s*Adults?/i) || text.match(/(\d+)/);
                             if (match) {
                                 const parsed = parseInt(match[1]) || 0;
-                                if (!maleInput || maleCount === 0) maleCount = parsed;
+                                if (parsed > 0 && (maleCount + femaleCount) === 0) {
+                                    maleCount = parsed;
+                                    femaleCount = 0;
+                                }
                             }
+                        } else if (iconClass.includes('men-line') || iconClass.includes('ri-men')) {
+                            const match = text.match(/(\d+)/);
+                            if (match) maleCount = parseInt(match[1]) || 0;
                         } else if (iconClass.includes('women-line') || iconClass.includes('ri-women')) {
                             const match = text.match(/(\d+)/);
-                            if (match) {
-                                const parsed = parseInt(match[1]) || 0;
-                                if (!femaleInput || femaleCount === 0) femaleCount = parsed;
-                            }
+                            if (match) femaleCount = parseInt(match[1]) || 0;
                         } else if (iconClass.includes('user-smile-line') || iconClass.includes('ri-user-smile')) {
                             const match = text.match(/(\d+)/);
-                            if (match) {
-                                const parsed = parseInt(match[1]) || 0;
-                                if (!childrenInput || children === 0) children = parsed;
-                            }
+                            if (match) children = parseInt(match[1]) || 0;
                         }
                     }
                 });
             }
         }
 
-        // Calculate total adults (male + female), ensure at least 1
         const adults = Math.max(1, maleCount + femaleCount);
         const result = {
             pax: adults + children,
@@ -18616,6 +18989,18 @@
             // Native select
             selectedValue = restaurantSelect.value;
             selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
+        }
+        
+        // No restaurant selected: reset totals and price grid
+        if (!selectedValue) {
+            const totalPriceInput = document.getElementById('modal_restaurant_total_price');
+            if (totalPriceInput) {
+                totalPriceInput.value = '0';
+                totalPriceInput.removeAttribute('data-meal-breakdown');
+            }
+            if (restaurantDetailsContainer) restaurantDetailsContainer.style.display = 'none';
+            if (typeof window.updateRestaurantModalPriceGrid === 'function') window.updateRestaurantModalPriceGrid();
+            return;
         }
         
         // Check if Multi Restaurant is selected
@@ -18825,10 +19210,11 @@
                     restaurantDetailsContainer.style.display = 'block';
                 }
                 
-                // Reset price when restaurant changes
+                // Reset price and meal breakdown when restaurant changes
                 const totalPriceInput = document.getElementById('modal_restaurant_total_price');
                 if (totalPriceInput) {
                     totalPriceInput.value = '0.00';
+                    totalPriceInput.removeAttribute('data-meal-breakdown');
                 }
                 
                 // Update price grid to show 0 initially
@@ -19559,23 +19945,35 @@
         const agentId = document.getElementById('agent_id').value;
         const dmcUser = @json($UserDmc);
         
-        // Get selected restaurant details
         const restaurantSelect = document.getElementById('modal_restaurant_select');
         const selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
-        const restaurantData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-restaurant')) : {};
+        const isMultiRestaurant = restaurantId && String(restaurantId).startsWith('multi_restaurant_');
         
+        let restaurantData = {};
+        let mealData = null;
+        let dishData = {};
         
-        const mealSelect = document.getElementById('modal_restaurant_meal_type');
-        const selectedOptionMeal = mealSelect.options[mealSelect.selectedIndex];
-        const mealData = selectedOptionMeal ? JSON.parse(selectedOptionMeal.getAttribute('data-meal')) : {};
-        console.log('Meal data:', mealData);
+        if (isMultiRestaurant) {
+            const mrJson = selectedOption ? selectedOption.getAttribute('data-multi-restaurant') : null;
+            restaurantData = mrJson ? JSON.parse(mrJson) : {};
+            if (!restaurantData || !restaurantData.id) {
+                const mrId = String(restaurantId).replace('multi_restaurant_', '');
+                window.multiRestaurants = window.multiRestaurants || @json($multiRestaurants ?? []);
+                const mr = (window.multiRestaurants || []).find(m => String(m.id) === mrId);
+                if (mr) restaurantData = mr;
+            }
+            mealData = { adult_price: restaurantData.adult_price ?? restaurantData.price ?? 0, child_price: restaurantData.child_price ?? 0, meal_period: mealType === 'Breakfast' ? 1 : mealType === 'Lunch' ? 2 : mealType === 'Dinner' ? 3 : 0, type: 1 };
+            dishData = { name: 'Buffet', item_description: 'Buffet', price: 0, category: 0, item_type: 0 };
+        } else {
+            restaurantData = selectedOption ? (JSON.parse(selectedOption.getAttribute('data-restaurant') || '{}')) : {};
+            const mealSelect = document.getElementById('modal_restaurant_meal_type');
+            const selectedOptionMeal = mealSelect ? mealSelect.options[mealSelect.selectedIndex] : null;
+            mealData = selectedOptionMeal && selectedOptionMeal.getAttribute('data-meal') ? JSON.parse(selectedOptionMeal.getAttribute('data-meal')) : null;
+            const dishSelect = document.getElementById('modal_restaurant_dish');
+            const selectedOptionDish = dishSelect && dishSelect.selectedIndex >= 0 ? dishSelect.options[dishSelect.selectedIndex] : null;
+            dishData = selectedOptionDish && selectedOptionDish.getAttribute('data-dish') ? JSON.parse(selectedOptionDish.getAttribute('data-dish')) : {};
+        }
         
-        const dishSelect = document.getElementById('modal_restaurant_dish');
-        const selectedOptionDish = dishSelect.options[dishSelect.selectedIndex];
-        const dishData = selectedOptionDish ? JSON.parse(selectedOptionDish.getAttribute('data-dish')) : {};
-        //console.log('Dish data:', dishData);
-        
-        // Get guest data from modal
         const guestData = window.modalGuestData || {
             adults: '1',
             children: '0',
@@ -19585,31 +19983,26 @@
             child_ages: ''
         };
         
-        // Get tour details
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
-        // Calculate pricing based on guest data
-        const adultPrice = parseFloat(mealData.adult_price || '0');
-        const childPrice = parseFloat(mealData.child_price || '0');
-        const basePrice = adultPrice * parseInt(guestData.adults) + childPrice * parseInt(guestData.children);
-        const totalPrice = basePrice;
-        
-        // Update hidden total price field
+        const adultsNum = parseInt(guestData.adults) || 0;
+        const childrenNum = parseInt(guestData.children) || 0;
+        const adultPrice = parseFloat(mealData && (mealData.adult_price != null || mealData.price != null) ? (mealData.adult_price ?? mealData.price) : '0') || 0;
+        const childPrice = parseFloat(mealData && mealData.child_price != null ? mealData.child_price : '0') || 0;
+        let totalPrice = adultPrice * Math.max(1, adultsNum) + childPrice * childrenNum;
         const totalPriceInput = document.getElementById('modal_restaurant_total_price');
-        if (totalPriceInput) {
-            totalPriceInput.value = totalPrice.toFixed(2);
+        if (totalPriceInput && totalPriceInput.value) {
+            totalPrice = parseFloat(totalPriceInput.value) || totalPrice;
         }
         
-        // Update price grid
-        if (typeof updateRestaurantModalPriceGrid === 'function') {
-            updateRestaurantModalPriceGrid();
-        }
+        const restaurantName = restaurantData.package_name || restaurantData.name || 'Restaurant Name';
+        const mealTypeLabel = (mealData && mealData.meal_period != null) ? (mealData.meal_period == 1 ? 'Breakfast' : mealData.meal_period == 2 ? 'Lunch' : mealData.meal_period == 3 ? 'Dinner' : mealType || '...') : (mealType || '...');
+        const mealSpecificType = (mealData && mealData.type != null) ? (mealData.type == 1 ? 'Buffet' : mealData.type == 2 ? 'Set Menu' : mealData.type == 3 ? 'A-La-Carte' : '...') : (dishId === 'buffet' ? 'Buffet' : '...');
+        const numericRestaurantId = isMultiRestaurant ? (restaurantData.id || String(restaurantId).replace('multi_restaurant_', '')) : parseInt(restaurantId);
         
-        // Build the complex booking data structure in required format
         const bookingData = [{
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -19622,21 +20015,21 @@
             specialRequests: customer_info.specialRequests,
             bookingDate: diningDate,
             visitTime: timeSlot,
-            adultCount: parseInt(guestData.adults),
-            childCount: parseInt(guestData.children),
-            restaurantId: parseInt(restaurantId),
-            restaurantName: restaurantData.name || "Restaurant Name",
-            mealType: mealData.meal_period == 1 ? 'Breakfast' : mealData.meal_period == 2 ? 'Lunch' : mealData.meal_period == 3 ? 'Dinner' : '...',
-            mealSpecificType: mealData.type == 1 ? 'Buffet' : mealData.type == 2 ? 'Set Menu' : mealData.type == 3 ? 'A-La-Carte' : '...',
+            adultCount: Math.max(1, adultsNum),
+            childCount: childrenNum,
+            restaurantId: isMultiRestaurant ? numericRestaurantId : parseInt(restaurantId),
+            restaurantName: restaurantName,
+            mealType: mealTypeLabel,
+            mealSpecificType: mealSpecificType,
             MealDescription: [
                 {
-                    item_name: dishData.name,
-                    name: dishData.item_description,
+                    item_name: dishData.name || 'Buffet',
+                    name: dishData.item_description || dishData.name || 'Buffet',
                     price: parseFloat(dishData.price || '0'),
-                    meal_id: parseInt(dishId),
+                    meal_id: dishId === 'buffet' ? 0 : parseInt(dishId) || 0,
                     category: dishData.category == 1 ? 'Alcoholic' : dishData.category == 2 ? 'Non Alcoholic' : 'No Beverage',
                     item_type: dishData.item_type == 1 ? 'Vegetarian' : dishData.item_type == 2 ? 'Non Vegetarian' : '...',
-                    quantity: parseInt(guestData.adults) + parseInt(guestData.children)
+                    quantity: Math.max(1, adultsNum + childrenNum)
                 }
             ],
             totalPrice: totalPrice,
@@ -19644,6 +20037,11 @@
             dmc_id: dmcUser.userId || "",
             bookingType: "enquiry"
         }];
+        
+        if (isMultiRestaurant && bookingData[0]) {
+            bookingData[0].multi_restaurant_id = restaurantData.id;
+            bookingData[0].multi_restaurant_value = restaurantId;
+        }
         
         // Collect transport data if transport is required
         const needTransportToggle = document.getElementById('modal_need_restaurant_transport');
@@ -21057,6 +21455,75 @@
             }
         }
         return null;
+    }
+
+    // Populate Package (Hours) dropdown from selected guide (guide-respected dynamic).
+    function populateGuidePackageHoursFromGuide(bookingId) {
+        const guideSelect = document.getElementById('guide_name_' + bookingId);
+        const hoursSelect = document.getElementById('guide_package_hours_' + bookingId);
+        const customInput = document.getElementById('guide_package_custom_hours_' + bookingId);
+        if (!guideSelect || !hoursSelect) return;
+        const opt = guideSelect.options[guideSelect.selectedIndex];
+        const currentVal = hoursSelect.value;
+        if (!opt || !opt.value) {
+            hoursSelect.innerHTML = '<option value="">Select hours</option>';
+            if (customInput) customInput.style.display = 'none';
+            return;
+        }
+        try {
+            const guideData = opt.getAttribute('data-guide-data') ? JSON.parse(opt.getAttribute('data-guide-data')) : null;
+            const hours = [1,2,3,4,5,6,7,8,9,10,11,12];
+            hoursSelect.innerHTML = '<option value="">Select hours</option>';
+            hours.forEach(function(h) {
+                const o = document.createElement('option');
+                o.value = String(h);
+                o.textContent = h + ' Hour' + (h !== 1 ? 's' : '');
+                if (currentVal === o.value) o.selected = true;
+                hoursSelect.appendChild(o);
+            });
+            const customOpt = document.createElement('option');
+            customOpt.value = 'custom';
+            customOpt.textContent = 'Custom';
+            if (currentVal === 'custom') customOpt.selected = true;
+            hoursSelect.appendChild(customOpt);
+            if (customInput) customInput.style.display = hoursSelect.value === 'custom' ? 'block' : 'none';
+        } catch (e) { console.warn('populateGuidePackageHoursFromGuide', e); }
+    }
+
+    function toggleGuidePackageCustomHours(bookingId) {
+        const hoursSelect = document.getElementById('guide_package_hours_' + bookingId);
+        const customInput = document.getElementById('guide_package_custom_hours_' + bookingId);
+        if (hoursSelect && customInput) customInput.style.display = hoursSelect.value === 'custom' ? 'block' : 'none';
+    }
+
+    function updateGuideEditRowPrice(bookingId) {
+        const guideSelect = document.getElementById('guide_name_' + bookingId);
+        const hoursSelect = document.getElementById('guide_package_hours_' + bookingId);
+        const customInput = document.getElementById('guide_package_custom_hours_' + bookingId);
+        const priceInput = document.getElementById('guide_total_price_' + bookingId);
+        if (!guideSelect || !hoursSelect || !priceInput) return;
+        const opt = guideSelect.options[guideSelect.selectedIndex];
+        if (!opt || !opt.value || !opt.getAttribute('data-guide-data')) return;
+        let hoursNum = 0;
+        if (hoursSelect.value === 'custom' && customInput && customInput.value) {
+            hoursNum = parseInt(customInput.value, 10) || 0;
+        } else if (hoursSelect.value && hoursSelect.value !== 'custom') {
+            hoursNum = parseInt(hoursSelect.value, 10) || 0;
+        }
+        if (hoursNum < 1) return;
+        try {
+            const g = JSON.parse(opt.getAttribute('data-guide-data'));
+            const hourly = parseFloat(g.hourly_price || g.price_per_hour || 0) || 0;
+            let base = 0;
+            if (hoursNum <= 2) base = parseFloat(g.two_hour_price || 0) || hourly * 2;
+            else if (hoursNum <= 4) base = parseFloat(g.four_hour_price || 0) || hourly * 4;
+            else if (hoursNum <= 6) base = parseFloat(g.six_hour_price || 0) || hourly * 6;
+            else if (hoursNum <= 8) base = parseFloat(g.eight_hour_price || 0) || hourly * 8;
+            else if (hoursNum <= 10) base = parseFloat(g.ten_hour_price || 0) || hourly * 10;
+            else if (hoursNum <= 12) base = parseFloat(g.twelve_hour_price || 0) || hourly * 12;
+            else base = hourly * hoursNum;
+            priceInput.value = (Math.round(base * 100) / 100).toFixed(2);
+        } catch (e) { console.warn('updateGuideEditRowPrice', e); }
     }
 
     async function updateExistingGuide(event, bookingId) {
