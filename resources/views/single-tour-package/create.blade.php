@@ -4423,6 +4423,15 @@
                             children = parseInt(badges[3].textContent.trim() || '0');
                             infants = parseInt(badges[4].textContent.trim() || '0');
                         }
+                        // Fallback: find Children badge by title so child count is never missed
+                        const childrenBadge = tempDiv.querySelector('.badge[title="Children"]');
+                        if (childrenBadge) {
+                            const childSpan = childrenBadge.querySelector('span:last-child');
+                            if (childSpan) {
+                                const n = parseInt(childSpan.textContent.trim(), 10);
+                                if (!isNaN(n)) children = n;
+                            }
+                        }
                     }
                     
                     // For now, assume seniors are part of adults (this can be enhanced later with age-based logic)
@@ -17081,32 +17090,39 @@ document.addEventListener('DOMContentLoaded', function() {
             
             console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
             
-            // Clear dish selection when meal type changes
+            const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
+            const restaurantId = restaurantSelect ? restaurantSelect.value : null;
+            
+            // Multi Restaurant: dish is always Buffet – keep it and only update time slots / pricing
+            if (restaurantId && String(restaurantId).startsWith('multi_restaurant_')) {
+                if (dishSelect) {
+                    dishSelect.innerHTML = '<option value="buffet">Buffet</option>';
+                    dishSelect.value = 'buffet';
+                    dishSelect.style.display = 'block';
+                }
+                if (dishContainer) dishContainer.style.display = 'block';
+                const range = selectedOption && (selectedOption.dataset.timeRange || selectedOption.getAttribute('data-time-range'));
+                if (mealType && range) {
+                    const part = String(range).split('-').map(s => s.trim());
+                    if (part.length >= 2 && typeof populateTimeSlots === 'function') populateTimeSlots(day, index, part[0], part[1]);
+                }
+                updateRestaurantPricing(day, index);
+                return;
+            }
+            
+            // Clear dish selection when meal type changes (normal restaurant)
             if (dishSelect) {
                 dishSelect.value = '';
                 dishSelect.innerHTML = '<option value="">Select Dish</option>';
             }
-            
-            // Hide dish container initially - will show only if dishes are available
-            if (dishContainer) {
-                dishContainer.style.display = 'none';
-            }
-            if (dishSelect) {
-                dishSelect.style.display = 'none';
-            }
-            
-            // Update pricing immediately to reset/clear pricing when meal type changes
+            if (dishContainer) dishContainer.style.display = 'none';
+            if (dishSelect) dishSelect.style.display = 'none';
             updateRestaurantPricing(day, index);
             
             if (!mealType || mealType === '') {
-                return; // Exit early if no meal type selected
+                return;
             }
             
-            // Get restaurant ID from the restaurant dropdown
-            const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
-            const restaurantId = restaurantSelect ? restaurantSelect.value : null;
-            
-            // Validate restaurant ID before proceeding
             if (restaurantId && restaurantId !== '' && restaurantId !== 'undefined') {
                 if (mealPeriod) {
                     loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
@@ -17761,6 +17777,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Dish select element not found with ID:', 'day' + day + '_dish_' + index);
             return;
         }
+        // Multi Restaurant is always Buffet – do not overwrite dish dropdown
+        if (restaurantId && String(restaurantId).startsWith('multi_restaurant_')) {
+            return;
+        }
         
         // Check if restaurantId is valid
         if (!restaurantId || restaurantId === '' || restaurantId === 'undefined' || restaurantId === null) {
@@ -18034,6 +18054,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (pricingDetailsDisplay) {
                 let pricingHTML = '<div class="small"><strong>Buffet</strong></div>';
+                pricingHTML += '<div class="mt-2 border-top pt-2">';
+                pricingHTML += '<div><strong>Rates:</strong></div>';
+                pricingHTML += `<div class="ms-3">Adult: SGD ${adultPrice.toFixed(2)}</div>`;
+                pricingHTML += `<div class="ms-3">Child: SGD ${childPrice.toFixed(2)}</div>`;
+                pricingHTML += '</div>';
                 if (adults > 0 || children > 0) {
                     pricingHTML += '<div class="mt-2 border-top pt-2">';
                     pricingHTML += '<div><strong>Calculation:</strong></div>';
@@ -18506,7 +18531,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
                                         <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, ${newIndex})" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
                                         <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
-                                        <select class="form-select border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
+                                        <select class="form-select border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
                                             <option value="AM">AM</option>
                                             <option value="PM">PM</option>
                                         </select>

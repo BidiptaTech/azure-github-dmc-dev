@@ -634,10 +634,26 @@
             padding: 0.5rem !important;
         }
 
+        /* Match selects to Rooms/dates: same height and padding */
         #hotelBookingModal .modern-select,
+        #hotelBookingModal .form-select {
+            height: 38px !important;
+            min-height: 38px !important;
+            font-size: 0.8rem !important;
+            padding: 0.375rem 2rem 0.375rem 0.75rem !important;
+            border-radius: 6px !important;
+        }
+        #hotelBookingModal .form-control.form-control-sm[id="number_of_rooms_modal"],
+        #hotelBookingModal .form-control[id="check_in_date"],
+        #hotelBookingModal .form-control[id="check_out_date"] {
+            height: 38px !important;
+            font-size: 0.8rem !important;
+            padding: 0.375rem 0.75rem !important;
+            border-radius: 6px !important;
+        }
         #hotelBookingModal .modern-input {
-            height: 32px;
-            font-size: 0.78rem;
+            height: 38px;
+            font-size: 0.8rem;
         }
 
         #hotelBookingModal .form-label {
@@ -2399,7 +2415,7 @@
                                         <div class="row g-3">
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="city">
+                                                <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">Select city</option>
                                                     @foreach($cities as $city)
                                                         <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
@@ -2411,10 +2427,10 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="pickup_location">
+                                                <select class="form-select border-2 arrival-zone-select" id="arrival_pickup_{{ $order->booking_id }}" style="height: 35px;" name="pickup_location" onchange="fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">Select pickup port</option>
                                                     @foreach($ports as $port)
-                                                        <option value="{{ $port->port_name }}" {{ $port->port_name == $pickupLocation ? 'selected' : '' }}>
+                                                        <option value="{{ $port->port_name }}" data-zone-id="{{ $port->port_id ?? '' }}" data-type="Port" {{ $port->port_name == $pickupLocation ? 'selected' : '' }}>
                                                             {{ $port->port_name }}
                                                         </option>
                                                     @endforeach
@@ -2425,10 +2441,10 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="dropoff_location">
+                                                <select class="form-select border-2 arrival-zone-select" id="arrival_dropoff_{{ $order->booking_id }}" style="height: 35px;" name="dropoff_location" onchange="fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">Select dropoff</option>
                                                     @foreach($hotels as $hotel)
-                                                        <option value="{{ $hotel->name }}" {{ $hotel->name == $dropoffLocation ? 'selected' : '' }}>
+                                                        <option value="{{ $hotel->name }}" data-zone-id="{{ $hotel->hotel_unique_id ?? $hotel->hotel_id ?? '' }}" data-type="Hotel" {{ $hotel->name == $dropoffLocation ? 'selected' : '' }}>
                                                             {{ $hotel->name }}
                                                         </option>
                                                     @endforeach
@@ -2472,15 +2488,17 @@
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                 @php $vehicleMatched = false; @endphp
-                                                <select class="form-select border-2" style="height: 35px;" name="vehicle_name">
-                                                    <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                <select class="form-select border-2 arrival-vehicle-select" id="arrival_vehicle_{{ $order->booking_id }}" style="height: 35px;" name="vehicle_name" onchange="updateArrivalRowPrice({{ $order->booking_id }});">
+                                                    <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle (change pickup/dropoff to load)' }}</option>
                                                     @foreach($availableVehicles as $vehicleOption)
                                                         @php
                                                             $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
                                                             $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
                                                             $vehicleMatched = $vehicleMatched || $isSelected;
+                                                            $priv = $vehicleOption->private_price ?? $vehicleOption->private ?? '';
+                                                            $shared = $vehicleOption->shared_price ?? $vehicleOption->shared ?? '';
                                                         @endphp
-                                                        <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
+                                                        <option value="{{ $vehicleDisplayName }}" data-private-price="{{ $priv }}" data-shared-price="{{ $shared }}" {{ $isSelected ? 'selected' : '' }}>
                                                             {{ $vehicleDisplayName }}
                                                             @if(!empty($vehicleOption->vehicle_type))
                                                                 ({{ $vehicleOption->vehicle_type }})
@@ -2494,7 +2512,7 @@
                                             </div>
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="vehicle_type">
+                                                <select class="form-select border-2" id="arrival_service_type_{{ $order->booking_id }}" style="height: 35px;" name="vehicle_type" onchange="updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">Select type</option>
                                                     <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
                                                     <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
@@ -2502,7 +2520,7 @@
                                             </div>
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
+                                                <input type="number" class="form-control border-2" id="arrival_total_price_{{ $order->booking_id }}" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -5028,7 +5046,7 @@
 </div>
 
 <!-- Hotel Booking Modal -->
-<div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true">
+<div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true" data-currency="{{ $tour->currency ?? '$' }}">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.75rem 1rem;">
@@ -5042,40 +5060,38 @@
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body" style="padding: 1rem; background: #ffffff; max-height: 70vh; overflow-y: auto;">
-                <form id="hotelBookingForm">
+            <div class="modal-body text-start" style="padding: 0.6rem 0.75rem; background: #ffffff; max-height: 72vh; overflow-y: auto;">
+                <form id="hotelBookingForm" class="text-start">
                     @csrf
                     <input type="hidden" id="modal_tour_id" name="tour_id">
                     <input type="hidden" id="modal_user_country" name="user_country">
                     <input type="hidden" id="modal_city" name="city">
                     
-                    <!-- Tour Info Display -->
-                    <div class="row mb-2">
-                        <div class="col-12 col-lg-6">
-                            <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
-                                <i class="ri-calendar-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>
-                                <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dates: <span id="modal_tour_dates" class="text-primary fw-bold"></span></small>
+                    <!-- Tour Info: 6 + 6 -->
+                    <div class="row g-1 mb-1">
+                        <div class="col-6">
+                            <div class="d-flex align-items-center rounded text-start" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.25rem 0.4rem;">
+                                <i class="ri-calendar-line me-1" style="color: #667eea; font-size: 0.8rem;"></i>
+                                <small class="fw-semibold text-truncate" style="color: #495057; font-size: 0.7rem;">Dates: <span id="modal_tour_dates" class="text-primary fw-bold"></span></small>
                             </div>
                         </div>
-                        <div class="col-12 col-lg-6">
-                            <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
-                                <i class="ri-map-pin-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>
-                                <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dest: <span id="modal_destination" class="text-primary fw-bold"></span></small>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center rounded text-start" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.25rem 0.4rem;">
+                                <i class="ri-map-pin-line me-1" style="color: #667eea; font-size: 0.8rem;"></i>
+                                <small class="fw-semibold text-truncate" style="color: #495057; font-size: 0.7rem;">Dest: <span id="modal_destination" class="text-primary fw-bold"></span></small>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row g-2">
-                        <!-- Left: City, Hotel, Rooms, Pricing -->
-                        <div class="col-12 col-lg-6">
-                            <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
-                                <!-- City & Hotel Selection -->
-                                <div class="row g-2 mb-2">
-                                    <div class="col-12">
-                                        <label for="modal_city_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-map-pin-line me-1" style="color: #667eea;"></i>City
-                                        </label>
-                                        <select class="form-select modern-select" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)" style="height: 36px; font-size: 0.8rem;">
+                    <!-- Main: 6 + 6 segments -->
+                    <div class="row g-1">
+                        <!-- Left column (6) -->
+                        <div class="col-12 col-lg-6 text-start">
+                            <div class="card border-0 h-100" style="background: #f8f9fa; border-radius: 6px; padding: 0.5rem 0.6rem;">
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <label for="modal_city_select" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-map-pin-line me-1" style="color: #667eea;"></i>City</label>
+                                        <select class="form-select modern-select" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)">
                                             <option value="">Select City</option>
                                             @foreach($cities as $city)
                                                 @if($city->country == $tour->destination)
@@ -5083,171 +5099,101 @@
                                                 @endif
                                             @endforeach
                                         </select>
-                                        <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
-                                            <span id="hotel_count">0</span> hotels in <span id="modal_city_display2">No City</span>
-                                        </small>
+                                        <small class="text-muted d-block text-start" style="font-size: 0.65rem;"><span id="hotel_count">0</span> in <span id="modal_city_display2">—</span></small>
                                     </div>
-                                    <div class="col-12">
-                                        <label for="hotel_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-building-line me-1" style="color: #667eea;"></i>Hotel
-                                        </label>
-                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled style="height: 36px; font-size: 0.8rem;">
+                                    <div class="col-6">
+                                        <label for="hotel_select" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-building-line me-1" style="color: #667eea;"></i>Hotel</label>
+                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
                                             <option value="">Select city first</option>
                                         </select>
-                                        <small class="text-muted" id="hotel_loading_status" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
-                                            <span id="hotel_count_display">0</span> found
-                                        </small>
+                                        <small class="text-muted d-block text-start" id="hotel_loading_status" style="font-size: 0.65rem;"><span id="hotel_count_display">0</span> found</small>
                                     </div>
-                                </div>
-
-                                <!-- Room Details -->
-                                <div class="row g-2 mb-2">
                                     <div class="col-6">
-                                        <label for="room_type" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Room Type</label>
-                                        <select class="form-select modern-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled style="height: 36px; font-size: 0.8rem;">
+                                        <label for="room_type" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Room Type</label>
+                                        <select class="form-select modern-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled>
                                             <option value="">Select hotel</option>
                                         </select>
                                     </div>
                                     <div class="col-6">
-                                        <label for="bed_type" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Bed Type</label>
-                                        <select class="form-select modern-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled style="height: 36px; font-size: 0.8rem;">
+                                        <label for="bed_type" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Bed Type</label>
+                                        <select class="form-select modern-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled>
                                             <option value="">Select room</option>
                                         </select>
-                                        <div class="text-success mt-1" style="font-size: 0.65rem; font-weight: 500;">
-                                            <span id="bed_occupancy_info">Max Occupancy: 2</span>
-                                        </div>
+                                        <small class="text-success d-block text-start" style="font-size: 0.6rem;"><span id="bed_occupancy_info">Max: 2</span></small>
                                     </div>
                                     <div class="col-6">
-                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Persons</label>
-                                        <select class="form-select modern-select" id="person_count_select" name="person_count" data-no-select2="true" onchange="selectPersonCount(this.value); updateHotelModalPrice();" style="height: 36px; font-size: 0.8rem;">
-                                            <!-- Options generated dynamically -->
-                                        </select>
-                                        <small class="text-muted" style="font-size: 0.65rem;">Max Occ: 2</small>
+                                        <label class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Persons</label>
+                                        <select class="form-select modern-select" id="person_count_select" name="person_count" data-no-select2="true" onchange="selectPersonCount(this.value); updateHotelModalPrice();"><!-- dynamic --></select>
+                                        <small class="text-muted d-block text-start" style="font-size: 0.6rem;">Max Occ: 2</small>
                                     </div>
                                     <div class="col-6">
-                                        <label for="meal_plan" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Meal Plan</label>
-                                        <select class="form-select modern-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing(); updateHotelModalPrice();" disabled style="height: 36px; font-size: 0.8rem;">
+                                        <label for="meal_plan" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Meal Plan</label>
+                                        <select class="form-select modern-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing(); updateHotelModalPrice();" disabled>
                                             <option value="">Select bed</option>
                                         </select>
                                     </div>
-                                </div>
-                                
-                                <!-- Child Pricing Options -->
-                                <div class="row g-2 mb-2">
                                     <div class="col-6" id="child_with_bed_wrap_modal" style="display: none;">
-                                        <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-user-smile-line me-1 text-info"></i>Child with Bed
-                                            <small class="text-muted" id="child_with_bed_price_label_modal"></small>
-                                        </label>
-                                        <div class="form-check">
-                                            <input
-                                                class="form-check-input"
-                                                type="checkbox"
-                                                name="child_with_bed"
-                                                id="child_with_bed_modal"
-                                                onchange="updateHotelModalPrice();"
-                                            >
-                                            <label class="form-check-label" for="child_with_bed_modal" style="font-size: 0.75rem;">
-                                                Child with bed
-                                            </label>
+                                        <label class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-user-smile-line me-1 text-info"></i>Child w/ bed<small class="text-muted" id="child_with_bed_price_label_modal"></small></label>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" name="child_with_bed" id="child_with_bed_modal" onchange="updateHotelModalPrice();">
+                                            <label class="form-check-label" for="child_with_bed_modal" style="font-size: 0.7rem;">Yes</label>
                                         </div>
                                     </div>
                                     <div class="col-6" id="child_without_bed_wrap_modal" style="display: none;">
-                                        <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-user-line me-1 text-warning"></i>Child without Bed
-                                            <small class="text-muted" id="child_without_bed_price_label_modal"></small>
-                                        </label>
-                                        <div class="form-check">
-                                            <input
-                                                class="form-check-input"
-                                                type="checkbox"
-                                                name="child_without_bed"
-                                                id="child_without_bed_modal"
-                                                onchange="updateHotelModalPrice();"
-                                            >
-                                            <label class="form-check-label" for="child_without_bed_modal" style="font-size: 0.75rem;">
-                                                Child without bed
-                                            </label>
+                                        <label class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-user-line me-1 text-warning"></i>Child no bed<small class="text-muted" id="child_without_bed_price_label_modal"></small></label>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" name="child_without_bed" id="child_without_bed_modal" onchange="updateHotelModalPrice();">
+                                            <label class="form-check-label" for="child_without_bed_modal" style="font-size: 0.7rem;">Yes</label>
                                         </div>
                                     </div>
-                                </div>
-                                
-                                <!-- Number of Rooms and Price -->
-                                <div class="row g-2">
                                     <div class="col-6">
-                                        <label for="number_of_rooms_modal" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Rooms</label>
-                                        <input type="number" class="form-control modern-input" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" placeholder="1" onchange="updateHotelModalPrice();" style="height: 36px; font-size: 0.8rem;">
+                                        <label for="number_of_rooms_modal" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Rooms</label>
+                                        <input type="number" class="form-control form-control-sm" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" onchange="updateHotelModalPrice();">
                                     </div>
                                     <div class="col-6">
-                                        <label for="total_price_modal" class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
-                                            Total Price
-                                        </label>
-                                        <div class="d-flex align-items-center" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #10b981; border-radius: 8px; padding: 0.5rem 0.75rem; height: 36px;">
-                                            <div class="d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 6px; margin-right: 0.75rem; flex-shrink: 0;">
-                                                <i class="ri-money-dollar-circle-line text-white" style="font-size: 1rem;"></i>
-                                            </div>
-                                            <div class="flex-grow-1 d-flex align-items-center justify-content-end">
-                                                <span class="fw-bold" id="total_price_modal_display" style="font-size: 0.9rem; color: #059669; letter-spacing: 0.5px;">$0.00</span>
-                                            </div>
+                                        <label for="total_price_modal" class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;">Total Price</label>
+                                        <div class="d-flex align-items-center text-start" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #10b981; border-radius: 6px; padding: 0.375rem 0.75rem; height: 38px;">
+                                            <i class="ri-money-dollar-circle-line me-1" style="color: #059669; font-size: 0.9rem;"></i>
+                                            <span class="fw-bold flex-grow-1" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">$0.00</span>
                                         </div>
                                         <input type="hidden" id="total_price_modal" name="total_price" value="0.00">
-                                        <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">Auto-calculated (per room × qty)</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Right: Dates, Nights, Alerts -->
-                        <div class="col-12 col-lg-6">
-                            <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
-                                <div class="mb-2">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
-                                        <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Hotel Nights
-                                    </label>
-                                    <p class="form-text mb-2" style="font-size: 0.7rem; color: #6c757d;">Choose nights; consecutive nights auto-selected.</p>
-                                    
-                                    <div class="d-flex gap-2 mb-2" style="font-size: 0.7rem;">
-                                        <div class="d-flex align-items-center">
-                                            <div class="bg-success text-white rounded me-1" style="width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-check-line" style="font-size: 0.65rem;"></i>
-                                            </div>
-                                            <span style="color: #495057;">Selected</span>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <div class="bg-warning text-dark rounded me-1" style="width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-flashlight-line" style="font-size: 0.65rem;"></i>
-                                            </div>
-                                            <span style="color: #495057;">Auto-required</span>
-                                        </div>
+                        <!-- Right column (6) -->
+                        <div class="col-12 col-lg-6 text-start">
+                            <div class="card border-0 h-100" style="background: #f8f9fa; border-radius: 6px; padding: 0.5rem 0.6rem;">
+                                <label class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-calendar-line me-1" style="color: #667eea;"></i>Hotel Nights</label>
+                                <p class="form-text mb-1 text-start" style="font-size: 0.65rem; color: #6c757d;">Consecutive nights auto-selected.</p>
+                                <div class="d-flex gap-1 mb-1" style="font-size: 0.65rem;">
+                                    <span class="d-flex align-items-center"><span class="bg-success text-white rounded me-1" style="width: 10px; height: 10px;"></span>Selected</span>
+                                    <span class="d-flex align-items-center"><span class="bg-warning rounded me-1" style="width: 10px; height: 10px;"></span>Auto-required</span>
+                                </div>
+                                <div class="row g-1 mb-1">
+                                    <div class="col-6">
+                                        <label for="check_in_date" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Check-in</label>
+                                        <input type="date" class="form-control form-control-sm" id="check_in_date" name="check_in_date" required onchange="updateHotelModalPrice();">
                                     </div>
-                                    
-                                    <div class="row g-2">
-                                        <div class="col-6">
-                                            <label for="check_in_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Check-in</label>
-                                            <input type="date" class="form-control modern-input" id="check_in_date" name="check_in_date" required onchange="updateHotelModalPrice();" style="height: 36px; font-size: 0.8rem;">
-                                        </div>
-                                        <div class="col-6">
-                                            <label for="check_out_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Check-out</label>
-                                            <input type="date" class="form-control modern-input" id="check_out_date" name="check_out_date" required onchange="updateHotelModalPrice();" style="height: 36px; font-size: 0.8rem;">
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mt-2">
-                                        <div id="selected_nights_display" class="d-none">
-                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Selected Nights:</label>
-                                            <div id="nights_list" class="d-flex flex-wrap gap-2"></div>
-                                        </div>
+                                    <div class="col-6">
+                                        <label for="check_out_date" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Check-out</label>
+                                        <input type="date" class="form-control form-control-sm" id="check_out_date" name="check_out_date" required onchange="updateHotelModalPrice();">
                                     </div>
                                 </div>
-
-                                <!-- Information Alerts -->
-                                <div class="alert alert-info mb-2 border-0" id="no_nights_alert" style="z-index: 1050; position: relative; font-size: 0.75rem; background: #e3f2fd; color: #0277bd; border-radius: 6px; padding: 0.375rem 0.5rem;">
-                                    <i class="ri-information-line me-1"></i>
-                                    No nights selected. Click nights above.
+                                <div class="mt-1 d-none" id="selected_nights_display">
+                                    <label class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Selected Nights</label>
+                                    <div id="nights_list" class="d-flex flex-wrap gap-1"></div>
                                 </div>
-                                <div class="alert alert-info mb-0 border-0" id="no_hotels_alert" style="z-index: 1050; position: relative; font-size: 0.75rem; background: #e3f2fd; color: #0277bd; border-radius: 6px; padding: 0.375rem 0.5rem;">
-                                    <i class="ri-information-line me-1"></i>
-                                    No hotels selected yet.
+                                <div class="alert alert-info py-1 px-2 mt-1 mb-1 border-0 text-start" id="no_nights_alert" style="font-size: 0.65rem; background: #e3f2fd; color: #0277bd; border-radius: 4px;">
+                                    <i class="ri-information-line me-1"></i>Select check-in/out dates.
+                                </div>
+                                <div class="alert alert-info py-1 px-2 mb-1 border-0 text-start" id="no_hotels_alert" style="font-size: 0.65rem; background: #e3f2fd; color: #0277bd; border-radius: 4px;">
+                                    <i class="ri-information-line me-1"></i>Select city & hotel.
+                                </div>
+                                <div id="hotel_modal_price_grid" class="mt-2 rounded text-start" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.5rem 0.6rem; border-radius: 6px;">
+                                    <label class="form-label fw-semibold mb-1 text-start d-block" style="color: #059669; font-size: 0.7rem;"><i class="ri-price-tag-3-line me-1"></i>Breakdown</label>
+                                    <div id="hotel_modal_price_grid_content" style="color: #374151; font-size: 0.75rem; line-height: 1.4;"></div>
+                                    <div class="border-top mt-2 pt-2 fw-bold d-flex justify-content-between align-items-center" style="font-size: 0.8rem; color: #059669;"><span>Total</span><span id="hotel_modal_price_grid_total">$0.00</span></div>
                                 </div>
                             </div>
                         </div>
@@ -7749,6 +7695,83 @@
         const hourStr = String(hour).padStart(2, '0');
         const minStr = String(min).padStart(2, '0');
         hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+    }
+
+    // Fetch zone-respected vehicles for one arrival row and populate vehicle dropdown; then update price.
+    function fetchArrivalVehiclesForRow(bookingId) {
+        const cityEl = document.getElementById('arrival_city_' + bookingId);
+        const pickupEl = document.getElementById('arrival_pickup_' + bookingId);
+        const dropoffEl = document.getElementById('arrival_dropoff_' + bookingId);
+        const vehicleSelect = document.getElementById('arrival_vehicle_' + bookingId);
+        if (!cityEl || !pickupEl || !dropoffEl || !vehicleSelect) return;
+
+        const city = (cityEl.value || '').trim();
+        const pickupOpt = pickupEl.options[pickupEl.selectedIndex];
+        const dropoffOpt = dropoffEl.options[dropoffEl.selectedIndex];
+        const pickupZoneId = pickupOpt ? (pickupOpt.getAttribute('data-zone-id') || pickupOpt.value) : '';
+        const dropoffZoneId = dropoffOpt ? (dropoffOpt.getAttribute('data-zone-id') || dropoffOpt.value) : '';
+        const pickupType = pickupOpt ? (pickupOpt.getAttribute('data-type') || 'Port') : 'Port';
+        const dropoffType = dropoffOpt ? (dropoffOpt.getAttribute('data-type') || 'Hotel') : 'Hotel';
+
+        if (!city || !pickupZoneId || !dropoffZoneId) {
+            vehicleSelect.innerHTML = '<option value="">Select vehicle (choose city, pickup & dropoff)</option>';
+            return;
+        }
+
+        const zoneStatus = @json($UserDmc->zone_on ?? 0);
+        const fromZoneType = zoneStatus === 1 ? pickupType : '';
+        const toZoneType = zoneStatus === 1 ? dropoffType : '';
+
+        fetch('{{ route("fetch-vehicles-by-zones") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            body: JSON.stringify({
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: fromZoneType,
+                to_zone_type: toZoneType,
+                zone_status: zoneStatus,
+                city: city
+            })
+        })
+        .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || r.status); }))
+        .then(data => {
+            if (data.success && data.vehicles && data.vehicles.length > 0) {
+                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
+                data.vehicles.forEach(v => {
+                    const name = v.vehicle_name || v.vehicle_id || 'Vehicle';
+                    const info = name + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
+                    const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+                    vehicleSelect.innerHTML += '<option value="' + esc(name) + '" data-private-price="' + (v.private_price || '') + '" data-shared-price="' + (v.shared_price || '') + '">' + esc(info) + '</option>';
+                });
+                updateArrivalRowPrice(bookingId);
+            } else {
+                vehicleSelect.innerHTML = '<option value="">No vehicles for this route</option>';
+                document.getElementById('arrival_total_price_' + bookingId).value = '0.00';
+            }
+        })
+        .catch(err => {
+            console.warn('Arrival vehicles fetch failed:', err);
+            vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+        });
+    }
+
+    function updateArrivalRowPrice(bookingId) {
+        const vehicleSelect = document.getElementById('arrival_vehicle_' + bookingId);
+        const serviceSelect = document.getElementById('arrival_service_type_' + bookingId);
+        const totalInput = document.getElementById('arrival_total_price_' + bookingId);
+        if (!vehicleSelect || !serviceSelect || !totalInput) return;
+
+        if (!vehicleSelect.value || !serviceSelect.value) {
+            totalInput.value = '0.00';
+            return;
+        }
+        const opt = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const privatePrice = parseFloat(opt.getAttribute('data-private-price')) || 0;
+        const sharedPrice = parseFloat(opt.getAttribute('data-shared-price')) || 0;
+        const serviceType = serviceSelect.value;
+        let total = serviceType === 'Private' ? privatePrice : (serviceType === 'Shared' ? sharedPrice : 0);
+        totalInput.value = total.toFixed(2);
     }
 
     function syncDeparturePickupTime(bookingId) {
@@ -11446,46 +11469,35 @@
         showTransportSelectionModal(tourId, country, startDate, endDate, 'exit_port');
     }
     
-    // Sync pickup time in transport selection modal (HH:MM + AM/PM, max 12:00)
+    // Sync pickup time in transport selection modal (HH:MM + AM/PM, max 12:00).
+    // Only writes to hidden field; never overwrites visible input so backspace works and user can type minutes.
     function syncTransportModalPickupTime() {
         const timeInput = document.getElementById('modal_transport_pickup_time_input');
         const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
         const hiddenInput = document.getElementById('modal_transport_pickup_time');
         if (!timeInput || !ampmSelect || !hiddenInput) return;
 
-        // Take only digits from the visible input and build HH:MM
-        let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
-        if (timeStr.length >= 2) {
-            timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
-        }
-
-        if (!timeStr || timeStr.length < 4) {
+        const digitsOnly = (timeInput.value || '').trim().replace(/\D/g, '');
+        if (digitsOnly.length === 0) {
             hiddenInput.value = '';
             return;
         }
 
-        const parts = timeStr.split(':');
-        let hour = parseInt(parts[0], 10) || 0;
-        let min = parseInt((parts[1] || '00').slice(0, 2), 10);
-
-        // Clamp minutes 0–59
-        if (isNaN(min) || min < 0) min = 0;
-        if (min > 59) min = 59;
-
-        // Clamp hours to 1–12
-        if (isNaN(hour) || hour <= 0) hour = 1;
+        let hour = parseInt(digitsOnly.slice(0, 2), 10) || 1;
         if (hour > 12) hour = 12;
-
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) {
-            min = 0;
+        if (hour < 1) hour = 1;
+        let min = 0;
+        if (digitsOnly.length >= 4) {
+            min = parseInt(digitsOnly.slice(2, 4), 10);
+            if (isNaN(min) || min < 0) min = 0;
+            if (min > 59) min = 59;
+            if (hour === 12 && min > 0) min = 0;
+        } else if (digitsOnly.length === 3) {
+            min = parseInt(digitsOnly.slice(2, 3) + '0', 10);
+            if (min > 59) min = 59;
         }
-
         const hourStr = String(hour).padStart(2, '0');
         const minStr = String(min).padStart(2, '0');
-
-        // Update visible input and hidden field
-        timeInput.value = `${hourStr}:${minStr}`;
         hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
     
@@ -16402,23 +16414,50 @@
         // Calculate total price: room + meal plan + child pricing
         const totalPrice = roomSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
         
+        const modalEl = document.getElementById('hotelBookingModal');
+        const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || '$';
+        const fmt = (n) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        // Update price breakdown grid
+        const priceGrid = document.getElementById('hotel_modal_price_grid');
+        const priceGridContent = document.getElementById('hotel_modal_price_grid_content');
+        const priceGridTotal = document.getElementById('hotel_modal_price_grid_total');
+        if (priceGrid && priceGridContent && priceGridTotal) {
+            if (totalPrice > 0 && selectedRoomType) {
+                const rows = [];
+                rows.push({ label: `Room (${currencySymbol}${fmt(pricePerNight)} × ${numberOfNights} night(s) × ${numberOfRooms} room(s))`, value: roomSubtotal });
+                if (mealPlanSubtotal > 0) {
+                    const mealPlanSelect = document.getElementById('meal_plan');
+                    const mealLabel = mealPlanSelect && mealPlanSelect.options[mealPlanSelect.selectedIndex] ? mealPlanSelect.options[mealPlanSelect.selectedIndex].text : 'Meal plan';
+                    rows.push({ label: mealLabel, value: mealPlanSubtotal });
+                }
+                if (childWithBedSubtotal > 0) {
+                    rows.push({ label: 'Child with bed', value: childWithBedSubtotal });
+                }
+                if (childWithoutBedSubtotal > 0) {
+                    rows.push({ label: 'Child without bed', value: childWithoutBedSubtotal });
+                }
+                priceGridContent.innerHTML = rows.map(r => `<div class="d-flex justify-content-between py-1"><span>${r.label}</span><strong>${currencySymbol}${fmt(r.value)}</strong></div>`).join('');
+                priceGridTotal.textContent = currencySymbol + fmt(totalPrice);
+                priceGrid.style.display = 'block';
+            } else {
+                priceGrid.style.display = 'none';
+            }
+        }
+        
         // Update price input if calculated price is valid
-        // Store raw number (no commas) so parseFloat reads full value (e.g. 18000 not 18)
         if (totalPrice > 0) {
             priceInput.value = totalPrice.toFixed(2);
-            const formattedPrice = totalPrice.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
+            const formattedPrice = fmt(totalPrice);
             const priceDisplay = document.getElementById('total_price_modal_display');
             if (priceDisplay) {
-                priceDisplay.textContent = '$' + formattedPrice;
+                priceDisplay.textContent = currencySymbol + formattedPrice;
             }
         } else {
             priceInput.value = '0.00';
             const priceDisplay = document.getElementById('total_price_modal_display');
             if (priceDisplay) {
-                priceDisplay.textContent = '$0.00';
+                priceDisplay.textContent = currencySymbol + '0.00';
             }
         }
         
@@ -16555,43 +16594,91 @@
             totalPrice = parseFloat(rawValue) || 0;
         }
         
-        // If price not set in modal, calculate it
-        if (totalPrice <= 0) {
-            // Determine pricing based on occupancy
-            const isSingleOccupancy = headCount <= 1;
-            let pricePerNight = 0;
-            
-            if (roomData) {
-                if (isSingleOccupancy) {
-                    pricePerNight = parseFloat(roomData.weekday_price || bedData.price || 0);
-                } else {
-                    pricePerNight = parseFloat(roomData.double_weekday_price || bedData.price || 0);
-                }
+        // Room-only price per night (never include meal/children in bed price)
+        const isSingleOccupancy = headCount <= 1;
+        let roomPricePerNight = 0;
+        if (roomData) {
+            if (isSingleOccupancy) {
+                roomPricePerNight = parseFloat(roomData.weekday_price || bedData.price || 0);
             } else {
-                pricePerNight = parseFloat(bedData.price || 190);
+                roomPricePerNight = parseFloat(roomData.double_weekday_price || bedData.price || 0);
             }
-            
-            // Calculate total price: price per night * number of nights * number of rooms
-            totalPrice = pricePerNight * numberOfNights * numberOfRooms;
+        } else {
+            roomPricePerNight = parseFloat(bedData.price || 190);
+        }
+        const roomSubtotal = roomPricePerNight * numberOfNights * numberOfRooms;
+        
+        // Meal plan: total meal cost for stay (e.g. 400 = 200/night × 2 nights)
+        let mealSubtotal = 0;
+        const formattedMealType = selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const mealTypeLower = (formattedMealType || '').toLowerCase();
+        if (selectedMealPlan && selectedMealPlan !== 'room_only' && roomData) {
+            const breakfastPrice = parseFloat(roomData.breakfast_price || roomData.breakfastPrice || roomData.breakfast || 0);
+            const lunchPrice = parseFloat(roomData.lunch_price || roomData.lunchPrice || roomData.lunch || 0);
+            const dinnerPrice = parseFloat(roomData.dinner_price || roomData.dinnerPrice || roomData.dinner || 0);
+            const mealPlanLower = selectedMealPlan.toLowerCase().trim();
+            let mealPlanPricePerPerson = 0;
+            if (mealPlanLower === 'full_board_all_meals' || mealPlanLower === 'all_inclusive') {
+                mealPlanPricePerPerson = breakfastPrice + lunchPrice + dinnerPrice;
+            } else if (mealPlanLower === 'half_board_breakfast_lunch') {
+                mealPlanPricePerPerson = breakfastPrice + lunchPrice;
+            } else if (mealPlanLower === 'half_board_breakfast_dinner') {
+                mealPlanPricePerPerson = breakfastPrice + dinnerPrice;
+            } else if (mealPlanLower === 'half_board_lunch_dinner') {
+                mealPlanPricePerPerson = lunchPrice + dinnerPrice;
+            } else if (mealPlanLower === 'bed_&_breakfast' || mealPlanLower === 'bed_and_breakfast' || (mealPlanLower.includes('bed') && mealPlanLower.includes('breakfast'))) {
+                mealPlanPricePerPerson = breakfastPrice;
+            } else if (mealPlanLower === 'breakfast_only' || (mealPlanLower.includes('breakfast') && !mealPlanLower.includes('lunch') && !mealPlanLower.includes('dinner'))) {
+                mealPlanPricePerPerson = breakfastPrice;
+            } else if (mealPlanLower === 'lunch_only' || (mealPlanLower.includes('lunch') && !mealPlanLower.includes('breakfast') && !mealPlanLower.includes('dinner'))) {
+                mealPlanPricePerPerson = lunchPrice;
+            } else if (mealPlanLower === 'dinner_only' || (mealPlanLower.includes('dinner') && !mealPlanLower.includes('breakfast') && !mealPlanLower.includes('lunch'))) {
+                mealPlanPricePerPerson = dinnerPrice;
+            } else {
+                if (mealPlanLower.includes('breakfast')) mealPlanPricePerPerson += breakfastPrice;
+                if (mealPlanLower.includes('lunch')) mealPlanPricePerPerson += lunchPrice;
+                if (mealPlanLower.includes('dinner')) mealPlanPricePerPerson += dinnerPrice;
+            }
+            mealSubtotal = mealPlanPricePerPerson * headCount * numberOfRooms * numberOfNights;
         }
         
-        // Calculate price per night for room structure
-        const pricePerNight = totalPrice / (numberOfNights * numberOfRooms);
+        // Same format as expected: selectedMeals.meal_1 = total meal price (400), not per night
+        const selectedMeals = {
+            meal_1: {
+                type: mealTypeLower ? mealTypeLower : formattedMealType,
+                price: mealSubtotal
+            }
+        };
         
-        // Generate selectedMeals object for each night
-        const selectedMeals = {};
-        for (let i = 1; i <= numberOfNights; i++) {
-            selectedMeals[`meal_${i}`] = {
-                type: selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                price: pricePerNight
-            };
+        // Child subtotals
+        const childrenInput = document.getElementById('children');
+        const childrenCount = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
+        let childWithBedSubtotal = 0;
+        let childWithoutBedSubtotal = 0;
+        const childWithBedCheckbox = document.getElementById('child_with_bed_modal');
+        const childWithoutBedCheckbox = document.getElementById('child_without_bed_modal');
+        if (childWithBedCheckbox && childWithBedCheckbox.checked && roomData) {
+            const childWithBedPrice = parseFloat(roomData.child_with_bed || 0);
+            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
+            childWithBedSubtotal = childWithBedPrice * effectiveChildren * numberOfRooms * numberOfNights;
+        }
+        if (childWithoutBedCheckbox && childWithoutBedCheckbox.checked && roomData) {
+            const childWithoutBedPrice = parseFloat(roomData.child_without_bed || 0);
+            const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
+            childWithoutBedSubtotal = childWithoutBedPrice * effectiveChildren * numberOfRooms * numberOfNights;
+        }
+        
+        totalPrice = roomSubtotal + mealSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
+        if (totalPrice <= 0 && totalPriceInput && totalPriceInput.value) {
+            const rawValue = String(totalPriceInput.value).replace(/,/g, '');
+            totalPrice = parseFloat(rawValue) || totalPrice;
         }
         
         // Get check-in and check-out times from room data or hotel data
         const checkInTime = roomData?.check_in_time || hotelData.check_in_time || "15:00:00";
         const checkOutTime = roomData?.check_out_time || hotelData.check_out_time || "12:00:00";
         
-        // Build the complex data structure
+        // Build the complex data structure (same format as enquiry/API: bed.price = room total, meal_1.price = meal total)
         const bookingData = {
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -16603,20 +16690,19 @@
             zip: customer_info.zip,
             specialRequests: customer_info.specialRequests,
             rooms: (() => {
-                // Single room object with number_of_rooms (same format as create/edit)
                 const roomStructure = {
                     room_id: parseInt(roomId) || 2,
                     room_type: selectedRoomType,
                     number_of_rooms: numberOfRooms,
                     beds: [
                         {
-                            bed_id: parseInt(bedId) || 1,
+                            bed_id: String(bedId || ''),
                             bed_type: selectedBedType,
                             max_occupancy: parseInt(maxOccupancy) || 1,
-                            mealTypes: [selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())],
+                            mealTypes: [mealTypeLower || formattedMealType],
                             selectedMeals: selectedMeals,
                             head_count: headCount,
-                            price: pricePerNight,
+                            price: roomSubtotal,
                             baby_cot: parseInt(bedData.baby_cot) || 0,
                             room_type: selectedRoomType
                         }
@@ -16626,6 +16712,7 @@
             })(),
             bookingType: "booking",
             totalPrice: totalPrice,
+            price: totalPrice,
             priceMode: "dmc",
             priceModeId: parseInt(hotelData.dmc_id) || 4,
             hotelDetails: {
@@ -16637,7 +16724,8 @@
                 image: hotelData.master_image || hotelData.image || "",
                 cancellation_charge: null
             },
-            bookingDate: [checkIn, checkOut]
+            bookingDate: [checkIn, checkOut],
+            transfer_options: null
         };
         
         // Collect transport data if transport is required
@@ -16689,12 +16777,7 @@
             bookingData.transfer_options = { transfer_required: false };
         }
         
-        // Add child pricing data if checkboxes are checked
-        const childWithBedCheckbox = document.getElementById('child_with_bed_modal');
-        const childWithoutBedCheckbox = document.getElementById('child_without_bed_modal');
-        const childrenInput = document.getElementById('children');
-        const childrenCount = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
-        
+        // Add child pricing data if checkboxes are checked (variables already set above)
         if (childWithBedCheckbox && childWithBedCheckbox.checked && roomData) {
             const childWithBedPrice = parseFloat(roomData.child_with_bed || 0);
             const effectiveChildren = childrenCount > 0 ? childrenCount : 1;
