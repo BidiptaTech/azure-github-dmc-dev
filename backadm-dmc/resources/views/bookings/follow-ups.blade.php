@@ -928,6 +928,7 @@
                                             'travel_hourly' => 0,
                                             'travel_point' => 0,
                                             'local_transport' => 0,
+                                            'miscellaneous' => 0,
                                         ];
                                         $serviceData = [];
                                         $ordersTotalAmount = 0;
@@ -955,6 +956,7 @@
                                             'travel_hourly' => 'ri-time-line',
                                             'travel_point' => 'ri-route-line',
                                             'local_transport' => 'ri-car-line',
+                                            'miscellaneous' => 'ri-file-list-3-line',
                                         ];
                                         $serviceLabels = [
                                             'hotel' => 'Hotel',
@@ -966,6 +968,7 @@
                                             'travel_hourly' => 'Local-Tour Hourly',
                                             'travel_point' => 'Local-Tour Point to Point',
                                             'local_transport' => 'Local Transport',
+                                            'miscellaneous' => 'Miscellaneous',
                                         ];
                                         $serviceColors = [
                                             'hotel' => '#4338ca',
@@ -977,6 +980,7 @@
                                             'travel_hourly' => '#b45309',
                                             'travel_point' => '#5b21b6',
                                             'local_transport' => '#334155',
+                                            'miscellaneous' => '#7c3aed',
                                         ];
                                         $debugInfo = [
                                             'tour_id' => $tour->tour_id,
@@ -992,7 +996,7 @@
                                                 $label = $serviceLabels[$svcKey] ?? ucfirst($svcKey);
                                                 $tooltipText = $label . ': ' . $count;
                                                 $bgColor = $serviceColors[$svcKey] ?? '#6c757d';
-                                                $clickable = in_array($svcKey, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']);
+                                                $clickable = in_array($svcKey, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport', 'miscellaneous']);
                                             @endphp
                                             @if($clickable)
                                                 <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
@@ -1046,7 +1050,11 @@
                                             foreach ($data as $item) {
                                                 $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
                                                 $transferPrice = isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0 ? (float) $item['transfer_options']['cost'] : 0;
-                                                $guidePrice = isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0 ? (float) $item['guide_options']['total_price'] : 0;
+                                                $guidePrice = 0;
+                                                if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                                                    $gv = $item['guide_options']['total_price'] ?? $item['guide_options']['cost'] ?? $item['guide_options']['Cost'] ?? $item['guide_options']['sell'] ?? $item['guide_options']['Sell'] ?? 0;
+                                                    if ($gv > 0) $guidePrice = (float) $gv;
+                                                }
                                                 $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                             }
                                         }
@@ -1377,6 +1385,7 @@
             'travel_hourly' => 0,
             'travel_point' => 0,
             'local_transport' => 0,
+            'miscellaneous' => 0,
         ];
         $serviceData = [];
 
@@ -1580,15 +1589,7 @@
                                                                         <div class="col-12">
                                                                             <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Meals:</small>
                                                                             @foreach($bed['selectedMeals'] as $mealKey => $meal)
-                                                                                <span class="badge bg-success me-1" style="font-size: 0.6rem;">{{ $meal['type'] ?? 'Meal' }}</span>
-                                                                            @endforeach
-                                                                        </div>
-                                                                        @endif
-                                                                        @if(isset($bed['mealTypes']) && is_array($bed['mealTypes']))
-                                                                        <div class="col-12">
-                                                                            <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Options:</small>
-                                                                            @foreach($bed['mealTypes'] as $mealType)
-                                                                                <span class="badge bg-secondary me-1" style="font-size: 0.6rem;">{{ $mealType }}</span>
+                                                                                <span class="badge bg-success me-1" style="font-size: 0.6rem;">{{ $meal['type'] ?? 'Meal' }} (SGD {{ number_format((float)($meal['price'] ?? 0), 2) }})</span>
                                                                             @endforeach
                                                                         </div>
                                                                         @endif
@@ -1612,6 +1613,68 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                        @endif
+
+                                        <!-- Child Accommodation (child_with_bed / child_without_bed) -->
+                                        @php
+                                            $hotelNights = 0;
+                                            if (isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 1) {
+                                                $checkIn = \Carbon\Carbon::parse($booking['bookingDate'][0]);
+                                                $checkOut = \Carbon\Carbon::parse(end($booking['bookingDate']));
+                                                $hotelNights = $checkIn->diffInDays($checkOut);
+                                            }
+                                        @endphp
+                                        @if((isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled']) || (isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled']))
+                                        <div class="bg-light rounded p-2 mb-2">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-add-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Child Accommodation</h6>
+                                            </div>
+                                            <div class="row g-2">
+                                                @if(isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled'])
+                                                @php
+                                                    $cwb = $booking['child_with_bed'];
+                                                    $cwbPrice = (float)($cwb['price'] ?? 0);
+                                                    $cwbChildren = (int)($cwb['children'] ?? 0);
+                                                    $cwbTotal = isset($cwb['total_cost']) ? (float)$cwb['total_cost'] : ($cwbPrice * $cwbChildren * $hotelNights);
+                                                @endphp
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
+                                                        <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-bed-line me-1" style="font-size: 0.8rem;"></i>Child with Bed</div>
+                                                        <div class="row g-1">
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">SGD {{ number_format($cwbPrice, 2) }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwbChildren }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
+                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($cwbTotal, 2) }}</div></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                                @if(isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled'])
+                                                @php
+                                                    $cwob = $booking['child_without_bed'];
+                                                    $cwobPrice = (float)($cwob['price'] ?? 0);
+                                                    $cwobChildren = (int)($cwob['children'] ?? 0);
+                                                    $cwobTotal = isset($cwob['total_cost']) ? (float)$cwob['total_cost'] : ($cwobPrice * $cwobChildren * $hotelNights);
+                                                @endphp
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
+                                                        <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>Child without Bed</div>
+                                                        <div class="row g-1">
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">SGD {{ number_format($cwobPrice, 2) }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwobChildren }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
+                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($cwobTotal, 2) }}</div></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                            </div>
+                                        </div>
                                         @endif
 
                                         <!-- Transfer Options -->
@@ -2625,11 +2688,10 @@
 
 <!-- Entry Port (Arrival) Details Modal -->
    @if(isset($svc['entry_port']) && $svc['entry_port'] > 0)
-   <div class="modal fade service-modal-compact" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+   <div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-           <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-               <!-- Compact Header -->
-               <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
+           <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+               <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
                    <div class="d-flex align-items-center justify-content-between w-100">
                        <div class="text-white">
                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
@@ -2639,36 +2701,40 @@
                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                    </div>
                </div>
-               
                <div class="modal-body p-2" style="background-color: #f8f9fa;">
                    @if(isset($serviceData['entry_port']) && count($serviceData['entry_port']) > 0)
                        @foreach($serviceData['entry_port'] as $index => $entryOrder)
                        @php
                            $entryData = is_string($entryOrder->data) ? json_decode($entryOrder->data, true) : $entryOrder->data;
                        @endphp
-                       
                        @if(is_array($entryData))
                            @foreach($entryData as $booking)
+                               @php
+                                   $entryTransferPrice = (float)($booking['totalPrice'] ?? 0);
+                                   $entryGuidePrice = 0;
+                                   if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
+                                       $entryGuidePrice = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0);
+                                   }
+                                   $entryCardTotal = $entryTransferPrice + $entryGuidePrice;
+                               @endphp
                                <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #00b894 !important;">
-                                   <!-- Compact Card Header -->
                                    <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #00b894 0%, #55a3ff 100%);">
                                        <div class="row align-items-center g-1">
                                            <div class="col-md-8">
                                                <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
                                                    <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
                                                </h6>
-                                               <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ ucfirst($booking['type'] ?? 'Standard') }} Transfer • Enquiry {{ $index + 1 }}</small>
+                                               <small class="text-white opacity-90" style="font-size: 0.7rem;">Arrival {{ $index + 1 }} • {{ ucfirst($booking['type'] ?? 'Standard') }}@if($entryGuidePrice > 0) • With Guide @endif</small>
                                            </div>
                                            <div class="col-md-4 text-end">
                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                   SGD {{ ceil($booking['totalPrice'] ?? 0) }}
+                                                   SGD {{ number_format($entryCardTotal, 2) }}
                                                </span>
                                            </div>
                                        </div>
                                    </div>
-                                   
                                    <div class="card-body p-2" style="background-color: #ffffff;">
-                                       <!-- Transfer Schedule & Passengers -->
+                                       <!-- Service Schedule & Group Information -->
                                        <div class="row mb-2 g-2">
                                            <div class="col-md-6">
                                                <div class="bg-light rounded p-2 h-100">
@@ -2676,20 +2742,24 @@
                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                                            <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
                                                        </div>
-                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Transfer Schedule</h6>
+                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
                                                    </div>
                                                    <div class="row g-1">
                                                        <div class="col-6">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Arrival Date</small>
-                                                           <div class="fw-bold text-success" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
                                                        </div>
                                                        <div class="col-6">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Time</small>
-                                                           <div class="fw-medium text-primary" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
                                                        </div>
-                                                       <div class="col-12">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer Type</small>
-                                                           <span class="badge bg-info" style="font-size: 0.65rem; padding: 2px 6px;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span>
+                                                       <div class="col-6">
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
+                                                           <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
+                                                       </div>
+                                                       <div class="col-6">
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer</small>
+                                                           <div><span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">Arrival</span></div>
                                                        </div>
                                                    </div>
                                                </div>
@@ -2700,129 +2770,208 @@
                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                                            <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
                                                        </div>
-                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Passengers</h6>
+                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
                                                    </div>
-                                                   <div class="row g-1">
+                                                   <div class="row g-1 mb-1">
                                                        <div class="col-6 text-center">
-                                                           <div class="bg-white rounded p-1">
+                                                           <div class="bg-white rounded p-1 border" style="border-color: #00b894 !important;">
                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
-                                                               <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+                                                               <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
                                                            </div>
                                                        </div>
                                                        <div class="col-6 text-center">
-                                                           <div class="bg-white rounded p-1">
+                                                           <div class="bg-white rounded p-1 border" style="border-color: #00b894 !important;">
                                                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
-                                                               <small class="text-muted" style="font-size: 0.6rem;">Children</small>
+                                                               <small class="text-muted" style="font-size: 0.55rem;">Children</small>
                                                            </div>
                                                        </div>
-                                                       <div class="col-12 text-center mt-1">
-                                                           <span class="badge" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); color: white; font-size: 0.65rem; padding: 2px 6px;">
-                                                               Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Passengers
-                                                           </span>
-                                                       </div>
+                                                   </div>
+                                                   <div class="text-center">
+                                                       <span class="badge" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
+                                                           Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
+                                                       </span>
                                                    </div>
                                                </div>
                                            </div>
                                        </div>
-
                                        <!-- Route Information -->
-                                       <div class="bg-light rounded p-1 mb-2">
+                                       <div class="bg-light rounded p-2 mb-2">
                                            <div class="d-flex align-items-center mb-1">
-                                               <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                   <i class="ri-route-line text-white" style="font-size: 0.7rem;"></i>
+                                               <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                   <i class="ri-route-line text-white" style="font-size: 0.8rem;"></i>
                                                </div>
-                                               <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Details</h6>
+                                               <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Information</h6>
                                            </div>
-                                           <div class="bg-white rounded p-1">
-                                               <div class="row g-1">
-                                                   <div class="col-md-6">
-                                                       <div class="d-flex align-items-start">
-                                                           <div class="rounded-circle p-1 me-2 mt-1" style="background-color: #28a745; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
-                                                               <i class="ri-map-pin-line text-white" style="font-size: 0.6rem;"></i>
-                                                           </div>
-                                                           <div>
-                                                               <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Location</small>
-                                                               <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
-                                                               <small class="text-success" style="font-size: 0.6rem;">Origin</small>
-                                                           </div>
+                                           <div class="row g-1 mb-1">
+                                               <div class="col-md-6">
+                                                   <div class="bg-white rounded p-1">
+                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
+                                                       <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                           <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
+                                                           <span class="text-truncate">{{ $booking['entrypickup'] ?? 'N/A' }}</span>
                                                        </div>
-                                                   </div>
-                                                   <div class="col-md-6">
-                                                       <div class="d-flex align-items-start">
-                                                           <div class="rounded-circle p-1 me-2 mt-1" style="background-color: #dc3545; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
-                                                               <i class="ri-flag-line text-white" style="font-size: 0.6rem;"></i>
-                                                           </div>
-                                                           <div>
-                                                               <small class="text-muted d-block" style="font-size: 0.65rem;">Drop-off Location</small>
-                                                               <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrydropoff'] ?? 'N/A' }}</div>
-                                                               <small class="text-danger" style="font-size: 0.6rem;">Destination</small>
-                                                           </div>
-                                                       </div>
-                                                   </div>
-                                                   <div class="col-6">
-                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
-                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                   </div>
-                                                   <div class="col-6">
-                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
-                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
                                                    </div>
                                                </div>
+                                               <div class="col-md-6">
+                                                   <div class="bg-white rounded p-1">
+                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
+                                                       <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                           <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
+                                                           <span class="text-truncate">{{ $booking['entrydropoff'] ?? 'N/A' }}</span>
+                                                       </div>
+                                                   </div>
+                                               </div>
+                                           </div>
+                                           <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
+                                               <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrypickup'] ?? 'Pickup', 15) }}</span>
+                                               <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
+                                               <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrydropoff'] ?? 'Dropoff', 15) }}</span>
                                            </div>
                                        </div>
-
-                                       <!-- Vehicle Information -->
+                                       <!-- Vehicle & Location Information -->
                                        <div class="row mb-2 g-2">
-                                           <div class="col-md-8">
+                                           <div class="col-md-6">
+                                               <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                                   <div class="d-flex align-items-center mb-1">
+                                                       <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                           <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
+                                                       </div>
+                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
+                                                   </div>
+                                                   <div class="row g-1 mb-2">
+                                                       <div class="col-6">
+                                                           <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
+                                                           <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="{{ $booking['vehicles_name'] ?? 'N/A' }}">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                       </div>
+                                                       <div class="col-6">
+                                                           <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }}</div>
+                                                       </div>
+                                                   </div>
+                                                   <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
+                                                       @if(isset($booking['image']) && $booking['image'])
+                                                           <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
+                                                               <img src="{{ $booking['image'] }}" 
+                                                                    alt="Vehicle Image" 
+                                                                    class="rounded-circle shadow-sm" 
+                                                                    style="width: 80px; height: 80px; object-fit: cover; object-position: center; border: 2px solid #00b894; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+                                                                    onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\' style=\'width: 80px; height: 80px; border: 2px solid #e9ecef;\'><i class=\'ri-car-line text-muted\' style=\'font-size: 2rem;\'></i></div>';">
+                                                           </div>
+                                                       @else
+                                                           <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
+                                                               <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
+                                                           </div>
+                                                       @endif
+                                                   </div>
+                                               </div>
+                                           </div>
+                                           <div class="col-md-6">
                                                <div class="bg-light rounded p-2 h-100">
                                                    <div class="d-flex align-items-center mb-1">
                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                           <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
+                                                           <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
                                                        </div>
-                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Vehicle Details</h6>
+                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Location Information</h6>
                                                    </div>
-                                                   <div class="row g-1">
+                                                   <div class="row g-1 mb-1">
                                                        <div class="col-6">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Vehicle Name</small>
-                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
                                                        </div>
                                                        <div class="col-6">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
-                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }} Transfer</div>
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
                                                        </div>
+                                                   </div>
+                                                   @if(($booking['Night_Start_Time'] ?? false) && ($booking['Night_End_Time'] ?? false))
+                                                   <div class="bg-white rounded p-1 mt-1">
+                                                       <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Night Service</small>
+                                                       <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $booking['Night_Start_Time'] }} - {{ $booking['Night_End_Time'] }}</div>
+                                                   </div>
+                                                   @endif
+                                               </div>
+                                           </div>
+                                       </div>
+                                       <!-- Arrival: Price breakdown (Transfer + Guide then Total) -->
+                                       <div class="bg-light rounded p-2 mb-2">
+                                           <div class="d-flex align-items-center mb-1">
+                                               <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                   <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.8rem;"></i>
+                                               </div>
+                                               <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing</h6>
+                                           </div>
+                                           <div class="bg-white rounded p-2">
+                                               <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                                   <span class="text-muted" style="font-size: 0.8rem;">Transfer</span>
+                                                   <span class="fw-semibold text-dark">SGD {{ number_format($entryTransferPrice, 2) }}</span>
+                                               </div>
+                                               @if($entryGuidePrice > 0)
+                                               <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                                   <span class="text-muted" style="font-size: 0.8rem;">Guide</span>
+                                                   <span class="fw-semibold text-info">SGD {{ number_format($entryGuidePrice, 2) }}</span>
+                                               </div>
+                                               @endif
+                                               <div class="d-flex justify-content-between align-items-center py-2 mt-1">
+                                                   <span class="fw-bold text-dark" style="font-size: 0.9rem;">Total</span>
+                                                   <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format($entryCardTotal, 2) }}</span>
+                                               </div>
+                                           </div>
+                                       </div>
+                                       @php
+                                           $hasEntryGuide = isset($booking['guide_options']) && is_array($booking['guide_options']) && (
+                                               !empty($booking['guide_options']['guide_required']) ||
+                                               !empty($booking['guide_options']['guideName']) ||
+                                               !empty($booking['guide_options']['guide_name']) ||
+                                               !empty($booking['guide_options']['name']) ||
+                                               (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['sell'] ?? 0) > 0
+                                           );
+                                       @endphp
+                                       @if($hasEntryGuide)
+                                       <div class="bg-light rounded p-2 mb-2">
+                                           <div class="d-flex align-items-center mb-1">
+                                               <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                   <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                                               </div>
+                                               <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Guide Details</h6>
+                                           </div>
+                                           <div class="row g-1">
+                                               <div class="col-md-6">
+                                                   <div class="bg-white rounded p-1">
+                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}</div>
+                                                       <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
+                                                       <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
+                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                   </div>
+                                               </div>
+                                               <div class="col-md-6">
+                                                   <div class="bg-white rounded p-1">
+                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Hours / Activity</small>
+                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} H</div>
+                                                       @php $arrivalGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
+                                                       @if($arrivalGuideCost > 0)
+                                                       <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">SGD {{ number_format($arrivalGuideCost, 2) }}</div>
+                                                       @endif
                                                    </div>
                                                </div>
                                            </div>
-                                           <div class="col-md-4">
-                                               @if(isset($booking['image']))
-                                                   <img src="{{ $booking['image'] }}" 
-                                                       alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
-                                                       class="img-fluid rounded shadow-sm" 
-                                                       style="height: 80px; width: 100%; object-fit: cover;">
-                                               @else
-                                                   <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 80px;">
-                                                       <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
-                                                   </div>
-                                               @endif
-                                           </div>
                                        </div>
-
+                                       @endif
                                    </div>
                                </div>
                            @endforeach
                        @endif
                        @endforeach
                    @else
-                       <div class="text-center py-3">
-                           <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                               <i class="ri-flight-land-line text-muted" style="font-size: 1.5rem;"></i>
+                       <div class="text-center py-5">
+                           <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100%;">
+                               <i class="ri-flight-land-line ri-48px text-muted"></i>
                            </div>
-                           <h6 class="text-dark mb-1" style="font-size: 0.9rem;">No Arrival Transfer Data Available</h6>
-                           <p class="text-muted mb-0" style="font-size: 0.75rem;">Entry port services are booked but detailed information is not available.</p>
+                           <h4 class="text-dark mb-3">No Arrival Transfer Data Available</h4>
+                           <p class="text-muted mb-4">Entry port services are booked but detailed information is not available.</p>
                        </div>
                    @endif
                </div>
-               <!-- Compact Footer -->
                <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
                    <div class="d-flex gap-2 w-100 justify-content-end">
                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
@@ -2837,11 +2986,10 @@
 
 <!-- Exit Port (Departure) Details Modal -->
    @if(isset($svc['exit_port']) && $svc['exit_port'] > 0)
-   <div class="modal fade service-modal-compact" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+   <div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-           <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-               <!-- Compact Header -->
-               <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
+           <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+               <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
                    <div class="d-flex align-items-center justify-content-between w-100">
                        <div class="text-white">
                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
@@ -2851,36 +2999,43 @@
                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                    </div>
                </div>
-               
                <div class="modal-body p-2" style="background-color: #f8f9fa;">
                    @if(isset($serviceData['exit_port']) && count($serviceData['exit_port']) > 0)
                        @foreach($serviceData['exit_port'] as $index => $exitOrder)
                        @php
                            $exitData = is_string($exitOrder->data) ? json_decode($exitOrder->data, true) : $exitOrder->data;
                        @endphp
-                       
                        @if(is_array($exitData))
-                           @foreach($exitData as $booking)
+                           @foreach($exitData as $bookingIndex => $booking)
+                               @php
+                                   $exitTransferPrice = (float)($booking['totalPrice'] ?? 0);
+                                   $exitGuidePrice = 0;
+                                   if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
+                                       $exitGuidePrice = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0);
+                                   }
+                                   $exitCardTotal = $exitTransferPrice + $exitGuidePrice;
+                                   $tourTypeIs1 = isset($tour->tour_type) && ((int)$tour->tour_type === 1 || $tour->tour_type == 1 || $tour->tour_type === '1');
+                                   $exitPickup = $tourTypeIs1 ? ($booking['pickupLocation'] ?? $booking['exitpickup'] ?? 'N/A') : ($booking['exitpickup'] ?? 'N/A');
+                                   $exitDropoff = $tourTypeIs1 ? ($booking['dropoffLocation'] ?? $booking['exitdropoff'] ?? 'N/A') : ($booking['exitdropoff'] ?? 'N/A');
+                               @endphp
                                <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #fd7f6f !important;">
-                                   <!-- Compact Card Header -->
                                    <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #fd7f6f 0%, #feb47b 100%);">
                                        <div class="row align-items-center g-1">
                                            <div class="col-md-8">
                                                <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
                                                    <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
                                                </h6>
-                                               <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ ucfirst($booking['type'] ?? 'Standard') }} Transfer • Enquiry {{ $index + 1 }}</small>
+                                               <small class="text-white opacity-90" style="font-size: 0.7rem;">Departure {{ $index + 1 }} • {{ ucfirst($booking['type'] ?? 'Standard') }}@if($exitGuidePrice > 0) • With Guide @endif</small>
                                            </div>
                                            <div class="col-md-4 text-end">
                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                   SGD {{ ceil($booking['totalPrice'] ?? 0) }}
+                                                   SGD {{ number_format($exitCardTotal, 2) }}
                                                </span>
                                            </div>
                                        </div>
                                    </div>
-                                   
                                    <div class="card-body p-2" style="background-color: #ffffff;">
-                                       <!-- Transfer Schedule & Passengers -->
+                                       <!-- Service Schedule & Group Information -->
                                        <div class="row mb-2 g-2">
                                            <div class="col-md-6">
                                                <div class="bg-light rounded p-2 h-100">
@@ -2888,20 +3043,24 @@
                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                                            <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
                                                        </div>
-                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Transfer Schedule</h6>
+                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
                                                    </div>
                                                    <div class="row g-1">
                                                        <div class="col-6">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Departure Date</small>
-                                                           <div class="fw-bold text-danger" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
                                                        </div>
                                                        <div class="col-6">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Time</small>
-                                                           <div class="fw-medium text-primary" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
                                                        </div>
-                                                       <div class="col-12">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer Type</small>
-                                                           <span class="badge bg-warning" style="font-size: 0.65rem; padding: 2px 6px;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span>
+                                                       <div class="col-6">
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
+                                                           <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
+                                                       </div>
+                                                       <div class="col-6">
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer</small>
+                                                           <div><span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">Departure</span></div>
                                                        </div>
                                                    </div>
                                                </div>
@@ -2912,129 +3071,202 @@
                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                                            <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
                                                        </div>
-                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Passengers</h6>
+                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
                                                    </div>
-                                                   <div class="row g-1">
+                                                   <div class="row g-1 mb-1">
                                                        <div class="col-6 text-center">
-                                                           <div class="bg-white rounded p-1">
+                                                           <div class="bg-white rounded p-1 border" style="border-color: #fd7f6f !important;">
                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
-                                                               <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+                                                               <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
                                                            </div>
                                                        </div>
                                                        <div class="col-6 text-center">
-                                                           <div class="bg-white rounded p-1">
+                                                           <div class="bg-white rounded p-1 border" style="border-color: #fd7f6f !important;">
                                                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
-                                                               <small class="text-muted" style="font-size: 0.6rem;">Children</small>
+                                                               <small class="text-muted" style="font-size: 0.55rem;">Children</small>
                                                            </div>
                                                        </div>
-                                                       <div class="col-12 text-center mt-1">
-                                                           <span class="badge" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); color: white; font-size: 0.65rem; padding: 2px 6px;">
-                                                               Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Passengers
-                                                           </span>
-                                                       </div>
+                                                   </div>
+                                                   <div class="text-center">
+                                                       <span class="badge" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
+                                                           Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
+                                                       </span>
                                                    </div>
                                                </div>
                                            </div>
                                        </div>
-
-                                       <!-- Route Information -->
-                                       <div class="bg-light rounded p-1 mb-2">
+                                       <!-- Route Information (tour_type=1: pickupLocation/dropoffLocation) -->
+                                       <div class="bg-light rounded p-2 mb-2">
                                            <div class="d-flex align-items-center mb-1">
-                                               <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                   <i class="ri-route-line text-white" style="font-size: 0.7rem;"></i>
+                                               <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                   <i class="ri-route-line text-white" style="font-size: 0.8rem;"></i>
                                                </div>
-                                               <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Details</h6>
+                                               <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Information</h6>
                                            </div>
-                                           <div class="bg-white rounded p-1">
-                                               <div class="row g-1">
-                                                   <div class="col-md-6">
-                                                       <div class="d-flex align-items-start">
-                                                           <div class="rounded-circle p-1 me-2 mt-1" style="background-color: #28a745; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
-                                                               <i class="ri-map-pin-line text-white" style="font-size: 0.6rem;"></i>
-                                                           </div>
-                                                           <div>
-                                                               <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Location</small>
-                                                               <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['exitpickup'] ?? 'N/A' }}</div>
-                                                               <small class="text-success" style="font-size: 0.6rem;">Origin</small>
-                                                           </div>
+                                           <div class="row g-1 mb-1">
+                                               <div class="col-md-6">
+                                                   <div class="bg-white rounded p-1">
+                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
+                                                       <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                           <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
+                                                           <span class="text-truncate">{{ $exitPickup }}</span>
                                                        </div>
-                                                   </div>
-                                                   <div class="col-md-6">
-                                                       <div class="d-flex align-items-start">
-                                                           <div class="rounded-circle p-1 me-2 mt-1" style="background-color: #dc3545; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
-                                                               <i class="ri-flag-line text-white" style="font-size: 0.6rem;"></i>
-                                                           </div>
-                                                           <div>
-                                                               <small class="text-muted d-block" style="font-size: 0.65rem;">Drop-off Location</small>
-                                                               <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['exitdropoff'] ?? 'N/A' }}</div>
-                                                               <small class="text-danger" style="font-size: 0.6rem;">Destination</small>
-                                                           </div>
-                                                       </div>
-                                                   </div>
-                                                   <div class="col-6">
-                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
-                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                   </div>
-                                                   <div class="col-6">
-                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
-                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
                                                    </div>
                                                </div>
+                                               <div class="col-md-6">
+                                                   <div class="bg-white rounded p-1">
+                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
+                                                       <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                           <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
+                                                           <span class="text-truncate">{{ $exitDropoff }}</span>
+                                                       </div>
+                                                   </div>
+                                               </div>
+                                           </div>
+                                           <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
+                                               <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($exitPickup, 15) }}</span>
+                                               <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
+                                               <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($exitDropoff, 15) }}</span>
                                            </div>
                                        </div>
-
-                                       <!-- Vehicle Information -->
+                                       <!-- Vehicle & Location Information -->
                                        <div class="row mb-2 g-2">
-                                           <div class="col-md-8">
+                                           <div class="col-md-6">
+                                               <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                                   <div class="d-flex align-items-center mb-1">
+                                                       <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                           <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
+                                                       </div>
+                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
+                                                   </div>
+                                                   <div class="row g-1 mb-2">
+                                                       <div class="col-6">
+                                                           <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
+                                                           <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="{{ $booking['vehicles_name'] ?? 'N/A' }}">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                       </div>
+                                                       <div class="col-6">
+                                                           <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }}</div>
+                                                       </div>
+                                                   </div>
+                                                   <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
+                                                       @if(isset($booking['image']) && $booking['image'])
+                                                           <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
+                                                               <img src="{{ $booking['image'] }}" 
+                                                                    alt="Vehicle Image" 
+                                                                    class="rounded-circle shadow-sm" 
+                                                                    style="width: 80px; height: 80px; object-fit: cover; object-position: center; border: 2px solid #fd7f6f; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+                                                                    onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\' style=\'width: 80px; height: 80px; border: 2px solid #e9ecef;\'><i class=\'ri-car-line text-muted\' style=\'font-size: 2rem;\'></i></div>';">
+                                                           </div>
+                                                       @else
+                                                           <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
+                                                               <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
+                                                           </div>
+                                                       @endif
+                                                   </div>
+                                               </div>
+                                           </div>
+                                           <div class="col-md-6">
                                                <div class="bg-light rounded p-2 h-100">
                                                    <div class="d-flex align-items-center mb-1">
                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                           <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
+                                                           <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
                                                        </div>
-                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Vehicle Details</h6>
+                                                       <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Location Information</h6>
                                                    </div>
-                                                   <div class="row g-1">
+                                                   <div class="row g-1 mb-1">
                                                        <div class="col-6">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Vehicle Name</small>
-                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
                                                        </div>
                                                        <div class="col-6">
-                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
-                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }} Transfer</div>
+                                                           <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
+                                                           <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
                                                        </div>
                                                    </div>
                                                </div>
                                            </div>
-                                           <div class="col-md-4">
-                                               @if(isset($booking['image']))
-                                                   <img src="{{ $booking['image'] }}" 
-                                                       alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
-                                                       class="img-fluid rounded shadow-sm" 
-                                                       style="height: 80px; width: 100%; object-fit: cover;">
-                                               @else
-                                                   <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 80px;">
-                                                       <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
-                                                   </div>
+                                       </div>
+                                       <!-- Departure: Price breakdown (Transfer + Guide then Total) -->
+                                       <div class="bg-light rounded p-2 mb-2">
+                                           <div class="d-flex align-items-center mb-1">
+                                               <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                   <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.8rem;"></i>
+                                               </div>
+                                               <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing</h6>
+                                           </div>
+                                           <div class="bg-white rounded p-2">
+                                               <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                                   <span class="text-muted" style="font-size: 0.8rem;">Transfer</span>
+                                                   <span class="fw-semibold text-dark">SGD {{ number_format($exitTransferPrice, 2) }}</span>
+                                               </div>
+                                               @if($exitGuidePrice > 0)
+                                               <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                                   <span class="text-muted" style="font-size: 0.8rem;">Guide</span>
+                                                   <span class="fw-semibold text-info">SGD {{ number_format($exitGuidePrice, 2) }}</span>
+                                               </div>
                                                @endif
+                                               <div class="d-flex justify-content-between align-items-center py-2 mt-1">
+                                                   <span class="fw-bold text-dark" style="font-size: 0.9rem;">Total</span>
+                                                   <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format($exitCardTotal, 2) }}</span>
+                                               </div>
                                            </div>
                                        </div>
-
+                                       @php
+                                           $hasExitGuide = isset($booking['guide_options']) && is_array($booking['guide_options']) && (
+                                               !empty($booking['guide_options']['guide_required']) ||
+                                               !empty($booking['guide_options']['guideName']) ||
+                                               !empty($booking['guide_options']['guide_name']) ||
+                                               !empty($booking['guide_options']['name']) ||
+                                               (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['sell'] ?? 0) > 0
+                                           );
+                                       @endphp
+                                       @if($hasExitGuide)
+                                       <div class="bg-light rounded p-2 mb-2">
+                                           <div class="d-flex align-items-center mb-1">
+                                               <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                   <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                                               </div>
+                                               <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Guide Details</h6>
+                                           </div>
+                                           <div class="row g-1">
+                                               <div class="col-md-6">
+                                                   <div class="bg-white rounded p-1">
+                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}</div>
+                                                       <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
+                                                       <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
+                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                   </div>
+                                               </div>
+                                               <div class="col-md-6">
+                                                   <div class="bg-white rounded p-1">
+                                                       <small class="text-muted d-block" style="font-size: 0.65rem;">Hours / Activity</small>
+                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} H</div>
+                                                       @php $depGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
+                                                       @if($depGuideCost > 0)
+                                                       <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">SGD {{ number_format($depGuideCost, 2) }}</div>
+                                                       @endif
+                                                   </div>
+                                               </div>
+                                           </div>
+                                       </div>
+                                       @endif
                                    </div>
                                </div>
                            @endforeach
                        @endif
                        @endforeach
                    @else
-                       <div class="text-center py-3">
-                           <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                               <i class="ri-flight-takeoff-line text-muted" style="font-size: 1.5rem;"></i>
+                       <div class="text-center py-5">
+                           <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100%;">
+                               <i class="ri-flight-takeoff-line ri-48px text-muted"></i>
                            </div>
-                           <h6 class="text-dark mb-1" style="font-size: 0.9rem;">No Departure Transfer Data Available</h6>
-                           <p class="text-muted mb-0" style="font-size: 0.75rem;">Exit port services are booked but detailed information is not available.</p>
+                           <h4 class="text-dark mb-3">No Departure Transfer Data Available</h4>
+                           <p class="text-muted mb-4">Exit port services are booked but detailed information is not available.</p>
                        </div>
                    @endif
                </div>
-               <!-- Compact Footer -->
                <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
                    <div class="d-flex gap-2 w-100 justify-content-end">
                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
@@ -3046,6 +3278,122 @@
        </div>
    </div>
    @endif
+
+    <!-- Miscellaneous Details Modal -->
+    @if(isset($svc['miscellaneous']) && $svc['miscellaneous'] > 0)
+    <div class="modal fade" id="miscellaneousDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="miscellaneousDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header border-0 py-2 px-3" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
+                        <div class="text-white">
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-file-list-3-line me-1" style="font-size: 0.9rem;"></i>Miscellaneous - Tour #{{ $tour->tour_id }}
+                            </h6>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('miscellaneous', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
+                    @if(isset($serviceData['miscellaneous']) && count($serviceData['miscellaneous']) > 0)
+                        @foreach($serviceData['miscellaneous'] as $index => $miscOrder)
+                            @php
+                                $miscData = is_string($miscOrder->data) ? json_decode($miscOrder->data, true) : $miscOrder->data;
+                            @endphp
+                            @if(is_array($miscData))
+                                @foreach($miscData as $booking)
+                                    <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #7c3aed !important;">
+                                        <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);">
+                                            <div class="row align-items-center g-1">
+                                                <div class="col-md-8">
+                                                    <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                                                        <i class="ri-file-list-3-line me-1"></i>{{ $booking['itemName'] ?? 'Miscellaneous Item' }}
+                                                    </h6>
+                                                    <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</small>
+                                                </div>
+                                                <div class="col-md-4 text-end">
+                                                    <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body p-2" style="background-color: #ffffff;">
+                                            <div class="row g-2 mb-2">
+                                                <div class="col-md-6">
+                                                    <div class="bg-light rounded p-2">
+                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Item</small>
+                                                        <div class="fw-medium" style="font-size: 0.85rem;">{{ $booking['itemName'] ?? 'N/A' }}</div>
+                                                        <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Date</small>
+                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="bg-light rounded p-2">
+                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Pax</small>
+                                                        <div class="row g-1">
+                                                            <div class="col-4 text-center">
+                                                                <div class="bg-white rounded p-1 border">
+                                                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adultsQty'] ?? 0 }}</div>
+                                                                    <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-4 text-center">
+                                                                <div class="bg-white rounded p-1 border">
+                                                                    <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['childQty'] ?? 0 }}</div>
+                                                                    <small class="text-muted" style="font-size: 0.6rem;">Child</small>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-4 text-center">
+                                                                <div class="bg-white rounded p-1 border">
+                                                                    <div class="fw-bold text-info" style="font-size: 0.9rem;">{{ $booking['infantQty'] ?? 0 }}</div>
+                                                                    <small class="text-muted" style="font-size: 0.6rem;">Infant</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="bg-light rounded p-2">
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <i class="ri-money-dollar-circle-line text-primary me-2" style="font-size: 0.9rem;"></i>
+                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing</h6>
+                                                </div>
+                                                <div class="d-flex justify-content-between align-items-center py-1">
+                                                    <span class="text-muted" style="font-size: 0.8rem;">Total</span>
+                                                    <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
+                                                </div>
+                                                @if(isset($booking['adultSell']) || isset($booking['childSell']) || isset($booking['infantSell']))
+                                                <small class="text-muted" style="font-size: 0.7rem;">Adult: {{ $booking['adultSell'] ?? 0 }} / Child: {{ $booking['childSell'] ?? 0 }} / Infant: {{ $booking['infantSell'] ?? 0 }}</small>
+                                                @endif
+                                            </div>
+                                            @if(!empty($booking['city']) || !empty($booking['country']))
+                                            <div class="mt-2">
+                                                <small class="text-muted" style="font-size: 0.65rem;">Location</small>
+                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? '' }}{{ !empty($booking['city']) && !empty($booking['country']) ? ', ' : '' }}{{ $booking['country'] ?? '' }}</div>
+                                            </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                            @endif
+                        @endforeach
+                    @else
+                        <div class="text-center py-4">
+                            <i class="ri-file-list-3-line text-muted" style="font-size: 2.5rem;"></i>
+                            <h6 class="text-muted mt-2 mb-0">No miscellaneous data available</h6>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                    <div class="d-flex gap-2 w-100 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('miscellaneous', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
+                            <i class="ri-close-line me-1"></i>Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- Travel Hourly Details Modal -->
     @if(isset($svc['travel_hourly']) && $svc['travel_hourly'] > 0)
