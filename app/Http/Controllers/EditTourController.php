@@ -1456,7 +1456,9 @@ class EditTourController extends Controller
                 } else {
                     $currentPayload['exitpickup'] = $validated['pickup_location'];
                     $currentPayload['exitdropoff'] = $validated['dropoff_location'];
-                    $currentPayload['exitpickupdate'] = $validated['pickup_time'];
+                    $currentPayload['entrytime'] = $validated['pickup_time'];
+                    $currentPayload['exittime'] = $validated['pickup_time'];
+                    $currentPayload['exitpickuptime'] = $validated['pickup_time'];
                 }
 
                 if (!empty($validated['vehicle_name'])) {

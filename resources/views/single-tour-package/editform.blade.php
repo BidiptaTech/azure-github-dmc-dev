@@ -4371,7 +4371,7 @@
                                                     $cityValue = $transportData['city'] ?? '';
                                                     $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? '';
                                                     $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? '';
-                                                    $pickupTime = $transportData['exitpickupdate'] ?? $transportData['entrytime'] ?? '';
+                                                    $pickupTime = $transportData['entrytime'] ?? $transportData['exittime'] ?? $transportData['exitpickuptime'] ?? '';
                                                     $vehicleName = $transportData['vehicles_name'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
@@ -6275,7 +6275,7 @@
                                             <input type="number" min="1" class="form-control modern-input mt-2" name="modal_attraction_guide_custom_hours" id="modal_attraction_guide_custom_hours" placeholder="Enter custom hours" style="display: none; height: 36px; font-size: 0.8rem;">
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;"><i class="ri-time-line me-1" style="color: #fa709a;"></i>Pickup Time</label>
+                                            <label class="form-label fw-semibold d-block mb-2" style="color: #495057; font-size: 0.75rem;"><i class="ri-time-line me-1" style="color: #fa709a;"></i>Pickup Time</label>
                                             <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; overflow: hidden; height: 36px;">
                                                 <input type="text" class="form-control text-center border-0" id="modal_attraction_guide_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime()" onchange="syncAttractionGuidePickupTime()">
                                                 <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
@@ -7145,7 +7145,7 @@
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
                                         </label>
-                                        <input type="date" class="form-control modern-input" id="local_transfer_point_pickup_date_display" placeholder="dd-mm-yyyy" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('d-m-Y') }}" autocomplete="off" style="height: 36px; font-size: 0.8rem;" data-min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" data-max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" oninput="formatPointToPointPickupDateInput(this); syncPointToPointPickupDateFromDisplay()" onblur="syncPointToPointPickupDateFromDisplay()">
+                                        <input type="date" class="form-control modern-input" id="local_transfer_point_pickup_date_display" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" autocomplete="off" style="height: 36px; font-size: 0.8rem;" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" onchange="syncPointToPointPickupDateFromDisplay()">
                                         <input type="hidden" name="point_pickup_date" id="local_transfer_point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}">
                                     </div>
                                     <div class="col-md-6 col-lg-2">
@@ -7693,11 +7693,10 @@
             return;
         }
 
-        // When we have 4 digits, clamp minutes to 0–59 and enforce 12:00 max
+        // When we have 4 digits, clamp minutes to 0–59
         let min = parseInt(minutesRaw, 10);
         if (isNaN(min) || min < 0) min = 0;
         if (min > 59) min = 59;
-        if (hour === 12 && min > 0) min = 0;
 
         const hourStr = String(hour).padStart(2, '0');
         const minStr = String(min).padStart(2, '0');
@@ -7724,8 +7723,6 @@
         let min = parseInt((parts[1] || '00').slice(0, 2), 10);
         if (isNaN(min) || min < 0) min = 0;
         if (min > 59) min = 59;
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) min = 0;
 
         const hourStr = String(hour).padStart(2, '0');
         const minStr = String(min).padStart(2, '0');
@@ -7829,8 +7826,6 @@
         let min = parseInt((parts[1] || '00').slice(0, 2), 10);
         if (isNaN(min) || min < 0) min = 0;
         if (min > 59) min = 59;
-        // Enforce max 12:00
-        if (hour === 12 && min > 0) min = 0;
 
         const hourStr = String(hour).padStart(2, '0');
         const minStr = String(min).padStart(2, '0');
@@ -9595,6 +9590,7 @@
             const transportTypeSelect = document.getElementById('modal_restaurant_transport_type');
             const priceInput = document.getElementById('modal_restaurant_transport_price');
             const returnCheckbox = document.getElementById('modal_restaurant_transport_return');
+            const passengersInput = document.getElementById('modal_restaurant_transport_passengers');
 
             if (!vehicleSelect || !transportTypeSelect || !priceInput) {
                 return;
@@ -9622,10 +9618,23 @@
 
             const isReturn = returnCheckbox ? returnCheckbox.checked : false;
 
+            // For Shared: use pax from guest selector (window.modalGuestData); fallback to passengers input or 1
+            let pax = 1;
+            if (transportType.toLowerCase() === 'shared') {
+                const guestData = window.modalGuestData || { pax: '1', adults: '1', children: '0' };
+                pax = parseInt(guestData.pax, 10) || (parseInt(guestData.adults || '0', 10) + parseInt(guestData.children || '0', 10)) || 1;
+                if (passengersInput && passengersInput.value) {
+                    pax = parseInt(passengersInput.value, 10) || pax;
+                }
+            } else if (passengersInput && passengersInput.value) {
+                pax = parseInt(passengersInput.value, 10) || 1;
+            }
+
             // Get price from zone mapping (stored in data attributes)
             let basePrice = 0;
             if (transportType.toLowerCase() === 'shared') {
-                basePrice = parseFloat(selectedOption.getAttribute('data-shared-price')) || 0;
+                const sharedPrice = parseFloat(selectedOption.getAttribute('data-shared-price')) || 0;
+                basePrice = sharedPrice * pax; // Shared: price = shared_price * pax
             } else {
                 basePrice = parseFloat(selectedOption.getAttribute('data-private-price')) || 0;
             }
@@ -9644,6 +9653,7 @@
             
             updateRestaurantModalPriceGrid();
         }
+        window.calculateModalRestaurantTransportPrice = calculateModalRestaurantTransportPrice;
 
         // Update restaurant modal price grid (meal + transport = total). Expose on window for toggle/other handlers.
         function updateRestaurantModalPriceGrid() {
@@ -9831,15 +9841,24 @@
             }
 
             const transportType = transportTypeSelect.val() || 'private';
-            // Passengers field is optional in modal → default to 1 if missing
-            const passengers = passengersInput.length ? (parseInt(passengersInput.val()) || 1) : 1;
+            // For Shared: use pax from guest selector (adults+children+seniors); fallback to passengers input or 1
+            let pax = 1;
+            if (transportType.toLowerCase() === 'shared') {
+                const guestData = window.attractionModalGuestData || { pax: '1', adults: '1', children: '0', seniors: '0' };
+                pax = parseInt(guestData.pax, 10) || (parseInt(guestData.adults || '0', 10) + parseInt(guestData.children || '0', 10) + parseInt(guestData.seniors || '0', 10)) || 1;
+                if (passengersInput.length && passengersInput.val()) {
+                    pax = parseInt(passengersInput.val(), 10) || pax;
+                }
+            } else if (passengersInput.length) {
+                pax = parseInt(passengersInput.val(), 10) || 1;
+            }
             const isReturn = returnCheckbox.is(':checked');
 
             // Get price from zone mapping (stored in data attributes)
             let basePrice = 0;
             if (transportType.toLowerCase() === 'shared') {
-                basePrice = parseFloat(selectedOption.data('shared-price')) || 0;
-                basePrice = basePrice * passengers; // Shared price is per passenger
+                const sharedPrice = parseFloat(selectedOption.data('shared-price')) || 0;
+                basePrice = sharedPrice * pax; // Shared: price = shared_price * pax
             } else {
                 basePrice = parseFloat(selectedOption.data('private-price')) || 0;
             }
@@ -9862,6 +9881,7 @@
                 window.updateAttractionModalPriceGrid();
             }
         }
+        window.calculateModalAttractionTransportPrice = calculateModalAttractionTransportPrice;
 
         // Update attraction modal price grid: Ticket | Transport | Guide segments + Total (like reference image)
         function updateAttractionModalPriceGrid() {
@@ -11470,6 +11490,14 @@
         // Update the display in the main attraction modal
         updateModalGuestDisplay();
 
+        // Recalculate transport price when Shared (shared_price * pax)
+        if (typeof window.calculateModalAttractionTransportPrice === 'function') {
+            window.calculateModalAttractionTransportPrice();
+        }
+        if (typeof window.updateAttractionModalPriceGrid === 'function') {
+            window.updateAttractionModalPriceGrid();
+        }
+
         // Close modal safely
         safeCloseModal('attractionGuestSelectorModal');
 
@@ -11679,7 +11707,6 @@
             min = parseInt(digitsOnly.slice(2, 4), 10);
             if (isNaN(min) || min < 0) min = 0;
             if (min > 59) min = 59;
-            if (hour === 12 && min > 0) min = 0;
         } else if (digitsOnly.length === 3) {
             min = parseInt(digitsOnly.slice(2, 3) + '0', 10);
             if (min > 59) min = 59;
@@ -11797,14 +11824,15 @@
         const display = document.getElementById('local_transfer_point_pickup_date_display');
         const hidden = document.getElementById('local_transfer_point_pickup_date');
         if (!display || !hidden) return;
-        const ymd = parseDdMmYyyyToYmd(display.value);
-        const min = display.getAttribute('data-min') || '';
-        const max = display.getAttribute('data-max') || '';
+        // type="date" inputs use Y-m-d format natively
+        let ymd = display.value && display.value.match(/^\d{4}-\d{2}-\d{2}$/) ? display.value : parseDdMmYyyyToYmd(display.value);
+        const min = display.getAttribute('data-min') || display.min || '';
+        const max = display.getAttribute('data-max') || display.max || '';
         if (ymd) {
-            if (min && ymd < min) { hidden.value = min; display.value = ymdToDdMmYyyy(min); }
-            else if (max && ymd > max) { hidden.value = max; display.value = ymdToDdMmYyyy(max); }
-            else { hidden.value = ymd; display.value = ymdToDdMmYyyy(ymd); }
-        } else if (display.value.trim() === '') {
+            if (min && ymd < min) { hidden.value = min; display.value = min; }
+            else if (max && ymd > max) { hidden.value = max; display.value = max; }
+            else { hidden.value = ymd; }
+        } else if (!display.value || display.value.trim() === '') {
             hidden.value = '';
         }
         if (typeof checkLocalTransferFormCompletion === 'function') checkLocalTransferFormCompletion();
@@ -11813,7 +11841,8 @@
         const hidden = document.getElementById('local_transfer_point_pickup_date');
         const display = document.getElementById('local_transfer_point_pickup_date_display');
         if (!hidden || !display) return;
-        display.value = ymdToDdMmYyyy(hidden.value);
+        // type="date" inputs require Y-m-d format
+        display.value = (hidden.value && hidden.value.match(/^\d{4}-\d{2}-\d{2}$/)) ? hidden.value : ymdToDdMmYyyy(hidden.value);
     }
     
     function showLocalTransferSelectionModal(tourId, country, startDate, endDate, serviceType = null) {
@@ -13593,10 +13622,6 @@
 
         if (isNaN(hour) || hour <= 0) hour = 1;
         if (hour > 12) hour = 12;
-
-        if (hour === 12 && min > 0) {
-            min = 0;
-        }
 
         const hourStr = String(hour).padStart(2, '0');
         const minStr = String(min).padStart(2, '0');
@@ -19824,6 +19849,14 @@
         if (modalRestaurantPassengers.length) {
             modalRestaurantPassengers.trigger('input');
         }
+        
+        // Recalculate transport price when Shared (shared_price * pax)
+        if (typeof window.calculateModalRestaurantTransportPrice === 'function') {
+            window.calculateModalRestaurantTransportPrice();
+        }
+        if (typeof window.updateRestaurantModalPriceGrid === 'function') {
+            window.updateRestaurantModalPriceGrid();
+        }
     }
 
     function updateModalGuestSummaryDisplay() {
@@ -19878,6 +19911,14 @@
         };
 
         updateModalGuestSummary();
+
+        // Recalculate transport price when Shared (shared_price * pax)
+        if (typeof window.calculateModalRestaurantTransportPrice === 'function') {
+            window.calculateModalRestaurantTransportPrice();
+        }
+        if (typeof window.updateRestaurantModalPriceGrid === 'function') {
+            window.updateRestaurantModalPriceGrid();
+        }
         
         // Update Multi Restaurant price if Multi Restaurant is selected
         const restaurantSelect = document.getElementById('modal_restaurant_select');
