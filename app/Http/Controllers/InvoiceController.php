@@ -7,8 +7,11 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\CreditNote;
 use App\Models\Tour;
+use App\Models\User;
+use App\Models\Country;
 use App\Services\InvoiceService;
 use App\Helpers\CommonHelper;
+use App\Helpers\CurrencyHelper;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -18,9 +21,84 @@ class InvoiceController extends Controller
 {
     protected $invoiceService;
 
+    /** Available currencies for invoice (same as quotation) */
+    protected $availableCurrencies = [
+        'SGD', 'USD', 'EUR', 'GBP', 'INR', 'AUD', 'NZD', 'CAD', 'CHF', 'JPY', 'CNY',
+        'HKD', 'TWD', 'KRW', 'THB', 'MYR', 'IDR', 'PHP', 'VND', 'AED', 'SAR', 'QAR',
+        'KWD', 'BHD', 'OMR', 'ZAR', 'NGN', 'EGP', 'KES', 'GHS', 'MAD', 'BRL', 'ARS',
+        'CLP', 'COP', 'PEN', 'MXN', 'RUB', 'UAH', 'TRY', 'ILS', 'PLN', 'CZK', 'HUF',
+        'RON', 'SEK', 'NOK', 'DKK', 'ISK', 'BGN', 'HRK', 'PKR', 'LKR', 'BDT', 'MVR',
+        'KZT', 'DOP', 'JMD',
+    ];
+
     public function __construct(InvoiceService $invoiceService)
     {
         $this->invoiceService = $invoiceService;
+    }
+
+    /**
+     * Get selected currency from request, validate against available list.
+     */
+    protected function getSelectedCurrency(Request $request): string
+    {
+        $currentUser = Auth::user();
+        $dmcId = CommonHelper::getDmcId($currentUser);
+        $dmc = User::select('country')->where('userId', $dmcId)->first();
+        $country = $dmc ? Country::select('currency')->where('name', $dmc->country)->first() : null;
+        $currencyRaw = $country ? $country->currency : null;
+        $defaultCurrency = CurrencyHelper::normalizeCurrencyToCode($currencyRaw, $this->availableCurrencies, 'SGD');
+        $selected = strtoupper($request->query('currency', $defaultCurrency));
+        return in_array($selected, $this->availableCurrencies, true) ? $selected : $defaultCurrency;
+    }
+
+    /**
+     * Build currency conversion data for display.
+     * Base amount in SGD; when selectedCurrency !== SGD, add converted amount.
+     * Returns ['SGD' => amount] or ['SGD' => amount, 'INR' => convertedAmount] etc.
+     */
+    protected function buildCurrencyConversion(Invoice $invoice, string $selectedCurrency): array
+    {
+        $baseCurrency = strtoupper($invoice->base_currency ?? 'SGD');
+        $tour = $invoice->tour;
+        $tourStatus = $tour->tour_status ?? '';
+        $statusesWithTax = ['Confirmed', 'Definite', 'Actual'];
+        $shouldShowTax = in_array($tourStatus, $statusesWithTax);
+
+        $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
+        $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
+        $gstAmount = $invoice->gst_amount ?? 0;
+        $finalPrice = $baseAmount + $gstAmount;
+        $outstandingBalance = $invoice->outstanding_balance ?? 0;
+
+        $amountInSgd = $shouldShowTax ? (float) $outstandingBalance : (float) $finalPrice;
+        $conversion = ['SGD' => $amountInSgd];
+
+        if ($selectedCurrency !== 'SGD') {
+            $converted = CurrencyHelper::convertAmount($amountInSgd, 'SGD', $selectedCurrency);
+            if ($converted !== null) {
+                $conversion[$selectedCurrency] = $converted;
+            }
+        }
+
+        return $conversion;
+    }
+
+    /**
+     * Get exchange rate from SGD to selected currency (for dual-currency display).
+     * Returns 1.0 when selectedCurrency is SGD.
+     */
+    protected function getExchangeRate(string $selectedCurrency, array $currencyConversion): float
+    {
+        if ($selectedCurrency === 'SGD') {
+            return 1.0;
+        }
+        $sgdAmount = $currencyConversion['SGD'] ?? 0;
+        $convertedAmount = $currencyConversion[$selectedCurrency] ?? null;
+        if ($sgdAmount > 0 && $convertedAmount !== null && $convertedAmount > 0) {
+            return (float) $convertedAmount / (float) $sgdAmount;
+        }
+        $rate = CurrencyHelper::getExchangeRate('SGD', $selectedCurrency);
+        return ($rate !== null && $rate > 0) ? (float) $rate : 1.0;
     }
 
     /**
@@ -85,7 +163,7 @@ class InvoiceController extends Controller
     /**
      * Show invoice details
      */
-    public function show($invoiceId)
+    public function show(Request $request, $invoiceId)
     {
         // Try to decrypt if encrypted, otherwise use as-is
         try {
@@ -102,7 +180,15 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
-        return view('invoices.show', compact('invoice'));
+        $selectedCurrency = $this->getSelectedCurrency($request);
+        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+
+        return view('invoices.show', [
+            'invoice' => $invoice,
+            'selectedCurrency' => $selectedCurrency,
+            'availableCurrencies' => $this->availableCurrencies,
+            'currencyConversion' => $currencyConversion,
+        ]);
     }
 
     /**
@@ -185,7 +271,7 @@ class InvoiceController extends Controller
     /**
      * Download Invoice as PDF (with services)
      */
-    public function download($invoiceId)
+    public function download(Request $request, $invoiceId)
     {
         // Try to decrypt if encrypted, otherwise use as-is
         try {
@@ -202,12 +288,20 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
+        $selectedCurrency = $this->getSelectedCurrency($request);
+        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+        $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+
         $viewName = $invoice->invoice_type === 'proforma' 
             ? 'invoices.pdf.proforma' 
             : 'invoices.pdf.final';
 
-        $pdf = Pdf::loadView($viewName, compact('invoice'))
-            ->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView($viewName, [
+            'invoice' => $invoice,
+            'selectedCurrency' => $selectedCurrency,
+            'currencyConversion' => $currencyConversion,
+            'exchangeRate' => $exchangeRate,
+        ])->setPaper('a4', 'portrait');
 
         $filename = $invoice->invoice_type === 'proforma'
             ? 'Proforma_Invoice_' . $invoice->proforma_number . '.pdf'
@@ -219,7 +313,7 @@ class InvoiceController extends Controller
     /**
      * Download Invoice as PDF (price only, no services)
      */
-    public function downloadPriceOnly($invoiceId)
+    public function downloadPriceOnly(Request $request, $invoiceId)
     {
         // Try to decrypt if encrypted, otherwise use as-is
         try {
@@ -236,12 +330,20 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
+        $selectedCurrency = $this->getSelectedCurrency($request);
+        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+        $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+
         $viewName = $invoice->invoice_type === 'proforma' 
             ? 'invoices.pdf.proforma-price-only' 
             : 'invoices.pdf.final-price-only';
 
-        $pdf = Pdf::loadView($viewName, compact('invoice'))
-            ->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView($viewName, [
+            'invoice' => $invoice,
+            'selectedCurrency' => $selectedCurrency,
+            'currencyConversion' => $currencyConversion,
+            'exchangeRate' => $exchangeRate,
+        ])->setPaper('a4', 'portrait');
 
         $filename = $invoice->invoice_type === 'proforma'
             ? 'Proforma_Invoice_Price_Only_' . $invoice->proforma_number . '.pdf'
@@ -251,9 +353,94 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Invoice preview page (like itinerary-preview): currency selector + embedded PDF + download.
+     * Mode: full = with services, price-only = price breakup only.
+     */
+    public function preview(Request $request, $invoiceId)
+    {
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+
+        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        $this->invoiceService->recalculateInvoiceTotals($invoice);
+        $invoice->refresh();
+
+        $mode = $request->query('mode', 'full');
+        if (!in_array($mode, ['full', 'price-only'], true)) {
+            $mode = 'full';
+        }
+        $selectedCurrency = $this->getSelectedCurrency($request);
+        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+
+        return view('invoices.invoice-preview', [
+            'invoice' => $invoice,
+            'selectedCurrency' => $selectedCurrency,
+            'availableCurrencies' => $this->availableCurrencies,
+            'currencyConversion' => $currencyConversion,
+            'mode' => $mode,
+        ]);
+    }
+
+    /**
+     * Stream or download invoice PDF (used by preview iframe and preview download button).
+     * Query: mode (full|price-only), currency, preview (1=stream, 0=download)
+     */
+    public function invoicePdf(Request $request, $invoiceId)
+    {
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+
+        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        $this->invoiceService->recalculateInvoiceTotals($invoice);
+        $invoice->refresh();
+
+        $mode = $request->query('mode', 'full');
+        if (!in_array($mode, ['full', 'price-only'], true)) {
+            $mode = 'full';
+        }
+        $selectedCurrency = $this->getSelectedCurrency($request);
+        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+        $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+        $preview = $request->boolean('preview', false);
+
+        $viewName = $mode === 'price-only'
+            ? ($invoice->invoice_type === 'proforma' ? 'invoices.pdf.proforma-price-only' : 'invoices.pdf.final-price-only')
+            : ($invoice->invoice_type === 'proforma' ? 'invoices.pdf.proforma' : 'invoices.pdf.final');
+
+        $pdf = Pdf::loadView($viewName, [
+            'invoice' => $invoice,
+            'selectedCurrency' => $selectedCurrency,
+            'currencyConversion' => $currencyConversion,
+            'exchangeRate' => $exchangeRate,
+        ])->setPaper('a4', 'portrait');
+
+        if ($preview) {
+            return $pdf->stream();
+        }
+
+        $filename = $mode === 'price-only'
+            ? ($invoice->invoice_type === 'proforma' ? 'Proforma_Invoice_Price_Only_' . $invoice->proforma_number . '.pdf' : 'Invoice_Price_Only_' . $invoice->invoice_number . '.pdf')
+            : ($invoice->invoice_type === 'proforma' ? 'Proforma_Invoice_' . $invoice->proforma_number . '.pdf' : 'Invoice_' . $invoice->invoice_number . '.pdf');
+
+        return $pdf->download($filename);
+    }
+
+    /**
      * View Invoice as PDF in browser
      */
-    public function view($invoiceId)
+    public function view(Request $request, $invoiceId)
     {
         // Try to decrypt if encrypted, otherwise use as-is
         try {
@@ -266,12 +453,20 @@ class InvoiceController extends Controller
             ->where('invoice_id', $decryptedId)
             ->firstOrFail();
 
+        $selectedCurrency = $this->getSelectedCurrency($request);
+        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+        $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+
         $viewName = $invoice->invoice_type === 'proforma' 
             ? 'invoices.pdf.proforma' 
             : 'invoices.pdf.final';
 
-        $pdf = Pdf::loadView($viewName, compact('invoice'))
-            ->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView($viewName, [
+            'invoice' => $invoice,
+            'selectedCurrency' => $selectedCurrency,
+            'currencyConversion' => $currencyConversion,
+            'exchangeRate' => $exchangeRate,
+        ])->setPaper('a4', 'portrait');
 
         return $pdf->stream();
     }
