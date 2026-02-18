@@ -208,7 +208,7 @@
                             <!-- Seating Capacity -->
                             <div class="col-md-3 mb-3">
                                 <label for="seating_capacity" class="form-label"><strong>Seating
-                                        Capacity(Arr/Dept)</strong><span class="text-danger">*</span></label>
+                                        Capacity</strong><span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="seating_capacity" id="seating_capacity"
                                     placeholder="Enter Seating Capacity" value="{{ old('seating_capacity') }}" oninput="validateSeatingCapacity(this)">
                                 <small class="validation-message text-danger" id="seating_capacity-validation-message"></small>
@@ -216,17 +216,27 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <!-- Seating Capacity(city tour) -->
+                            <!-- Seating Capacity(Arr/Dept) -->
                             <div class="col-md-3 mb-3">
                                 <label for="seating_capacity" class="form-label"><strong>Seating
-                                        Capacity(City Tour)</strong><span class="text-danger">*</span></label>
+                                        Capacity(Arr/Dept)</strong><span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="city_tour_seating_capacity" id="city_tour_seating_capacity"
                                     placeholder="Enter Seating Capacity" value="{{ old('city_tour_seating_capacity') }}" oninput="validateSeatingCapacity(this)">
                                 <small class="validation-message text-danger" id="city_tour_seating_capacity-validation-message"></small>
                                 @error('city_tour_seating_capacity')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
-                            </div>  
+                            </div> 
+                            
+                            <!-- City Tour No of Guides -->
+                            <div class="col-md-3 mb-3">
+                                <label for="city_tour_guides" class="form-label"><strong>No of Guides</strong><span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="city_tour_guides" id="city_tour_guides"
+                                    placeholder="Enter No of Guides" value="{{ old('city_tour_guides') }}">
+                                @error('city_tour_guides')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_name" class="form-label"><strong><i class="ri-map-pin-line"></i> City Name</strong><span class="text-danger">*</span></label>
@@ -462,39 +472,6 @@
                                     margin-bottom: 1rem;
                                 }
                             </style>
-
-                            <!-- attraction_privae_transport_price -->
-                            <div class="col-md-3 mb-3 private-fields">
-                                <label for="attraction_private_transport_price" class="form-label"><strong>Attraction Private Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="attraction_private_transport_price"
-                                    placeholder="Enter Cost" value="{{ old('attraction_private_transport_price') }}" id="attraction_private_transport_price">
-                                @error('attraction_private_transport_price')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- attraction_shared_transport_price -->
-                            <div class="col-md-3 mb-3 sharable-field">
-                                <label for="attraction_shared_transport_price" class="form-label"><strong>Attraction Shared Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="attraction_shared_transport_price"
-                                    placeholder="Enter Cost" value="{{ old('attraction_shared_transport_price') }}" id="attraction_shared_transport_price">
-                            </div>
-
-                            <!-- restaurant_private_transport_price -->
-                            <div class="col-md-3 mb-3 private-fields">
-                                <label for="restaurant_private_transport_price" class="form-label"><strong>Restaurant Private Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="restaurant_private_transport_price"
-                                    placeholder="Enter Cost" value="{{ old('restaurant_private_transport_price') }}" id="restaurant_private_transport_price">
-                            </div>
-
-                            <!-- restaurant_shared_transport_price -->
-                            <div class="col-md-3 mb-3 sharable-field">
-                                <label for="restaurant_shared_transport_price" class="form-label"><strong>Restaurant Shared Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="restaurant_shared_transport_price"
-                                    placeholder="Enter Cost" value="{{ old('restaurant_shared_transport_price') }}" id="restaurant_shared_transport_price">
-                            </div>
-
-
 
                             <!-- Vehicle image -->
                             <div class="mb-3 col-md-4">

@@ -151,5 +151,8 @@ class QuotationController extends Controller
             return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
         }
     }
+
+
+    
 }
 
