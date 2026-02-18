@@ -360,10 +360,10 @@
                                 @enderror
                             </div>
 
-                            <!-- Seating Capacity (Arr/Dept)-->
+                            <!-- Seating Capacity-->
                             <div class="col-md-3 mb-3">
                                 <label for="seating_capacity" class="form-label"><strong>Seating
-                                        Capacity(Arr/Dept)</strong><span class="text-danger">*</span></label>
+                                        Capacity</strong><span class="text-danger">*</span></label>
                                 <input value="{{$vehicle->seating_capacity}}" type="text"
                                     class="form-control" name="seating_capacity" id="seating_capacity"
                                     placeholder="Enter Seating Capacity" required
@@ -374,17 +374,27 @@
                                 @enderror
                             </div>
 
-                            <!-- Seating Capacity(City Tour) -->
+                            <!-- Seating Capacity(Arr/Dept) -->
 
                             <div class="col-md-3 mb-3">
                                 <label for="city_tour_seating_capacity" class="form-label"><strong>Seating
-                                        Capacity(City Tour)</strong><span class="text-danger">*</span></label>
+                                        Capacity(Arr/Dept)</strong><span class="text-danger">*</span></label>
                                 <input value="{{$vehicle->city_tour_seating_capacity}}" type="text"
                                     class="form-control" name="city_tour_seating_capacity" id="city_tour_seating_capacity"
                                     placeholder="Enter Seating Capacity" required
                                     oninput="validateSeatingCapacity(this)">
                                 <small class="validation-message text-danger" id="city_tour_seating_capacity-validation-message"></small>
                                 @error('city_tour_seating_capacity')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <!-- City Tour No of Guides -->
+                            <div class="col-md-3 mb-3">
+                                <label for="city_tour_guides" class="form-label"><strong>No of Guides</strong><span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="city_tour_guides" id="city_tour_guides"
+                                    placeholder="Enter No of Guides" value="{{ $vehicle->city_tour_guides }}">
+                                @error('city_tour_guides')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -707,29 +717,6 @@
                                 }
                             </style>
                             
-                            <!-- Attraction Private Transport Price -->
-                            <div class="col-md-3 mb-3 private-fields">
-                                <label for="attraction_private_transport_price" class="form-label"><strong>Attraction Private Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="attraction_private_transport_price" value="{{ $vehicle->attraction_private_transport_price }}" placeholder="Enter Cost" required>
-                            </div>  
-
-                            <!-- Attraction Shared Transport Price -->
-                            <div class="col-md-3 mb-3 sharable-field">
-                                <label for="attraction_shared_transport_price" class="form-label"><strong>Attraction Shared Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="attraction_shared_transport_price" value="{{ $vehicle->attraction_shared_transport_price }}" placeholder="Enter Cost" required>
-                            </div>
-
-                            <!-- Restaurant Private Transport Price -->
-                            <div class="col-md-3 mb-3 private-fields">
-                                <label for="restaurant_private_transport_price" class="form-label"><strong>Restaurant Private Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="restaurant_private_transport_price" value="{{ $vehicle->restaurant_private_transport_price }}" placeholder="Enter Cost" required>
-                            </div>  
-
-                            <!-- Restaurant Shared Transport Price -->
-                            <div class="col-md-3 mb-3 sharable-field">
-                                <label for="restaurant_shared_transport_price" class="form-label"><strong>Restaurant Shared Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="restaurant_shared_transport_price" value="{{ $vehicle->restaurant_shared_transport_price }}" placeholder="Enter Cost" required>
-                            </div>
 
                             <div class="col-md-4">
                                 <div>

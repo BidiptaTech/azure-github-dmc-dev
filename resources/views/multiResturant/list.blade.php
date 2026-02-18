@@ -510,7 +510,7 @@
 
                     @forelse($multiRestaurants ?? [] as $key => $item)
                         @php 
-                            $encId = isset($item->id) ? Crypt::encrypt($item->id) : '';
+                            $encId = isset($item->package_unique_id) ? Crypt::encrypt($item->package_unique_id) : '';
                             $restaurantIds = $item->getRestaurantsAsArray();
                             $selectedIds = array_map('intval', $restaurantIds);
                             $selectedRestaurants = collect($restaurants ?? [])->filter(function($r) use ($restaurantIds) {
@@ -600,7 +600,7 @@
                                                     style="width: 32px; height: 32px; padding: 0;" title="View">
                                                     <i class="fas fa-eye"></i>
                                     </a>
-                                    @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 11)
+                                    @if(Auth::user()->role_id == 1 || in_array(Auth::user()->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138]))
                                                 @if(Auth::user()->role_id != 1)
                                                 <button type="button" class="btn btn-info btn-sm rounded-circle edit-btn"
                                                     style="width: 32px; height: 32px; padding: 0;" title="Edit"

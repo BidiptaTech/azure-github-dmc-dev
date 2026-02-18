@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
+use App\Helpers\CommonHelper;
 
 class multiRestaurantController extends Controller
 {
@@ -19,7 +20,7 @@ class multiRestaurantController extends Controller
     {
         $user = Auth::user();
 
-        if (! $user || ! in_array($user->role_id, [1, 11, 20])) {
+        if (! $user || ! in_array($user->role_id, [1, 11, 20, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -53,7 +54,9 @@ class multiRestaurantController extends Controller
                 ->sortBy('company_name');
         } else {
             // DMC or other allowed roles: restrict to their own dmc_id
-            $dmcId = (int) ($user->dmcId ?? 0);
+            
+            $dmcId = CommonHelper::getDmcId($user);
+            
             $multiRestaurantsQuery->where('dmc_id', $dmcId);
 
             // For a DMC user, enforce single package per dmc_id (used to hide create form)
@@ -99,11 +102,11 @@ class multiRestaurantController extends Controller
     {
         $user = Auth::user();
 
-        if (! $user || (int) $user->role_id !== 11) {
+        if (! $user || (int) $user->role_id !== 11 && (int) $user->role_id !== 35 && (int) $user->role_id !== 78 && (int) $user->role_id !== 120 && (int) $user->role_id !== 130 && (int) $user->role_id !== 132 && (int) $user->role_id !== 133 && (int) $user->role_id !== 135 && (int) $user->role_id !== 136 && (int) $user->role_id !== 137 && (int) $user->role_id !== 138) {
             abort(403, 'Unauthorized.');
         }
 
-        $dmc_id = $user->userId;
+        $dmc_id = CommonHelper::getDmcId($user);
 
         $restaurants = Restaurant::orderBy('created_at', 'desc')
             ->get()
@@ -123,7 +126,7 @@ class multiRestaurantController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        if (! $user || (int) $user->role_id !== 11) {
+        if (! $user || (int) $user->role_id !== 11 && (int) $user->role_id !== 35 && (int) $user->role_id !== 78 && (int) $user->role_id !== 120 && (int) $user->role_id !== 130 && (int) $user->role_id !== 132 && (int) $user->role_id !== 133 && (int) $user->role_id !== 135 && (int) $user->role_id !== 136 && (int) $user->role_id !== 137 && (int) $user->role_id !== 138) {
             abort(403, 'Unauthorized.');
         }
 
@@ -182,7 +185,7 @@ class multiRestaurantController extends Controller
         }
 
         // Enforce: for every dmc_id only one multi restaurant package can be created
-        $dmcId = (int) ($user->dmcId ?? 0);
+        $dmcId = CommonHelper::getDmcId($user);
         if (MultiRestaurant::where('dmc_id', $dmcId)->exists()) {
             return redirect()
                 ->route('multiResturant.index')
@@ -216,12 +219,12 @@ class multiRestaurantController extends Controller
      */
     public function show($id)
     {
-        if (! Auth::user() || ! in_array(Auth::user()->role_id, [1, 11, 20])) {
+        if (! Auth::user() || ! in_array(Auth::user()->role_id, [1, 11, 20, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
             abort(403, 'Unauthorized.');
         }
 
         $id = Crypt::decrypt($id);
-        $multiRestaurant = MultiRestaurant::findOrFail($id);
+        $multiRestaurant = MultiRestaurant::where ('package_unique_id', $id)->first();
 
         return view('multiResturant.show', compact('multiRestaurant'));
     }
@@ -232,14 +235,14 @@ class multiRestaurantController extends Controller
     public function edit($id)
     {
         $user = Auth::user();
-        if (! $user || ! in_array($user->role_id, [1, 11, 20])) {
+        if (! $user || ! in_array($user->role_id, [1, 11, 20, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
             abort(403, 'Unauthorized.');
         }
 
         $id = Crypt::decrypt($id);
         $multiRestaurant = MultiRestaurant::findOrFail($id);
 
-        $dmc_id = $user->userId ?? null;
+        $dmc_id = CommonHelper::getDmcId($user);
         if ((int) $user->role_id === 11 && $dmc_id) {
             $restaurants = Restaurant::orderBy('created_at', 'desc')
                 ->get()
@@ -264,12 +267,12 @@ class multiRestaurantController extends Controller
     public function update(Request $request, $id)
     {
         $user = Auth::user();
-        if (! $user || ! in_array($user->role_id, [1, 11, 20])) {
+        if (! $user || ! in_array($user->role_id, [1, 11, 20, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
             abort(403, 'Unauthorized.');
         }
 
         $id = Crypt::decrypt($id);
-        $multiRestaurant = MultiRestaurant::findOrFail($id);
+        $multiRestaurant = MultiRestaurant::where ('package_unique_id', $id)->first();
 
         $validated = $request->validate([
             'package_name' => 'required|string|max:255',
@@ -348,12 +351,12 @@ class multiRestaurantController extends Controller
     public function destroy($id)
     {
         $user = Auth::user();
-        if (! $user || ! in_array($user->role_id, [1, 11, 20])) {
+        if (! $user || ! in_array($user->role_id, [1, 11, 20, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
             abort(403, 'Unauthorized.');
         }
 
         $id = Crypt::decrypt($id);
-        $multiRestaurant = MultiRestaurant::findOrFail($id);
+        $multiRestaurant = MultiRestaurant::where ('package_unique_id', $id)->first();
         $multiRestaurant->delete(); // Soft delete (sets deleted_at)
 
         return redirect()->route('multiResturant.index')->with('success', 'Multi restaurant package deleted.');
