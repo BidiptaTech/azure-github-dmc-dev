@@ -11659,7 +11659,7 @@
             const timeInput = document.getElementById('modal_transport_pickup_time_input');
             const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
             if (timeInput && ampmSelect) {
-                // timeInput.value = '09:00';
+                timeInput.value = '09:00';
                 ampmSelect.value = 'AM';
                 syncTransportModalPickupTime();
             }
@@ -11979,7 +11979,7 @@
             const timeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
             const ampmSelect = document.getElementById('modal_dropoff_transport_pickup_time_ampm');
             if (timeInput && ampmSelect) {
-                // timeInput.value = '09:00';
+                timeInput.value = '09:00';
                 ampmSelect.value = 'AM';
                 syncDropoffTransportModalPickupTime();
             }
@@ -17320,7 +17320,7 @@
         const modalPickupInputEl = document.getElementById('modal_guide_pickup_time_input');
         const modalPickupAmpmEl = document.getElementById('modal_guide_pickup_time_ampm');
         if (modalPickupInputEl && modalPickupAmpmEl && modalPickupHidden) {
-            // modalPickupInputEl.value = '09:00';
+            modalPickupInputEl.value = '09:00';
             modalPickupAmpmEl.value = 'AM';
             syncGuideModalPickupTime();
         }
