@@ -228,6 +228,7 @@ class VehicleController extends Controller
             'seating_capacity' => 'required|integer|min:1',
             'vehicle_status' => 'nullable|integer',
             'city_tour_seating_capacity' => 'required|integer|min:1',
+            'city_tour_guides' => 'required|integer|min:1',
             // Add validation for sharable prices when sharable is checked
         ]);
         $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
@@ -369,6 +370,8 @@ class VehicleController extends Controller
         $vehicle->description = $request->input('description');
         $vehicle->sharable = $request->input('sharable') ?? 0;
         $vehicle->seating_capacity = $request->input('seating_capacity');
+        $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity');
+        $vehicle->city_tour_guides = $request->input('city_tour_guides');
         $vehicle->vehicle_id = $vehicleId;
         $vehicle->image = $masterImage;
         $vehicle->is_available = $request->vehicle_status == 1 ? 1 : 0;
@@ -516,6 +519,8 @@ class VehicleController extends Controller
                 'model_year' => 'required|integer',
                 'description' => 'nullable|string',
                 'seating_capacity' => 'required|integer',
+                'city_tour_seating_capacity' => 'required|integer',
+                'city_tour_guides' => 'required|integer',
                 'vehicle_status' => 'nullable|integer',
                 'vehicle_plate_no' => $vehiclePlateRules,
                 // Regular Day Pricing
@@ -581,7 +586,7 @@ class VehicleController extends Controller
         $vehicle->driver_id = $request->driver_id;
         $vehicle->city = $request->city_name;
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
-
+        $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
         // Regular Day Pricing
         $vehicle->base_price = $request->input('base_price')?? 0;
         $vehicle->cost_per_km_below_10 = $request->input('cost_per_km_below_10')?? 0;
@@ -597,7 +602,6 @@ class VehicleController extends Controller
         $vehicle->night_cost_per_km_above_25 = $request->input('night_cost_per_km_above_25')?? 0;
         $vehicle->night_cost_per_hour = $request->input('night_cost_per_hour')?? 0;
         $vehicle->night_cancel_cost = $request->input('night_cancel_cost')?? 0;
-
 
             $vehicle->sharable_base_price = $request->input('sharable_base_price') ?? 0;
             $vehicle->sharable_cost_per_km_below_10 = $request->input('sharable_cost_per_km_below_10')?? 0;
@@ -618,6 +622,8 @@ class VehicleController extends Controller
             $vehicle->attraction_shared_transport_price = $request->input('attraction_shared_transport_price')?? 0;
             $vehicle->restaurant_private_transport_price = $request->input('restaurant_private_transport_price')?? 0;
             $vehicle->restaurant_shared_transport_price = $request->input('restaurant_shared_transport_price')?? 0;
+
+            
 
         if ($vehicle->save()) {
             LogActivityService::log('edit_vehicle', 'App\Models\Vehicle', $vehicle->vehicle_id, $vehicle);
