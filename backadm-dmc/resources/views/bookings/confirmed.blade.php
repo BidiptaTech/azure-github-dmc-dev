@@ -1007,29 +1007,29 @@
                                     
                                     @if($tour->tour_status == 'Confirmed')
                                         @if($finalInvoice)
-                                            <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}" 
                                                class="btn btn-outline-info btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Final Invoice (Price Breakup)">
+                                               title="Preview & Download Final Invoice (Price Breakup)">
                                                 <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
                                             </a>
-                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}" 
                                                class="btn btn-outline-primary btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Final Invoice (Package Price Only)">
+                                               title="Preview & Download Final Invoice (Package Price Only)">
                                                 <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
                                             </a>
                                         @elseif($proformaInvoice)
-                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}" 
                                                class="btn btn-outline-info btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Proforma Invoice (Price Breakup)">
+                                               title="Preview & Download Proforma Invoice (Price Breakup)">
                                                 <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
                                             </a>
-                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}" 
                                                class="btn btn-outline-primary btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Proforma Invoice (Package Price Only)">
+                                               title="Preview & Download Proforma Invoice (Package Price Only)">
                                                 <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
                                             </a>
                                         @else
@@ -1044,29 +1044,29 @@
                                         @endif
                                     @else
                                         @if($finalInvoice)
-                                            <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}" 
                                                class="btn btn-outline-info btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Final Invoice (Price Breakup)">
+                                               title="Preview & Download Final Invoice (Price Breakup)">
                                                 <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
                                             </a>
-                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}" 
                                                class="btn btn-outline-primary btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Final Invoice (Package Price Only)">
+                                               title="Preview & Download Final Invoice (Package Price Only)">
                                                 <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
                                             </a>
                                         @elseif($proformaInvoice)
-                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}" 
                                                class="btn btn-outline-info btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Proforma Invoice (Price Breakup)">
+                                               title="Preview & Download Proforma Invoice (Price Breakup)">
                                                 <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
                                             </a>
-                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}" 
                                                class="btn btn-outline-primary btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Proforma Invoice (Package Price Only)">
+                                               title="Preview & Download Proforma Invoice (Package Price Only)">
                                                 <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
                                             </a>
                                         @endif

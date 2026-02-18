@@ -210,19 +210,14 @@ use Illuminate\Support\Facades\Crypt;
                         </h4>
                         <small class="text-muted">Booking ID: {{ $invoice->tour->display_id ?? $invoice->tour_id }}</small>
                     </div>
-                    <div class="d-flex flex-wrap gap-2">
-                        <a href="{{ route('invoices.view', Crypt::encrypt($invoice->invoice_id)) }}" 
-                           class="btn btn-outline-primary btn-sm"
-                           target="_blank">
-                            <i class="ri-eye-line me-1"></i> View PDF
-                        </a>
-                        <a href="{{ route('invoices.download', Crypt::encrypt($invoice->invoice_id)) }}" 
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'full']) }}" 
                            class="btn btn-primary btn-sm">
-                            <i class="ri-download-line me-1"></i> Download PDF with Services
+                            <i class="ri-file-text-line me-1"></i> Preview & Download (with Services)
                         </a>
-                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($invoice->invoice_id)) }}" 
+                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'price-only']) }}" 
                            class="btn btn-info btn-sm">
-                            <i class="ri-file-download-line me-1"></i> Download PDF only Price
+                            <i class="ri-file-download-line me-1"></i> Preview & Download (Price Breakup)
                         </a>
                         <!-- @if($invoice->isEditable())
                         <a href="{{ route('invoices.edit', Crypt::encrypt($invoice->invoice_id)) }}" 
@@ -489,25 +484,28 @@ use Illuminate\Support\Facades\Crypt;
                         <table class="table invoice-table">
                             <thead>
                                 <tr>
-                                    <th>Hotel Name</th>
-                                    <th>Room Category</th>
-                                    <th>Check in</th>
-                                    <th>Check out</th>
-                                    <th>No. of Nights</th>
-                                    <th>Total Pax</th>
-                                    <th class="text-end">Unit Price</th>
-                                    <th class="text-end">Total Price</th>
+                                    <th>Description / Add-On</th>
+                                    <th>Check-in</th>
+                                    <th>Check-out</th>
+                                    <th>Nights</th>
+                                    <th>Pax / Qty</th>
+                                    <th class="text-end">Unit Price / Rate (Per Night)</th>
+                                    <th class="text-end">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($hotelItems as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
+                                    $hotelName = $serviceDetails['hotel_name'] ?? ($item->description ?? 'N/A');
+                                    $roomCategory = $serviceDetails['room_category'] ?? '';
+                                    $noOfDays = $serviceDetails['no_of_days'] ?? 0;
+                                    $totalPax = $serviceDetails['total_pax'] ?? 0;
+                                    $description = $hotelName . ($roomCategory ? ' - ' . $roomCategory : '') . ($totalPax ? ' (' . $totalPax . ' Pax)' : '');
                                     $checkInDate = $serviceDetails['check_in_date'] ?? '';
                                     $checkInTime = $serviceDetails['check_in_time'] ?? '';
                                     $checkOutDate = $serviceDetails['check_out_date'] ?? '';
                                     $checkOutTime = $serviceDetails['check_out_time'] ?? '';
-                                    
                                     $checkInDisplay = 'N/A';
                                     if ($checkInDate) {
                                         try {
@@ -523,11 +521,8 @@ use Illuminate\Support\Facades\Crypt;
                                             } else {
                                                 $checkInDisplay = $checkInCarbon->format('jS M Y');
                                             }
-                                        } catch (\Exception $e) {
-                                            $checkInDisplay = 'N/A';
-                                        }
+                                        } catch (\Exception $e) { $checkInDisplay = $checkInDate; }
                                     }
-                                    
                                     $checkOutDisplay = 'N/A';
                                     if ($checkOutDate) {
                                         try {
@@ -543,21 +538,42 @@ use Illuminate\Support\Facades\Crypt;
                                             } else {
                                                 $checkOutDisplay = $checkOutCarbon->format('jS M Y');
                                             }
-                                        } catch (\Exception $e) {
-                                            $checkOutDisplay = 'N/A';
-                                        }
+                                        } catch (\Exception $e) { $checkOutDisplay = $checkOutDate; }
                                     }
                                 @endphp
                                 <tr>
-                                    <td><strong>{{ $serviceDetails['hotel_name'] ?? ($item->description ?? 'N/A') }}</strong></td>
-                                    <td>{{ $serviceDetails['room_category'] ?? 'N/A' }}</td>
+                                    <td><strong>{{ $description }}</strong></td>
                                     <td>{{ $checkInDisplay }}</td>
                                     <td>{{ $checkOutDisplay }}</td>
-                                    <td>{{ $serviceDetails['no_of_days'] ?? '' }}</td>
-                                    <td>{{ $serviceDetails['total_pax'] ?? 0 }}</td>
+                                    <td>{{ $noOfDays }}</td>
+                                    <td>{{ $totalPax }}</td>
                                     <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
                                     <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->total_price ?? 0, 2) }}</td>
                                 </tr>
+                                @php
+                                    $childWithBed = $serviceDetails['child_with_bed'] ?? null;
+                                    $childWithoutBed = $serviceDetails['child_without_bed'] ?? null;
+                                @endphp
+                                @if($childWithBed)
+                                <tr style="background-color: #f8f9fa;">
+                                    <td style="padding-left: 24px;"><em>Child with Bed</em></td>
+                                    <td colspan="2"></td>
+                                    <td>{{ $noOfDays }}</td>
+                                    <td>{{ $childWithBed['children'] ?? 0 }}</td>
+                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($childWithBed['price'] ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($childWithBed['total_cost'] ?? 0, 2) }}</td>
+                                </tr>
+                                @endif
+                                @if($childWithoutBed)
+                                <tr style="background-color: #f8f9fa;">
+                                    <td style="padding-left: 24px;"><em>Child without Bed</em></td>
+                                    <td colspan="2"></td>
+                                    <td>{{ $noOfDays }}</td>
+                                    <td>{{ $childWithoutBed['children'] ?? 0 }}</td>
+                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($childWithoutBed['price'] ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($childWithoutBed['total_cost'] ?? 0, 2) }}</td>
+                                </tr>
+                                @endif
                                 @endforeach
                             </tbody>
                         </table>
@@ -646,6 +662,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <th>Type</th>
                                     <th>Way</th>
                                     <th>Vehicle Details</th>
+                                    <th>Guide</th>
+                                    <th>Guide Name</th>
                                     <th>Adults</th>
                                     <th>Children</th>
                                     <th>Infants</th>
@@ -670,6 +688,17 @@ use Illuminate\Support\Facades\Crypt;
                                     $transferType = $serviceDetails['transfer_type'] ?? '';
                                     $transferWay = $serviceDetails['transfer_way'] ?? '';
                                     $vehicleDetails = $serviceDetails['vehicle_details'] ?? '';
+                                    $guideRequiredDisplay = (isset($serviceDetails['guide_required']) && $serviceDetails['guide_required']) ? 'Yes' : 'No';
+                                    $guideName = $serviceDetails['guide_name'] ?? '';
+                                    $guideHours = $serviceDetails['guide_hours'] ?? '';
+                                    $guideNameDisplay = $guideName;
+                                    if ($guideHours && $guideName) {
+                                        $guideNameDisplay = $guideName . ' (' . $guideHours . ' hrs)';
+                                    } elseif ($guideName) {
+                                        $guideNameDisplay = $guideName;
+                                    } else {
+                                        $guideNameDisplay = '';
+                                    }
                                 @endphp
                                 <tr>
                                     <td><strong>{{ $serviceDetails['attraction_name'] ?? ($item->description ?? 'N/A') }}</strong></td>
@@ -679,6 +708,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $transferType ?: 'N/A' }}</td>
                                     <td>{{ $transferWay ?: 'N/A' }}</td>
                                     <td>{{ $vehicleDetails ?: 'N/A' }}</td>
+                                    <td>{{ $guideRequiredDisplay }}</td>
+                                    <td>{{ $guideNameDisplay ?: 'N/A' }}</td>
                                     <td>{{ $item->quantity_adults ?? 0 }}</td>
                                     <td>{{ $item->quantity_children ?? 0 }}</td>
                                     <td>{{ $item->quantity_infants ?? 0 }}</td>
@@ -1179,41 +1210,21 @@ use Illuminate\Support\Facades\Crypt;
                     </div>
                 </div>
 
-                <!-- Currency Conversion -->
-                @if($invoice->currency_conversion)
+                <!-- Currency Conversion (shown only when a non-SGD currency is selected) -->
+                @if(($selectedCurrency ?? 'SGD') !== 'SGD' && !empty($currencyConversion ?? []))
                 <div class="row mt-4">
                     <div class="col-12">
-                        <div class="info-section" style="border-left-color: #6f42c1;">
-                            <h5 style="color: #6f42c1;"><i class="ri-exchange-dollar-line me-2"></i>Currency Conversion</h5>
+                        <div class="info-section" style="border-left-color: #4CAF50;">
+                            <h5 style="color: #4CAF50;"><i class="ri-exchange-dollar-line me-2"></i>Currency Conversion</h5>
                             <div class="row">
-                                @php
-                                    $currencyConversion = $invoice->currency_conversion ?? [];
-                                    $outstandingBalanceForCurrency = $invoice->outstanding_balance ?? 0;
-                                @endphp
-                                @if(isset($currencyConversion['USD']))
+                                @foreach($currencyConversion as $curr => $amount)
                                 <div class="col-md-4 mb-3">
                                     <div class="currency-card">
-                                        <div class="currency-label">USD</div>
-                                        <div class="currency-amount">{{ number_format(round($currencyConversion['USD'] ?? 0)) }}</div>
+                                        <div class="currency-label">{{ $curr }}</div>
+                                        <div class="currency-amount">{{ number_format(round($amount)) }}</div>
                                     </div>
                                 </div>
-                                @endif
-                                @if(isset($currencyConversion['SGD']))
-                                <div class="col-md-4 mb-3">
-                                    <div class="currency-card">
-                                        <div class="currency-label">SGD</div>
-                                        <div class="currency-amount">{{ number_format(round($currencyConversion['SGD'] ?? $outstandingBalanceForCurrency)) }}</div>
-                                    </div>
-                                </div>
-                                @endif
-                                @if(isset($currencyConversion['INR']))
-                                <div class="col-md-4 mb-3">
-                                    <div class="currency-card">
-                                        <div class="currency-label">INR</div>
-                                        <div class="currency-amount">{{ number_format(round($currencyConversion['INR'] ?? 0)) }}</div>
-                                    </div>
-                                </div>
-                                @endif
+                                @endforeach
                             </div>
                         </div>
                     </div>
