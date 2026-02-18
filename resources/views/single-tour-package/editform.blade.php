@@ -2464,7 +2464,7 @@
                                                         type="text"
                                                         class="form-control text-center border-0"
                                                         id="arrival_pickup_time_input_{{ $order->booking_id }}"
-                                                        placeholder="10:30"
+                                                        placeholder="00:00"
                                                         maxlength="5"
                                                         value="{{ $time12 }}"
                                                         style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
@@ -3362,7 +3362,7 @@
                                                             type="text"
                                                             class="form-control text-center"
                                                             id="guide_pickup_time_input_{{ $order->booking_id }}"
-                                                            placeholder="10:30"
+                                                            placeholder="00:00"
                                                             maxlength="5"
                                                             value="{{ $guideTime ? \Carbon\Carbon::parse($guideTime)->format('h:i') : '' }}"
                                                             style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
@@ -4477,7 +4477,7 @@
                                                                     type="text"
                                                                     class="form-control text-center"
                                                                     id="departure_pickup_time_input_{{ $order->booking_id }}"
-                                                                    placeholder="10:30"
+                                                                    placeholder="00:00"
                                                                     maxlength="5"
                                                                     value="{{ $departureTimeOnly }}"
                                                                     style="border: none; box-shadow: none; width: 70px; height: 35px; padding: 0 4px; font-size: 0.735rem; letter-spacing: 0.02em;"
@@ -4612,7 +4612,18 @@
                                                             </div>
                                                             <div class="col-md-2">
                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
-                                                                <input type="text" class="form-control form-control-sm" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}" style="font-size: 0.85rem;">
+                                                                @php
+                                                                    $tourCountryForCode = $countries->firstWhere('name', $tour->destination ?? '');
+                                                                    $defaultCountryCode = $customer_info['countryCode'] ?? ($tourCountryForCode->country_code ?? '');
+                                                                @endphp
+                                                                <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
+                                                                    <option value="">Select</option>
+                                                                    @foreach($countries as $country)
+                                                                        @if(!empty($country->country_code))
+                                                                            <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
+                                                                        @endif
+                                                                    @endforeach
+                                                                </select>
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
@@ -4994,7 +5005,7 @@
                                     type="text"
                                     class="form-control text-center"
                                     id="modal_guide_pickup_time_input"
-                                    placeholder="10:30"
+                                    placeholder="00:00"
                                     maxlength="5"
                                     style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
                                     oninput="formatTimeInput(this); syncGuideModalPickupTime()"
@@ -6277,7 +6288,7 @@
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold d-block mb-2" style="color: #495057; font-size: 0.75rem;"><i class="ri-time-line me-1" style="color: #fa709a;"></i>Pickup Time</label>
                                             <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; overflow: hidden; height: 36px;">
-                                                <input type="text" class="form-control text-center border-0" id="modal_attraction_guide_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime()" onchange="syncAttractionGuidePickupTime()">
+                                                <input type="text" class="form-control text-center border-0" id="modal_attraction_guide_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime()" onchange="syncAttractionGuidePickupTime()">
                                                 <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                                 <select class="form-select border-0" id="modal_attraction_guide_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 8px;" onchange="syncAttractionGuidePickupTime()">
                                                     <option value="AM">AM</option>
@@ -6391,7 +6402,7 @@
                                         <div class="col-md-3">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;"><i class="ri-time-line me-1" style="color: #fa709a;"></i>Pickup Time</label>
                                             <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; overflow: hidden; height: 36px;">
-                                                <input type="text" class="form-control text-center border-0" id="modal_attraction_transport_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem;" oninput="formatTimeInput(this); syncAttractionTransportPickupTime()" onchange="syncAttractionTransportPickupTime()">
+                                                <input type="text" class="form-control text-center border-0" id="modal_attraction_transport_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem;" oninput="formatTimeInput(this); syncAttractionTransportPickupTime()" onchange="syncAttractionTransportPickupTime()">
                                                 <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                                 <select class="form-select border-0" id="modal_attraction_transport_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 8px;" onchange="syncAttractionTransportPickupTime()">
                                                     <option value="AM">AM</option>
@@ -6773,7 +6784,7 @@
                                         type="text"
                                         class="form-control text-center"
                                         id="modal_transport_pickup_time_input"
-                                        placeholder="10:30"
+                                        placeholder="00:00"
                                         maxlength="5"
                                         style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
                                         oninput="formatTimeInput(this); syncTransportModalPickupTime()"
@@ -7077,7 +7088,7 @@
                                             <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
                                         </label>
                                         <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px;">
-                                            <input type="text" class="form-control text-center" id="local_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferPickupTime()" onchange="syncLocalTransferPickupTime()">
+                                            <input type="text" class="form-control text-center" id="local_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferPickupTime()" onchange="syncLocalTransferPickupTime()">
                                             <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                             <select class="form-select border-0" id="local_transfer_pickup_time_ampm" data-no-select2="true" style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;" onchange="syncLocalTransferPickupTime()">
                                                 <option value="AM">AM</option>
@@ -7132,7 +7143,7 @@
                                             <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
                                         </label>
                                         <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px;">
-                                            <input type="text" class="form-control text-center" id="local_transfer_point_pickup_time_input" placeholder="10:30" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferPointPickupTime()" onchange="syncLocalTransferPointPickupTime()">
+                                            <input type="text" class="form-control text-center" id="local_transfer_point_pickup_time_input" placeholder="00:00" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferPointPickupTime()" onchange="syncLocalTransferPointPickupTime()">
                                             <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                             <select class="form-select border-0" id="local_transfer_point_pickup_time_ampm" data-no-select2="true" style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;" onchange="syncLocalTransferPointPickupTime()">
                                                 <option value="AM">AM</option>
@@ -7178,7 +7189,7 @@
                                             <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
                                         </label>
                                         <div class="d-inline-flex align-items-center w-100" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 36px; max-width: 140px;">
-                                            <input type="text" class="form-control text-center" id="local_transfer_hourly_pickup_time_input" placeholder="10:30" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferHourlyPickupTime()" onchange="syncLocalTransferHourlyPickupTime()">
+                                            <input type="text" class="form-control text-center" id="local_transfer_hourly_pickup_time_input" placeholder="00:00" maxlength="5" style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncLocalTransferHourlyPickupTime()" onchange="syncLocalTransferHourlyPickupTime()">
                                             <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                             <select class="form-select border-0" id="local_transfer_hourly_pickup_time_ampm" data-no-select2="true" style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;" onchange="syncLocalTransferHourlyPickupTime()">
                                                 <option value="AM">AM</option>
@@ -7461,7 +7472,7 @@
                                                     type="text"
                                                     class="form-control text-center"
                                                     id="modal_dropoff_transport_pickup_time_input"
-                                                    placeholder="10:30"
+                                                    placeholder="00:00"
                                                     maxlength="5"
                                                     style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
                                                     oninput="formatTimeInput(this); syncDropoffTransportModalPickupTime();"

@@ -965,7 +965,19 @@
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
-                                        <input type="number" class="form-control form-control-sm" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" style="font-size: 0.85rem;">
+                                        @php
+                                            $country_cod = App\Models\Country::where('is_active', 1)->get();
+                                            $singapore = $country_cod->firstWhere('name', 'Singapore');
+                                            $defaultCountryCode = $singapore ? $singapore->country_code : ($country_cod->first()->country_code ?? '');
+                                        @endphp
+                                            <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
+                                                <option value="">Select</option>
+                                                @foreach($country_cod as $country)
+                                                @if(!empty($country->country_code))
+                                                    <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
+                                                @endif
+                                            @endforeach
+                                        </select>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
@@ -13652,7 +13664,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                          type="text"
                                                          class="form-control text-center border-0"
                                                          id="day${day}_entry_pickup_time_input"
-                                                         placeholder="10:30"
+                                                         placeholder="00:00"
                                                          maxlength="5"
                                                          style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                          oninput="formatTimeInput(this); syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
@@ -13927,7 +13939,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                          type="text"
                                                          class="form-control text-center"
                                                          id="day${day}_exit_time_input"
-                                                         placeholder="10:30"
+                                                         placeholder="00:00"
                                                          maxlength="5"
                                                          style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                          oninput="formatTimeInput(this); syncExitTime(${day}); enableSearchButton(${day}, 'exit')"
@@ -14391,7 +14403,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <i class="ri-time-line me-1"></i>Pickup Time
                                                  </label>
                                                  <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
-                                                     <input type="text" class="form-control text-center border-0" id="day${day}_attraction_1_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionTransferPickupTime(${day}, 1)" onchange="syncAttractionTransferPickupTime(${day}, 1)">
+                                                     <input type="text" class="form-control text-center border-0" id="day${day}_attraction_1_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionTransferPickupTime(${day}, 1)" onchange="syncAttractionTransferPickupTime(${day}, 1)">
                                                      <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                                      <select class="form-select border-0" id="day${day}_attraction_1_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionTransferPickupTime(${day}, 1)">
                                                          <option value="AM">AM</option>
@@ -14440,7 +14452,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <i class="ri-time-line me-1"></i>Pickup Time
                                                  </label>
                                                  <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
-                                                     <input type="text" class="form-control text-center border-0" id="day${day}_attraction_1_guide_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime(${day}, 1)" onchange="syncAttractionGuidePickupTime(${day}, 1)">
+                                                     <input type="text" class="form-control text-center border-0" id="day${day}_attraction_1_guide_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime(${day}, 1)" onchange="syncAttractionGuidePickupTime(${day}, 1)">
                                                      <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                                      <select class="form-select border-0" id="day${day}_attraction_1_guide_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionGuidePickupTime(${day}, 1)">
                                                          <option value="AM">AM</option>
@@ -14665,7 +14677,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     type="text"
                                                     class="form-control text-center guide-pickup-time-input"
                                                     id="day${day}_guide_1_pickup_time_input"
-                                                    placeholder="10:30"
+                                                    placeholder="00:00"
                                                     maxlength="5"
                                                     style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                     oninput="formatTimeInput(this); syncGuidePickupTime(${day}, 1)"
@@ -14742,7 +14754,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     type="text"
                                                     class="form-control text-center guide-pickup-time-input"
                                                     id="day${day}_guide_1_pickup_time_input"
-                                                    placeholder="10:30"
+                                                    placeholder="00:00"
                                                     maxlength="5"
                                                     style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                     oninput="formatTimeInput(this); syncGuidePickupTime(${day}, 1)"
@@ -15068,7 +15080,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                      <i class="ri-time-line me-1"></i>Pickup Time
                                                                  </label>
                                                                  <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
-                                                                     <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_1_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, 1)" onchange="syncRestaurantTransferPickupTime(${day}, 1)">
+                                                                     <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_1_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, 1)" onchange="syncRestaurantTransferPickupTime(${day}, 1)">
                                                                      <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                                                      <select class="form-select border-0" id="day${day}_restaurant_1_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncRestaurantTransferPickupTime(${day}, 1)">
                                                                          <option value="AM">AM</option>
@@ -15281,7 +15293,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         type="text"
                                                         class="form-control text-center"
                                                         id="day${day}_transport_pickup_time_input"
-                                                        placeholder="10:30"
+                                                        placeholder="00:00"
                                                         maxlength="5"
                                                         style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                         oninput="formatTimeInput(this); syncTransportPickupTime(${day}); enableSearchButton(${day}, 'transport')"
@@ -15346,7 +15358,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         type="text"
                                                         class="form-control text-center"
                                                         id="day${day}_transport_additional_pickup_time_input"
-                                                        placeholder="10:30"
+                                                        placeholder="00:00"
                                                         maxlength="5"
                                                         style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                         oninput="formatTimeInput(this); syncTransportAdditionalPickupTime(${day}); enableSearchButton(${day}, 'transport_additional', 0)"
@@ -15399,7 +15411,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         type="text"
                                                         class="form-control text-center"
                                                         id="day${day}_transport_hourly_pickup_time_input"
-                                                        placeholder="10:30"
+                                                        placeholder="00:00"
                                                         maxlength="5"
                                                         style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                                         oninput="formatTimeInput(this); syncTransportHourlyPickupTime(${day}); enableSearchButton(${day}, 'transport_hourly', 0)"
@@ -16697,7 +16709,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
                                     <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
-                                        <input type="text" class="form-control text-center border-0" id="day${day}_attraction_${newIndex}_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionTransferPickupTime(${day}, ${newIndex})" onchange="syncAttractionTransferPickupTime(${day}, ${newIndex})">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_attraction_${newIndex}_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionTransferPickupTime(${day}, ${newIndex})" onchange="syncAttractionTransferPickupTime(${day}, ${newIndex})">
                                         <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                         <select class="form-select border-0" id="day${day}_attraction_${newIndex}_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionTransferPickupTime(${day}, ${newIndex})">
                                             <option value="AM">AM</option>
@@ -16746,7 +16758,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
                                     <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
-                                        <input type="text" class="form-control text-center border-0" id="day${day}_attraction_${newIndex}_guide_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime(${day}, ${newIndex})" onchange="syncAttractionGuidePickupTime(${day}, ${newIndex})">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_attraction_${newIndex}_guide_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime(${day}, ${newIndex})" onchange="syncAttractionGuidePickupTime(${day}, ${newIndex})">
                                         <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                         <select class="form-select border-0" id="day${day}_attraction_${newIndex}_guide_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionGuidePickupTime(${day}, ${newIndex})">
                                             <option value="AM">AM</option>
@@ -18529,7 +18541,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
                                     <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
-                                        <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, ${newIndex})" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, ${newIndex})" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
                                         <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                         <select class="form-select border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
                                             <option value="AM">AM</option>
@@ -19315,7 +19327,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         type="text"
                                         class="form-control text-center guide-pickup-time-input"
                                         id="day${day}_guide_${newIndex}_pickup_time_input"
-                                        placeholder="10:30"
+                                        placeholder="00:00"
                                         maxlength="5"
                                         style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                         oninput="formatTimeInput(this); syncGuidePickupTime(${day}, ${newIndex})"
@@ -19393,7 +19405,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         type="text"
                                         class="form-control text-center guide-pickup-time-input"
                                         id="day${day}_guide_${newIndex}_pickup_time_input"
-                                        placeholder="10:30"
+                                        placeholder="00:00"
                                         maxlength="5"
                                         style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
                                         oninput="formatTimeInput(this); syncGuidePickupTime(${day}, ${newIndex})"
@@ -19673,7 +19685,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                 </label>
                                 <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
-                                    <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})">
+                                    <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})">
                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                     <select class="form-select border-0" id="day${day}_transport_${newIndex}_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})">
                                         <option value="AM">AM</option>
@@ -19726,7 +19738,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                             </label>
                                             <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
-                                                <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_additional_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})">
+                                                <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_additional_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})">
                                                 <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                                 <select class="form-select border-0" id="day${day}_transport_${newIndex}_additional_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})">
                                                     <option value="AM">AM</option>
@@ -19767,7 +19779,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                  </label>
                                  <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
-                                     <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_hourly_pickup_time_input" placeholder="10:30" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})">
+                                     <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_hourly_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})">
                                      <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                      <select class="form-select border-0" id="day${day}_transport_${newIndex}_hourly_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})">
                                          <option value="AM">AM</option>
