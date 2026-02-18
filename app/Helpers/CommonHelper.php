@@ -4506,70 +4506,79 @@ class CommonHelper
      *
      * Structure example:
      * [
-     *   { "from": "New Enquiry", "to": "Prospect",  "date": "2026-01-20 10:15:00" },
-     *   { "from": "Prospect",    "to": "Confirmed", "date": "2026-01-22 14:30:00" }
+     *   { "from": null, "to": "New Enquiry", "date": "2026-02-17 05:29:52", "amount": null, "comment": null, "actual_amount": null, ... },
+     *   { "from": "New Enquiry", "to": "Prospect", "date": "2026-02-17 05:33:10", "amount": 500, "comment": "...", "actual_amount": 600, ... }
      * ]
      *
-     * Behaviour:
-     * - If no history exists, an initial entry is created for the current status
-     *   (first status is usually "New Enquiry").
-     * - Then the transition (from -> to) is appended with the current time.
+     * No other checks - always appends.
      *
      * @param \App\Models\Tour      $tour
      * @param string                $fromStatus
      * @param string                $toStatus
      * @param \Carbon\Carbon|string|null $changedAt
+     * @param float|int|string|null $amount
+     * @param string|null           $comment
+     * @param float|int|string|null $actualAmount
+     * @param string|null           $changedByName
+     * @param int|string|null       $changedByUserId
      * @return void
      */
-    public static function appendTourStatusTrack(\App\Models\Tour $tour, string $fromStatus, string $toStatus, $changedAt = null): void
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null): void
     {
         try {
-            // Do nothing if statuses are the same
-            if (trim($fromStatus) === trim($toStatus)) {
-                return;
-            }
-
             $changedAt = $changedAt ?? now();
             $changedAtString = $changedAt instanceof \Carbon\Carbon
                 ? $changedAt->format('Y-m-d H:i:s')
                 : (string) $changedAt;
 
             $history = [];
-
-            if (!empty($tour->track_details)) {
-                $decoded = json_decode($tour->track_details, true);
+            $rawTrack = $tour->track_details ?? null;
+            if (!empty($rawTrack)) {
+                $decoded = is_array($rawTrack)
+                    ? $rawTrack
+                    : json_decode($rawTrack, true);
                 if (is_array($decoded)) {
                     $history = $decoded;
                 }
             }
 
-            // If this is the first time we are tracking, add an initial record
-            if (empty($history)) {
-                $initialDate = $tour->created_at
-                    ? $tour->created_at->format('Y-m-d H:i:s')
-                    : $changedAtString;
+            $currentCreatedAtString = $tour->created_at
+                ? $tour->created_at->format('Y-m-d H:i:s')
+                : $changedAtString;
 
+            if (empty($history)) {
                 $history[] = [
                     'from' => null,
-                    'to'   => $fromStatus,
-                    'date' => $initialDate,
+                    'to' => $fromStatus,
+                    'date' => $currentCreatedAtString,
+                    'amount' => null,
+                    'comment' => null,
+                    'actual_amount' =>null,
+                    'changed_by_name' => null,
+                    'changed_by_user_id' => null,
                 ];
             }
 
             $history[] = [
                 'from' => $fromStatus,
-                'to'   => $toStatus,
+                'to' => $toStatus,
                 'date' => $changedAtString,
+                'amount' => $amount !== null ? (is_numeric($amount) ? (float) $amount : $amount) : null,
+                'comment' => $comment !== null && $comment !== '' ? (string) $comment : null,
+                'actual_amount' => $actualAmount !== null ? (is_numeric($actualAmount) ? (float) $actualAmount : $actualAmount) : null,
+                'changed_by_name' => $changedByName,
+                'changed_by_user_id' => $changedByUserId !== null ? (string) $changedByUserId : null,
             ];
 
-            $tour->track_details = json_encode($history);
-            $tour->save();
+            $tour->update(['track_details' => json_encode($history)]);
         } catch (\Throwable $e) {
-            // Never break main flow because of tracking
             \Log::error('Failed to append tour status track', [
                 'tour_id' => $tour->tour_id ?? null,
-                'from'    => $fromStatus,
-                'to'      => $toStatus,
+                'from' => $fromStatus,
+                'to' => $toStatus,
+                'amount' => $amount,
+                'comment' => $comment,
+                'actual_amount' => $actualAmount,
                 'message' => $e->getMessage(),
             ]);
         }
@@ -4582,9 +4591,14 @@ class CommonHelper
      * @param string                $fromStatus
      * @param string                $toStatus
      * @param \Carbon\Carbon|string|null $changedAt
+     * @param float|int|string|null $amount
+     * @param string|null           $comment
+     * @param float|int|string|null $actualAmount
+     * @param string|null           $changedByName
+     * @param int|string|null       $changedByUserId
      * @return void
      */
-    public static function appendTourStatusTrackById(int $tourId, string $fromStatus, string $toStatus, $changedAt = null): void
+    public static function appendTourStatusTrackById(int $tourId, string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null): void
     {
         $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
 
@@ -4597,6 +4611,6 @@ class CommonHelper
             return;
         }
 
-        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt);
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId);
     }
 }

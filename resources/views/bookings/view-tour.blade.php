@@ -1,4 +1,4 @@
-@extends('layouts.layout')
+ @extends('layouts.layout')
 @section('title', 'Tour Details - ' . $tour->display_id)
 @extends('layouts.datatablecss')
 
@@ -258,7 +258,7 @@
             @endif
 
             <!-- Tour Timeline -->
-            <div class="card timeline-card shadow-sm">
+            <div class="card timeline-card shadow-sm timeline-card-fixed-height">
                 <div class="card-header border-0 pb-0">
                     <div class="d-flex align-items-center">
                         <div class="timeline-header-icon">
@@ -271,6 +271,54 @@
                     </div>
                 </div>
                 <div class="card-body pt-4">
+                    @php
+                        $trackDetails = is_string($tour->track_details ?? null)
+                            ? (json_decode($tour->track_details, true) ?: [])
+                            : (is_array($tour->track_details ?? null) ? $tour->track_details : []);
+                        $trackCreatedBy = isset($trackDetails[0]['changed_by_name']) && $trackDetails[0]['changed_by_name'] !== null && $trackDetails[0]['changed_by_name'] !== ''
+                            ? $trackDetails[0]['changed_by_name']
+                            : null;
+                        $trackLastUpdatedBy = null;
+                        $trackStartBy = null;
+                        $trackEndBy = null;
+                        if (count($trackDetails) > 0) {
+                            $lastEntry = $trackDetails[count($trackDetails) - 1];
+                            $trackLastUpdatedBy = $lastEntry['changed_by_name'] ?? null;
+                            if ($trackLastUpdatedBy === '' || $trackLastUpdatedBy === null) {
+                                $trackLastUpdatedBy = null;
+                            }
+                            if ($tour->check_in_time ?? null) {
+                                $checkInForMatch = \Carbon\Carbon::parse($tour->check_in_time);
+                                $closest = null;
+                                $minDiff = null;
+                                foreach ($trackDetails as $e) {
+                                    if (empty($e['date'])) continue;
+                                    $d = \Carbon\Carbon::parse($e['date']);
+                                    $diff = abs($d->diffInSeconds($checkInForMatch));
+                                    if ($minDiff === null || $diff < $minDiff) {
+                                        $minDiff = $diff;
+                                        $closest = $e['changed_by_name'] ?? null;
+                                    }
+                                }
+                                $trackStartBy = $closest !== '' ? $closest : null;
+                            }
+                            if ($tour->check_out_time ?? null) {
+                                $checkOutForMatch = \Carbon\Carbon::parse($tour->check_out_time);
+                                $closest = null;
+                                $minDiff = null;
+                                foreach ($trackDetails as $e) {
+                                    if (empty($e['date'])) continue;
+                                    $d = \Carbon\Carbon::parse($e['date']);
+                                    $diff = abs($d->diffInSeconds($checkOutForMatch));
+                                    if ($minDiff === null || $diff < $minDiff) {
+                                        $minDiff = $diff;
+                                        $closest = $e['changed_by_name'] ?? null;
+                                    }
+                                }
+                                $trackEndBy = $closest !== '' ? $closest : null;
+                            }
+                        }
+                    @endphp
                     <div class="modern-timeline">
                         <!-- Tour Created -->
                         <div class="timeline-event">
@@ -291,6 +339,11 @@
                                         <span class="text-muted">{{ $tour->created_at->format('h:i A') }}</span>
                                         <span class="badge bg-label-secondary ms-2">{{ $tour->created_at->diffForHumans() }}</span>
                                     </p>
+                                    @if($trackCreatedBy)
+                                    <p class="mb-0 mt-2 small text-muted">
+                                        <i class="ri-user-line me-1"></i>Updated by: <span class="text-dark">{{ $trackCreatedBy }}</span>
+                                    </p>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -315,6 +368,11 @@
                                         <span class="text-muted">{{ $tour->updated_at->format('h:i A') }}</span>
                                         <span class="badge bg-label-warning ms-2">{{ $tour->updated_at->diffForHumans() }}</span>
                                     </p>
+                                    @if($trackLastUpdatedBy)
+                                    <p class="mb-0 mt-2 small text-muted">
+                                        <i class="ri-user-line me-1"></i>Updated by: <span class="text-dark">{{ $trackLastUpdatedBy }}</span>
+                                    </p>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -346,6 +404,11 @@
                                             {{ $isStarted ? 'Started ' : 'Starts ' }}{{ $checkInTime->diffForHumans() }}
                                         </span>
                                     </p>
+                                    <!-- @if($trackStartBy)
+                                    <p class="mb-0 mt-2 small text-muted">
+                                        <i class="ri-user-line me-1"></i>Updated by: <span class="text-dark">{{ $trackStartBy }}</span>
+                                    </p>
+                                    @endif -->
                                 </div>
                             </div>
                         </div>
@@ -377,6 +440,11 @@
                                             {{ $isCompleted ? 'Ended ' : 'Ends ' }}{{ $checkOutTime->diffForHumans() }}
                                         </span>
                                     </p>
+                                    <!-- @if($trackEndBy)
+                                    <p class="mb-0 mt-2 small text-muted">
+                                        <i class="ri-user-line me-1"></i>Updated by: <span class="text-dark">{{ $trackEndBy }}</span>
+                                    </p>
+                                    @endif -->
                                 </div>
                             </div>
                         </div>
@@ -511,8 +579,8 @@
                 </div>
             </div>
 
-            <!-- Status History -->
-            <div class="card timeline-card shadow-sm">
+            <!-- Status History (same height as Tour Timeline, scrollable content) -->
+            <div class="card timeline-card shadow-sm timeline-card-fixed-height status-history-card">
                 <div class="card-header border-0 pb-0">
                     <div class="d-flex justify-content-between align-items-start w-100">
                         <div class="d-flex align-items-center">
@@ -593,6 +661,7 @@
                         }
                     @endphp
 
+                    <div class="status-history-timeline-scroll">
                     <div class="modern-timeline">
                         <!-- Initial Tour Created -->
                         <div class="timeline-event">
@@ -625,6 +694,10 @@
                                     $to = $item['to'] ?? null;
                                     $dateString = $item['date'] ?? null;
                                     $date = $dateString ? \Carbon\Carbon::parse($dateString) : null;
+                                    $amount = $item['amount'] ?? null;
+                                    $comment = $item['comment'] ?? null;
+                                    $actualAmount = $item['actual_amount'] ?? null;
+                                    $changedByName = $item['changed_by_name'] ?? null;
                                     $statusLabel = $to ?? $from ?? 'Status Change';
                                     $color = getStatusColor($statusLabel);
                                     $icon = getStatusIcon($statusLabel);
@@ -651,11 +724,46 @@
                                                 <i class="ri-calendar-event-line me-1"></i>
                                                 {{ $date->format('D, M d, Y') }}
                                             </p>
-                                            <p class="mb-0">
+                                            <p class="mb-1">
                                                 <i class="ri-time-line me-1 text-muted"></i>
                                                 <span class="text-muted">{{ $date->format('h:i A') }}</span>
                                                 <span class="badge bg-label-{{ $color }} ms-2">{{ $date->diffForHumans() }}</span>
                                             </p>
+                                            @php
+                                                $showDetails = ($amount !== null && $amount !== '') || ($actualAmount !== null && $actualAmount !== '') || !empty($comment);
+                                                $isConfirmed = $to === 'Confirmed';
+                                                $isRefundPending = $to === 'Refund - Pending';
+                                                $isCancelStatus = $to && str_starts_with((string)$to, 'Cancel -');
+                                            @endphp
+                                            @if($showDetails || $isConfirmed || $isRefundPending || $isCancelStatus)
+                                            <div class="timeline-details-box mt-2">
+                                                @if($isConfirmed)
+                                                    <p class="mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Original Amount: <span class="fw-semibold">{{ $actualAmount !== null && $actualAmount !== '' ? (is_numeric($actualAmount) ? number_format((float)$actualAmount, 2) : $actualAmount) : '—' }}</span></p>
+                                                    <p class="mb-0"><i class="ri-checkbox-circle-line me-1 text-success"></i>Agent accepted at the Price <span class="fw-semibold">{{ $amount !== null && $amount !== '' ? (is_numeric($amount) ? number_format((float)$amount, 2) : $amount) : '—' }}</span></p>
+                                                @elseif($isRefundPending)
+                                                    <p class="mb-1"><i class="ri-close-circle-line me-1 text-danger"></i><span class="fw-semibold">Agent Cancelled the Tour</span></p>
+                                                    <p class="mb-0"><i class="ri-refund-line me-1 text-warning"></i>Tour's Refund is pending</p>
+                                                @elseif($isCancelStatus)
+                                                    <p class="mb-1"><i class="ri-close-circle-line me-1 text-danger"></i><span class="fw-semibold">Agent Cancelled the Tour</span></p>
+                                                    <p class="mb-0"><i class="ri-information-line me-1 text-muted"></i>Tour Status is <span class="fw-medium">{{ $to }}</span></p>
+                                                @else
+                                                    @if($amount !== null && $amount !== '')
+                                                    <p class="mb-1"><i class="ri-hand-coin-line me-1"></i>On the Agent's Negotiate Amount: <span class="fw-semibold">{{ is_numeric($amount) ? number_format((float)$amount, 2) : $amount }}</span></p>
+                                                    @endif
+                                                    @if($actualAmount !== null && $actualAmount !== '')
+                                                    <p class="mb-1"><i class="ri-price-tag-3-line me-1"></i>Offered Amount is: <span class="fw-semibold">{{ is_numeric($actualAmount) ? number_format((float)$actualAmount, 2) : $actualAmount }}</span></p>
+                                                    @endif
+                                                    @if(!empty($comment))
+                                                    <p class="mb-0"><i class="ri-chat-3-line me-1"></i>Comment: <span class="text-body">{{ $comment }}</span></p>
+                                                    @endif
+                                                @endif
+                                            </div>
+                                            @endif
+                                            @if(!empty($changedByName))
+                                            <p class="mb-0 text-muted small">
+                                                Updated By <span class="fw-medium">{{ $changedByName }}</span>
+                                            </p>
+                                            @endif
                                         </div>
                                         @endif
                                     </div>
@@ -681,6 +789,7 @@
                             </div>
                         @endif
                     </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -698,6 +807,40 @@
     border-radius: 12px;
     overflow: hidden;
     transition: all 0.3s ease;
+}
+
+/* Both timeline cards: same fixed height so sections align */
+.timeline-card-fixed-height {
+    height: 520px;
+    display: flex;
+    flex-direction: column;
+}
+.timeline-card-fixed-height .card-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+/* Status History: scrollable timeline inside card body */
+.status-history-timeline-scroll {
+    max-height: 420px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+}
+.status-history-timeline-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+.status-history-timeline-scroll::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+.status-history-timeline-scroll::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+.status-history-timeline-scroll::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
 }
 
 .timeline-card:hover {
@@ -763,6 +906,26 @@
 
 .timeline-event:last-child .modern-timeline::before {
     display: none;
+}
+
+/* Timeline details box (amount, comment, status messages) */
+.timeline-details-box {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+.timeline-details-box .fw-semibold,
+.timeline-details-box .fw-medium {
+    color: var(--bs-body-color);
+}
+.timeline-details-box p {
+    margin-bottom: 0.35rem;
+}
+.timeline-details-box p:last-child {
+    margin-bottom: 0;
 }
 
 /* Timeline Badge (Icon Circle) */

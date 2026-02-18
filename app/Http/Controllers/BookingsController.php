@@ -215,6 +215,10 @@ class BookingsController extends Controller
         $tour = Tour::where('tour_id', $validated['tour_id'])->firstOrFail();
         $action = $validated['action'];
 
+        $currentUser = auth()->user();
+        $changedByName = $currentUser ? ($currentUser->name ?? '') : null;
+        $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+
         $latestEnquiry = Enquiry::where('tour_id', $tour->tour_id)->orderByDesc('created_at')->first();
         $activeEnquiry = Enquiry::where('tour_id', $tour->tour_id)
             ->where('status', 1)
@@ -278,10 +282,16 @@ class BookingsController extends Controller
                 : 'Cancel - ' . $tour->tour_status;
 
             // Track status change (e.g. New Enquiry -> Cancel - New Enquiry, Definite -> Refund - Pending)
-            \App\Helpers\CommonHelper::appendTourStatusTrack(
-                $tour,
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
                 $oldStatus,
-                $newStatus
+                $newStatus,
+                null,
+                null,
+                null,
+                null,
+                $changedByName,
+                $changedByUserId
             );
 
             $tour->update(['tour_status' => $newStatus]);
@@ -299,11 +309,24 @@ class BookingsController extends Controller
             if ($tour->tour_status !== 'Confirmed') {
                 $oldStatus = $tour->tour_status;
 
+                // Actual amount at confirmation (from active enquiry or orders total)
+                $actualAmount = $activeEnquiry?->actual_amount ?? 0;
+                if (empty($actualAmount) || $actualAmount <= 0) {
+                    $actualAmount = $this->calculateOrdersTotalAmount($tour->tour_id);
+                }
+                $amount = $activeEnquiry?->amount ?? $actualAmount;
+
                 // Track status change (e.g. New Enquiry / Prospect / Tentative -> Confirmed)
-                \App\Helpers\CommonHelper::appendTourStatusTrack(
-                    $tour,
+                \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                    (int) $tour->tour_id,
                     $oldStatus,
-                    'Confirmed'
+                    'Confirmed',
+                    null,
+                    $amount,
+                    $activeEnquiry?->comment ?? null,
+                    $actualAmount,
+                    $changedByName,
+                    $changedByUserId
                 );
 
                 $tour->update(['tour_status' => 'Confirmed']);
