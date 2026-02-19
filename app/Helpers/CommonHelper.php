@@ -4513,7 +4513,7 @@ class CommonHelper
      * No other checks - always appends.
      *
      * @param \App\Models\Tour      $tour
-     * @param string                $fromStatus
+     * @param string|null           $fromStatus  null or empty = initial entry (from null to toStatus)
      * @param string                $toStatus
      * @param \Carbon\Carbon|string|null $changedAt
      * @param float|int|string|null $amount
@@ -4521,9 +4521,13 @@ class CommonHelper
      * @param float|int|string|null $actualAmount
      * @param string|null           $changedByName
      * @param int|string|null       $changedByUserId
+     * @param string|null           $action        e.g. "updated", "Added" (for service booking actions)
+     * @param string|null           $serviceType   hotel|attraction|restaurant|guide|vehicle
+     * @param string|int|null       $serviceId
+     * @param string|null           $serviceName
      * @return void
      */
-    public static function appendTourStatusTrack(\App\Models\Tour $tour, string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null): void
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null): void
     {
         try {
             $changedAt = $changedAt ?? now();
@@ -4546,29 +4550,59 @@ class CommonHelper
                 ? $tour->created_at->format('Y-m-d H:i:s')
                 : $changedAtString;
 
-            if (empty($history)) {
-                $history[] = [
-                    'from' => null,
-                    'to' => $fromStatus,
-                    'date' => $currentCreatedAtString,
-                    'amount' => null,
-                    'comment' => null,
-                    'actual_amount' =>null,
-                    'changed_by_name' => null,
-                    'changed_by_user_id' => null,
-                ];
+            $fromIsNull = $fromStatus === null || $fromStatus === '';
+
+            $entryExtra = [];
+            if ($action !== null && $action !== '') {
+                $entryExtra['action'] = (string) $action;
+            }
+            if ($serviceType !== null && $serviceType !== '') {
+                $entryExtra['service_type'] = (string) $serviceType;
+            }
+            if ($serviceId !== null && $serviceId !== '') {
+                $entryExtra['service_id'] = is_numeric($serviceId) ? (string) $serviceId : $serviceId;
+            }
+            if ($serviceName !== null && $serviceName !== '') {
+                $entryExtra['service_name'] = (string) $serviceName;
             }
 
-            $history[] = [
-                'from' => $fromStatus,
-                'to' => $toStatus,
-                'date' => $changedAtString,
-                'amount' => $amount !== null ? (is_numeric($amount) ? (float) $amount : $amount) : null,
-                'comment' => $comment !== null && $comment !== '' ? (string) $comment : null,
-                'actual_amount' => $actualAmount !== null ? (is_numeric($actualAmount) ? (float) $actualAmount : $actualAmount) : null,
-                'changed_by_name' => $changedByName,
-                'changed_by_user_id' => $changedByUserId !== null ? (string) $changedByUserId : null,
-            ];
+            if ($fromIsNull) {
+                // Initial entry only: from null to toStatus (e.g. tour created -> New Enquiry)
+                $history[] = array_merge([
+                    'from' => null,
+                    'to' => $toStatus,
+                    'date' => $currentCreatedAtString,
+                    'amount' => $amount !== null ? (is_numeric($amount) ? (float) $amount : $amount) : null,
+                    'comment' => $comment !== null && $comment !== '' ? (string) $comment : null,
+                    'actual_amount' => $actualAmount !== null ? (is_numeric($actualAmount) ? (float) $actualAmount : $actualAmount) : null,
+                    'changed_by_name' => $changedByName,
+                    'changed_by_user_id' => $changedByUserId !== null ? (string) $changedByUserId : null,
+                ], $entryExtra);
+            } else {
+                if (empty($history)) {
+                    $history[] = [
+                        'from' => null,
+                        'to' => $fromStatus,
+                        'date' => $currentCreatedAtString,
+                        'amount' => null,
+                        'comment' => null,
+                        'actual_amount' => null,
+                        'changed_by_name' => null,
+                        'changed_by_user_id' => null,
+                    ];
+                }
+
+                $history[] = array_merge([
+                    'from' => $fromStatus,
+                    'to' => $toStatus,
+                    'date' => $changedAtString,
+                    'amount' => $amount !== null ? (is_numeric($amount) ? (float) $amount : $amount) : null,
+                    'comment' => $comment !== null && $comment !== '' ? (string) $comment : null,
+                    'actual_amount' => $actualAmount !== null ? (is_numeric($actualAmount) ? (float) $actualAmount : $actualAmount) : null,
+                    'changed_by_name' => $changedByName,
+                    'changed_by_user_id' => $changedByUserId !== null ? (string) $changedByUserId : null,
+                ], $entryExtra);
+            }
 
             $tour->update(['track_details' => json_encode($history)]);
         } catch (\Throwable $e) {
@@ -4588,7 +4622,7 @@ class CommonHelper
      * Convenience wrapper: load tour by ID and append status track.
      *
      * @param int                   $tourId
-     * @param string                $fromStatus
+     * @param string|null           $fromStatus  null or empty = initial entry (from null to toStatus)
      * @param string                $toStatus
      * @param \Carbon\Carbon|string|null $changedAt
      * @param float|int|string|null $amount
@@ -4596,9 +4630,13 @@ class CommonHelper
      * @param float|int|string|null $actualAmount
      * @param string|null           $changedByName
      * @param int|string|null       $changedByUserId
+     * @param string|null           $action        e.g. "updated", "Added"
+     * @param string|null           $serviceType   hotel|attraction|restaurant|guide|vehicle
+     * @param string|int|null       $serviceId
+     * @param string|null           $serviceName
      * @return void
      */
-    public static function appendTourStatusTrackById(int $tourId, string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null): void
+    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null): void
     {
         $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
 
@@ -4611,6 +4649,6 @@ class CommonHelper
             return;
         }
 
-        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId);
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
     }
 }

@@ -344,6 +344,60 @@
                                         <i class="ri-user-line me-1"></i>Updated by: <span class="text-dark">{{ $trackCreatedBy }}</span>
                                     </p>
                                     @endif
+                                    @php
+                                        $tourOrders = \App\Models\Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->get();
+                                        $bookingItems = [];
+                                        foreach ($tourOrders as $ord) {
+                                            $raw = $ord->data;
+                                            $item = is_array($raw) && isset($raw[0]) ? $raw[0] : (is_array($raw) ? $raw : []);
+                                            $type = $ord->type ?? '';
+                                            $name = null;
+                                            $icon = 'ri-file-list-line';
+                                            $label = 'Booking';
+                                            if ($type === 'hotel') {
+                                                $name = $item['hotelDetails']['hotel_name'] ?? $item['hotel_name'] ?? null;
+                                                $icon = 'ri-hotel-bed-line';
+                                                $label = 'Hotel';
+                                            } elseif ($type === 'attraction') {
+                                                $name = $item['AttractionName'] ?? $item['attraction_name'] ?? $item['vehicle_name'] ?? $item['guide_name'] ?? null;
+                                                $icon = 'ri-map-pin-line';
+                                                $label = 'Attraction';
+                                            } elseif ($type === 'restaurant') {
+                                                $name = $item['restaurantName'] ?? $item['restaurant_name'] ?? $item['vehicle_name'] ?? null;
+                                                $icon = 'ri-restaurant-line';
+                                                $label = 'Restaurant';
+                                            } elseif ($type === 'guide') {
+                                                $name = $item['guide_name'] ?? null;
+                                                $icon = 'ri-user-voice-line';
+                                                $label = 'Guide';
+                                            } elseif (in_array($type, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+                                                $name = $item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['travel_type'] ?? null;
+                                                $icon = 'ri-car-line';
+                                                $label = $type === 'entry_port' ? 'Entry transfer' : ($type === 'exit_port' ? 'Exit transfer' : ($type === 'travel_hourly' ? 'Hourly transport' : ($type === 'travel_point' ? 'Point to point' : 'Local transfer')));
+                                            }
+                                            if ($name !== null && $name !== '') {
+                                                $bookingItems[] = ['name' => $name, 'icon' => $icon, 'label' => $label];
+                                            }
+                                        }
+                                    @endphp
+                                    @if(count($bookingItems) > 0)
+                                    <div class="tour-bookings-list mt-3 pt-3 border-top border-light">
+                                        <p class="mb-2 small fw-semibold text-muted text-uppercase tracking-wide">
+                                            <i class="ri-bookmark-line me-1"></i>Bookings for this tour
+                                        </p>
+                                        <ul class="list-unstyled mb-0 tour-bookings-ul">
+                                            @foreach($bookingItems as $b)
+                                            <li class="d-flex align-items-center mb-2 py-1 px-2 rounded tour-booking-item">
+                                                <span class="tour-booking-icon me-2">
+                                                    <i class="{{ $b['icon'] }}"></i>
+                                                </span>
+                                                <span class="tour-booking-label small text-muted me-2">{{ $b['label'] }}:</span>
+                                                <span class="tour-booking-name fw-medium text-body">{{ $b['name'] }}</span>
+                                            </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -698,6 +752,10 @@
                                     $comment = $item['comment'] ?? null;
                                     $actualAmount = $item['actual_amount'] ?? null;
                                     $changedByName = $item['changed_by_name'] ?? null;
+                                    $action = $item['action'] ?? null;
+                                    $serviceType = $item['service_type'] ?? (!empty($item['hotel_name']) || !empty($item['hotel_id']) ? 'hotel' : null);
+                                    $serviceId = $item['service_id'] ?? $item['hotel_id'] ?? null;
+                                    $serviceName = $item['service_name'] ?? $item['hotel_name'] ?? null;
                                     $statusLabel = $to ?? $from ?? 'Status Change';
                                     $color = getStatusColor($statusLabel);
                                     $icon = getStatusIcon($statusLabel);
@@ -734,8 +792,9 @@
                                                 $isConfirmed = $to === 'Confirmed';
                                                 $isRefundPending = $to === 'Refund - Pending';
                                                 $isCancelStatus = $to && str_starts_with((string)$to, 'Cancel -');
+                                                $showDetailsBox = ($showDetails || $isRefundPending || $isCancelStatus) && !($isConfirmed && !$showDetails);
                                             @endphp
-                                            @if($showDetails || $isConfirmed || $isRefundPending || $isCancelStatus)
+                                            @if($showDetailsBox)
                                             <div class="timeline-details-box mt-2">
                                                 @if($isConfirmed)
                                                     <p class="mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Original Amount: <span class="fw-semibold">{{ $actualAmount !== null && $actualAmount !== '' ? (is_numeric($actualAmount) ? number_format((float)$actualAmount, 2) : $actualAmount) : '—' }}</span></p>
@@ -758,6 +817,23 @@
                                                     @endif
                                                 @endif
                                             </div>
+                                            @endif
+                                            @if(!empty($serviceType) || !empty($serviceName) || !empty($action))
+                                            <p class="mb-1 text-muted small">
+                                                @if(!empty($serviceType) || !empty($serviceName))
+                                                    <i class="ri-service-line me-1"></i>
+                                                    <span class="text-capitalize">{{ $serviceType ?? 'service' }}</span>
+                                                    @if(!empty($serviceName))
+                                                        — <span class="fw-medium">{{ $serviceName }}</span>
+                                                    @endif
+                                                    @if(!empty($serviceId))
+                                                        <span class="text-muted">(ID: {{ $serviceId }})</span>
+                                                    @endif
+                                                @endif
+                                                @if(!empty($action))
+                                                    <span class="badge bg-label-secondary ms-1">{{ $action }}</span>
+                                                @endif
+                                            </p>
                                             @endif
                                             @if(!empty($changedByName))
                                             <p class="mb-0 text-muted small">
@@ -966,6 +1042,48 @@
     background: #fff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     transform: translateX(4px);
+}
+
+/* Tour bookings list (under Tour Created) */
+.tour-bookings-list {
+    letter-spacing: 0.02em;
+}
+.tour-bookings-list .tracking-wide {
+    letter-spacing: 0.05em;
+}
+.tour-bookings-ul {
+    font-size: 0.9rem;
+}
+.tour-booking-item {
+    background: rgba(255, 255, 255, 0.7);
+    transition: background 0.2s ease;
+}
+.tour-booking-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+.tour-booking-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #fff;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #5b6b7a 0%, #6b7b8a 100%);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.tour-booking-item:nth-child(5n+1) .tour-booking-icon { background: linear-gradient(135deg, #0d6efd 0%, #2d7efd 100%); }
+.tour-booking-item:nth-child(5n+2) .tour-booking-icon { background: linear-gradient(135deg, #198754 0%, #20c997 100%); }
+.tour-booking-item:nth-child(5n+3) .tour-booking-icon { background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%); }
+.tour-booking-item:nth-child(5n+4) .tour-booking-icon { background: linear-gradient(135deg, #6f42c1 0%, #9b6bcc 100%); }
+.tour-booking-item:nth-child(5n+5) .tour-booking-icon { background: linear-gradient(135deg, #0dcaf0 0%, #31d2f2 100%); }
+.tour-booking-label {
+    min-width: 5.5em;
+}
+.tour-booking-name {
+    word-break: break-word;
 }
 
 /* Arrow pointing to badge */

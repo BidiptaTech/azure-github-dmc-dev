@@ -257,7 +257,6 @@ class SingleTourPackageController extends Controller
     {
         // Get countries for dropdown
         $user = Auth::user();
-
         if($user->role_id == 11){
             $dmc_id = $user->userId;
         }
@@ -602,11 +601,44 @@ class SingleTourPackageController extends Controller
     public function cancelOrder(Request $request, $id)
     {
         try {
-            $order = Order::where('booking_id', $id);
-            
-            // Soft delete the order
+            $order = Order::where('booking_id', $id)->firstOrFail();
+            $tourId = (int) $order->tour_id;
+            $tour = Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour ? $tour->tour_status : null;
+
+            $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+            $orderType = $order->type ?? '';
+
+            $serviceType = $orderType;
+            $serviceId = null;
+            $serviceName = null;
+
+            if ($orderType === 'hotel') {
+                $serviceId = $payload['hotelDetails']['hotel_id'] ?? null;
+                $serviceName = $payload['hotelDetails']['hotel_name'] ?? null;
+            } elseif ($orderType === 'guide') {
+                $serviceId = $payload['guide_id'] ?? null;
+                $serviceName = $payload['guide_name'] ?? null;
+            } elseif ($orderType === 'restaurant') {
+                $serviceId = $payload['restaurant_id'] ?? null;
+                $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
+            } elseif ($orderType === 'attraction') {
+                $serviceId = $payload['attraction_id'] ?? null;
+                $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
+            } elseif (in_array($orderType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+                $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
+                $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $orderType;
+            }
+
+            if ($tourStatus !== null) {
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'deleted', $serviceType, $serviceId, $serviceName);
+            }
+
             $order->delete();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order cancelled successfully'
@@ -777,6 +809,22 @@ class SingleTourPackageController extends Controller
                 }
             }
             $tour->save();
+
+            // Track initial status in track_details: from null to "New Enquiry"
+            $currentUser = Auth::user();
+            $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+            $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+            CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                null,
+                'New Enquiry',
+                null,
+                null,
+                null,
+                null,
+                $changedByName,
+                $changedByUserId
+            );
 
             // Store main guest and additional guests in guests table (if data found)
             $tourIdForGuests = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
@@ -999,7 +1047,7 @@ class SingleTourPackageController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Multi Restaurant (Buffet) packages for this DMC – one package per DMC, show in restaurant modal
+        // Multi Restaurant (Buffet) packages – include breakfast_time, lunch_time, dinner_time for time slot dropdown
         $multiRestaurants = collect();
         if (Schema::hasColumn('multi_restaurants', 'dmc_id')) {
             $multiRestaurant = MultiRestaurant::where('dmc_id', (int) $userDmcId)
@@ -1010,7 +1058,6 @@ class SingleTourPackageController extends Controller
                 $multiRestaurants = collect([$multiRestaurant]);
             }
         } else {
-            // Fallback: if no dmc_id column, get first active one
             $multiRestaurant = MultiRestaurant::where('status', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -1250,6 +1297,7 @@ class SingleTourPackageController extends Controller
     public function destroy($id)
     {
         try {
+            dd($id);
             $package = Tour::findOrFail($id);
             $package->delete();
 
@@ -2024,13 +2072,24 @@ class SingleTourPackageController extends Controller
                 'rooms_with_dmc_filter' => count($rooms)
             ]);
 
+            // Get hotel weekend_days (JSON array e.g. ["Saturday","Sunday"]) for front-end pricing
+            $weekendDays = ['Saturday', 'Sunday'];
+            $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotelId)->first();
+            if ($hotel && !empty($hotel->weekend_days)) {
+                $decoded = json_decode($hotel->weekend_days, true);
+                if (is_array($decoded) && count($decoded) > 0) {
+                    $weekendDays = $decoded;
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'rooms' => $rooms,
                 'total_rooms' => count($rooms),
                 'hotel_id' => $hotelId,
                 'dmc_id' => $dmcId,
-                'filtered_by_dmc' => true
+                'filtered_by_dmc' => true,
+                'weekend_days' => $weekendDays
             ]);
 
         } catch (\Exception $e) {
@@ -4016,6 +4075,15 @@ class SingleTourPackageController extends Controller
                 'destination' => $bookingData['hotelDetails']['location']
             ]);
         }
+
+        $tourStatus = $tour->tour_status;
+        if ($tourStatus !== null) {
+            $hotelName = $bookingData['hotelDetails']['hotel_name'] ?? null;
+            $currentUser = Auth::user();
+            $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+            $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+            CommonHelper::appendTourStatusTrackById((int) $tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'Added', 'hotel', $hotelId, $hotelName);
+        }
         
         return back()->with('success', 'Hotel selected successfully');
     }
@@ -4070,6 +4138,17 @@ class SingleTourPackageController extends Controller
             'markup_percentage' => $markup_percentage,
             'status' => 1,
         ]);
+
+        $tourStatus = $tour->tour_status;
+        if ($tourStatus !== null) {
+            $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
+            $serviceName = is_array($firstItem) ? ($firstItem['guide_name'] ?? null) : null;
+            $serviceId = $guideId ?? (is_array($firstItem) ? ($firstItem['guide_id'] ?? null) : null);
+            $currentUser = Auth::user();
+            $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+            $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+            CommonHelper::appendTourStatusTrackById((int) $tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'Added', 'guide', $serviceId, $serviceName);
+        }
         return back()->with('success', 'Guide selected successfully');
     }
     
@@ -4130,6 +4209,16 @@ class SingleTourPackageController extends Controller
             'status' => 1,
         ]);
 
+        $tourStatus = $tour->tour_status;
+        if ($tourStatus !== null) {
+            $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
+            $serviceName = is_array($firstItem) ? ($firstItem['restaurantName'] ?? $firstItem['restaurant_name'] ?? null) : null;
+            $serviceId = $request->input('restaurant_id');
+            $currentUser = Auth::user();
+            $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+            $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+            CommonHelper::appendTourStatusTrackById((int) $tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'Added', 'restaurant', $serviceId, $serviceName);
+        }
         return back()->with('success', 'Restaurant selected successfully');
     }
 
@@ -4180,7 +4269,17 @@ class SingleTourPackageController extends Controller
             'markup_percentage' => 0,
             'status' => 1,
         ]);
-        
+
+        $tourStatus = $tour->tour_status;
+        if ($tourStatus !== null) {
+            $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
+            $serviceName = is_array($firstItem) ? ($firstItem['AttractionName'] ?? $firstItem['attraction_name'] ?? null) : null;
+            $serviceId = $request->input('attraction_id');
+            $currentUser = Auth::user();
+            $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+            $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+            CommonHelper::appendTourStatusTrackById((int) $tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'Added', 'attraction', $serviceId, $serviceName);
+        }
         return back()->with('success', 'Attraction selected successfully');
     }
     
@@ -4254,7 +4353,18 @@ class SingleTourPackageController extends Controller
             'markup_percentage' => 0,
             'status' => 1,
         ]);
-        
+
+        $tourStatus = $tour->tour_status;
+        if ($tourStatus !== null && is_array($transportData) && count($transportData) > 0) {
+            $firstItem = $transportData[0];
+            $serviceType = $request->input('type');
+            $serviceId = $firstItem['vehicle_id'] ?? $firstItem['vehicles_id'] ?? $request->input('vehicle_id');
+            $serviceName = $firstItem['vehicles_name'] ?? $firstItem['vehicle_name'] ?? 'Transport';
+            $currentUser = Auth::user();
+            $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+            $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+            CommonHelper::appendTourStatusTrackById((int) $tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'Added', $serviceType, $serviceId, $serviceName);
+        }
         return back()->with('success', 'Transport service booked successfully');
     }
 
@@ -4314,6 +4424,18 @@ class SingleTourPackageController extends Controller
             'markup_percentage' => 0,
             'status' => 1,
         ]);
+
+        $tourStatus = $tour->tour_status;
+        if ($tourStatus !== null && is_array($transportData) && count($transportData) > 0) {
+            $firstItem = $transportData[0];
+            $trackServiceType = in_array($serviceType, ['travel_hourly', 'travel_point', 'local_transport'], true) ? $serviceType : 'local_transport';
+            $serviceId = $firstItem['vehicle_id'] ?? $firstItem['vehicles_id'] ?? null;
+            $serviceName = $firstItem['vehicles_name'] ?? $firstItem['vehicle_name'] ?? $trackServiceType;
+            $currentUser = Auth::user();
+            $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+            $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+            CommonHelper::appendTourStatusTrackById((int) $tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'Added', $trackServiceType, $serviceId, $serviceName);
+        }
 
         // Get success message based on service type
         $successMessage = match($serviceType) {

@@ -678,6 +678,15 @@
         box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
     }
 
+    /* Hide scrollbar on footer summary when expanded (slide up/down) */
+    #footerSummaryScrollWrap {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    #footerSummaryScrollWrap::-webkit-scrollbar {
+        display: none;
+    }
+
     /* Charges Section inside Red Box */
     .charges-section {
         background: #fff9e6;
@@ -1501,9 +1510,10 @@
 
     <!-- Fixed Bottom Action Bar (Red Box) -->
     <div class="enquiry-pro-footer">
-        <!-- Summary Table -->
-        <div id="footerSummarySection" style="margin-bottom: 8px; overflow-x: auto;">
-            <div style="max-height: 80px; overflow-y: auto;">
+        <!-- Summary Table: 1 row by default; arrow at top-right toggles expand/collapse (no extra top row) -->
+        <div id="footerSummarySection" style="margin-bottom: 8px; overflow-x: auto; position: relative;">
+            <button type="button" id="footerSummaryToggleArrow" class="btn btn-sm btn-outline-secondary p-0" style="position: absolute; top: 2px; right: 0; width: 26px; height: 22px; min-width: 26px; font-size: 11px; line-height: 1; z-index: 11;" onclick="toggleFooterSummaryExpand()" title="Show all rows">▲</button>
+            <div id="footerSummaryScrollWrap" style="max-height: 72px; overflow: hidden; overflow-x: auto; transition: max-height 0.8s ease-in-out; padding-right: 28px;">
                 <table class="table table-bordered table-sm" style="font-size: 9px; margin-bottom: 0; background: white;">
                     <thead id="footerSummaryHeader" style="background: #e9ecef; position: sticky; top: 0; z-index: 10;">
                         <!-- Dynamic header will be inserted here -->
@@ -10079,6 +10089,7 @@
             
             if (combo) {
                 // Get the input values for this combination (new simplified structure)
+                const row = checkbox.closest('tr');
                 const roomsInput = document.querySelector(`.combo-rooms[data-combo-id="${comboId}"]`);
                 const sellInput = document.querySelector(`.combo-sell[data-combo-id="${comboId}"]`);
                 const extraBedCheck = document.querySelector(`.combo-extra-bed-check[data-combo-id="${comboId}"]`);
@@ -10086,6 +10097,8 @@
                 const cnbCheck = document.querySelector(`.combo-cnb-check[data-combo-id="${comboId}"]`);
                 const infantCheck = document.querySelector(`.combo-infant-check[data-combo-id="${comboId}"]`);
                 const supplementCheck = document.querySelector(`.combo-supplement-check[data-combo-id="${comboId}"]`);
+                const childWithBedInput = row ? row.querySelector('.combo-extra-bed') : null;
+                const childWithoutBedInput = row ? row.querySelector('.combo-child-without') : null;
                 
                 // Get prices from room data
                 const extraBedPrice = parseFloat(combo.extraBedPrice || combo.roomData?.extra_bed_price || 0);
@@ -10105,7 +10118,9 @@
                     cnbPrice: cnbPrice, // Always store price, checkbox controls usage
                     hasInfant: infantCheck?.checked || false,
                     infantPrice: infantPrice, // Always store price, checkbox controls usage
-                    supplement: supplementCheck?.checked || false
+                    supplement: supplementCheck?.checked || false,
+                    childWithBed: parseInt(childWithBedInput?.value || 0) || 0,
+                    childWithoutBed: parseInt(childWithoutBedInput?.value || 0) || 0
                 });
             } else {
                 console.warn('Combo not found for ID:', comboId);
@@ -10185,6 +10200,9 @@
             cwbPrice: combo.cwbPrice || 0,
             cnbPrice: combo.cnbPrice || 0,
             infantPrice: combo.infantPrice || 0,
+            // Child with bed / without bed counts for JSON payload
+            childWithBed: combo.childWithBed || 0,
+            childWithoutBed: combo.childWithoutBed || 0,
             // Store room and bed data for reference
             roomData: combo.roomData,
             bedData: combo.bedData
@@ -11712,6 +11730,7 @@
                 rooms: rooms,
                 adultsPerRoom: adultsPerRoom,
                 extraBed: extraBed,
+                childWithBed: combo.childWithBed || 0,
                 childWithoutBed: childWithoutBed,
                 mealPlan: mealPlan,
                 mealPlanLabel: mealPlanLabel,
@@ -21111,8 +21130,27 @@
         return { basePrice, totalPrice, perPaxPrice, isShared, isPrivate, wayMultiplier, totalPax };
     }
 
-    // ==================== TOTALS CALCULATION ====================
-    
+    // Footer summary expand/collapse: 1 row by default; arrow at top-right toggles with smooth transition
+    function toggleFooterSummaryExpand() {
+        var wrap = document.getElementById('footerSummaryScrollWrap');
+        var btn = document.getElementById('footerSummaryToggleArrow');
+        if (!wrap || !btn) return;
+        var expanded = wrap.getAttribute('data-expanded') === 'true';
+        if (expanded) {
+            wrap.style.maxHeight = '72px';
+            wrap.style.overflowY = 'hidden';
+            wrap.setAttribute('data-expanded', 'false');
+            btn.innerHTML = '▲';
+            btn.title = 'Show all rows';
+        } else {
+            wrap.style.maxHeight = '280px';
+            wrap.style.overflowY = 'auto';
+            wrap.setAttribute('data-expanded', 'true');
+            btn.innerHTML = '▼';
+            btn.title = 'Show 1 row';
+        }
+    }
+
     // Recalculate all totals and populate footer table
     function recalculateTotals() {
         const tbody = document.getElementById('footerSummaryBody');
@@ -22373,13 +22411,43 @@
                 checkOutTime = parts[1] ? parts[1].substring(0, 5) + ':00' : "20:15:00";
             }
             
-            // Calculate total price
+            // Calculate nights from checkIn/checkOut
+            let nights = parseInt(hotel.nights) || 0;
+            if (nights <= 0 && checkInDate && checkOutDate) {
+                const inDate = new Date(checkInDate);
+                const outDate = new Date(checkOutDate);
+                if (!isNaN(inDate) && !isNaN(outDate) && outDate > inDate) {
+                    nights = Math.ceil((outDate - inDate) / (1000 * 60 * 60 * 24));
+                }
+            }
+            nights = Math.max(1, nights);
+            
+            // Calculate total price (room total = sell * rooms * nights; add child_with_bed and child_without_bed totals)
             const numberOfRooms = parseInt(hotel.rooms) || 1;
             const roomCost = parseFloat(hotel.cost || hotel.roomPrice) || 0;
             const roomSell = parseFloat(hotel.sell || hotel.roomPrice) || 0;
             const roomPrice = parseFloat(hotel.roomPrice) || 0;
-            const totalCost = roomCost * numberOfRooms;
-            const totalPrice = roomSell * numberOfRooms;
+            const totalCost = roomCost * numberOfRooms * nights;
+            const roomTotal = roomSell * numberOfRooms * nights;
+            const cwbPrice = hotel.hasCwb ? (parseFloat(hotel.cwbPrice) || 0) : 0;
+            const cnbPrice = hotel.hasCnb ? (parseFloat(hotel.cnbPrice) || 0) : 0;
+            let cwbChildren = parseInt(hotel.childWithBed) || 0;
+            let cnbChildren = parseInt(hotel.childWithoutBed) || 0;
+            // When both per-hotel child counts are 0, use header child value so payload reflects header
+            const headerChildCount = parseInt(getHeaderValues().children) || 0;
+            if (cwbChildren === 0 && cnbChildren === 0 && headerChildCount > 0) {
+                cwbChildren = headerChildCount;
+            }
+            // For child_without_bed payload: use header when cnbChildren is 0 (same as child_with_bed) so both show children and total_cost
+            const cnbChildrenForPayload = cnbChildren > 0 ? cnbChildren : (headerChildCount > 0 ? headerChildCount : 0);
+            // Costs must match payload total_costs so totalPrice = roomTotal + extra_bed.total_cost + child_with_bed.total_cost + child_without_bed.total_cost
+            const childWithBedTotalCost = (hotel.hasCwb && cwbChildren > 0) ? (cwbPrice * cwbChildren * nights) : 0;
+            const childWithoutBedTotalCost = (hotel.hasCnb && cnbChildrenForPayload > 0) ? (cnbPrice * cnbChildrenForPayload * nights) : 0;
+            // Extra bed: price * quantity * nights, add to total
+            const extraBedPrice = hotel.hasExtraBed ? (parseFloat(hotel.extraBedPrice) || 0) : 0;
+            const extraBedQuantity = parseInt(hotel.extraBed) || (hotel.hasExtraBed ? 1 : 0);
+            const extraBedTotalCost = (hotel.hasExtraBed && extraBedQuantity > 0) ? (extraBedPrice * extraBedQuantity * nights) : 0;
+            const totalPrice = roomTotal + extraBedTotalCost + childWithBedTotalCost + childWithoutBedTotalCost;
             
             // Structure rooms array with beds - matching working format exactly
             // Use actual database bed_id (this is what single tour package uses to match)
@@ -22483,6 +22551,27 @@
                 // Pricing
                 totalPrice: totalPrice,
                 price: totalPrice,
+                
+                // Extra bed (enabled, price, quantity, total_cost = price * quantity * nights)
+                extra_bed: {
+                    enabled: !!(hotel.hasExtraBed),
+                    price: parseFloat(hotel.extraBedPrice) || 0,
+                    quantity: extraBedQuantity,
+                    total_cost: extraBedTotalCost
+                },
+                // Child with bed / without bed (reference JSON format; children use header value when both 0; total_cost = price * children * nights)
+                child_with_bed: {
+                    enabled: !!(hotel.hasCwb),
+                    price: parseFloat(hotel.cwbPrice) || 0,
+                    children: cwbChildren,
+                    total_cost: (parseFloat(hotel.cwbPrice) || 0) * cwbChildren * nights
+                },
+                child_without_bed: {
+                    enabled: !!(hotel.hasCnb),
+                    price: parseFloat(hotel.cnbPrice) || 0,
+                    children: cnbChildrenForPayload,
+                    total_cost: (parseFloat(hotel.cnbPrice) || 0) * cnbChildrenForPayload * nights
+                },
                 
                 // Transfer options
                 transfer_options: hotelTransferData ? {
