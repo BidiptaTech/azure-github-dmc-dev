@@ -37,23 +37,6 @@
         color: #dc3545;
     }
 
-    /* Compact table styles (shared with new-enquiries / follow-ups) */
-    #toursTable {
-        font-size: 0.875rem;
-    }
-
-    #toursTable thead th {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-
-    #toursTable tbody td {
-        padding: 0.5rem 0.75rem;
-        vertical-align: middle;
-    }
-
     #toursTable tbody tr {
         height: auto;
         min-height: 50px;
@@ -115,7 +98,87 @@
         line-height: 1.3;
     }
 
-    /* Compact header + stats + filter bar (same as follow-ups) */
+    /* Page background - match actual */
+    .cancelled-bookings-page { background-color: #f8f9fa !important; min-height: 100vh; padding-bottom: 2rem !important; }
+    .cancelled-bookings-page .card { background-color: #fff; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+    /* Compact table styles (aligned with actual) */
+    #toursTable {
+        font-size: 0.875rem;
+        table-layout: fixed;
+        width: 100% !important;
+        margin-bottom: 0;
+        background-color: #fff;
+    }
+    .dataTables_wrapper .dataTables_scroll .dataTables_scrollBody #toursTable,
+    .dataTables_wrapper #toursTable { width: 100% !important; table-layout: fixed; }
+    #toursTable thead th {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: #f8f9fa;
+    }
+    #toursTable tbody td {
+        padding: 0.5rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+        background-color: #fff;
+    }
+    /* Tour Details, Agent, Actions, Created, Auto Cancel */
+    #toursTable td:nth-child(2) { min-height: 72px; vertical-align: top; }
+    #toursTable td.col-agent .agent-name-line { font-weight: 600; font-size: 0.875rem; color: #0d6efd; display: flex; align-items: center; gap: 0.35rem; }
+    #toursTable td.col-agent .agent-company-line { font-size: 0.75rem; color: #6c757d; display: flex; align-items: center; gap: 0.35rem; margin-top: 0.2rem; }
+    #toursTable td.col-agent .agent-empty { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #6c757d; font-style: italic; }
+    #toursTable td.col-created { white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
+    #toursTable td.col-created .created-by-line, #toursTable td.col-created .created-at-line { display: flex; align-items: flex-start; gap: 0.35rem; line-height: 1.35; }
+    #toursTable td.col-actions { min-height: 72px; min-width: 160px; overflow: visible; }
+    #toursTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-items: center;
+    }
+    #toursTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+    #toursTable .action-icon-badge:hover { background: #f1f5f9; border-color: #cbd5e1; }
+    #toursTable .action-icon-badge i { font-size: 1rem; color: var(--action-color, #475569); }
+    #toursTable td.col-auto-cancel { font-size: 0.7rem; }
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform-origin: bottom center;
+    }
+
+    /* Compact header + stats + filter bar */
     .new-enq-header-bar { background: linear-gradient(135deg, #f8f9fc 0%, #fff 100%); border-radius: 0.5rem; border: 1px solid rgba(105, 108, 255, 0.08); }
     .new-enq-stat-item { transition: transform 0.15s ease, box-shadow 0.15s ease; min-height: 72px; padding: 0.65rem 0.75rem !important; }
     .new-enq-stat-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
@@ -134,7 +197,7 @@
 
 
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="container-xxl flex-grow-1 container-p-y cancelled-bookings-page">
     <!-- Header -->
     <!-- Compact Header + Stats Bar -->
     <div class="new-enq-header-bar p-3 mb-3">
@@ -266,20 +329,26 @@
         <div class="card-body">
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
+                    <colgroup>
+                        <col style="width: 2%">
+                        <col style="width: 16%">
+                        <col style="width: 10%">
+                        <col style="width: 12%">
+                        <col style="width: 12%">
+                        <col style="width: 14%">
+                        <col style="width: 8%">
+                        <col style="width: 8%">
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
-                            <th>#</th>
-                            <th>Tour Details</th>
-                            <th>Destination</th>
-                            <th>Guests</th>
-                            <th>Agent</th>
-                            <th>Created By</th>
-                            <th>Cancellation Status</th>
-                            <th>Cancelled Date</th>
-                            <th>Actions</th>
-                            <th>Created At</th>
-                            <th>Updated At</th>
-                            <th>Auto Cancel Date</th>
+                            <th class="th-tooltip" data-tooltip="#">#</th>
+                            <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
+                            <th class="th-tooltip" data-tooltip="Agent">Agent</th>
+                            <th class="th-tooltip" data-tooltip="Cancellation Status">Cancellation Status</th>
+                            <th class="th-tooltip" data-tooltip="Cancelled Date">Cancelled Date</th>
+                            <th class="th-tooltip" data-tooltip="Actions">Actions</th>
+                            <th class="th-tooltip" data-tooltip="Created">Created</th>
+                            <th class="th-tooltip" data-tooltip="Auto Cancel Date">Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -299,54 +368,38 @@
                             }}"
                         >
                             <td>{{ $key + 1 }}</td>
-                            <td>
-                                <div class="d-flex flex-column">
+                            <td class="align-top">
+                                <div class="d-flex flex-column gap-1">
                                     <strong class="text-danger">{{ $tour->display_id }}</strong>
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
                                     @if($tour->tour_type)
-                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
-                                            {{ $tour->tour_type }}
+                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem;">{{ $tour->tour_type }}</span>
+                                    @endif
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
+                                            @if($tour->check_out_time)<span class="ms-1"><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
                                         </small>
                                     @endif
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-agent">
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
-                                </div>
-                            </td>
-
-                            <td>
-                                <div class="d-flex gap-3 align-items-center">
-                                    <div class="d-flex align-items-center gap-1" title="Adults">
-                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Children">
-                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Infants">
-                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">
-                                        <i class="fas fa-building me-1"></i>
-                                        {{ $tour->agent_company_name ?? 'N/A' }}
-                                    </small>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
+                                    @if($tour->agent_name)
+                                        <span class="agent-name-line"><i class="ri-user-line"></i><span>{{ $tour->agent_name }}</span></span>
+                                        <span class="agent-company-line"><i class="ri-building-line"></i><span>{{ $tour->agent_company_name ?? 'N/A' }}</span></span>
+                                    @else
+                                        <span class="agent-empty"><i class="ri-user-unfollow-line"></i><span>No agent assigned</span></span>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -382,25 +435,27 @@
                                     <small class="text-muted">{{ \Carbon\Carbon::parse($tour->updated_at)->format('h:i A') }}</small>
                                 </div>
                             </td>
-                            <td>
-                                <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
-                                   class="btn btn-outline-danger btn-sm rounded-pill">
-                                    <i class="ri-eye-line"></i> Audit Trail
-                                </a>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
-                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
+                            <td class="align-top col-actions">
+                                <div class="actions-icons-wrap">
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-created align-top">
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ optional($tour->updated_at)->format('D, M d, Y') }}</span>
-                                    <small class="text-muted">{{ optional($tour->updated_at)->format('h:i A') }}</small>
+                                    <span class="created-by-line fw-medium" title="Created by">
+                                        <i class="ri-user-line"></i>
+                                        <span>{{ $tour->created_by_name ?? 'N/A' }}</span>
+                                    </span>
+                                    <span class="created-at-line" title="Created at">
+                                        <i class="ri-calendar-line"></i>
+                                        <span>{{ $tour->created_at->format('D, M d, Y') }} · {{ $tour->created_at->format('h:i A') }}</span>
+                                    </span>
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-auto-cancel">
                                 <div class="d-flex flex-column">
                                     @if($tour->auto_cancel_date)
                                         <span class="fw-semibold">
@@ -457,11 +512,11 @@ function filterTable() {
         if (row.cells.length === 1) return; // Skip empty state row
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
-        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
-        const createdBy = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[6]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const cancelledDate = row.cells[7]?.textContent.toLowerCase() || '';
+        const destination = (row.cells[1]?.textContent || '').toLowerCase();
+        const agent = (row.cells[2]?.querySelector('.agent-name-line span')?.textContent?.trim() || row.cells[2]?.textContent || '').toLowerCase();
+        const createdBy = (row.cells[6]?.querySelector('.created-by-line span')?.textContent?.trim() || row.cells[6]?.textContent || '').toLowerCase();
+        const status = row.cells[3]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const cancelledDate = row.cells[4]?.textContent.toLowerCase() || '';
         const createdAt = row.getAttribute('data-created-at');
         const updatedAt = row.getAttribute('data-updated-at');
         
@@ -509,18 +564,15 @@ function filterTable() {
             show = false;
         }
         
-        // Destination filter - use LIKE operator logic (contains)
-        // This works for multi-country destinations like "India, Singapore"
+        // Destination filter - Tour Details (cells[1]) contains destination
         if (destinationFilter) {
-            // Split destination by comma and trim spaces
-            const destinationCountries = destination.split(',').map(c => c.trim());
-            // Check if the selected destination is in the destination list
-            if (!destinationCountries.includes(destinationFilter)) {
+            const destText = (row.cells[1]?.textContent || '').toLowerCase();
+            if (!destText.includes(destinationFilter.toLowerCase())) {
                 show = false;
             }
         }
         
-        if (agentFilter && agent !== agentFilter) {
+        if (agentFilter && agent !== agentFilter.toLowerCase().trim()) {
             show = false;
         }
         
@@ -844,6 +896,28 @@ document.addEventListener('DOMContentLoaded', function() {
             table.button('.buttons-print').trigger();
         });
     }
+
+    // Global tooltip for table headers and action/service icons
+    $(document).ready(function() {
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        }
+        $(document).on('mouseenter', '#toursTable thead .th-tooltip', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || $(this).text();
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable thead .th-tooltip', function() { $globalTooltip.hide(); });
+        $(document).on('mouseenter', '#toursTable .action-icon-badge', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || '';
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable .action-icon-badge', function() { $globalTooltip.hide(); });
+    });
 </script>
 @endsection
 
