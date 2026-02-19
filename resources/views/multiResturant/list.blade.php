@@ -68,14 +68,10 @@
         transition: all 0.3s ease;
     }
     .inline-form-row.editing-mode {
-        border-color: #ff9800 !important;
-        border-width: 2px !important;
         background: transparent !important;
-        box-shadow: 0 2px 8px rgba(255,152,0,0.2);
     }
     .inline-form-row.new-row {
-        border-color: #0d6efd !important;
-        border-width: 2px !important;
+        /* No special border styling */
     }
     
     /* Compact form styling */
@@ -89,13 +85,13 @@
     }
     .inline-form-row .form-control,
     .inline-form-row .form-select {
-        font-size: 0.8rem;
-        padding: 0.4rem 0.55rem;
-        height: calc(1.5em + 0.9rem);
+        font-size: 0.85rem;
+        padding: 0.55rem 0.75rem;
+        height: calc(1.5em + 1.3rem);
     }
     .inline-form-row .input-group-text {
-        font-size: 0.8rem;
-        padding: 0.35rem 0.5rem;
+        font-size: 0.85rem;
+        padding: 0.55rem 0.75rem;
     }
     .inline-form-row small.text-muted {
         font-size: 0.7rem;
@@ -106,24 +102,72 @@
         font-size: 0.8rem;
         padding: 0.35rem 0.65rem;
     }
-    .inline-form-row .select2-container .select2-selection--multiple {
-        min-height: calc(1.5em + 0.7rem);
-        padding: 2px 6px;
-    }
 
-    /* Hide selected restaurant text inside the select box itself.
-       User will see selections via the icon strip below, with hover tooltips. */
-    .restaurants-select + .select2-container .select2-selection--multiple .select2-selection__choice {
-        display: none !important;
-    }
+    /* Show selected restaurant names as cards/tags inside the select box */
     .restaurants-select + .select2-container .select2-selection--multiple .select2-selection__rendered {
-        padding-left: 0;
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+    .restaurants-select + .select2-container .select2-selection--multiple .select2-selection__choice {
+        display: inline-flex !important;
+        align-items: center;
+        max-width: 180px;
+    }
+    .restaurants-select + .select2-container .select2-selection--multiple .select2-selection__choice__display {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     /* Ensure input-group $ icon and textbox share same height */
     .inline-form-row .input-group .input-group-text,
     .inline-form-row .input-group .form-control {
-        height: calc(1.5em + 0.9rem);
+        height: calc(1.5em + 1.3rem);
+    }
+    .inline-form-row .select2-container .select2-selection--multiple {
+        min-height: calc(1.5em + 1.3rem);
+        padding: 4px 8px;
+    }
+
+    /* Toggle switch for status */
+    .status-toggle {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+    }
+    .status-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .status-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 24px;
+    }
+    .status-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    .status-toggle input:checked + .status-slider {
+        background-color: #28a745;
+    }
+    .status-toggle input:checked + .status-slider:before {
+        transform: translateX(26px);
     }
 
     /* Align price action buttons vertically with price inputs */
@@ -170,15 +214,16 @@
         transform: translateX(-50%);
         background: #333;
         color: white;
-        padding: 4px 8px;
+        padding: 6px 10px;
         border-radius: 4px;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         white-space: nowrap;
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.2s;
-        margin-bottom: 5px;
+        transition: opacity 0.2s ease-in-out;
+        margin-bottom: 8px;
         z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
     .restaurant-icon-item:hover .icon-tooltip {
         opacity: 1;
@@ -189,7 +234,7 @@
         top: 100%;
         left: 50%;
         transform: translateX(-50%);
-        border: 4px solid transparent;
+        border: 5px solid transparent;
         border-top-color: #333;
     }
     
@@ -294,146 +339,167 @@
                     @if(auth()->user()->role_id == 11 && empty($hasPackageForDmc))
                     <!-- New Package Row (inline create form) -->
                     <div class="col-12">
-                        <div class="card border-primary inline-form-row new-row" id="newPackageRow">
+                        <div class="card inline-form-row new-row" id="newPackageRow">
                             <div class="card-body">
                                 <form id="createForm" method="POST" action="{{ route('multiResturant.store') }}" class="row g-2 align-items-end">
                                     @csrf
-                                    <!-- Package + Status (top row) -->
-                                    <div class="col-md-3">
-                                        <label class="form-label">
-                                            <strong>Package Name</strong> <span class="text-danger">*</span>
-                                        </label>
-                                        <input type="text" class="form-control" name="package_name"
-                                               placeholder="Enter Package Name" required>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <label class="form-label">
-                                            <strong>Status</strong>
-                                        </label>
-                                        <select class="form-select" name="status">
-                                            <option value="1" selected>Active</option>
-                                            <option value="0">Inactive</option>
-                                        </select>
-                                    </div>
-
-                                    <!-- Restaurants (dedicated row below) -->
+                                    <!-- First Row: Package Name -->
                                     <div class="col-12">
-                                        <label class="form-label">
-                                            <strong>Restaurants</strong> <span class="text-danger">*</span>
-                                        </label>
-                                        <select name="restaurants[]" id="createRestaurantsSelect" class="form-select restaurants-select" multiple required>
-                                            @foreach($restaurants ?? [] as $restaurant)
-                                                <option data-image="{{ $restaurant->master_image ?? '' }}"
-                                                        data-name="{{ $restaurant->name }}"
-                                                        value="{{ $restaurant->restaurant_id }}">
-                                                    {{ $restaurant->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <div class="restaurant-icons-preview" id="createRestaurantIcons"></div>
-                                    </div>
-
-                                    <!-- Breakfast -->
-                                    <div class="col-md-4">
-                                        <label class="form-label">
-                                            <strong>Breakfast</strong> <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="d-flex flex-wrap align-items-center gap-2">
-                                            <select name="breakfast_on" class="form-select w-auto" required>
-                                                <option value="1">On</option>
-                                                <option value="0" selected>Off</option>
-                                            </select>
-                                            <input type="time" name="breakfast_start_time"
-                                                   class="form-control"
-                                                   placeholder="Start time">
-                                            <span class="mx-1">to</span>
-                                            <input type="time" name="breakfast_end_time"
-                                                   class="form-control"
-                                                   placeholder="End time">
-                                        </div>
-                                        <small class="text-muted">Start/end time is required when Breakfast is On.</small>
-                                    </div>
-
-                                    <!-- Lunch -->
-                                    <div class="col-md-4">
-                                        <label class="form-label">
-                                            <strong>Lunch</strong> <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="d-flex flex-wrap align-items-center gap-2">
-                                            <select name="lunch_on" class="form-select w-auto" required>
-                                                <option value="1">On</option>
-                                                <option value="0" selected>Off</option>
-                                            </select>
-                                            <input type="time" name="lunch_start_time"
-                                                   class="form-control"
-                                                   placeholder="Start time">
-                                            <span class="mx-1">to</span>
-                                            <input type="time" name="lunch_end_time"
-                                                   class="form-control"
-                                                   placeholder="End time">
-                                        </div>
-                                        <small class="text-muted">Start/end time is required when Lunch is On.</small>
-                                    </div>
-
-                                    <!-- Dinner -->
-                                    <div class="col-md-4">
-                                        <label class="form-label">
-                                            <strong>Dinner</strong> <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="d-flex flex-wrap align-items-center gap-2">
-                                            <select name="dinner_on" class="form-select w-auto" required>
-                                                <option value="1">On</option>
-                                                <option value="0" selected>Off</option>
-                                            </select>
-                                            <input type="time" name="dinner_start_time"
-                                                   class="form-control"
-                                                   placeholder="Start time">
-                                            <span class="mx-1">to</span>
-                                            <input type="time" name="dinner_end_time"
-                                                   class="form-control"
-                                                   placeholder="End time">
-                                        </div>
-                                        <small class="text-muted">Start/end time is required when Dinner is On.</small>
-                                    </div>
-
-                                    <!-- Prices -->
-                                    <div class="col-md-3">
-                                        <label class="form-label">
-                                            <strong>Adult Price</strong> <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">$</span>
-                                            <input type="number" step="0.01" min="0"
-                                                   class="form-control"
-                                                   name="price"
-                                                   placeholder="0.00" required>
+                                        <div class="row g-2">
+                                            <div class="col-md-3">
+                                                <label class="form-label">
+                                                    <strong>Package Name</strong> <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="text" class="form-control" name="package_name"
+                                                       placeholder="Enter Package Name" required>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div class="col-md-3">
-                                        <label class="form-label">
-                                            <strong>Child Price</strong>
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">$</span>
-                                            <input type="number" step="1" min="0"
-                                                   class="form-control"
-                                                   name="child_price"
-                                                   placeholder="0 (optional)">
+                                    <!-- Second Row: Restaurants -->
+                                    <div class="col-12">
+                                        <div class="row g-2">
+                                            <div class="col-md-12">
+                                                <label class="form-label">
+                                                    <strong>Restaurants</strong> <span class="text-danger">*</span>
+                                                </label>
+                                                <select name="restaurants[]" id="createRestaurantsSelect" class="form-select restaurants-select" multiple required>
+                                                    @foreach($restaurants ?? [] as $restaurant)
+                                                        <option data-image="{{ $restaurant->master_image ?? '' }}"
+                                                                data-name="{{ $restaurant->name }}"
+                                                                value="{{ $restaurant->restaurant_id }}">
+                                                            {{ $restaurant->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                <div class="restaurant-icons-preview" id="createRestaurantIcons"></div>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <!-- Buttons -->
-                                    <div class="col-md-2">
-                                        <label class="form-label">&nbsp;</label>
-                                        <div class="price-actions gap-2">
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="fas fa-save"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-secondary" onclick="resetNewForm()">
-                                                <i class="fas fa-times"></i>
-                                            </button>
+                                    <!-- Third Row: Breakfast, Lunch, Dinner -->
+                                    <div class="col-12">
+                                        <div class="row g-2">
+                                            <!-- Breakfast -->
+                                            <div class="col-md-4">
+                                                <label class="form-label">
+                                                    <strong>Breakfast</strong> <span class="text-danger">*</span>
+                                                </label>
+                                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                                    <select name="breakfast_on" class="form-select w-auto" required>
+                                                        <option value="1">On</option>
+                                                        <option value="0" selected>Off</option>
+                                                    </select>
+                                                    <input type="time" name="breakfast_start_time"
+                                                           class="form-control"
+                                                           placeholder="Start time">
+                                                    <span class="mx-1">to</span>
+                                                    <input type="time" name="breakfast_end_time"
+                                                           class="form-control"
+                                                           placeholder="End time">
+                                                </div>
+                                                <small class="text-muted">Start/end time is required when Breakfast is On.</small>
+                                            </div>
+
+                                            <!-- Lunch -->
+                                            <div class="col-md-4">
+                                                <label class="form-label">
+                                                    <strong>Lunch</strong> <span class="text-danger">*</span>
+                                                </label>
+                                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                                    <select name="lunch_on" class="form-select w-auto" required>
+                                                        <option value="1">On</option>
+                                                        <option value="0" selected>Off</option>
+                                                    </select>
+                                                    <input type="time" name="lunch_start_time"
+                                                           class="form-control"
+                                                           placeholder="Start time">
+                                                    <span class="mx-1">to</span>
+                                                    <input type="time" name="lunch_end_time"
+                                                           class="form-control"
+                                                           placeholder="End time">
+                                                </div>
+                                                <small class="text-muted">Start/end time is required when Lunch is On.</small>
+                                            </div>
+
+                                            <!-- Dinner -->
+                                            <div class="col-md-4">
+                                                <label class="form-label">
+                                                    <strong>Dinner</strong> <span class="text-danger">*</span>
+                                                </label>
+                                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                                    <select name="dinner_on" class="form-select w-auto" required>
+                                                        <option value="1">On</option>
+                                                        <option value="0" selected>Off</option>
+                                                    </select>
+                                                    <input type="time" name="dinner_start_time"
+                                                           class="form-control"
+                                                           placeholder="Start time">
+                                                    <span class="mx-1">to</span>
+                                                    <input type="time" name="dinner_end_time"
+                                                           class="form-control"
+                                                           placeholder="End time">
+                                                </div>
+                                                <small class="text-muted">Start/end time is required when Dinner is On.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Fourth Row: Adult Price, Child Price, Status, Submit Button -->
+                                    <div class="col-12">
+                                        <div class="row g-2 align-items-end">
+                                            <!-- Adult Price -->
+                                            <div class="col-md-3">
+                                                <label class="form-label">
+                                                    <strong>Adult Price</strong> <span class="text-danger">*</span>
+                                                </label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    <input type="number" step="0.01" min="0"
+                                                           class="form-control"
+                                                           name="price"
+                                                           placeholder="0.00" required>
+                                                </div>
+                                            </div>
+
+                                            <!-- Child Price -->
+                                            <div class="col-md-3">
+                                                <label class="form-label">
+                                                    <strong>Child Price</strong>
+                                                </label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    <input type="number" step="1" min="0"
+                                                           class="form-control"
+                                                           name="child_price"
+                                                           placeholder="0 (optional)">
+                                                </div>
+                                            </div>
+
+                                            <!-- Status -->
+                                            <div class="col-md-2">
+                                                <label class="form-label">
+                                                    <strong>Status</strong>
+                                                </label>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <label class="status-toggle">
+                                                        <input type="checkbox" id="createStatusCheckbox" checked>
+                                                        <span class="status-slider"></span>
+                                                    </label>
+                                                    <input type="hidden" name="status" value="1" id="createStatusHidden">
+                                                    <span class="status-label" style="font-size: 0.75rem;">Active</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Submit Button -->
+                                            <div class="col-md-2">
+                                                <label class="form-label">&nbsp;</label>
+                                                <div class="price-actions gap-2">
+                                                    <button type="submit" class="btn btn-primary">
+                                                        Submit
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </form>
@@ -444,12 +510,19 @@
 
                     @forelse($multiRestaurants ?? [] as $key => $item)
                         @php 
-                            $encId = isset($item->id) ? Crypt::encrypt($item->id) : '';
+                            $encId = isset($item->package_unique_id) ? Crypt::encrypt($item->package_unique_id) : '';
                             $restaurantIds = $item->getRestaurantsAsArray();
                             $selectedIds = array_map('intval', $restaurantIds);
                             $selectedRestaurants = collect($restaurants ?? [])->filter(function($r) use ($restaurantIds) {
                                 return in_array($r->restaurant_id, $restaurantIds) || in_array($r->id, $restaurantIds);
                             });
+
+                            // Get company name from User table based on dmc_id
+                            $companyName = 'N/A';
+                            if (!empty($item->dmc_id)) {
+                                $dmcUser = \App\Models\User::where('dmcId', $item->dmc_id)->first();
+                                $companyName = $dmcUser->company_name ?? 'N/A';
+                            }
 
                             // Prepare meal toggle + time values from stored columns
                             $bOn = old('breakfast_on') !== null ? old('breakfast_on') : ($item->breakfast ?? 0);
@@ -478,18 +551,24 @@
                             }
                         @endphp
                         <div class="col-12">
-                            <div class="card inline-form-row {{ ($item->status ?? 0) == 1 ? 'border-success' : 'border-secondary' }}" data-id="{{ $item->id }}" id="row_{{ $item->id }}">
+                            <div class="card inline-form-row" data-id="{{ $item->id }}" id="row_{{ $item->id }}">
                                 <div class="card-body">
                                     <!-- View Mode -->
                                     <div class="view-content">
                                         <div class="row g-2 align-items-center">
-                                            <div class="col-md-3">
+                                            <div class="col-md-2">
                                                 <div>
                                                     <h6 class="mb-0" style="font-size: 0.85rem;">{{ $item->package_name ?? 'N/A' }}</h6>
                                                     <small class="text-muted" style="font-size: 0.7rem;">ID: {{ $item->package_id ?? 'N/A' }}</small>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-2">
+                                                <div>
+                                                    <strong style="font-size: 0.8rem;">Company:</strong>
+                                                    <div style="font-size: 0.75rem;">{{ $companyName }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
                                                 <div class="restaurant-badges">
                                                     @foreach($selectedRestaurants->take(5) as $rest)
                                                         <span class="restaurant-badge" style="font-size: 0.7rem;">{{ $rest->name }}</span>
@@ -521,12 +600,14 @@
                                                     style="width: 32px; height: 32px; padding: 0;" title="View">
                                                     <i class="fas fa-eye"></i>
                                     </a>
-                                    @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 11)
+                                    @if(Auth::user()->role_id == 1 || in_array(Auth::user()->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138]))
+                                                @if(Auth::user()->role_id != 1)
                                                 <button type="button" class="btn btn-info btn-sm rounded-circle edit-btn"
                                                     style="width: 32px; height: 32px; padding: 0;" title="Edit"
                                                     data-id="{{ $item->id }}">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
+                                                @endif
                                     <button type="button"
                                         class="btn btn-danger btn-sm rounded-circle"
                                                     style="width: 32px; height: 32px; padding: 0;"
@@ -542,151 +623,185 @@
 
                                     <!-- Edit Mode -->
                                     <div class="edit-content" style="display: none;">
-                                        <form class="updateForm" id="updateForm_{{ $item->id }}" method="POST" action="{{ route('multiResturant.update', $encId) }}">
+                                        <form class="updateForm row g-2 align-items-end" id="updateForm_{{ $item->id }}" method="POST" action="{{ route('multiResturant.update', $encId) }}">
                                             @csrf
                                             @method('PUT')
-                                            <div class="row g-2 align-items-end">
-                                            <!-- Package + Status (top row) -->
-                                                <div class="col-md-3">
-                                                    <label class="form-label">
-                                                        <strong>Package Name</strong> <span class="text-danger">*</span>
-                                                    </label>
-                                                    <input type="text" class="form-control" name="package_name" 
-                                                           value="{{ old('package_name', $item->package_name) }}" required>
-                                                    <small class="text-muted">ID: {{ $item->package_id }}</small>
+                                            <!-- First Row: Package Name -->
+                                            <div class="col-12">
+                                                <div class="row g-2">
+                                                    <div class="col-md-3">
+                                                        <label class="form-label">
+                                                            <strong>Package Name</strong> <span class="text-danger">*</span>
+                                                        </label>
+                                                        <input type="text" class="form-control" name="package_name" 
+                                                               value="{{ old('package_name', $item->package_name) }}" required>
+                                                        <small class="text-muted">ID: {{ $item->package_id }}</small>
+                                                    </div>
                                                 </div>
-                                                <!-- Status -->
-                                                <div class="col-md-2">
-                                                    <label class="form-label">
-                                                        <strong>Status</strong>
-                                                    </label>
-                                                    <select class="form-select" name="status">
-                                                        <option value="1" {{ (old('status', $item->status) == 1) ? 'selected' : '' }}>Active</option>
-                                                        <option value="0" {{ (old('status', $item->status) == 0) ? 'selected' : '' }}>Inactive</option>
-                                                    </select>
-                                                </div>
+                                            </div>
 
-                                                <!-- Restaurants (dedicated row below) -->
-                                                <div class="col-12">
-                                                    <label class="form-label">
-                                                        <strong>Restaurants</strong> <span class="text-danger">*</span>
-                                                    </label>
-                                                    <select name="restaurants[]" id="updateRestaurantsSelect_{{ $item->id }}" class="form-select restaurants-select" multiple required form="updateForm_{{ $item->id }}">
-                                                        @foreach($restaurants ?? [] as $restaurant)
-                                                            <option
-                                                                data-image="{{ $restaurant->master_image ?? '' }}"
-                                                                data-name="{{ $restaurant->name }}"
-                                                                value="{{ $restaurant->restaurant_id }}"
-                                                                {{ in_array((int) $restaurant->restaurant_id, $selectedIds) ? 'selected' : '' }}
-                                                            >
-                                                                {{ $restaurant->name }}
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="restaurant-icons-preview" id="updateRestaurantIcons_{{ $item->id }}"></div>
-                                                </div>
-
-                                                <!-- Breakfast -->
-                                                <div class="col-md-4">
-                                                    <label class="form-label">
-                                                        <strong>Breakfast</strong> <span class="text-danger">*</span>
-                                                    </label>
-                                                    <div class="d-flex flex-wrap align-items-center gap-2">
-                                                        <select name="breakfast_on" class="form-select w-auto" required>
-                                                            <option value="1" {{ $bOn == 1 ? 'selected' : '' }}>On</option>
-                                                            <option value="0" {{ $bOn == 0 ? 'selected' : '' }}>Off</option>
+                                            <!-- Second Row: Restaurants -->
+                                            <div class="col-12">
+                                                <div class="row g-2">
+                                                    <div class="col-md-12">
+                                                        <label class="form-label">
+                                                            <strong>Restaurants</strong> <span class="text-danger">*</span>
+                                                        </label>
+                                                        <select name="restaurants[]" id="updateRestaurantsSelect_{{ $item->id }}" class="form-select restaurants-select" multiple required form="updateForm_{{ $item->id }}">
+                                                            @foreach($restaurants ?? [] as $restaurant)
+                                                                <option
+                                                                    data-image="{{ $restaurant->master_image ?? '' }}"
+                                                                    data-name="{{ $restaurant->name }}"
+                                                                    value="{{ $restaurant->restaurant_id }}"
+                                                                    {{ in_array((int) $restaurant->restaurant_id, $selectedIds) ? 'selected' : '' }}
+                                                                >
+                                                                    {{ $restaurant->name }}
+                                                                </option>
+                                                            @endforeach
                                                         </select>
-                                                        <input type="time" name="breakfast_start_time"
-                                                               class="form-control"
-                                                               value="{{ old('breakfast_start_time', $bStart) }}">
-                                                        <span class="mx-1">to</span>
-                                                        <input type="time" name="breakfast_end_time"
-                                                               class="form-control"
-                                                               value="{{ old('breakfast_end_time', $bEnd) }}">
-                                                    </div>
-                                                    <small class="text-muted">Start/end time is required when Breakfast is On.</small>
-                                                </div>
-
-                                                <!-- Lunch -->
-                                                <div class="col-md-4">
-                                                    <label class="form-label">
-                                                        <strong>Lunch</strong> <span class="text-danger">*</span>
-                                                    </label>
-                                                    <div class="d-flex flex-wrap align-items-center gap-2">
-                                                        <select name="lunch_on" class="form-select w-auto" required>
-                                                            <option value="1" {{ $lOn == 1 ? 'selected' : '' }}>On</option>
-                                                            <option value="0" {{ $lOn == 0 ? 'selected' : '' }}>Off</option>
-                                                        </select>
-                                                        <input type="time" name="lunch_start_time"
-                                                               class="form-control"
-                                                               value="{{ old('lunch_start_time', $lStart) }}">
-                                                        <span class="mx-1">to</span>
-                                                        <input type="time" name="lunch_end_time"
-                                                               class="form-control"
-                                                               value="{{ old('lunch_end_time', $lEnd) }}">
-                                                    </div>
-                                                    <small class="text-muted">Start/end time is required when Lunch is On.</small>
-                                                </div>
-
-                                                <!-- Dinner -->
-                                                <div class="col-md-4">
-                                                    <label class="form-label">
-                                                        <strong>Dinner</strong> <span class="text-danger">*</span>
-                                                    </label>
-                                                    <div class="d-flex flex-wrap align-items-center gap-2">
-                                                        <select name="dinner_on" class="form-select w-auto" required>
-                                                            <option value="1" {{ $dOn == 1 ? 'selected' : '' }}>On</option>
-                                                            <option value="0" {{ $dOn == 0 ? 'selected' : '' }}>Off</option>
-                                                        </select>
-                                                        <input type="time" name="dinner_start_time"
-                                                               class="form-control"
-                                                               value="{{ old('dinner_start_time', $dStart) }}">
-                                                        <span class="mx-1">to</span>
-                                                        <input type="time" name="dinner_end_time"
-                                                               class="form-control"
-                                                               value="{{ old('dinner_end_time', $dEnd) }}">
-                                                    </div>
-                                                    <small class="text-muted">Start/end time is required when Dinner is On.</small>
-                                                </div>
-
-                                                <!-- Prices -->
-                                                <div class="col-md-3">
-                                                    <label class="form-label">
-                                                        <strong>Adult Price</strong> <span class="text-danger">*</span>
-                                                    </label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text">$</span>
-                                                        <input type="number" step="0.01" min="0"
-                                                               class="form-control"
-                                                               name="price" 
-                                                                         value="{{ old('price', $item->adult_price) }}" required>
+                                                        {{-- Icons from multi_restaurants → selected IDs → Restaurant table (no Select2 dependency) --}}
+                                                        <div class="restaurant-icons-preview" id="updateRestaurantIcons_{{ $item->id }}">
+                                                            @foreach($selectedRestaurants as $rest)
+                                                                @php
+                                                                    $img = $rest->master_image ?? '';
+                                                                    $imgSrc = $img ? ((strpos($img, 'http') === 0 || strpos($img, '/') === 0) ? $img : '/'.$img) : 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect fill="#ddd" width="40" height="40"/><text x="50%" y="50%" fill="#999" text-anchor="middle" dy=".3em" font-size="8">No img</text></svg>');
+                                                                @endphp
+                                                                <div class="restaurant-icon-item" data-value="{{ $rest->restaurant_id }}" title="{{ e($rest->name) }}">
+                                                                    <img src="{{ $imgSrc }}" alt="{{ e($rest->name) }}">
+                                                                    <span class="icon-tooltip">{{ e($rest->name) }}</span>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                <div class="col-md-3">
-                                                    <label class="form-label">
-                                                        <strong>Child Price</strong>
-                                                    </label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text">$</span>
-                                                        <input type="number" step="1" min="0"
-                                                               class="form-control"
-                                                               name="child_price"
-                                                               value="{{ old('child_price', $item->child_price ?? null) }}"
-                                                               placeholder="0 (optional)">
+                                            <!-- Third Row: Breakfast, Lunch, Dinner -->
+                                            <div class="col-12">
+                                                <div class="row g-2">
+                                                    <!-- Breakfast -->
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">
+                                                            <strong>Breakfast</strong> <span class="text-danger">*</span>
+                                                        </label>
+                                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                                            <select name="breakfast_on" class="form-select w-auto" required>
+                                                                <option value="1" {{ $bOn == 1 ? 'selected' : '' }}>On</option>
+                                                                <option value="0" {{ $bOn == 0 ? 'selected' : '' }}>Off</option>
+                                                            </select>
+                                                            <input type="time" name="breakfast_start_time"
+                                                                   class="form-control"
+                                                                   value="{{ old('breakfast_start_time', $bStart) }}">
+                                                            <span class="mx-1">to</span>
+                                                            <input type="time" name="breakfast_end_time"
+                                                                   class="form-control"
+                                                                   value="{{ old('breakfast_end_time', $bEnd) }}">
+                                                        </div>
+                                                        <small class="text-muted">Start/end time is required when Breakfast is On.</small>
+                                                    </div>
+
+                                                    <!-- Lunch -->
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">
+                                                            <strong>Lunch</strong> <span class="text-danger">*</span>
+                                                        </label>
+                                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                                            <select name="lunch_on" class="form-select w-auto" required>
+                                                                <option value="1" {{ $lOn == 1 ? 'selected' : '' }}>On</option>
+                                                                <option value="0" {{ $lOn == 0 ? 'selected' : '' }}>Off</option>
+                                                            </select>
+                                                            <input type="time" name="lunch_start_time"
+                                                                   class="form-control"
+                                                                   value="{{ old('lunch_start_time', $lStart) }}">
+                                                            <span class="mx-1">to</span>
+                                                            <input type="time" name="lunch_end_time"
+                                                                   class="form-control"
+                                                                   value="{{ old('lunch_end_time', $lEnd) }}">
+                                                        </div>
+                                                        <small class="text-muted">Start/end time is required when Lunch is On.</small>
+                                                    </div>
+
+                                                    <!-- Dinner -->
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">
+                                                            <strong>Dinner</strong> <span class="text-danger">*</span>
+                                                        </label>
+                                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                                            <select name="dinner_on" class="form-select w-auto" required>
+                                                                <option value="1" {{ $dOn == 1 ? 'selected' : '' }}>On</option>
+                                                                <option value="0" {{ $dOn == 0 ? 'selected' : '' }}>Off</option>
+                                                            </select>
+                                                            <input type="time" name="dinner_start_time"
+                                                                   class="form-control"
+                                                                   value="{{ old('dinner_start_time', $dStart) }}">
+                                                            <span class="mx-1">to</span>
+                                                            <input type="time" name="dinner_end_time"
+                                                                   class="form-control"
+                                                                   value="{{ old('dinner_end_time', $dEnd) }}">
+                                                        </div>
+                                                        <small class="text-muted">Start/end time is required when Dinner is On.</small>
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                <!-- Buttons -->
-                                                <div class="col-md-2">
-                                                    <label class="form-label">&nbsp;</label>
-                                                    <div class="price-actions gap-2">
-                                                        <button type="submit" class="btn btn-success">
-                                                            <i class="fas fa-save"></i>
-                                                        </button>
-                                                        <button type="button" class="btn btn-secondary cancel-edit-btn" data-id="{{ $item->id }}">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
+                                            <!-- Fourth Row: Adult Price, Child Price, Status, Submit/Cancel Buttons -->
+                                            <div class="col-12">
+                                                <div class="row g-2 align-items-end">
+                                                    <!-- Adult Price -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label">
+                                                            <strong>Adult Price</strong> <span class="text-danger">*</span>
+                                                        </label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" step="0.01" min="0"
+                                                                   class="form-control"
+                                                                   name="price" 
+                                                                   value="{{ old('price', $item->adult_price) }}" required>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Child Price -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label">
+                                                            <strong>Child Price</strong>
+                                                        </label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" step="1" min="0"
+                                                                   class="form-control"
+                                                                   name="child_price"
+                                                                   value="{{ old('child_price', $item->child_price ?? null) }}"
+                                                                   placeholder="0 (optional)">
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Status -->
+                                                    <div class="col-md-2">
+                                                        <label class="form-label">
+                                                            <strong>Status</strong>
+                                                        </label>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <label class="status-toggle">
+                                                                <input type="checkbox" class="status-checkbox" data-item-id="{{ $item->id }}" {{ (old('status', $item->status) == 1) ? 'checked' : '' }}>
+                                                                <span class="status-slider"></span>
+                                                            </label>
+                                                            <input type="hidden" name="status" value="{{ old('status', $item->status) }}" id="updateStatusHidden_{{ $item->id }}">
+                                                            <span class="status-label" style="font-size: 0.75rem;">{{ (old('status', $item->status) == 1) ? 'Active' : 'Inactive' }}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Buttons -->
+                                                    <div class="col-md-2">
+                                                        <label class="form-label">&nbsp;</label>
+                                                        <div class="price-actions gap-2">
+                                                            <button type="submit" class="btn btn-success">
+                                                                Submit
+                                                            </button>
+                                                            <button type="button" class="btn btn-secondary cancel-edit-btn" data-id="{{ $item->id }}">
+                                                                Cancel
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -738,29 +853,45 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
-        // Function to update restaurant icons preview
+        // Derive icons container id from select id (create: createRestaurantsSelect -> createRestaurantIcons; edit: updateRestaurantsSelect_N -> updateRestaurantIcons_N)
+        function getIconsContainerId(selectId) {
+            if (!selectId) return '';
+            return selectId.replace('RestaurantsSelect', 'RestaurantIcons');
+        }
+        // Update restaurant icons from current select value (works with Select2: use .val() which Select2 keeps in sync)
         function updateRestaurantIcons(selectId, containerId) {
+            if (!containerId) containerId = getIconsContainerId(selectId);
             var $select = $('#' + selectId);
             var $container = $('#' + containerId);
+            if (!$select.length || !$container.length) return;
             $container.empty();
-            
-            var selectedValues = $select.val() || [];
-            $select.find('option:selected').each(function() {
-                var $option = $(this);
-                var image = $option.data('image') || '';
-                var name = $option.data('name') || $option.text();
-                var value = $option.val();
-                
-                var imgSrc = image ? (image.indexOf('http') === 0 || image.indexOf('/') === 0 ? image : ('/' + image)) : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect fill="%23ddd" width="40" height="40"/><text x="50%" y="50%" fill="%23999" text-anchor="middle" dy=".3em" font-size="8">No img</text></svg>';
-                
-                var $icon = $('<div class="restaurant-icon-item" data-value="' + value + '"><img src="' + imgSrc + '" alt="' + name + '"><span class="icon-tooltip">' + name + '</span></div>');
+            var selectedValues = $select.val();
+            if (!selectedValues || (Array.isArray(selectedValues) && selectedValues.length === 0)) {
+                $container.html('<small class="text-muted">No restaurants selected</small>');
+                return;
+            }
+            if (!Array.isArray(selectedValues)) {
+                selectedValues = [selectedValues];
+            }
+            var placeholderImg = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect fill="%23ddd" width="40" height="40"/><text x="50%" y="50%" fill="%23999" text-anchor="middle" dy=".3em" font-size="8">No img</text></svg>';
+            selectedValues.forEach(function(value) {
+                if (!value || value === '') return;
+                var $option = $select.find('option').filter(function() { return $(this).val() == value; }).first();
+                var image = $option.length ? ($option.data('image') || $option.attr('data-image') || '') : '';
+                var name = $option.length ? ($option.data('name') || $option.attr('data-name') || $option.text()) : String(value);
+                var imgSrc = image ? (image.indexOf('http') === 0 || image.indexOf('/') === 0 ? image : ('/' + image)) : placeholderImg;
+                var safeName = name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                var $icon = $('<div class="restaurant-icon-item" data-value="' + value + '" title="' + safeName + '"><img src="' + imgSrc + '" alt="' + safeName + '"><span class="icon-tooltip">' + safeName + '</span></div>');
                 $container.append($icon);
             });
-            
-            if (selectedValues.length === 0) {
-                $container.html('<small class="text-muted">No restaurants selected</small>');
-            }
         }
+
+        // Status toggle handler for create form
+        $('#createStatusCheckbox').on('change', function() {
+            var isChecked = $(this).is(':checked');
+            $('#createStatusHidden').val(isChecked ? '1' : '0');
+            $(this).closest('.d-flex').find('.status-label').text(isChecked ? 'Active' : 'Inactive');
+        });
 
         // Initialize Select2 for create form
         $('#createRestaurantsSelect').select2({
@@ -771,9 +902,10 @@
             dropdownParent: $('body')
         });
         
-        // Update icons when create form selection changes
-        $('#createRestaurantsSelect').on('change', function() {
-            updateRestaurantIcons('createRestaurantsSelect', 'createRestaurantIcons');
+        // Single delegated handler: any restaurant select (create or edit) change updates its icons
+        $(document).on('change', '.restaurants-select', function() {
+            var selectId = $(this).attr('id');
+            if (selectId) updateRestaurantIcons(selectId, getIconsContainerId(selectId));
         });
         
         // Initialize icons for create form on load
@@ -804,8 +936,19 @@
             setTimeout(function() {
                 var selectId = $row.find('.restaurants-select').attr('id');
                 var containerId = selectId.replace('Select', 'Icons');
+                var $select = $row.find('.restaurants-select');
                 
-                $row.find('.restaurants-select').select2({
+                // Get selected values BEFORE initializing Select2
+                var selectedValues = [];
+                $select.find('option:selected').each(function() {
+                    var val = $(this).val();
+                    if (val && val !== '') {
+                        selectedValues.push(val);
+                    }
+                });
+                
+                // Initialize Select2 - same as create form
+                $select.select2({
                     theme: 'bootstrap-5',
                     placeholder: "Select Restaurants",
                     allowClear: true,
@@ -813,12 +956,22 @@
                     dropdownParent: $('body')
                 });
                 
-                // Update icons for edit form
-                updateRestaurantIcons(selectId, containerId);
+                // Ensure Select2 recognizes the selected values
+                if (selectedValues.length > 0) {
+                    $select.val(selectedValues).trigger('change');
+                }
                 
-                // Listen for changes in edit form
-                $row.find('.restaurants-select').on('change', function() {
+                // Icons already rendered server-side; update on Select2 select/unselect (and change is handled by delegated handler above)
+                $select.on('select2:select select2:unselect', function() {
                     updateRestaurantIcons(selectId, containerId);
+                });
+
+                // Status toggle handler for edit form
+                $row.find('.status-checkbox').off('change').on('change', function() {
+                    var isChecked = $(this).is(':checked');
+                    var itemId = $(this).data('item-id');
+                    $('#updateStatusHidden_' + itemId).val(isChecked ? '1' : '0');
+                    $(this).closest('.d-flex').find('.status-label').text(isChecked ? 'Active' : 'Inactive');
                 });
             }, 100);
         });
@@ -855,6 +1008,10 @@
 
         // Form validation for create form
         $('#createForm').on('submit', function(e) {
+            // Ensure status hidden input is set correctly
+            var statusChecked = $(this).find('.status-toggle input[type="checkbox"]').is(':checked');
+            $(this).find('#createStatusHidden').val(statusChecked ? '1' : '0');
+            
             var restaurants = $(this).find('.restaurants-select').val();
             if (!restaurants || restaurants.length === 0) {
                 e.preventDefault();
@@ -870,6 +1027,11 @@
         // Form validation for update forms
         $(document).on('submit', '.updateForm', function(e) {
             var $row = $(this).closest('.inline-form-row');
+            
+            // Ensure status hidden input is set correctly
+            var statusChecked = $row.find('.status-checkbox').is(':checked');
+            $row.find('input[id^="updateStatusHidden_"]').val(statusChecked ? '1' : '0');
+            
             var restaurants = $row.find('.restaurants-select').val();
             if (!restaurants || restaurants.length === 0) {
                 e.preventDefault();

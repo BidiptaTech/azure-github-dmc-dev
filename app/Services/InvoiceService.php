@@ -641,6 +641,16 @@ class InvoiceService
 
         $description = $hotelName . ($roomCategory ? ' - ' . $roomCategory : '');
 
+        // Child accommodation (child_with_bed / child_without_bed)
+        $childWithBed = null;
+        $childWithoutBed = null;
+        if (isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled']) {
+            $childWithBed = $booking['child_with_bed'];
+        }
+        if (isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled']) {
+            $childWithoutBed = $booking['child_without_bed'];
+        }
+
         return [
             'item_type' => 'hotel',
             'description' => $description,
@@ -657,6 +667,8 @@ class InvoiceService
                 'no_of_days' => $days,
                 'total_pax' => $totalPax,
                 'confirmation' => '',
+                'child_with_bed' => $childWithBed,
+                'child_without_bed' => $childWithoutBed,
             ],
             'quantity_adults' => 0,
             'quantity_children' => 0,
@@ -706,6 +718,8 @@ class InvoiceService
         $guideOptions = $booking['guide_options'] ?? [];
         $guideRequired = $guideOptions['guide_required'] ?? false;
         $guideName = $guideOptions['guide_name'] ?? '';
+        $guideHours = $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? '';
+        $guideLanguage = $guideOptions['language'] ?? '';
         
         // Calculate prices
         $attractionBasePrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
@@ -738,6 +752,8 @@ class InvoiceService
                 'vehicle_details' => $vehicleDetailsStr,
                 'guide_required' => $guideRequired,
                 'guide_name' => $guideName,
+                'guide_hours' => $guideHours,
+                'guide_language' => $guideLanguage,
                 'guide_total_price' => $guideTotalPrice,
                 'attraction_base_price' => $attractionBasePrice,
                 'total_pax' => $totalPax,

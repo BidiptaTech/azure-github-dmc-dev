@@ -922,6 +922,8 @@ Route::get('/clear', function () {
             Route::get('/invoices/{invoiceId}/download', [InvoiceController::class, 'download'])->name('invoices.download');
             Route::get('/invoices/{invoiceId}/download-price-only', [InvoiceController::class, 'downloadPriceOnly'])->name('invoices.download-price-only');
             Route::get('/invoices/{invoiceId}/view', [InvoiceController::class, 'view'])->name('invoices.view');
+            Route::get('/invoices/{invoiceId}/preview', [InvoiceController::class, 'preview'])->name('invoices.preview');
+            Route::get('/invoices/{invoiceId}/pdf', [InvoiceController::class, 'invoicePdf'])->name('invoices.pdf');
             Route::post('/invoices/tour/{tourId}/generate-proforma', [InvoiceController::class, 'generateProforma'])->name('invoices.generate-proforma');
             Route::post('/invoices/tour/{tourId}/generate-final', [InvoiceController::class, 'generateFinal'])->name('invoices.generate-final');
             Route::post('/invoices/{invoiceId}/convert-to-final', [InvoiceController::class, 'convertToFinal'])->name('invoices.convert-to-final');
