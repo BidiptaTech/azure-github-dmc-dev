@@ -1040,16 +1040,8 @@
                                     </button>
                                 </div>
                             </td>
-                            @php
-                                $tz = auth()->user()->timezone ?? 'UTC';
-                                $time = $tour->created_at->timezone($tz);
-                            @endphp                            
-                            <td class="align-top">
-                                <div class="d-flex flex-column gap-0">
-                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">{{ $time->format('D, M d, Y') }} · {{ $time->format('h:i A') }}</small>
-                                </div>
-                            </td>
+                            
+                            
                             <td class="align-top">
                                 <div class="d-flex flex-column">
                                     @if($tour->auto_cancel_date)
