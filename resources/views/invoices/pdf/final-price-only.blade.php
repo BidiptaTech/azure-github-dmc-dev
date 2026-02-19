@@ -580,29 +580,32 @@
     @endphp
 
     @if($hotelItems->count() > 0)
-    <!-- Hotel Services Table (No Prices) -->
+    <!-- Hotel Services Table (No Prices - Description Only) -->
     <div class="section-title">Hotel Services</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
             <tr>
-                <th>Hotel Name</th>
-                <th>Room Category</th>
-                <th>Check in</th>
-                <th>Check out</th>
-                <th>No. of Nights</th>
-                <th>Total Pax</th>
+                <th>Description / Add-On</th>
+                <th>Check-in</th>
+                <th>Check-out</th>
+                <th>Nights</th>
+                <th>Pax / Qty</th>
             </tr>
         </thead>
         <tbody>
             @foreach($hotelItems as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
+                $hotelName = $serviceDetails['hotel_name'] ?? ($item->description ?? '');
+                $roomCategory = $serviceDetails['room_category'] ?? '';
+                $noOfDays = $serviceDetails['no_of_days'] ?? 0;
+                $totalPax = $serviceDetails['total_pax'] ?? 0;
+                $description = $hotelName . ($roomCategory ? ' - ' . $roomCategory : '') . ($totalPax ? ' (' . $totalPax . ' Pax)' : '');
                 $checkInDate = $serviceDetails['check_in_date'] ?? '';
                 $checkInTime = $serviceDetails['check_in_time'] ?? '';
                 $checkOutDate = $serviceDetails['check_out_date'] ?? '';
                 $checkOutTime = $serviceDetails['check_out_time'] ?? '';
-                
                 $checkInDisplay = '';
                 if ($checkInDate) {
                     try {
@@ -618,11 +621,8 @@
                         } else {
                             $checkInDisplay = $checkInCarbon->format('jS M Y');
                         }
-                    } catch (\Exception $e) {
-                        $checkInDisplay = '';
-                    }
+                    } catch (\Exception $e) { $checkInDisplay = $checkInDate; }
                 }
-                
                 $checkOutDisplay = '';
                 if ($checkOutDate) {
                     try {
@@ -638,19 +638,36 @@
                         } else {
                             $checkOutDisplay = $checkOutCarbon->format('jS M Y');
                         }
-                    } catch (\Exception $e) {
-                        $checkOutDisplay = '';
-                    }
+                    } catch (\Exception $e) { $checkOutDisplay = $checkOutDate; }
                 }
             @endphp
             <tr>
-                <td>{{ $serviceDetails['hotel_name'] ?? ($item->description ?? '') }}</td>
-                <td>{{ $serviceDetails['room_category'] ?? '' }}</td>
+                <td><strong>{{ $description }}</strong></td>
                 <td>{{ $checkInDisplay }}</td>
                 <td>{{ $checkOutDisplay }}</td>
-                <td>{{ $serviceDetails['no_of_days'] ?? '' }}</td>
-                <td>{{ $serviceDetails['total_pax'] ?? 0 }}</td>
+                <td>{{ $noOfDays }}</td>
+                <td>{{ $totalPax }}</td>
             </tr>
+            @php
+                $childWithBed = $serviceDetails['child_with_bed'] ?? null;
+                $childWithoutBed = $serviceDetails['child_without_bed'] ?? null;
+            @endphp
+            @if($childWithBed)
+            <tr style="background-color: #f9f9f9;">
+                <td style="padding-left: 24px;"><em>Child with Bed</em> ({{ $childWithBed['children'] ?? 0 }} {{ ($childWithBed['children'] ?? 0) == 1 ? 'child' : 'children' }})</td>
+                <td colspan="2"></td>
+                <td>{{ $noOfDays }}</td>
+                <td>{{ $childWithBed['children'] ?? 0 }}</td>
+            </tr>
+            @endif
+            @if($childWithoutBed)
+            <tr style="background-color: #f9f9f9;">
+                <td style="padding-left: 24px;"><em>Child without Bed</em> ({{ $childWithoutBed['children'] ?? 0 }} {{ ($childWithoutBed['children'] ?? 0) == 1 ? 'child' : 'children' }})</td>
+                <td colspan="2"></td>
+                <td>{{ $noOfDays }}</td>
+                <td>{{ $childWithoutBed['children'] ?? 0 }}</td>
+            </tr>
+            @endif
             @endforeach
         </tbody>
     </table>
@@ -735,6 +752,8 @@
                 <th>Type</th>
                 <th>Way</th>
                 <th>Vehicle Details</th>
+                <th>Guide</th>
+                <th>Guide Name</th>
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
@@ -757,6 +776,17 @@
                 $transferType = $serviceDetails['transfer_type'] ?? '';
                 $transferWay = $serviceDetails['transfer_way'] ?? '';
                 $vehicleDetails = $serviceDetails['vehicle_details'] ?? '';
+                $guideRequiredDisplay = (isset($serviceDetails['guide_required']) && $serviceDetails['guide_required']) ? 'Yes' : 'No';
+                $guideName = $serviceDetails['guide_name'] ?? '';
+                $guideHours = $serviceDetails['guide_hours'] ?? '';
+                $guideNameDisplay = $guideName;
+                if ($guideHours && $guideName) {
+                    $guideNameDisplay = $guideName . ' (' . $guideHours . ' hrs)';
+                } elseif ($guideName) {
+                    $guideNameDisplay = $guideName;
+                } else {
+                    $guideNameDisplay = '';
+                }
             @endphp
             <tr>
                 <td>{{ $serviceDetails['attraction_name'] ?? ($item->description ?? '') }}</td>
@@ -766,6 +796,8 @@
                 <td>{{ $transferType ?: '' }}</td>
                 <td>{{ $transferWay ?: '' }}</td>
                 <td>{{ $vehicleDetails ?: '' }}</td>
+                <td>{{ $guideRequiredDisplay }}</td>
+                <td>{{ $guideNameDisplay }}</td>
                 <td>{{ $item->quantity_adults ?? 0 }}</td>
                 <td>{{ $item->quantity_children ?? 0 }}</td>
                 <td>{{ $item->quantity_infants ?? 0 }}</td>
@@ -1155,7 +1187,19 @@
     @endif
 
     <!-- Summary Table (Prices Only) -->
-    <div class="section-title">Price Summary</div>
+    @php
+        $selectedCurrency = $selectedCurrency ?? 'SGD';
+        $exchangeRate = $exchangeRate ?? 1.0;
+        $formatPrice = function($amount) use ($selectedCurrency, $exchangeRate) {
+            if (!is_numeric($amount)) return '0.00';
+            $amt = (float) $amount;
+            if ($selectedCurrency === 'SGD') {
+                return number_format(round($amt, 2), 2);
+            }
+            return number_format(round($amt, 2), 2) . ' SGD (' . number_format(round($amt * $exchangeRate, 2), 2) . ' ' . $selectedCurrency . ')';
+        };
+    @endphp
+    <div class="section-title">Price Summary ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</div>
     <table>
         <tfoot>
             @php
@@ -1189,22 +1233,22 @@
             @endphp
             <tr>
                 <td colspan="7" class="text-right"><strong>Total (Actual Amount):</strong></td>
-                <td class="text-right"><strong>{{ number_format(round($actualAmount)) }}</strong></td>
+                <td class="text-right"><strong>{{ $formatPrice($actualAmount) }}</strong></td>
             </tr>
             @if($negotiatedAmount !== null)
             <tr style="background-color: #e7f3ff;">
                 <td colspan="7" class="text-right"><strong>Last Negotiated Amount:</strong></td>
-                <td class="text-right"><strong>{{ number_format(round($negotiatedAmount)) }}</strong></td>
+                <td class="text-right"><strong>{{ $formatPrice($negotiatedAmount) }}</strong></td>
             </tr>
             @if($discount > 0)
             <tr style="background-color: #d4edda;">
                 <td colspan="7" class="text-right"><strong>Discount:</strong></td>
-                <td class="text-right"><strong>-{{ number_format(round($discount)) }}</strong></td>
+                <td class="text-right"><strong>-{{ $formatPrice($discount) }}</strong></td>
             </tr>
             @elseif($discount < 0)
             <tr style="background-color: #fff3cd;">
                 <td colspan="7" class="text-right"><strong>Additional Charges:</strong></td>
-                <td class="text-right"><strong>{{ number_format(round(abs($discount))) }}</strong></td>
+                <td class="text-right"><strong>{{ $formatPrice(abs($discount)) }}</strong></td>
             </tr>
             @endif
             @endif
@@ -1215,63 +1259,65 @@
                 @foreach($taxBreakdown as $taxName => $taxValue)
                 <tr style="background-color: #fff3cd;">
                     <td colspan="7" class="text-right"><strong>{{ $taxName }}:</strong></td>
-                    <td class="text-right"><strong>{{ number_format(round($taxValue)) }}</strong></td>
+                    <td class="text-right"><strong>{{ $formatPrice($taxValue) }}</strong></td>
                 </tr>
                 @endforeach
             @else
             <tr style="background-color: #fff3cd;">
                 <td colspan="7" class="text-right"><strong>Total Vat / GST Tax:</strong></td>
-                <td class="text-right"><strong>{{ number_format(round($gstAmount)) }}</strong></td>
+                <td class="text-right"><strong>{{ $formatPrice($gstAmount) }}</strong></td>
             </tr>
             @endif
             @endif
             
             <tr style="background-color: #d4edda;">
                 <td colspan="7" class="text-right"><strong>Final Price:</strong></td>
-                <td class="text-right"><strong>{{ number_format(round($finalPrice)) }}</strong></td>
+                <td class="text-right"><strong>{{ $formatPrice($finalPrice) }}</strong></td>
             </tr>
             
             @if($shouldShowTax)
             <!-- Payment Information -->
             <tr style="background-color: #d1ecf1;">
                 <td colspan="7" class="text-right"><strong>Payment Received:</strong></td>
-                <td class="text-right"><strong>{{ number_format(round($paymentReceived)) }}</strong></td>
+                <td class="text-right"><strong>{{ $formatPrice($paymentReceived) }}</strong></td>
             </tr>
             <tr style="background-color: #f8d7da;">
                 <td colspan="7" class="text-right"><strong>Outstanding Balance:</strong></td>
-                <td class="text-right"><strong>{{ number_format(round($outstandingBalance)) }}</strong></td>
+                <td class="text-right"><strong>{{ $formatPrice($outstandingBalance) }}</strong></td>
             </tr>
             @endif
         </tfoot>
     </table>
 
-    <!-- Currency Conversion -->
+    @php
+        $selectedCurrency = $selectedCurrency ?? 'SGD';
+        $currencyConversion = $currencyConversion ?? [];
+        $showCurrencyConversion = ($selectedCurrency !== 'SGD' && count($currencyConversion) > 1);
+    @endphp
+    @if($showCurrencyConversion)
+    <!-- Currency Conversion (shown when a non-SGD currency is selected) -->
     <div class="currency-section">
         <table class="currency-table">
             <thead>
                 <tr>
-                    <th colspan="3" class="text-center">Currency Conversion</th>
+                    <th colspan="{{ count($currencyConversion) }}" class="text-center">Currency Conversion</th>
                 </tr>
                 <tr>
-                    <th>USD</th>
-                    <th>SGD</th>
-                    <th>INR</th>
+                    @foreach(array_keys($currencyConversion) as $curr)
+                    <th>{{ $curr }}</th>
+                    @endforeach
                 </tr>
             </thead>
             <tbody>
-                @php
-                    $currencyConversion = $invoice->currency_conversion ?? [];
-                    // Currency conversion should show Outstanding Balance
-                    $outstandingBalanceForCurrency = $invoice->outstanding_balance ?? 0;
-                @endphp
                 <tr>
-                    <td>{{ number_format(round($currencyConversion['USD'] ?? 0)) }}</td>
-                    <td>{{ number_format(round($currencyConversion['SGD'] ?? $outstandingBalanceForCurrency)) }}</td>
-                    <td>{{ number_format(round($currencyConversion['INR'] ?? 0)) }}</td>
+                    @foreach($currencyConversion as $curr => $amount)
+                    <td>{{ number_format(round($amount)) }}</td>
+                    @endforeach
                 </tr>
             </tbody>
         </table>
     </div>
+    @endif
 
     <div style="clear: both;"></div>
 

@@ -1136,11 +1136,11 @@
                                                 ->first();
                                         @endphp
                                         @if($proformaInvoice)
-                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}" 
                                                class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Proforma Invoice (Price Breakup)" target="_blank">
                                                 <i class="ri-file-paper-line"></i>
                                             </a>
-                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}" 
                                                class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Proforma Invoice (Package Price Only)" target="_blank">
                                                 <i class="ri-file-download-line"></i>
                                             </a>

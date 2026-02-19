@@ -725,8 +725,7 @@
                             <th class="th-tooltip" data-tooltip="Agent">Agent</th>
                             <th class="th-tooltip" data-tooltip="Services">Services</th>
                             @if(in_array(auth()->user()->role_id, $role))
-                            <th class="th-tooltip" data-tooltip="Agent Negotiation">Agent Negotiation</th>
-                            <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
+                            <th class="th-tooltip" data-tooltip="Agent Negotiation">Negotiation</th>
                             @endif
                             <th class="th-tooltip" data-tooltip="Actions">Actions</th>
                             <th class="th-tooltip" data-tooltip="Created">Created</th>
@@ -975,44 +974,44 @@
                             @endphp
                             @if(in_array(auth()->user()->role_id, $role))
                             <td class="align-top">
-                                <button 
-                                    type="button"
-                                    class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
-                                    data-tour-id="{{ $tour->tour_id }}"
-                                    data-display-id="{{ e($tour->display_id) }}"
-                                    data-actual="{{ $currentActualAmount ?? 0 }}"
-                                    data-last-amount="{{ $lastAgentAmount ?? '' }}"
-                                    data-last-comment="{{ e($lastAgentRemark) }}"
-                                    data-tour-status="{{ e($tour->tour_status) }}"
-                                    data-negotiation-locked="{{ $canCheckNegotiation ? '1' : '0' }}"
-                                    onclick="openAgentNegotiationModal(this)"
-                                    {{ $canCheckNegotiation ? 'disabled' : '' }}
-                                >
-                                    <span class="negotiate-by-agent-label">
-                                        <i class="ri-handshake-line negotiate-by-agent-icon" aria-hidden="true"></i>
-                                        <span class="d-block">Negotiate</span>
-                                        <span class="d-block small text-muted">By Agent</span>
-                                    </span>
-                                </button>
-                            </td>
-                            <td class="align-top col-negotiation">
-                                <button 
-                                    type="button"
-                                    class="btn btn-sm btn-warning negotiation-btn check-negotiation-btn"
-                                    data-tour-id="{{ $tour->tour_id }}"
-                                    data-enquiry-id="{{ $enquiry->enquiry_id ?? '' }}"
-                                    data-price="{{ $settlementAmount }}"
-                                    data-actual="{{ $currentActualAmount }}"
-                                    data-discount="{{ $discount }}"
-                                    data-comment="{{ e($lastAgentRemark) }}"
-                                    onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
-                                    {{ $canCheckNegotiation ? '' : 'disabled' }}
-                                >
-                                    Negotiation
-                                </button>
-                                @if(!$canCheckNegotiation)
-                                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Awaiting agent</small>
-                                @endif
+                                <div class="d-flex flex-column gap-2">
+                                    <button 
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
+                                        data-tour-id="{{ $tour->tour_id }}"
+                                        data-display-id="{{ e($tour->display_id) }}"
+                                        data-actual="{{ $currentActualAmount ?? 0 }}"
+                                        data-last-amount="{{ $lastAgentAmount ?? '' }}"
+                                        data-last-comment="{{ e($lastAgentRemark) }}"
+                                        data-tour-status="{{ e($tour->tour_status) }}"
+                                        data-negotiation-locked="{{ $canCheckNegotiation ? '1' : '0' }}"
+                                        onclick="openAgentNegotiationModal(this)"
+                                        {{ $canCheckNegotiation ? 'disabled' : '' }}
+                                    >
+                                        <span class="negotiate-by-agent-label">
+                                            <i class="ri-handshake-line negotiate-by-agent-icon" aria-hidden="true"></i>
+                                            <span class="d-block">Negotiate</span>
+                                            <span class="d-block small text-muted">By Dmc</span>
+                                        </span>
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        class="btn btn-sm btn-warning negotiation-btn check-negotiation-btn"
+                                        data-tour-id="{{ $tour->tour_id }}"
+                                        data-enquiry-id="{{ $enquiry->enquiry_id ?? '' }}"
+                                        data-price="{{ $settlementAmount }}"
+                                        data-actual="{{ $currentActualAmount }}"
+                                        data-discount="{{ $discount }}"
+                                        data-comment="{{ e($lastAgentRemark) }}"
+                                        onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
+                                        {{ $canCheckNegotiation ? '' : 'disabled' }}
+                                    >
+                                        Negotiation
+                                    </button>
+                                    @if(!$canCheckNegotiation)
+                                        <small class="text-muted" style="font-size: 0.7rem;">Awaiting agent</small>
+                                    @endif
+                                </div>
                             </td>
                             @endif
                             <td class="align-top col-actions">
@@ -1041,10 +1040,14 @@
                                     </button>
                                 </div>
                             </td>
+                            @php
+                                $tz = auth()->user()->timezone ?? 'UTC';
+                                $time = $tour->created_at->timezone($tz);
+                            @endphp                            
                             <td class="align-top">
                                 <div class="d-flex flex-column gap-0">
                                     <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">{{ $tour->created_at->format('D, M d, Y') }} · {{ $tour->created_at->format('h:i A') }}</small>
+                                    <small class="text-muted">{{ $time->format('D, M d, Y') }} · {{ $time->format('h:i A') }}</small>
                                 </div>
                             </td>
                             <td class="align-top">
