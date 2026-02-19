@@ -118,6 +118,11 @@ class EnquiryController extends Controller
             'comment' => 'required|string|max:1000',
         ]);
 
+        // Read before updating: amount = incoming (what came to me), actualAmount = outgoing (what I am sending)
+        $amount = $currentEnquiry->amount ?? 0;
+        $comment = $request->comment ?? '';
+        $actualAmount = $request->price ?? 0;
+
         // if($currentUser->role_id == 125){
         //     $currentEnquiry->sender_id = $currentUser->userId;
         //     $currentEnquiry->sender_type = 'AOM';
@@ -139,42 +144,65 @@ class EnquiryController extends Controller
             $currentEnquiry->comment = $request->comment;
         // }
         $tourStatus = Tour::where('tour_id', $currentEnquiry->tour_id)->value('tour_status');
-        $oldStatus = $tourStatus; // Store the original status
-        $newStatus = $tourStatus; // Initialize new status
-        $statusChanged = false;
-        
-        if($tourStatus == "New Enquiry"){
-            // Track status change New Enquiry -> Prospect
+        $oldStatus = $tourStatus;
+        $newStatus = $tourStatus;
+
+        $currentUser = auth()->user();
+        $changedByName = $currentUser ? ($currentUser->name ?? '') : null;
+        $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+
+        if ($tourStatus == "New Enquiry") {
             \App\Helpers\CommonHelper::appendTourStatusTrackById(
                 (int) $currentEnquiry->tour_id,
                 $tourStatus,
-                "Prospect"
+                "Prospect",
+                null,
+                $amount,
+                $comment,
+                $actualAmount,
+                $changedByName,
+                $changedByUserId
             );
 
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
                 'tour_status' => "Prospect",
             ]);
             $newStatus = "Prospect";
-            $statusChanged = true;
-            // Refresh the tour object to get updated status
             $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
-        }elseif($tourStatus == "Prospect"){
-            // Track status change Prospect -> Tentative
+        } elseif ($tourStatus == "Prospect") {
             \App\Helpers\CommonHelper::appendTourStatusTrackById(
                 (int) $currentEnquiry->tour_id,
                 $tourStatus,
-                "Tentative"
+                "Tentative",
+                null,
+                $amount,
+                $comment,
+                $actualAmount,
+                $changedByName,
+                $changedByUserId
             );
 
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
                 'tour_status' => "Tentative",
             ]);
             $newStatus = "Tentative";
-            $statusChanged = true;
-            // Refresh the tour object to get updated status
+            $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
+        } else {
+            // Tour status not changing (Tentative, Confirmed, etc.) - still append track for enquiry update
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $currentEnquiry->tour_id,
+                $tourStatus,
+                $tourStatus,
+                null,
+                $amount,    
+                $comment,
+                $actualAmount,
+                $changedByName,
+                $changedByUserId
+            );
             $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
         }
-        
+
         if ($currentEnquiry->save()) {
             // Send negotiation email to agent
             if ($tour && $tour->agent_id) {
@@ -218,7 +246,7 @@ class EnquiryController extends Controller
             
             // Build success message with status update info
             $successMessage = 'Price updated successfully! The negotiation has been sent to the agent via email.';
-            if ($statusChanged) {
+            if ($oldStatus !== $newStatus) {
                 $successMessage .= ' Tour status has been updated from "' . $oldStatus . '" to "' . $newStatus . '".';
             }
             
