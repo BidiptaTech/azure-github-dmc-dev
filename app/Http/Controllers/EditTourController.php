@@ -1174,7 +1174,8 @@ class EditTourController extends Controller
      */
     public function updateRestaurant(Request $request, $orderId)
     {
-        $order = Order::findOrFail($orderId);
+        $order = Order::where('booking_id', $orderId)->firstOrFail();
+
         
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
@@ -1187,6 +1188,7 @@ class EditTourController extends Controller
             'total_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
             'meal_description_json' => 'nullable|string',
+            'booking_date' => 'nullable|string',
         ]);
 
         try {
@@ -1195,6 +1197,7 @@ class EditTourController extends Controller
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
                 // Step 1: First clear the data column (use empty array instead of null to satisfy NOT NULL constraint)
+                
                 $order->data = [];
                 $order->save();
 
@@ -1257,6 +1260,10 @@ class EditTourController extends Controller
                 if (array_key_exists('time_slot', $validated)) {
                     $currentPayload['visitTime'] = $validated['time_slot'];
                 }
+                if(array_key_exists('booking_date', $validated)) {
+                    
+                    $currentPayload['bookingDate'] = $validated['booking_date'];
+                }
                 
                 if (!empty($validated['adult_count'])) {
                     $currentPayload['adultCount'] = (int) $validated['adult_count'];
@@ -1302,7 +1309,7 @@ class EditTourController extends Controller
                 $order->data = [$currentPayload];
                 $successMessage = 'Restaurant booking updated successfully.';
             }
-
+            $order->qr_code = null;
             $saved = $order->save();
 
             if (!$saved) {

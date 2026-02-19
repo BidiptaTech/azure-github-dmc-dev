@@ -4202,7 +4202,6 @@ class CommonHelper
             }
             unset($hotel);
         }
-        dd($hotelOptions);
         return $hotelOptions;
     }
 
