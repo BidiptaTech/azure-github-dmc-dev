@@ -9,6 +9,66 @@
     .select2-container .select2-results__option {
         padding: 12px 10px;
     }
+    .zone-option-wrapper[title] {
+        cursor: help;
+        border-bottom: 1px dotted #6c757d;
+    }
+    /* Zone hover tooltip - professional card style */
+    .zone-cell-hover {
+        cursor: help;
+        border-bottom: 1px dotted #6c757d;
+        position: relative;
+    }
+    .zone-hover-tooltip {
+        position: fixed;
+        z-index: 9999;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        padding: 12px;
+        max-width: 320px;
+        max-height: 280px;
+        overflow-y: auto;
+        border: 1px solid #e9ecef;
+        display: none;
+    }
+    .zone-hover-tooltip.show {
+        display: block;
+        pointer-events: auto;
+    }
+    .zone-hover-tooltip .tooltip-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #495057;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .zone-hover-tooltip .tooltip-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0;
+        border-bottom: 1px solid #f1f3f5;
+    }
+    .zone-hover-tooltip .tooltip-item:last-child {
+        border-bottom: none;
+    }
+    .zone-hover-tooltip .tooltip-item-img {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+    .zone-hover-tooltip .tooltip-item-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: #212529;
+        line-height: 1.3;
+    }
     /* Enhanced tab styling */
     .port-port-tab {
         transition: all 0.3s ease;
@@ -895,12 +955,16 @@
                                                 return $attraction->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $attractionCount = $assignedAttractions->count();
+                                        $attractionNames = $assignedAttractions->pluck('name')->filter()->implode(', ');
+                                        $attractionItems = $assignedAttractions->map(fn($a) => ['name' => $a->name ?? '', 'image' => ($a->master_image ?? '') ? (str_starts_with($a->master_image ?? '', 'http') || str_starts_with($a->master_image ?? '', '/') ? $a->master_image : asset($a->master_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-attraction-count="{{ $attractionCount }}">
+                                            data-attraction-count="{{ $attractionCount }}"
+                                            data-item-names="{{ e($attractionNames) }}"
+                                            data-item-images="{{ e(json_encode($attractionItems)) }}">
                                         {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -954,12 +1018,16 @@
                                                 return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $restaurantCount = $assignedRestaurants->count();
+                                        $restaurantNames = $assignedRestaurants->pluck('name')->filter()->implode(', ');
+                                        $restaurantItems = $assignedRestaurants->map(fn($r) => ['name' => $r->name ?? '', 'image' => ($r->master_image ?? '') ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/') ? $r->master_image : asset($r->master_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-restaurant-count="{{ $restaurantCount }}">
+                                            data-restaurant-count="{{ $restaurantCount }}"
+                                            data-item-names="{{ e($restaurantNames) }}"
+                                            data-item-images="{{ e(json_encode($restaurantItems)) }}">
                                         {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1013,12 +1081,16 @@
                                                 return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $hotelCount = $assignedHotels->count();
+                                        $hotelNames = $assignedHotels->pluck('name')->filter()->implode(', ');
+                                        $hotelItems = $assignedHotels->map(fn($h) => ['name' => $h->name ?? '', 'image' => ($h->main_image ?? '') ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/') ? $h->main_image : asset($h->main_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-hotel-count="{{ $hotelCount }}">
+                                            data-hotel-count="{{ $hotelCount }}"
+                                            data-item-names="{{ e($hotelNames) }}"
+                                            data-item-images="{{ e(json_encode($hotelItems)) }}">
                                         {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1050,12 +1122,16 @@
                                                 return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $hotelCount = $assignedHotels->count();
+                                        $hotelNames = $assignedHotels->pluck('name')->filter()->implode(', ');
+                                        $hotelItems = $assignedHotels->map(fn($h) => ['name' => $h->name ?? '', 'image' => ($h->main_image ?? '') ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/') ? $h->main_image : asset($h->main_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-hotel-count="{{ $hotelCount }}">
+                                            data-hotel-count="{{ $hotelCount }}"
+                                            data-item-names="{{ e($hotelNames) }}"
+                                            data-item-images="{{ e(json_encode($hotelItems)) }}">
                                         {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1077,11 +1153,25 @@
                             <option value="">-- Select Attraction --</option>
                             @foreach($zones ?? [] as $zone)
                                 @if($zone->zone_type == 'Attraction')
+                                    @php
+                                        $assignedAttractions = App\Models\Attraction::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($attraction) use ($zone) {
+                                                return $attraction->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $attractionCount = $assignedAttractions->count();
+                                        $attractionNames = $assignedAttractions->pluck('name')->filter()->implode(', ');
+                                        $attractionItems = $assignedAttractions->map(fn($a) => ['name' => $a->name ?? '', 'image' => ($a->master_image ?? '') ? (str_starts_with($a->master_image ?? '', 'http') || str_starts_with($a->master_image ?? '', '/') ? $a->master_image : asset($a->master_image)) : ''])->toArray();
+                                    @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
-                                            data-zone-name="{{ $zone->zone_name }}">
-                                        {{ $zone->zone_name }} - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
+                                            data-zone-name="{{ $zone->zone_name }}"
+                                            data-attraction-count="{{ $attractionCount }}"
+                                            data-item-names="{{ e($attractionNames) }}"
+                                            data-item-images="{{ e(json_encode($attractionItems)) }}">
+                                        {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -1112,12 +1202,16 @@
                                                 return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $hotelCount = $assignedHotels->count();
+                                        $hotelNames = $assignedHotels->pluck('name')->filter()->implode(', ');
+                                        $hotelItems = $assignedHotels->map(fn($h) => ['name' => $h->name ?? '', 'image' => ($h->main_image ?? '') ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/') ? $h->main_image : asset($h->main_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-hotel-count="{{ $hotelCount }}">
+                                            data-hotel-count="{{ $hotelCount }}"
+                                            data-item-names="{{ e($hotelNames) }}"
+                                            data-item-images="{{ e(json_encode($hotelItems)) }}">
                                         {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1148,12 +1242,16 @@
                                                 return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $restaurantCount = $assignedRestaurants->count();
+                                        $restaurantNames = $assignedRestaurants->pluck('name')->filter()->implode(', ');
+                                        $restaurantItems = $assignedRestaurants->map(fn($r) => ['name' => $r->name ?? '', 'image' => ($r->master_image ?? '') ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/') ? $r->master_image : asset($r->master_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-restaurant-count="{{ $restaurantCount }}">
+                                            data-restaurant-count="{{ $restaurantCount }}"
+                                            data-item-names="{{ e($restaurantNames) }}"
+                                            data-item-images="{{ e(json_encode($restaurantItems)) }}">
                                         {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1185,12 +1283,16 @@
                                                 return $attraction->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $attractionCount = $assignedAttractions->count();
+                                        $attractionNames = $assignedAttractions->pluck('name')->filter()->implode(', ');
+                                        $attractionItems = $assignedAttractions->map(fn($a) => ['name' => $a->name ?? '', 'image' => ($a->master_image ?? '') ? (str_starts_with($a->master_image ?? '', 'http') || str_starts_with($a->master_image ?? '', '/') ? $a->master_image : asset($a->master_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-attraction-count="{{ $attractionCount }}">
+                                            data-attraction-count="{{ $attractionCount }}"
+                                            data-item-names="{{ e($attractionNames) }}"
+                                            data-item-images="{{ e(json_encode($attractionItems)) }}">
                                         {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1222,12 +1324,16 @@
                                                 return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $restaurantCount = $assignedRestaurants->count();
+                                        $restaurantNames = $assignedRestaurants->pluck('name')->filter()->implode(', ');
+                                        $restaurantItems = $assignedRestaurants->map(fn($r) => ['name' => $r->name ?? '', 'image' => ($r->master_image ?? '') ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/') ? $r->master_image : asset($r->master_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-restaurant-count="{{ $restaurantCount }}">
+                                            data-restaurant-count="{{ $restaurantCount }}"
+                                            data-item-names="{{ e($restaurantNames) }}"
+                                            data-item-images="{{ e(json_encode($restaurantItems)) }}">
                                         {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1374,7 +1480,6 @@
                                                     <td>{{ $toPortName ?: 'Port ID: ' . $mapping->to_zone_id }} - {{ $toPortType }}</td>
                                                 @elseif(in_array(request()->get('mapping_type'), ['port_attraction', 'port_restaurant', 'port_hotel']))
                                                     @php
-                                                        // Find port name from ports array
                                                         $portName = '';
                                                         $portType = '';
                                                         foreach($ports as $port) {
@@ -1384,17 +1489,31 @@
                                                                 break;
                                                             }
                                                         }
+                                                        $toZoneItems = $mappingZoneItems[$mapping->mapping_id]['to'] ?? [];
                                                     @endphp
                                                     <td>{{ $portName ?: 'Port ID: ' . $mapping->from_zone_id }} - {{ $portType }}</td>
-                                                    <td>{{ $mapping->toZone->zone_name ?? 'Zone ID: ' . $mapping->to_zone_id }}
-                                                        - {{ $mapping->toZone?->description ?? 'No description for this zone' }}
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-{{ ($mapping->toZone->zone_type ?? '') == 'Hotel' ? 'success' : (($mapping->toZone->zone_type ?? '') == 'Attraction' ? 'info' : 'warning') }} me-2">{{ $mapping->toZone->zone_type ?? $toType }}</span>
+                                                            <span class="zone-cell-hover" data-zone-items="{{ json_encode($toZoneItems) }}" data-zone-type="{{ $mapping->toZone->zone_type ?? $toType }}">{{ strip_tags($mapping->toZone->zone_name ?? 'Zone ID: ' . $mapping->to_zone_id) }} - {{ html_entity_decode(strip_tags($mapping->toZone?->description ?? 'No description for this zone')) }}</span>
+                                                        </div>
                                                     </td>
                                                 @else
-                                                    <td>{{ $mapping->fromZone->zone_name ?? 'Zone ID: ' . $mapping->from_zone_id }}
-                                                        - {{ $mapping->fromZone?->description ?? 'No description for this zone' }}
+                                                    @php
+                                                        $fromZoneItems = $mappingZoneItems[$mapping->mapping_id]['from'] ?? [];
+                                                        $toZoneItems = $mappingZoneItems[$mapping->mapping_id]['to'] ?? [];
+                                                    @endphp
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-{{ $fromType == 'Hotel' ? 'success' : ($fromType == 'Attraction' ? 'info' : ($fromType == 'Restaurant' ? 'warning' : 'secondary')) }} me-2">{{ $fromType }}</span>
+                                                            <span class="zone-cell-hover" data-zone-items="{{ json_encode($fromZoneItems) }}" data-zone-type="{{ $fromType }}">{{ strip_tags($mapping->fromZone->zone_name ?? 'Zone ID: ' . $mapping->from_zone_id) }} - {{ html_entity_decode(strip_tags($mapping->fromZone?->description ?? 'No description for this zone')) }}</span>
+                                                        </div>
                                                     </td>
-                                                    <td>{{ $mapping->toZone->zone_name ?? 'Zone ID: ' . $mapping->to_zone_id }}
-                                                        - {{ $mapping->toZone?->description ?? 'No description for this zone' }}
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-{{ $toType == 'Hotel' ? 'success' : ($toType == 'Attraction' ? 'info' : ($toType == 'Restaurant' ? 'warning' : 'secondary')) }} me-2">{{ $toType }}</span>
+                                                            <span class="zone-cell-hover" data-zone-items="{{ json_encode($toZoneItems) }}" data-zone-type="{{ $toType }}">{{ strip_tags($mapping->toZone->zone_name ?? 'Zone ID: ' . $mapping->to_zone_id) }} - {{ html_entity_decode(strip_tags($mapping->toZone?->description ?? 'No description for this zone')) }}</span>
+                                                        </div>
                                                     </td>
                                                 @endif
                                                 <td>
@@ -2415,15 +2534,22 @@ $(document).ready(function() {
             templateResult: formatZoneOption
         });
         
-        // Format the dropdown options to show zone types
+        // Format the dropdown options to show zone types and item names on hover
         function formatZoneOption(zone) {
             if (!zone.id) return zone.text;
             
             const zoneType = $(zone.element).data('type');
-            return $(`<span>
+            const itemNames = $(zone.element).data('item-names');
+            const $span = $(`<span class="zone-option-wrapper">
                 <span class="badge bg-${getZoneTypeBadgeColor(zoneType)} me-2">${zoneType}</span>
                 ${zone.text}
             </span>`);
+            if (itemNames) {
+                const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+                $span.attr('title', label + ' in this zone: ' + itemNames);
+                $span.css('cursor', 'help');
+            }
+            return $span;
         }
         
         // Get color for zone type badge
@@ -2633,15 +2759,22 @@ $(document).ready(function() {
             templateResult: formatZoneOption
         });
         
-        // Format the dropdown options to show zone types
+        // Format the dropdown options to show zone types and item names on hover
         function formatZoneOption(zone) {
             if (!zone.id) return zone.text;
             
             const zoneType = $(zone.element).data('type');
-            return $(`<span>
+            const itemNames = $(zone.element).data('item-names');
+            const $span = $(`<span class="zone-option-wrapper">
                 <span class="badge bg-${getZoneTypeBadgeColor(zoneType)} me-2">${zoneType}</span>
                 ${zone.text}
             </span>`);
+            if (itemNames) {
+                const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+                $span.attr('title', label + ' in this zone: ' + itemNames);
+                $span.css('cursor', 'help');
+            }
+            return $span;
         }
         
         // Get color for zone type badge
@@ -2698,6 +2831,10 @@ $(document).ready(function() {
             const toType = $('#to_zone option:selected').data('type') || 'Port'; // Default to Port for port mappings
             const fromDescription = $('#from_zone option:selected').data('description') || 'No description available';
             const toDescription = $('#to_zone option:selected').data('description') || 'No description available';
+            let fromZoneItems = $('#from_zone option:selected').data('item-images') || [];
+            let toZoneItems = $('#to_zone option:selected').data('item-images') || [];
+            if (typeof fromZoneItems === 'string') try { fromZoneItems = JSON.parse(fromZoneItems); } catch(e) { fromZoneItems = []; }
+            if (typeof toZoneItems === 'string') try { toZoneItems = JSON.parse(toZoneItems); } catch(e) { toZoneItems = []; }
             const vehicleId = $('input[name="vehicle_id"]').val();
             const mappingType = $('input[name="mapping_type"]').val();
             
@@ -2744,7 +2881,7 @@ $(document).ready(function() {
                             addMappingRowToTable(
                                 fromZone, toZone, fromZoneText, toZoneText, 
                                 fromType, toType, fromDescription, toDescription,
-                            0, 0, response.mapping_id
+                            0, 0, response.mapping_id, fromZoneItems, toZoneItems
                             );
                             showSuccessToast("Mapping added successfully");
                     } else {
@@ -2762,20 +2899,25 @@ $(document).ready(function() {
             $('#from_zone, #to_zone').val('').trigger('change');
         });
         
-        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId) {
-            // Create new row with zone badges, tooltips, and mapping ID
+        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems) {
+            fromZoneItems = fromZoneItems || [];
+            toZoneItems = toZoneItems || [];
+            const fromItemsAttr = (['Hotel','Attraction','Restaurant'].includes(fromType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(fromZoneItems || [])) + '" data-zone-type="' + fromType + '"' : '';
+            const toItemsAttr = (['Hotel','Attraction','Restaurant'].includes(toType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(toZoneItems || [])) + '" data-zone-type="' + toType + '"' : '';
+            const fromSpan = fromItemsAttr ? '<span class="zone-cell-hover"' + fromItemsAttr + '>' + fromZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(fromDescription) + '">' + fromZoneText + '</span>';
+            const toSpan = toItemsAttr ? '<span class="zone-cell-hover"' + toItemsAttr + '>' + toZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(toDescription) + '">' + toZoneText + '</span>';
             const newRow = `
                 <tr data-from="${fromZone}" data-to="${toZone}" data-from-type="${fromType}" data-to-type="${toType}" data-mapping-id="${mappingId}">
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="badge bg-${getZoneTypeBadgeColor(fromType)} me-2">${fromType}</span>
-                            <span data-bs-toggle="tooltip" title="${escapeHtml(fromDescription)}">${fromZoneText}</span>
+                            ${fromSpan}
                         </div>
                     </td>
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="badge bg-${getZoneTypeBadgeColor(toType)} me-2">${toType}</span>
-                            <span data-bs-toggle="tooltip" title="${escapeHtml(toDescription)}">${toZoneText}</span>
+                            ${toSpan}
                         </div>
                     </td>
                     <td>
@@ -2978,37 +3120,38 @@ $(document).ready(function() {
         // Initialize tooltips
         $('[data-bs-toggle="tooltip"]').tooltip();
         
-        // Update existing mappings in the table to use the new UI style
+        // Update existing mappings - preserve zone-cell-hover (server-rendered), only fix delete button
         $('#mappingsTableBody tr').each(function() {
-            const fromType = $(this).data('from-type');
-            const toType = $(this).data('to-type');
             const mappingId = $(this).data('mapping-id');
-            
-            // Update first cell (from zone)
-            const fromCell = $(this).find('td:first');
-            const fromText = fromCell.text().trim();
-            fromCell.html(`
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-${getZoneTypeBadgeColor(fromType)} me-2">${fromType}</span>
-                    <span>${fromText}</span>
-                </div>
-            `);
-            
-            // Update second cell (to zone)
-            const toCell = $(this).find('td:eq(1)');
-            const toText = toCell.text().trim();
-            toCell.html(`
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-${getZoneTypeBadgeColor(toType)} me-2">${toType}</span>
-                    <span>${toText}</span>
-                </div>
-            `);
-            
-            // Update delete button to include mapping ID
             const deleteButton = $(this).find('.remove-mapping');
             if (deleteButton.length && !deleteButton.data('mapping-id')) {
                 deleteButton.attr('data-mapping-id', mappingId);
             }
+        });
+        
+        // Zone hover tooltip - show items with images on hover
+        const $tooltip = $('#zoneHoverTooltip');
+        const defaultImg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect fill="#e9ecef" width="40" height="40"/><text x="50%" y="50%" fill="#adb5bd" text-anchor="middle" dy=".3em" font-size="10">No img</text></svg>');
+        $(document).on('mouseenter', '.zone-cell-hover', function(e) {
+            let items = $(this).attr('data-zone-items');
+            try { items = items ? JSON.parse(items) : []; } catch(x) { items = []; }
+            const zoneType = $(this).attr('data-zone-type') || 'Item';
+            const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+            let html = '<div class="tooltip-title">' + label + ' in this zone</div>';
+            if (!items || !items.length) {
+                html += '<div class="tooltip-item"><span class="tooltip-item-name text-muted">No ' + label.toLowerCase() + ' assigned</span></div>';
+            } else {
+                items.forEach(function(item) {
+                    const imgSrc = (item.image && (item.image.startsWith('http') || item.image.startsWith('/'))) ? item.image : (item.image ? '{{ url("/") }}/' + item.image.replace(/^\/+/, '') : defaultImg);
+                    html += '<div class="tooltip-item"><img class="tooltip-item-img" src="' + imgSrc + '" alt=""><span class="tooltip-item-name">' + escapeHtml(item.name || '') + '</span></div>';
+                });
+            }
+            $tooltip.html(html).addClass('show');
+            const rect = this.getBoundingClientRect();
+            $tooltip.css({ left: rect.left + (rect.width/2) - 160, top: rect.bottom + 8 });
+        });
+        $(document).on('mouseleave', '.zone-cell-hover', function() {
+            $tooltip.removeClass('show');
         });
     });
 </script> --}}
@@ -3023,15 +3166,22 @@ $(document).ready(function() {
             templateResult: formatZoneOption
         });
         
-        // Format the dropdown options to show zone types
+        // Format the dropdown options to show zone types and item names on hover
         function formatZoneOption(zone) {
             if (!zone.id) return zone.text;
             
             const zoneType = $(zone.element).data('type');
-            return $(`<span>
+            const itemNames = $(zone.element).data('item-names');
+            const $span = $(`<span class="zone-option-wrapper">
                 <span class="badge bg-${getZoneTypeBadgeColor(zoneType)} me-2">${zoneType}</span>
                 ${zone.text}
             </span>`);
+            if (itemNames) {
+                const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+                $span.attr('title', label + ' in this zone: ' + itemNames);
+                $span.css('cursor', 'help');
+            }
+            return $span;
         }
         
         // Get color for zone type badge
@@ -3088,6 +3238,10 @@ $(document).ready(function() {
             const toType = $('#to_zone option:selected').data('type') || 'Unknown';
             const fromDescription = $('#from_zone option:selected').data('description') || 'No description available';
             const toDescription = $('#to_zone option:selected').data('description') || 'No description available';
+            let fromZoneItems = $('#from_zone option:selected').data('item-images') || [];
+            let toZoneItems = $('#to_zone option:selected').data('item-images') || [];
+            if (typeof fromZoneItems === 'string') try { fromZoneItems = JSON.parse(fromZoneItems); } catch(e) { fromZoneItems = []; }
+            if (typeof toZoneItems === 'string') try { toZoneItems = JSON.parse(toZoneItems); } catch(e) { toZoneItems = []; }
             const vehicleId = $('input[name="vehicle_id"]').val();
 
             function showToast(message, type = 'danger') {
@@ -3172,7 +3326,7 @@ $(document).ready(function() {
                                         fromZone, toZone, fromZoneText, toZoneText, 
                                         fromType, toType, fromDescription, toDescription,
                                         restoreResponse.private_price, restoreResponse.shared_price,
-                                        restoreResponse.mapping_id
+                                        restoreResponse.mapping_id, fromZoneItems, toZoneItems
                                     );
                                     showSuccessToast("Mapping restored successfully");
                                 },
@@ -3203,7 +3357,7 @@ $(document).ready(function() {
                             addMappingRowToTable(
                                 fromZone, toZone, fromZoneText, toZoneText, 
                                 fromType, toType, fromDescription, toDescription,
-                                0, 0, addResponse.mapping_id
+                                0, 0, addResponse.mapping_id, fromZoneItems, toZoneItems
                             );
                             showSuccessToast("Mapping added successfully");
                         },
@@ -3223,20 +3377,25 @@ $(document).ready(function() {
             $('#from_zone, #to_zone').val('').trigger('change');
         });
         
-        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId) {
-            // Create new row with zone badges, tooltips, and mapping ID
+        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems) {
+            fromZoneItems = fromZoneItems || [];
+            toZoneItems = toZoneItems || [];
+            const fromItemsAttr = (['Hotel','Attraction','Restaurant'].includes(fromType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(fromZoneItems || [])) + '" data-zone-type="' + fromType + '"' : '';
+            const toItemsAttr = (['Hotel','Attraction','Restaurant'].includes(toType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(toZoneItems || [])) + '" data-zone-type="' + toType + '"' : '';
+            const fromSpan = fromItemsAttr ? '<span class="zone-cell-hover"' + fromItemsAttr + '>' + fromZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(fromDescription) + '">' + fromZoneText + '</span>';
+            const toSpan = toItemsAttr ? '<span class="zone-cell-hover"' + toItemsAttr + '>' + toZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(toDescription) + '">' + toZoneText + '</span>';
             const newRow = `
                 <tr data-from="${fromZone}" data-to="${toZone}" data-from-type="${fromType}" data-to-type="${toType}" data-mapping-id="${mappingId}">
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="badge bg-${getZoneTypeBadgeColor(fromType)} me-2">${fromType}</span>
-                            <span data-bs-toggle="tooltip" title="${escapeHtml(fromDescription)}">${fromZoneText}</span>
+                            ${fromSpan}
                         </div>
                     </td>
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="badge bg-${getZoneTypeBadgeColor(toType)} me-2">${toType}</span>
-                            <span data-bs-toggle="tooltip" title="${escapeHtml(toDescription)}">${toZoneText}</span>
+                            ${toSpan}
                         </div>
                     </td>
                     <td>
@@ -3439,38 +3598,46 @@ $(document).ready(function() {
         // Initialize tooltips
         $('[data-bs-toggle="tooltip"]').tooltip();
         
-        // Update existing mappings in the table to use the new UI style
+        // Update existing mappings - preserve zone-cell-hover (server-rendered), only fix delete button
         $('#mappingsTableBody tr').each(function() {
-            const fromType = $(this).data('from-type');
-            const toType = $(this).data('to-type');
             const mappingId = $(this).data('mapping-id');
-            
-            // Update first cell (from zone)
-            const fromCell = $(this).find('td:first');
-            const fromText = fromCell.text().trim();
-            fromCell.html(`
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-${getZoneTypeBadgeColor(fromType)} me-2">${fromType}</span>
-                    <span>${fromText}</span>
-                </div>
-            `);
-            
-            // Update second cell (to zone)
-            const toCell = $(this).find('td:eq(1)');
-            const toText = toCell.text().trim();
-            toCell.html(`
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-${getZoneTypeBadgeColor(toType)} me-2">${toType}</span>
-                    <span>${toText}</span>
-                </div>
-            `);
-            
-            // Update delete button to include mapping ID
             const deleteButton = $(this).find('.remove-mapping');
             if (deleteButton.length && !deleteButton.data('mapping-id')) {
                 deleteButton.attr('data-mapping-id', mappingId);
             }
         });
+        
+        // Zone hover tooltip - show items with images, stay visible when hovering tooltip (scrollable)
+        if (!$('#zoneHoverTooltip').length) $('body').append('<div id="zoneHoverTooltip" class="zone-hover-tooltip"></div>');
+        const $zoneTooltip = $('#zoneHoverTooltip');
+        const defaultImg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect fill="#e9ecef" width="40" height="40"/><text x="50%" y="50%" fill="#adb5bd" text-anchor="middle" dy=".3em" font-size="10">No img</text></svg>');
+        let hideTid = null;
+        function scheduleHide() {
+            if (hideTid) clearTimeout(hideTid);
+            hideTid = setTimeout(function() { $zoneTooltip.removeClass('show'); hideTid = null; }, 300);
+        }
+        function cancelHide() { if (hideTid) { clearTimeout(hideTid); hideTid = null; } }
+        $zoneTooltip.on('mouseenter', cancelHide).on('mouseleave', scheduleHide);
+        $(document).on('mouseenter', '.zone-cell-hover', function(e) {
+            cancelHide();
+            let items = $(this).attr('data-zone-items');
+            try { items = items ? JSON.parse(items) : []; } catch(x) { items = []; }
+            const zoneType = $(this).attr('data-zone-type') || 'Item';
+            const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+            let html = '<div class="tooltip-title">' + label + ' in this zone</div>';
+            if (!items || !items.length) {
+                html += '<div class="tooltip-item"><span class="tooltip-item-name text-muted">No ' + label.toLowerCase() + ' assigned</span></div>';
+            } else {
+                items.forEach(function(item) {
+                    const imgSrc = (item.image && (item.image.startsWith('http') || item.image.startsWith('/'))) ? item.image : (item.image ? '{{ url("/") }}/' + (item.image || '').replace(/^\/+/, '') : defaultImg);
+                    html += '<div class="tooltip-item"><img class="tooltip-item-img" src="' + imgSrc + '" alt=""><span class="tooltip-item-name">' + escapeHtml(item.name || '') + '</span></div>';
+                });
+            }
+            $zoneTooltip.html(html).addClass('show');
+            const rect = this.getBoundingClientRect();
+            $zoneTooltip.css({ left: Math.min(rect.left + (rect.width/2) - 160, window.innerWidth - 330) + 'px', top: (rect.bottom + 4) + 'px' });
+        });
+        $(document).on('mouseleave', '.zone-cell-hover', scheduleHide);
     });
 </script>
 @endif
