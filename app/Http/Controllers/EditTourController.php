@@ -1243,7 +1243,8 @@ class EditTourController extends Controller
      */
     public function updateRestaurant(Request $request, $orderId)
     {
-        $order = Order::findOrFail($orderId);
+        $order = Order::where('booking_id', $orderId)->firstOrFail();
+
         
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
@@ -1268,6 +1269,7 @@ class EditTourController extends Controller
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
                 // Step 1: First clear the data column (use empty array instead of null to satisfy NOT NULL constraint)
+                
                 $order->data = [];
                 $order->save();
 
@@ -1382,7 +1384,7 @@ class EditTourController extends Controller
                 $order->data = [$currentPayload];
                 $successMessage = 'Restaurant booking updated successfully.';
             }
-
+            $order->qr_code = null;
             $saved = $order->save();
 
             if (!$saved) {

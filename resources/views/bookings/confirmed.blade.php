@@ -1053,18 +1053,26 @@
                                             <i class="ri-calendar-line"></i>
                                         </a>
                                     @endif
-                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                        <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}"
-                                           class="action-icon-badge" style="--action-color: #b45309;" data-tooltip="Add/Remove Services">
-                                            <i class="ri-settings-3-line"></i>
+                                    
+                                    <!-- add/remove services button -->
+                                    <!-- @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                        <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
+                                        class="btn btn-outline-warning btn-sm rounded-pill">
+                                            <i class="ri-settings-3-line"></i> Add/Remove Services
                                         </a>
-                                        <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}"
-                                           class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Add Guests">
-                                            <i class="ri-user-add-line"></i>
-                                        </a>
-                                        <button type="button" class="action-icon-badge" style="--action-color: #dc2626;" data-tooltip="Cancel Tour" onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" id="cancel-btn-{{ $tour->tour_id }}">
-                                            <i class="ri-delete-bin-line"></i>
-                                        </button>
+                                    @endif -->
+
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130,131, 132, 134, 135, 136, 137, 138]))
+                                    <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
+                                       class="btn btn-outline-info btn-sm rounded-pill" 
+                                       title="Add guests for this tour">
+                                        <i class="ri-user-add-line me-1"></i> Add Guests
+                                    </a>
+                                    <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
+                                            class="btn btn-outline-danger btn-sm rounded-pill" 
+                                            id="cancel-btn-{{ $tour->tour_id }}">
+                                        <i class="ri-delete-bin-line"></i> Cancel
+                                    </button>
                                     @endif
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Payment Details" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
@@ -10716,16 +10724,16 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
     if (![11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)) {
         return '<div class="text-muted small"><i class="ri-information-line me-1"></i>No actions available for your role</div>';
     }
-    
-    return `
-        <div class="d-flex gap-2">
-            ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
-                <button type="button" 
+    /*<button type="button" 
                         class="btn btn-outline-primary btn-sm px-3 py-2" 
                         onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
                         style="border-radius: 25px;">
                     <i class="ri-edit-line me-1"></i>Edit
-                </button>
+                </button>*/
+    return `
+        <div class="d-flex gap-2">
+            ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
+                
                 <button type="button" 
                         class="btn btn-outline-success btn-sm px-3 py-2" 
                         onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
