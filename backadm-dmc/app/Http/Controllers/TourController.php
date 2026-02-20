@@ -816,10 +816,16 @@ class TourController extends Controller
             // Do NOT change status if tour is already in Actual or Definite status
             if ($tour->tour_status === "Confirmed") {
                 // Track status change Confirmed -> Definite in track_details JSON
-                \App\Helpers\CommonHelper::appendTourStatusTrack(
-                    $tour,
-                    $tour->tour_status,
-                    "Definite"
+                \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                    (int) $tour->tour_id,
+                    "Confirmed",
+                    "Definite",
+                    null,
+                    null,
+                    "Payment Verified",
+                    null,
+                    auth()->user() ? auth()->user()->name : null,
+                    auth()->user() ? auth()->user()->id : null
                 );
 
                 // Update in‑memory status; will be persisted with the save below
