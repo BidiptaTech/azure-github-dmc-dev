@@ -709,7 +709,6 @@
                         @php $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]; @endphp
                         @if(in_array(auth()->user()->role_id, $role))
                         <col style="width:14%">
-                        <col style="width:14%">
                         @endif
                         <col style="width:14%">
                         <col style="width:10%">
@@ -1040,14 +1039,18 @@
                                     </button>
                                 </div>
                             </td>
-                            @php
-                                $tz = auth()->user()->timezone ?? 'UTC';
-                                $time = $tour->created_at->timezone($tz);
-                            @endphp                            
                             <td class="align-top">
-                                <div class="d-flex flex-column gap-0">
-                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">{{ $time->format('D, M d, Y') }} · {{ $time->format('h:i A') }}</small>
+                                <div class="d-flex flex-column">
+                                @if($tour->created_at)
+                                    @php
+                                        $createdAt = $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC');
+                                    @endphp
+
+                                    <span>{{ $createdAt->format('M d, Y') }}</span>
+                                    <small class="text-muted">{{ $createdAt->format('h:i A') }}</small>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
                                 </div>
                             </td>
                             <td class="align-top">
@@ -1067,7 +1070,9 @@
                             </td>
                         </tr>
                         @empty
-                        <span class="text-muted">No new enquiries found</span>
+                        <tr>
+                            <td colspan="{{ in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]) ? 8 : 7 }}" class="text-center text-muted py-4">No new enquiries found</td>
+                        </tr>
                         @endforelse
                     </tbody>
                 </table>
