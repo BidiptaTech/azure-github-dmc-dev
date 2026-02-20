@@ -364,7 +364,7 @@ class InvoiceController extends Controller
             $decryptedId = $invoiceId;
         }
 
-        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+        $invoice = Invoice::with(['tour', 'agent.agency', 'dmc', 'items'])
             ->where('invoice_id', $decryptedId)
             ->firstOrFail();
 
@@ -377,6 +377,11 @@ class InvoiceController extends Controller
         }
         $selectedCurrency = $this->getSelectedCurrency($request);
         $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+        $hasAgency = $invoice->agent && $invoice->agent->agency;
 
         return view('invoices.invoice-preview', [
             'invoice' => $invoice,
@@ -384,6 +389,8 @@ class InvoiceController extends Controller
             'availableCurrencies' => $this->availableCurrencies,
             'currencyConversion' => $currencyConversion,
             'mode' => $mode,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
         ]);
     }
 
@@ -399,7 +406,7 @@ class InvoiceController extends Controller
             $decryptedId = $invoiceId;
         }
 
-        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+        $invoice = Invoice::with(['tour', 'agent.agency', 'dmc', 'items'])
             ->where('invoice_id', $decryptedId)
             ->firstOrFail();
 
@@ -414,6 +421,10 @@ class InvoiceController extends Controller
         $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
         $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
         $preview = $request->boolean('preview', false);
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
 
         $viewName = $mode === 'price-only'
             ? ($invoice->invoice_type === 'proforma' ? 'invoices.pdf.proforma-price-only' : 'invoices.pdf.final-price-only')
@@ -424,6 +435,7 @@ class InvoiceController extends Controller
             'selectedCurrency' => $selectedCurrency,
             'currencyConversion' => $currencyConversion,
             'exchangeRate' => $exchangeRate,
+            'logoType' => $logoType,
         ])->setPaper('a4', 'portrait');
 
         if ($preview) {
