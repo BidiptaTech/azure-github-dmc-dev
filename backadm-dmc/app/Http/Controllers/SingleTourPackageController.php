@@ -1179,6 +1179,7 @@ class SingleTourPackageController extends Controller
      */
     public function update(Request $request, $id)
     {
+        
         $package = Tour::findOrFail($id);
 
         $request->validate([
