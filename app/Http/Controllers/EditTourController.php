@@ -1249,6 +1249,7 @@ class EditTourController extends Controller
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'restaurant_name' => 'nullable|string|max:255', // Optional for backward compatibility
             'restaurant_id' => 'nullable',
+            'booking_date' => 'nullable|string|max:255',
             'meal_type' => 'nullable|string|max:255',
             'meal_specific_type' => 'nullable|string|max:255',
             'time_slot' => 'nullable|string|max:255',
@@ -1326,6 +1327,9 @@ class EditTourController extends Controller
                 }
                 if (array_key_exists('restaurant_id', $validated)) {
                     $currentPayload['restaurant_id'] = $validated['restaurant_id'];
+                }
+                if (array_key_exists('booking_date', $validated) && $validated['booking_date'] !== null && $validated['booking_date'] !== '') {
+                    $currentPayload['bookingDate'] = $validated['booking_date'];
                 }
                 $currentPayload['mealType'] = $validated['meal_type'] ?? ($currentPayload['mealType'] ?? null);
                 $currentPayload['mealSpecificType'] = $validated['meal_specific_type'] ?? ($currentPayload['mealSpecificType'] ?? null);
