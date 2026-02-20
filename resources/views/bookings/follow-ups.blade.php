@@ -94,10 +94,14 @@
         min-height: 72px;
         vertical-align: top;
     }
-    /* Actions column: taller rows so icon badges have room */
+    /* Actions column: taller rows so icon badges have room; wider for 2 icons per row */
+    #toursTable thead th.col-actions,
+    #toursTable td.col-actions {
+        min-width: 200px;
+        width: 200px;
+    }
     #toursTable td.col-actions {
         min-height: 72px;
-        min-width: 160px;
         white-space: nowrap;
         overflow: visible;
     }
@@ -195,10 +199,10 @@
         transform: translate(-50%, -100%);
     }
 
-    /* Actions column: same soft-badge design as new-enquiries */
+    /* Actions column: same soft-badge design; 2 icons per row */
     #toursTable .actions-icons-wrap {
         display: grid;
-        grid-template-columns: repeat(3, auto);
+        grid-template-columns: repeat(2, auto);
         row-gap: 0.5rem;
         column-gap: 0.5rem;
         align-items: center;
@@ -822,9 +826,9 @@
                         @php $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]; @endphp
                         @if(in_array(auth()->user()->role_id, $role))
                         <col style="width: 9%">
-                        <col style="width: 8%">
+                        <col style="width: 10%">
                         @endif
-                        <col style="width: 14%">
+                        <col style="width: 12%">
                         <col style="width: 11%">
                         <col style="width: 8%">
                         <col style="width: 8%">
@@ -840,8 +844,7 @@
                             <th class="th-tooltip" data-tooltip="Agent">Agent</th>
                             <th class="th-tooltip" data-tooltip="Services">Services</th>
                             @if(in_array(auth()->user()->role_id, $role))
-                                <th class="th-tooltip" data-tooltip="Agent Negotiation">Agent Negotiation</th>
-                                <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
+                            <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
                             @endif
                             <th class="th-tooltip" data-tooltip="Actions">Actions</th>
                             <th class="th-tooltip" data-tooltip="Status">Status</th>
@@ -1075,7 +1078,7 @@
                                 $lastOfferRemark = $latestCommentRemark;
                             @endphp
                             @if(in_array(auth()->user()->role_id, $role))
-                            <td class="align-top">
+                            <td class="align-top col-negotiation">
                                 <button 
                                     type="button"
                                     class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
@@ -1095,8 +1098,6 @@
                                         <span class="d-block small text-muted">By Agent</span>
                                     </span>
                                 </button>
-                            </td>
-                            <td class="align-top col-negotiation">
                                 @if($hasAgentComment)
                                     <button 
                                         type="button"
@@ -1351,8 +1352,9 @@
                         <div class="form-text text-primary fw-semibold" id="agentNegotiationMaxMessage">Maximum allowed amount: <span id="agentNegotiationMaxValue">—</span></div>
                     </div>
                     <div class="mb-3">
-                        <label for="agentNegotiationRemark" class="form-label">Remarks</label>
-                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
+                        <label for="agentNegotiationRemark" class="form-label">Remarks <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation" required></textarea>
+                        <div class="invalid-feedback d-none" id="agentNegotiationRemarkError">Please fill the input.</div>
                     </div>
                     <div class="alert alert-warning py-2 px-3 d-none" id="agentNegotiationWarning">
                         Negotiated amount cannot exceed the current amount.
@@ -4976,6 +4978,9 @@ function showFilterResetMessage() {
             actionInput.value = 'negotiate';
             displayEl.textContent = displayId;
             warning.classList.add('d-none');
+            remarkInput.classList.remove('is-invalid');
+            const remarkErrEl = document.getElementById('agentNegotiationRemarkError');
+            if (remarkErrEl) remarkErrEl.classList.add('d-none');
 
             // Determine the maximum allowed amount
             // If there's a last negotiated amount, use that as max; otherwise use current amount
@@ -5074,6 +5079,14 @@ function showFilterResetMessage() {
                     });
                     return;
                 }
+                const remarkError = document.getElementById('agentNegotiationRemarkError');
+                if (remarkInput.value.trim() === '') {
+                    remarkInput.classList.add('is-invalid');
+                    remarkError.classList.remove('d-none');
+                    return;
+                }
+                remarkInput.classList.remove('is-invalid');
+                remarkError.classList.add('d-none');
 
                 const max = parseFloat(amountInput.getAttribute('max'));
                 if (!isNaN(max) && max > 0 && amountValue > max) {
@@ -5094,7 +5107,16 @@ function showFilterResetMessage() {
                 return;
             }
 
-            // For Cancel and Confirm actions - no validation needed for amount/remarks
+            // For Cancel and Confirm actions - remarks required
+            const remarkError = document.getElementById('agentNegotiationRemarkError');
+            if (remarkInput.value.trim() === '') {
+                remarkInput.classList.add('is-invalid');
+                remarkError.classList.remove('d-none');
+                return;
+            }
+            remarkInput.classList.remove('is-invalid');
+            remarkError.classList.add('d-none');
+
             const prompts = {
                 cancel: {
                     title: 'Cancel this tour?',
@@ -5127,15 +5149,10 @@ function showFilterResetMessage() {
                 showLoaderOnConfirm: true,
                 preConfirm: () => {
                     return new Promise((resolve) => {
-                        // Clear amount and remarks fields if they're empty for cancel/confirm
-                        // This ensures backend doesn't validate empty fields
+                        // Clear amount field if empty for cancel/confirm (remarks are required and already validated)
                         if (!amountInput.value.trim()) {
                             amountInput.removeAttribute('name');
                         }
-                        if (!remarkInput.value.trim()) {
-                            remarkInput.removeAttribute('name');
-                        }
-                        
                         actionInput.value = action;
                         form.submit();
                         resolve();

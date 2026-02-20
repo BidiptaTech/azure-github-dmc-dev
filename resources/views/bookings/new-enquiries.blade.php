@@ -709,7 +709,6 @@
                         @php $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]; @endphp
                         @if(in_array(auth()->user()->role_id, $role))
                         <col style="width:14%">
-                        <col style="width:14%">
                         @endif
                         <col style="width:14%">
                         <col style="width:10%">
@@ -1042,14 +1041,18 @@
                                     </button>
                                 </div>
                             </td>
-                            @php
-                                $tz = auth()->user()->timezone ?? 'UTC';
-                                $time = $tour->created_at->timezone($tz);
-                            @endphp                            
                             <td class="align-top">
-                                <div class="d-flex flex-column gap-0">
-                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">{{ $time->format('D, M d, Y') }} · {{ $time->format('h:i A') }}</small>
+                                <div class="d-flex flex-column">
+                                @if($tour->created_at)
+                                    @php
+                                        $createdAt = $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC');
+                                    @endphp
+
+                                    <span>{{ $createdAt->format('M d, Y') }}</span>
+                                    <small class="text-muted">{{ $createdAt->format('h:i A') }}</small>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
                                 </div>
                             </td>
                             <td class="align-top">
@@ -1069,7 +1072,9 @@
                             </td>
                         </tr>
                         @empty
-                        <span class="text-muted">No new enquiries found</span>
+                        <tr>
+                            <td colspan="{{ in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]) ? 8 : 7 }}" class="text-center text-muted py-4">No new enquiries found</td>
+                        </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -1186,8 +1191,9 @@
                         <div class="form-text text-primary fw-semibold" id="agentNegotiationMaxMessage">Maximum allowed amount: <span id="agentNegotiationMaxValue">—</span></div>
                     </div>
                     <div class="mb-3">
-                        <label for="agentNegotiationRemark" class="form-label">Remarks</label>
-                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
+                        <label for="agentNegotiationRemark" class="form-label">Remarks <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation" required></textarea>
+                        <div class="invalid-feedback d-none" id="agentNegotiationRemarkError">Please fill the input.</div>
                     </div>
                     <div class="alert alert-warning py-2 px-3 d-none" id="agentNegotiationWarning">
                         Negotiated amount cannot exceed the current amount.
@@ -5053,6 +5059,9 @@ function testServices() {
             actionInput.value = 'negotiate';
             displayEl.textContent = displayId;
             warning.classList.add('d-none');
+            remarkInput.classList.remove('is-invalid');
+            const remarkErrEl = document.getElementById('agentNegotiationRemarkError');
+            if (remarkErrEl) remarkErrEl.classList.add('d-none');
 
             // Determine the maximum allowed amount
             // If there's a last negotiated amount, use that as max; otherwise use current amount
@@ -5151,6 +5160,14 @@ function testServices() {
                     });
                     return;
                 }
+                const remarkError = document.getElementById('agentNegotiationRemarkError');
+                if (remarkInput.value.trim() === '') {
+                    remarkInput.classList.add('is-invalid');
+                    remarkError.classList.remove('d-none');
+                    return;
+                }
+                remarkInput.classList.remove('is-invalid');
+                remarkError.classList.add('d-none');
 
                 const max = parseFloat(amountInput.getAttribute('max'));
                 if (!isNaN(max) && max > 0 && amountValue > max) {
@@ -5171,7 +5188,16 @@ function testServices() {
                 return;
             }
 
-            // For Cancel and Confirm actions - no validation needed for amount/remarks
+            // For Cancel and Confirm actions - remarks required
+            const remarkError = document.getElementById('agentNegotiationRemarkError');
+            if (remarkInput.value.trim() === '') {
+                remarkInput.classList.add('is-invalid');
+                remarkError.classList.remove('d-none');
+                return;
+            }
+            remarkInput.classList.remove('is-invalid');
+            remarkError.classList.add('d-none');
+
             const prompts = {
                 cancel: {
                     title: 'Cancel this tour?',
@@ -5204,15 +5230,10 @@ function testServices() {
                 showLoaderOnConfirm: true,
                 preConfirm: () => {
                     return new Promise((resolve) => {
-                        // Clear amount and remarks fields if they're empty for cancel/confirm
-                        // This ensures backend doesn't validate empty fields
+                        // Clear amount field if empty for cancel/confirm (remarks are required and already validated)
                         if (!amountInput.value.trim()) {
                             amountInput.removeAttribute('name');
                         }
-                        if (!remarkInput.value.trim()) {
-                            remarkInput.removeAttribute('name');
-                        }
-                        
                         actionInput.value = action;
                         form.submit();
                         resolve();
