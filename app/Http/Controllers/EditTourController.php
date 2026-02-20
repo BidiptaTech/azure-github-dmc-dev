@@ -9,6 +9,8 @@ use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use App\Helpers\CommonHelper;
 
 class EditTourController extends Controller
 {
@@ -845,6 +847,34 @@ class EditTourController extends Controller
 
             DB::commit();
 
+            // Append to tour track_details: hotel update or add
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $hotelDetails = $restructuredPayload['hotelDetails'] ?? [];
+                $hotelId = $hotelDetails['hotel_id'] ?? null;
+                $hotelName = $hotelDetails['hotel_name'] ?? null;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById(
+                    $tourId,
+                    $tourStatus,
+                    $tourStatus,
+                    null,
+                    null,
+                    null,
+                    null,
+                    $changedByName,
+                    $changedByUserId,
+                    $action,
+                    'hotel',
+                    $hotelId,
+                    $hotelName
+                );
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => $successMessage,
@@ -883,6 +913,7 @@ class EditTourController extends Controller
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'attraction_name' => 'nullable|string|max:255', // Optional for backward compatibility
+            'attraction_id' => 'nullable',
             'ticket_name' => 'nullable|string|max:255',
             'visit_time' => 'nullable|string|max:255',
             'adult_count' => 'nullable|integer|min:0',
@@ -894,6 +925,8 @@ class EditTourController extends Controller
 
         try {
             DB::beginTransaction();
+
+            $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
 
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
@@ -953,6 +986,10 @@ class EditTourController extends Controller
 
                 if (!empty($validated['attraction_name'])) {
                     $currentPayload['AttractionName'] = $validated['attraction_name'];
+                    $currentPayload['attraction_name'] = $validated['attraction_name'];
+                }
+                if (array_key_exists('attraction_id', $validated)) {
+                    $currentPayload['attraction_id'] = $validated['attraction_id'];
                 }
                 if (array_key_exists('ticket_name', $validated)) {
                     $currentPayload['ticketName'] = $validated['ticket_name'];
@@ -1026,6 +1063,19 @@ class EditTourController extends Controller
 
             DB::commit();
 
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $savedPayload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $serviceName = $savedPayload['attraction_name'] ?? $savedPayload['AttractionName'] ?? null;
+                $serviceId = $savedPayload['attraction_id'] ?? null;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, 'attraction', $serviceId, $serviceName);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => $successMessage,
@@ -1064,6 +1114,7 @@ class EditTourController extends Controller
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'guide_name' => 'nullable|string|max:255', // Optional for backward compatibility
+            'guide_id' => 'nullable',
             'package_hours' => 'nullable|string|max:255',
             'pickup_time' => 'nullable|string|max:255',
             'guest_name' => 'nullable|string|max:255',
@@ -1072,6 +1123,8 @@ class EditTourController extends Controller
 
         try {
             DB::beginTransaction();
+
+            $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
 
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
@@ -1115,6 +1168,9 @@ class EditTourController extends Controller
                 if (!empty($validated['guide_name'])) {
                     $currentPayload['guide_name'] = $validated['guide_name'];
                 }
+                if (array_key_exists('guide_id', $validated)) {
+                    $currentPayload['guide_id'] = $validated['guide_id'];
+                }
 
                 if (array_key_exists('package_hours', $validated)) {
                     $currentPayload['hours'] = $validated['package_hours'];
@@ -1140,6 +1196,19 @@ class EditTourController extends Controller
             }
 
             DB::commit();
+
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $savedPayload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $serviceName = $savedPayload['guide_name'] ?? null;
+                $serviceId = $savedPayload['guide_id'] ?? null;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, 'guide', $serviceId, $serviceName);
+            }
 
             return response()->json([
                 'success' => true,
@@ -1179,6 +1248,7 @@ class EditTourController extends Controller
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'restaurant_name' => 'nullable|string|max:255', // Optional for backward compatibility
+            'restaurant_id' => 'nullable',
             'meal_type' => 'nullable|string|max:255',
             'meal_specific_type' => 'nullable|string|max:255',
             'time_slot' => 'nullable|string|max:255',
@@ -1191,6 +1261,8 @@ class EditTourController extends Controller
 
         try {
             DB::beginTransaction();
+
+            $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
 
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
@@ -1250,6 +1322,10 @@ class EditTourController extends Controller
 
                 if (!empty($validated['restaurant_name'])) {
                     $currentPayload['restaurantName'] = $validated['restaurant_name'];
+                    $currentPayload['restaurant_name'] = $validated['restaurant_name'];
+                }
+                if (array_key_exists('restaurant_id', $validated)) {
+                    $currentPayload['restaurant_id'] = $validated['restaurant_id'];
                 }
                 $currentPayload['mealType'] = $validated['meal_type'] ?? ($currentPayload['mealType'] ?? null);
                 $currentPayload['mealSpecificType'] = $validated['meal_specific_type'] ?? ($currentPayload['mealSpecificType'] ?? null);
@@ -1311,6 +1387,19 @@ class EditTourController extends Controller
 
             DB::commit();
 
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $savedPayload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $serviceName = $savedPayload['restaurant_name'] ?? $savedPayload['restaurantName'] ?? null;
+                $serviceId = $savedPayload['restaurant_id'] ?? null;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, 'restaurant', $serviceId, $serviceName);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => $successMessage,
@@ -1355,6 +1444,8 @@ class EditTourController extends Controller
             try {
                 DB::beginTransaction();
 
+                $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
+
                 // Step 1: First clear the data column (use empty array instead of null to satisfy NOT NULL constraint)
                 $order->data = [];
                 $order->save();
@@ -1385,6 +1476,23 @@ class EditTourController extends Controller
                 }
 
                 DB::commit();
+
+                $tourId = (int) $order->tour_id;
+                $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+                if ($tourStatus !== null) {
+                    $action = $hasExistingData ? 'updated' : 'Added';
+                    $savedPayload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                    $serviceName = $savedPayload['vehicle_name'] ?? $savedPayload['vehicles_name'] ?? $savedPayload['travel_type'] ?? 'Transport';
+                    $serviceId = $savedPayload['vehicle_id'] ?? null;
+                    $serviceType = $savedPayload['travel_type'] ?? (isset($savedPayload['exitpickup']) ? 'exit_port' : 'entry_port');
+                    if (!in_array($serviceType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+                        $serviceType = 'entry_port';
+                    }
+                    $currentUser = Auth::user();
+                    $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                    $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                    CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
+                }
 
                 return response()->json([
                     'success' => true,
@@ -1424,6 +1532,8 @@ class EditTourController extends Controller
         try {
             DB::beginTransaction();
 
+            $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
+
             if (in_array($type, ['entry_port', 'exit_port'])) {
                 $validated = $request->validate([
                     'city' => 'nullable|string|max:255',
@@ -1431,6 +1541,7 @@ class EditTourController extends Controller
                     'dropoff_location' => 'required|string|max:255',
                     'pickup_time' => 'required|string|max:50',
                     'vehicle_name' => 'nullable|string|max:255',
+                    'vehicle_id' => 'nullable',
                     'vehicle_type' => 'nullable|string|max:50',
                     'passenger_count' => 'nullable|integer|min:1',
                     'notes' => 'nullable|string|max:1000',
@@ -1463,6 +1574,10 @@ class EditTourController extends Controller
 
                 if (!empty($validated['vehicle_name'])) {
                     $currentPayload['vehicles_name'] = $validated['vehicle_name'];
+                    $currentPayload['vehicle_name'] = $validated['vehicle_name'];
+                }
+                if (array_key_exists('vehicle_id', $validated)) {
+                    $currentPayload['vehicle_id'] = $validated['vehicle_id'];
                 }
 
                 if (!empty($validated['vehicle_type'])) {
@@ -1486,6 +1601,7 @@ class EditTourController extends Controller
                     'pickup_time' => 'required|string|max:50',
                     'pickup_date' => 'nullable|date',
                     'vehicle_name' => 'nullable|string|max:255',
+                    'vehicle_id' => 'nullable',
                     'vehicle_type' => 'nullable|string|max:50',
                     'total_price' => 'nullable|numeric|min:0',
                     'adult_count' => 'nullable|integer|min:0',
@@ -1530,6 +1646,10 @@ class EditTourController extends Controller
 
                 if (array_key_exists('vehicle_name', $validated)) {
                     $currentPayload['vehicles_name'] = $validated['vehicle_name'];
+                    $currentPayload['vehicle_name'] = $validated['vehicle_name'];
+                }
+                if (array_key_exists('vehicle_id', $validated)) {
+                    $currentPayload['vehicle_id'] = $validated['vehicle_id'];
                 }
 
                 if (array_key_exists('vehicle_type', $validated)) {
@@ -1581,6 +1701,20 @@ class EditTourController extends Controller
             }
 
             DB::commit();
+
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $savedPayload = isset($currentPayload) ? $currentPayload : (is_array($order->data) && isset($order->data[0]) ? $order->data[0] : []);
+                $serviceName = $savedPayload['vehicle_name'] ?? $savedPayload['vehicles_name'] ?? $savedPayload['travel_type'] ?? 'Transport';
+                $serviceId = $savedPayload['vehicle_id'] ?? null;
+                $serviceType = $type;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
+            }
 
             return response()->json([
                 'success' => true,

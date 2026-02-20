@@ -221,6 +221,55 @@
         z-index: 9999;
         width: 300px;
     }
+
+    /* Assign Vehicle / Driver: view (read-only text + pen) vs edit (dropdown) */
+    .assign-vehicle-cell,
+    .assign-driver-cell {
+        min-width: 180px;
+    }
+    .assign-vehicle-view,
+    .assign-driver-view {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 38px;
+    }
+    .assign-vehicle-text,
+    .assign-driver-text {
+        flex: 1;
+        padding: 6px 0;
+        color: #333;
+    }
+    .assign-vehicle-text.empty,
+    .assign-driver-text.empty {
+        color: #999;
+        font-style: italic;
+    }
+    .assign-vehicle-edit-btn,
+    .assign-driver-edit-btn {
+        flex-shrink: 0;
+        padding: 4px 8px;
+        color: #6777ef;
+        border: 1px solid #e2e5ec;
+        background: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .assign-vehicle-edit-btn:hover,
+    .assign-driver-edit-btn:hover {
+        background: #f8f9fa;
+        color: #5568d3;
+    }
+    .assign-vehicle-edit,
+    .assign-driver-edit {
+        display: none;
+        min-width: 180px;
+    }
+    .assign-vehicle-edit.is-active,
+    .assign-driver-edit.is-active {
+        display: block;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -402,57 +451,79 @@ $(document).ready(function() {
                         <td>${dataItem.entrydropoff || 'N/A'}</td>
                         <td>${item.dropoff_zone || 'N/A'}</td>
                         <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
-                        <td>
-                            <select class="form-control vehicle-select" 
-                                name="vehicle_id[${index}]" 
-                                data-order-id="${item.booking_id || ''}" 
-                                data-tour-id="${item.tour_id || ''}"
-                                data-order-type="${item.type || ''}"
-                                data-entry-time="${dataItem.entrytime || ''}"
-                                data-entrypickup="${dataItem.entrypickup || ''}"
-                                data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                data-type="${dataItem.type || ''}">
-                                <option value="">Select Vehicle</option>
-                                ${(function() {
-                                    let options = '';
-                                    if (initialVehicles.length) {
-                                        initialVehicles.forEach(vehicle => {
-                                            const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
-                                            const vehicleDisplay = vehicle.vehicle_plate_no 
-                                                ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
-                                                : vehicle.vehicle_name;
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
-                                        });
-                                    }
-                                    return options;
-                                })()}
-                            </select>
+                        <td class="assign-vehicle-cell">
+                            <div class="assign-vehicle-view">
+                                <span class="assign-vehicle-text ${!(item.assigned_vehicle_id) ? 'empty' : ''}">${(function() {
+                                    if (!item.assigned_vehicle_id) return 'Not Assigned';
+                                    const v = initialVehicles.find(vh => vh.vehicle_id == item.assigned_vehicle_id);
+                                    if (v) return v.vehicle_plate_no ? v.vehicle_name + ' - ' + v.vehicle_plate_no : v.vehicle_name;
+                                    return 'Vehicle #' + item.assigned_vehicle_id;
+                                })()}</span>
+                                <button type="button" class="assign-vehicle-edit-btn" title="Edit vehicle" aria-label="Edit vehicle"><i class="fas fa-pen"></i></button>
+                            </div>
+                            <div class="assign-vehicle-edit">
+                                <select class="form-control vehicle-select" 
+                                    name="vehicle_id[${index}]" 
+                                    data-order-id="${item.booking_id || ''}" 
+                                    data-tour-id="${item.tour_id || ''}"
+                                    data-order-type="${item.type || ''}"
+                                    data-entry-time="${dataItem.entrytime || ''}"
+                                    data-entrypickup="${dataItem.entrypickup || ''}"
+                                    data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                    data-type="${dataItem.type || ''}">
+                                    <option value="">Select Vehicle</option>
+                                    ${(function() {
+                                        let options = '';
+                                        if (initialVehicles.length) {
+                                            initialVehicles.forEach(vehicle => {
+                                                const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
+                                                const vehicleDisplay = vehicle.vehicle_plate_no 
+                                                    ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
+                                                    : vehicle.vehicle_name;
+                                                options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
+                                            });
+                                        }
+                                        return options;
+                                    })()}
+                                </select>
+                            </div>
                         </td>
-                        <td>
-                            <select class="form-control driver-select" 
-                                name="driver_id[${index}]" 
-                                data-order-id="${item.booking_id || ''}" 
-                                data-tour-id="${item.tour_id || ''}"
-                                data-order-type="${item.type || ''}"
-                                data-entry-time="${dataItem.entrytime || ''}"
-                                data-entrypickup="${dataItem.entrypickup || ''}"
-                                data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                data-type="${dataItem.type || ''}">
-                                <option value="">Select Driver</option>
-                                ${(function() {
-                                    let options = '';
-                                    if (initialDrivers.length) {
-                                        initialDrivers.forEach(driver => {
-                                            const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
-                                            const driverDisplay = driver.license_no 
-                                                ? `${driver.name} - ${driver.license_no}` 
-                                                : driver.name;
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driverDisplay}</option>`;
-                                        });
-                                    }
-                                    return options;
-                                })()}
-                            </select>
+                        <td class="assign-driver-cell">
+                            <div class="assign-driver-view">
+                                <span class="assign-driver-text ${!(item.assigned_driver_id) ? 'empty' : ''}">${(function() {
+                                    if (!item.assigned_driver_id) return 'Not Assigned';
+                                    const d = initialDrivers.find(dr => dr.driver_id == item.assigned_driver_id);
+                                    if (d) return d.license_no ? d.name + ' - ' + d.license_no : d.name;
+                                    return 'Driver #' + item.assigned_driver_id;
+                                })()}</span>
+                                <button type="button" class="assign-driver-edit-btn" title="Edit driver" aria-label="Edit driver"><i class="fas fa-pen"></i></button>
+                            </div>
+                            <div class="assign-driver-edit">
+                                <select class="form-control driver-select" 
+                                    name="driver_id[${index}]" 
+                                    data-order-id="${item.booking_id || ''}" 
+                                    data-tour-id="${item.tour_id || ''}"
+                                    data-order-type="${item.type || ''}"
+                                    data-entry-time="${dataItem.entrytime || ''}"
+                                    data-entrypickup="${dataItem.entrypickup || ''}"
+                                    data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                    data-type="${dataItem.type || ''}">
+                                    <option value="">Select Driver</option>
+                                    ${(function() {
+                                        let options = '';
+                                        if (initialDrivers.length) {
+                                            initialDrivers.forEach(driver => {
+                                                const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
+                                                const driverDisplay = driver.license_no 
+                                                    ? `${driver.name} - ${driver.license_no}` 
+                                                    : driver.name;
+                                                options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driverDisplay}</option>`;
+                                            });
+                                        }
+                                        return options;
+                                    })()}
+                                </select>
+                            </div>
                             <input type="hidden" name="order_id[${index}]" value="${item.booking_id || ''}">
                             <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                         </td>
@@ -565,54 +636,76 @@ $(document).ready(function() {
                                 <td>${dataItem.entrydropoff || 'N/A'}</td>
                                 <td>${item.dropoff_zone || 'N/A'}</td>
                                 <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
-                                <td>
-                                    <select class="form-control vehicle-select" 
-                                        name="vehicle_id[${index}]" 
-                                        data-order-id="${item.booking_id || ''}" 
-                                        data-tour-id="${item.tour_id || ''}"
-                                        data-order-type="${item.type || ''}"
-                                        data-entry-time="${dataItem.entrytime || ''}"
-                                        data-entrypickup="${dataItem.entrypickup || ''}"
-                                        data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                        data-type="${dataItem.type || ''}">
-                                        <option value="">Select Vehicle</option>
-                                        ${(function() {
-                                            let options = '';
-                                            if (response.vehicles && response.vehicles.length) {
-                                                response.vehicles.forEach(vehicle => {
-                                                    const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
-                                                    const vehicleDisplay = vehicle.vehicle_plate_no 
-                                                        ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
-                                                        : vehicle.vehicle_name;
-                                                    options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
-                                                });
-                                            }
-                                            return options;
-                                        })()}
-                                    </select>
+                                <td class="assign-vehicle-cell">
+                                    <div class="assign-vehicle-view">
+                                        <span class="assign-vehicle-text ${!(item.assigned_vehicle_id) ? 'empty' : ''}">${(function() {
+                                            if (!item.assigned_vehicle_id) return 'Not Assigned';
+                                            const v = response.vehicles && response.vehicles.find(vh => vh.vehicle_id == item.assigned_vehicle_id);
+                                            if (v) return v.vehicle_plate_no ? v.vehicle_name + ' - ' + v.vehicle_plate_no : v.vehicle_name;
+                                            return 'Vehicle #' + item.assigned_vehicle_id;
+                                        })()}</span>
+                                        <button type="button" class="assign-vehicle-edit-btn" title="Edit vehicle" aria-label="Edit vehicle"><i class="fas fa-pen"></i></button>
+                                    </div>
+                                    <div class="assign-vehicle-edit">
+                                        <select class="form-control vehicle-select" 
+                                            name="vehicle_id[${index}]" 
+                                            data-order-id="${item.booking_id || ''}" 
+                                            data-tour-id="${item.tour_id || ''}"
+                                            data-order-type="${item.type || ''}"
+                                            data-entry-time="${dataItem.entrytime || ''}"
+                                            data-entrypickup="${dataItem.entrypickup || ''}"
+                                            data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                            data-type="${dataItem.type || ''}">
+                                            <option value="">Select Vehicle</option>
+                                            ${(function() {
+                                                let options = '';
+                                                if (response.vehicles && response.vehicles.length) {
+                                                    response.vehicles.forEach(vehicle => {
+                                                        const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
+                                                        const vehicleDisplay = vehicle.vehicle_plate_no 
+                                                            ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
+                                                            : vehicle.vehicle_name;
+                                                        options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
+                                                    });
+                                                }
+                                                return options;
+                                            })()}
+                                        </select>
+                                    </div>
                                 </td>
-                                <td>
-                                    <select class="form-control driver-select" 
-                                        name="driver_id[${index}]" 
-                                        data-order-id="${item.booking_id || ''}" 
-                                        data-tour-id="${item.tour_id || ''}"
-                                        data-order-type="${item.type || ''}"
-                                        data-entry-time="${dataItem.entrytime || ''}"
-                                        data-entrypickup="${dataItem.entrypickup || ''}"
-                                        data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                        data-type="${dataItem.type || ''}">
-                                        <option value="">Select Driver</option>
-                                        ${(function() {
-                                            let options = '';
-                                            if (response.drivers && response.drivers.length) {
-                                                response.drivers.forEach(driver => {
-                                                    const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
-                                                    options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driver.name} - ${driver.license_no} </option>`;
-                                                });
-                                            }
-                                            return options;
-                                        })()}
-                                    </select>
+                                <td class="assign-driver-cell">
+                                    <div class="assign-driver-view">
+                                        <span class="assign-driver-text ${!(item.assigned_driver_id) ? 'empty' : ''}">${(function() {
+                                            if (!item.assigned_driver_id) return 'Not Assigned';
+                                            const d = response.drivers && response.drivers.find(dr => dr.driver_id == item.assigned_driver_id);
+                                            if (d) return d.license_no ? d.name + ' - ' + d.license_no : d.name;
+                                            return 'Driver #' + item.assigned_driver_id;
+                                        })()}</span>
+                                        <button type="button" class="assign-driver-edit-btn" title="Edit driver" aria-label="Edit driver"><i class="fas fa-pen"></i></button>
+                                    </div>
+                                    <div class="assign-driver-edit">
+                                        <select class="form-control driver-select" 
+                                            name="driver_id[${index}]" 
+                                            data-order-id="${item.booking_id || ''}" 
+                                            data-tour-id="${item.tour_id || ''}"
+                                            data-order-type="${item.type || ''}"
+                                            data-entry-time="${dataItem.entrytime || ''}"
+                                            data-entrypickup="${dataItem.entrypickup || ''}"
+                                            data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                            data-type="${dataItem.type || ''}">
+                                            <option value="">Select Driver</option>
+                                            ${(function() {
+                                                let options = '';
+                                                if (response.drivers && response.drivers.length) {
+                                                    response.drivers.forEach(driver => {
+                                                        const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
+                                                        options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driver.name} - ${driver.license_no} </option>`;
+                                                    });
+                                                }
+                                                return options;
+                                            })()}
+                                        </select>
+                                    </div>
                                     <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
                                     <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                                 </td>
@@ -726,35 +819,9 @@ $(document).ready(function() {
     // Function to initialize Select2 on driver and vehicle dropdowns
     function initializeSelect2() {
         try {
-            // Destroy existing Select2 instances first
-            $('.driver-select').each(function() {
-                if ($(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2('destroy');
-                }
-            });
-            $('.vehicle-select').each(function() {
-                if ($(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2('destroy');
-                }
-            });
-            
-            // Initialize Select2 on driver dropdowns
-            $('.driver-select').select2({
-                placeholder: "Select Driver",
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
-            });
-            
-            // Initialize Select2 on vehicle dropdowns
-            $('.vehicle-select').select2({
-                placeholder: "Select Vehicle",
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
-            });
-            
-            console.log("Select2 initialized successfully");
+            // Vehicle and driver selects are initialized on pen-click (assign-vehicle-edit-btn / assign-driver-edit-btn)
+            // so we do not init them here. Other Select2 dropdowns can be added below if needed.
+            console.log("Select2 init (vehicle/driver use pen-click init)");
         } catch (e) {
             console.error("Select2 initialization error:", e);
         }
@@ -930,6 +997,58 @@ $(document).ready(function() {
             console.error('Error saving assignments:', error);
             showAlert('error', 'An error occurred while saving assignments: ' + error.message);
         });
+    });
+
+    // Pen icon: show dropdown for Assign Vehicle, then collapse back to text on close
+    $(document).on('click', '.assign-vehicle-edit-btn', function() {
+        const $btn = $(this);
+        const $cell = $btn.closest('.assign-vehicle-cell');
+        const $view = $cell.find('.assign-vehicle-view');
+        const $edit = $cell.find('.assign-vehicle-edit');
+        const $select = $cell.find('.vehicle-select').first();
+        $view.hide();
+        $edit.addClass('is-active').show();
+        if (!$select.hasClass('select2-hidden-accessible')) {
+            $select.select2({
+                placeholder: "Select Vehicle",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#tourOrdersTable').parent()
+            });
+            $select.on('select2:close', function() {
+                const selectedText = $select.find('option:selected').text();
+                $cell.find('.assign-vehicle-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+                $edit.removeClass('is-active').hide();
+                $view.show();
+            });
+        }
+        $select.select2('open');
+    });
+
+    // Pen icon: show dropdown for Assign Driver, then collapse back to text on close
+    $(document).on('click', '.assign-driver-edit-btn', function() {
+        const $btn = $(this);
+        const $cell = $btn.closest('.assign-driver-cell');
+        const $view = $cell.find('.assign-driver-view');
+        const $edit = $cell.find('.assign-driver-edit');
+        const $select = $cell.find('.driver-select').first();
+        $view.hide();
+        $edit.addClass('is-active').show();
+        if (!$select.hasClass('select2-hidden-accessible')) {
+            $select.select2({
+                placeholder: "Select Driver",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#tourOrdersTable').parent()
+            });
+            $select.on('select2:close', function() {
+                const selectedText = $select.find('option:selected').text();
+                $cell.find('.assign-driver-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+                $edit.removeClass('is-active').hide();
+                $view.show();
+            });
+        }
+        $select.select2('open');
     });
 
     // Handle driver selection change
