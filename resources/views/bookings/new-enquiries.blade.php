@@ -926,22 +926,24 @@
                                 $first_enquiry_actual_amount = $frstenquiry->actual_amount ?? 0;
                                 
                                 // Calculate total tour price from ALL bookings with status 1 or 3
-                                // Includes: base price + transfer price + guide price (for attractions)
+                                // Hotel: use pickup total only (itemPrice) - transport/transfer is already included, do NOT add transfer price
+                                // Other services: base price + transfer price + guide price
                                 $tourTotalPrice = 0;
                                 foreach ($tour->booking as $booking) {
                                     if (in_array($booking->status, [1, 3])) {
                                         $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                                         if (is_array($data)) {
+                                            $orderType = $booking->type ?? '';
                                             foreach ($data as $item) {
                                                 $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
                                                 
-                                                // Add transfer price if exists
+                                                // For hotel: pickup total only - do NOT add transfer (transport added automatically)
                                                 $transferPrice = 0;
-                                                if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                                                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
                                                     $transferPrice = (float) $item['transfer_options']['cost'];
                                                 }
                                                 
-                                                // Add guide price if exists (attractions, entry_port, exit_port, etc.)
+                                                // Add guide price if exists (attractions, entry_port, exit_port, restaurant, etc.)
                                                 $guidePrice = 0;
                                                 if (isset($item['guide_options']) && is_array($item['guide_options'])) {
                                                     $gv = $item['guide_options']['total_price'] ?? $item['guide_options']['cost'] ?? $item['guide_options']['Cost'] ?? $item['guide_options']['sell'] ?? $item['guide_options']['Sell'] ?? 0;
@@ -2431,12 +2433,6 @@
                                                     <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD {{ number_format($totalPrice, 2) }}</div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="mt-2 text-center">
-                                            <small class="text-muted" style="font-size: 0.75rem;">
-                                                <i class="ri-information-line me-1"></i>
-                                                Total Price includes Restaurant Price@if($hasTransfer) + Vehicle Price@endif@if($hasGuide) + Guide Price@endif
-                                            </small>
                                         </div>
                                     </div>
 

@@ -264,42 +264,68 @@
 <body>
     <!-- Header -->
     @php
-        $dmcUser = $invoice->dmc;
-        // Resolve root DMC through created_by chain (for sales head / managers)
-        $rootDmc = $dmcUser;
-        $visited = [];
-        while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
-            $visited[] = $rootDmc->created_by;
-            $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
-        }
-        if (!$rootDmc) {
-            $rootDmc = $dmcUser;
-        }
-        $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
-        $dmcCompanyName = $rootDmc->company_name ?? $dmcUser->company_name ?? 'DMC Name';
+        $logoType = $logoType ?? 'dmc';
+        $displayLogoSrc = null;
+        $displayCompanyName = 'DMC Name';
 
-        // Build a data URI for DomPDF from local path or remote URL
-        $dmcLogoSrc = null;
-        if ($dmcLogo) {
-            try {
-                // If it's already a data URI, just use it
-                if (preg_match('/^data:image\\//i', $dmcLogo)) {
-                    $dmcLogoSrc = $dmcLogo;
-                } else {
-                    // Decide source: remote URL or local file
-                    if (preg_match('/^https?:\\/\\//i', $dmcLogo)) {
-                        $logoContent = @file_get_contents($dmcLogo);
+        if ($logoType === 'agency' && $invoice->agent && $invoice->agent->agency) {
+            $agency = $invoice->agent->agency;
+            $displayCompanyName = $agency->agency_name ?? ($invoice->travel_company_details['company_name'] ?? 'Agency Name');
+            $agencyLogo = $agency->logo ?? null;
+            if ($agencyLogo) {
+                try {
+                    if (preg_match('/^data:image\\//i', $agencyLogo)) {
+                        $displayLogoSrc = $agencyLogo;
                     } else {
-                        $logoPath = public_path(ltrim($dmcLogo, '/'));
-                        $logoContent = @file_get_contents($logoPath);
+                        if (preg_match('/^https?:\\/\\//i', $agencyLogo)) {
+                            $logoContent = @file_get_contents($agencyLogo);
+                        } else {
+                            $logoPath = public_path(ltrim($agencyLogo, '/'));
+                            $logoContent = @file_get_contents($logoPath);
+                        }
+                        if ($logoContent) {
+                            $base64 = base64_encode($logoContent);
+                            $displayLogoSrc = 'data:image/png;base64,' . $base64;
+                        }
                     }
-                    if ($logoContent) {
-                        $base64 = base64_encode($logoContent);
-                        $dmcLogoSrc = 'data:image/png;base64,' . $base64;
-                    }
+                } catch (\Exception $e) {
+                    $displayLogoSrc = null;
                 }
-            } catch (\Exception $e) {
-                $dmcLogoSrc = null;
+            }
+        }
+
+        if ($logoType === 'dmc') {
+            $dmcUser = $invoice->dmc;
+            $rootDmc = $dmcUser;
+            $visited = [];
+            while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
+                $visited[] = $rootDmc->created_by;
+                $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
+            }
+            if (!$rootDmc) {
+                $rootDmc = $dmcUser;
+            }
+            $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
+            $displayCompanyName = $rootDmc->company_name ?? $dmcUser->company_name ?? 'DMC Name';
+            if ($dmcLogo) {
+                try {
+                    if (preg_match('/^data:image\\//i', $dmcLogo)) {
+                        $displayLogoSrc = $dmcLogo;
+                    } else {
+                        if (preg_match('/^https?:\\/\\//i', $dmcLogo)) {
+                            $logoContent = @file_get_contents($dmcLogo);
+                        } else {
+                            $logoPath = public_path(ltrim($dmcLogo, '/'));
+                            $logoContent = @file_get_contents($logoPath);
+                        }
+                        if ($logoContent) {
+                            $base64 = base64_encode($logoContent);
+                            $displayLogoSrc = 'data:image/png;base64,' . $base64;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $displayLogoSrc = null;
+                }
             }
         }
     @endphp
@@ -307,15 +333,15 @@
         <table class="header-table">
             <tr>
                 <td class="header-left">
-                    @if($dmcLogoSrc)
+                    @if($displayLogoSrc)
                     <div class="dmc-logo-wrapper">
-                        <img src="{{ $dmcLogoSrc }}" class="dmc-logo" />
+                        <img src="{{ $displayLogoSrc }}" class="dmc-logo" />
                     </div>
                     @endif
                 </td>
                 <td class="header-center">
                     <h1>PROFORMA INVOICE</h1>
-                    <div class="dmc-name">{{ $dmcCompanyName }}</div>
+                    <div class="dmc-name">{{ $displayCompanyName }}</div>
                 </td>
                 <td class="header-right">
                     <div class="invoice-number-badge">
@@ -433,6 +459,7 @@
     <div class="section-title">Description</div> 
     
     @php
+        $isPro = $invoice->tour && (int)($invoice->tour->is_pro ?? 0) === 1;
         $allItems = $invoice->items ?? collect([]);
         $hotelItems = $allItems->where('item_type', 'hotel');
         $entryPortItems = $allItems->where('item_type', 'entry_port');
@@ -565,7 +592,8 @@
         $travelHourlyItems = $allItems->where('item_type', 'travel_hourly');
         $localTransportItems = $allItems->where('item_type', 'local_transport');
         $exitPortItems = $allItems->where('item_type', 'exit_port');
-        $otherItems = $allItems->whereNotIn('item_type', ['hotel', 'entry_port', 'attraction', 'restaurant', 'guide', 'travel_point', 'travel_hourly', 'local_transport', 'exit_port']);
+        $miscellaneousItems = $allItems->where('item_type', 'miscellaneous');
+        $otherItems = $allItems->whereNotIn('item_type', ['hotel', 'entry_port', 'attraction', 'restaurant', 'guide', 'travel_point', 'travel_hourly', 'local_transport', 'exit_port', 'miscellaneous']);
     @endphp
 
     @if($hotelItems->count() > 0)
@@ -665,7 +693,7 @@
 
     @if($entryPortItems->count() > 0)
     <!-- Arrival Services Table (No Prices) -->
-    <div class="section-title">Arrival Services</div>
+    <div class="section-title">{{ $isPro ? 'Arrival with guide' : 'Arrival Services' }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -674,6 +702,7 @@
                 <th>Entry Dropoff</th>
                 <th>Vehicle Name</th>
                 <th>Type</th>
+                @if($isPro)<th>Guide</th>@endif
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
             </tr>
@@ -712,12 +741,17 @@
                     }
                 }
                 $totalPersons = $serviceDetails['total_persons'] ?? (($item->quantity_adults ?? 0) + ($item->quantity_children ?? 0) + ($item->quantity_infants ?? 0));
+                $entryGuideName = $serviceDetails['guide_name'] ?? '';
+                $entryGuideHours = $serviceDetails['guide_hours'] ?? '';
+                $entryGuideDisplay = $entryGuideName;
+                if ($entryGuideHours && $entryGuideName) { $entryGuideDisplay = $entryGuideName . ' (' . $entryGuideHours . ' hrs)'; }
             @endphp
             <tr>
                 <td>{{ $serviceDetails['entrypickup'] ?? '' }}</td>
                 <td>{{ $serviceDetails['entrydropoff'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_name'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_type'] ?? '' }}</td>
+                @if($isPro)<td>{{ $entryGuideDisplay }}</td>@endif
                 <td>{{ $pickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
             </tr>
@@ -799,7 +833,7 @@
 
     @if($restaurantItems->count() > 0)
     <!-- Restaurant Services Table -->
-    <div class="section-title">Restaurant Services</div>
+    <div class="section-title">{{ $isPro ? 'Restaurant with guide and transfer' : 'Restaurant Services' }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -811,6 +845,7 @@
                 <th>Type</th>
                 <th>Way</th>
                 <th>Vehicle Details</th>
+                @if($isPro)<th>Guide</th>@endif
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
@@ -833,6 +868,10 @@
                 $transferType = $serviceDetails['transfer_type'] ?? '';
                 $transferWay = $serviceDetails['transfer_way'] ?? '';
                 $vehicleDetails = $serviceDetails['vehicle_details'] ?? '';
+                $restaurantGuideName = $serviceDetails['guide_name'] ?? '';
+                $restaurantGuideHours = $serviceDetails['guide_hours'] ?? '';
+                $restaurantGuideDisplay = $restaurantGuideName;
+                if ($restaurantGuideHours && $restaurantGuideName) { $restaurantGuideDisplay = $restaurantGuideName . ' (' . $restaurantGuideHours . ' hrs)'; }
             @endphp
             <tr>
                 <td>{{ $serviceDetails['restaurant_name'] ?? ($item->description ?? '') }}</td>
@@ -842,6 +881,7 @@
                 <td>{{ $transferType ?: '' }}</td>
                 <td>{{ $transferWay ?: '' }}</td>
                 <td>{{ $vehicleDetails ?: '' }}</td>
+                @if($isPro)<td>{{ $restaurantGuideDisplay }}</td>@endif
                 <td>{{ $item->quantity_adults ?? 0 }}</td>
                 <td>{{ $item->quantity_children ?? 0 }}</td>
                 <td>{{ $item->quantity_infants ?? 0 }}</td>
@@ -1081,7 +1121,7 @@
 
     @if($exitPortItems->count() > 0)
     <!-- Departure Services Table (No Prices) -->
-    <div class="section-title">Departure Services</div>
+    <div class="section-title">{{ $isPro ? 'Departure with guide' : 'Departure Services' }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1090,6 +1130,7 @@
                 <th>Exit Dropoff</th>
                 <th>Vehicle Name</th>
                 <th>Type</th>
+                @if($isPro)<th>Guide</th>@endif
                 <th>Exit Pickup Date</th>
                 <th>Total Persons</th>
             </tr>
@@ -1128,14 +1169,55 @@
                     }
                 }
                 $totalPersons = $serviceDetails['total_persons'] ?? (($item->quantity_adults ?? 0) + ($item->quantity_children ?? 0) + ($item->quantity_infants ?? 0));
+                $exitGuideName = $serviceDetails['guide_name'] ?? '';
+                $exitGuideHours = $serviceDetails['guide_hours'] ?? '';
+                $exitGuideDisplay = $exitGuideName;
+                if ($exitGuideHours && $exitGuideName) { $exitGuideDisplay = $exitGuideName . ' (' . $exitGuideHours . ' hrs)'; }
             @endphp
             <tr>
                 <td>{{ $serviceDetails['exitpickup'] ?? '' }}</td>
                 <td>{{ $serviceDetails['exitdropoff'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_name'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_type'] ?? '' }}</td>
+                @if($isPro)<td>{{ $exitGuideDisplay }}</td>@endif
                 <td>{{ $exitPickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    </div>
+    @endif
+
+    @if($isPro && $miscellaneousItems->count() > 0)
+    <!-- Miscellaneous Section (Pro tours only) -->
+    <div class="section-title">Miscellaneous</div>
+    <div style="page-break-inside: avoid;">
+    <table style="margin-bottom: 20px;">
+        <thead>
+            <tr>
+                <th>Item Name</th>
+                <th>Description</th>
+                <th>Booking Date</th>
+                <th>Total Pax</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($miscellaneousItems as $item)
+            @php
+                $miscDetails = $item->service_details ?? [];
+                $miscBookingDate = $miscDetails['booking_date'] ?? '';
+                $miscBookingDateDisplay = '';
+                if ($miscBookingDate) {
+                    try { $miscBookingDateDisplay = \Carbon\Carbon::parse($miscBookingDate)->format('jS M Y'); } catch (\Exception $e) { $miscBookingDateDisplay = $miscBookingDate; }
+                }
+                $miscTotalPax = ($item->quantity_adults ?? 0) + ($item->quantity_children ?? 0) + ($item->quantity_infants ?? 0);
+            @endphp
+            <tr>
+                <td>{{ $miscDetails['item_name'] ?? ($item->description ?? '') }}</td>
+                <td>{{ $item->description ?? '' }}</td>
+                <td>{{ $miscBookingDateDisplay }}</td>
+                <td>{{ $miscTotalPax }}</td>
             </tr>
             @endforeach
         </tbody>
