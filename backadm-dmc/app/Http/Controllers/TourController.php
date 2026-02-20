@@ -484,6 +484,7 @@ class TourController extends Controller
      */
     public function getTourPrices($tourId)
     {
+        
         try {
             $prices = CommonHelper::calculateTourPrices($tourId);
             
