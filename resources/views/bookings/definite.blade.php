@@ -1041,7 +1041,7 @@
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> Audit Trail
                                     </a>
-                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
+                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-secondary btn-sm rounded-pill"
                                        target="_blank">
                                         <i class="ri-file-download-line me-1"></i> Download Quotation
@@ -1117,12 +1117,15 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     @endif
-                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+
+                                    <!-- add/remove services button -->
+                                    <!-- @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
                                     <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-warning btn-sm rounded-pill">
                                         <i class="ri-settings-3-line"></i> Add/Remove Services
                                     </a>
-                                    @endif
+                                    @endif -->
+
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
                                     <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-info btn-sm rounded-pill" 
@@ -10468,7 +10471,7 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
              
                 ` : ''}
                     
-  <!-- Pricing Overview -->
+                <!-- Pricing Overview -->
                 <div class="bg-light rounded p-2 mb-3">
                     <div class="d-flex align-items-center mb-2">
                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
@@ -10595,15 +10598,16 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
             </div>
         `;
     }
-    
-    return `
-        <div class="d-flex gap-2">
-            <button type="button" 
+    /*<button type="button" 
                     class="btn btn-outline-primary btn-sm px-3 py-2" 
                     onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
                     style="border-radius: 25px;">
                 <i class="ri-edit-line me-1"></i>Edit
-            </button>
+            </button>*/
+    
+    return `
+        <div class="d-flex gap-2">
+            
             <button type="button" 
                     class="btn btn-outline-info btn-sm px-3 py-2" 
                     onclick="openRestaurantMailPreview(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"

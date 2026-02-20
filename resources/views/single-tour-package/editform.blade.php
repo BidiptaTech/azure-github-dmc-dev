@@ -22531,6 +22531,12 @@
             formData.set('totalPrice', totalPriceInput.value || '0');
         }
 
+        // Ensure booking_date is included in formData
+        const bookingDateInput = document.getElementById(`booking_date_${bookingId}`);
+        if (bookingDateInput && bookingDateInput.value) {
+            formData.set('booking_date', bookingDateInput.value);
+        }
+
         // Collect transport data if transport is required
         const needTransportToggle = document.querySelector(`#need_restaurant_transport_${bookingId}`);
         if (needTransportToggle && needTransportToggle.checked) {
@@ -22825,6 +22831,7 @@
                 guide_required: true,
                 guide_id: guideId || guideData.guide_id || '',
                 guide_name: guideName || '',
+                language: guideLanguage || '',
                 pickup_time: '', // Can be added if needed
                 package_hours: guideHours === 'custom' ? guideCustomHours : guideHours,
                 hours: actualHours,

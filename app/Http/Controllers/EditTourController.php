@@ -1243,12 +1243,14 @@ class EditTourController extends Controller
      */
     public function updateRestaurant(Request $request, $orderId)
     {
-        $order = Order::findOrFail($orderId);
+        $order = Order::where('booking_id', $orderId)->firstOrFail();
+
         
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'restaurant_name' => 'nullable|string|max:255', // Optional for backward compatibility
             'restaurant_id' => 'nullable',
+            'booking_date' => 'nullable|string|max:255',
             'meal_type' => 'nullable|string|max:255',
             'meal_specific_type' => 'nullable|string|max:255',
             'time_slot' => 'nullable|string|max:255',
@@ -1267,6 +1269,7 @@ class EditTourController extends Controller
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
                 // Step 1: First clear the data column (use empty array instead of null to satisfy NOT NULL constraint)
+                
                 $order->data = [];
                 $order->save();
 
@@ -1327,6 +1330,9 @@ class EditTourController extends Controller
                 if (array_key_exists('restaurant_id', $validated)) {
                     $currentPayload['restaurant_id'] = $validated['restaurant_id'];
                 }
+                if (array_key_exists('booking_date', $validated) && $validated['booking_date'] !== null && $validated['booking_date'] !== '') {
+                    $currentPayload['bookingDate'] = $validated['booking_date'];
+                }
                 $currentPayload['mealType'] = $validated['meal_type'] ?? ($currentPayload['mealType'] ?? null);
                 $currentPayload['mealSpecificType'] = $validated['meal_specific_type'] ?? ($currentPayload['mealSpecificType'] ?? null);
                 
@@ -1378,7 +1384,7 @@ class EditTourController extends Controller
                 $order->data = [$currentPayload];
                 $successMessage = 'Restaurant booking updated successfully.';
             }
-
+            $order->qr_code = null;
             $saved = $order->save();
 
             if (!$saved) {

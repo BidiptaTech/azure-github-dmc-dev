@@ -78,7 +78,7 @@
             <form action="{{ route('users.store') }}" method="POST" enctype="multipart/form-data" class="card-body">
                 @csrf
                 <input type="hidden" class="form-control" name="code" value="{{ $user_countryCode }}">
-
+                <input type="hidden" name="timezone" id="timezone">
                 <div class="row">
                     <!-- User Salutation -->
                     <div class="col-md-3 mb-3">
@@ -1055,5 +1055,9 @@
             }
         });
     });
+</script>
+<script>
+    document.getElementById('timezone').value =
+        Intl.DateTimeFormat().resolvedOptions().timeZone;
 </script>
 @endsection
