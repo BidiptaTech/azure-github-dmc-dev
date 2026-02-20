@@ -43,21 +43,33 @@
         color: #dc3545;
     }
 
-    /* Compact table styles (shared with new-enquiries / follow-ups) */
+    /* Compact table styles (aligned with confirmed) */
     #toursTable {
         font-size: 0.875rem;
+        table-layout: fixed;
+        width: 100% !important;
+        margin-bottom: 0;
+        background-color: #fff;
     }
-
+    .dataTables_wrapper .dataTables_scroll .dataTables_scrollBody #toursTable,
+    .dataTables_wrapper #toursTable {
+        width: 100% !important;
+        table-layout: fixed;
+    }
     #toursTable thead th {
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem 0.5rem;
         font-size: 0.8125rem;
         font-weight: 600;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: #f8f9fa;
     }
-
     #toursTable tbody td {
-        padding: 0.5rem 0.75rem;
-        vertical-align: middle;
+        padding: 0.5rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+        background-color: #fff;
     }
 
     #toursTable tbody tr {
@@ -121,7 +133,12 @@
         line-height: 1.3;
     }
 
-    /* Compact header + stats + filter bar (same as follow-ups) */
+    /* Page background - match confirmed (scoped to actual bookings) */
+    .actual-bookings-page { background-color: #f8f9fa !important; min-height: 100vh; padding-bottom: 2rem !important; }
+    .actual-bookings-page .card { background-color: #fff; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .actual-bookings-page .card-body { background-color: #fff; }
+
+    /* Compact header + stats + filter bar (same as confirmed) */
     .new-enq-header-bar { background: linear-gradient(135deg, #f8f9fc 0%, #fff 100%); border-radius: 0.5rem; border: 1px solid rgba(105, 108, 255, 0.08); }
     .new-enq-stat-item { transition: transform 0.15s ease, box-shadow 0.15s ease; min-height: 72px; padding: 0.65rem 0.75rem !important; }
     .new-enq-stat-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
@@ -136,10 +153,310 @@
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px !important; padding-left: 10px; padding-right: 32px; }
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px !important; right: 8px; }
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { right: 32px; }
+
+    /* Tour Details column */
+    #toursTable td:nth-child(2) {
+        min-height: 72px;
+        vertical-align: top;
+    }
+    /* Services column: professional soft-badge style (same as confirmed) */
+    #toursTable thead th:nth-child(4),
+    #toursTable td:nth-child(4) {
+        min-width: 140px;
+    }
+    #toursTable td:nth-child(4) {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        overflow: visible !important;
+    }
+    #toursTable td:nth-child(4) .services-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 0.35rem;
+        column-gap: 0.35rem;
+        align-items: stretch;
+        max-width: 100%;
+    }
+    #toursTable td:nth-child(4) .service-icon-wrapper {
+        min-width: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    #toursTable .service-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+    }
+    #toursTable .service-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    #toursTable .service-icon-badge i {
+        font-size: 1.05rem;
+        color: var(--service-color, #475569);
+        flex-shrink: 0;
+        line-height: 1;
+    }
+    #toursTable .service-icon-badge[data-clickable="false"] {
+        cursor: default;
+    }
+    #toursTable .service-icon-badge[data-clickable="false"]:hover {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        box-shadow: none;
+    }
+    #toursTable .service-icon-wrapper {
+        position: relative;
+        display: inline-flex;
+        z-index: 1;
+        margin: 3px;
+    }
+    #toursTable .service-icon-wrapper:hover {
+        z-index: 10;
+    }
+    /* Hide inline tooltip - use global tooltip only (icons only, no service name text) */
+    #toursTable .service-icon-tooltip {
+        display: none !important;
+    }
+    /* Agent column */
+    #toursTable td.col-agent .agent-name-line {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #0d6efd;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    #toursTable td.col-agent .agent-company-line {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.2rem;
+    }
+    #toursTable td.col-agent .agent-empty {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.8rem;
+        color: #6c757d;
+        font-style: italic;
+    }
+    /* Created column */
+    #toursTable td.col-created {
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    #toursTable td.col-created .created-by-line,
+    #toursTable td.col-created .created-at-line {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.35rem;
+        line-height: 1.35;
+    }
+    /* Payment Details merged column - professional layout */
+    #toursTable td.col-payment-details {
+        min-width: 0;
+        max-width: 140px;
+        padding: 0.4rem 0.5rem;
+        vertical-align: top;
+    }
+    #toursTable .payment-details-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+    #toursTable .payment-details-status {
+        line-height: 1.2;
+    }
+    #toursTable .payment-details-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+    #toursTable .payment-details-amount {
+        font-size: 0.85rem;
+    }
+    #toursTable .payment-details-methods {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    #toursTable .payment-method-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        padding: 0.15rem 0.4rem;
+        font-size: 0.65rem;
+        font-weight: 500;
+        background: #f1f5f9;
+        color: #475569;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+    }
+    #toursTable .payment-method-badge i {
+        font-size: 0.7rem;
+    }
+    #toursTable .payment-details-view-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.7rem;
+        background: transparent;
+        border: 1px solid #0ea5e9;
+        color: #0ea5e9;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+        width: fit-content;
+        margin-top: 0.15rem;
+    }
+    #toursTable .payment-details-view-btn:hover {
+        background: #0ea5e9;
+        color: #fff;
+    }
+    #toursTable .payment-details-empty {
+        font-size: 0.75rem;
+    }
+    /* Payment status badges (used inside payment-details-cell) */
+    #toursTable td.col-payment-details .payment-status-badge,
+    #toursTable td.col-payment-status .payment-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.28rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        border: 1px solid transparent;
+    }
+    #toursTable td.col-payment-details .payment-status-badge.status-not-started,
+    #toursTable td.col-payment-status .payment-status-badge.status-not-started {
+        background: #fef3c7;
+        color: #b45309;
+    }
+    #toursTable td.col-payment-details .payment-status-badge.status-pending,
+    #toursTable td.col-payment-status .payment-status-badge.status-pending {
+        background: #f1f5f9;
+        color: #475569;
+    }
+    #toursTable td.col-payment-details .payment-status-badge.status-partial,
+    #toursTable td.col-payment-status .payment-status-badge.status-partial {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+    #toursTable td.col-payment-details .payment-status-badge.status-paid,
+    #toursTable td.col-payment-status .payment-status-badge.status-paid {
+        background: #d1fae5;
+        color: #047857;
+    }
+    /* Actions column - same as confirmed */
+    #toursTable td.col-actions {
+        min-height: 72px;
+        min-width: 160px;
+        white-space: nowrap;
+        overflow: visible;
+    }
+    #toursTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-items: center;
+        max-width: 100%;
+    }
+    #toursTable .actions-icons-wrap > a,
+    #toursTable .actions-icons-wrap > form {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #toursTable .actions-icons-wrap form {
+        margin: 0;
+    }
+    #toursTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
+    }
+    #toursTable .action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+    #toursTable .action-icon-badge i {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+    }
+    #toursTable .action-icon-badge:hover i {
+        color: var(--action-color, #475569);
+    }
+    #toursTable button.action-icon-badge {
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    #toursTable button.action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    /* Auto Cancel column - compact for reduced width */
+    #toursTable td.col-auto-cancel {
+        min-width: 70px;
+        font-size: 0.7rem;
+    }
+    #toursTable td.col-auto-cancel .fw-semibold,
+    #toursTable td.col-auto-cancel small,
+    #toursTable td.col-auto-cancel .text-muted {
+        font-size: 0.7rem !important;
+    }
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform-origin: bottom center;
+    }
 </style>
 
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="container-xxl flex-grow-1 container-p-y actual-bookings-page">
     <!-- Compact Header + Stats Bar -->
     @php
         $totalRevenue = 0;
@@ -280,26 +597,28 @@
 
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
+                    <colgroup>
+                        <col style="width: 2%">
+                        <col style="width: 13%">
+                        <col style="width: 8%">
+                        <col style="width: 13%">
+                        <col style="width: 11%">
+                        <col style="width: 7%">
+                        <col style="width: 14%">
+                        <col style="width: 7%">
+                        <col style="width: 7%">
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
-                            {{-- <th>
-                                <input type="checkbox" class="form-check-input" id="selectAll">
-                            </th> --}}
-                            <th>#</th>
-                            <th>Tour Details</th>
-                            <th>Created At</th>
-                            <th>Destination</th>
-                            <th>Guests</th>
-                            <th>Agent</th>
-                            <th>Created By</th>
-                            <th>Services</th>
-                            <th>Travel Dates</th>
-                            <th>Payment Details</th>
-                            <th>Payment Status</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                            <th>Created At</th>
-                            <th>Auto Cancel Date</th>
+                            <th class="th-tooltip" data-tooltip="#">#</th>
+                            <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
+                            <th class="th-tooltip" data-tooltip="Agent">Agent</th>
+                            <th class="th-tooltip" data-tooltip="Manage Services">Services</th>
+                            <th class="th-tooltip" data-tooltip="Payment Details & Status">Payment Details</th>
+                            <th class="th-tooltip" data-tooltip="Status">Status</th>
+                            <th class="th-tooltip" data-tooltip="Actions">Actions</th>
+                            <th class="th-tooltip" data-tooltip="Created">Created</th>
+                            <th class="th-tooltip" data-tooltip="Auto Cancel Date">Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -355,7 +674,7 @@
                             }
                             
                             $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-                            $enquiry_amount = $enquiry->amount ?? 0;
+                            $enquiry_amount = $enquiry ? ($enquiry->amount ?? 0) : 0;
                             $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
                             $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
                             $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
@@ -399,236 +718,205 @@
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
                             </td> --}}
                             <td>{{ $key + 1 }}</td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <strong class="text-success">{{ $tour->display_id }}</strong>
+                            <td class="align-top">
+                                <div class="d-flex flex-column gap-1">
+                                    <strong class="text-primary">{{ $tour->display_id }}</strong>
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
                                     @if($tour->tour_type)
-                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
-                                            {{ $tour->tour_type }}
+                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem;">{{ $tour->tour_type }}</span>
+                                    @endif
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
+                                            @if($tour->check_out_time)<span class="ms-1"><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
                                         </small>
-                                    @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ \Carbon\Carbon::parse($tour->created_at)->format('D, M d, Y') }}</span>
-                                    <small class="text-muted">{{ \Carbon\Carbon::parse($tour->created_at)->format('H:i A') }}</small>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex gap-3 align-items-center">
-                                    <div class="d-flex align-items-center gap-1" title="Adults">
-                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Children">
-                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Infants">
-                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">
-                                        <i class="fas fa-building me-1"></i>
-                                        {{ $tour->agent_company_name ?? 'N/A' }}
-                                    </small>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    @php
-                                        // Fetch orders for this tour to get actual service data
-                                        $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->where('bookingType', 'booking')->get();
-                                        $svc = [
-                                            'hotel' => 0,
-                                            'attraction' => 0,
-                                            'restaurant' => 0,
-                                            'guide' => 0,
-                                            'entry_port' => 0,
-                                            'exit_port' => 0,
-                                            'travel_hourly' => 0,
-                                            'travel_point' => 0,
-                                            'local_transport' => 0,
-                                        ];
-                                        $serviceData = [];
-                                        
-                                        foreach($orders as $order) {
-                                            if(isset($svc[$order->type])) {
-                                                $svc[$order->type]++;
-                                                if(!isset($serviceData[$order->type])) {
-                                                    $serviceData[$order->type] = [];
-                                                }
-                                                $serviceData[$order->type][] = $order;
-                                            }
-                                        }
-                                        
-                                        $icons = [
-                                            'hotel' => 'ri-hotel-line',
-                                            'attraction' => 'ri-building-2-line',
-                                            'restaurant' => 'ri-restaurant-2-line',
-                                            'guide' => 'ri-user-voice-line',
-                                            'entry_port' => 'ri-flight-land-line',
-                                            'exit_port' => 'ri-flight-takeoff-line',
-                                            'travel_hourly' => 'ri-time-line',
-                                            'travel_point' => 'ri-route-line',
-                                            'local_transport' => 'ri-car-line',
-                                        ];
-                                        
-                                        // For debugging
-                                        $debugInfo = [
-                                            'tour_id' => $tour->tour_id,
-                                            'orders_count' => $orders->count(),
-                                            'svc' => $svc,
-                                            'serviceData_keys' => array_keys($serviceData)
-                                        ];
-                                    @endphp
-                                    @foreach($svc as $key=>$count)
-                                        @if(intval($count) > 0)
-                                            @if(in_array($key, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']))
-                                                <span class="badge bg-light text-dark border" style="cursor: pointer;" 
-                                                      onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
-                                                      data-debug-info="{{ json_encode($debugInfo) }}">
-                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                    @if($key === 'entry_port')
-                                                        Arrival: {{ $count }}
-                                                    @elseif($key === 'exit_port')
-                                                        Departure: {{ $count }}
-                                                    @elseif($key === 'travel_hourly')
-                                                        Local-Tour Hourly: {{ $count }}
-                                                    @elseif($key === 'travel_point')
-                                                        Local-Tour Point to Point: {{ $count }}
-                                                    @elseif($key === 'local_transport')
-                                                        Local Transport: {{ $count }}
-                                                    @else
-                                                        {{ ucfirst($key) }}: {{ $count }}
-                                                    @endif
-                                                </span>
-                                            @else
-                                                <span class="badge bg-light text-dark border">
-                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                    @if($key === 'entry_port')
-                                                        Arrival: {{ $count }}
-                                                    @elseif($key === 'exit_port')
-                                                        Departure: {{ $count }}
-                                                    @elseif($key === 'travel_hourly')
-                                                        Local-Tour Hourly: {{ $count }}
-                                                    @elseif($key === 'travel_point')
-                                                        Local-Tour Point to Point: {{ $count }}
-                                                    @elseif($key === 'local_transport')
-                                                        Local Transport: {{ $count }}
-                                                    @else
-                                                        {{ ucfirst($key) }}: {{ $count }}
-                                                    @endif
-                                                </span>
-                                            @endif
-                                        @endif
-                                    @endforeach
-                                    @if(array_sum(array_map('intval', $svc)) === 0)
-                                        <span class="text-muted">No services</span>
-                                    @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    @if($tour->check_in_time)
-                                        <small><strong>Start:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('D, M d, Y') }}</small>
-                                    @endif
-                                    @if($tour->check_out_time)
-                                        <small><strong>End:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('D, M d, Y') }}</small>
-                                    @endif
-                                    @if($tour->check_in_time && $tour->check_out_time)
-                                        <small class="text-muted">
-                                            Duration: {{ \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(\Carbon\Carbon::parse($tour->check_out_time)) + 1 }} days
-                                        </small>
-                                    @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    @if($totalAmount > 0)
-                                        <strong class="text-success">${{ number_format($totalAmount) }}</strong>
-                                        <div class="d-flex gap-1 mt-1">
-                                            @foreach($paymentMethods as $method)
-                                                <span class="badge bg-light text-dark">
-                                                    @if($method == 'cash')
-                                                        <i class="ri-money-dollar-line"></i> Cash
-                                                    @elseif($method == 'card')
-                                                        <i class="ri-bank-card-line"></i> Card
-                                                    @elseif($method == 'bank')
-                                                        <i class="ri-bank-line"></i> Bank
-                                                    @else
-                                                        {{ ucfirst($method) }}
-                                                    @endif
-                                                </span>
-                                            @endforeach
-                                        </div>
-                                        @if(!empty($tour->parsed_payment_details))
-                                            <button class="btn btn-sm btn-outline-info mt-1" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                                <i class="ri-eye-line"></i> View
-                                            </button>
-                                        @endif
                                     @else
-                                        <span class="text-muted">No payment details</span>
+                                        <small class="text-muted">Check-in/out: Not specified</small>
                                     @endif
                                 </div>
                             </td>
-                            <td>
-                                @if(empty($paymentData))
-                                    <span class="badge bg-warning text-dark">
-                                        <i class="fas fa-exclamation-circle me-1"></i> Payment Not Started
-                                    </span>
-                                @elseif($hasPendingPayments && $totalPaid == 0)
-                                    <span class="badge bg-secondary text-white">
-                                        <i class="fas fa-clock me-1"></i> Pending Approval
-                                    </span>
-                                @elseif($remainingAmount > 0)
-                                    <span class="badge bg-info text-white">
-                                        <i class="fas fa-money-bill-wave me-1"></i> Partial Payment 
-                                        @if($hasPendingPayments)
-                                            ({{ number_format($totalPaid, 2) }} Paid + Pending)
+                            <td class="col-agent">
+                                <div class="d-flex flex-column">
+                                    @if($tour->agent_name)
+                                        <span class="agent-name-line">
+                                            <i class="ri-user-line"></i>
+                                            <span>{{ $tour->agent_name }}</span>
+                                        </span>
+                                        <span class="agent-company-line">
+                                            <i class="ri-building-line"></i>
+                                            <span>{{ $tour->agent_company_name ?? 'N/A' }}</span>
+                                        </span>
+                                    @else
+                                        <span class="agent-empty">
+                                            <i class="ri-user-unfollow-line"></i>
+                                            <span>No agent assigned</span>
+                                        </span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td class="align-top">
+                                @php
+                                    $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->where('bookingType', 'booking')->whereNull('deleted_at')->get();
+                                    $svc = [
+                                        'hotel' => 0,
+                                        'attraction' => 0,
+                                        'restaurant' => 0,
+                                        'guide' => 0,
+                                        'entry_port' => 0,
+                                        'exit_port' => 0,
+                                        'travel_hourly' => 0,
+                                        'travel_point' => 0,
+                                        'local_transport' => 0,
+                                    ];
+                                    $serviceData = [];
+                                    foreach($orders as $order) {
+                                        if(isset($svc[$order->type])) {
+                                            $svc[$order->type]++;
+                                            if(!isset($serviceData[$order->type])) {
+                                                $serviceData[$order->type] = [];
+                                            }
+                                            $serviceData[$order->type][] = $order;
+                                        }
+                                    }
+                                    $icons = [
+                                        'hotel' => 'ri-hotel-bed-line',
+                                        'attraction' => 'ri-camera-line',
+                                        'restaurant' => 'ri-restaurant-2-line',
+                                        'guide' => 'ri-user-voice-line',
+                                        'entry_port' => 'ri-flight-land-line',
+                                        'exit_port' => 'ri-flight-takeoff-line',
+                                        'travel_hourly' => 'ri-time-line',
+                                        'travel_point' => 'ri-route-line',
+                                        'local_transport' => 'ri-car-line',
+                                    ];
+                                    $serviceLabels = [
+                                        'hotel' => 'Hotel',
+                                        'attraction' => 'Attraction',
+                                        'restaurant' => 'Restaurant',
+                                        'guide' => 'Guide',
+                                        'entry_port' => 'Arrival',
+                                        'exit_port' => 'Departure',
+                                        'travel_hourly' => 'Local-Tour Hourly',
+                                        'travel_point' => 'Local-Tour Point to Point',
+                                        'local_transport' => 'Local Transport',
+                                    ];
+                                    $serviceColors = [
+                                        'hotel' => '#4338ca',
+                                        'attraction' => '#0f766e',
+                                        'restaurant' => '#c2410c',
+                                        'guide' => '#475569',
+                                        'entry_port' => '#047857',
+                                        'exit_port' => '#0369a1',
+                                        'travel_hourly' => '#b45309',
+                                        'travel_point' => '#5b21b6',
+                                        'local_transport' => '#334155',
+                                    ];
+                                    $debugInfo = [
+                                        'tour_id' => $tour->tour_id,
+                                        'orders_count' => $orders->count(),
+                                        'svc' => $svc,
+                                        'serviceData_keys' => array_keys($serviceData)
+                                    ];
+                                @endphp
+                                <div class="services-icons-wrap">
+                                @foreach($svc as $svcKey => $count)
+                                    @if(intval($count) > 0)
+                                        @php
+                                            $label = $serviceLabels[$svcKey] ?? ucfirst($svcKey);
+                                            $tooltipText = $label . ': ' . $count;
+                                            $bgColor = $serviceColors[$svcKey] ?? '#6c757d';
+                                            $clickable = in_array($svcKey, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']);
+                                        @endphp
+                                        @if($clickable)
+                                            <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
+                                                <span class="service-icon-badge"
+                                                      style="--service-color: {{ $bgColor }};"
+                                                      data-clickable="true"
+                                                      onclick="openServiceModal('{{ $svcKey }}', {{ $tour->tour_id }}, event)"
+                                                      data-debug-info="{{ json_encode($debugInfo) }}"
+                                                      role="button"
+                                                      tabindex="0">
+                                                    <i class="{{ $icons[$svcKey] }}"></i>
+                                                </span>
+                                                <span class="service-icon-tooltip">{{ $tooltipText }}</span>
+                                            </span>
                                         @else
-                                            ({{ number_format($totalPaid, 2) }} Paid)
+                                            <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
+                                                <span class="service-icon-badge"
+                                                      style="--service-color: {{ $bgColor }};"
+                                                      data-clickable="false"
+                                                      role="img">
+                                                    <i class="{{ $icons[$svcKey] }}"></i>
+                                                </span>
+                                                <span class="service-icon-tooltip">{{ $tooltipText }}</span>
+                                            </span>
                                         @endif
-                                    </span>
-                                @else
-                                    <span class="badge bg-success text-white">
-                                        <i class="fas fa-check-circle me-1"></i> Fully Paid ({{ number_format($totalPaid, 2) }})
-                                    </span>
+                                    @endif
+                                @endforeach
+                                @if(array_sum(array_map('intval', $svc)) === 0)
+                                    <span class="text-muted small">No services</span>
                                 @endif
+                                </div>
+                            </td>
+                            <td class="align-top col-payment-details">
+                                <div class="payment-details-cell">
+                                    {{-- Status (primary info) --}}
+                                    <div class="payment-details-status">
+                                        @if(empty($paymentData))
+                                            <span class="payment-status-badge status-not-started" title="Payment not started"><i class="ri-alert-line"></i> Not Started</span>
+                                        @elseif($hasPendingPayments && $totalPaid == 0)
+                                            <span class="payment-status-badge status-pending" title="Pending approval"><i class="ri-time-line"></i> Pending</span>
+                                        @elseif($remainingAmount > 0)
+                                            <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
+                                        @else
+                                            <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
+                                        @endif
+                                    </div>
+                                    {{-- Amount & methods --}}
+                                    <div class="payment-details-info">
+                                        @if($totalAmount > 0)
+                                            <div class="payment-details-amount"><strong class="text-success">${{ number_format($totalAmount) }}</strong></div>
+                                            @if(!empty($paymentMethods))
+                                                <div class="payment-details-methods">
+                                                    @foreach($paymentMethods as $method)
+                                                        <span class="payment-method-badge">
+                                                            @if($method == 'cash')<i class="ri-money-dollar-line"></i>
+                                                            @elseif($method == 'card')<i class="ri-bank-card-line"></i>
+                                                            @elseif($method == 'bank')<i class="ri-bank-line"></i>
+                                                            @else<i class="ri-wallet-line"></i>
+                                                            @endif
+                                                            {{ ucfirst($method) }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                            @if(!empty($tour->parsed_payment_details))
+                                                <button class="payment-details-view-btn" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}" title="View payment details">
+                                                    <i class="ri-eye-line"></i> View
+                                                </button>
+                                            @endif
+                                        @else
+                                            <span class="text-muted payment-details-empty">—</span>
+                                        @endif
+                                    </div>
+                                </div>
                             </td>
                             <td>
                                 @if($isActive)
-                                    <span class="badge bg-warning">
-                                        <i class="ri-play-circle-line me-1"></i>Active
-                                    </span> 
+                                    <span class="badge bg-warning"><i class="ri-play-circle-line me-1"></i>Active</span>
                                 @elseif($isCompleted)
-                                    <span class="badge bg-success">
-                                        <i class="ri-checkbox-circle-line me-1"></i>Completed
-                                    </span>
+                                    <span class="badge bg-success"><i class="ri-checkbox-circle-line me-1"></i>Completed</span>
                                 @else
-                                    <span class="badge bg-primary">
-                                        <i class="ri-calendar-line me-1"></i>Upcoming
-                                    </span>
+                                    <span class="badge bg-primary"><i class="ri-calendar-line me-1"></i>Upcoming</span>
                                 @endif
                             </td>
                             {{-- <td>
@@ -679,18 +967,16 @@
                                     </ul>
                                 </div>
                             </td> --}}
-                            <td>
-                                <div class="d-flex flex-column gap-2">
-                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-primary btn-sm rounded-pill">
-                                        <i class="ri-eye-line"></i> Audit Trail
+                            <td class="align-top col-actions">
+                                <div class="actions-icons-wrap">
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
+                                        <i class="ri-eye-line"></i>
                                     </a>
-                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
-                                       class="btn btn-outline-secondary btn-sm rounded-pill"
-                                       target="_blank">
-                                        <i class="ri-file-download-line me-1"></i> Download Quotation
+                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}"
+                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Download Quotation" target="_blank">
+                                        <i class="ri-file-download-line"></i>
                                     </a>
-                                    
                                     @php
                                         $all_ids = [11, 33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
                                         $finalInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
@@ -704,57 +990,44 @@
                                     @endphp
                                     
                                     @if($finalInvoice)
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}" 
-                                           class="btn btn-outline-info btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Preview & Download Final Invoice with Services">
-                                            <i class="ri-file-paper-2-line me-1"></i> Final Invoice
+                                        <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}"
+                                           class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Final Invoice (Price Breakup)" target="_blank">
+                                            <i class="ri-file-paper-2-line"></i>
                                         </a>
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}" 
-                                           class="btn btn-outline-primary btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Preview & Download Final Invoice (Price Only)">
-                                            <i class="ri-file-download-line me-1"></i> Final Invoice (Price Only)
+                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}"
+                                           class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Final Invoice (Price Only)" target="_blank">
+                                            <i class="ri-file-download-line"></i>
                                         </a>
                                     @elseif($proformaInvoice)
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}" 
-                                           class="btn btn-outline-info btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Preview & Download Proforma Invoice with Services">
-                                            <i class="ri-file-paper-line me-1"></i> Proforma Invoice
+                                        <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}"
+                                           class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Proforma Invoice (Price Breakup)" target="_blank">
+                                            <i class="ri-file-paper-line"></i>
                                         </a>
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}" 
-                                           class="btn btn-outline-primary btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Preview & Download Proforma Invoice (Price Only)">
-                                            <i class="ri-file-download-line me-1"></i> Proforma Invoice (Price Only)
+                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}"
+                                           class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Proforma Invoice (Price Only)" target="_blank">
+                                            <i class="ri-file-download-line"></i>
                                         </a>
                                         <form action="{{ route('invoices.convert-to-final', $proformaInvoice->invoice_id) }}" method="POST" class="d-inline">
                                             @csrf
-                                            <button type="submit" 
-                                                    class="btn btn-outline-warning btn-sm rounded-pill"
-                                                    title="Convert Proforma to Final Invoice"
+                                            <button type="submit" class="action-icon-badge" style="--action-color: #b45309;" data-tooltip="Convert to Final"
                                                     onclick="return confirm('Are you sure you want to convert this proforma invoice to final invoice? This action cannot be undone.');">
-                                                <i class="ri-file-edit-line me-1"></i> Convert to Final
+                                                <i class="ri-file-edit-line"></i>
                                             </button>
                                         </form>
                                     @else
                                         <form action="{{ route('invoices.generate-final', $tour->tour_id) }}" method="POST" class="d-inline">
                                             @csrf
-                                            <button type="submit" 
-                                                    class="btn btn-outline-info btn-sm rounded-pill"
-                                                    title="Generate Final Invoice">
-                                                <i class="ri-file-add-line me-1"></i> Generate Invoice
+                                            <button type="submit" class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Generate Final Invoice">
+                                                <i class="ri-file-add-line"></i>
                                             </button>
                                         </form>
                                     @endif
                                     @if(in_array(auth()->user()->role_id, $all_ids))
-                                    <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-success btn-sm rounded-pill"
-                                       onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;"
-                                       style="text-decoration:none; cursor:pointer; transition: all 0.2s ease;">
-                                        <i class="fas fa-calendar-alt"></i> View Itinerary
-                                    </a>
+                                        <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                           class="action-icon-badge" style="--action-color: #047857;" data-tooltip="View Itinerary"
+                                           onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">
+                                            <i class="ri-calendar-line"></i>
+                                        </a>
                                     @endif
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11|| auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
                                     <!-- <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
@@ -767,43 +1040,46 @@
                                         <i class="ri-user-add-line me-1"></i> Add Guests
                                     </a>
                                     @endif
-
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
-                                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                            <i class="fas fa-history me-1"></i> Payment Details
+                                        <button type="button" class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Payment Details" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
+                                            <i class="ri-history-line"></i>
                                         </button>
-
                                         @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
-                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
-                                                    <i class="fas fa-plus-circle me-1"></i> Add Payment
+                                                <button type="button" class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Add Payment" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
+                                                    <i class="ri-add-circle-line"></i>
                                                 </button>
                                             @endif
                                         @endif
                                     @else
                                         @if(!empty($paymentData))
-                                            <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                                <i class="fas fa-history me-1"></i> Payment Details
+                                            <button type="button" class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Payment Details" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
+                                                <i class="ri-history-line"></i>
                                             </button>
                                         @endif
-
                                         @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
-                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
-                                                    <i class="fas fa-plus-circle me-1"></i> Add Payment
+                                                <button type="button" class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Add Payment" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
+                                                    <i class="ri-add-circle-line"></i>
                                                 </button>
                                             @endif
                                         @endif
                                     @endif
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-created align-top">
                                 <div class="d-flex flex-column">
-                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
-                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
+                                    <span class="created-by-line fw-medium" title="Created by">
+                                        <i class="ri-user-line"></i>
+                                        <span>{{ $tour->created_by_name ?? 'N/A' }}</span>
+                                    </span>
+                                    <span class="created-at-line" title="Created at">
+                                        <i class="ri-calendar-line"></i>
+                                        <span>{{ $tour->created_at->format('D, M d, Y') }} · {{ $tour->created_at->format('h:i A') }}</span>
+                                    </span>
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-auto-cancel">
                                 <div class="d-flex flex-column">
                                     @if($tour->auto_cancel_date)
                                         <span class="fw-semibold">
@@ -5097,16 +5373,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // order: [[7, 'desc']], // Sort by Travel Dates column (index 7) in descending order
             columnDefs: [
                 {
-                    targets: [11], // Actions column (index 11)
+                    targets: [6], // Actions column (index 6)
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [4], // Guests column (index 4)
+                    targets: [3], // Services column (index 3)
                     orderable: false
                 },
                 {
-                    targets: [8, 9, 10], // Payment Details, Payment Status and Status columns (index 8, 9, 10)
+                    targets: [4, 5], // Payment Details (merged) and Status columns (index 4, 5)
                     orderable: false
                 }
             ],
@@ -5136,6 +5412,59 @@ document.addEventListener('DOMContentLoaded', function() {
             table.button('.buttons-print').trigger();
         });
     }
+
+    // Global tooltip for table headers and action/service icons - viewport-relative positioning
+    $(document).ready(function() {
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        }
+        // Table header: tooltip above the header (centered)
+        $(document).on('mouseenter', '#toursTable thead .th-tooltip', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || $(this).text();
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable thead .th-tooltip', function() {
+            $globalTooltip.hide();
+        });
+        // Action icons: tooltip above (centered)
+        $(document).on('mouseenter', '#toursTable .action-icon-badge', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || '';
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable .action-icon-badge', function() {
+            $globalTooltip.hide();
+        });
+        // Service icons: tooltip above (centered)
+        $(document).on('mouseenter', '#toursTable .service-icon-wrapper', function() {
+            var text = $(this).attr('data-tooltip') || $(this).find('.service-icon-tooltip').text();
+            if (!text) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(text);
+        });
+        $(document).on('mouseleave', '#toursTable .service-icon-wrapper', function() {
+            $globalTooltip.hide();
+        });
+    });
 </script>
 @endsection
 
