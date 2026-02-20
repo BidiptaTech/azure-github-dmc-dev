@@ -311,6 +311,17 @@
         border-color: #e2e8f0;
         box-shadow: none;
     }
+    #toursTable .service-icon-badge.service-icon-badge-approved {
+        background: #198754 !important;
+        border-color: #198754 !important;
+    }
+    #toursTable .service-icon-badge.service-icon-badge-approved i {
+        color: #fff !important;
+    }
+    #toursTable .service-icon-badge.service-icon-badge-approved:hover {
+        background: #157347 !important;
+        border-color: #157347 !important;
+    }
     #toursTable .service-icon-wrapper {
         position: relative;
         display: inline-flex;
@@ -808,34 +819,221 @@
                                         ];
                                     @endphp
                                     <div class="services-icons-wrap">
-                                    @foreach($svc as $svcKey => $count)
+                                    @foreach($svc as $key => $count)
                                         @if(intval($count) > 0)
-                                            @php
-                                                $label = $serviceLabels[$svcKey] ?? ucfirst($svcKey);
-                                                $tooltipText = $label . ': ' . $count;
-                                                $bgColor = $serviceColors[$svcKey] ?? '#6c757d';
-                                                $clickable = in_array($svcKey, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']);
-                                            @endphp
-                                            @if($clickable)
+                                            @php $bgColor = $serviceColors[$key] ?? '#6c757d'; @endphp
+                                            @if($key === 'restaurant')
+                                                {{-- Individual restaurant icons --}}
+                                                @if(isset($serviceData['restaurant']) && count($serviceData['restaurant']) > 0)
+                                                    @php $globalRestaurantCounter = 1; @endphp
+                                                    @foreach($serviceData['restaurant'] as $restaurantOrderIndex => $restaurantOrder)
+                                                        @php $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data; @endphp
+                                                        @if(is_array($restaurantData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($restaurantData as $originalKey => $booking)
+                                                                @php
+                                                                    $restaurantName = $booking['restaurantName'] ?? 'Restaurant';
+                                                                    $actualCancelDateStr = $tour->auto_cancel_date ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d') : '';
+                                                                    $tooltipText = 'Restaurant ' . $globalRestaurantCounter . ': ' . $restaurantName;
+                                                                    $isApproved = $restaurantOrder->is_approve == 1;
+                                                                @endphp
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $actualBookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
+                                                                    <span class="service-icon-tooltip">{{ e($tooltipText) }}</span>
+                                                                </span>
+                                                                @php $actualBookingIndex++; $globalRestaurantCounter++; @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'guide')
+                                                {{-- Individual guide icons --}}
+                                                @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
+                                                    @php $globalGuideCounter = 1; @endphp
+                                                    @foreach($serviceData['guide'] as $guideOrderIndex => $guideOrder)
+                                                        @php $guideData = is_string($guideOrder->data) ? json_decode($guideOrder->data, true) : $guideOrder->data; @endphp
+                                                        @if(is_array($guideData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($guideData as $originalKey => $booking)
+                                                                @php
+                                                                    $guideName = $booking['guide_name'] ?? 'Guide';
+                                                                    $tooltipText = 'Guide ' . $globalGuideCounter . ': ' . $guideName;
+                                                                    $isApproved = $guideOrder->is_approve == 1;
+                                                                @endphp
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $actualBookingIndex }})"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
+                                                                    <span class="service-icon-tooltip">{{ e($tooltipText) }}</span>
+                                                                </span>
+                                                                @php $actualBookingIndex++; $globalGuideCounter++; @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'hotel')
+                                                {{-- Individual hotel icons --}}
+                                                @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
+                                                    @php $globalHotelCounter = 1; @endphp
+                                                    @foreach($serviceData['hotel'] as $hotelOrderIndex => $hotelOrder)
+                                                        @php $hotelData = is_string($hotelOrder->data) ? json_decode($hotelOrder->data, true) : $hotelOrder->data; @endphp
+                                                        @if(is_array($hotelData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($hotelData as $originalKey => $booking)
+                                                                @php
+                                                                    $hotelName = $booking['hotelDetails']['hotel_name'] ?? 'Hotel';
+                                                                    $actualCancelDateStr = $tour->auto_cancel_date ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d') : '';
+                                                                    $tooltipText = 'Hotel ' . $globalHotelCounter . ': ' . $hotelName;
+                                                                    $isApproved = $hotelOrder->is_approve == 1;
+                                                                @endphp
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $actualBookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
+                                                                    <span class="service-icon-tooltip">{{ e($tooltipText) }}</span>
+                                                                </span>
+                                                                @php $actualBookingIndex++; $globalHotelCounter++; @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'attraction')
+                                                {{-- Individual attraction icons --}}
+                                                @if(isset($serviceData['attraction']))
+                                                    @php $globalAttractionCounter = 1; @endphp
+                                                    @foreach($serviceData['attraction'] as $attractionOrderIndex => $order)
+                                                        @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
+                                                        @if(is_array($orderData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($orderData as $bookingIndex => $booking)
+                                                                @php
+                                                                    $attractionName = $booking['AttractionName'] ?? 'Attraction';
+                                                                    $actualCancelDateStr = $tour->auto_cancel_date ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d') : '';
+                                                                    $tooltipText = 'Attraction ' . $globalAttractionCounter . ': ' . $attractionName;
+                                                                    $isApproved = $order->is_approve == 1;
+                                                                @endphp
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $actualBookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
+                                                                    <span class="service-icon-tooltip">{{ e($tooltipText) }}</span>
+                                                                </span>
+                                                                @php $actualBookingIndex++; $globalAttractionCounter++; @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'travel_hourly')
+                                                {{-- Individual travel hourly icons --}}
+                                                @if(isset($serviceData['travel_hourly']))
+                                                    @php $globalTravelHourlyCounter = 1; @endphp
+                                                    @foreach($serviceData['travel_hourly'] as $travelHourlyOrderIndex => $order)
+                                                        @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
+                                                        @if(is_array($orderData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($orderData as $bookingIndex => $booking)
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local-Tour Hourly';
+                                                                    $tooltipText = 'Local-Tour Hourly ' . $globalTravelHourlyCounter . ': ' . $vehicleName;
+                                                                    $isApproved = $order->is_approve == 1;
+                                                                @endphp
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $actualBookingIndex }})"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
+                                                                    <span class="service-icon-tooltip">{{ e($tooltipText) }}</span>
+                                                                </span>
+                                                                @php $actualBookingIndex++; $globalTravelHourlyCounter++; @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'travel_point')
+                                                {{-- Individual travel point icons --}}
+                                                @if(isset($serviceData['travel_point']))
+                                                    @php $globalTravelPointCounter = 1; @endphp
+                                                    @foreach($serviceData['travel_point'] as $travelPointOrderIndex => $order)
+                                                        @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
+                                                        @if(is_array($orderData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($orderData as $bookingIndex => $booking)
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local-Tour Point to Point';
+                                                                    $tooltipText = 'Local-Tour Point to Point ' . $globalTravelPointCounter . ': ' . $vehicleName;
+                                                                    $isApproved = $order->is_approve == 1;
+                                                                @endphp
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $actualBookingIndex }})"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
+                                                                    <span class="service-icon-tooltip">{{ e($tooltipText) }}</span>
+                                                                </span>
+                                                                @php $actualBookingIndex++; $globalTravelPointCounter++; @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'local_transport')
+                                                {{-- Individual local transport icons --}}
+                                                @if(isset($serviceData['local_transport']))
+                                                    @php $globalLocalTransportCounter = 1; @endphp
+                                                    @foreach($serviceData['local_transport'] as $localTransportOrderIndex => $order)
+                                                        @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
+                                                        @if(is_array($orderData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($orderData as $bookingIndex => $booking)
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local Transport';
+                                                                    $tooltipText = 'Local Transport ' . $globalLocalTransportCounter . ': ' . $vehicleName;
+                                                                    $isApproved = $order->is_approve == 1;
+                                                                @endphp
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $actualBookingIndex }})"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
+                                                                    <span class="service-icon-tooltip">{{ e($tooltipText) }}</span>
+                                                                </span>
+                                                                @php $actualBookingIndex++; $globalLocalTransportCounter++; @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif(in_array($key, ['entry_port', 'exit_port']))
+                                                {{-- Entry/exit port: single icon with count (uses openServiceModal) --}}
+                                                @php
+                                                    $label = $serviceLabels[$key] ?? ucfirst($key);
+                                                    $tooltipText = $label . ': ' . $count;
+                                                    $isServiceApproved = false;
+                                                    if(isset($serviceData[$key])) {
+                                                        foreach($serviceData[$key] as $serviceOrder) {
+                                                            if($serviceOrder->is_approve == 1) {
+                                                                $isServiceApproved = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                @endphp
                                                 <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
-                                                    <span class="service-icon-badge"
-                                                          style="--service-color: {{ $bgColor }};"
-                                                          data-clickable="true"
-                                                          onclick="openServiceModal('{{ $svcKey }}', {{ $tour->tour_id }}, event)"
-                                                          data-debug-info="{{ json_encode($debugInfo) }}"
-                                                          role="button"
-                                                          tabindex="0">
-                                                        <i class="{{ $icons[$svcKey] }}"></i>
-                                                    </span>
-                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
-                                                </span>
-                                            @else
-                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
-                                                    <span class="service-icon-badge"
-                                                          style="--service-color: {{ $bgColor }};"
-                                                          data-clickable="false"
-                                                          role="img">
-                                                        <i class="{{ $icons[$svcKey] }}"></i>
+                                                    <span class="service-icon-badge @if($isServiceApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                          onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
+                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                        <i class="{{ $icons[$key] }}"></i>
                                                     </span>
                                                     <span class="service-icon-tooltip">{{ $tooltipText }}</span>
                                                 </span>
@@ -1064,14 +1262,17 @@
 
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130,131, 132, 134, 135, 136, 137, 138]))
                                     <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-info btn-sm rounded-pill" 
-                                       title="Add guests for this tour">
-                                        <i class="ri-user-add-line me-1"></i> Add Guests
+                                       class="action-icon-badge" 
+                                       style="--action-color: #0dcaf0;"
+                                       data-tooltip="Add Guests">
+                                        <i class="ri-user-add-line"></i>
                                     </a>
                                     <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
-                                            class="btn btn-outline-danger btn-sm rounded-pill" 
+                                            class="action-icon-badge" 
+                                            style="--action-color: #dc3545;"
+                                            data-tooltip="Cancel Booking"
                                             id="cancel-btn-{{ $tour->tour_id }}">
-                                        <i class="ri-delete-bin-line"></i> Cancel
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                     @endif
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
