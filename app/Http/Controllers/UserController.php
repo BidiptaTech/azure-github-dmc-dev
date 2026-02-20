@@ -1531,6 +1531,7 @@ class UserController extends Controller
             'password' => bcrypt($request->input('password')),
             'sales_manager_admin' => (int) ($salemg_admin ?? 0), // Ensure integer
             'company_name' => $request->company_name ?? Auth::user()->company_name ?? 'Travclicks',
+            'timezone' => $request->timezone ?? 'UTC',
         ]);
         
         $role = Role::where('role_id', $request->input('role'))->first();

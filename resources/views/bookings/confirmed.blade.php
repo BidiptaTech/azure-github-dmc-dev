@@ -1101,6 +1101,10 @@
                                     @endif
                                 </div>
                             </td>
+                            @php
+                                $tz = auth()->user()->timezone ?? 'UTC';
+                                $createdAt = $tour->created_at->timezone($tz);
+                            @endphp
                             <td class="col-created align-top">
                                 <div class="d-flex flex-column">
                                     <span class="created-by-line fw-medium" title="Created by">
@@ -1109,7 +1113,9 @@
                                     </span>
                                     <span class="created-at-line" title="Created at">
                                         <i class="ri-calendar-line"></i>
-                                        <span>{{ $tour->created_at->format('D, M d, Y') }} · {{ $tour->created_at->format('h:i A') }}</span>
+                                        <span>
+                                            {{ $createdAt->format('D, M d, Y') }} · {{ $createdAt->format('h:i A') }}
+                                        </span>
                                     </span>
                                 </div>
                             </td>

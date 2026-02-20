@@ -1075,7 +1075,11 @@
                                     </span>
                                     <span class="created-at-line" title="Created at">
                                         <i class="ri-calendar-line"></i>
-                                        <span>{{ $tour->created_at->format('D, M d, Y') }} · {{ $tour->created_at->format('h:i A') }}</span>
+                                        <span>
+                                            {{ $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC')->format('D, M d, Y') }}
+                                            ·
+                                            {{ $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC')->format('h:i A') }}
+                                        </span>
                                     </span>
                                 </div>
                             </td>

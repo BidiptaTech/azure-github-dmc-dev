@@ -1250,6 +1250,7 @@ class EditTourController extends Controller
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'restaurant_name' => 'nullable|string|max:255', // Optional for backward compatibility
             'restaurant_id' => 'nullable',
+            'booking_date' => 'nullable|string|max:255',
             'meal_type' => 'nullable|string|max:255',
             'meal_specific_type' => 'nullable|string|max:255',
             'time_slot' => 'nullable|string|max:255',
@@ -1258,7 +1259,6 @@ class EditTourController extends Controller
             'total_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
             'meal_description_json' => 'nullable|string',
-            'booking_date' => 'nullable|string',
         ]);
 
         try {
@@ -1330,15 +1330,14 @@ class EditTourController extends Controller
                 if (array_key_exists('restaurant_id', $validated)) {
                     $currentPayload['restaurant_id'] = $validated['restaurant_id'];
                 }
+                if (array_key_exists('booking_date', $validated) && $validated['booking_date'] !== null && $validated['booking_date'] !== '') {
+                    $currentPayload['bookingDate'] = $validated['booking_date'];
+                }
                 $currentPayload['mealType'] = $validated['meal_type'] ?? ($currentPayload['mealType'] ?? null);
                 $currentPayload['mealSpecificType'] = $validated['meal_specific_type'] ?? ($currentPayload['mealSpecificType'] ?? null);
                 
                 if (array_key_exists('time_slot', $validated)) {
                     $currentPayload['visitTime'] = $validated['time_slot'];
-                }
-                if(array_key_exists('booking_date', $validated)) {
-                    
-                    $currentPayload['bookingDate'] = $validated['booking_date'];
                 }
                 
                 if (!empty($validated['adult_count'])) {
