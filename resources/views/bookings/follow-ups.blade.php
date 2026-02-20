@@ -94,10 +94,14 @@
         min-height: 72px;
         vertical-align: top;
     }
-    /* Actions column: taller rows so icon badges have room */
+    /* Actions column: taller rows so icon badges have room; wider for 2 icons per row */
+    #toursTable thead th.col-actions,
+    #toursTable td.col-actions {
+        min-width: 200px;
+        width: 200px;
+    }
     #toursTable td.col-actions {
         min-height: 72px;
-        min-width: 160px;
         white-space: nowrap;
         overflow: visible;
     }
@@ -195,10 +199,10 @@
         transform: translate(-50%, -100%);
     }
 
-    /* Actions column: same soft-badge design as new-enquiries */
+    /* Actions column: same soft-badge design; 2 icons per row */
     #toursTable .actions-icons-wrap {
         display: grid;
-        grid-template-columns: repeat(3, auto);
+        grid-template-columns: repeat(2, auto);
         row-gap: 0.5rem;
         column-gap: 0.5rem;
         align-items: center;
@@ -822,9 +826,9 @@
                         @php $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]; @endphp
                         @if(in_array(auth()->user()->role_id, $role))
                         <col style="width: 9%">
-                        <col style="width: 8%">
+                        <col style="width: 10%">
                         @endif
-                        <col style="width: 14%">
+                        <col style="width: 12%">
                         <col style="width: 11%">
                         <col style="width: 8%">
                         <col style="width: 8%">
@@ -840,8 +844,7 @@
                             <th class="th-tooltip" data-tooltip="Agent">Agent</th>
                             <th class="th-tooltip" data-tooltip="Services">Services</th>
                             @if(in_array(auth()->user()->role_id, $role))
-                                <th class="th-tooltip" data-tooltip="Agent Negotiation">Agent Negotiation</th>
-                                <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
+                            <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
                             @endif
                             <th class="th-tooltip" data-tooltip="Actions">Actions</th>
                             <th class="th-tooltip" data-tooltip="Status">Status</th>
@@ -1069,7 +1072,7 @@
                                 $lastOfferRemark = $latestCommentRemark;
                             @endphp
                             @if(in_array(auth()->user()->role_id, $role))
-                            <td class="align-top">
+                            <td class="align-top col-negotiation">
                                 <button 
                                     type="button"
                                     class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
@@ -1089,8 +1092,6 @@
                                         <span class="d-block small text-muted">By Agent</span>
                                     </span>
                                 </button>
-                            </td>
-                            <td class="align-top col-negotiation">
                                 @if($hasAgentComment)
                                     <button 
                                         type="button"
