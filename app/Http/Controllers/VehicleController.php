@@ -20,6 +20,7 @@ use App\Helpers\CommonHelper;
 use App\Models\Port;
 use App\Models\VehicleZoneMapping;
 use App\Models\Zone;
+use App\Models\Attraction;
 use App\Services\LogActivityService;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -488,14 +489,90 @@ class VehicleController extends Controller
             $mappings = VehicleZoneMapping::with(['fromZone', 'toZone'])
                 ->where('vehicle_id', $vehicle->vehicle_id)
                 ->get();
+
+            // Precompute zone items for each mapping (hotels/attractions/restaurants in each zone via zone_assignments)
+            $mappingZoneItems = [];
+            foreach ($mappings as $mapping) {
+                $mappingZoneItems[$mapping->mapping_id] = [
+                    'from' => $this->getZoneItemsForVehicle($mapping->fromZone, $vehicle),
+                    'to' => $this->getZoneItemsForVehicle($mapping->toZone, $vehicle),
+                ];
+            }
             
-            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'zones', 'ports', 'mappings'));
+            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'zones', 'ports', 'mappings', 'mappingZoneItems'));
         }
         
         return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city'));
 
         // return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city'));
     }
+
+    /**
+     * Get hotels/attractions/restaurants assigned to a zone for a vehicle's DMC.
+     * Uses zone_assignments JSON: [{"dmc_id":4,"zone_id":"14"}]
+     */
+    private function getZoneItemsForVehicle(?Zone $zone, Vehicle $vehicle): array
+    {
+        if (!$zone || !in_array($zone->zone_type ?? '', ['Hotel', 'Attraction', 'Restaurant'])) {
+            return [];
+        }
+        $dmcId = (int) ($vehicle->dmc_id ?? 0);
+        if (!$dmcId) {
+            return [];
+        }
+        $zoneId = (string) ($zone->zone_id ?? '');
+        if ($zoneId === '') {
+            return [];
+        }
+
+        if ($zone->zone_type == 'Hotel') {
+            $items = Hotel::where('status', 1)
+                ->where(function ($q) use ($dmcId) {
+                    $q->whereJsonContains('dmc_id', $dmcId)
+                        ->orWhereJsonContains('dmc_id', (string) $dmcId);
+                })
+                ->get()
+                ->filter(fn ($h) => $this->zoneIdMatches($h->getZoneForDmc($dmcId), $zoneId));
+            return $items->map(fn ($h) => [
+                'name' => $h->name ?? '',
+                'image' => $h->main_image ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/') ? $h->main_image : asset($h->main_image)) : '',
+            ])->values()->toArray();
+        }
+        if ($zone->zone_type == 'Attraction') {
+            $items = Attraction::where('status', 1)
+                ->where(function ($q) use ($dmcId) {
+                    $q->whereJsonContains('dmc_id', $dmcId)
+                        ->orWhereJsonContains('dmc_id', (string) $dmcId);
+                })
+                ->get()
+                ->filter(fn ($a) => $this->zoneIdMatches($a->getZoneForDmc($dmcId), $zoneId));
+            return $items->map(fn ($a) => [
+                'name' => $a->name ?? '',
+                'image' => $a->master_image ? (str_starts_with($a->master_image ?? '', 'http') || str_starts_with($a->master_image ?? '', '/') ? $a->master_image : asset($a->master_image)) : '',
+            ])->values()->toArray();
+        }
+        if ($zone->zone_type == 'Restaurant') {
+            $items = Restaurant::where('status', 1)
+                ->where(function ($q) use ($dmcId) {
+                    $q->whereJsonContains('dmc_id', $dmcId)
+                        ->orWhereJsonContains('dmc_id', (string) $dmcId);
+                })
+                ->get()
+                ->filter(fn ($r) => $this->zoneIdMatches($r->getZoneForDmc($dmcId), $zoneId));
+            return $items->map(fn ($r) => [
+                'name' => $r->name ?? '',
+                'image' => ($r->master_image ?? '') ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/') ? $r->master_image : asset($r->master_image)) : '',
+            ])->values()->toArray();
+        }
+        return [];
+    }
+
+    /** Compare zone IDs handling string/int mismatch from zone_assignments JSON */
+    private function zoneIdMatches($a, $b): bool
+    {
+        return (string) ($a ?? '') === (string) ($b ?? '');
+    }
+
     /*
     * Update the specified role.
     * Date 07-10-2024

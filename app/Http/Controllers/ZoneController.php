@@ -47,6 +47,55 @@ class ZoneController extends Controller
 
         return null;
     }
+
+    /**
+     * Get hotels/attractions/restaurants in a zone for a DMC (uses zone_assignments JSON).
+     * Same logic as VehicleController::getZoneItemsForVehicle.
+     * zone_assignments format: [{"dmc_id":4,"zone_id":"14"}]
+     */
+    private function getZoneItemsForZone(Zone $zone, $dmcId, $hotels, $attractions, $restaurants): array
+    {
+        if (!in_array($zone->zone_type ?? '', ['Hotel', 'Attraction', 'Restaurant'])) {
+            return [];
+        }
+        $effectiveDmcId = $dmcId ?? (is_array($zone->dmc_id) ? ($zone->dmc_id[0] ?? null) : $zone->dmc_id);
+        $effectiveDmcId = (int) $effectiveDmcId;
+        if (!$effectiveDmcId) {
+            return [];
+        }
+        $zoneIdStr = (string) ($zone->zone_id ?? '');
+        if ($zoneIdStr === '') {
+            return [];
+        }
+
+        $zoneIdMatches = fn ($a, $b) => (string) ($a ?? '') === (string) ($b ?? '') || (int) ($a ?? 0) === (int) ($b ?? 0);
+
+        $hasDmc = fn ($model) => in_array($effectiveDmcId, (array) ($model->dmc_id ?? [])) || in_array((string) $effectiveDmcId, (array) ($model->dmc_id ?? []));
+
+        if ($zone->zone_type == 'Hotel') {
+            $items = $hotels->filter(fn ($h) => ($h->status ?? 0) == 1 && $hasDmc($h) && $zoneIdMatches($h->getZoneForDmc($effectiveDmcId), $zoneIdStr));
+            return $items->map(fn ($h) => [
+                'name' => $h->name ?? '',
+                'image' => ($h->main_image ?? '') ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/') ? $h->main_image : asset($h->main_image)) : '',
+            ])->values()->toArray();
+        }
+        if ($zone->zone_type == 'Attraction') {
+            $items = $attractions->filter(fn ($a) => ($a->status ?? 0) == 1 && $hasDmc($a) && $zoneIdMatches($a->getZoneForDmc($effectiveDmcId), $zoneIdStr));
+            return $items->map(fn ($a) => [
+                'name' => $a->name ?? '',
+                'image' => ($a->master_image ?? '') ? (str_starts_with($a->master_image ?? '', 'http') || str_starts_with($a->master_image ?? '', '/') ? $a->master_image : asset($a->master_image)) : '',
+            ])->values()->toArray();
+        }
+        if ($zone->zone_type == 'Restaurant') {
+            $items = $restaurants->filter(fn ($r) => ($r->status ?? 0) == 1 && $hasDmc($r) && $zoneIdMatches($r->getZoneForDmc($effectiveDmcId), $zoneIdStr));
+            return $items->map(fn ($r) => [
+                'name' => $r->name ?? '',
+                'image' => ($r->master_image ?? '') ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/') ? $r->master_image : asset($r->master_image)) : '',
+            ])->values()->toArray();
+        }
+        return [];
+    }
+
     /**
      * Display a listing of zones.
      */
@@ -101,7 +150,14 @@ class ZoneController extends Controller
         $hotels = Hotel::all();
         $attractions = Attraction::all();
         $restaurants = Restaurant::all();
-        return view('zones.index', compact('zones', 'hotels', 'attractions', 'restaurants'));
+        $dmcId = $this->resolveDmcIdForUser($user);
+
+        // Precompute zone items (hotels/attractions/restaurants) per zone using zone_assignments - same logic as edit-vehicle
+        $zoneItemsMap = [];
+        foreach ($zones as $zone) {
+            $zoneItemsMap[$zone->zone_id] = $this->getZoneItemsForZone($zone, $dmcId, $hotels, $attractions, $restaurants);
+        }
+        return view('zones.index', compact('zones', 'hotels', 'attractions', 'restaurants', 'dmcId', 'zoneItemsMap'));
     }
 
     /**
