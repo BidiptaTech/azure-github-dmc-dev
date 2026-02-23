@@ -57,6 +57,7 @@ use App\Http\Controllers\GuestController;
 use App\Http\Controllers\EditTourController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\TodaysBookingsController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
@@ -907,6 +908,7 @@ Route::get('/clear', function () {
             Route::get('/bookings/confirmed', [BookingsController::class, 'confirmedBookings'])->name('bookings.confirmed');
             Route::get('/bookings/definite', [BookingsController::class, 'definiteBookings'])->name('bookings.definite');
             Route::get('/bookings/actual', [BookingsController::class, 'actualBookings'])->name('bookings.actual');
+            Route::get('/bookings/today', [TodaysBookingsController::class, 'index'])->name('bookings.today');
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
             Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
