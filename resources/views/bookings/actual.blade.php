@@ -159,6 +159,21 @@
         min-height: 72px;
         vertical-align: top;
     }
+    #toursTable td:nth-child(2) .tour-type-badge {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        background: #3b82f6;
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.7rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
     /* Services column: professional soft-badge style (same as confirmed) */
     #toursTable thead th:nth-child(4),
     #toursTable td:nth-child(4) {
@@ -310,27 +325,27 @@
     #toursTable .payment-method-badge i {
         font-size: 0.7rem;
     }
-    #toursTable .payment-details-view-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.2rem 0.5rem;
-        font-size: 0.7rem;
-        background: transparent;
-        border: 1px solid #0ea5e9;
-        color: #0ea5e9;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background 0.2s, color 0.2s;
-        width: fit-content;
-        margin-top: 0.15rem;
-    }
-    #toursTable .payment-details-view-btn:hover {
-        background: #0ea5e9;
-        color: #fff;
-    }
     #toursTable .payment-details-empty {
         font-size: 0.75rem;
+    }
+    /* Status column: wrap content and make smaller */
+    #toursTable td:nth-child(6) {
+        max-width: 160px;
+        word-wrap: break-word;
+        white-space: normal;
+        font-size: 0.75rem;
+        padding: 0.4rem 0.5rem;
+    }
+    #toursTable td:nth-child(6) .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.3;
+    }
+    #toursTable td:nth-child(6) .badge i {
+        font-size: 0.7rem;
+        margin-right: 0.25rem;
     }
     /* Payment status badges (used inside payment-details-cell) */
     #toursTable td.col-payment-details .payment-status-badge,
@@ -367,7 +382,7 @@
     /* Actions column - same as confirmed */
     #toursTable td.col-actions {
         min-height: 72px;
-        min-width: 160px;
+        min-width: 140px;
         white-space: nowrap;
         overflow: visible;
     }
@@ -375,7 +390,7 @@
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         row-gap: 0.5rem;
-        column-gap: 0.5rem;
+        column-gap: 0.4rem;
         align-items: center;
         justify-items: center;
         max-width: 100%;
@@ -603,8 +618,8 @@
                         <col style="width: 8%">
                         <col style="width: 13%">
                         <col style="width: 11%">
-                        <col style="width: 7%">
-                        <col style="width: 14%">
+                        <col style="width: 9%"><!-- Status -->
+                        <col style="width: 12%"><!-- Actions -->
                         <col style="width: 7%">
                         <col style="width: 7%">
                     </colgroup>
@@ -726,7 +741,7 @@
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
                                     @if($tour->tour_type)
-                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem;">{{ $tour->tour_type }}</span>
+                                        <span class="tour-type-badge" title="{{ $tour->tour_type }}">{{ $tour->tour_type }}</span>
                                     @endif
                                     <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
                                     <div class="d-flex align-items-center gap-2 flex-nowrap">
@@ -899,11 +914,6 @@
                                                     @endforeach
                                                 </div>
                                             @endif
-                                            @if(!empty($tour->parsed_payment_details))
-                                                <button class="payment-details-view-btn" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}" title="View payment details">
-                                                    <i class="ri-eye-line"></i> View
-                                                </button>
-                                            @endif
                                         @else
                                             <span class="text-muted payment-details-empty">—</span>
                                         @endif
@@ -1035,9 +1045,10 @@
                                         <i class="ri-settings-3-line"></i> Add/Remove Services
                                     </a> -->
                                     <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-info btn-sm rounded-pill" 
-                                       title="Add guests for this tour">
-                                        <i class="ri-user-add-line me-1"></i> Add Guests
+                                       class="action-icon-badge" 
+                                       style="--action-color: #0dcaf0;"
+                                       data-tooltip="Add Guests">
+                                        <i class="ri-user-add-line"></i>
                                     </a>
                                     @endif
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)

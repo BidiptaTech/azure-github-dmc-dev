@@ -94,10 +94,14 @@
         min-height: 72px;
         vertical-align: top;
     }
-    /* Actions column: taller rows so icon badges have room */
+    /* Actions column: taller rows so icon badges have room; wider for 2 icons per row */
+    #toursTable thead th.col-actions,
+    #toursTable td.col-actions {
+        min-width: 200px;
+        width: 200px;
+    }
     #toursTable td.col-actions {
         min-height: 72px;
-        min-width: 160px;
         white-space: nowrap;
         overflow: visible;
     }
@@ -195,10 +199,10 @@
         transform: translate(-50%, -100%);
     }
 
-    /* Actions column: same soft-badge design as new-enquiries */
+    /* Actions column: same soft-badge design; 2 icons per row */
     #toursTable .actions-icons-wrap {
         display: grid;
-        grid-template-columns: repeat(3, auto);
+        grid-template-columns: repeat(2, auto);
         row-gap: 0.5rem;
         column-gap: 0.5rem;
         align-items: center;
@@ -822,9 +826,9 @@
                         @php $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]; @endphp
                         @if(in_array(auth()->user()->role_id, $role))
                         <col style="width: 9%">
-                        <col style="width: 8%">
+                        <col style="width: 10%">
                         @endif
-                        <col style="width: 14%">
+                        <col style="width: 12%">
                         <col style="width: 11%">
                         <col style="width: 8%">
                         <col style="width: 8%">
@@ -840,8 +844,7 @@
                             <th class="th-tooltip" data-tooltip="Agent">Agent</th>
                             <th class="th-tooltip" data-tooltip="Services">Services</th>
                             @if(in_array(auth()->user()->role_id, $role))
-                                <th class="th-tooltip" data-tooltip="Agent Negotiation">Agent Negotiation</th>
-                                <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
+                            <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
                             @endif
                             <th class="th-tooltip" data-tooltip="Actions">Actions</th>
                             <th class="th-tooltip" data-tooltip="Status">Status</th>
@@ -1042,14 +1045,20 @@
                                 $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
                                 
                                 // Calculate total tour price from ALL bookings with status 1 or 3
+                                // Hotel: use pickup total only (itemPrice) - transport is added automatically, do NOT add transfer price
+                                // Other services: base price + transfer price + guide price
                                 $tourTotalPrice = 0;
                                 foreach ($tour->booking as $booking) {
                                     if (in_array($booking->status, [1, 3])) {
                                         $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                                         if (is_array($data)) {
+                                            $orderType = $booking->type ?? '';
                                             foreach ($data as $item) {
                                                 $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-                                                $transferPrice = isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0 ? (float) $item['transfer_options']['cost'] : 0;
+                                                $transferPrice = 0;
+                                                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                                                    $transferPrice = (float) $item['transfer_options']['cost'];
+                                                }
                                                 $guidePrice = 0;
                                                 if (isset($item['guide_options']) && is_array($item['guide_options'])) {
                                                     $gv = $item['guide_options']['total_price'] ?? $item['guide_options']['cost'] ?? $item['guide_options']['Cost'] ?? $item['guide_options']['sell'] ?? $item['guide_options']['Sell'] ?? 0;
@@ -1069,7 +1078,7 @@
                                 $lastOfferRemark = $latestCommentRemark;
                             @endphp
                             @if(in_array(auth()->user()->role_id, $role))
-                            <td class="align-top">
+                            <td class="align-top col-negotiation">
                                 <button 
                                     type="button"
                                     class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
@@ -1089,8 +1098,6 @@
                                         <span class="d-block small text-muted">By Agent</span>
                                     </span>
                                 </button>
-                            </td>
-                            <td class="align-top col-negotiation">
                                 @if($hasAgentComment)
                                     <button 
                                         type="button"
@@ -1435,10 +1442,10 @@
                         @if(is_array($hotelData))
                             @foreach($hotelData as $booking)
                                 @php
-                                    $hotelPrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
-                                    $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
-                                    $guidePrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? $booking['guide_options']['total_price'] : 0;
-                                    $grandTotal = $hotelPrice + $transferPrice + $guidePrice;
+                                                // Hotel: use pickup total only - transport added automatically, do NOT add transfer
+                                                    $hotelPrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
+                                                    $guidePrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? $booking['guide_options']['total_price'] : 0;
+                                                    $grandTotal = $hotelPrice + $guidePrice;
                                 @endphp
                                 <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #74b9ff !important;">
                                     <!-- Compact Card Header -->

@@ -36,22 +36,32 @@ use Illuminate\Support\Facades\Crypt;
                 &mdash; Booking ID: {{ $invoice->tour->display_id ?? $invoice->tour_id }}
             </p>
             <div class="mt-2">
-                <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'full', 'currency' => $selectedCurrency]) }}" 
+                <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'full', 'currency' => $selectedCurrency, 'logo_type' => $logoType ?? 'dmc']) }}" 
                    class="btn btn-sm {{ $mode === 'full' ? 'btn-primary' : 'btn-outline-secondary' }}">Full Invoice</a>
-                <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'price-only', 'currency' => $selectedCurrency]) }}" 
+                <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'price-only', 'currency' => $selectedCurrency, 'logo_type' => $logoType ?? 'dmc']) }}" 
                    class="btn btn-sm {{ $mode === 'price-only' ? 'btn-info' : 'btn-outline-secondary' }}">Price Breakup</a>
+                @if($hasAgency ?? false)
+                <span class="ml-2 border-left pl-2" style="border-left: 1px solid #dee2e6;">
+                    <span class="text-muted small mr-1">Logo:</span>
+                    <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => $mode, 'currency' => $selectedCurrency, 'logo_type' => 'dmc']) }}" 
+                       class="btn btn-sm {{ ($logoType ?? 'dmc') === 'dmc' ? 'btn-success' : 'btn-outline-secondary' }}">DMC</a>
+                    <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => $mode, 'currency' => $selectedCurrency, 'logo_type' => 'agency']) }}" 
+                       class="btn btn-sm {{ ($logoType ?? 'dmc') === 'agency' ? 'btn-success' : 'btn-outline-secondary' }}">Agency</a>
+                </span>
+                @endif
             </div>
         </div>
         <div class="col-md-6 text-md-right mt-3 mt-md-0">
             <form method="GET" action="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id)]) }}" class="d-flex flex-nowrap align-items-center justify-content-md-end">
                 <input type="hidden" name="mode" value="{{ $mode }}">
+                <input type="hidden" name="logo_type" value="{{ $logoType ?? 'dmc' }}">
                 <label for="currency" class="mb-0 mr-2 font-weight-bold">Currency:</label>
                 <select name="currency" id="currency" class="form-control form-control-sm mr-2" style="max-width: 120px; height: 38px; line-height:1.2;" onchange="this.form.submit()">
                     @foreach($availableCurrencies as $currency)
                         <option value="{{ $currency }}" {{ $currency === $selectedCurrency ? 'selected' : '' }}>{{ $currency }}</option>
                     @endforeach
                 </select>
-                <a href="{{ route('invoices.pdf', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => $mode, 'currency' => $selectedCurrency]) }}"
+                <a href="{{ route('invoices.pdf', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => $mode, 'currency' => $selectedCurrency, 'logo_type' => $logoType ?? 'dmc']) }}"
                    class="btn btn-primary flex-shrink-0">
                     <i class="ri-download-line me-1"></i> Download PDF
                 </a>
@@ -88,7 +98,7 @@ use Illuminate\Support\Facades\Crypt;
             <div class="card">
                 <div class="card-body" style="padding: 0;">
                     <iframe
-                        src="{{ route('invoices.pdf', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => $mode, 'currency' => $selectedCurrency, 'preview' => 1]) }}"
+                        src="{{ route('invoices.pdf', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => $mode, 'currency' => $selectedCurrency, 'logo_type' => $logoType ?? 'dmc', 'preview' => 1]) }}"
                         style="width: 100%; height: 900px; border: none;"
                     ></iframe>
                 </div>

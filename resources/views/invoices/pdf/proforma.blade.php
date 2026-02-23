@@ -273,42 +273,68 @@
 <body>
     <!-- Header -->
     @php
-        $dmcUser = $invoice->dmc;
-        // Resolve root DMC through created_by chain (for sales head / managers)
-        $rootDmc = $dmcUser;
-        $visited = [];
-        while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
-            $visited[] = $rootDmc->created_by;
-            $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
-        }
-        if (!$rootDmc) {
-            $rootDmc = $dmcUser;
-        }
-        $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
-        $dmcCompanyName = $rootDmc->company_name ?? $dmcUser->company_name ?? 'DMC Name';
+        $logoType = $logoType ?? 'dmc';
+        $displayLogoSrc = null;
+        $displayCompanyName = 'DMC Name';
 
-        // Build a data URI for DomPDF from local path or remote URL
-        $dmcLogoSrc = null;
-        if ($dmcLogo) {
-            try {
-                // If it's already a data URI, just use it
-                if (preg_match('/^data:image\\//i', $dmcLogo)) {
-                    $dmcLogoSrc = $dmcLogo;
-                } else {
-                    // Decide source: remote URL or local file
-                    if (preg_match('/^https?:\\/\\//i', $dmcLogo)) {
-                        $logoContent = @file_get_contents($dmcLogo);
+        if ($logoType === 'agency' && $invoice->agent && $invoice->agent->agency) {
+            $agency = $invoice->agent->agency;
+            $displayCompanyName = $agency->agency_name ?? ($invoice->travel_company_details['company_name'] ?? 'Agency Name');
+            $agencyLogo = $agency->logo ?? null;
+            if ($agencyLogo) {
+                try {
+                    if (preg_match('/^data:image\\//i', $agencyLogo)) {
+                        $displayLogoSrc = $agencyLogo;
                     } else {
-                        $logoPath = public_path(ltrim($dmcLogo, '/'));
-                        $logoContent = @file_get_contents($logoPath);
+                        if (preg_match('/^https?:\\/\\//i', $agencyLogo)) {
+                            $logoContent = @file_get_contents($agencyLogo);
+                        } else {
+                            $logoPath = public_path(ltrim($agencyLogo, '/'));
+                            $logoContent = @file_get_contents($logoPath);
+                        }
+                        if ($logoContent) {
+                            $base64 = base64_encode($logoContent);
+                            $displayLogoSrc = 'data:image/png;base64,' . $base64;
+                        }
                     }
-                    if ($logoContent) {
-                        $base64 = base64_encode($logoContent);
-                        $dmcLogoSrc = 'data:image/png;base64,' . $base64;
-                    }
+                } catch (\Exception $e) {
+                    $displayLogoSrc = null;
                 }
-            } catch (\Exception $e) {
-                $dmcLogoSrc = null;
+            }
+        }
+
+        if ($logoType === 'dmc') {
+            $dmcUser = $invoice->dmc;
+            $rootDmc = $dmcUser;
+            $visited = [];
+            while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
+                $visited[] = $rootDmc->created_by;
+                $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
+            }
+            if (!$rootDmc) {
+                $rootDmc = $dmcUser;
+            }
+            $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
+            $displayCompanyName = $rootDmc->company_name ?? $dmcUser->company_name ?? 'DMC Name';
+            if ($dmcLogo) {
+                try {
+                    if (preg_match('/^data:image\\//i', $dmcLogo)) {
+                        $displayLogoSrc = $dmcLogo;
+                    } else {
+                        if (preg_match('/^https?:\\/\\//i', $dmcLogo)) {
+                            $logoContent = @file_get_contents($dmcLogo);
+                        } else {
+                            $logoPath = public_path(ltrim($dmcLogo, '/'));
+                            $logoContent = @file_get_contents($logoPath);
+                        }
+                        if ($logoContent) {
+                            $base64 = base64_encode($logoContent);
+                            $displayLogoSrc = 'data:image/png;base64,' . $base64;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $displayLogoSrc = null;
+                }
             }
         }
     @endphp
@@ -316,15 +342,15 @@
         <table class="header-table">
             <tr>
                 <td class="header-left">
-                    @if($dmcLogoSrc)
+                    @if($displayLogoSrc)
                     <div class="dmc-logo-wrapper">
-                        <img src="{{ $dmcLogoSrc }}" class="dmc-logo" />
+                        <img src="{{ $displayLogoSrc }}" class="dmc-logo" />
                     </div>
                     @endif
                 </td>
                 <td class="header-center">
                     <h1>PROFORMA INVOICE</h1>
-                    <div class="dmc-name">{{ $dmcCompanyName }}</div>
+                    <div class="dmc-name">{{ $displayCompanyName }}</div>
                 </td>
                 <td class="header-right">
                     <div class="invoice-number-badge">
@@ -442,6 +468,7 @@
     <div class="section-title">Description</div>
     
     @php
+        $isPro = $invoice->tour && (int)($invoice->tour->is_pro ?? 0) === 1;
         $allItems = $invoice->items ?? collect([]);
         $hotelItems = $allItems->where('item_type', 'hotel');
         $entryPortItems = $allItems->where('item_type', 'entry_port');
@@ -514,68 +541,152 @@
             ];
         };
         
-        // Helper function to get restaurant prices (base and grand total)
-        $getRestaurantPrices = function($item, $serviceDetails) use ($invoice) {
+        // Helper function to get restaurant prices (base, transfer, guide, grand total)
+        $getRestaurantPrices = function($item, $serviceDetails) use ($invoice, $isPro) {
             $basePrice = 0;
             $transferCost = 0;
-            
-            // If service_details has breakdown, use it
-            if (isset($serviceDetails['restaurant_base_price']) || isset($serviceDetails['transfer_cost'])) {
+            $guideCost = 0;
+
+            if (isset($serviceDetails['restaurant_base_price']) || isset($serviceDetails['transfer_cost']) || isset($serviceDetails['guide_total_price'])) {
                 $basePrice = $serviceDetails['restaurant_base_price'] ?? 0;
                 $transferCost = $serviceDetails['transfer_cost'] ?? 0;
-                return [
-                    'base' => $basePrice,
-                    'transfer' => $transferCost,
-                    'total' => $basePrice + $transferCost
-                ];
+                $guideCost = $isPro ? (float)($serviceDetails['guide_total_price'] ?? 0) : 0;
+                return ['base' => $basePrice, 'transfer' => $transferCost, 'guide' => $guideCost, 'total' => $basePrice + $transferCost + $guideCost];
             }
-            
-            // Try to get from order data
+
             if ($invoice->tour) {
-                $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)
-                    ->where('type', 'restaurant')
-                    ->whereNull('deleted_at')
-                    ->get();
-                
+                $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)->where('type', 'restaurant')->whereNull('deleted_at')->get();
                 foreach ($orders as $order) {
                     $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                     if (!is_array($orderData)) continue;
-                    
                     $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
                     foreach ($bookings as $booking) {
                         if (!is_array($booking)) continue;
-                        
-                        // Try to match by restaurant name
                         $itemRestaurantName = $serviceDetails['restaurant_name'] ?? '';
-                        $bookingRestaurantName = $booking['restaurantName'] ?? '';
-                        
-                        if ($itemRestaurantName && $bookingRestaurantName && 
-                            strtolower(trim($itemRestaurantName)) === strtolower(trim($bookingRestaurantName))) {
+                        if (!$itemRestaurantName) {
+                            $desc = $item->description ?? '';
+                            $itemRestaurantName = trim(explode(' - ', $desc)[0] ?? '');
+                        }
+                        $bookingRestaurantName = $booking['restaurantName'] ?? ($booking['restaurant_name'] ?? '');
+                        if ($itemRestaurantName && $bookingRestaurantName && strtolower(trim($itemRestaurantName)) === strtolower(trim($bookingRestaurantName))) {
                             $basePrice = (float)($booking['mealPrice'] ?? $booking['totalPrice'] ?? 0);
                             $transferCost = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? (float) $booking['transfer_options']['cost'] : 0;
-                            return [
-                                'base' => $basePrice,
-                                'transfer' => $transferCost,
-                                'total' => $basePrice + $transferCost
-                            ];
+                            $guideCost = 0;
+                            if ($isPro && !empty($booking['guide_options'])) {
+                                $gv = $booking['guide_options']['total_price'] ?? $booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0;
+                                if ((float) $gv > 0) $guideCost = (float) $gv;
+                            }
+                            return ['base' => $basePrice, 'transfer' => $transferCost, 'guide' => $guideCost, 'total' => $basePrice + $transferCost + $guideCost];
+                        }
+                    }
+                }
+            }
+
+            $fallbackTotal = $item->total_price ?? 0;
+            return ['base' => $fallbackTotal, 'transfer' => 0, 'guide' => 0, 'total' => $fallbackTotal];
+        };
+        $getEntryPortPrices = function($item, $serviceDetails) use ($invoice, $isPro) {
+            $guideCost = 0;
+            $baseTotal = $item->total_price ?? 0;
+            
+            if ($isPro) {
+                $guideCost = (float)($serviceDetails['guide_total_price'] ?? 0);
+                
+                if ($guideCost == 0 && $invoice->tour) {
+                    $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)
+                        ->where('type', 'entry_port')
+                        ->whereNull('deleted_at')
+                        ->get();
+                    
+                    foreach ($orders as $order) {
+                        $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                        if (!is_array($orderData)) continue;
+                        
+                        $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                        foreach ($bookings as $booking) {
+                            if (!is_array($booking)) continue;
+                            
+                            $itemPickup = $serviceDetails['entrypickup'] ?? '';
+                            $bookingPickup = $booking['entrypickup'] ?? $booking['pickup'] ?? '';
+                            
+                            if ($itemPickup && $bookingPickup && 
+                                strtolower(trim($itemPickup)) === strtolower(trim($bookingPickup))) {
+                                if (!empty($booking['guide_options'])) {
+                                    $gv = $booking['guide_options']['total_price'] ?? $booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0;
+                                    if ((float) $gv > 0) {
+                                        $guideCost = (float) $gv;
+                                        break 2;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
             
-            // Final fallback: try to extract from item's total_price
-            $fallbackTotal = $item->total_price ?? 0;
-            return [
-                'base' => $fallbackTotal, // Can't determine breakdown for old invoices
-                'transfer' => 0,
-                'total' => $fallbackTotal
-            ];
+            $finalTotal = $baseTotal;
+            if ($guideCost > 0 && $baseTotal > 0) {
+                if (!isset($serviceDetails['guide_total_price']) || (float)($serviceDetails['guide_total_price'] ?? 0) == 0) {
+                    $finalTotal = $baseTotal + $guideCost;
+                }
+            }
+            
+            return ['total' => $finalTotal, 'guide' => $guideCost, 'base' => $finalTotal - $guideCost];
+        };
+        $getExitPortPrices = function($item, $serviceDetails) use ($invoice, $isPro) {
+            $guideCost = 0;
+            $baseTotal = $item->total_price ?? 0;
+            
+            if ($isPro) {
+                $guideCost = (float)($serviceDetails['guide_total_price'] ?? 0);
+                
+                if ($guideCost == 0 && $invoice->tour) {
+                    $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)
+                        ->where('type', 'exit_port')
+                        ->whereNull('deleted_at')
+                        ->get();
+                    
+                    foreach ($orders as $order) {
+                        $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                        if (!is_array($orderData)) continue;
+                        
+                        $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                        foreach ($bookings as $booking) {
+                            if (!is_array($booking)) continue;
+                            
+                            $itemPickup = $serviceDetails['exitpickup'] ?? '';
+                            $bookingPickup = $booking['exitpickup'] ?? $booking['pickup'] ?? '';
+                            
+                            if ($itemPickup && $bookingPickup && 
+                                strtolower(trim($itemPickup)) === strtolower(trim($bookingPickup))) {
+                                if (!empty($booking['guide_options'])) {
+                                    $gv = $booking['guide_options']['total_price'] ?? $booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0;
+                                    if ((float) $gv > 0) {
+                                        $guideCost = (float) $gv;
+                                        break 2;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            $finalTotal = $baseTotal;
+            if ($guideCost > 0) {
+                if (!isset($serviceDetails['guide_total_price']) || (float)($serviceDetails['guide_total_price'] ?? 0) == 0) {
+                    $finalTotal = $baseTotal + $guideCost;
+                }
+            }
+            
+            return ['total' => $finalTotal, 'guide' => $guideCost, 'base' => max(0, $finalTotal - $guideCost)];
         };
         $travelPointItems = $allItems->where('item_type', 'travel_point');
         $travelHourlyItems = $allItems->where('item_type', 'travel_hourly');
         $localTransportItems = $allItems->where('item_type', 'local_transport');
         $exitPortItems = $allItems->where('item_type', 'exit_port');
-        $otherItems = $allItems->whereNotIn('item_type', ['hotel', 'entry_port', 'attraction', 'restaurant', 'guide', 'travel_point', 'travel_hourly', 'local_transport', 'exit_port']);
+        $miscellaneousItems = $allItems->where('item_type', 'miscellaneous');
+        $otherItems = $allItems->whereNotIn('item_type', ['hotel', 'entry_port', 'attraction', 'restaurant', 'guide', 'travel_point', 'travel_hourly', 'local_transport', 'exit_port', 'miscellaneous']);
         $selectedCurrency = $selectedCurrency ?? 'SGD';
         $exchangeRate = $exchangeRate ?? 1.0;
         $formatPrice = function($amount) use ($selectedCurrency, $exchangeRate) {
@@ -693,7 +804,7 @@
 
     @if($entryPortItems->count() > 0)
     <!-- Arrival Services Table -->
-    <div class="section-title">Arrival Services</div>
+    <div class="section-title">{{ $isPro ? 'Arrival with guide' : 'Arrival Services' }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -702,6 +813,7 @@
                 <th>Entry Dropoff</th>
                 <th>Vehicle Name</th>
                 <th>Type</th>
+                @if($isPro)<th>Guide</th>@endif
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
                 <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
@@ -712,6 +824,11 @@
             @foreach($entryPortItems as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
+                $entryGuideName = $serviceDetails['guide_name'] ?? '';
+                $entryGuideHours = $serviceDetails['guide_hours'] ?? '';
+                $entryGuideDisplay = $entryGuideName;
+                if ($entryGuideHours && $entryGuideName) { $entryGuideDisplay = $entryGuideName . ' (' . $entryGuideHours . ' hrs)'; }
+                $entryPrices = $getEntryPortPrices($item, $serviceDetails);
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
                 $entryTime = $serviceDetails['entrytime'] ?? '';
                 $pickupDateDisplay = '';
@@ -750,10 +867,11 @@
                 <td>{{ $serviceDetails['entrydropoff'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_name'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_type'] ?? '' }}</td>
+                @if($isPro)<td>{{ $entryGuideDisplay }}</td>@endif
                 <td>{{ $pickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
-                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($entryPrices['total']) }}</td>
+                <td class="text-right">{{ $formatPrice($entryPrices['total']) }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -841,7 +959,7 @@
 
     @if($restaurantItems->count() > 0)
     <!-- Restaurant Services Table -->
-    <div class="section-title">Restaurant Services</div>
+    <div class="section-title">{{ $isPro ? 'Restaurant with guide and transfer' : 'Restaurant Services' }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -853,6 +971,7 @@
                 <th>Type</th>
                 <th>Way</th>
                 <th>Vehicle Details</th>
+                @if($isPro)<th>Guide</th>@endif
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
@@ -877,8 +996,10 @@
                 $transferType = $serviceDetails['transfer_type'] ?? '';
                 $transferWay = $serviceDetails['transfer_way'] ?? '';
                 $vehicleDetails = $serviceDetails['vehicle_details'] ?? '';
-                
-                // Calculate prices: Restaurant Price + Transfer Price
+                $restaurantGuideName = $serviceDetails['guide_name'] ?? '';
+                $restaurantGuideHours = $serviceDetails['guide_hours'] ?? '';
+                $restaurantGuideDisplay = $restaurantGuideName;
+                if ($restaurantGuideHours && $restaurantGuideName) { $restaurantGuideDisplay = $restaurantGuideName . ' (' . $restaurantGuideHours . ' hrs)'; }
                 $prices = $getRestaurantPrices($item, $serviceDetails);
                 $grandTotal = $prices['total'];
             @endphp
@@ -890,6 +1011,7 @@
                 <td>{{ $transferType ?: '' }}</td>
                 <td>{{ $transferWay ?: '' }}</td>
                 <td>{{ $vehicleDetails ?: '' }}</td>
+                @if($isPro)<td>{{ $restaurantGuideDisplay }}</td>@endif
                 <td>{{ $item->quantity_adults ?? 0 }}</td>
                 <td>{{ $item->quantity_children ?? 0 }}</td>
                 <td>{{ $item->quantity_infants ?? 0 }}</td>
@@ -1153,7 +1275,7 @@
 
     @if($exitPortItems->count() > 0)
     <!-- Departure Services Table -->
-    <div class="section-title">Departure Services</div>
+    <div class="section-title">{{ $isPro ? 'Departure with guide' : 'Departure Services' }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1162,6 +1284,7 @@
                 <th>Exit Dropoff</th>
                 <th>Vehicle Name</th>
                 <th>Type</th>
+                @if($isPro)<th>Guide</th>@endif
                 <th>Exit Pickup Date</th>
                 <th>Total Persons</th>
                 <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
@@ -1172,6 +1295,11 @@
             @foreach($exitPortItems as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
+                $exitGuideName = $serviceDetails['guide_name'] ?? '';
+                $exitGuideHours = $serviceDetails['guide_hours'] ?? '';
+                $exitGuideDisplay = $exitGuideName;
+                if ($exitGuideHours && $exitGuideName) { $exitGuideDisplay = $exitGuideName . ' (' . $exitGuideHours . ' hrs)'; }
+                $exitPrices = $getExitPortPrices($item, $serviceDetails);
                 $exitPickupDate = $serviceDetails['exitpickupdate'] ?? '';
                 $entryTime = $serviceDetails['entrytime'] ?? '';
                 $exitPickupDateDisplay = '';
@@ -1210,8 +1338,49 @@
                 <td>{{ $serviceDetails['exitdropoff'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_name'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_type'] ?? '' }}</td>
+                @if($isPro)<td>{{ $exitGuideDisplay }}</td>@endif
                 <td>{{ $exitPickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
+                <td class="text-right">{{ $formatPrice($exitPrices['total']) }}</td>
+                <td class="text-right">{{ $formatPrice($exitPrices['total']) }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    </div>
+    @endif
+
+    @if($isPro && $miscellaneousItems->count() > 0)
+    <!-- Miscellaneous Section (Pro tours only) -->
+    <div class="section-title">Miscellaneous</div>
+    <div style="page-break-inside: avoid;">
+    <table style="margin-bottom: 20px;">
+        <thead>
+            <tr>
+                <th>Item Name</th>
+                <th>Description</th>
+                <th>Booking Date</th>
+                <th>Total Pax</th>
+                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($miscellaneousItems as $item)
+            @php
+                $miscDetails = $item->service_details ?? [];
+                $miscBookingDate = $miscDetails['booking_date'] ?? '';
+                $miscBookingDateDisplay = '';
+                if ($miscBookingDate) {
+                    try { $miscBookingDateDisplay = \Carbon\Carbon::parse($miscBookingDate)->format('jS M Y'); } catch (\Exception $e) { $miscBookingDateDisplay = $miscBookingDate; }
+                }
+                $miscTotalPax = ($item->quantity_adults ?? 0) + ($item->quantity_children ?? 0) + ($item->quantity_infants ?? 0);
+            @endphp
+            <tr>
+                <td>{{ $miscDetails['item_name'] ?? ($item->description ?? '') }}</td>
+                <td>{{ $item->description ?? '' }}</td>
+                <td>{{ $miscBookingDateDisplay }}</td>
+                <td>{{ $miscTotalPax }}</td>
                 <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
                 <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
             </tr>
