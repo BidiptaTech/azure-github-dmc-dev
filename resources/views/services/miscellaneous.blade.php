@@ -75,7 +75,7 @@
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 @if($item->image)
-                                                    <img src="{{ asset('storage/' . $item->image) }}" 
+                                                    <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
                                                          alt="{{ $item->item_name }}" 
                                                          class="rounded me-2" 
                                                          style="width: 40px; height: 40px; object-fit: cover;">
@@ -172,7 +172,7 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($item->image)
-                                                <img src="{{ asset('storage/' . $item->image) }}" 
+                                                <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
                                                      alt="{{ $item->item_name }}" 
                                                      class="rounded me-2" 
                                                      style="width: 40px; height: 40px; object-fit: cover;">
