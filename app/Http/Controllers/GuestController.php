@@ -11,6 +11,7 @@ use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DmcMail;
 use App\Models\Setting;
+use App\Models\Tour;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\Order;
@@ -455,7 +456,13 @@ class GuestController extends Controller
             $dmcId = CommonHelper::getDmcId(auth()->user());
             $dmc = User::where('userId', $dmcId)->first();
             $dmcCompanyName = $dmc->company_name ?? null;
-            
+            $tourDisplayId = null;
+            // Get display_id from tours table using numeric tour_id
+            if (!empty($guest->tour_id)) {
+                $tourDisplayId = Tour::where('tour_id', $guest->tour_id)
+                                    ->value('display_id');
+            }
+
             // Prepare email data (use plain password for email, not the hashed one)
             $emailData = [
                 'guest_name' => $guest->guest_name,
@@ -463,7 +470,7 @@ class GuestController extends Controller
                 'app_password' => $plainPassword,
                 'country_code' => $guest->country_code ?? '+91',
                 'contact' => $guest->contact,
-                'tour_id' => $guest->tour_id,
+                'tour_id' => $tourDisplayId,
                 'company_name' => $companyName,
                 'company_logo' => $companyLogo,
                 'support_email' => $supportEmail,
