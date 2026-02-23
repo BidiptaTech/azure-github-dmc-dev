@@ -14,6 +14,21 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <style>
+    /* Guest Management Button */
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-gradient-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        color: white;
+    }
+    
     /* Payment Processing Overlay */
     .payment-processing-overlay {
         position: fixed;
@@ -167,21 +182,33 @@
         color: #dc3545;
     }
 
-    /* Compact table styles (shared with new-enquiries / follow-ups) */
+    /* Compact table styles (aligned with follow-ups) */
     #toursTable {
         font-size: 0.875rem;
+        table-layout: fixed;
+        width: 100% !important;
+        margin-bottom: 0;
+        background-color: #fff;
     }
-
+    .dataTables_wrapper .dataTables_scroll .dataTables_scrollBody #toursTable,
+    .dataTables_wrapper #toursTable {
+        width: 100% !important;
+        table-layout: fixed;
+    }
     #toursTable thead th {
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem 0.5rem;
         font-size: 0.8125rem;
         font-weight: 600;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: #f8f9fa;
     }
-
     #toursTable tbody td {
-        padding: 0.5rem 0.75rem;
-        vertical-align: middle;
+        padding: 0.5rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+        background-color: #fff;
     }
 
     #toursTable tbody tr {
@@ -260,6 +287,295 @@
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px !important; padding-left: 10px; padding-right: 32px; }
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px !important; right: 8px; }
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { right: 32px; }
+
+    /* Tour Details column: min height (follow-ups style) */
+    #toursTable td:nth-child(2) {
+        min-height: 72px;
+        vertical-align: top;
+    }
+    /* Services column: professional soft-badge style (same as follow-ups) */
+    #toursTable thead th:nth-child(4),
+    #toursTable td:nth-child(4) {
+        min-width: 140px;
+    }
+    #toursTable td:nth-child(4) {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        overflow: visible !important;
+    }
+    #toursTable td:nth-child(4) .services-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 0.35rem;
+        column-gap: 0.35rem;
+        align-items: stretch;
+        max-width: 100%;
+    }
+    #toursTable td:nth-child(4) .service-icon-wrapper {
+        min-width: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    #toursTable .service-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+    }
+    #toursTable .service-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    #toursTable .service-icon-badge i {
+        font-size: 1.05rem;
+        color: var(--service-color, #475569);
+        flex-shrink: 0;
+        line-height: 1;
+    }
+    #toursTable .service-icon-badge[data-clickable="false"] {
+        cursor: default;
+    }
+    #toursTable .service-icon-badge[data-clickable="false"]:hover {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        box-shadow: none;
+    }
+    #toursTable .service-icon-badge.service-icon-badge-approved {
+        background: #198754 !important;
+        border-color: #198754 !important;
+    }
+    #toursTable .service-icon-badge.service-icon-badge-approved i {
+        color: #fff !important;
+    }
+    #toursTable .service-icon-badge.service-icon-badge-approved:hover {
+        background: #157347 !important;
+        border-color: #157347 !important;
+    }
+    #toursTable .service-icon-wrapper {
+        position: relative;
+        display: inline-flex;
+        z-index: 1;
+        margin: 3px;
+    }
+    #toursTable .service-icon-wrapper:hover {
+        z-index: 10;
+    }
+    #toursTable .service-icon-tooltip {
+        display: none !important;
+    }
+    #toursTable tbody tr:has(.service-icon-wrapper:hover),
+    #toursTable tbody tr.service-tooltip-row-active {
+        position: relative;
+        z-index: 10;
+    }
+    /* Agent column: same as follow-ups (name + company with icons) */
+    #toursTable td.col-agent .agent-name-line {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #0d6efd;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        line-height: 1.3;
+    }
+    #toursTable td.col-agent .agent-name-line i {
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+    #toursTable td.col-agent .agent-company-line {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.2rem;
+        line-height: 1.3;
+    }
+    #toursTable td.col-agent .agent-company-line i {
+        font-size: 0.8rem;
+        opacity: 0.85;
+        flex-shrink: 0;
+    }
+    #toursTable td.col-agent .agent-empty {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.8rem;
+        color: #6c757d;
+        font-style: italic;
+    }
+    #toursTable td.col-agent .agent-empty i {
+        font-size: 1rem;
+        opacity: 0.7;
+    }
+    /* Created column: text wrap + icons (follow-ups style – created by + created at) */
+    #toursTable td.col-created {
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        min-width: 0;
+    }
+    #toursTable td.col-created .created-by-line,
+    #toursTable td.col-created .created-at-line {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.35rem;
+        line-height: 1.35;
+    }
+    #toursTable td.col-created .created-by-line i,
+    #toursTable td.col-created .created-at-line i {
+        flex-shrink: 0;
+        margin-top: 0.1rem;
+        opacity: 0.85;
+    }
+    #toursTable td.col-created .created-by-line {
+        font-weight: 600;
+        font-size: 0.8rem;
+        word-break: break-word;
+    }
+    #toursTable td.col-created .created-at-line {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.2rem;
+    }
+    #toursTable td.col-created .created-at-line i {
+        font-size: 0.8rem;
+    }
+    /* Auto Cancel column: smaller text (follow-ups style) */
+    #toursTable td.col-auto-cancel,
+    #toursTable td.col-auto-cancel .fw-semibold,
+    #toursTable td.col-auto-cancel small,
+    #toursTable td.col-auto-cancel .text-muted {
+        font-size: 0.75rem !important;
+    }
+    /* Payment Status column: compact, within column, professional */
+    #toursTable td.col-payment-status {
+        min-width: 0;
+        width: 1%;
+        max-width: 130px;
+        padding: 0.4rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+    }
+    #toursTable td.col-payment-status .payment-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.28rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        line-height: 1.2;
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border: 1px solid transparent;
+    }
+    #toursTable td.col-payment-status .payment-status-badge i {
+        font-size: 0.7rem;
+        flex-shrink: 0;
+    }
+    #toursTable td.col-payment-status .payment-status-badge.status-not-started {
+        background: #fef3c7;
+        color: #b45309;
+        border-color: #fcd34d;
+    }
+    #toursTable td.col-payment-status .payment-status-badge.status-pending {
+        background: #f1f5f9;
+        color: #475569;
+        border-color: #e2e8f0;
+    }
+    #toursTable td.col-payment-status .payment-status-badge.status-partial {
+        background: #e0f2fe;
+        color: #0369a1;
+        border-color: #7dd3fc;
+    }
+    #toursTable td.col-payment-status .payment-status-badge.status-paid {
+        background: #d1fae5;
+        color: #047857;
+        border-color: #6ee7b7;
+    }
+    /* Actions column: same soft-badge design as follow-ups */
+    #toursTable td.col-actions {
+        min-height: 72px;
+        min-width: 160px;
+        white-space: nowrap;
+        overflow: visible;
+    }
+    #toursTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-content: start;
+        max-width: 100%;
+    }
+    #toursTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
+    }
+    #toursTable .action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+    #toursTable .action-icon-badge i {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+    }
+    #toursTable .action-icon-badge:hover i {
+        color: var(--action-color, #475569);
+    }
+    #toursTable button.action-icon-badge {
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    #toursTable button.action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    /* Global tooltip for table headers (follow-ups style) */
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+    }
 </style>
 
 @section('content')
@@ -393,25 +709,31 @@
 
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
+                    <colgroup>
+                        <col style="width: 2%">
+                        <col style="width: 15%">
+                        <col style="width: 9%">
+                        <col style="width: 14%">
+                        <col style="width: 10%">
+                        <col style="width: 8%">
+                        <col style="width: 13%">
+                        <col style="width: 8%">
+                        <col style="width: 5%">
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
                             {{-- <th>
                                 <input type="checkbox" class="form-check-input" id="selectAll">
                             </th> --}}
-                            <th>#</th>
-                            <th>Tour Details</th>
-                            <th>Destination</th>
-                            <th>Guests</th>
-                            <th>Manage Services</th>
-                            <th>Agent</th>
-                            <th>Created By</th>
-                            <th>Travel Dates</th>
-                            <th>Execution Status</th>
-                            <th>Payment Status</th>
-                            <th>Confirmation Date</th>
-                            <th>Actions</th>
-                            <th>Created At</th>
-                            <th>Auto Cancel Date</th>
+                            <th class="th-tooltip" data-tooltip="#">#</th>
+                            <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
+                            <th class="th-tooltip" data-tooltip="Agent">Agent</th>
+                            <th class="th-tooltip" data-tooltip="Manage Services">Services</th>
+                            <th class="th-tooltip" data-tooltip="Payment Status">Payment Status</th>
+                            <th class="th-tooltip" data-tooltip="Confirmation Date">Confirmation Date</th>
+                            <th class="th-tooltip" data-tooltip="Actions">Actions</th>
+                            <th class="th-tooltip" data-tooltip="Created">Created</th>
+                            <th class="th-tooltip" data-tooltip="Auto Cancel Date">Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -446,44 +768,53 @@
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
                             </td> --}}
                             <td>{{ $key + 1 }}</td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <strong class="text-success">{{ $tour->display_id }}</strong>
+                            <td class="align-top">
+                                <div class="d-flex flex-column gap-1">
+                                    <strong class="text-primary">{{ $tour->display_id }}</strong>
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
                                     @if($tour->tour_type)
-                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
-                                            {{ $tour->tour_type }}
+                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem;">{{ $tour->tour_type }}</span>
+                                    @endif
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
+                                            @if($tour->check_out_time)<span class="ms-1"><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
                                         </small>
+                                    @else
+                                        <small class="text-muted">Check-in/out: Not specified</small>
                                     @endif
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-agent">
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
+                                    @if($tour->agent_name)
+                                        <span class="agent-name-line">
+                                            <i class="ri-user-line"></i>
+                                            <span>{{ $tour->agent_name }}</span>
+                                        </span>
+                                        <span class="agent-company-line">
+                                            <i class="ri-building-line"></i>
+                                            <span>{{ $tour->agent_company_name ?? 'N/A' }}</span>
+                                        </span>
+                                    @else
+                                        <span class="agent-empty">
+                                            <i class="ri-user-unfollow-line"></i>
+                                            <span>No agent assigned</span>
+                                        </span>
+                                    @endif
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex gap-3 align-items-center">
-                                    <div class="d-flex align-items-center gap-1" title="Adults">
-                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Children">
-                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Infants">
-                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    @php
+                            <td class="align-top">
+                                @php
                                         // Fetch orders for this tour
                                         $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->where('bookingType', 'booking')->whereNull('deleted_at')->get();
                                         $svc = [
@@ -499,7 +830,6 @@
                                         ];
                                         $serviceData = [];
                                         
-                                        // Group orders by type and count them
                                         foreach($orders as $order) {
                                             $type = $order->type;
                                             if(isset($svc[$type])) {
@@ -511,17 +841,16 @@
                                             }
                                         }
                                         
-                                        // Debug: Add data attributes for JavaScript debugging
                                         $debugInfo = [
                                             'tour_id' => $tour->tour_id,
                                             'orders_count' => $orders->count(),
-                                            'hotel_orders_count' => isset($serviceData['hotel']) ? count($serviceData['hotel']) : 0,
-                                            'hotel_svc_count' => $svc['hotel']
+                                            'svc' => $svc,
+                                            'serviceData_keys' => array_keys($serviceData)
                                         ];
                                         
                                         $icons = [
-                                            'hotel' => 'ri-hotel-line',
-                                            'attraction' => 'ri-building-2-line',
+                                            'hotel' => 'ri-hotel-bed-line',
+                                            'attraction' => 'ri-camera-line',
                                             'restaurant' => 'ri-restaurant-2-line',
                                             'guide' => 'ri-user-voice-line',
                                             'entry_port' => 'ri-flight-land-line',
@@ -530,49 +859,55 @@
                                             'travel_point' => 'ri-route-line',
                                             'local_transport' => 'ri-car-line',
                                         ];
-                                    @endphp
-                                    @foreach($svc as $key=>$count)
+                                @endphp
+                                @php
+                                    $serviceColors = [
+                                        'hotel' => '#0ea5e9',
+                                        'attraction' => '#f59e0b',
+                                        'restaurant' => '#ef4444',
+                                        'guide' => '#8b5cf6',
+                                        'entry_port' => '#10b981',
+                                        'exit_port' => '#14b8a6',
+                                        'travel_hourly' => '#64748b',
+                                        'travel_point' => '#0369a1',
+                                        'local_transport' => '#78716c',
+                                    ];
+                                @endphp
+                                <div class="services-icons-wrap">
+                                    @foreach($svc as $key => $count)
                                         @if(intval($count) > 0)
+                                            @php $bgColor = $serviceColors[$key] ?? '#6c757d'; @endphp
                                             @if($key === 'restaurant')
-                                                {{-- Special handling for restaurants - show individual buttons --}}
+                                                {{-- Individual restaurant icon badges --}}
                                                 @if(isset($serviceData['restaurant']) && count($serviceData['restaurant']) > 0)
-                                                    @php $globalRestaurantCounter = 1; @endphp
+                                                    @php $actualBookingIndex = 0; @endphp
                                                     @foreach($serviceData['restaurant'] as $restaurantOrderIndex => $restaurantOrder)
                                                         @php
                                                             $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data;
                                                         @endphp
                                                         @if(is_array($restaurantData))
-                                                            @php $actualBookingIndex = 0; @endphp
                                                             @foreach($restaurantData as $originalKey => $booking)
-                                                                @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                @php $actualCancelDateStr = $tour->auto_cancel_date 
-                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
-                                                                    : '';
-                                                                @endphp
                                                                 @php
                                                                     $restaurantName = $booking['restaurantName'] ?? 'Restaurant';
+                                                                    $isApproved = $restaurantOrder->is_approve == 1;
+                                                                    $actualCancelDateStr = $tour->auto_cancel_date ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d') : '';
+                                                                    $tooltipText = 'Restaurant: ' . $restaurantName . ($isApproved ? ' ✓' : '');
                                                                 @endphp
-                                                                <span class="badge @if($restaurantOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
-                                                                      title="{{ e($restaurantName) }}">
-                                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Restaurant {{ $globalRestaurantCounter }}</strong> : {{ $restaurantName }}
-                                                                    @if($restaurantOrder->is_approve == 1)
-                                                                        <i class="ri-check-line ms-1"></i>
-                                                                    @endif
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $actualBookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
                                                                 </span>
-                                                                @php 
-                                                                    $actualBookingIndex++; 
-                                                                    $globalRestaurantCounter++;
-                                                                @endphp
+                                                                @php $actualBookingIndex++; @endphp
                                                             @endforeach
                                                         @endif
                                                     @endforeach
                                                 @endif
                                             @elseif($key === 'guide')
-                                                {{-- Special handling for guides - show individual buttons --}}
+                                                {{-- Individual guide icon badges --}}
                                                 @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
-                                                    @php $globalGuideCounter = 1; @endphp
                                                     @foreach($serviceData['guide'] as $guideOrderIndex => $guideOrder)
                                                         @php
                                                             $guideData = is_string($guideOrder->data) ? json_decode($guideOrder->data, true) : $guideOrder->data;
@@ -580,31 +915,25 @@
                                                         @if(is_array($guideData))
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($guideData as $originalKey => $booking)
-                                                                @php $bookingIndex = $actualBookingIndex; @endphp
                                                                 @php
                                                                     $guideName = $booking['guide_name'] ?? 'Guide';
+                                                                    $isApproved = $guideOrder->is_approve == 1;
+                                                                    $tooltipText = 'Guide: ' . $guideName . ($isApproved ? ' ✓' : '');
                                                                 @endphp
-                                                                <span class="badge @if($guideOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }})"
-                                                                      title="{{ e($guideName) }}">
-                                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Guide {{ $globalGuideCounter }}</strong> : {{ $guideName }}
-                                                                    @if($guideOrder->is_approve == 1)
-                                                                        <i class="ri-check-line ms-1"></i>
-                                                                    @endif
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $actualBookingIndex }})">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
                                                                 </span>
-                                                                @php 
-                                                                    $actualBookingIndex++; 
-                                                                    $globalGuideCounter++;
-                                                                @endphp
+                                                                @php $actualBookingIndex++; @endphp
                                                             @endforeach
                                                         @endif
                                                     @endforeach
                                                 @endif
                                             @elseif($key === 'hotel')
-                                                {{-- Special handling for hotels - show individual buttons --}}
+                                                {{-- Individual hotel icon badges --}}
                                                 @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
-                                                    @php $globalHotelCounter = 1; @endphp
                                                     @foreach($serviceData['hotel'] as $hotelOrderIndex => $hotelOrder)
                                                         @php
                                                             $hotelData = is_string($hotelOrder->data) ? json_decode($hotelOrder->data, true) : $hotelOrder->data;
@@ -612,148 +941,114 @@
                                                         @if(is_array($hotelData))
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($hotelData as $originalKey => $booking)
-                                                                @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                @php 
-                                                        $actualCancelDateStr = $tour->auto_cancel_date 
-                                                            ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
-                                                            : '';
-                                                        @endphp
                                                                 @php
                                                                     $hotelName = $booking['hotelDetails']['hotel_name'] ?? 'Hotel';
+                                                                    $isApproved = $hotelOrder->is_approve == 1;
+                                                                    $actualCancelDateStr = $tour->auto_cancel_date ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d') : '';
+                                                                    $tooltipText = 'Hotel: ' . $hotelName . ($isApproved ? ' ✓' : '');
                                                                 @endphp
-                                                                <span class="badge @if($hotelOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
-                                                                      title="{{ e($hotelName) }}">
-                                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Hotel {{ $globalHotelCounter }}</strong> : {{ $hotelName }}
-                                                                    @if($hotelOrder->is_approve == 1)
-                                                                        <i class="ri-check-line ms-1"></i>
-                                                                    @endif
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $actualBookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
                                                                 </span>
-                                                                @php 
-                                                                    $actualBookingIndex++; 
-                                                                    $globalHotelCounter++;
-                                                                @endphp
+                                                                @php $actualBookingIndex++; @endphp
                                                             @endforeach
                                                         @endif
                                                     @endforeach
                                                 @endif
                                             @elseif($key === 'attraction')
+                                                {{-- Individual attraction icon badges --}}
                                                 @if(isset($serviceData[$key]))
-                                                    @php $globalAttractionCounter = 1; @endphp
                                                     @foreach($serviceData[$key] as $attractionOrderIndex => $order)
                                                         @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
                                                         @if(is_array($orderData))
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
-                                                                @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                @php $actualCancelDateStr = $tour->auto_cancel_date 
-                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
-                                                                    : '';
-                                                                @endphp
                                                                 @php
                                                                     $attractionName = $booking['AttractionName'] ?? 'Attraction';
+                                                                    $isApproved = $order->is_approve == 1;
+                                                                    $actualCancelDateStr = $tour->auto_cancel_date ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d') : '';
+                                                                    $tooltipText = 'Attraction: ' . $attractionName . ($isApproved ? ' ✓' : '');
                                                                 @endphp
-                                                                <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
-                                                                      title="{{ e($attractionName) }}">
-                                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Attraction {{ $globalAttractionCounter }}</strong> : {{ $attractionName }}
-                                                                    @if($order->is_approve == 1)
-                                                                        <i class="ri-check-line ms-1"></i>
-                                                                    @endif
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $actualBookingIndex }}, '{{ $actualCancelDateStr }}')">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
                                                                 </span>
-                                                                @php 
-                                                                    $actualBookingIndex++; 
-                                                                    $globalAttractionCounter++;
-                                                                @endphp
+                                                                @php $actualBookingIndex++; @endphp
                                                             @endforeach
                                                         @endif
                                                     @endforeach
                                                 @endif
                                             @elseif($key === 'travel_hourly')
                                                 @if(isset($serviceData[$key]))
-                                                    @php $globalTravelHourlyCounter = 1; @endphp
                                                     @foreach($serviceData[$key] as $travelHourlyOrderIndex => $order)
                                                         @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
                                                         @if(is_array($orderData))
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
-                                                                @php $bookingIndex = $actualBookingIndex; @endphp
                                                                 @php
                                                                     $vehicleName = $booking['vehicles_name'] ?? 'Local-Tour Hourly';
+                                                                    $isApproved = $order->is_approve == 1;
+                                                                    $tooltipText = 'Hourly: ' . $vehicleName . ($isApproved ? ' ✓' : '');
                                                                 @endphp
-                                                                <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})"
-                                                                      title="{{ e($vehicleName) }}">
-                                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Local-Tour Hourly {{ $globalTravelHourlyCounter }}</strong> : {{ $vehicleName }}
-                                                                    @if($order->is_approve == 1)
-                                                                        <i class="ri-check-line ms-1"></i>
-                                                                    @endif
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $actualBookingIndex }})">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
                                                                 </span>
-                                                                @php 
-                                                                    $actualBookingIndex++; 
-                                                                    $globalTravelHourlyCounter++;
-                                                                @endphp
+                                                                @php $actualBookingIndex++; @endphp
                                                             @endforeach
                                                         @endif
                                                     @endforeach
                                                 @endif
                                             @elseif($key === 'travel_point')
                                                 @if(isset($serviceData[$key]))
-                                                    @php $globalTravelPointCounter = 1; @endphp
                                                     @foreach($serviceData[$key] as $travelPointOrderIndex => $order)
                                                         @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
                                                         @if(is_array($orderData))
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
-                                                                @php $bookingIndex = $actualBookingIndex; @endphp
                                                                 @php
-                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local-Tour Point to Point';
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Point to Point';
+                                                                    $isApproved = $order->is_approve == 1;
+                                                                    $tooltipText = 'Point: ' . $vehicleName . ($isApproved ? ' ✓' : '');
                                                                 @endphp
-                                                                <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})"
-                                                                      title="{{ e($vehicleName) }}">
-                                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Local-Tour Point to Point {{ $globalTravelPointCounter }}</strong> : {{ $vehicleName }}
-                                                                    @if($order->is_approve == 1)
-                                                                        <i class="ri-check-line ms-1"></i>
-                                                                    @endif
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $actualBookingIndex }})">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
                                                                 </span>
-                                                                @php 
-                                                                    $actualBookingIndex++; 
-                                                                    $globalTravelPointCounter++;
-                                                                @endphp
+                                                                @php $actualBookingIndex++; @endphp
                                                             @endforeach
                                                         @endif
                                                     @endforeach
                                                 @endif
                                             @elseif($key === 'local_transport')
                                                 @if(isset($serviceData[$key]))
-                                                    @php $globalLocalTransportCounter = 1; @endphp
                                                     @foreach($serviceData[$key] as $localTransportOrderIndex => $order)
                                                         @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
                                                         @if(is_array($orderData))
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
-                                                                @php $bookingIndex = $actualBookingIndex; @endphp
                                                                 @php
                                                                     $vehicleName = $booking['vehicles_name'] ?? 'Local Transport';
+                                                                    $isApproved = $order->is_approve == 1;
+                                                                    $tooltipText = 'Transport: ' . $vehicleName . ($isApproved ? ' ✓' : '');
                                                                 @endphp
-                                                                <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})"
-                                                                      title="{{ e($vehicleName) }}">
-                                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Local Transport {{ $globalLocalTransportCounter }}</strong> : {{ $vehicleName }}
-                                                                    @if($order->is_approve == 1)
-                                                                        <i class="ri-check-line ms-1"></i>
-                                                                    @endif
+                                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                                    <span class="service-icon-badge @if($isApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                                          onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $actualBookingIndex }})">
+                                                                        <i class="{{ $icons[$key] }}"></i>
+                                                                    </span>
                                                                 </span>
-                                                                @php 
-                                                                    $actualBookingIndex++; 
-                                                                    $globalLocalTransportCounter++;
-                                                                @endphp
+                                                                @php $actualBookingIndex++; @endphp
                                                             @endforeach
                                                         @endif
                                                     @endforeach
@@ -764,69 +1059,31 @@
                                                     $vehicleNames = [];
                                                     if(isset($serviceData[$key])) {
                                                         foreach($serviceData[$key] as $serviceOrder) {
-                                                            if($serviceOrder->is_approve == 1) {
-                                                                $isServiceApproved = true;
-                                                            }
+                                                            if($serviceOrder->is_approve == 1) $isServiceApproved = true;
                                                             $orderData = is_string($serviceOrder->data) ? json_decode($serviceOrder->data, true) : $serviceOrder->data;
                                                             if(is_array($orderData)) {
                                                                 foreach($orderData as $booking) {
-                                                                    if(isset($booking['vehicles_name']) && !empty($booking['vehicles_name'])) {
-                                                                        $vehicleNames[] = $booking['vehicles_name'];
-                                                                    }
+                                                                    if(!empty($booking['vehicles_name'])) $vehicleNames[] = $booking['vehicles_name'];
                                                                 }
                                                             }
                                                         }
                                                     }
-                                                    $tooltipText = !empty($vehicleNames) ? implode(', ', array_unique($vehicleNames)) : ($key === 'entry_port' ? 'Arrival Transfer' : 'Departure Transfer');
+                                                    $portLabel = $key === 'entry_port' ? 'Arrival' : 'Departure';
+                                                    $tooltipText = $portLabel . (!empty($vehicleNames) ? ': ' . implode(', ', array_unique($vehicleNames)) : '') . ($isServiceApproved ? ' ✓' : '');
                                                 @endphp
-                                                <span class="badge @if($isServiceApproved) bg-success text-white @else bg-light text-dark border @endif" style="cursor: pointer;" 
-                                                      onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
-                                                      data-debug-info="{{ json_encode($debugInfo) }}"
-                                                      title="{{ e($tooltipText) }}">
-                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                    @if($key === 'entry_port')
-                                                        Arrival {{ $count }}
-                                                    @elseif($key === 'exit_port')
-                                                        Departure {{ $count }}
-                                                    @else
-                                                        {{ ucfirst($key) }}: {{ $count }}
-                                                    @endif
-                                                    @if($isServiceApproved)
-                                                        <i class="ri-check-line ms-1"></i>
-                                                    @endif
-                                                </span>
-                                            @else
-                                                <span class="badge bg-light text-dark border">
-                                                    <i class="{{ $icons[$key] }} me-1"></i>
-                                                    @if($key === 'entry_port')
-                                                        Arrival: {{ $count }}
-                                                    @elseif($key === 'exit_port')
-                                                        Departure: {{ $count }}
-                                                    @elseif($key === 'travel_hourly')
-                                                        Local-Tour Hourly: {{ $count }}
-                                                    @elseif($key === 'travel_point')
-                                                        Local-Tour Point to Point: {{ $count }}
-                                                    @elseif($key === 'local_transport')
-                                                        Local Transport: {{ $count }}
-                                                    @else
-                                                        {{ ucfirst($key) }}: {{ $count }}
-                                                    @endif
+                                                <span class="service-icon-wrapper" data-tooltip="{{ e($tooltipText) }}">
+                                                    <span class="service-icon-badge @if($isServiceApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                          onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
+                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                        <i class="{{ $icons[$key] }}"></i>
+                                                    </span>
                                                 </span>
                                             @endif
                                         @endif
                                     @endforeach
                                     @if(array_sum(array_map('intval', $svc)) === 0)
-                                        <span class="text-muted">No services</span>
+                                        <span class="text-muted" style="font-size:0.78rem;">No services</span>
                                     @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">
-                                        <i class="fas fa-building me-1"></i>
-                                        {{ $tour->agent_company_name ?? 'N/A' }}
-                                    </small>
                                 </div>
                             </td>
                             <td>
@@ -875,30 +1132,18 @@
                                     </span>
                                 @endif
                             </td>
-                            <td>
+                            <td class="col-payment-status">
                                 @php
-                                    // Calculate payment details
-                                    // Includes: base price + transfer price + guide price (for attractions)
+                                    // Same payment calculation as before
                                     $tourTotalPrice = 0;
                                     foreach ($tour->booking as $booking) {
-                                        if (in_array($booking->status, [1, 2, 3])) { // Only count approved or declined bookings
+                                        if (in_array($booking->status, [1, 2, 3])) {
                                             $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                                             if (is_array($data)) {
                                                 foreach ($data as $item) {
                                                     $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-                                                    
-                                                    // Add transfer price if exists
-                                                    $transferPrice = 0;
-                                                    if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                                                        $transferPrice = (float) $item['transfer_options']['cost'];
-                                                    }
-                                                    
-                                                    // Add guide price if exists (for attractions)
-                                                    $guidePrice = 0;
-                                                    if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
-                                                        $guidePrice = (float) $item['guide_options']['total_price'];
-                                                    }
-                                                    
+                                                    $transferPrice = isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0 ? (float) $item['transfer_options']['cost'] : 0;
+                                                    $guidePrice = isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0 ? (float) $item['guide_options']['total_price'] : 0;
                                                     $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                                 }
                                             }
@@ -909,23 +1154,15 @@
                                     $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
                                     $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
                                     $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
-                                    
-                                    // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
                                     $baseAmount = round($tourTotalPrice) - $discountAmount;
-                                    
-                                    // Calculate tax amount using TaxHelper
                                     $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
                                     $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
-                                    
                                     $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
                                     $taxAmount = $taxResult['total_tax'];
-                                    $taxBreakdown = $taxResult['breakdown'];
                                     $finalAmount = $baseAmount + $taxAmount;
-                                    
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
                                     $totalPaid = 0;
                                     $hasPendingPayments = false;
-                                    
                                     if (is_array($paymentData) && !empty($paymentData)) {
                                         foreach ($paymentData as $payment) {
                                             if (isset($payment['status']) && $payment['status'] == 1) {
@@ -938,247 +1175,153 @@
                                     }
                                     $remainingAmount = $finalAmount - $totalPaid;
                                 @endphp
-                                
                                 @if(empty($paymentData))
-                                    <span class="badge bg-warning text-dark">
-                                        <i class="fas fa-exclamation-circle me-1"></i> Payment Not Started
-                                    </span>
+                                    <span class="payment-status-badge status-not-started" title="Payment not started"><i class="ri-alert-line"></i> Not Started</span>
                                 @elseif($hasPendingPayments && $totalPaid == 0)
-                                    <span class="badge bg-secondary text-white">
-                                        <i class="fas fa-clock me-1"></i> Pending Approval
-                                    </span>
+                                    <span class="payment-status-badge status-pending" title="Pending approval"><i class="ri-time-line"></i> Pending</span>
                                 @elseif($remainingAmount > 0)
-                                    <span class="badge bg-info text-white">
-                                        <i class="fas fa-money-bill-wave me-1"></i> Partial Payment 
-                                        @if($hasPendingPayments)
-                                            ({{ number_format($totalPaid, 2) }} Paid + Pending)
-                                        @else
-                                            ({{ number_format($totalPaid, 2) }} Paid)
-                                        @endif
-                                    </span>
+                                    <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
                                 @else
-                                    <span class="badge bg-success text-white">
-                                        <i class="fas fa-check-circle me-1"></i> Fully Paid ({{ number_format($totalPaid, 2) }})
-                                    </span>
+                                    <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
                                 @endif
-                            </td>                                                       
-                            <td>
+                            </td>
+                            <td class="align-top">
                                 <div class="d-flex flex-column">
                                     <span>{{ $tour->updated_at->format('D, M d, Y') }}</span>
                                     <small class="text-muted">{{ $tour->updated_at->diffForHumans() }}</small>
                                 </div>
                             </td>
-                            {{-- <td>
-                                 @if($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 3 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0)
-                                     <span class="badge bg-warning">
-                                         <i class="ri-time-line me-1"></i>Starting Soon
-                                     </span>
-                                 @elseif($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) < 0)
-                                     <span class="badge bg-danger">
-                                         <i class="ri-calendar-event-line me-1"></i>In Progress
-                                     </span>
-                                 @else
-                                     <span class="badge bg-success">
-                                         <i class="ri-check-double-line me-1"></i>On Hold
-                                     </span>
-                                 @endif
-                             </td> --}}
-                            {{-- <td>
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        Actions
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <a class="dropdown-item" href="{{ route('bookings.view-tour', $tour->tour_id) }}">
-                                                <i class="ri-eye-line me-2"></i> View Details
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item text-primary" href="#" onclick="makeDefinite('{{ $tour->tour_id }}')">
-                                                <i class="ri-arrow-right-line me-2"></i> Make Definite
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="generateVoucher('{{ $tour->tour_id }}')">
-                                                <i class="ri-file-text-line me-2"></i> Generate Voucher
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="sendConfirmation('{{ $tour->tour_id }}')">
-                                                <i class="ri-mail-send-line me-2"></i> Send Confirmation
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="sendItinerary('{{ $tour->tour_id }}')">
-                                                <i class="ri-map-line me-2"></i> Send Itinerary
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="modifyBooking('{{ $tour->tour_id }}')">
-                                                <i class="ri-edit-line me-2"></i> Modify Booking
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item text-danger" href="#" onclick="cancelConfirmed('{{ $tour->tour_id }}')">
-                                                <i class="ri-close-line me-2"></i> Cancel Booking
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </td> --}}
-                            <td>
-                                <div class="d-flex flex-column gap-2">
-                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
-                                       class="btn btn-outline-success btn-sm rounded-pill">
-                                        <i class="ri-pencil-line"></i> Edit
-                                    </a>
-                                    @endif
-                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-primary btn-sm rounded-pill">
-                                        <i class="ri-eye-line"></i> Audit Trail
-                                    </a>
-                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-secondary btn-sm rounded-pill"
-                                       target="_blank">
-                                        <i class="ri-file-download-line me-1"></i> Download Quotation
-                                    </a>
-                                    <a href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-info btn-sm rounded-pill"
-                                       target="_blank">
-                                        <i class="ri-mail-line me-1"></i> Preview Email Template
-                                    </a>
-                                    
-                                    @php
-                                        $all_ids = [11, 33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
-                                        $proformaInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
-                                            ->where('invoice_type', 'proforma')
-                                            ->whereNull('deleted_at')
-                                            ->first();
-                                        $finalInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
-                                            ->where('invoice_type', 'final')
-                                            ->whereNull('deleted_at')
-                                            ->first();
-                                    @endphp
-                                    
-                                    @if($finalInvoice)
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}" 
-                                           class="btn btn-outline-info btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Preview & Download Final Invoice (Price Breakup)">
-                                            <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
+                            <td class="col-actions align-top">
+                                @php
+                                    $all_ids = [11, 33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                    $proformaInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)->where('invoice_type', 'proforma')->whereNull('deleted_at')->first();
+                                    $finalInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)->where('invoice_type', 'final')->whereNull('deleted_at')->first();
+                                @endphp
+                                <div class="actions-icons-wrap">
+                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                        <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                           class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
+                                            <i class="ri-pencil-line"></i>
                                         </a>
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}" 
-                                           class="btn btn-outline-primary btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Preview & Download Final Invoice (Package Price Only)">
-                                            <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
+                                    @endif
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #64748b;" target="_blank" data-tooltip="Download Quotation">
+                                        <i class="ri-file-download-line"></i>
+                                    </a>
+                                    <a href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #0284c7;" target="_blank" data-tooltip="Preview Email">
+                                        <i class="ri-mail-line"></i>
+                                    </a>
+                                    @if($finalInvoice)
+                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}"
+                                           class="action-icon-badge" style="--action-color: #0369a1;" target="_blank" data-tooltip="Final Invoice (Full)">
+                                            <i class="ri-file-paper-2-line"></i>
+                                        </a>
+                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}"
+                                           class="action-icon-badge" style="--action-color: #7c3aed;" target="_blank" data-tooltip="Final Invoice (Price Only)">
+                                            <i class="ri-file-download-line"></i>
                                         </a>
                                     @elseif($proformaInvoice)
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}" 
-                                           class="btn btn-outline-info btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Preview & Download Proforma Invoice (Price Breakup)">
-                                            <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
+                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}"
+                                           class="action-icon-badge" style="--action-color: #0369a1;" target="_blank" data-tooltip="Proforma Invoice (Full)">
+                                            <i class="ri-file-paper-line"></i>
                                         </a>
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}" 
-                                           class="btn btn-outline-primary btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Preview & Download Proforma Invoice (Package Price Only)">
-                                            <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
+                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}"
+                                           class="action-icon-badge" style="--action-color: #7c3aed;" target="_blank" data-tooltip="Proforma Invoice (Price)">
+                                            <i class="ri-file-download-line"></i>
                                         </a>
                                         <form action="{{ route('invoices.convert-to-final', $proformaInvoice->invoice_id) }}" method="POST" class="d-inline">
                                             @csrf
-                                            <button type="submit" 
-                                                    class="btn btn-outline-warning btn-sm rounded-pill"
-                                                    title="Convert Proforma to Final Invoice"
-                                                    onclick="return confirm('Are you sure you want to convert this proforma invoice to final invoice? This action cannot be undone.');">
-                                                <i class="ri-file-edit-line me-1"></i> Convert to Final
+                                            <button type="submit" class="action-icon-badge" style="--action-color: #d97706;" data-tooltip="Convert to Final"
+                                                    onclick="return confirm('Convert this proforma invoice to final invoice? This action cannot be undone.');">
+                                                <i class="ri-file-edit-line"></i>
                                             </button>
                                         </form>
                                     @else
                                         <form action="{{ route('invoices.generate-final', $tour->tour_id) }}" method="POST" class="d-inline">
                                             @csrf
-                                            <button type="submit" 
-                                                    class="btn btn-outline-info btn-sm rounded-pill"
-                                                    title="Generate Final Invoice">
-                                                <i class="ri-file-add-line me-1"></i> Generate Invoice
+                                            <button type="submit" class="action-icon-badge" style="--action-color: #0891b2;" data-tooltip="Generate Invoice">
+                                                <i class="ri-file-add-line"></i>
                                             </button>
                                         </form>
                                     @endif
                                     @if(in_array(auth()->user()->role_id, $all_ids))
-                                    <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-success btn-sm rounded-pill"
-                                       onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;"
-                                       style="text-decoration:none; cursor:pointer; transition: all 0.2s ease;">
-                                        <i class="fas fa-calendar-alt"></i> View Itinerary
-                                    </a>
+                                        <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                           class="action-icon-badge" style="--action-color: #059669;" target="_blank" data-tooltip="View Itinerary"
+                                           onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">
+                                            <i class="ri-calendar-line"></i>
+                                        </a>
                                     @endif
-
-                                    <!-- add/remove services button -->
-                                    <!-- @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-warning btn-sm rounded-pill">
-                                        <i class="ri-settings-3-line"></i> Add/Remove Services
-                                    </a>
-                                    @endif -->
-
-                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-info btn-sm rounded-pill" 
-                                       title="Add guests for this tour">
-                                        <i class="ri-user-add-line me-1"></i> Add Guests
-                                    </a>
-                                    <button type="button" 
-                                            class="btn btn-outline-danger btn-sm rounded-pill" 
-                                            onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')">
-                                        <i class="ri-close-line"></i> Cancel
-                                    </button>
+                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                        <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}"
+                                           class="action-icon-badge" style="--action-color: #0284c7;" data-tooltip="Add Guests">
+                                            <i class="ri-user-add-line"></i>
+                                        </a>
+                                        <button type="button" class="action-icon-badge" style="--action-color: #dc3545;" data-tooltip="Cancel Booking"
+                                                onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')"
+                                                id="cancel-btn-{{ $tour->tour_id }}">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
                                     @endif
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
-                                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                            <i class="fas fa-history me-1"></i> Payment Details
+                                        <button type="button" class="action-icon-badge" style="--action-color: #0891b2;" data-tooltip="Payment Details"
+                                                data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
+                                            <i class="ri-history-line"></i>
                                         </button>
-                                        
                                         @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
-                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
-                                                    <i class="fas fa-plus-circle me-1"></i> Add Payment
+                                                <button type="button" class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Add Payment"
+                                                        data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}"
+                                                        onclick="checkPendingPayments({{ $tour->tour_id }})">
+                                                    <i class="ri-add-circle-line"></i>
                                                 </button>
                                             @endif
                                         @endif
-                                    @else  
+                                    @else
                                         @if(!empty($paymentData))
-                                            <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                                <i class="fas fa-history me-1"></i> Payment Details
+                                            <button type="button" class="action-icon-badge" style="--action-color: #0891b2;" data-tooltip="Payment Details"
+                                                    data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
+                                                <i class="ri-history-line"></i>
                                             </button>
                                         @endif
-
                                         @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
-                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
-                                                    <i class="fas fa-plus-circle me-1"></i> Add Payment
+                                                <button type="button" class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Add Payment"
+                                                        data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}"
+                                                        onclick="checkPendingPayments({{ $tour->tour_id }})">
+                                                    <i class="ri-add-circle-line"></i>
                                                 </button>
                                             @endif
                                         @endif
                                     @endif
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-created align-top">
                                 <div class="d-flex flex-column">
-                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
-                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
+                                    <span class="created-by-line">
+                                        <i class="ri-user-line"></i>
+                                        <span>{{ $tour->created_by_name ?? 'N/A' }}</span>
+                                    </span>
+                                    <span class="created-at-line">
+                                        <i class="ri-calendar-line"></i>
+                                        <span>{{ $tour->created_at->format('M d, Y') }}</span>
+                                    </span>
+                                    <span class="created-at-line">
+                                        <i class="ri-time-line"></i>
+                                        <span>{{ $tour->created_at->format('h:i A') }}</span>
+                                    </span>
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-auto-cancel align-top">
                                 <div class="d-flex flex-column">
                                     @if($tour->auto_cancel_date)
                                         <span class="fw-semibold">
-                                            <i class="fas fa-calendar-times text-warning me-1"></i>
-                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('D, M d, Y') }}
+                                            <i class="ri-calendar-close-line text-warning me-1"></i>
+                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('M d, Y') }}
                                         </span>
                                         <small class="text-muted">
                                             {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('h:i A') }}
