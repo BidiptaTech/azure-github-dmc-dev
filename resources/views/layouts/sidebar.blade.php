@@ -937,6 +937,7 @@
                             </div>
                         </a>
                     </li>
+                    
                     <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
                         <a href="{{ route('bookings.actual') }}" class="menu-link" title="Actual Bookings">
                             <div class="d-flex justify-content-between align-items-center">
@@ -991,6 +992,15 @@
                             <div data-i18n="Packages" class="menu-tooltip">
                                 <span class="menu-text-with-tooltip">Packages</span>
                                 <span class="tooltip-text">Packages</span>
+                            </div>
+                        </a>
+                    </li>
+                @endif
+                @if(in_array(auth()->user()->role_id, [34, 128, 131, 132, 134, 135, 137, 138]))
+                    <li class="menu-item @if(Request::is('bookings/today')) active @endif">
+                        <a href="{{ route('bookings.today') }}" class="menu-link" title="Trip Logs">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span data-i18n="Trip Logs">Trip Logs</span>
                             </div>
                         </a>
                     </li>
