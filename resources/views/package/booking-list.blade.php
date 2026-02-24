@@ -169,6 +169,18 @@
         word-wrap: break-word; 
         overflow-wrap: break-word; 
     }
+    #bookingsTable td.col-status {
+        white-space: normal;
+        overflow: visible;
+        word-break: break-word;
+    }
+    #bookingsTable td.col-status .badge {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        white-space: normal;
+        text-align: left;
+    }
     #bookingsTable td.col-created .created-by-line, 
     #bookingsTable td.col-created .created-at-line { 
         display: flex; 
@@ -296,6 +308,17 @@
     }
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { 
         right: 32px; 
+    }
+    .new-enq-filter-bar .status-filter-col #statusFilter {
+        white-space: normal;
+        line-height: 1.2;
+        height: auto;
+        min-height: 38px;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+    .new-enq-filter-bar .status-filter-col #statusFilter option {
+        white-space: normal;
     }
 
     .booking-status {
@@ -496,7 +519,7 @@
                     <label class="form-label mb-0 small text-muted">Search</label>
                     <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Booking ID, Travel Dates...">
                 </div>
-                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                <div class="col-12 col-sm-6 col-md-4 col-lg status-filter-col">
                     <label class="form-label mb-0 small text-muted">Status</label>
                     <select class="form-select form-select-sm" id="statusFilter">
                         <option value="">All Status</option>
@@ -639,7 +662,7 @@
                                 <td class="align-top">
                                     <small>{{ $travelDates }}</small>
                                 </td>
-                                <td>
+                                <td class="col-status">
                                     @php
                                         $statusClass = '';
                                         $statusIcon = '';

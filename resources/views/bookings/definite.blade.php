@@ -729,7 +729,7 @@
                             <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
                             <th class="th-tooltip" data-tooltip="Agent">Agent</th>
                             <th class="th-tooltip" data-tooltip="Manage Services">Services</th>
-                            <th class="th-tooltip" data-tooltip="Payment Status">Payment Status</th>
+                            <th class="th-tooltip" data-tooltip="Payment Status"> Status</th>
                             <th class="th-tooltip" data-tooltip="Confirmation Date">Confirmation Date</th>
                             <th class="th-tooltip" data-tooltip="Actions">Actions</th>
                             <th class="th-tooltip" data-tooltip="Created">Created</th>
@@ -1086,54 +1086,19 @@
                                     @endif
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    @if($tour->check_in_time)
-                                        <small><strong>Check-in:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('D, M d, Y') }}</small>
-                                    @endif
-                            
-                                    @if($tour->check_out_time)
-                                        <small><strong>Check-out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('D, M d, Y') }}</small>
-                                    @endif
-                            
-                                    @if($tour->check_in_time)
-                                        @php
-                                            $checkIn = \Carbon\Carbon::parse($tour->check_in_time);
-                                            $daysUntilTravel = floor(now()->floatDiffInDays($checkIn, false)); // Floor to get whole number
-                                        @endphp
-                            
-                                        @if($daysUntilTravel > 0)
-                                            <span class="badge bg-primary mt-1">{{ $daysUntilTravel }} days to go</span>
-                                        @elseif($daysUntilTravel === 0)
-                                            <span class="badge bg-success mt-1">Starting Today</span>
-                                        @else
-                                            <span class="badge bg-secondary mt-1">Started {{ abs($daysUntilTravel) }} days ago</span>
-                                        @endif
-                                    @endif
-                                </div>
-                            </td>
-                            <td>
-                                @if($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast())
-                                    <span class="badge bg-success">
-                                        <i class="ri-play-circle-line me-1"></i>Ready
-                                    </span>
-                                @elseif($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7)
-                                    <span class="badge bg-warning">
-                                        <i class="ri-time-line me-1"></i>Soon
-                                    </span>
-                                @else
-                                    <span class="badge bg-info">
-                                        <i class="ri-shield-check-line me-1"></i>Definite
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="col-payment-status">
-                                @php
+                            <td class="col-status">
+              <div class="status-wrap">
+        {{-- Execution Status --}}
+        <div class="badge status-execution 
+            @if($executionStatus === 'Ready') bg-success
+            @elseif($executionStatus === 'Soon') bg-warning
+            @else bg-info
+            @endif
+        ">
+            <i class="ri-play-circle-line me-1"></i>{{ $executionStatus }}
+        </div>
+
+        @php
                                     // Same payment calculation as before
                                     $tourTotalPrice = 0;
                                     foreach ($tour->booking as $booking) {
@@ -1175,6 +1140,7 @@
                                     }
                                     $remainingAmount = $finalAmount - $totalPaid;
                                 @endphp
+                                <div class="status-wrap">
                                 @if(empty($paymentData))
                                     <span class="payment-status-badge status-not-started" title="Payment not started"><i class="ri-alert-line"></i> Not Started</span>
                                 @elseif($hasPendingPayments && $totalPaid == 0)
@@ -1184,7 +1150,12 @@
                                 @else
                                     <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
                                 @endif
-                            </td>
+                                </div>
+    </div>
+</td>
+                          
+                           
+                          
                             <td class="align-top">
                                 <div class="d-flex flex-column">
                                     <span>{{ $tour->updated_at->format('D, M d, Y') }}</span>
@@ -1317,15 +1288,17 @@
                                 </div>
                             </td>
                             <td class="col-auto-cancel align-top">
-                                <div class="d-flex flex-column">
+                                <div class="d-flex flex-column ">
                                     @if($tour->auto_cancel_date)
-                                        <span class="fw-semibold">
+                                        <span class=" created-by-line d-flex">
                                             <i class="ri-calendar-close-line text-warning me-1"></i>
-                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('M d, Y') }}
+                                          <span > {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('M d, Y') }}</span>
                                         </span>
-                                        <small class="text-muted">
-                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('h:i A') }}
-                                        </small>
+                                        <span class=" created-at-line d-flex ">
+                                        <i class="ri-time-line"></i>
+
+                                            <span> {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('h:i A') }}</span>
+                                        </span>
                                     @else
                                         <span class="text-muted">N/A</span>
                                     @endif
@@ -26217,6 +26190,59 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             table.button('.buttons-print').trigger();
         });
     }
+
+    // Global tooltip for table headers and action/service icons - viewport-relative positioning
+    $(document).ready(function() {
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        }
+        // Table header: tooltip above the header (centered)
+        $(document).on('mouseenter', '#toursTable thead .th-tooltip', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || $(this).text();
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable thead .th-tooltip', function() {
+            $globalTooltip.hide();
+        });
+        // Action icons: tooltip above (centered)
+        $(document).on('mouseenter', '#toursTable .action-icon-badge', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || '';
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable .action-icon-badge', function() {
+            $globalTooltip.hide();
+        });
+        // Service icons: tooltip above (centered)
+        $(document).on('mouseenter', '#toursTable .service-icon-wrapper', function() {
+            var text = $(this).attr('data-tooltip') || $(this).find('.service-icon-tooltip').text();
+            if (!text) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(text);
+        });
+        $(document).on('mouseleave', '#toursTable .service-icon-wrapper', function() {
+            $globalTooltip.hide();
+        });
+    });
 
     // Hotel Mail Preview Function
     function openHotelMailPreview(tourId, hotelOrderIndex, bookingIndex) {
