@@ -189,7 +189,14 @@ class GuestController extends Controller
                 // Send credentials email with updated information
                 if ($existingGuest->email && $plainPassword) {
                     try {
-                        $this->sendGuestCredentialsEmail($existingGuest, $plainPassword);
+                        // Resolve display_id for the current tour context if provided
+                        $currentTourDisplayId = null;
+                        if ($request->tour_id) {
+                            $tourIdForEmail = is_numeric($request->tour_id) ? (int)$request->tour_id : $request->tour_id;
+                            $currentTourDisplayId = Tour::where('tour_id', $tourIdForEmail)->value('display_id');
+                        }
+
+                        $this->sendGuestCredentialsEmail($existingGuest, $plainPassword, $currentTourDisplayId);
                         Log::info('Credentials email sent to existing guest', [
                             'guest_id' => $existingGuest->guest_id,
                             'email' => $existingGuest->email
@@ -271,7 +278,14 @@ class GuestController extends Controller
             // Send credentials email if email is provided
             if ($guest->email && $plainPassword) {
                 try {
-                    $this->sendGuestCredentialsEmail($guest, $plainPassword);
+                    // Resolve display_id for the current tour context if available
+                    $currentTourDisplayId = null;
+                    if (!empty($tourIds)) {
+                        $tourIdForEmail = end($tourIds);
+                        $currentTourDisplayId = Tour::where('tour_id', $tourIdForEmail)->value('display_id');
+                    }
+
+                    $this->sendGuestCredentialsEmail($guest, $plainPassword, $currentTourDisplayId);
                 } catch (\Exception $e) {
                     Log::warning('Failed to send guest credentials email: ' . $e->getMessage());
                     // Don't fail the request if email sending fails
@@ -432,13 +446,16 @@ class GuestController extends Controller
 
     /**
      * Send guest credentials email
-     * This method sends a welcome email with login credentials to the newly created guest
+     * This method sends a welcome email with login credentials to the newly created guest.
+     * Optionally accepts the current tour display ID to avoid ambiguity when a guest
+     * is linked to multiple tours.
      * 
      * @param Guest $guest
      * @param string $plainPassword
+     * @param string|null $currentTourDisplayId
      * @return bool
      */
-    private function sendGuestCredentialsEmail(Guest $guest, string $plainPassword)
+    private function sendGuestCredentialsEmail(Guest $guest, string $plainPassword, ?string $currentTourDisplayId = null)
     {
         try {
             // Get company settings for branding
@@ -456,11 +473,18 @@ class GuestController extends Controller
             $dmcId = CommonHelper::getDmcId(auth()->user());
             $dmc = User::where('userId', $dmcId)->first();
             $dmcCompanyName = $dmc->company_name ?? null;
-            $tourDisplayId = null;
-            // Get display_id from tours table using numeric tour_id
-            if (!empty($guest->tour_id)) {
-                $tourDisplayId = Tour::where('tour_id', $guest->tour_id)
-                                    ->value('display_id');
+
+            // Prefer explicitly provided tour display ID (from the current context)
+            $tourDisplayId = $currentTourDisplayId;
+
+            // Fallback: derive display_id from guest->tour_id if not provided
+            if ($tourDisplayId === null && !empty($guest->tour_id)) {
+                $tourIdValue = $guest->tour_id;
+                // tour_id may be stored as an array of IDs
+                if (is_array($tourIdValue)) {
+                    $tourIdValue = end($tourIdValue);
+                }
+                $tourDisplayId = Tour::where('tour_id', $tourIdValue)->value('display_id');
             }
 
             // Prepare email data (use plain password for email, not the hashed one)
