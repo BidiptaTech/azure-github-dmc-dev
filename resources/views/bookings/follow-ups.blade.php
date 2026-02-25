@@ -1045,14 +1045,20 @@
                                 $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
                                 
                                 // Calculate total tour price from ALL bookings with status 1 or 3
+                                // Hotel: use pickup total only (itemPrice) - transport is added automatically, do NOT add transfer price
+                                // Other services: base price + transfer price + guide price
                                 $tourTotalPrice = 0;
                                 foreach ($tour->booking as $booking) {
                                     if (in_array($booking->status, [1, 3])) {
                                         $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                                         if (is_array($data)) {
+                                            $orderType = $booking->type ?? '';
                                             foreach ($data as $item) {
                                                 $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-                                                $transferPrice = isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0 ? (float) $item['transfer_options']['cost'] : 0;
+                                                $transferPrice = 0;
+                                                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                                                    $transferPrice = (float) $item['transfer_options']['cost'];
+                                                }
                                                 $guidePrice = 0;
                                                 if (isset($item['guide_options']) && is_array($item['guide_options'])) {
                                                     $gv = $item['guide_options']['total_price'] ?? $item['guide_options']['cost'] ?? $item['guide_options']['Cost'] ?? $item['guide_options']['sell'] ?? $item['guide_options']['Sell'] ?? 0;
@@ -1436,10 +1442,10 @@
                         @if(is_array($hotelData))
                             @foreach($hotelData as $booking)
                                 @php
-                                    $hotelPrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
-                                    $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
-                                    $guidePrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? $booking['guide_options']['total_price'] : 0;
-                                    $grandTotal = $hotelPrice + $transferPrice + $guidePrice;
+                                                // Hotel: use pickup total only - transport added automatically, do NOT add transfer
+                                                    $hotelPrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
+                                                    $guidePrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? $booking['guide_options']['total_price'] : 0;
+                                                    $grandTotal = $hotelPrice + $guidePrice;
                                 @endphp
                                 <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #74b9ff !important;">
                                     <!-- Compact Card Header -->

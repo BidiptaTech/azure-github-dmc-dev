@@ -1736,7 +1736,7 @@ class EditTourController extends Controller
      */
     public function updateTransport(Request $request, $orderId)
     {
-        $order = Order::findOrFail($orderId);
+        $order = Order::where('booking_id', $orderId)->firstOrFail();
         
         // First check if it's complete JSON replacement mode
         if (!empty($request->booking_data)) {
