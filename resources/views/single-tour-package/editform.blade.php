@@ -4602,6 +4602,22 @@
                                                 <div id="customerInformationSection" class="collapse">
                                                     <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
                                                         <div class="row g-2">
+                                                            <div class="col-md-2">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                                                <select 
+                                                                    class="form-select form-select-sm" 
+                                                                    id="customerSalutation" 
+                                                                    name="customer_salutation"
+                                                                    style="font-size: 0.85rem;"
+                                                                >
+                                                                    <option value="">Select</option>
+                                                                    <option value="Mr" {{ ($customer_info['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                                    <option value="Mrs" {{ ($customer_info['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                                    <option value="Ms" {{ ($customer_info['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                                    <option value="Miss" {{ ($customer_info['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                                    <option value="Dr" {{ ($customer_info['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                                </select>
+                                                            </div>
                                                             <div class="col-md-3">
                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
                                                                 <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" style="font-size: 0.85rem;">
@@ -4625,7 +4641,7 @@
                                                                     @endforeach
                                                                 </select>
                                                             </div>
-                                                            <div class="col-md-4">
+                                                            <div class="col-md-2">
                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
                                                                 <input type="tel" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}" style="font-size: 0.85rem;">
                                                             </div>
@@ -4649,6 +4665,22 @@
                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
                                                                 <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
                                                             </div>
+                                                            @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                            <div class="col-md-6">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">
+                                                                    <i class="ri-lock-password-line me-1"></i>App Password
+                                                                </label>
+                                                                <div class="d-flex gap-1">
+                                                                    <input type="password" class="form-control form-control-sm" id="customerAppPassword" name="customer_app_password" placeholder="Enter app password" autocomplete="new-password" style="font-size: 0.85rem; flex: 1;">
+                                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                                        <i class="ri-eye-off-line"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                                        <i class="ri-key-line me-1"></i>Generate
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                 </div>
@@ -4696,10 +4728,22 @@
                                                                         </div>
                                                                         <div class="card-body" style="margin-top:10px">
                                                                             <div class="row g-3">
-                                                                                <div class="col-md-3">
-                                                                                    <label class="form-label fw-semibold">Salutation</label>
-                                                                                    <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
-                                                                                </div>
+                                                                            <div class="col-md-2">
+                                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                                                                <select 
+                                                                                    class="form-select form-select-sm" 
+                                                                                    id="customerSalutation" 
+                                                                                    name="customer_salutation"
+                                                                                    style="font-size: 0.85rem;"
+                                                                                >
+                                                                                    <option value="">Select</option>
+                                                                                    <option value="Mr" {{ ($customer_info['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                                                    <option value="Mrs" {{ ($customer_info['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                                                    <option value="Ms" {{ ($customer_info['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                                                    <option value="Miss" {{ ($customer_info['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                                                    <option value="Dr" {{ ($customer_info['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                                                </select>
+                                                                            </div>
                                                                                 <div class="col-md-3">
                                                                                     <label class="form-label fw-semibold">Name</label>
                                                                                     <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
@@ -4716,6 +4760,24 @@
                                                                                     <label class="form-label fw-semibold">Contact No.</label>
                                                                                     <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
                                                                                 </div>
+                                                                                <div class="col-md-4">
+                                                                                    <label class="form-label fw-semibold">Email</label>
+                                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
+                                                                                </div>
+                                                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                                                <div class="col-md-4">
+                                                                                    <label class="form-label fw-semibold"><i class="ri-lock-password-line me-1"></i>App Password</label>
+                                                                                    <div class="d-flex gap-1">
+                                                                                        <input type="password" class="form-control guest-app-password" name="additional_guests[{{ $index }}][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
+                                                                                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                                                            <i class="ri-eye-off-line"></i>
+                                                                                        </button>
+                                                                                        <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                                                            <i class="ri-key-line me-1"></i>Generate
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                                @endif
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -4806,7 +4868,14 @@
                                             <div class="row g-3">
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold">Salutation</label>
-                                                    <input type="text" class="form-control guest-salutation" name="additional_guests[${newIndex}][salutation]" placeholder="Mr/Mrs/Ms">
+                                                    <select class="form-control guest-salutation" name="additional_guests[${newIndex}][salutation]">
+                                                        <option value="">Select</option>
+                                                        <option value="Mr">Mr</option>
+                                                        <option value="Mrs">Mrs</option>
+                                                        <option value="Ms">Ms</option>
+                                                        <option value="Miss">Miss</option>
+                                                        <option value="Dr">Dr</option>
+                                                    </select>
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold">Name</label>
@@ -4824,6 +4893,24 @@
                                                     <label class="form-label fw-semibold">Contact No.</label>
                                                     <input type="text" class="form-control guest-contact-no" name="additional_guests[${newIndex}][contact_no]" placeholder="Enter contact number">
                                                 </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">Email</label>
+                                                    <input type="email" class="form-control guest-email" name="additional_guests[${newIndex}][email]" placeholder="Enter email">
+                                                </div>
+                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold"><i class="ri-lock-password-line me-1"></i>App Password</label>
+                                                    <div class="d-flex gap-1">
+                                                        <input type="password" class="form-control guest-app-password" name="additional_guests[${newIndex}][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
+                                                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                            <i class="ri-eye-off-line"></i>
+                                                        </button>
+                                                        <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                            <i class="ri-key-line me-1"></i>Generate
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                @endif
                                             </div>
                                         </div>
                                     `;
@@ -4898,6 +4985,50 @@
                                 $(document).ready(function() {
                                     updateGuestCount();
                                 });
+
+                                // Generate random password (10 chars: uppercase + lowercase + digits + special)
+                                function generateRandomPassword() {
+                                    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                                    const lower = 'abcdefghijklmnopqrstuvwxyz';
+                                    const digits = '0123456789';
+                                    const special = '!@#$%&*';
+                                    const all = upper + lower + digits + special;
+                                    // Ensure at least one of each type
+                                    let password = upper[Math.floor(Math.random() * upper.length)]
+                                                 + lower[Math.floor(Math.random() * lower.length)]
+                                                 + digits[Math.floor(Math.random() * digits.length)]
+                                                 + special[Math.floor(Math.random() * special.length)];
+                                    for (let i = 4; i < 10; i++) {
+                                        password += all[Math.floor(Math.random() * all.length)];
+                                    }
+                                    // Shuffle
+                                    return password.split('').sort(() => Math.random() - 0.5).join('');
+                                }
+
+                                // Toggle password visibility
+                                function togglePasswordVisibility(btn) {
+                                    const container = btn.parentElement;
+                                    const input = container.querySelector('input[type="password"], input[type="text"]');
+                                    const icon = btn.querySelector('i');
+                                    if (input.type === 'password') {
+                                        input.type = 'text';
+                                        icon.className = 'ri-eye-line';
+                                    } else {
+                                        input.type = 'password';
+                                        icon.className = 'ri-eye-off-line';
+                                    }
+                                }
+
+                                // Generate password and populate the input
+                                function generatePasswordFor(btn) {
+                                    const container = btn.parentElement;
+                                    const input = container.querySelector('input');
+                                    const password = generateRandomPassword();
+                                    input.value = password;
+                                    input.type = 'text'; // Show generated password
+                                    const eyeBtn = container.querySelector('.btn-outline-secondary i');
+                                    if (eyeBtn) eyeBtn.className = 'ri-eye-line';
+                                }
                             </script>
                         </div>
                     </div>
@@ -23034,6 +23165,7 @@
 
         // Collect main guest data
         const mainGuestData = {
+            salutation: document.getElementById('customerSalutation')?.value || '',
             full_name: document.getElementById('customerFullName')?.value || '',
             email: document.getElementById('customerEmail')?.value || '',
             country_code: document.getElementById('customerCountryCode')?.value || '',
@@ -23042,7 +23174,8 @@
             address2: document.getElementById('customerAddress2')?.value || '',
             state: document.getElementById('customerState')?.value || '',
             zip: document.getElementById('customerZip')?.value || '',
-            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
+            special_requests: document.getElementById('customerSpecialRequests')?.value || '',
+            app_password: document.getElementById('customerAppPassword')?.value || ''
         };
 
         // Collect additional guests data from editable fields
@@ -23052,9 +23185,11 @@
             const guest = {
                 salutation: card.querySelector('.guest-salutation')?.value || '',
                 name: card.querySelector('.guest-name')?.value || '',
+                email: card.querySelector('.guest-email')?.value || '',
                 passport_no: card.querySelector('.guest-passport-no')?.value || '',
                 passport_exp: card.querySelector('.guest-passport-exp')?.value || '',
                 contact_no: card.querySelector('.guest-contact-no')?.value || '',
+                app_password: card.querySelector('.guest-app-password')?.value || '',
             };
             // Only add if at least name is provided
             if (guest.name.trim() !== '') {
