@@ -10481,7 +10481,6 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
         
         // Load the restaurant content
         loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, autoCancelDate);
-        
     })
     .catch(error => {
         console.error('Error creating individual restaurant modal:', error);
@@ -11560,7 +11559,8 @@ window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, booking
                     Number(fullData?.child_count ?? fullData?.childCount ?? 0)
                 ],
                 p: Number(fullData?.total_price ?? fullData?.totalPrice ?? restaurantData?.totalPrice ?? 0),
-                ref: safeStr(fullData?.reference_id || restaurantData?.reference_id || '', 40)
+                ref: safeStr(fullData?.reference_id || restaurantData?.reference_id || '', 40),
+                dmc: restaurantData?.dmc?.company_name,
             };
 
             var qrContent = JSON.stringify(qrPayload);
@@ -25095,10 +25095,11 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
             return response.json();
         })
         .then(data => {
-            console.log('Server response data:', data);
+            console.log('Server response data:', data.data.dmc);
             if (data.success && data.data && data.data.restaurant_booking) {
                 const restaurantBooking = data.data.restaurant_booking;
                 const restaurantData = {
+                    dmc: data.data.dmc,
                     booking_id: restaurantBooking.booking_id,
                     is_approve: restaurantBooking.is_approve || false,
                     reference_id: restaurantBooking.reference_id || null,
@@ -25132,67 +25133,13 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
         })
         .catch(error => {
             console.error('❌ Error fetching restaurant data from server:', error);
-            console.log('⚠️ Using fallback restaurant data');
-            
-            // Enhanced fallback data that varies based on booking index
-            const fallbackRestaurantNames = ['Cafe Delight', 'Restaurant Paradise', 'Golden Spoon', 'Ocean View Dining'];
-            const fallbackMealTypes = ['Dinner', 'Lunch', 'Breakfast', 'Brunch'];
-            const fallbackTimes = ['6:30 PM', '12:30 PM', '8:00 AM', '10:30 AM'];
-            
-            const fallbackData = {
-                booking_id: null,
-                restaurantDetails: {
-                    restaurant_name: fallbackRestaurantNames[bookingIndex] || `Restaurant ${bookingIndex + 1}`,
-                    meal_type: fallbackMealTypes[bookingIndex] || 'Meal',
-                    meal_specific_type: 'Set Menu',
-                    adult_count: 4,
-                    child_count: 0,
-                    booking_date: '2025-09-11',
-                    visit_time: fallbackTimes[bookingIndex] || '6:30 PM'
-                },
-                totalPrice: 105.00 + (bookingIndex * 25), // Vary price too
-                // Include full restaurant details with meal descriptions
-                restaurant_details: {
-                    fullName: 'dh',
-                    email: 'coactivesolutions456@gmail.com',
-                    phone: '01234567890',
-                    countryCode: null,
-                    address1: 'bankura',
-                    address2: null,
-                    state: 'wb',
-                    zip: '722207',
-                    specialRequests: null,
-                    bookingDate: '2025-09-11',
-                    visitTime: fallbackTimes[bookingIndex] || '6:30 PM',
-                    adultCount: 4,
-                    childCount: 0,
-                    restaurantId: 30,
-                    restaurantName: fallbackRestaurantNames[bookingIndex] || `Restaurant ${bookingIndex + 1}`,
-                    mealType: fallbackMealTypes[bookingIndex] || 'dinner',
-                    mealSpecificType: 'Set Menu',
-                    MealDescription: [
-                        {
-                            item_name: 'Menu Item',
-                            name: 'Premium dinner with special sauce',
-                            price: 35,
-                            meal_id: 29,
-                            category: 'Alcoholic',
-                            item_type: 'Veg',
-                            quantity: 3
-                        }
-                    ],
-                    totalPrice: 105.00 + (bookingIndex * 25),
-                    mealPrice: 105.00 + (bookingIndex * 25),
-                    transport: null,
-                    transportPrice: 0,
-                    priceTypes: ['dmc'],
-                    bookingType: 'enquiry',
-                    dmc_id: 4
-                }
-            };
-            
-            console.log('📋 Using fallback data for booking index', bookingIndex, ':', fallbackData);
-            resolve(fallbackData);
+
+            // Reject instead of resolving fake data
+            reject({
+                success: false,
+                message: 'Failed to fetch restaurant data',
+                error: error.message
+            });
         });
     });
 }
