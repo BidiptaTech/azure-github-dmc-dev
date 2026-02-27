@@ -2464,6 +2464,14 @@
                             </label>
                             <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number">
                         </div>
+                    </div>
+
+                    <!-- Row 5: Email (optional) -->
+                    <div class="row g-2 mb-1">
+                        <div class="col-12">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Email</label>
+                            <input type="email" class="form-control form-control-sm" id="customerEmail" name="email" placeholder="Optional" autocomplete="email" style="font-size: 10px;">
+                        </div>
                     </div>                    
 
                 </div>

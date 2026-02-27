@@ -1,4 +1,4 @@
-    @extends('layouts.layout')
+@extends('layouts.layout')
 @section('title', isset($tour) ? 'Edit Tour Enquiry - ' . ($tour->display_id ?? '') : 'Enquiry Pro')
 @extends('layouts.datatablecss')
 
@@ -1019,6 +1019,7 @@
             // Customer info from orders JSON (via initialData)
             customer_name: '{{ $initialData['customer_name'] ?? '' }}',
             phone: '{{ $initialData['contact_number'] ?? '' }}',
+            email: '{{ $initialData['email'] ?? '' }}',
             salutation: '{{ $initialData['salutation'] ?? 'Mr' }}',
             adults: {{ $tour->adult ?? 2 }},
             children: {{ $tour->child ?? 0 }},
@@ -1199,6 +1200,10 @@
                     <div class="col-auto d-flex align-items-center">
                         <span class="detail-label me-1" style="font-size: 9px;">Contact:</span>
                         <input type="text" class="form-control form-control-sm" value="{{ $initialData['contact_number'] ?? '' }}" id="contactNumberInput" placeholder="Opt" style="font-size: 9px; width: 85px; padding: 1px 3px;">
+                    </div>
+                    <div class="col-auto d-flex align-items-center">
+                        <span class="detail-label me-1" style="font-size: 9px;">Email:</span>
+                        <input type="email" class="form-control form-control-sm" value="{{ $initialData['email'] ?? '' }}" id="emailInput" placeholder="Opt" style="font-size: 9px; width: 120px; padding: 1px 3px;">
                     </div>
                     <div class="col-auto d-flex align-items-center">
                         <span class="detail-label me-1" style="font-size: 9px;">Agency:</span>
@@ -8403,12 +8408,18 @@
         // Load entry port (Arrival)
         ordersByType.entry_port.forEach(order => {
             try {
+                // Use base price for display (same as create form - not totalPrice)
+                const basePrice = parseFloat(order.basePrice || order.base_price || 0);
+                const costVal = parseFloat(order.cost || 0);
+                const sellVal = parseFloat(order.price || order.sell || 0);
+                const displayBase = basePrice > 0 ? basePrice : (costVal > 0 ? costVal : sellVal);
                 const arrivalData = {
                     id: generateId('arrival'),
                     orderId: order.id || order.order_id,
                     bookingId: order.booking_id,
                     type: 'Arrival',
-                    dateTime: order.date || order.bookingDate || '',
+                    // Preserve exact stored datetime if available
+                    dateTime: order.dateTime || order.date_time || order.date || order.bookingDate || '',
                     portId: order.port_id || '',
                     portName: order.port_name || order.pickup || '',
                     flightNo: order.flightNumber || order.flight_number || '',
@@ -8421,8 +8432,12 @@
                     adults: parseInt(order.adults || order.adult || 0),
                     child: parseInt(order.children || order.child || 0),
                     infant: parseInt(order.infants || order.infant || 0),
-                    cost: parseFloat(order.cost || 0),
-                    sell: parseFloat(order.price || order.sell || 0),
+                    cost: displayBase,
+                    sell: displayBase,
+                    adultCost: displayBase,
+                    adultSell: displayBase,
+                    childCost: displayBase,
+                    childSell: displayBase,
                     accommodationIndex: null
                 };
                 arrivalDepartureList.push(arrivalData);
@@ -8434,12 +8449,18 @@
         // Load exit port (Departure)
         ordersByType.exit_port.forEach(order => {
             try {
+                // Use base price for display (same as create form - not totalPrice)
+                const basePrice = parseFloat(order.basePrice || order.base_price || 0);
+                const costVal = parseFloat(order.cost || 0);
+                const sellVal = parseFloat(order.price || order.sell || 0);
+                const displayBase = basePrice > 0 ? basePrice : (costVal > 0 ? costVal : sellVal);
                 const departureData = {
                     id: generateId('departure'),
                     orderId: order.id || order.order_id,
                     bookingId: order.booking_id,
                     type: 'Departure',
-                    dateTime: order.date || order.bookingDate || '',
+                    // Preserve exact stored datetime if available
+                    dateTime: order.dateTime || order.date_time || order.date || order.bookingDate || '',
                     portId: order.port_id || '',
                     portName: order.port_name || order.dropoff || '',
                     flightNo: order.flightNumber || order.flight_number || '',
@@ -8452,8 +8473,12 @@
                     adults: parseInt(order.adults || order.adult || 0),
                     child: parseInt(order.children || order.child || 0),
                     infant: parseInt(order.infants || order.infant || 0),
-                    cost: parseFloat(order.cost || 0),
-                    sell: parseFloat(order.price || order.sell || 0),
+                    cost: displayBase,
+                    sell: displayBase,
+                    adultCost: displayBase,
+                    adultSell: displayBase,
+                    childCost: displayBase,
+                    childSell: displayBase,
                     accommodationIndex: null
                 };
                 arrivalDepartureList.push(departureData);
@@ -8472,7 +8497,8 @@
                     destination: order.destination || '',
                     attractionId: order.attraction_id || '',
                     attractionName: order.attraction_name || order.tour_activity || '',
-                    dateTime: order.date || order.bookingDate || '',
+                    // Prefer stored datetime (with time) when present
+                    dateTime: order.dateTime || order.date_time || order.date || order.bookingDate || '',
                     pte: order.pte === 1 || order.pte === true || order.pte === 'yes',
                     adultsQty: parseInt(order.adults || order.adult || 0),
                     adultCost: parseFloat(order.adult_cost || order.cost || 0),
@@ -8501,7 +8527,8 @@
                     bookingId: order.booking_id,
                     destination: order.destination || '',
                     tourName: order.tour_activity || order.attraction_name || '',
-                    dateTime: order.date || order.bookingDate || '',
+                    // Preserve exact stored datetime if available
+                    dateTime: order.dateTime || order.date_time || order.date || order.bookingDate || '',
                     guideId: order.guide_id || '',
                     guideName: order.guide_name || '',
                     language: order.language || order.languages || '',
@@ -8521,11 +8548,16 @@
         // Load transfers
         ordersByType.local_transport.forEach(order => {
             try {
+                const basePrice = parseFloat(order.basePrice || order.base_price || 0);
+                const costVal = parseFloat(order.cost || 0);
+                const sellVal = parseFloat(order.price || order.sell || 0);
+                const displayBase = basePrice > 0 ? basePrice : (costVal > 0 ? costVal : sellVal);
                 const transferData = {
                     id: generateId('transfer'),
                     orderId: order.id || order.order_id,
                     bookingId: order.booking_id,
-                    dateTime: order.date || order.bookingDate || order.pickupdate || '',
+                    // Prefer stored datetime (with time) when present
+                    dateTime: order.dateTime || order.date_time || order.date || order.bookingDate || order.pickupdate || '',
                     pickup: order.pickup || order.pickupLocation || '',
                     dropoff: order.dropoff || order.dropoffLocation || '',
                     vehicleId: order.vehicle_id || '',
@@ -8535,8 +8567,9 @@
                     adults: parseInt(order.adults || order.adult || 0),
                     child: parseInt(order.children || order.child || 0),
                     infant: parseInt(order.infants || order.infant || 0),
-                    cost: parseFloat(order.cost || 0),
-                    sell: parseFloat(order.price || order.sell || 0)
+                    cost: displayBase,
+                    sell: displayBase,
+                    basePrice: displayBase
                 };
                 transferList.push(transferData);
             } catch (e) {
@@ -8551,7 +8584,8 @@
                     id: generateId('meal'),
                     orderId: order.id || order.order_id,
                     bookingId: order.booking_id,
-                    dateTime: order.date || order.bookingDate || '',
+                    // Prefer stored datetime (with time) when present
+                    dateTime: order.dateTime || order.date_time || order.date || order.bookingDate || '',
                     restaurantId: order.restaurant_id || '',
                     restaurantName: order.restaurant_name || '',
                     mealType: order.meal_type || order.mealType || 'Lunch',
@@ -20517,14 +20551,13 @@
                 ? `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)">`
                 : `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)" style="opacity: 0.7;">`;
             
-            // Display direct cost/sell values - NO multiplier for bothway
-            // The stored cost/sell already represents the total price for this transfer
+            // Display cost/sell: use base price (same as create form - shared/private oneway/both-way, not × pax)
+            // Prefer basePrice/base_price from loaded JSON so edit matches create form
             const storedSell = parseFloat(transfer.sell || 0);
             const storedCost = parseFloat(transfer.cost || 0);
-            
-            // Use direct values without multiplier
-            let displayCost = storedCost;
-            let displaySell = storedSell > 0 ? storedSell : storedCost;
+            const storedBase = parseFloat(transfer.basePrice || transfer.base_price || 0);
+            let displayCost = storedBase > 0 ? storedBase : storedCost;
+            let displaySell = storedBase > 0 ? storedBase : (storedSell > 0 ? storedSell : storedCost);
             
             // Get current type and way for dropdowns
             const currentType = transfer.type || 'S';
@@ -21519,10 +21552,8 @@
         }
     }
     
-    // Calculate transfer price based on type and way
+    // Calculate transfer price based on type and way (UI price only)
     function calculateTransferPrice(zonePrice, type, way, adults, child, vehicleOption = null) {
-        const totalPax = Math.max(1, (parseInt(adults) || 0) + (parseInt(child) || 0));
-        
         // Get zone prices
         let zonePrivatePrice = zonePrice.private_price || 0;
         let zoneSharedPrice = zonePrice.shared_price || 0;
@@ -21532,14 +21563,14 @@
         // User must either: 1) Add zone mapping in settings, or 2) Manually enter prices
         
         // Calculate base price based on type
-        // Shared: per person price, Private: per vehicle price
+        // Shared: per person price (per way), Private: per vehicle price (per way)
         let basePrice = 0;
         
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared: per person price
+            // Shared: per person price (do NOT multiply by pax here)
             basePrice = zoneSharedPrice || 0;
         } else {
-            // Private: per vehicle price
+            // Private: fixed per-vehicle price
             basePrice = zonePrivatePrice || 0;
         }
         
@@ -21558,7 +21589,7 @@
             basePrice: basePrice,
             sharedPrice: zoneSharedPrice,
             privatePrice: zonePrivatePrice,
-            totalPax: totalPax
+            totalPax: Math.max(1, (parseInt(adults) || 0) + (parseInt(child) || 0))
         };
     }
     
@@ -23335,7 +23366,7 @@
     function getCustomerInfo() {
         return {
             fullName: document.getElementById('customerNameInput')?.value || "",
-            email: "",
+            email: document.getElementById('emailInput')?.value || "",
             phone: document.getElementById('contactNumberInput')?.value || "",
             countryCode: "",
             address1: "",
@@ -23469,8 +23500,10 @@
                     adultSell: parseFloat(item.adultSell) || 0,
                     childSell: parseFloat(item.childSell) || 0,
                     infantSell: parseFloat(item.infantSell) || 0,
-                    cost: parseFloat(item.cost) || 0,
-                    sell: parseFloat(item.sell) || 0,
+                    cost: parseFloat(item.adultCost || item.cost) || 0,
+                    sell: parseFloat(item.adultSell || item.sell) || 0,
+                    basePrice: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
+                    base_price: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
                     totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
                     Tax: 0,
                     distance: 0,
@@ -23619,8 +23652,10 @@
                     adultSell: parseFloat(item.adultSell) || 0,
                     childSell: parseFloat(item.childSell) || 0,
                     infantSell: parseFloat(item.infantSell) || 0,
-                    cost: parseFloat(item.cost) || 0,
-                    sell: parseFloat(item.sell) || 0,
+                    cost: parseFloat(item.adultCost || item.cost) || 0,
+                    sell: parseFloat(item.adultSell || item.sell) || 0,
+                    basePrice: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
+                    base_price: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
                     totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
                     Tax: 0,
                     distance: 0,
@@ -23863,27 +23898,40 @@
                 },
                 
                 // Transfer options
-                transfer_options: hotelTransferData ? {
-                    transfer_required: true,
-                    type: hotelTransferData.type || linkedTransfer?.type || "Private",
-                    way: hotelTransferData.way || linkedTransfer?.way || "One Way",
-                    vehicle_id: hotelTransferData.vehicleId || linkedTransfer?.vehicleId || "",
-                    vehicle_details: (hotelTransferData.vehicleId || linkedTransfer?.vehicleId) ? {
+                transfer_options: hotelTransferData ? (() => {
+                    const type = hotelTransferData.type || linkedTransfer?.type || "P";
+                    const way = hotelTransferData.way || linkedTransfer?.way || "one-way";
+                    const baseCost = hotelTransferData.cost ?? linkedTransfer?.cost ?? parseFloat(linkedTransfer?.sell) ?? 0;
+                    const baseSell = hotelTransferData.sell ?? linkedTransfer?.sell ?? hotelTransferData.cost ?? linkedTransfer?.cost ?? 0;
+                    const basePrice = parseFloat(baseSell) || parseFloat(baseCost) || 0;
+                    const adults = parseInt(hotelTransferData.adults ?? linkedTransfer?.adults ?? 0) || 0;
+                    const child = parseInt(hotelTransferData.child ?? linkedTransfer?.child ?? 0) || 0;
+                    const totalPax = Math.max(1, adults + child);
+                    const isShared = (String(type).toLowerCase() === 's' || String(type).toLowerCase() === 'shared' || String(type).toLowerCase() === 'sic');
+                    const totalPrice = isShared ? (basePrice * totalPax) : basePrice;
+                    return {
+                        transfer_required: true,
+                        type: type,
+                        way: way,
                         vehicle_id: hotelTransferData.vehicleId || linkedTransfer?.vehicleId || "",
-                        vehicle_name: hotelTransferData.vehicleName || linkedTransfer?.vehicleName || "",
-                        vehicle_type: hotelTransferData.vehicleType || linkedTransfer?.vehicleType || "",
-                        seating_capacity: linkedTransfer?.seatingCapacity || linkedTransfer?.capacity || "",
-                        private_price: linkedTransfer?.privatePrice || "0.00",
-                        shared_price: linkedTransfer?.sharedPrice || "0.00"
-                    } : null,
-                    adults: hotelTransferData.adults || linkedTransfer?.adults || 0,
-                    child: hotelTransferData.child || linkedTransfer?.child || 0,
-                    cost: hotelTransferData.cost || linkedTransfer?.cost || parseFloat(linkedTransfer?.sell) || 0,
-                    sell: hotelTransferData.sell || linkedTransfer?.sell || hotelTransferData.cost || linkedTransfer?.cost || 0,
-                    destination_id: linkedTransfer?.destinationId || "",
-                    pickup_location_name: linkedTransfer?.pickup || "",
-                    destination_name: linkedTransfer?.dropoff || ""
-                } : null,
+                        vehicle_details: (hotelTransferData.vehicleId || linkedTransfer?.vehicleId) ? {
+                            vehicle_id: hotelTransferData.vehicleId || linkedTransfer?.vehicleId || "",
+                            vehicle_name: hotelTransferData.vehicleName || linkedTransfer?.vehicleName || "",
+                            vehicle_type: hotelTransferData.vehicleType || linkedTransfer?.vehicleType || "",
+                            seating_capacity: linkedTransfer?.seatingCapacity || linkedTransfer?.capacity || "",
+                            private_price: linkedTransfer?.privatePrice || "0.00",
+                            shared_price: linkedTransfer?.sharedPrice || "0.00"
+                        } : null,
+                        adults: adults,
+                        child: child,
+                        cost: basePrice,
+                        sell: basePrice,
+                        totalPrice: totalPrice,
+                        destination_id: linkedTransfer?.destinationId || "",
+                        pickup_location_name: linkedTransfer?.pickup || "",
+                        destination_name: linkedTransfer?.dropoff || ""
+                    };
+                })() : null,
                 
                 // Tour ID
                 tour_id: hotel.tour_id || defaultTourId || null,
@@ -23988,21 +24036,32 @@
             if (tour.transferId) {
                 const linkedTransfer = transferList.find(t => t.id === tour.transferId);
                 if (linkedTransfer) {
-                    // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
-                    // The pickup and dropoff fields are already correctly set based on checkbox state
                     const pickupName = linkedTransfer.pickup || '';
                     const dropoffName = linkedTransfer.dropoff || '';
-                    
+                    const baseCost = parseFloat(linkedTransfer.cost) || 0;
+                    const baseSell = parseFloat(linkedTransfer.sell) || 0;
+                    const basePrice = baseSell || baseCost;
+                    const adults = parseInt(linkedTransfer.adults || linkedTransfer.adultsQty || 0) || 0;
+                    const child = parseInt(linkedTransfer.child || linkedTransfer.childQty || 0) || 0;
+                    const totalPax = Math.max(1, adults + child);
+                    const typeVal = String(linkedTransfer.type || '').toLowerCase();
+                    const isShared = (typeVal === 's' || typeVal === 'shared' || typeVal === 'sic');
+                    const transferTotalPrice = isShared ? (basePrice * totalPax) : basePrice;
                     tourData.transfer_options = {
                         transfer_required: true,
                         type: linkedTransfer.type === 'P' ? 'Private' : (linkedTransfer.type === 'S' ? 'Shared' : 'Private'),
+                        way: linkedTransfer.way || 'one-way',
                         vehicle_id: linkedTransfer.vehicleId || '',
                         vehicle_details: {
                             vehicle_name: linkedTransfer.vehicleName || '',
                             vehicle_type: linkedTransfer.vehicleType || '',
                             seating_capacity: linkedTransfer.capacity || 0
                         },
-                        cost: parseFloat(linkedTransfer.sell) || 0,
+                        cost: basePrice,
+                        sell: basePrice,
+                        totalPrice: transferTotalPrice,
+                        adults: adults,
+                        child: child,
                         pickup_location_name: pickupName,
                         destination_name: dropoffName
                     };
@@ -24018,10 +24077,11 @@
                         pickup: pickupName,
                         dropoff: dropoffName,
                         isDestinationPickup: linkedTransfer.isDestinationPickup || false,
-                        cost: linkedTransfer.cost,
-                        sell: linkedTransfer.sell,
-                        adults: linkedTransfer.adults,
-                        child: linkedTransfer.child
+                        cost: basePrice,
+                        sell: basePrice,
+                        totalPrice: transferTotalPrice,
+                        adults: adults,
+                        child: child
                     };
                 }
             }
@@ -24148,24 +24208,32 @@
             if (meal.transferId) {
                 const linkedTransfer = transferList.find(t => t.id === meal.transferId);
                 if (linkedTransfer) {
-                    // Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
-                    // The pickup and dropoff fields are already set correctly based on checkbox state
                     const pickupName = linkedTransfer.pickup || '';
                     const dropoffName = linkedTransfer.dropoff || '';
-                    
+                    const baseCost = parseFloat(linkedTransfer.cost) || 0;
+                    const baseSell = parseFloat(linkedTransfer.sell) || 0;
+                    const basePrice = baseSell || baseCost;
+                    const adults = parseInt(linkedTransfer.adults || linkedTransfer.adultsQty || 0) || 0;
+                    const child = parseInt(linkedTransfer.child || linkedTransfer.childQty || 0) || 0;
+                    const totalPax = Math.max(1, adults + child);
+                    const typeVal = String(linkedTransfer.type || '').toLowerCase();
+                    const isShared = (typeVal === 's' || typeVal === 'shared' || typeVal === 'sic');
+                    const transferTotalPrice = isShared ? (basePrice * totalPax) : basePrice;
                     mealData.transfer_options = {
                         transfer_required: true,
                         type: linkedTransfer.type === 'P' ? 'Private' : (linkedTransfer.type === 'S' ? 'Shared' : 'Private'),
+                        way: linkedTransfer.way || 'one-way',
                         vehicle_id: linkedTransfer.vehicleId || '',
                         vehicle_details: {
                             vehicle_name: linkedTransfer.vehicleName || '',
                             vehicle_type: linkedTransfer.vehicleType || '',
                             seating_capacity: linkedTransfer.capacity || 0
                         },
-                        cost: parseFloat(linkedTransfer.cost) || 0,
-                        sell: parseFloat(linkedTransfer.sell) || 0,
-                        adults: parseInt(linkedTransfer.adults || linkedTransfer.adultsQty) || 0,
-                        child: parseInt(linkedTransfer.child || linkedTransfer.childQty) || 0,
+                        cost: basePrice,
+                        sell: basePrice,
+                        totalPrice: transferTotalPrice,
+                        adults: adults,
+                        child: child,
                         pickup_location_name: pickupName,
                         destination_name: dropoffName
                     };
@@ -24181,10 +24249,11 @@
                         pickup: pickupName,
                         dropoff: dropoffName,
                         isDestinationPickup: linkedTransfer.isDestinationPickup || false,
-                        cost: linkedTransfer.cost,
-                        sell: linkedTransfer.sell,
-                        adults: linkedTransfer.adults,
-                        child: linkedTransfer.child
+                        cost: basePrice,
+                        sell: basePrice,
+                        totalPrice: transferTotalPrice,
+                        adults: adults,
+                        child: child
                     };
                 }
             }
@@ -24397,6 +24466,19 @@
             const vehicleType = transfer.vehicleType || vehicleDetails.vehicle_type || "";
             const vehicleName = transfer.vehicleName || vehicleDetails.vehicles_name || transfer.vehicleType || vehicleDetails.vehicle_type || "";
             
+            // Calculate total price for JSON based on shared/private and pax
+            const ltAdults = parseInt(transfer.adults || transfer.adultsQty || 0) || 0;
+            const ltChild = parseInt(transfer.child || transfer.childQty || 0) || 0;
+            const ltTotalPax = ltAdults + ltChild;
+            const ltTripPrice = parseFloat(transfer.sell || transfer.adultSell || transfer.cost || transfer.adultCost || 0) || 0;
+            const ltTypeVal = (transfer.type || transferType).toString().toLowerCase();
+            const ltIsShared = ltTypeVal === 's' || ltTypeVal === 'shared' || ltTypeVal === 'sic';
+            let ltTotalPrice = ltTripPrice;
+            if (ltIsShared && ltTotalPax > 0) {
+                // Shared: per-pax pricing
+                ltTotalPrice = ltTripPrice * ltTotalPax;
+            }
+            
             const transferData = {
                 id: transfer.id || null,
                 bookingDate: bookingDate,
@@ -24430,16 +24512,18 @@
                 pickupdate: bookingDate,
                 entrytime: entrytime,
                 time: entrytime,
-                adults: String(parseInt(transfer.adults) || 0),
-                adultsQty: parseInt(transfer.adults) || 0,
-                children: String(parseInt(transfer.child) || 0),
-                child: parseInt(transfer.child) || 0,
-                childQty: parseInt(transfer.child) || 0,
+                adults: String(ltAdults),
+                adultsQty: ltAdults,
+                children: String(ltChild),
+                child: ltChild,
+                childQty: ltChild,
                 infantQty: parseInt(transfer.infant) || 0,
                 infants: parseInt(transfer.infant) || 0,
-                cost: parseFloat(transfer.cost || transfer.adultCost || 0),
-                sell: parseFloat(transfer.sell || transfer.adultSell || 0),
-                totalPrice: String(parseFloat(transfer.sell || transfer.adultSell || transfer.totalPrice || 0)),
+                cost: parseFloat(transfer.cost || transfer.adultCost || ltTripPrice || 0),
+                sell: parseFloat(transfer.sell || transfer.adultSell || ltTripPrice || 0),
+                basePrice: ltTripPrice,
+                base_price: ltTripPrice,
+                totalPrice: String(ltTotalPrice),
                 to_zone_id: dropoffZoneId,
                 from_zone_id: transfer.pickupId || transfer.from_zone_id || "",
                 city: destination,
@@ -24649,13 +24733,15 @@
         const tourType = document.querySelector('input[name="type"]:checked')?.value || 'FIT';
         formData.append('tour_type', tourType);
         
-        // Add customer details (salutation, name, contact)
+        // Add customer details (salutation, name, contact, email)
         const salutation = document.getElementById('salutationSelect')?.value || 'Mr';
         const customerName = document.getElementById('customerNameInput')?.value || 'To Be Advised';
         const contactNumber = document.getElementById('contactNumberInput')?.value || '';
+        const email = document.getElementById('emailInput')?.value || '';
         formData.append('salutation', salutation);
         formData.append('customer_name', customerName);
         formData.append('contact_number', contactNumber);
+        formData.append('email', email);
         
         // Transform and add service data in required format (await async functions)
         const { entryPortData, exitPortData } = await transformArrivalDepartureData();
@@ -26319,6 +26405,13 @@
         if (phoneInput && tour.phone) {
             phoneInput.value = tour.phone;
             console.log('Set phone to:', tour.phone);
+        }
+        
+        // Email
+        const emailInput = document.getElementById('emailInput');
+        if (emailInput && tour.email) {
+            emailInput.value = tour.email;
+            console.log('Set email to:', tour.email);
         }
         
         // Salutation
@@ -28052,12 +28145,27 @@
             transportMode = 'local';
         }
         
-        // Extract cost and sell - use totalPrice as fallback if cost/sell are not present
+        // Extract cost and sell - prefer basePrice/base_price for display (same as create form)
+        // Store totalPrice for JSON; cost/sell in UI show base (shared/private oneway/both-way price, not × pax)
         const totalPrice = parseFloat(data.totalPrice || data.total_price || 0);
         const costValue = parseFloat(data.cost || 0);
         const sellValue = parseFloat(data.sell || 0);
-        const finalCost = costValue > 0 ? costValue : (totalPrice > 0 ? totalPrice : 0);
-        const finalSell = sellValue > 0 ? sellValue : (totalPrice > 0 ? totalPrice : 0);
+        const basePriceFromData = parseFloat(data.basePrice || data.base_price || 0);
+        const adults = parseInt(data.adults || data.adultsQty || data.adults_qty || 0);
+        const children = parseInt(data.children || data.childQty || data.child_qty || 0);
+        const totalPax = Math.max(1, adults + children);
+        const typeVal = (data.type || data.transferType || '').toString().toLowerCase();
+        const isShared = typeVal === 's' || typeVal === 'shared' || typeVal === 'sic';
+        // Display cost/sell: use base price so edit form matches create form (show shared/private price, not total)
+        let displayBase = basePriceFromData;
+        if (displayBase <= 0 && totalPrice > 0 && isShared && totalPax > 0) {
+            displayBase = totalPrice / totalPax; // derive base from totalPrice ÷ pax
+        }
+        if (displayBase <= 0) {
+            displayBase = costValue > 0 ? costValue : (sellValue > 0 ? sellValue : (totalPrice > 0 ? totalPrice : 0));
+        }
+        const finalCost = displayBase > 0 ? displayBase : costValue;
+        const finalSell = displayBase > 0 ? displayBase : (sellValue > 0 ? sellValue : costValue);
         
         // Extract zone IDs and prices for later zone price calculation if needed
         const fromZoneId = data.from_zone_id || data.fromZoneId || '';
@@ -28141,6 +28249,7 @@
             infant: parseInt(data.infants || data.infantQty || data.infant_qty || 0),
             cost: finalCost,
             sell: finalSell,
+            basePrice: displayBase > 0 ? displayBase : (finalCost || finalSell),
             zonePrivatePrice: zonePrivatePrice,
             zoneSharedPrice: zoneSharedPrice,
             fromZoneId: fromZoneId,
