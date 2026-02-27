@@ -1048,6 +1048,11 @@
                             </td>
                             <td class="align-top">
                                 <div class="d-flex flex-column">
+                                    @if($tour->created_by)
+                                        <span>{{ $tour->created_by_name }}</span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
                                 @if($tour->created_at)
                                     @php
                                         $createdAt = $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC');
