@@ -446,10 +446,6 @@ class HotelController extends Controller
             return redirect()->route('hotels.contact', ['hotel' => $hotel->hotel_unique_id])
                 ->with('success', 'Hotel created successfully');
     
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors($e->errors());
         } catch (\Exception $e) {
             Log::error('Hotel Creation Failed: ' . $e->getMessage());
             return redirect()->back()

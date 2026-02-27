@@ -1459,7 +1459,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    SGD {{ ceil($grandTotal) }}
+                                                    {{ $currency }} {{ ceil($grandTotal) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -1579,7 +1579,7 @@
                                                                 <small class="fw-bold text-dark" style="font-size: 0.75rem;">Room {{ $roomIndex + 1 }}: {{ $room['room_type'] ?? 'Standard Room' }}</small>
                                                                 <div><small class="text-muted" style="font-size: 0.65rem;">{{ $numberOfRooms }} Room{{ $numberOfRooms > 1 ? 's' : '' }}</small></div>
                                                             </div>
-                                                            <span class="badge bg-success" style="font-size: 0.7rem;">SGD {{ ceil($roomTotalPrice) }}</span>
+                                                            <span class="badge bg-success" style="font-size: 0.7rem;">{{ $currency }} {{ ceil($roomTotalPrice) }}</span>
                                                         </div>
                                                         @if(isset($room['beds']) && is_array($room['beds']))
                                                             @foreach($room['beds'] as $bedIndex => $bed)
@@ -1591,13 +1591,13 @@
                                                                         </div>
                                                                         <div class="col-3">
                                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Price</small>
-                                                                            <div class="fw-bold text-success" style="font-size: 0.7rem;">SGD {{ ceil($bed['price'] ?? 0) }}</div>
+                                                                            <div class="fw-bold text-success" style="font-size: 0.7rem;">{{ $currency }} {{ ceil($bed['price'] ?? 0) }}</div>
                                                                         </div>
                                                                         @if(isset($bed['selectedMeals']) && is_array($bed['selectedMeals']) && count($bed['selectedMeals']) > 0)
                                                                         <div class="col-12">
                                                                             <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Meals:</small>
                                                                             @foreach($bed['selectedMeals'] as $mealKey => $meal)
-                                                                                <span class="badge bg-success me-1" style="font-size: 0.6rem;">{{ $meal['type'] ?? 'Meal' }} (SGD {{ number_format((float)($meal['price'] ?? 0), 2) }})</span>
+                                                                                <span class="badge bg-success me-1" style="font-size: 0.6rem;">{{ $meal['type'] ?? 'Meal' }} ({{ $currency }} {{ number_format((float)($meal['price'] ?? 0), 2) }})</span>
                                                                             @endforeach
                                                                         </div>
                                                                         @endif
@@ -1616,7 +1616,7 @@
                                                         </div>
                                                         <div class="text-end">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Total Amount</small>
-                                                            <div class="fw-bold" style="font-size: 0.9rem; color: #74b9ff;">SGD {{ ceil($booking['totalPrice'] ?? 0) }}</div>
+                                                            <div class="fw-bold" style="font-size: 0.9rem; color: #74b9ff;">{{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1653,10 +1653,10 @@
                                                         <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-bed-line me-1" style="font-size: 0.8rem;"></i>Child with Bed</div>
                                                         <div class="row g-1">
                                                             <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
-                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">SGD {{ number_format($cwbPrice, 2) }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($cwbPrice, 2) }}</div></div>
                                                             <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwbChildren }}</div></div>
                                                             <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
-                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($cwbTotal, 2) }}</div></div>
+                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($cwbTotal, 2) }}</div></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1673,10 +1673,10 @@
                                                         <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>Child without Bed</div>
                                                         <div class="row g-1">
                                                             <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
-                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">SGD {{ number_format($cwobPrice, 2) }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($cwobPrice, 2) }}</div></div>
                                                             <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwobChildren }}</div></div>
                                                             <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
-                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($cwobTotal, 2) }}</div></div>
+                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($cwobTotal, 2) }}</div></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1739,7 +1739,7 @@
                                                                     @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
                                                                     <div class="col-12">
                                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
                                                                     </div>
                                                                     @endif
                                                                 </div>
@@ -1839,7 +1839,7 @@
                                            </div>
                                            <div class="col-md-4 text-end">
                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                   SGD {{ ceil($grandTotal) }}
+                                                   {{ $currency }} {{ ceil($grandTotal) }}
                                                </span>
                                            </div>
                                        </div>
@@ -1950,19 +1950,19 @@
                                                <div class="col-4">
                                                    <div class="bg-white border rounded p-1 text-center" style="border-color: #28a745 !important;">
                                                        <small class="text-success fw-bold d-block" style="font-size: 0.7rem;">Adult</small>
-                                                       <div class="fw-bold text-success" style="font-size: 0.75rem;">SGD {{ ceil($booking['ticket_details']['adult_price'] ?? 0) }}</div>
+                                                       <div class="fw-bold text-success" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['ticket_details']['adult_price'] ?? 0) }}</div>
                                                    </div>
                                                </div>
                                                <div class="col-4">
                                                    <div class="bg-white border rounded p-1 text-center" style="border-color: #ffc107 !important;">
                                                        <small class="text-warning fw-bold d-block" style="font-size: 0.7rem;">Child</small>
-                                                       <div class="fw-bold text-warning" style="font-size: 0.75rem;">SGD {{ ceil($booking['ticket_details']['child_price'] ?? 0) }}</div>
+                                                       <div class="fw-bold text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['ticket_details']['child_price'] ?? 0) }}</div>
                                                    </div>
                                                </div>
                                                <div class="col-4">
                                                    <div class="bg-white border rounded p-1 text-center" style="border-color: #17a2b8 !important;">
                                                        <small class="text-info fw-bold d-block" style="font-size: 0.7rem;">Senior</small>
-                                                       <div class="fw-bold text-info" style="font-size: 0.75rem;">SGD {{ ceil($booking['ticket_details']['senior_price'] ?? 0) }}</div>
+                                                       <div class="fw-bold text-info" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['ticket_details']['senior_price'] ?? 0) }}</div>
                                                    </div>
                                                </div>
                                            </div>
@@ -1986,7 +1986,7 @@
                                                    </div>
                                                    <div class="text-end">
                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Total</small>
-                                                       <div class="fw-bold" style="font-size: 0.9rem; color: #fd9853;">SGD {{ ceil($booking['totalPrice'] ?? 0) }}</div>
+                                                       <div class="fw-bold" style="font-size: 0.9rem; color: #fd9853;">{{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}</div>
                                                    </div>
                                                </div>
                                            </div>
@@ -2055,7 +2055,7 @@
                                                                    @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>
@@ -2133,18 +2133,18 @@
                                                            <div class="row g-1">
                                                                <div class="col-6">
                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                                   <div class="fw-medium text-primary" style="font-size: 0.75rem;">SGD {{ ceil($booking['guide_options']['base_price'] ?? 0) }}</div>
+                                                                   <div class="fw-medium text-primary" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['guide_options']['base_price'] ?? 0) }}</div>
                                                                </div>
                                                                @if(isset($booking['guide_options']['surcharge']) && $booking['guide_options']['surcharge'] > 0)
                                                                <div class="col-6">
                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                                   <div class="fw-medium text-warning" style="font-size: 0.75rem;">SGD {{ ceil($booking['guide_options']['surcharge']) }}</div>
+                                                                   <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['guide_options']['surcharge']) }}</div>
                                                                </div>
                                                                @endif
                                                                @if(isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0)
                                                                <div class="col-12">
                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Total</small>
-                                                                   <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ ceil($booking['guide_options']['total_price']) }}</div>
+                                                                   <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ ceil($booking['guide_options']['total_price']) }}</div>
                                                                </div>
                                                                @endif
                                                            </div>
@@ -2232,7 +2232,7 @@
                                            </div>
                                            <div class="col-md-4 text-end">
                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                   SGD {{ ceil($restaurantGrandTotal) }}
+                                                   {{ $currency }} {{ ceil($restaurantGrandTotal) }}
                                                </span>
                                            </div>
                                        </div>
@@ -2289,21 +2289,21 @@
                                                    <div class="row g-1">
                                                        <div class="col-{{ $guidePrice > 0 ? '4' : '6' }}">
                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Meal Price</small>
-                                                           <div class="fw-medium text-success" style="font-size: 0.8rem;">SGD {{ ceil($booking['mealPrice'] ?? 0) }}</div>
+                                                           <div class="fw-medium text-success" style="font-size: 0.8rem;">{{ $currency }} {{ ceil($booking['mealPrice'] ?? 0) }}</div>
                                                        </div>
                                                        <div class="col-{{ $guidePrice > 0 ? '4' : '6' }}">
                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer</small>
-                                                           <div class="fw-medium text-info" style="font-size: 0.8rem;">SGD {{ ceil($transferPrice) }}</div>
+                                                           <div class="fw-medium text-info" style="font-size: 0.8rem;">{{ $currency }} {{ ceil($transferPrice) }}</div>
                                                        </div>
                                                        @if($guidePrice > 0)
                                                        <div class="col-4">
                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Guide</small>
-                                                           <div class="fw-medium" style="font-size: 0.8rem; color: #00cec9;">SGD {{ ceil($guidePrice) }}</div>
+                                                           <div class="fw-medium" style="font-size: 0.8rem; color: #00cec9;">{{ $currency }} {{ ceil($guidePrice) }}</div>
                                                        </div>
                                                        @endif
                                                        <div class="col-12 mt-1 pt-1 border-top">
                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Total Price</small>
-                                                           <div class="fw-bold" style="font-size: 0.95rem; color: #fd79a8;">SGD {{ ceil($restaurantGrandTotal) }}</div>
+                                                           <div class="fw-bold" style="font-size: 0.95rem; color: #fd79a8;">{{ $currency }} {{ ceil($restaurantGrandTotal) }}</div>
                                                        </div>
                                                    </div>
                                                </div>
@@ -2364,7 +2364,7 @@
                                                                    @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>
@@ -2445,7 +2445,7 @@
                                                                @if(isset($booking['guide_options']['cost']) && $booking['guide_options']['cost'] > 0)
                                                                <div class="col-12">
                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Cost</small>
-                                                                   <div class="fw-bold" style="font-size: 0.85rem; color: #00cec9;">SGD {{ number_format((float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0), 2) }}</div>
+                                                                   <div class="fw-bold" style="font-size: 0.85rem; color: #00cec9;">{{ $currency }} {{ number_format((float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0), 2) }}</div>
                                                                </div>
                                                                @endif
                                                            </div>
@@ -2522,7 +2522,7 @@
                                            </div>
                                            <div class="col-md-4 text-end">
                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                   SGD {{ ceil($booking['totalPrice'] ?? 0) }}
+                                                   {{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}
                                                </span>
                                            </div>
                                        </div>
@@ -2546,15 +2546,15 @@
                                                        </div>
                                                        <div class="col-6">
                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                           <div class="fw-medium text-success" style="font-size: 0.75rem;">SGD {{ ceil($booking['basePrice'] ?? 0) }}</div>
+                                                           <div class="fw-medium text-success" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['basePrice'] ?? 0) }}</div>
                                                        </div>
                                                        <div class="col-6">
                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                           <div class="fw-medium text-warning" style="font-size: 0.75rem;">SGD {{ ceil($booking['surcharge'] ?? 0) }}</div>
+                                                           <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['surcharge'] ?? 0) }}</div>
                                                        </div>
                                                        <div class="col-6">
                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Total</small>
-                                                           <div class="fw-bold" style="font-size: 0.8rem; color: #00cec9;">SGD {{ ceil($booking['totalPrice'] ?? 0) }}</div>
+                                                           <div class="fw-bold" style="font-size: 0.8rem; color: #00cec9;">{{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}</div>
                                                        </div>
                                                    </div>
                                                </div>
@@ -2648,19 +2648,19 @@
                                                <div class="col-4">
                                                    <div class="bg-white border rounded p-1 text-center" style="border-color: #28a745 !important;">
                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                       <div class="fw-bold text-success" style="font-size: 0.75rem;">SGD {{ ceil($booking['basePrice'] ?? 0) }}</div>
+                                                       <div class="fw-bold text-success" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['basePrice'] ?? 0) }}</div>
                                                    </div>
                                                </div>
                                                <div class="col-4">
                                                    <div class="bg-white border rounded p-1 text-center" style="border-color: #ffc107 !important;">
                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                       <div class="fw-bold text-warning" style="font-size: 0.75rem;">SGD {{ ceil($booking['surcharge'] ?? 0) }}</div>
+                                                       <div class="fw-bold text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ ceil($booking['surcharge'] ?? 0) }}</div>
                                                    </div>
                                                </div>
                                                <div class="col-4">
                                                    <div class="bg-white border rounded p-1 text-center" style="border-color: #00cec9 !important;">
                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Total</small>
-                                                       <div class="fw-bold" style="font-size: 0.8rem; color: #00cec9;">SGD {{ ceil($booking['totalPrice'] ?? 0) }}</div>
+                                                       <div class="fw-bold" style="font-size: 0.8rem; color: #00cec9;">{{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}</div>
                                                    </div>
                                                </div>
                                            </div>
@@ -2736,7 +2736,7 @@
                                            </div>
                                            <div class="col-md-4 text-end">
                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                   SGD {{ number_format($entryCardTotal, 2) }}
+                                                   {{ $currency }} {{ number_format($entryCardTotal, 2) }}
                                                </span>
                                            </div>
                                        </div>
@@ -2911,17 +2911,17 @@
                                            <div class="bg-white rounded p-2">
                                                <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
                                                    <span class="text-muted" style="font-size: 0.8rem;">Transfer</span>
-                                                   <span class="fw-semibold text-dark">SGD {{ number_format($entryTransferPrice, 2) }}</span>
+                                                   <span class="fw-semibold text-dark">{{ $currency }} {{ number_format($entryTransferPrice, 2) }}</span>
                                                </div>
                                                @if($entryGuidePrice > 0)
                                                <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
                                                    <span class="text-muted" style="font-size: 0.8rem;">Guide</span>
-                                                   <span class="fw-semibold text-info">SGD {{ number_format($entryGuidePrice, 2) }}</span>
+                                                   <span class="fw-semibold text-info">{{ $currency }} {{ number_format($entryGuidePrice, 2) }}</span>
                                                </div>
                                                @endif
                                                <div class="d-flex justify-content-between align-items-center py-2 mt-1">
                                                    <span class="fw-bold text-dark" style="font-size: 0.9rem;">Total</span>
-                                                   <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format($entryCardTotal, 2) }}</span>
+                                                   <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format($entryCardTotal, 2) }}</span>
                                                </div>
                                            </div>
                                        </div>
@@ -2958,7 +2958,7 @@
                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} H</div>
                                                        @php $arrivalGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
                                                        @if($arrivalGuideCost > 0)
-                                                       <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">SGD {{ number_format($arrivalGuideCost, 2) }}</div>
+                                                       <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">{{ $currency }} {{ number_format($arrivalGuideCost, 2) }}</div>
                                                        @endif
                                                    </div>
                                                </div>
@@ -3037,7 +3037,7 @@
                                            </div>
                                            <div class="col-md-4 text-end">
                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                   SGD {{ number_format($exitCardTotal, 2) }}
+                                                   {{ $currency }} {{ number_format($exitCardTotal, 2) }}
                                                </span>
                                            </div>
                                        </div>
@@ -3206,17 +3206,17 @@
                                            <div class="bg-white rounded p-2">
                                                <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
                                                    <span class="text-muted" style="font-size: 0.8rem;">Transfer</span>
-                                                   <span class="fw-semibold text-dark">SGD {{ number_format($exitTransferPrice, 2) }}</span>
+                                                   <span class="fw-semibold text-dark">{{ $currency }} {{ number_format($exitTransferPrice, 2) }}</span>
                                                </div>
                                                @if($exitGuidePrice > 0)
                                                <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
                                                    <span class="text-muted" style="font-size: 0.8rem;">Guide</span>
-                                                   <span class="fw-semibold text-info">SGD {{ number_format($exitGuidePrice, 2) }}</span>
+                                                   <span class="fw-semibold text-info">{{ $currency }} {{ number_format($exitGuidePrice, 2) }}</span>
                                                </div>
                                                @endif
                                                <div class="d-flex justify-content-between align-items-center py-2 mt-1">
                                                    <span class="fw-bold text-dark" style="font-size: 0.9rem;">Total</span>
-                                                   <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format($exitCardTotal, 2) }}</span>
+                                                   <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format($exitCardTotal, 2) }}</span>
                                                </div>
                                            </div>
                                        </div>
@@ -3253,7 +3253,7 @@
                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} H</div>
                                                        @php $depGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
                                                        @if($depGuideCost > 0)
-                                                       <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">SGD {{ number_format($depGuideCost, 2) }}</div>
+                                                       <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">{{ $currency }} {{ number_format($depGuideCost, 2) }}</div>
                                                        @endif
                                                    </div>
                                                </div>
@@ -3320,7 +3320,7 @@
                                                     <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</small>
                                                 </div>
                                                 <div class="col-md-4 text-end">
-                                                    <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
+                                                    <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -3367,7 +3367,7 @@
                                                 </div>
                                                 <div class="d-flex justify-content-between align-items-center py-1">
                                                     <span class="text-muted" style="font-size: 0.8rem;">Total</span>
-                                                    <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
+                                                    <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
                                                 </div>
                                                 @if(isset($booking['adultSell']) || isset($booking['childSell']) || isset($booking['infantSell']))
                                                 <small class="text-muted" style="font-size: 0.7rem;">Adult: {{ $booking['adultSell'] ?? 0 }} / Child: {{ $booking['childSell'] ?? 0 }} / Infant: {{ $booking['infantSell'] ?? 0 }}</small>
@@ -3456,7 +3456,7 @@
                                                     </div>
                                                     <div class="col-md-4 text-end">
                                                         <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                            SGD {{ ceil($booking['totalPrice'] ?? 0) }}
+                                                            {{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -3497,7 +3497,7 @@
                                                         <div class="bg-light rounded p-2 h-100 d-flex align-items-center justify-content-center">
                                                             <div class="text-center">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Total Price</small>
-                                                                <div class="fw-bold" style="font-size: 1rem; color: #667eea;">SGD {{ ceil($booking['totalPrice'] ?? 0) }}</div>
+                                                                <div class="fw-bold" style="font-size: 1rem; color: #667eea;">{{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -3675,7 +3675,7 @@
                                                     </div>
                                                     <div class="col-md-4 text-end">
                                                         <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                            <span class="text-success fw-bold fs-5">SGD {{ ceil($booking['totalPrice'] ?? 0) }}</span>
+                                                            <span class="text-success fw-bold fs-5">{{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -3897,7 +3897,7 @@
                                                    </div>
                                                    <div class="col-md-4 text-end">
                                                        <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                           SGD {{ ceil($booking['totalPrice'] ?? 0) }}
+                                                           {{ $currency }} {{ ceil($booking['totalPrice'] ?? 0) }}
                                                        </span>
                                                    </div>
                                                </div>

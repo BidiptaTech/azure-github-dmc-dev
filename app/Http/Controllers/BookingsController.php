@@ -613,7 +613,8 @@ class BookingsController extends Controller
                 ->get();
         }
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.follow-ups', compact('tours', 'country_tax'));
+        $currency = CommonHelper::getDmcCurrencyByCountry();
+        return view('bookings.follow-ups', compact('tours', 'country_tax', 'currency'));
     }
 
     /**

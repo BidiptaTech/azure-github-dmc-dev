@@ -4679,6 +4679,7 @@
                                                                         <i class="ri-key-line me-1"></i>Generate
                                                                     </button>
                                                                 </div>
+                                                                <small class="text-muted" style="font-size: 0.7rem;">Credentials email is sent to the lead guest only when Email and App Password are set and you save.</small>
                                                             </div>
                                                             @endif
                                                         </div>
