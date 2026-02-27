@@ -322,6 +322,23 @@ class EditTourController extends Controller
                 $sentCount = count(array_filter($emailResults, fn($r) => $r['sent'] ?? false));
                 if ($sentCount > 0) {
                     $message .= " Credentials email sent to {$sentCount} guest(s).";
+                } else {
+                    $failed = array_filter($emailResults, fn($r) => !($r['sent'] ?? false));
+                    $firstError = $failed[array_key_first($failed)]['error'] ?? null;
+                    $message .= " Credentials email could not be sent." . ($firstError ? " " . $firstError : "");
+                }
+            } else {
+                // Explain why credentials email was not sent (for Definite/Actual tours)
+                if (in_array($tour->tour_status ?? '', ['Definite', 'Actual'])) {
+                    if (!$mainGuestEmail && !$mainGuestPassword) {
+                        $message .= " Credentials email not sent: enter Lead Guest email and App Password to send login credentials.";
+                    } elseif (!$mainGuestEmail) {
+                        $message .= " Credentials email not sent: Lead Guest email is required.";
+                    } elseif (!$mainGuestPassword) {
+                        $message .= " Credentials email not sent: enter App Password for the lead guest to receive login credentials.";
+                    }
+                } else {
+                    $message .= " Credentials email is only sent for Definite or Actual tours.";
                 }
             }
 
