@@ -1179,7 +1179,8 @@
                                         <input type="date" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_exp]" style="font-size: 0.85rem;">
                                     </div>
                                     <div class="col-md-2">
-                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Contact No.</label>
+
+                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Contact No.</label>
                                         <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number" style="font-size: 0.85rem;">
                                     </div>
                                 </div>
@@ -2304,7 +2305,13 @@
                                     const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`)?.value || '';
                                     const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`)?.value || '';
                                     const transferVehicle = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`)?.value || '';
-                                    const transferCost = parseFloat(document.getElementById(`day${day}_attraction_${index}_transfer_cost`)?.value || 0);
+                                    const transferCostBase = parseFloat(document.getElementById(`day${day}_attraction_${index}_transfer_cost`)?.value || 0);
+                                    // For Shared transfer, store total (base × pax) so DB matches displayed price
+                                    let transferCost = transferCostBase;
+                                    if (transferType === 'Shared' && transferCostBase > 0) {
+                                        const guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                                        transferCost = transferCostBase * (guestCount > 0 ? guestCount : 1);
+                                    }
                                     const transferPickupLocation = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`)?.value || '';
                                     
                                     // Get pickup location name
@@ -2706,7 +2713,13 @@
                                     const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`)?.value || '';
                                     const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`)?.value || '';
                                     const transferVehicle = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`)?.value || '';
-                                    const transferCost = parseFloat(document.getElementById(`day${day}_restaurant_${index}_transfer_cost`)?.value || 0);
+                                    const transferCostBase = parseFloat(document.getElementById(`day${day}_restaurant_${index}_transfer_cost`)?.value || 0);
+                                    // For Shared transfer, store total (base × pax) so DB matches displayed price
+                                    let transferCost = transferCostBase;
+                                    if (transferType === 'Shared' && transferCostBase > 0) {
+                                        const guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                                        transferCost = transferCostBase * (guestCount > 0 ? guestCount : 1);
+                                    }
                                     const transferPickupLocation = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`)?.value || '';
                                     
                                     // Get pickup location name
@@ -13855,11 +13868,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <!-- Container for additional entry port vehicles -->
                                     <div class="entry-ports-container"></div>
                                     
-                                    <!-- Add More Button - Positioned below additional vehicles -->
-                                    <div class="text-center mt-4">
-                                        <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreEntryPorts(${day})" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
-                                            <i class="ri-add-line me-2 fs-5"></i>Add More Vehicles
-                                        </button>
+                                    <!-- Add More Button - shown only after Search (inside vehicle results row) -->
+                                    <div class="col-12 mt-4" id="day${day}_entry_add_more_section" style="display: none;">
+                                        <div class="text-center">
+                                            <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreEntryPorts(${day})" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
+                                                <i class="ri-add-line me-2 fs-5"></i>Add More Vehicles
+                                            </button>
+                                        </div>
                                     </div>
                                   </div>
                               </div>
@@ -14129,11 +14144,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <!-- Container for additional exit port vehicles -->
                                     <div class="exit-ports-container"></div>
                                     
-                                    <!-- Add More Button - Positioned below additional vehicles -->
-                                    <div class="text-center mt-4 mb-3">
-                                        <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreExitPorts(${day})" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
-                                            <i class="ri-add-line me-2 fs-5"></i>Add More Vehicles
-                                        </button>
+                                    <!-- Add More Button - shown only after Search (inside vehicle results row) -->
+                                    <div class="col-12 mt-4 mb-3" id="day${day}_exit_add_more_section" style="display: none;">
+                                        <div class="text-center">
+                                            <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreExitPorts(${day})" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
+                                                <i class="ri-add-line me-2 fs-5"></i>Add More Vehicles
+                                            </button>
+                                        </div>
                                     </div>
                                   </div>
                               </div>
@@ -27048,6 +27065,14 @@ window.saveService = function(day, type) {
                     // Show results section
                     vehicleResultsDiv.style.display = 'block';
                     vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Show "Add More Vehicles" for entry/exit (only after search)
+                    if (section === 'entry') {
+                        const entryAddMore = document.getElementById(`day${day}_entry_add_more_section`);
+                        if (entryAddMore) entryAddMore.style.display = 'block';
+                    } else if (section === 'exit') {
+                        const exitAddMore = document.getElementById(`day${day}_exit_add_more_section`);
+                        if (exitAddMore) exitAddMore.style.display = 'block';
+                    }
                     
                     // Reset service type select and price display when vehicles are loaded
                     // For entry ports, use section_0; for exit ports, use section; for others, use baseSection
@@ -27355,6 +27380,14 @@ window.saveService = function(day, type) {
                  // Show results section
                  vehicleResultsDiv.style.display = 'block';
                  vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                 // Show "Add More Vehicles" for entry/exit (only after search)
+                 if (section === 'entry') {
+                     const entryAddMore = document.getElementById(`day${day}_entry_add_more_section`);
+                     if (entryAddMore) entryAddMore.style.display = 'block';
+                 } else if (section === 'exit') {
+                     const exitAddMore = document.getElementById(`day${day}_exit_add_more_section`);
+                     if (exitAddMore) exitAddMore.style.display = 'block';
+                 }
                  
                  // Reset service type select and price display when vehicles are loaded
                  // For entry ports, use section_0; for exit ports, use section; for others, use baseSection
@@ -29291,7 +29324,15 @@ window.saveService = function(day, type) {
                                     vehicleResultsDiv.style.display = 'block';
                                     vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 }
-                                
+                                // Show "Add More Vehicles" for entry/exit (only after search)
+                                if (section === 'entry') {
+                                    const entryAddMore = document.getElementById(`day${day}_entry_add_more_section`);
+                                    if (entryAddMore) entryAddMore.style.display = 'block';
+                                } else if (section === 'exit') {
+                                    const exitAddMore = document.getElementById(`day${day}_exit_add_more_section`);
+                                    if (exitAddMore) exitAddMore.style.display = 'block';
+                                }
+
                                 // Show custom price field and set service type to Private for entry ports when zone_on = 0 (Point-to-Point mode)
                                 if (section === 'entry' || section.startsWith('entry_')) {
                                     console.log(`Point-to-Point mode (zone=0) detected for entry port (${section}) - showing custom price field and setting service type to Private`);
@@ -30081,6 +30122,14 @@ function populateVehicleDropdown(day, section, vehicles) {
         // Show results section
         vehicleResultsDiv.style.display = 'block';
         vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // Show "Add More Vehicles" for entry/exit (only after search)
+        if (section === 'entry') {
+            const entryAddMore = document.getElementById(`day${day}_entry_add_more_section`);
+            if (entryAddMore) entryAddMore.style.display = 'block';
+        } else if (section === 'exit') {
+            const exitAddMore = document.getElementById(`day${day}_exit_add_more_section`);
+            if (exitAddMore) exitAddMore.style.display = 'block';
+        }
         
         console.log(`Populated ${vehicles.length} vehicles in dropdown`);
     } else {

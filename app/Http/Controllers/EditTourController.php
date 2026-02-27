@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Tour;
 use App\Models\Order;
+use App\Models\Guest;
+use App\Models\Setting;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use App\Helpers\CommonHelper;
+use App\Mail\DmcMail;
 
 class EditTourController extends Controller
 {
@@ -160,6 +166,12 @@ class EditTourController extends Controller
         try {
             DB::beginTransaction();
 
+            $mainGuestPassword = null;
+            $mainGuestEmail = null;
+            $mainGuestName = null;
+            $mainGuestCountryCode = null;
+            $mainGuestPhone = null;
+
             // Main guest data
             if ($request->has('mainguest')) {
                 try {
@@ -182,6 +194,16 @@ class EditTourController extends Controller
                         $mainGuestData = [];
                     }
 
+                    // Extract password before saving to tour (don't store plaintext password in tour JSON)
+                    if (!empty($mainGuestData['app_password'])) {
+                        $mainGuestPassword = $mainGuestData['app_password'];
+                        $mainGuestEmail = $mainGuestData['email'] ?? null;
+                        $mainGuestName = $mainGuestData['full_name'] ?? null;
+                        $mainGuestCountryCode = $mainGuestData['country_code'] ?? null;
+                        $mainGuestPhone = $mainGuestData['phone'] ?? null;
+                    }
+                    unset($mainGuestData['app_password']);
+
                     $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
                 } catch (\Throwable $e) {
                     Log::error('Error processing main guest data during updateGuests', [
@@ -190,6 +212,8 @@ class EditTourController extends Controller
                     ]);
                 }
             }
+
+            $additionalGuestPasswords = []; // [{name, email, contact_no, password}, ...]
 
             // Additional guests data
             if ($request->has('additionalguest')) {
@@ -213,6 +237,20 @@ class EditTourController extends Controller
                         $additionalGuestData = [];
                     }
 
+                    // Extract passwords before saving to tour
+                    foreach ($additionalGuestData as $idx => &$guestItem) {
+                        if (!empty($guestItem['app_password'])) {
+                            $additionalGuestPasswords[] = [
+                                'name' => $guestItem['name'] ?? '',
+                                'email' => $guestItem['email'] ?? '',
+                                'contact_no' => $guestItem['contact_no'] ?? '',
+                                'password' => $guestItem['app_password'],
+                            ];
+                        }
+                        unset($guestItem['app_password']);
+                    }
+                    unset($guestItem);
+
                     $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
                 } catch (\Throwable $e) {
                     Log::error('Error processing additional guest data during updateGuests', [
@@ -225,9 +263,71 @@ class EditTourController extends Controller
             $tour->save();
             DB::commit();
 
+            // After commit, handle Guest record creation and credential emails
+            // Only for Definite / Actual tours
+            $emailResults = [];
+            if (in_array($tour->tour_status ?? '', ['Definite', 'Actual'])) {
+                // Process lead guest password
+                if ($mainGuestPassword && $mainGuestEmail) {
+                    try {
+                        $guest = $this->findOrCreateGuest(
+                            $mainGuestName,
+                            $mainGuestEmail,
+                            $mainGuestCountryCode,
+                            $mainGuestPhone,
+                            $tour->tour_id,
+                            $mainGuestPassword
+                        );
+                        $this->sendGuestCredentialsEmail($guest, $mainGuestPassword, $tour->display_id ?? null);
+                        $emailResults[] = ['email' => $mainGuestEmail, 'sent' => true];
+                        Log::info('Lead guest credentials email sent from tour edit', [
+                            'guest_id' => $guest->guest_id,
+                            'email' => $mainGuestEmail,
+                            'tour_id' => $tour->tour_id,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to process lead guest credentials: ' . $e->getMessage());
+                        $emailResults[] = ['email' => $mainGuestEmail, 'sent' => false, 'error' => $e->getMessage()];
+                    }
+                }
+
+                // Process additional guest passwords
+                foreach ($additionalGuestPasswords as $ag) {
+                    if (!empty($ag['password']) && !empty($ag['name'])) {
+                        try {
+                            $guest = $this->findOrCreateGuestByName(
+                                $ag['name'],
+                                $ag['email'] ?? null,
+                                $ag['contact_no'] ?? null,
+                                $tour->tour_id,
+                                $ag['password']
+                            );
+                            // Only send email if guest has an email
+                            if ($guest->email) {
+                                $this->sendGuestCredentialsEmail($guest, $ag['password'], $tour->display_id ?? null);
+                                $emailResults[] = ['name' => $ag['name'], 'sent' => true];
+                            } else {
+                                $emailResults[] = ['name' => $ag['name'], 'sent' => false, 'error' => 'No email address'];
+                            }
+                        } catch (\Exception $e) {
+                            Log::warning('Failed to process additional guest credentials: ' . $e->getMessage());
+                            $emailResults[] = ['name' => $ag['name'], 'sent' => false, 'error' => $e->getMessage()];
+                        }
+                    }
+                }
+            }
+
+            $message = 'Guest details updated successfully.';
+            if (!empty($emailResults)) {
+                $sentCount = count(array_filter($emailResults, fn($r) => $r['sent'] ?? false));
+                if ($sentCount > 0) {
+                    $message .= " Credentials email sent to {$sentCount} guest(s).";
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Guest details updated successfully.',
+                'message' => $message,
             ]);
         } catch (\Throwable $exception) {
             DB::rollBack();
@@ -242,6 +342,203 @@ class EditTourController extends Controller
                 'message' => 'Unable to save guest information right now.',
                 'error' => config('app.debug') ? $exception->getMessage() : null,
             ], 500);
+        }
+    }
+
+    /**
+     * Find or create a Guest record by email.
+     */
+    private function findOrCreateGuest($name, $email, $countryCode, $phone, $tourId, $plainPassword)
+    {
+        $existingGuest = Guest::where('email', $email)->first();
+        $tourIdInt = is_numeric($tourId) ? (int)$tourId : $tourId;
+
+        if ($existingGuest) {
+            // Add tour_id if not already linked
+            if (!$existingGuest->hasTourId($tourIdInt)) {
+                $existingGuest->addTourId($tourIdInt);
+            }
+            // Update password
+            $existingGuest->app_password = Hash::make($plainPassword);
+            $existingGuest->save();
+            return $existingGuest;
+        }
+
+        // Create new guest
+        $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+        $lastGuestId = $lastGuest->guest_id ?? 0;
+        $guestId = CommonHelper::createId($lastGuestId);
+        while (Guest::where('guest_id', $guestId)->exists()) {
+            $guestId = CommonHelper::createId($guestId);
+        }
+
+        // Try to upload default avatar
+        $imagePath = null;
+        $defaultAvatarPath = base_path('avatar-1577909_1280.png');
+        if (file_exists($defaultAvatarPath)) {
+            try {
+                $imageFile = new \Illuminate\Http\UploadedFile(
+                    $defaultAvatarPath, 'avatar-1577909_1280.png', 'image/png', null, true
+                );
+                $uploadResult = CommonHelper::image_path('file_storage', $imageFile);
+                if (!empty($uploadResult['master_value'])) {
+                    $imagePath = $uploadResult['master_value'];
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error uploading guest default avatar: ' . $e->getMessage());
+            }
+        }
+
+        return Guest::create([
+            'guest_id' => $guestId,
+            'tour_id' => [$tourIdInt],
+            'guest_name' => $name,
+            'email' => $email,
+            'country_code' => $countryCode ?? '+91',
+            'contact' => $phone,
+            'app_password' => Hash::make($plainPassword),
+            'image' => $imagePath,
+        ]);
+    }
+
+    /**
+     * Find or create a Guest record by name/email (for additional guests).
+     */
+    private function findOrCreateGuestByName($name, $email, $contactNo, $tourId, $plainPassword)
+    {
+        $tourIdInt = is_numeric($tourId) ? (int)$tourId : $tourId;
+
+        // Try to find by email first (if provided), then by name + contact
+        $existingGuest = null;
+        if (!empty($email)) {
+            $existingGuest = Guest::where('email', $email)->first();
+        }
+        if (!$existingGuest) {
+            $query = Guest::where('guest_name', $name);
+            if ($contactNo) {
+                $query->where('contact', $contactNo);
+            }
+            $existingGuest = $query->first();
+        }
+
+        if ($existingGuest) {
+            if (!$existingGuest->hasTourId($tourIdInt)) {
+                $existingGuest->addTourId($tourIdInt);
+            }
+            $existingGuest->app_password = Hash::make($plainPassword);
+            // Update email if provided and guest didn't have one
+            if (!empty($email) && empty($existingGuest->email)) {
+                $existingGuest->email = $email;
+            }
+            $existingGuest->save();
+            return $existingGuest;
+        }
+
+        // Create new guest
+        $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+        $lastGuestId = $lastGuest->guest_id ?? 0;
+        $guestId = CommonHelper::createId($lastGuestId);
+        while (Guest::where('guest_id', $guestId)->exists()) {
+            $guestId = CommonHelper::createId($guestId);
+        }
+
+        $imagePath = null;
+        $defaultAvatarPath = base_path('avatar-1577909_1280.png');
+        if (file_exists($defaultAvatarPath)) {
+            try {
+                $imageFile = new \Illuminate\Http\UploadedFile(
+                    $defaultAvatarPath, 'avatar-1577909_1280.png', 'image/png', null, true
+                );
+                $uploadResult = CommonHelper::image_path('file_storage', $imageFile);
+                if (!empty($uploadResult['master_value'])) {
+                    $imagePath = $uploadResult['master_value'];
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error uploading guest default avatar: ' . $e->getMessage());
+            }
+        }
+
+        return Guest::create([
+            'guest_id' => $guestId,
+            'tour_id' => [$tourIdInt],
+            'guest_name' => $name,
+            'email' => $email ?: null,
+            'contact' => $contactNo,
+            'country_code' => '+91',
+            'app_password' => Hash::make($plainPassword),
+            'image' => $imagePath,
+        ]);
+    }
+
+    /**
+     * Send guest credentials email (same pattern as GuestController).
+     * Optionally accepts the current tour display ID to avoid ambiguity
+     * when a guest is linked to multiple tours.
+     */
+    private function sendGuestCredentialsEmail(Guest $guest, string $plainPassword, ?string $currentTourDisplayId = null)
+    {
+        $logoSetting = Setting::where('name', 'logo')->where('status', 1)->first();
+        $nameSetting = Setting::where('name', 'name')->where('status', 1)->first();
+        $supportEmailSetting = Setting::where('name', 'support_email')->first();
+        $supportPhoneSetting = Setting::where('name', 'support_phone')->first();
+
+        $companyLogo = $logoSetting ? $logoSetting->value : null;
+        $companyName = $nameSetting ? $nameSetting->value : config('app.name');
+        $supportEmail = $supportEmailSetting ? $supportEmailSetting->value : null;
+        $supportPhone = $supportPhoneSetting ? $supportPhoneSetting->value : null;
+
+        $dmcId = CommonHelper::getDmcId(auth()->user());
+        $dmc = User::where('userId', $dmcId)->first();
+        $dmcCompanyName = $dmc->company_name ?? null;
+
+        // Prefer explicitly provided tour display ID (from the current edit context)
+        $tourDisplayId = $currentTourDisplayId;
+        if ($tourDisplayId === null && !empty($guest->tour_id)) {
+            // $guest->tour_id may be stored as a single ID or as an array of IDs
+            $tourIdValue = $guest->tour_id;
+            if (is_array($tourIdValue)) {
+                // Use the most recent/last linked tour ID
+                $tourIdValue = end($tourIdValue);
+            }
+            $tourDisplayId = Tour::where('tour_id', $tourIdValue)->value('display_id');
+        }
+
+        $emailData = [
+            'guest_name' => $guest->guest_name,
+            'email' => $guest->email,
+            'app_password' => $plainPassword,
+            'country_code' => $guest->country_code ?? '+91',
+            'contact' => $guest->contact,
+            'tour_id' => $tourDisplayId,
+            'company_name' => $companyName,
+            'company_logo' => $companyLogo,
+            'support_email' => $supportEmail,
+            'support_phone' => $supportPhone,
+            'dmc_company_name' => $dmcCompanyName,
+        ];
+
+        $html = view('mails.guest_credentials', $emailData)->render();
+
+        preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+        $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+
+        preg_match('/<div class="email-container">(.*?)<\/div>\s*<\/body>/s', $html, $matches);
+
+        if (!empty($matches[0])) {
+            $extractedHtml = $matches[0];
+            $subject = 'Welcome! Your Tour Tracking Credentials';
+            $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
+
+            Mail::to($guest->email)->send(new DmcMail($emailHtml, $subject));
+
+            Log::info("Guest credentials email sent successfully to: {$guest->email}", [
+                'guest_id' => $guest->guest_id,
+                'guest_name' => $guest->guest_name,
+            ]);
+            return true;
+        } else {
+            Log::error('Email container div not found in guest credentials template');
+            return false;
         }
     }
 
@@ -1439,7 +1736,7 @@ class EditTourController extends Controller
      */
     public function updateTransport(Request $request, $orderId)
     {
-        $order = Order::findOrFail($orderId);
+        $order = Order::where('booking_id', $orderId)->firstOrFail();
         
         // First check if it's complete JSON replacement mode
         if (!empty($request->booking_data)) {

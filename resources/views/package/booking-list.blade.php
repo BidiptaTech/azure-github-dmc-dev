@@ -4,21 +4,321 @@
 @section('head')
 <meta name="csrf-token" content="{{ csrf_token() }}">
 @endsection
-@section('content')
 
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 
+@section('content')
+
 <style>
-    .select2-container .select2-selection--single {
-        height: 100% !important;
-        line-height: 100% !important;
-        padding: 8px 12px;
+    /* Select2 Bootstrap Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
     }
-    .select2-container .select2-results__option {
-        padding: 12px 10px;
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 50px;
+        padding-left: 12px;
+        padding-right: 50px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 48px;
+        right: 10px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__clear {
+        position: absolute;
+        right: 35px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 18px;
+        color: #6c757d;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+        color: #dc3545;
+    }
+
+    #bookingsTable tbody tr {
+        height: auto;
+        min-height: 50px;
+    }
+
+    #bookingsTable .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem 0.15rem;
+        font-weight: 500;
+    }
+
+    #bookingsTable i {
+        font-size: 1rem;
+    }
+
+    #bookingsTable .fw-medium,
+    #bookingsTable .fw-bold {
+        font-size: 0.875rem;
+    }
+
+    #bookingsTable small {
+        font-size: 0.75rem;
+    }
+
+    #bookingsTable .btn-sm {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.78rem;
+        height: auto;
+        white-space: nowrap;
+    }
+
+    #bookingsTable .d-flex.gap-3 {
+        gap: 0.75rem !important;
+    }
+
+    #bookingsTable .d-flex.gap-2.flex-wrap {
+        gap: 0.35rem !important;
+    }
+
+    #bookingsTable .d-flex.flex-column {
+        gap: 0.15rem;
+    }
+
+    #bookingsTable .text-muted {
+        font-size: 0.7rem;
+    }
+
+    #bookingsTable .d-flex.flex-column small {
+        line-height: 1.3;
+    }
+
+    .package-bookings-page { 
+        background-color: #f8f9fa !important; 
+        min-height: 100vh; 
+        padding-bottom: 2rem !important; 
+    }
+    .package-bookings-page .card { 
+        background-color: #fff; 
+        border-radius: 0.5rem; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06); 
+    }
+
+    #bookingsTable {
+        font-size: 0.875rem;
+        table-layout: fixed;
+        width: 100% !important;
+        margin-bottom: 0;
+        background-color: #fff;
+    }
+    .dataTables_wrapper .dataTables_scroll .dataTables_scrollBody #bookingsTable,
+    .dataTables_wrapper #bookingsTable { 
+        width: 100% !important; 
+        table-layout: fixed; 
+    }
+    #bookingsTable thead th {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: #f8f9fa;
+    }
+    #bookingsTable tbody td {
+        padding: 0.5rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+        background-color: #fff;
+    }
+    
+    #bookingsTable td:nth-child(2) { 
+        min-height: 72px; 
+        vertical-align: top; 
+    }
+    #bookingsTable td.col-agent .agent-name-line { 
+        font-weight: 600; 
+        font-size: 0.875rem; 
+        color: #0d6efd; 
+        display: flex; 
+        align-items: center; 
+        gap: 0.35rem; 
+    }
+    #bookingsTable td.col-agent .agent-company-line { 
+        font-size: 0.75rem; 
+        color: #6c757d; 
+        display: flex; 
+        align-items: center; 
+        gap: 0.35rem; 
+        margin-top: 0.2rem; 
+    }
+    #bookingsTable td.col-agent .agent-empty { 
+        display: inline-flex; 
+        align-items: center; 
+        gap: 0.35rem; 
+        font-size: 0.8rem; 
+        color: #6c757d; 
+        font-style: italic; 
+    }
+    #bookingsTable td.col-created { 
+        white-space: normal; 
+        word-wrap: break-word; 
+        overflow-wrap: break-word; 
+    }
+    #bookingsTable td.col-status {
+        white-space: normal;
+        overflow: visible;
+        word-break: break-word;
+    }
+    #bookingsTable td.col-status .badge {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        white-space: normal;
+        text-align: left;
+    }
+    #bookingsTable td.col-created .created-by-line, 
+    #bookingsTable td.col-created .created-at-line { 
+        display: flex; 
+        align-items: flex-start; 
+        gap: 0.35rem; 
+        line-height: 1.35; 
+    }
+    #bookingsTable td.col-actions { 
+        min-height: 72px; 
+        min-width: 160px; 
+        overflow: visible; 
+    }
+    #bookingsTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-items: center;
+    }
+    #bookingsTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+    #bookingsTable .action-icon-badge:hover { 
+        background: #f1f5f9; 
+        border-color: #cbd5e1; 
+    }
+    #bookingsTable .action-icon-badge i { 
+        font-size: 1rem; 
+        color: var(--action-color, #475569); 
+    }
+
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform-origin: bottom center;
+    }
+
+    /* Compact header + stats + filter bar */
+    .new-enq-header-bar { 
+        background: linear-gradient(135deg, #f8f9fc 0%, #fff 100%); 
+        border-radius: 0.5rem; 
+        border: 1px solid rgba(105, 108, 255, 0.08); 
+    }
+    .new-enq-stat-item { 
+        transition: transform 0.15s ease, box-shadow 0.15s ease; 
+        min-height: 72px; 
+        padding: 0.65rem 0.75rem !important; 
+    }
+    .new-enq-stat-item:hover { 
+        transform: translateY(-1px); 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06); 
+    }
+    .new-enq-stat-item .stat-value { 
+        font-size: 1.25rem; 
+        font-weight: 600; 
+        letter-spacing: -0.02em; 
+        line-height: 1; 
+        display: block; 
+        min-height: 1.5rem; 
+    }
+    .new-enq-stat-item .stat-label { 
+        display: block; 
+        font-size: 0.7rem; 
+        text-transform: uppercase; 
+        letter-spacing: 0.04em; 
+        opacity: 0.85; 
+        margin-top: 0.15rem; 
+        line-height: 1.3; 
+    }
+    .new-enq-stats-grid .col { 
+        display: flex; 
+    }
+    .new-enq-stats-grid .col > div { 
+        width: 100%; 
+    }
+    .new-enq-filter-bar { 
+        background: #fff; 
+        border-radius: 0.5rem; 
+        border: 1px solid #e7e9ed; 
+    }
+    .new-enq-filter-bar .form-control, 
+    .new-enq-filter-bar .form-control-sm,
+    .new-enq-filter-bar .form-select, 
+    .new-enq-filter-bar .form-select.form-select-sm { 
+        font-size: 0.8125rem; 
+        height: 38px; 
+    }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single { 
+        height: 38px !important; 
+        min-height: 38px !important; 
+        border-radius: 0.375rem; 
+    }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__rendered { 
+        line-height: 36px !important; 
+        padding-left: 10px; 
+        padding-right: 32px; 
+    }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__arrow { 
+        height: 36px !important; 
+        right: 8px; 
+    }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { 
+        right: 32px; 
+    }
+    .new-enq-filter-bar .status-filter-col #statusFilter {
+        white-space: normal;
+        line-height: 1.2;
+        height: auto;
+        min-height: 38px;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+    .new-enq-filter-bar .status-filter-col #statusFilter option {
+        white-space: normal;
     }
 
     .booking-status {
@@ -132,7 +432,6 @@
         max-width: 95%;
     }
 
-    /* Payment amount input styling */
     .form-control.is-valid {
         border-color: #28a745;
         box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
@@ -148,12 +447,10 @@
         margin-top: 0.25rem;
     }
 
-    /* Warning message styling */
     .text-warning small {
         font-weight: 500;
     }
     
-    /* SweetAlert z-index fix to appear above modals */
     .swal-z-index {
         z-index: 9999 !important;
     }
@@ -161,54 +458,156 @@
     .swal2-container {
         z-index: 9999 !important;
     }
+
 </style>
 
-<div class="content-wrapper">
-    <div class="container-xxl flex-grow-1 container-p-y">
-        <div class="card">
-            <div class="card-datatable table-responsive pt-0">
-                <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
-                    <div class="d-flex align-items-center">
-                        <h5 class="card-title mb-0">Package Booking List</h5>
-                    </div>
-
-                    <div class="d-flex justify-content-between gap-3">
-                        <!-- Export Dropdown Button -->
-                        <div class="dropdown">
-                            <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-download"></i> Export
-                            </button>
-                            <ul class="dropdown-menu" aria-labelledby="exportDropdown">
-                                <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
-                                <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
-                                <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
-                                <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">PDF</a></li>
-                                <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">Print</a></li>
-                            </ul>
-                        </div>
+<div class="container-xxl flex-grow-1 container-p-y package-bookings-page">
+    <!-- Header -->
+    <!-- Compact Header + Stats Bar -->
+    <div class="new-enq-header-bar p-3 mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <h4 class="fw-bold mb-0" style="font-size: 1.25rem;">
+                    <i class="ri-briefcase-line me-2 text-primary"></i>
+                    <span class="text-muted fw-light">Bookings /</span> Package Bookings
+                </h4>
+                <span class="text-muted d-none d-md-inline" style="font-size: 0.875rem;">Manage and track all package bookings</span>
+                <span class="badge bg-light text-primary border border-primary border-opacity-25 px-2 py-1" style="font-size: 0.75rem;">
+                    <i class="ri-briefcase-line me-1"></i><span id="rangeCount">{{ isset($bookings) ? count($bookings) : 0 }}</span> <span id="rangeLabel">{{ date('F') }}</span>
+                </span>
+            </div>
+            <div class="row g-2 new-enq-stats-grid flex-grow-1">
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-primary rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-briefcase-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statTotalCount">{{ isset($bookings) ? count($bookings) : 0 }}</span><span class="stat-label text-muted" id="statTotalLabel">Total Bookings</span></div>
                     </div>
                 </div>
-                <x-alert />
-                <table class="datatables-basic table table-bordered">
-                    <thead>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-checkbox-circle-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statConfirmedCount">{{ isset($bookings) ? $bookings->where('status', '1')->count() : 0 }}</span><span class="stat-label text-muted" id="statConfirmedLabel">Confirmed</span></div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-warning rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-time-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statDefiniteCount">{{ isset($bookings) ? $bookings->where('status', '2')->count() : 0 }}</span><span class="stat-label text-muted" id="statDefiniteLabel">Definite</span></div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-danger rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-close-circle-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statCancelledCount">{{ isset($bookings) ? $bookings->whereIn('status', ['4', '7'])->count() : 0 }}</span><span class="stat-label text-muted" id="statCancelledLabel">Cancelled</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compact Filters -->
+    <div class="new-enq-filter-bar card mb-3 border-0 shadow-sm">
+        <div class="card-body py-2 px-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                    <span class="text-muted fw-medium d-flex align-items-center gap-1" style="font-size: 0.8rem;"><i class="ri-filter-3-line"></i> Filters</span>
+                    <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="resetFilters()" title="Reset filters">
+                        <i class="ri-refresh-line me-1"></i> Reset
+                    </button>
+                </div>
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Search</label>
+                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Booking ID, Travel Dates...">
+                </div>
+                <div class="col-12 col-sm-6 col-md-4 col-lg status-filter-col">
+                    <label class="form-label mb-0 small text-muted">Status</label>
+                    <select class="form-select form-select-sm" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="1">Confirmed</option>
+                        <option value="2">Definite</option>
+                        <option value="3">Actual</option>
+                        <option value="4">Cancelled</option>
+                        <option value="5">Refund - Pending</option>
+                        <option value="6">Refunded</option>
+                        <option value="7">Cancel - Confirmed</option>
+                        <option value="8">Complete</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Agent</label>
+                    <select class="form-select form-select-sm" id="agentFilter">
+                        <option value="">All Agents</option>
+                        @php
+                            $agents = [];
+                            if (isset($bookings)) {
+                                foreach ($bookings as $booking) {
+                                    if ($booking->agent && !in_array($booking->agent->name, $agents)) {
+                                        $agents[] = $booking->agent->name;
+                                    }
+                                }
+                                sort($agents);
+                            }
+                        @endphp
+                        @foreach($agents as $agent)
+                            <option value="{{ $agent }}">{{ $agent }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Start Date</label>
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                </div>
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">End Date</label>
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Package Bookings List</h5>
+            <div class="d-flex gap-2">
+                <div class="dropdown">
+                    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">PDF</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">Print</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="datatables-basic table table-bordered" id="bookingsTable">
+                    <colgroup>
+                        <col style="width: 2%">
+                        <col style="width: 18%">
+                        <col style="width: 10%">
+                        <col style="width: 12%">
+                        <col style="width: 12%">
+                        <col style="width: 14%">
+                        <col style="width: 8%">
+                        <col style="width: 8%">
+                    </colgroup>
+                    <thead class="table-light">
                         <tr>
-                            <th>No</th>
-                            <th>Booking ID</th>
-                            <th>Travel Dates</th>
-                            <th>Duration</th>
-                            <th>Pax</th>
-                            <th>Total Price</th>
-                            <th>Status</th>
-                            <th>Agent Name</th>
-                            <th>Action</th>
-                            @if(in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 131, 132, 134, 135, 137, 138]))
-                                <th>Add Payment</th>
-                            @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
-                                <th>Confirm Payment </th>
-                            @endif
-                            <th>Created At</th>
-                            <th>Auto Cancel Date</th>
+                            <th class="th-tooltip" data-tooltip="#">#</th>
+                            <th class="th-tooltip" data-tooltip="Booking Details">Booking Details</th>
+                            <th class="th-tooltip" data-tooltip="Travel Dates">Travel Dates</th>
+                            <th class="th-tooltip" data-tooltip="Status">Status</th>
+                            <th class="th-tooltip" data-tooltip="Agent">Agent</th>
+                            <th class="th-tooltip" data-tooltip="Actions">Actions</th>
+                            <th class="th-tooltip" data-tooltip="Created">Created</th>
+                            <th class="th-tooltip" data-tooltip="Auto Cancel Date">Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -237,253 +636,159 @@
                                 $childCount = $bookingDetails['child_count'] ?? 0;
                                 $totalPax = $adultCount + $childCount;
                                 
-                                // Get price info (compute tax-inclusive total)
+                                // Get price info
                                 $totalPrice = $bookingDetails['total_price'] ?? 0;
                                 $currency = $bookingDetails['currency'] ?? 'SGD';
                                 $personsForList = $totalPax;
                                 $daysForList = $duration ?: 1;
                                 $bookingTaxesForList = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
-                                $calcTaxes = function($baseAmount, $taxesArr, $persons, $days) {
-                                    $taxesArr = is_array($taxesArr) ? $taxesArr : [];
-                                    $computedById = [];
-                                    $breakdown = [];
-                                    $totalTax = 0.0;
-                                    foreach ($taxesArr as $tax) {
-                                        $taxId = $tax['tax_id'] ?? null;
-                                        $taxName = $tax['tax_name'] ?? 'Tax';
-                                        $taxType = strtolower($tax['tax_type'] ?? 'percentage');
-                                        $taxValue = (float) ($tax['tax_value'] ?? 0);
-                                        $calculateOn = $tax['calculate_on'] ?? 'total';
-                                        $ifFixed = $tax['if_fixed'] ?? null;
-                                        $baseForThis = $baseAmount;
-                                        if (is_numeric($calculateOn)) {
-                                            $refId = (int) $calculateOn;
-                                            $refAmount = $computedById[$refId] ?? 0;
-                                            $baseForThis = $baseAmount + $refAmount;
-                                        } elseif (strtolower($calculateOn) === 'total') {
-                                            $baseForThis = $baseAmount;
-                                        }
-                                        $amount = 0.0;
-                                        if ($taxType === 'percentage') {
-                                            $amount = ($baseForThis * $taxValue) / 100;
-                                        } else {
-                                            if ($ifFixed === 'person' || $ifFixed === 'per_person') {
-                                                $amount = $taxValue * max(0, (int) $persons);
-                                            } elseif ($ifFixed === 'per_tour_per_day') {
-                                                $amount = $taxValue * max(1, (int) $days);
-                                            } elseif ($ifFixed === 'per_person_per_day') {
-                                                $amount = $taxValue * max(0, (int) $persons) * max(1, (int) $days);
-                                            } else {
-                                                $amount = $taxValue;
-                                            }
-                                        }
-                                        $amount = ceil($amount);
-                                        $breakdown[$taxName] = ($breakdown[$taxName] ?? 0) + $amount;
-                                        if ($taxId !== null) {
-                                            $computedById[$taxId] = ($computedById[$taxId] ?? 0) + $amount;
-                                        }
-                                        $totalTax += $amount;
-                                    }
-                                    return ['breakdown' => $breakdown, 'total_tax' => $totalTax];
-                                };
-                                $taxResultForList = $calcTaxes($totalPrice, $bookingTaxesForList, $personsForList, $daysForList);
-                                $totalTaxForList = is_array($taxResultForList) ? ($taxResultForList['total_tax'] ?? 0) : 0;
-                                $totalPriceInclTaxForList = $totalPrice + $totalTaxForList;
                             @endphp
-                            <tr>
+                            <tr 
+                                data-created-at="{{ optional($booking->created_at)->toDateString() }}"
+                                data-booking-status="{{ $booking->status }}"
+                            >
                                 <td>{{ $key + 1 }}</td>
-                                <td class="text-center">
-                                    <span class="badge bg-primary rounded-pill px-3 py-2">
-                                        {{ $booking->booking_id }}
-                                    </span>
-                                </td>                                
-                                <td>{{ $travelDates }}</td>
-                                <td>{{ $duration }} days</td>
-                                <td>
-                                    <span class="badge bg-primary">{{ $totalPax }} Pax</span>
-                                    @if($adultCount > 0)
-                                        <span class="badge bg-info">{{ $adultCount }} Adults</span>
-                                    @endif
-                                    @if($childCount > 0)
-                                        <span class="badge bg-warning">{{ $childCount }} Children</span>
-                                    @endif
-                                </td>
-                                <td> SGD {{ number_format($totalPriceInclTaxForList, 2) }}</td>
-                                <td>
-                                    @php
-                                        $statusClass = '';
-                                        switch($booking->status) {
-                                            case '1':
-                                                $statusClass = 'status-confirmed';
-                                                break;
-                                            case '2':
-                                                $statusClass = 'status-definite';
-                                                break;
-                                            case '3':
-                                                $statusClass = 'status-actual';
-                                                break;
-                                            case '4':
-                                                $statusClass = 'status-cancelled';
-                                                break;
-                                            case '5':
-                                                $statusClass = 'status-refund-pending';
-                                                break;
-                                            case '6':
-                                                $statusClass = 'status-refunded';
-                                                break;
-                                            case '7':
-                                                $statusClass = 'status-cancel-confirmed';
-                                                break;
-                                            case '8':
-                                                $statusClass = 'status-complete';
-                                                break;
-                                            default:
-                                                $statusClass = 'status-confirmed';
-                                        }
-                                    @endphp
-                                    <span class="booking-status {{ $statusClass }}">
-                                        @if($booking->status == '1')
-                                            Confirmed
-                                        @elseif($booking->status == '2')
-                                            Definite
-                                        @elseif($booking->status == '3')
-                                            Actual
-                                        @elseif($booking->status == '4')
-                                            Cancelled
-                                        @elseif($booking->status == '5')
-                                            Refund - Pending
-                                        @elseif($booking->status == '6')
-                                            Refunded
-                                        @elseif($booking->status == '7')
-                                            Cancel - Confirmed
-                                        @elseif($booking->status == '8')
-                                            Complete
-                                        @endif
-                                    </span>
-                                </td>
-                                <td>
-                                    @if($booking->agent)
-                                        <span class="badge bg-info">{{ $booking->agent->name }}</span>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                
-                                <td style="display: inline-block; white-space: nowrap;">
-                                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewBookingModal{{ $booking->id }}">
-                                        <i class="fas fa-eye"></i> View
-                                    </button>
-                                    
-                                    @if(in_array(auth()->user()->role_id, [33,34, 37, 38, 124,125, 128, 129, 130,132,133, 134, 135, 136, 137,138]) && in_array($booking->status, ['1', '2']))
-                                        <button type="button" class="btn btn-sm btn-danger ms-1" data-booking-id="{{ $booking->booking_id }}">
-                                            <i class="fas fa-times"></i> Cancel
-                                        </button>
-                                    @endif
-                                    
-                                    @if(in_array(auth()->user()->role_id, [36, 126, 127, 129, 131, 133, 134, 136, 137, 138]) && $booking->status == '5')
-                                        <button type="button" class="btn btn-sm btn-warning ms-1" data-booking-id="{{ $booking->booking_id }}">
-                                            <i class="fas fa-money-bill-wave"></i> Refund
-                                        </button>
-                                    @endif
-                                </td>
-
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 138)
-                                    @php
-                                        // Calculate payment totals
-                                        $paidAmount = 0;
-                                        $packageTotal = 0;
-                                        $hasPendingPayment = false;
-                                        
-                                        // Get package total from booking_details
-                                        if ($booking->booking_details) {
-                                            $bookingDetails = is_array($booking->booking_details) ? $booking->booking_details : json_decode($booking->booking_details, true);
-                                            $packageTotal = $bookingDetails['total_price'] ?? 0;
-                                        }
-                                        
-                                        // Calculate paid amount and check for pending payments
-                                        if ($booking->payment_details) {
-                                            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : (is_string($booking->payment_details) ? json_decode($booking->payment_details, true) : []);
-                                            if ($paymentDetails) {
-                                                foreach ($paymentDetails as $payment) {
-                                                    if (isset($payment['status']) && $payment['status'] == 1) {
-                                                        $paidAmount += $payment['payment_amount'];
-                                                    } elseif (!isset($payment['status']) || $payment['status'] == 0) {
-                                                        $hasPendingPayment = true; // There's a pending payment
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        $isPaymentComplete = $paidAmount >= $packageTotal && $packageTotal > 0;
-                                    @endphp
-                                    
-                                    <td>
-                                        <div style="margin-top: 5px;">
-                                            @if($booking->status == '7')
-                                                {{-- For Cancel - Confirmed bookings, hide payment options --}}
-                                                <span class="text-muted">-</span>
-                                            @elseif(in_array($booking->status, ['5', '6']))
-                                                {{-- For refunded bookings, only show payment history --}}
-                                                @if($booking->payment_details)
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
-                                                        <i class="fas fa-history"></i> Payment History
-                                                    </button>
-                                                @else
-                                                    <span class="text-muted">No payment history</span>
-                                                @endif
-                                            @else
-                                                {{-- For active bookings, show normal payment options --}}
-                                                @if($isPaymentComplete || ($packageTotal - $paidAmount) <= 0)
-                                                    <span class="badge bg-success">Payment Complete</span>
-                                                @elseif($hasPendingPayment)
-                                                    <span class="badge bg-warning">Pending Verification</span>
-                                                @else
-                                                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}">
-                                                        <i class="fas fa-plus"></i> Add Payment
-                                                    </button>
-                                                    @if($packageTotal > 0)
-                                                        <small class="text-muted d-block">Due: ${{ number_format($packageTotal - $paidAmount, 2) }}</small>
-                                                    @endif
-                                                @endif
-                                                
-                                                @if($booking->payment_details)
-                                                    <button type="button" class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
-                                                        <i class="fas fa-history"></i> History
-                                                    </button>
-                                                @endif
-                                            @endif
+                                <td class="align-top">
+                                    <div class="d-flex flex-column gap-1">
+                                        <strong class="text-primary">{{ $booking->booking_id }}</strong>
+                                        <small class="text-muted">{{ $travelDates }}</small>
+                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem; width: fit-content;">{{ $duration }} Days</span>
+                                        <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                            <span title="Adults"><i class="ri-user-line text-success"></i> {{ $adultCount }}</span>
+                                            <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $childCount }}</span>
                                         </div>
-                                    </td>
-                                @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                    <td>
-                                        @if($booking->status == '7')
-                                            {{-- For Cancel - Confirmed bookings, hide payment history --}}
-                                            <span class="text-muted">-</span>
-                                        @else
-                                            {{-- Finance users always need access to history for verification --}}
-                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
-                                                <i class="fas fa-history"></i> History
-                                            </button>
-                                        @endif
-                                    </td>
-                                @endif
-                                <td>
-                                    <div class="d-flex flex-column">
-                                        <span>{{ $booking->created_at->format('D,  M d, Y') }}</span>
-                                        <small class="text-muted">{{ $booking->created_at->format('h:i A') }}</small>
                                     </div>
                                 </td>
-                                <td>
-                                    @if($booking->auto_cancel_date)
-                                        <div class="d-flex flex-column">
-                                            <span>{{ \Carbon\Carbon::parse($booking->auto_cancel_date)->format('D,  M d, Y') }}</span>
-                                            <small class="text-muted">{{ \Carbon\Carbon::parse($booking->auto_cancel_date)->format('h:i A') }}</small>
-                                        </div>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
+                                <td class="align-top">
+                                    <small>{{ $travelDates }}</small>
+                                </td>
+                                <td class="col-status">
+                                    @php
+                                        $statusClass = '';
+                                        $statusIcon = '';
+                                        $statusText = '';
+                                        switch($booking->status) {
+                                            case '1':
+                                                $statusClass = 'bg-success';
+                                                $statusIcon = 'ri-checkbox-circle-line';
+                                                $statusText = 'Confirmed';
+                                                break;
+                                            case '2':
+                                                $statusClass = 'bg-warning';
+                                                $statusIcon = 'ri-time-line';
+                                                $statusText = 'Definite';
+                                                break;
+                                            case '3':
+                                                $statusClass = 'bg-info';
+                                                $statusIcon = 'ri-check-line';
+                                                $statusText = 'Actual';
+                                                break;
+                                            case '4':
+                                                $statusClass = 'bg-danger';
+                                                $statusIcon = 'ri-close-circle-line';
+                                                $statusText = 'Cancelled';
+                                                break;
+                                            case '5':
+                                                $statusClass = 'bg-warning';
+                                                $statusIcon = 'ri-time-line';
+                                                $statusText = 'Refund - Pending';
+                                                break;
+                                            case '6':
+                                                $statusClass = 'bg-success';
+                                                $statusIcon = 'ri-checkbox-circle-line';
+                                                $statusText = 'Refunded';
+                                                break;
+                                            case '7':
+                                                $statusClass = 'bg-danger';
+                                                $statusIcon = 'ri-close-circle-line';
+                                                $statusText = 'Cancel - Confirmed';
+                                                break;
+                                            case '8':
+                                                $statusClass = 'bg-success';
+                                                $statusIcon = 'ri-checkbox-circle-line';
+                                                $statusText = 'Complete';
+                                                break;
+                                            default:
+                                                $statusClass = 'bg-secondary';
+                                                $statusIcon = 'ri-question-line';
+                                                $statusText = 'Unknown';
+                                        }
+                                    @endphp
+                                    <span class="badge {{ $statusClass }}">
+                                        <i class="{{ $statusIcon }} me-1"></i>{{ $statusText }}
+                                    </span>
+                                </td>
+                                <td class="col-agent">
+                                    <div class="d-flex flex-column">
+                                        @if($booking->agent)
+                                            <span class="agent-name-line"><i class="ri-user-line"></i><span>{{ $booking->agent->name }}</span></span>
+                                            <span class="agent-company-line"><i class="ri-building-line"></i><span>{{ $booking->agent->company ?? 'N/A' }}</span></span>
+                                        @else
+                                            <span class="agent-empty"><i class="ri-user-unfollow-line"></i><span>No agent assigned</span></span>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="align-top col-actions">
+                                    <div class="actions-icons-wrap">
+                                        <a href="javascript:void(0);" class="action-icon-badge" style="--action-color: #0369a1;" data-toggle="modal" data-target="#viewBookingModal{{ $booking->id }}" data-bs-toggle="modal" data-bs-target="#viewBookingModal{{ $booking->id }}" data-tooltip="View">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        @if(in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 131, 132, 134, 135, 137, 138]) && !in_array($booking->status, ['5', '6', '7']))
+                                            <a href="javascript:void(0);" class="action-icon-badge" style="--action-color: #16a34a;" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}" data-tooltip="Add Payment">
+                                                <i class="ri-add-line"></i>
+                                            </a>
+                                        @endif
+                                        @if(in_array(auth()->user()->role_id, [33,34, 37, 38, 124,125, 128, 129, 130,132,133, 134, 135, 136, 137,138]) && in_array($booking->status, ['1', '2']))
+                                            <a href="javascript:void(0);" class="action-icon-badge" style="--action-color: #dc2626;" data-booking-id="{{ $booking->booking_id }}" onclick="cancelBooking(this)" data-tooltip="Cancel">
+                                                <i class="ri-close-circle-line"></i>
+                                            </a>
+                                        @endif
+                                        @if(in_array(auth()->user()->role_id, [36, 126, 127, 129, 131, 133, 134, 136, 137, 138]) && $booking->status == '5')
+                                            <a href="javascript:void(0);" class="action-icon-badge" style="--action-color: #ea580c;" data-booking-id="{{ $booking->booking_id }}" onclick="processRefund(this)" data-tooltip="Process Refund">
+                                                <i class="ri-wallet-2-line"></i>
+                                            </a>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="col-created align-top">
+                                    <div class="d-flex flex-column">
+                                        <span class="created-by-line fw-medium" title="Created at">
+                                            <i class="ri-calendar-line"></i>
+                                            <span>{{ $booking->created_at->format('D, M d, Y') }}</span>
+                                        </span>
+                                        <span class="created-at-line" title="Created at">
+                                            <i class="ri-time-line"></i>
+                                            <span>{{ $booking->created_at->format('h:i A') }}</span>
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="col-auto-cancel">
+                                    <div class="d-flex flex-column">
+                                        @if($booking->auto_cancel_date)
+                                            <span class="fw-semibold">
+                                                <i class="fas fa-calendar-times text-warning me-1"></i>
+                                                {{ \Carbon\Carbon::parse($booking->auto_cancel_date)->format('D, M d, Y') }}
+                                            </span>
+                                            <small class="text-muted">
+                                                {{ \Carbon\Carbon::parse($booking->auto_cancel_date)->format('h:i A') }}
+                                            </small>
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                             @endforeach
+                        @else
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <div class="d-flex flex-column align-items-center">
+                                        <i class="ri-briefcase-line ri-48px text-muted mb-2"></i>
+                                        <h6 class="text-muted">No bookings</h6>
+                                        <p class="text-muted mb-0">No package bookings available.</p>
+                                    </div>
+                                </td>
+                            </tr>
                         @endif
                     </tbody>
                 </table>
@@ -491,6 +796,320 @@
         </div>
     </div>
 </div>
+
+<div id="service-icon-global-tooltip" aria-hidden="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+
+<script>
+    $(document).ready(function() {
+        setTimeout(function() {
+            initializeDataTable();
+            initializeSelect2();
+            filterTable();
+        }, 200);
+    });
+    
+    function initializeSelect2() {
+        $('#agentFilter').select2({
+            placeholder: 'All Agents',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        $('#agentFilter').on('change', function() {
+            filterTable();
+        });
+    }
+
+    var table;
+    function initializeDataTable() {
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+        
+        table = $('.datatables-basic').DataTable({
+            responsive: true,
+            dom: 'lrtip',
+            buttons: [
+                'copy',
+                'csv',
+                'excel',
+                'pdf',
+                'print'
+            ],
+            searching: false,
+            language: {
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            lengthMenu: [10, 25, 50, 100],
+            pageLength: 25,
+            columnDefs: (function() {
+                const headerTexts = $('#bookingsTable thead th').map(function() {
+                    return $(this).text().trim();
+                }).get();
+                const colIndex = (name) => headerTexts.findIndex(t => t === name);
+                const actionsIdx = colIndex('Actions');
+                const statusIdx = colIndex('Status');
+
+                return [
+                    {
+                        targets: [actionsIdx].filter(i => i >= 0),
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        targets: [statusIdx].filter(i => i >= 0),
+                        orderable: false
+                    }
+                ];
+            })(),
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
+            }
+        });
+
+        $('#exportCopy').on('click', function() {
+            table.button('.buttons-copy').trigger();
+        });
+
+        $('#exportCSV').on('click', function() {
+            table.button('.buttons-csv').trigger();
+        });
+
+        $('#exportExcel').on('click', function() {
+            table.button('.buttons-excel').trigger();
+        });
+
+        $('#exportPDF').on('click', function() {
+            table.button('.buttons-pdf').trigger();
+        });
+
+        $('#exportPrint').on('click', function() {
+            table.button('.buttons-print').trigger();
+        });
+    }
+
+    function filterTable() {
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        const agentFilter = document.getElementById('agentFilter')?.value || '';
+        const startDateValue = document.getElementById('startDateFilter')?.value || '';
+        const endDateValue = document.getElementById('endDateFilter')?.value || '';
+        
+        const rows = document.querySelectorAll('#bookingsTable tbody tr');
+        
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+            
+            const bookingDetails = row.cells[1]?.textContent.toLowerCase() || '';
+            const travelDates = row.cells[2]?.textContent.toLowerCase() || '';
+            const agent = (row.cells[4]?.querySelector('.agent-name-line span')?.textContent?.trim() || row.cells[4]?.textContent || '').toLowerCase();
+            const status = row.getAttribute('data-booking-status') || '';
+            const createdAt = row.getAttribute('data-created-at');
+            
+            let show = true;
+            
+            if (searchTerm && !bookingDetails.includes(searchTerm) && !travelDates.includes(searchTerm) && !agent.includes(searchTerm)) {
+                show = false;
+            }
+            
+            if ((startDateValue || endDateValue) && createdAt) {
+                const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+                const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
+                const createdDate = new Date(createdAt + 'T00:00:00');
+                
+                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
+                    // Date is in range
+                } else {
+                    show = false;
+                }
+            }
+            
+            if (statusFilter && status !== statusFilter) {
+                show = false;
+            }
+            
+            if (agentFilter && agent !== agentFilter.toLowerCase().trim()) {
+                show = false;
+            }
+            
+            row.style.display = show ? '' : 'none';
+        });
+
+        const visibleRows = Array.from(document.querySelectorAll('#bookingsTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
+        const rangeCount = visibleRows.length;
+        const totalCount = visibleRows.length;
+        const confirmedCount = visibleRows.filter(r => r.getAttribute('data-booking-status') === '1').length;
+        const definiteCount = visibleRows.filter(r => r.getAttribute('data-booking-status') === '2').length;
+        const cancelledCount = visibleRows.filter(r => ['4', '7'].includes(r.getAttribute('data-booking-status'))).length;
+
+        const countEl = document.getElementById('rangeCount');
+        const statTotal = document.getElementById('statTotalCount');
+        const statConfirmed = document.getElementById('statConfirmedCount');
+        const statDefinite = document.getElementById('statDefiniteCount');
+        const statCancelled = document.getElementById('statCancelledCount');
+        const statTotalLabel = document.getElementById('statTotalLabel');
+
+        if (countEl) countEl.textContent = rangeCount;
+        if (statTotal) statTotal.textContent = totalCount;
+        if (statConfirmed) statConfirmed.textContent = confirmedCount;
+        if (statDefinite) statDefinite.textContent = definiteCount;
+        if (statCancelled) statCancelled.textContent = cancelledCount;
+
+        if (startDateValue || endDateValue) {
+            const start = startDateValue ? new Date(startDateValue) : null;
+            const end = endDateValue ? new Date(endDateValue) : null;
+            
+            let label = '';
+            if (start && end) {
+                if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                    if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                        label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+                    } else {
+                        label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                    }
+                } else {
+                    label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+                }
+            } else if (start) {
+                label = `From ${start.toLocaleString('default', { month: 'short' })} ${start.getDate()}, ${start.getFullYear()}`;
+            } else if (end) {
+                label = `Up to ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+            }
+
+            if (!label) label = 'Custom Range';
+            
+            const labelEl = document.getElementById('rangeLabel');
+            if (labelEl) labelEl.textContent = label;
+            if (statTotalLabel) statTotalLabel.textContent = `Total - ${label}`;
+        }
+    }
+
+    function resetFilters() {
+        const searchInput = document.getElementById('searchInput');
+        const statusSelect = document.getElementById('statusFilter');
+        const agentSelect = document.getElementById('agentFilter');
+        const startDateInput = document.getElementById('startDateFilter');
+        const endDateInput = document.getElementById('endDateFilter');
+        const today = new Date().toISOString().split('T')[0];
+
+        if (searchInput) searchInput.value = '';
+        if (statusSelect) statusSelect.value = '';
+        
+        if (agentSelect && $('#agentFilter').hasClass('select2-hidden-accessible')) {
+            $('#agentFilter').val(null).trigger('change');
+        } else if (agentSelect) {
+            agentSelect.value = '';
+        }
+
+        if (startDateInput) {
+            startDateInput.value = '';
+            startDateInput.setAttribute('max', today);
+            startDateInput.removeAttribute('min');
+        }
+
+        if (endDateInput) {
+            endDateInput.value = '';
+            endDateInput.setAttribute('max', today);
+            endDateInput.removeAttribute('min');
+        }
+
+        filterTable();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const agentFilter = document.getElementById('agentFilter');
+        const startDateFilter = document.getElementById('startDateFilter');
+        const endDateFilter = document.getElementById('endDateFilter');
+        const today = new Date().toISOString().split('T')[0];
+        
+        if (searchInput) searchInput.addEventListener('input', filterTable);
+        if (statusFilter) statusFilter.addEventListener('change', filterTable);
+        if (startDateFilter) {
+            startDateFilter.setAttribute('max', today);
+            startDateFilter.addEventListener('change', function() {
+                if (this.value && endDateFilter) {
+                    if (endDateFilter.value && endDateFilter.value < this.value) {
+                        endDateFilter.value = this.value;
+                    }
+                    endDateFilter.setAttribute('min', this.value);
+                } else if (endDateFilter) {
+                    endDateFilter.removeAttribute('min');
+                }
+                filterTable();
+            });
+        }
+        if (endDateFilter) {
+            endDateFilter.setAttribute('max', today);
+            endDateFilter.addEventListener('change', function() {
+                if (this.value && startDateFilter) {
+                    if (startDateFilter.value && startDateFilter.value > this.value) {
+                        startDateFilter.value = this.value;
+                    }
+                    startDateFilter.setAttribute('max', this.value);
+                } else if (startDateFilter) {
+                    startDateFilter.setAttribute('max', today);
+                }
+                filterTable();
+            });
+        }
+        
+        filterTable();
+    });
+
+    $(document).ready(function() {
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        }
+        $(document).on('mouseenter', '#bookingsTable thead .th-tooltip', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || $(this).text();
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+        });
+        $(document).on('mouseleave', '#bookingsTable thead .th-tooltip', function() { $globalTooltip.hide(); });
+        $(document).on('mouseenter', '#bookingsTable .action-icon-badge', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || '';
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+        });
+        $(document).on('mouseleave', '#bookingsTable .action-icon-badge', function() { $globalTooltip.hide(); });
+    });
+
+    function cancelBooking(element) {
+        const bookingId = element.getAttribute('data-booking-id');
+        Swal.fire({
+            title: 'Cancel Booking',
+            text: 'Are you sure you want to cancel this booking?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Cancel',
+            cancelButtonText: 'No'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Handle cancel booking logic here
+                console.log('Cancelling booking:', bookingId);
+            }
+        });
+    }
+</script>
 
 <!-- View Booking Modals -->
 @if(isset($bookings) && count($bookings) > 0)

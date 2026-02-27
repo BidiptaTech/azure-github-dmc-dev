@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+
 use Carbon\Carbon;
 
 class HotelBookingController extends Controller
@@ -646,7 +648,8 @@ class HotelBookingController extends Controller
 
             // Get tour data
             $tour = DB::table('tours')->where('tour_id', $tourId)->first();
-            
+            $dmc_id = $tour->dmc_id;
+            $dmc = User::select('name', 'email', 'userId', 'company_name')->where('userId', $dmc_id)->first();
             // Find the restaurant booking
             $allRestaurantOrders = DB::table('orders')
                 ->where('tour_id', $tourId)
@@ -739,7 +742,8 @@ class HotelBookingController extends Controller
                         'restaurant_details' => $booking, // This contains the full JSON data
                         // Transfer Options
                         'transfer_options' => $booking['transfer_options'] ?? null
-                    ]
+                    ],
+                    'dmc' => $dmc,
                 ]
             ]);
 
