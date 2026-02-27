@@ -359,7 +359,8 @@
                                 
                                 <div class="d-flex align-items-center ms-3">
                                     <div class="tour-type-wrapper" style="min-width: 200px;">
-                                        <div class="tour-toggle">
+
+                                    <div class="tour-toggle">
                                             <input type="radio" name="tour_type" id="fit" value="FIT" checked>
                                             <label for="fit">FIT</label>
                                     
@@ -947,12 +948,12 @@
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
                                         <select class="form-select form-select-sm" id="customerSalutation" name="customer_salutation" style="font-size: 0.85rem;">
                                             <option value="">Select</option>
-                                            <option value="Mr.">Mr.</option>
-                                            <option value="Mrs.">Mrs.</option>
-                                            <option value="Ms.">Ms.</option>
+                                            <option value="Mr">Mr</option>
+                                            <option value="Mrs">Mrs</option>
+                                            <option value="Ms">Ms</option>
                                             <option value="Miss">Miss</option>
-                                            <option value="Dr.">Dr.</option>
-                                            <option value="Prof.">Prof.</option>
+                                            <option value="Dr">Dr</option>
+                                            <option value="Prof">Prof</option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
@@ -4859,17 +4860,25 @@
                             return false;
                         }
                         
-                        // Collect main guest data
+                        // Collect main guest data (include salutation, email, passport for tours.mainguest and guests table)
+                        const leadSection = document.getElementById('customerAccordion');
+                        const getLeadVal = (id, name) => {
+                            const el = leadSection ? leadSection.querySelector(`#${id}, [name="${name}"]`) : (document.getElementById(id) || document.querySelector(`[name="${name}"]`));
+                            return (el?.value || '').trim();
+                        };
                         const mainGuestData = {
-                            full_name: document.getElementById('customerFullName')?.value || '',
-                            email: document.getElementById('customerEmail')?.value || '',
-                            country_code: document.getElementById('customerCountryCode')?.value || '',
-                            phone: document.getElementById('customerPhone')?.value || '',
-                            address1: document.getElementById('customerAddress1')?.value || '',
-                            address2: document.getElementById('customerAddress2')?.value || '',
-                            state: document.getElementById('customerState')?.value || '',
-                            zip: document.getElementById('customerZip')?.value || '',
-                            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
+                            salutation: getLeadVal('customerSalutation', 'customer_salutation'),
+                            full_name: getLeadVal('customerFullName', 'customer_full_name'),
+                            email: getLeadVal('customerEmail', 'customer_email'),
+                            country_code: getLeadVal('customerCountryCode', 'customer_country_code'),
+                            phone: getLeadVal('customerPhone', 'customer_phone'),
+                            address1: getLeadVal('customerAddress1', 'customer_address1'),
+                            address2: getLeadVal('customerAddress2', 'customer_address2'),
+                            state: getLeadVal('customerState', 'customer_state'),
+                            zip: getLeadVal('customerZip', 'customer_zip'),
+                            special_requests: getLeadVal('customerSpecialRequests', 'customer_special_requests'),
+                            passport: getLeadVal('customerPassport', 'customer_passport'),
+                            passport_exp: getLeadVal('customerPassportExpiry', 'customer_passport_expiry')
                         };
 
                         // Collect additional guests data
