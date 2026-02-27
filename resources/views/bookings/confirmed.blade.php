@@ -1168,10 +1168,17 @@
                             <td class="align-top col-actions">
                                 <div class="actions-icons-wrap">
                                     @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                    @if($tour->is_pro == 1)
+                                    <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                           class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                    @else
                                         <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
                                            class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
                                             <i class="ri-pencil-line"></i>
                                         </a>
+                                    @endif
                                     @endif
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}"
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
@@ -1207,11 +1214,11 @@
                                                 <i class="ri-file-download-line"></i>
                                             </a>
                                         @elseif($proformaInvoice)
-                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}"
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}"
                                                class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Proforma Invoice (Price Breakup)" target="_blank">
                                                 <i class="ri-file-paper-line"></i>
                                             </a>
-                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}"
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}"
                                                class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Proforma Invoice (Package Price Only)" target="_blank">
                                                 <i class="ri-file-download-line"></i>
                                             </a>
@@ -1225,11 +1232,11 @@
                                         @endif
                                     @else
                                         @if($finalInvoice)
-                                            <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}"
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}"
                                                class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Final Invoice (Price Breakup)" target="_blank">
                                                 <i class="ri-file-paper-2-line"></i>
                                             </a>
-                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}"
+                                            <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}"
                                                class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Final Invoice (Package Price Only)" target="_blank">
                                                 <i class="ri-file-download-line"></i>
                                             </a>

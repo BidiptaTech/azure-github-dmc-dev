@@ -64,7 +64,13 @@
                            id="image" 
                            name="image" 
                            accept="image/*">
-                    <small class="text-muted">Supported formats: JPEG, PNG, JPG, GIF, WEBP (Max: 2MB)</small>
+                    <div id="image-preview" class="mt-2" style="display: none;">
+                        <div class="position-relative d-inline-block">
+                            <img id="image-preview-img" src="" alt="Preview" 
+                                 style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #dee2e6;">
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-1">Supported formats: JPEG, PNG, JPG, GIF, WEBP (Max: 2MB)</small>
                     @error('image')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -82,5 +88,21 @@
         </div>
     </div>
 </div>
+<script>
+document.getElementById('image').addEventListener('change', function(e) {
+    var preview = document.getElementById('image-preview');
+    var previewImg = document.getElementById('image-preview-img');
+    if (this.files && this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(this.files[0]);
+    } else {
+        preview.style.display = 'none';
+    }
+});
+</script>
 @endsection
 

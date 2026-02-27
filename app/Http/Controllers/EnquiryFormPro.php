@@ -499,6 +499,7 @@ class EnquiryFormPro extends Controller
             'salutation' => 'required|in:Mr,Mrs,Ms,Dr',
             'customer_name' => 'required|string|max:255',
             'contact_number' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
             'multiple_destination' => 'nullable|boolean',
             'destination_single' => 'nullable|string',
             'destinations' => 'nullable|json',
@@ -2527,10 +2528,11 @@ class EnquiryFormPro extends Controller
             $destinationsArray = array_values($destinationsArray);
         }
         
-        // Extract customer info from orders JSON (fullname, phone, salutation)
+        // Extract customer info from orders JSON (fullname, phone, salutation, email)
         $customerName = 'To Be Advised';
         $contactNumber = '';
         $salutation = 'Mr';
+        $customerEmail = '';
         
         if ($orders && count($orders) > 0) {
             $firstOrder = $orders[0];
@@ -2545,12 +2547,16 @@ class EnquiryFormPro extends Controller
                 $contactNumber = $firstOrder->phone;
             }
             
+            if (!empty($firstOrder->email)) {
+                $customerEmail = $firstOrder->email;
+            }
+            
             if (!empty($firstOrder->salutation)) {
                 $salutation = $firstOrder->salutation;
             }
             
             // Also check inside data field if present
-            if ($customerName === 'To Be Advised' || empty($contactNumber)) {
+            if ($customerName === 'To Be Advised' || empty($contactNumber) || empty($customerEmail)) {
                 $orderData = $firstOrder->data ?? null;
                 if (is_string($orderData)) {
                     $orderData = json_decode($orderData, true);
@@ -2566,6 +2572,9 @@ class EnquiryFormPro extends Controller
                     if (empty($contactNumber)) {
                         $contactNumber = $orderData['phone'] ?? $contactNumber;
                     }
+                    if (empty($customerEmail)) {
+                        $customerEmail = $orderData['email'] ?? $customerEmail;
+                    }
                     if ($salutation === 'Mr' && !empty($orderData['salutation'])) {
                         $salutation = $orderData['salutation'];
                     }
@@ -2578,6 +2587,7 @@ class EnquiryFormPro extends Controller
             'salutation' => $salutation,
             'customer_name' => $customerName,
             'contact_number' => $contactNumber,
+            'email' => $customerEmail,
             'agency_id' => $tour->agent->agency_id ?? null,
             'agent_id' => $tour->agent_id ?? null,
             'agent_name' => $agent->name ?? '',

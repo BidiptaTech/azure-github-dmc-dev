@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\MiscellaneousItem;
 use App\Models\MiscellaneousPrice;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Support\Facades\Crypt;
+use App\Helpers\CommonHelper;
 class MiscellaneousItemController extends Controller
 {
     /**
@@ -42,12 +42,12 @@ class MiscellaneousItemController extends Controller
             'status' => 'required|boolean'
         ]);
 
-        // Handle image upload
+        // Handle image upload (like AttractionController - using CommonHelper)
         if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = 'misc_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('miscellaneous', $imageName, 'public');
-            $validated['image'] = $imagePath;
+            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+            if (!empty($pathData['master_value'])) {
+                $validated['image'] = $pathData['master_value'];
+            }
         }
 
         $item = MiscellaneousItem::create($validated);
@@ -62,7 +62,7 @@ class MiscellaneousItemController extends Controller
      */
     public function show(string $id)
     {
-        $item = MiscellaneousItem::with('prices')->findOrFail($id);
+        $item = MiscellaneousItem::with('prices')->where('mis_id', Crypt::decrypt($id))->firstOrFail();
         return view('admin.miscellaneous.show', compact('item'));
     }
 
@@ -71,7 +71,7 @@ class MiscellaneousItemController extends Controller
      */
     public function edit(string $id)
     {
-        $item = MiscellaneousItem::findOrFail($id);
+        $item = MiscellaneousItem::where('mis_id', Crypt::decrypt($id))->firstOrFail();
         return view('admin.miscellaneous.edit', compact('item'));
     }
 
@@ -80,28 +80,37 @@ class MiscellaneousItemController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $item = MiscellaneousItem::findOrFail($id);
+        $item = MiscellaneousItem::where('mis_id', Crypt::decrypt($id))->firstOrFail();
 
         $validated = $request->validate([
             'item_name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'remove_image' => 'nullable|in:0,1',
             'status' => 'required|boolean'
         ]);
 
-        // Handle image upload
-        if ($request->hasFile('image')) {
-            // Delete old image
+        // Handle remove image (cross button clicked)
+        if ($request->input('remove_image') == '1') {
             if ($item->image) {
-                Storage::disk('public')->delete($item->image);
+                CommonHelper::deleteAzureImage($item->image);
+            }
+            $validated['image'] = null;
+        }
+        // Handle image upload (like AttractionController - using CommonHelper)
+        elseif ($request->hasFile('image')) {
+            // Delete old image from Azure before uploading new one
+            if ($item->image) {
+                CommonHelper::deleteAzureImage($item->image);
             }
 
-            $image = $request->file('image');
-            $imageName = 'misc_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('miscellaneous', $imageName, 'public');
-            $validated['image'] = $imagePath;
+            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+            if (!empty($pathData['master_value'])) {
+                $validated['image'] = $pathData['master_value'];
+            }
         }
 
+        unset($validated['remove_image']);
         $item->update($validated);
 
         return redirect()
@@ -114,11 +123,11 @@ class MiscellaneousItemController extends Controller
      */
     public function destroy(string $id)
     {
-        $item = MiscellaneousItem::findOrFail($id);
-        
-        // Delete image if exists
+        $item = MiscellaneousItem::where('mis_id', Crypt::decrypt($id))->firstOrFail();
+
+        // Delete image from Azure if exists
         if ($item->image) {
-            Storage::disk('public')->delete($item->image);
+            CommonHelper::deleteAzureImage($item->image);
         }
 
         $item->delete();
@@ -415,7 +424,7 @@ class MiscellaneousItemController extends Controller
                     'mis_id' => $item->mis_id,
                     'item_name' => $item->item_name,
                     'description' => $item->description,
-                    'image' => $item->image ? asset('storage/' . $item->image) : null,
+                    'image' => $item->image ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image)) : null,
                     'adult_price' => $item->priceForDmc->adult_price ?? 0,
                     'child_price' => $item->priceForDmc->child_price ?? 0,
                     'infant_price' => $item->priceForDmc->infant_price ?? 0

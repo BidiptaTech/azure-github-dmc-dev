@@ -197,6 +197,91 @@ use Illuminate\Support\Facades\Crypt;
 <div class="container-xxl flex-grow-1 container-p-y invoice-container">
     <div class="row">
         <div class="col-12">
+            @php
+                // For is_pro = 1, use transfer_options.totalPrice for attraction/restaurant so display totals match follow-ups
+                $invoiceItems = $invoice->items ?? collect([]);
+                $isPro = $invoice->tour && (int)($invoice->tour->is_pro ?? 0) === 1;
+                $attractionCorrectedTotals = [];
+                $restaurantCorrectedTotals = [];
+                if ($isPro && $invoice->tour) {
+                    $tourId = $invoice->tour->tour_id;
+                    $attractionOrders = \App\Models\Order::where('tour_id', $tourId)->where('type', 'attraction')->whereNull('deleted_at')->get();
+                    $attractionBookings = [];
+                    foreach ($attractionOrders as $o) {
+                        $data = is_string($o->data) ? json_decode($o->data, true) : $o->data;
+                        if (!is_array($data)) continue;
+                        $list = isset($data[0]) && is_array($data[0]) ? $data : [$data];
+                        foreach ($list as $b) {
+                            if (!is_array($b)) continue;
+                            $attractionBookings[] = $b;
+                        }
+                    }
+                    foreach ($invoiceItems->where('item_type', 'attraction') as $item) {
+                        $sd = $item->service_details ?? [];
+                        $name = trim($sd['attraction_name'] ?? $item->description ?? '');
+                        $date = $sd['booking_date'] ?? '';
+                        foreach ($attractionBookings as $b) {
+                            $bName = trim($b['AttractionName'] ?? '');
+                            $bDate = $b['bookingDate'] ?? $b['date'] ?? '';
+                            if ($name && $bName && strtolower($name) === strtolower($bName) && $date == $bDate) {
+                                $base = (float)($b['price'] ?? $b['totalPrice'] ?? 0);
+                                $transferCost = 0;
+                                if (isset($b['transfer_options']['cost']) && $b['transfer_options']['cost'] > 0) {
+                                    $transferCost = isset($b['transfer_options']['totalPrice']) ? (float)$b['transfer_options']['totalPrice'] : (float)$b['transfer_options']['cost'];
+                                }
+                                $guideCost = (float)($b['guide_options']['total_price'] ?? $b['guide_options']['cost'] ?? $b['guide_options']['Cost'] ?? 0);
+                                $attractionCorrectedTotals[$item->id] = $base + $transferCost + $guideCost;
+                                break;
+                            }
+                        }
+                    }
+                    $restaurantOrders = \App\Models\Order::where('tour_id', $tourId)->where('type', 'restaurant')->whereNull('deleted_at')->get();
+                    $restaurantBookings = [];
+                    foreach ($restaurantOrders as $o) {
+                        $data = is_string($o->data) ? json_decode($o->data, true) : $o->data;
+                        if (!is_array($data)) continue;
+                        $list = isset($data[0]) && is_array($data[0]) ? $data : [$data];
+                        foreach ($list as $b) {
+                            if (!is_array($b)) continue;
+                            $restaurantBookings[] = $b;
+                        }
+                    }
+                    foreach ($invoiceItems->where('item_type', 'restaurant') as $item) {
+                        $sd = $item->service_details ?? [];
+                        $name = trim($sd['restaurant_name'] ?? $item->description ?? '');
+                        $date = $sd['booking_date'] ?? '';
+                        $mealType = $sd['meal_type'] ?? '';
+                        $itemHasTransfer = (isset($sd['transfer_required']) && ($sd['transfer_required'] === true || $sd['transfer_required'] === 'Yes' || $sd['transfer_required'] === 'true'));
+                        foreach ($restaurantBookings as $b) {
+                            $bName = trim($b['restaurantName'] ?? $b['restaurant_name'] ?? '');
+                            $bDate = $b['bookingDate'] ?? $b['date'] ?? '';
+                            $bMeal = $b['mealType'] ?? $b['meal_type'] ?? '';
+                            $bHasTransfer = isset($b['transfer_options']['transfer_required']) && ($b['transfer_options']['transfer_required'] === true || $b['transfer_options']['transfer_required'] === 'Yes' || $b['transfer_options']['transfer_required'] === 'true');
+                            if ($name && $bName && strtolower($name) === strtolower($bName) && $date == $bDate && (!$mealType || $mealType == $bMeal) && $itemHasTransfer === $bHasTransfer) {
+                                $base = (float)($b['mealPrice'] ?? $b['totalPrice'] ?? 0);
+                                $transferCost = 0;
+                                if (isset($b['transfer_options']['cost']) && $b['transfer_options']['cost'] > 0) {
+                                    $transferCost = isset($b['transfer_options']['totalPrice']) ? (float)$b['transfer_options']['totalPrice'] : (float)$b['transfer_options']['cost'];
+                                }
+                                $guideCost = (float)($b['guide_options']['total_price'] ?? $b['guide_options']['cost'] ?? $b['guide_options']['Cost'] ?? 0);
+                                $restaurantCorrectedTotals[$item->id] = $base + $transferCost + $guideCost;
+                                break;
+                            }
+                        }
+                    }
+                }
+                $displayTotalAmount = 0;
+                foreach ($invoiceItems as $item) {
+                    if ($item->item_type === 'attraction' && isset($attractionCorrectedTotals[$item->id])) {
+                        $displayTotalAmount += $attractionCorrectedTotals[$item->id];
+                    } elseif ($item->item_type === 'restaurant' && isset($restaurantCorrectedTotals[$item->id])) {
+                        $displayTotalAmount += $restaurantCorrectedTotals[$item->id];
+                    } else {
+                        $displayTotalAmount += (float)($item->total_price ?? 0);
+                    }
+                }
+                $actualAmountForDisplay = $isPro && (count($attractionCorrectedTotals) > 0 || count($restaurantCorrectedTotals) > 0) ? $displayTotalAmount : $invoiceItems->sum('total_price');
+            @endphp
             <!-- Action Buttons -->
             <div class="action-buttons mb-4">
                 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
@@ -326,7 +411,7 @@ use Illuminate\Support\Facades\Crypt;
                                 $shouldShowTax = in_array($tourStatus, $statusesWithTax);
                                 
                                 $negotiatedAmountTop = $invoice->getNegotiatedAmount();
-                                $actualAmountTop = $invoice->items->sum('total_price');
+                                $actualAmountTop = $actualAmountForDisplay ?? $invoice->items->sum('total_price');
                                 $baseAmountTop = $negotiatedAmountTop ?? $actualAmountTop;
                                 $gstAmountTop = $invoice->gst_amount ?? 0;
                                 $finalPriceTop = $shouldShowTax ? ($baseAmountTop + $gstAmountTop) : $baseAmountTop;
@@ -337,7 +422,7 @@ use Illuminate\Support\Facades\Crypt;
                                 <span class="info-label">Total Amount:</span>
                                 <span class="info-value">
                                     <strong style="color: #28a745; font-size: 18px;">
-                                        {{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($invoice->total_amount)) }}
+                                        {{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($actualAmountTop)) }}
                                     </strong>
                                 </span>
                             </div>
@@ -713,8 +798,12 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $item->quantity_adults ?? 0 }}</td>
                                     <td>{{ $item->quantity_children ?? 0 }}</td>
                                     <td>{{ $item->quantity_infants ?? 0 }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    @php
+                                        $attractionDisplayTotal = isset($attractionCorrectedTotals[$item->id]) ? $attractionCorrectedTotals[$item->id] : ($item->total_price ?? 0);
+                                        $attractionDisplayUnit = isset($attractionCorrectedTotals[$item->id]) ? $attractionDisplayTotal : ($item->unit_price ?? 0);
+                                    @endphp
+                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($attractionDisplayUnit ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($attractionDisplayTotal ?? 0, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -772,8 +861,12 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $item->quantity_adults ?? 0 }}</td>
                                     <td>{{ $item->quantity_children ?? 0 }}</td>
                                     <td>{{ $item->quantity_infants ?? 0 }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    @php
+                                        $restaurantDisplayTotal = isset($restaurantCorrectedTotals[$item->id]) ? $restaurantCorrectedTotals[$item->id] : ($item->total_price ?? 0);
+                                        $restaurantDisplayUnit = isset($restaurantCorrectedTotals[$item->id]) ? $restaurantDisplayTotal : ($item->unit_price ?? 0);
+                                    @endphp
+                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($restaurantDisplayUnit ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($restaurantDisplayTotal ?? 0, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -1135,8 +1228,20 @@ use Illuminate\Support\Facades\Crypt;
                             $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
                             $ordersTotal = $notes['orders_total'] ?? null;
                             $baseAmount = $notes['base_amount'] ?? null;
-                            $actualAmount = $ordersTotal !== null ? $ordersTotal : $invoice->items->sum('total_price');
-                            if ($baseAmount === null) {
+                            // For PRO tours, use the corrected display total (uses transfer_options.totalPrice for shared)
+                            $actualAmount = ($isPro && isset($actualAmountForDisplay) && $actualAmountForDisplay > 0)
+                                ? $actualAmountForDisplay
+                                : ($ordersTotal !== null ? $ordersTotal : ($actualAmountForDisplay ?? $invoice->items->sum('total_price')));
+                            if ($isPro && isset($actualAmountForDisplay) && $actualAmountForDisplay > 0) {
+                                // Recalculate negotiated amount for PRO tours, preserving the absolute discount
+                                if ($ordersTotal !== null && $baseAmount !== null) {
+                                    $storedDiscount = max(0, (float)$ordersTotal - (float)$baseAmount);
+                                    $baseAmount = max(0, $actualAmount - $storedDiscount);
+                                } else {
+                                    $neg = $invoice->getNegotiatedAmount();
+                                    $baseAmount = $neg ?? $actualAmount;
+                                }
+                            } elseif ($baseAmount === null) {
                                 $neg = $invoice->getNegotiatedAmount();
                                 $baseAmount = $neg ?? $actualAmount;
                             }
