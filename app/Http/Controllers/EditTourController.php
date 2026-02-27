@@ -194,13 +194,19 @@ class EditTourController extends Controller
                         $mainGuestData = [];
                     }
 
-                    // Extract password before saving to tour (don't store plaintext password in tour JSON)
+                    // Always extract main guest fields (handle both snake_case and camelCase)
+                    $mainGuestEmail = $mainGuestData['email'] ?? $mainGuestData['Email'] ?? null;
+                    $mainGuestName = $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? null;
+                    $mainGuestCountryCode = $mainGuestData['country_code'] ?? $mainGuestData['countryCode'] ?? null;
+                    $mainGuestPhone = $mainGuestData['phone'] ?? null;
                     if (!empty($mainGuestData['app_password'])) {
                         $mainGuestPassword = $mainGuestData['app_password'];
-                        $mainGuestEmail = $mainGuestData['email'] ?? null;
-                        $mainGuestName = $mainGuestData['full_name'] ?? null;
-                        $mainGuestCountryCode = $mainGuestData['country_code'] ?? null;
-                        $mainGuestPhone = $mainGuestData['phone'] ?? null;
+                    }
+                    // Normalize email: trim and treat empty string as null
+                    if (is_string($mainGuestEmail) && trim($mainGuestEmail) === '') {
+                        $mainGuestEmail = null;
+                    } elseif ($mainGuestEmail !== null) {
+                        $mainGuestEmail = trim((string) $mainGuestEmail);
                     }
                     unset($mainGuestData['app_password']);
 
