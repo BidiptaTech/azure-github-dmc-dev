@@ -50,6 +50,7 @@ use App\Http\Controllers\PortController;
 use App\Http\Controllers\ZoneController;
 use App\Http\Controllers\DefaultValueController;
 use App\Http\Controllers\JobSheetController;
+use App\Http\Controllers\CheckCurrencyController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
@@ -88,7 +89,7 @@ Route::get('/clear', function () {
         Route::middleware(['auth'])->group(function () {
             // Tour prices route
             Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
-
+            Route::get('/check-currency',[CheckCurrencyController::class, 'checkCurrency'])->name('check-currency');
             // Tour creation route
             Route::post('/create-single-tour', [App\Http\Controllers\TourController::class, 'createTour'])->name('create.tour');
             Route::get('/', function () {
@@ -841,7 +842,7 @@ Route::get('/clear', function () {
 
         //Booking List
         Route::resource('bookinglist', BookingListController::class);
-        Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
+        // Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
         Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
         Route::get('bookinglist/check-price-hide', [BookingListController::class, 'checkPriceHide'])->name('bookinglist.checkPriceHide');

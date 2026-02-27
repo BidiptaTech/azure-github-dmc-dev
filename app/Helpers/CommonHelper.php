@@ -4659,7 +4659,7 @@ class CommonHelper
         $user = Auth::user();
 
         if (!$user) {
-            return 'USD';
+            return 'SGD';
         }
 
         $dmc_id = null;
@@ -4668,7 +4668,7 @@ class CommonHelper
 
             case 1: // Admin
             case 20: // Virtual DMC
-                return 'USD'; // or default
+                return 'SGD'; // or default
 
             case 11: // DMC
                 $dmc_id = $user->userId;
@@ -4685,35 +4685,37 @@ class CommonHelper
                 $dmc_id = $user->created_by;
                 break;
 
-            case 37: // Sales Manager
+            case 37:    // Sales Manager
+            case 39:    // Sales Manager
                 $sales_head = User::where('userId', $user->created_by)->first();
                 $dmc_id = $sales_head?->created_by;
                 break;
 
-            case 38: // Assistant Sales Manager
+            case 38:    // Assistant Sales Manager
+            case 40:    // Assistant Sales Manager
                 $sales_manager = User::where('userId', $user->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager?->created_by)->first();
                 $dmc_id = $sales_head?->created_by;
                 break;
 
             default:
-                return 'USD';
+                return 'SGD';
         }
 
         if (!$dmc_id) {
-            return 'USD';
+            return 'SGD';
         }
 
         // Get DMC
         $dmc = User::where('userId', $dmc_id)->first();
 
         if (!$dmc || !$dmc->country) {
-            return 'USD';
+            return 'SGD';
         }
 
         // Get currency from countries table using country name
         $country = Country::where('name', $dmc->country)->first();
 
-        return $country->currency ?? 'USD';
+        return $country->currency ?? 'SGD';
     }
 }
