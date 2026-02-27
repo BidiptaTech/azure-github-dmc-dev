@@ -1338,6 +1338,9 @@ class InvoiceService
      */
     private function getOrdersTotalForTour($tourId): float
     {
+        $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+        $isPro = $tour && (int)($tour->is_pro ?? 0) === 1;
+
         $orders = Order::where('tour_id', $tourId)->whereNull('deleted_at')->get();
         $sum = 0.0;
         foreach ($orders as $order) {
@@ -1366,20 +1369,31 @@ class InvoiceService
                 switch ($order->type) {
                     case 'attraction':
                         // Attraction base + transfer + guide
+                        // For PRO tours, use totalPrice (pax-multiplied) for shared transfers
                         $transferCost = 0.0;
                         if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
-                            $transferCost = (float)$booking['transfer_options']['cost'];
+                            if ($isPro && isset($booking['transfer_options']['totalPrice'])) {
+                                $transferCost = (float)$booking['transfer_options']['totalPrice'];
+                            } else {
+                                $transferCost = (float)$booking['transfer_options']['cost'];
+                            }
                         }
                         $sum += $basePrice + $transferCost + $guidePrice;
                         break;
 
                     case 'restaurant':
-                        // Restaurant meal base (totalPrice/mealPrice) + transfer + guide
+                        // Restaurant meal base (mealPrice) + transfer + guide
+                        // For PRO tours, use totalPrice (pax-multiplied) for shared transfers
+                        $mealBase = (float)($booking['mealPrice'] ?? $booking['totalPrice'] ?? $booking['price'] ?? 0);
                         $transferCost = 0.0;
                         if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
-                            $transferCost = (float)$booking['transfer_options']['cost'];
+                            if ($isPro && isset($booking['transfer_options']['totalPrice'])) {
+                                $transferCost = (float)$booking['transfer_options']['totalPrice'];
+                            } else {
+                                $transferCost = (float)$booking['transfer_options']['cost'];
+                            }
                         }
-                        $sum += $basePrice + $transferCost + $guidePrice;
+                        $sum += $mealBase + $transferCost + $guidePrice;
                         break;
 
                     case 'entry_port':

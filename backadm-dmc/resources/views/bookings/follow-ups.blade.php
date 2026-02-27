@@ -1045,8 +1045,6 @@
                                 $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
                                 
                                 // Calculate total tour price from ALL bookings with status 1 or 3
-                                // Hotel: use pickup total only (itemPrice) - transport is added automatically, do NOT add transfer price
-                                // Other services: base price + transfer price + guide price
                                 $tourTotalPrice = 0;
                                 foreach ($tour->booking as $booking) {
                                     if (in_array($booking->status, [1, 3])) {
@@ -1055,9 +1053,16 @@
                                             $orderType = $booking->type ?? '';
                                             foreach ($data as $item) {
                                                 $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                                                
+                                                // For hotel: pickup total only - do NOT add transfer (transport added automatically)
                                                 $transferPrice = 0;
                                                 if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                                                    $transferPrice = (float) $item['transfer_options']['cost'];
+                                                    // For PRO tours, prefer totalPrice (base × pax) when available; otherwise use base cost
+                                                    if (isset($tour) && $tour->is_pro == 1 && isset($item['transfer_options']['totalPrice'])) {
+                                                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                                                    } else {
+                                                        $transferPrice = (float) $item['transfer_options']['cost'];
+                                                    }
                                                 }
                                                 $guidePrice = 0;
                                                 if (isset($item['guide_options']) && is_array($item['guide_options'])) {
@@ -1736,10 +1741,16 @@
                                                                         <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                     </div>
                                                                     @endif
-                                                                    @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                                    @php
+                                                                        $hotelTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                                        if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                            $hotelTransferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                                        }
+                                                                    @endphp
+                                                                    @if($hotelTransferCostDisplay > 0)
                                                                     <div class="col-12">
                                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)$hotelTransferCostDisplay, 2) }}</div>
                                                                     </div>
                                                                     @endif
                                                                 </div>
@@ -1823,7 +1834,14 @@
                            @foreach($attractionData as $booking)
                                @php
                                    $attractionPrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
-                                   $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
+                                   $transferPrice = 0;
+                                   if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                                       if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                           $transferPrice = (float) $booking['transfer_options']['totalPrice'];
+                                       } else {
+                                           $transferPrice = (float) $booking['transfer_options']['cost'];
+                                       }
+                                   }
                                    $guidePrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? $booking['guide_options']['total_price'] : 0;
                                    $grandTotal = $attractionPrice + $transferPrice + $guidePrice;
                                @endphp
@@ -2052,10 +2070,16 @@
                                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                    </div>
                                                                    @endif
-                                                                   @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                                   @php
+                                                                       $attractionTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                                       if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                           $attractionTransferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                                       }
+                                                                   @endphp
+                                                                   @if($attractionTransferCostDisplay > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)$attractionTransferCostDisplay, 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>
@@ -2210,7 +2234,14 @@
                            @foreach($restaurantData as $booking)
                                @php
                                    $restaurantPrice = $booking['totalPrice'] ?? $booking['mealPrice'] ?? 0;
-                                   $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
+                                   $transferPrice = 0;
+                                   if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                                       if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                           $transferPrice = (float) $booking['transfer_options']['totalPrice'];
+                                       } else {
+                                           $transferPrice = (float) $booking['transfer_options']['cost'];
+                                       }
+                                   }
                                    $guidePrice = 0;
                                    if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
                                        $guidePriceValue = $booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0;
@@ -2361,10 +2392,16 @@
                                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                    </div>
                                                                    @endif
-                                                                   @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                                   @php
+                                                                       $restaurantTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                                       if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                           $restaurantTransferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                                       }
+                                                                   @endphp
+                                                                   @if($restaurantTransferCostDisplay > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)$restaurantTransferCostDisplay, 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>

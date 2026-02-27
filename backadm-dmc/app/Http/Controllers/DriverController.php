@@ -734,7 +734,7 @@ class DriverController extends Controller
 
     public function driverCalendar($driver_id)
     {
-        $driver = Driver::where('driver_id', $driver_id)->first();
+        $driver = Driver::where('driver_id', Crypt::decrypt($driver_id))->first();
         $close_days = $driver->close_days;
         $close_dates = $driver->close_dates;
         return view('drivers.calendar', compact('driver_id', 'driver', 'close_days', 'close_dates'));

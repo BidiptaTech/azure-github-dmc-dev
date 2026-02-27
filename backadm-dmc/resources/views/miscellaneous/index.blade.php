@@ -42,7 +42,7 @@
                                 <td>{{ $item->mis_id }}</td>
                                 <td>
                                     @if($item->image)
-                                        <img src="{{ asset('storage/' . $item->image) }}" 
+                                        <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
                                              alt="{{ $item->item_name }}" 
                                              style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
                                     @else
