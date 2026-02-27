@@ -638,7 +638,7 @@ class AttractionController extends Controller
     */
     public function attractionCalendar($attraction_id)
     {
-        $attraction = Attraction::where('attraction_id', $attraction_id)->first();
+        $attraction = Attraction::where('attraction_id', Crypt::decrypt($attraction_id))->first();
         $close_days = $attraction->close_days;
         $close_dates = $attraction->close_dates;
         return view('attractions.calendar', compact('attraction_id', 'attraction', 'close_days', 'close_dates'));

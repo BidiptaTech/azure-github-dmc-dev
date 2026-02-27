@@ -485,12 +485,41 @@
         $otherItems = $allItems->whereNotIn('item_type', ['hotel', 'entry_port', 'attraction', 'restaurant', 'guide', 'travel_point', 'travel_hourly', 'local_transport', 'exit_port', 'miscellaneous']);
         
         // Helper function to get attraction prices (base and grand total)
-        $getAttractionPrices = function($item, $serviceDetails) use ($invoice) {
+        $getAttractionPrices = function($item, $serviceDetails) use ($invoice, $isPro) {
             $basePrice = 0;
             $transferCost = 0;
             $guideTotalPrice = 0;
             
-            // If service_details has breakdown, use it
+            // When is_pro, prefer order data first so we use transfer_options.totalPrice (not stored cost)
+            if ($isPro && $invoice->tour) {
+                $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)
+                    ->where('type', 'attraction')
+                    ->whereNull('deleted_at')
+                    ->get();
+                $itemAttractionName = trim($serviceDetails['attraction_name'] ?? $item->description ?? '');
+                $itemBookingDate = $serviceDetails['booking_date'] ?? '';
+                foreach ($orders as $order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (!is_array($orderData)) continue;
+                    $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                    foreach ($bookings as $booking) {
+                        if (!is_array($booking)) continue;
+                        $bookingAttractionName = trim($booking['AttractionName'] ?? '');
+                        $bookingDate = $booking['bookingDate'] ?? $booking['date'] ?? '';
+                        if ($itemAttractionName && $bookingAttractionName && strtolower($itemAttractionName) === strtolower($bookingAttractionName) && $itemBookingDate == $bookingDate) {
+                            $basePrice = (float)($booking['price'] ?? $booking['totalPrice'] ?? 0);
+                            $transferCost = 0;
+                            if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                                $transferCost = isset($booking['transfer_options']['totalPrice']) ? (float) $booking['transfer_options']['totalPrice'] : (float) $booking['transfer_options']['cost'];
+                            }
+                            $guideTotalPrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? (float) $booking['guide_options']['total_price'] : 0;
+                            return ['base' => $basePrice, 'transfer' => $transferCost, 'guide' => $guideTotalPrice, 'total' => $basePrice + $transferCost + $guideTotalPrice];
+                        }
+                    }
+                }
+            }
+            
+            // If service_details has breakdown (and we didn't match above), use it
             if (isset($serviceDetails['attraction_base_price']) || isset($serviceDetails['transfer_cost']) || isset($serviceDetails['guide_total_price'])) {
                 $basePrice = $serviceDetails['attraction_base_price'] ?? 0;
                 $transferCost = $serviceDetails['transfer_cost'] ?? 0;
@@ -503,7 +532,7 @@
                 ];
             }
             
-            // Try to get from order data
+            // Try to get from order data (non-Pro or no match above)
             if ($invoice->tour) {
                 $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)
                     ->where('type', 'attraction')
@@ -525,7 +554,14 @@
                         if ($itemAttractionName && $bookingAttractionName && 
                             strtolower(trim($itemAttractionName)) === strtolower(trim($bookingAttractionName))) {
                             $basePrice = (float)($booking['price'] ?? $booking['totalPrice'] ?? 0);
-                            $transferCost = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? (float) $booking['transfer_options']['cost'] : 0;
+                            $transferCost = 0;
+                            if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                                if ($isPro && isset($booking['transfer_options']['totalPrice'])) {
+                                    $transferCost = (float) $booking['transfer_options']['totalPrice'];
+                                } else {
+                                    $transferCost = (float) $booking['transfer_options']['cost'];
+                                }
+                            }
                             $guideTotalPrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? (float) $booking['guide_options']['total_price'] : 0;
                             return [
                                 'base' => $basePrice,
@@ -553,6 +589,41 @@
             $basePrice = 0;
             $transferCost = 0;
             $guideCost = 0;
+
+            // When is_pro, prefer order data first so we use transfer_options.totalPrice (not stored cost)
+            if ($isPro && $invoice->tour) {
+                $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)->where('type', 'restaurant')->whereNull('deleted_at')->get();
+                $itemRestaurantName = trim($serviceDetails['restaurant_name'] ?? $item->description ?? '');
+                if (!$itemRestaurantName && !empty($item->description)) $itemRestaurantName = trim(explode(' - ', $item->description)[0] ?? '');
+                $itemBookingDate = $serviceDetails['booking_date'] ?? '';
+                $itemMealType = $serviceDetails['meal_type'] ?? '';
+                $itemHasTransfer = isset($serviceDetails['transfer_required']) && ($serviceDetails['transfer_required'] === 'Yes' || $serviceDetails['transfer_required'] === true || $serviceDetails['transfer_required'] === 'true');
+                foreach ($orders as $order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (!is_array($orderData)) continue;
+                    $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                    foreach ($bookings as $booking) {
+                        if (!is_array($booking)) continue;
+                        $bName = trim($booking['restaurantName'] ?? $booking['restaurant_name'] ?? '');
+                        $bDate = $booking['bookingDate'] ?? $booking['date'] ?? '';
+                        $bMeal = $booking['mealType'] ?? $booking['meal_type'] ?? '';
+                        $bHasTransfer = isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'Yes' || $booking['transfer_options']['transfer_required'] === 'true');
+                        if ($itemRestaurantName && $bName && strtolower($itemRestaurantName) === strtolower($bName) && $itemBookingDate == $bDate && (!$itemMealType || $itemMealType == $bMeal) && $itemHasTransfer === $bHasTransfer) {
+                            $basePrice = (float)($booking['mealPrice'] ?? $booking['totalPrice'] ?? 0);
+                            $transferCost = 0;
+                            if ($bHasTransfer && isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                                $transferCost = isset($booking['transfer_options']['totalPrice']) ? (float) $booking['transfer_options']['totalPrice'] : (float) $booking['transfer_options']['cost'];
+                            }
+                            $guideCost = 0;
+                            if (!empty($booking['guide_options'])) {
+                                $gv = $booking['guide_options']['total_price'] ?? $booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0;
+                                if ((float) $gv > 0) $guideCost = (float) $gv;
+                            }
+                            return ['base' => $basePrice, 'transfer' => $transferCost, 'guide' => $guideCost, 'total' => $basePrice + $transferCost + $guideCost];
+                        }
+                    }
+                }
+            }
 
             // If service_details has breakdown, use it
             if (isset($serviceDetails['restaurant_base_price']) || isset($serviceDetails['transfer_cost']) || isset($serviceDetails['guide_total_price'])) {
@@ -594,7 +665,14 @@
                         if ($itemRestaurantName && $bookingRestaurantName &&
                             strtolower(trim($itemRestaurantName)) === strtolower(trim($bookingRestaurantName))) {
                             $basePrice = (float)($booking['mealPrice'] ?? $booking['totalPrice'] ?? 0);
-                            $transferCost = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? (float) $booking['transfer_options']['cost'] : 0;
+                            $transferCost = 0;
+                            if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                                if ($isPro && isset($booking['transfer_options']['totalPrice'])) {
+                                    $transferCost = (float) $booking['transfer_options']['totalPrice'];
+                                } else {
+                                    $transferCost = (float) $booking['transfer_options']['cost'];
+                                }
+                            }
                             $guideCost = 0;
                             if ($isPro && !empty($booking['guide_options'])) {
                                 $gv = $booking['guide_options']['total_price'] ?? $booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0;
@@ -1486,8 +1564,39 @@
                 $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
                 $ordersTotal = $notes['orders_total'] ?? null;
                 $baseAmount = $notes['base_amount'] ?? null;
-                $actualAmount = $ordersTotal !== null ? $ordersTotal : $invoice->items->sum('total_price');
-                if ($baseAmount === null) {
+
+                // For PRO tours, recompute the actual total using corrected transfer prices (totalPrice for shared)
+                $correctedTotalAmount = null;
+                if ($isPro && $invoice->tour) {
+                    $correctedTotalAmount = 0;
+                    foreach ($invoice->items as $invItem) {
+                        $invSd = is_string($invItem->service_details) ? json_decode($invItem->service_details, true) : ($invItem->service_details ?? []);
+                        if (!is_array($invSd)) $invSd = [];
+                        if ($invItem->item_type === 'attraction') {
+                            $p = $getAttractionPrices($invItem, $invSd);
+                            $correctedTotalAmount += $p['total'];
+                        } elseif ($invItem->item_type === 'restaurant') {
+                            $p = $getRestaurantPrices($invItem, $invSd);
+                            $correctedTotalAmount += $p['total'];
+                        } else {
+                            $correctedTotalAmount += (float)($invItem->total_price ?? 0);
+                        }
+                    }
+                }
+
+                $actualAmount = ($isPro && $correctedTotalAmount !== null)
+                    ? $correctedTotalAmount
+                    : ($ordersTotal !== null ? $ordersTotal : $invoice->items->sum('total_price'));
+                if ($isPro && $correctedTotalAmount !== null) {
+                    // Recalculate negotiated amount for PRO tours, preserving the absolute discount
+                    if ($ordersTotal !== null && $baseAmount !== null) {
+                        $storedDiscount = max(0, (float)$ordersTotal - (float)$baseAmount);
+                        $baseAmount = max(0, $correctedTotalAmount - $storedDiscount);
+                    } else {
+                        $neg = $invoice->getNegotiatedAmount();
+                        $baseAmount = $neg ?? $correctedTotalAmount;
+                    }
+                } elseif ($baseAmount === null) {
                     $neg = $invoice->getNegotiatedAmount();
                     $baseAmount = $neg ?? $actualAmount;
                 }

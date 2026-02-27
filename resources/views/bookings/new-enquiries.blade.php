@@ -939,7 +939,12 @@
                                                 // For hotel: pickup total only - do NOT add transfer (transport added automatically)
                                                 $transferPrice = 0;
                                                 if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                                                    $transferPrice = (float) $item['transfer_options']['cost'];
+                                                    // PRO tours: prefer totalPrice (base × pax) when available
+                                                    if ($tour->is_pro == 1 && isset($item['transfer_options']['totalPrice'])) {
+                                                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                                                    } else {
+                                                        $transferPrice = (float) $item['transfer_options']['cost'];
+                                                    }
                                                 }
                                                 
                                                 // Add guide price if exists (attractions, entry_port, exit_port, restaurant, etc.)
@@ -1612,10 +1617,17 @@
                                                                     <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                 </div>
                                                                 @endif
-                                                                @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                                @php
+                                                                    // For PRO tours, show total transfer price (base × pax) when available
+                                                                    $transferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                                    if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                        $transferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                                    }
+                                                                @endphp
+                                                                @if($transferCostDisplay > 0)
                                                                 <div class="col-12">
                                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}</div>
+                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)$transferCostDisplay, 2) }}</div>
                                                                 </div>
                                                                 @endif
                                                             </div>
@@ -1929,10 +1941,17 @@
                                                                     <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                 </div>
                                                                 @endif
-                                                                @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                                @php
+                                                                    // For PRO tours, show total transfer price (base × pax) when available
+                                                                    $attractionTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                                    if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                        $attractionTransferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                                    }
+                                                                @endphp
+                                                                @if($attractionTransferCostDisplay > 0)
                                                                 <div class="col-12">
                                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}</div>
+                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)$attractionTransferCostDisplay, 2) }}</div>
                                                                 </div>
                                                                 @endif
                                                             </div>
@@ -2290,11 +2309,18 @@
                                                             </div>
                                                         @endif
                                                         
-                                                        @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                        @php
+                                                            // For PRO tours, show total transfer price (base × pax) when available
+                                                            $restaurantTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                            if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                $restaurantTransferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                            }
+                                                        @endphp
+                                                        @if($restaurantTransferCostDisplay > 0)
                                                         <div class="mb-0">
                                                             <small class="text-muted d-block">Transfer Cost</small>
                                                             <div class="fs-5 fw-bold text-success">
-                                                                <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}
+                                                                <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format((float)$restaurantTransferCostDisplay, 2) }}
                                                             </div>
                                                         </div>
                                                         @endif
@@ -2396,7 +2422,12 @@
                                         @php
                                             $vehicleCost = 0;
                                             if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
-                                                $vehicleCost = (float) $booking['transfer_options']['cost'];
+                                                // PRO tours: prefer totalPrice (base × pax) when available
+                                                if ($tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                    $vehicleCost = (float) $booking['transfer_options']['totalPrice'];
+                                                } else {
+                                                    $vehicleCost = (float) $booking['transfer_options']['cost'];
+                                                }
                                             }
                                             $guideCost = 0;
                                             if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
