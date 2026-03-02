@@ -13991,7 +13991,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                 </div>
                                  
-                                                                <!-- Vehicle Results Section (Hidden Initially) -->
+                                <!-- Vehicle Results Section (Hidden Initially) -->
                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
                                     <div class="col-12 mb-3">
                                         <div class="p-3 rounded-3 shadow-sm" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa;">
@@ -14071,7 +14071,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                             </div>
                                                             <div>
                                                                 <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Exit Port Pricing</h6>
-                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
+                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                             </div>
                                                         </div>
                                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
@@ -14094,7 +14094,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                 </div>
                                                                 <div class="card-body" style="padding: 1rem;">
                                                                     <div id="day${day}_exit_0_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select exit port options to see pricing</div>
+                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select vehicle and service type to see pricing (Shared: total adult/child/infant price; Private: unit prices only)</div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -14113,7 +14113,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                             </div>
                                                                             Total Price
                                                                         </h6>
-                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">$0.00</span>
+                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">SGD 0.00</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -15579,7 +15579,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                             </div>
                                                             <div>
                                                                 <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
+                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                             </div>
                                                         </div>
                                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
@@ -15602,7 +15602,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                 </div>
                                                                 <div class="card-body" style="padding: 1rem;">
                                                                     <div id="day${day}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select transport options to see pricing</div>
+                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select vehicle and service type to see pricing (Shared: total adult/child/infant price; Private: unit prices only)</div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -15621,7 +15621,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                             </div>
                                                                             Total Price
                                                                         </h6>
-                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">$0.00</span>
+                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">SGD 0.00</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -16850,26 +16850,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Column 2: Guide Pricing -->
-                                    <div class="col-md-4">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                        <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                    </div>
-                                                    Guide Pricing
-                                                </h6>
-                                            </div>
-                                            <div class="card-body" style="padding: 1rem;">
-                                                <div id="day${day}_attraction_${newIndex}_guide_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
+
                                     <!-- Column 3: Transport Pricing -->
                                     <div class="col-md-4">
                                         <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
@@ -16884,6 +16865,25 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <div class="card-body" style="padding: 1rem;">
                                                 <div id="day${day}_attraction_${newIndex}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
                                                     <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Column 2: Guide Pricing -->
+                                    <div class="col-md-4">
+                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
+                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                        <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                    </div>
+                                                    Guide Pricing
+                                                </h6>
+                                            </div>
+                                            <div class="card-body" style="padding: 1rem;">
+                                                <div id="day${day}_attraction_${newIndex}_guide_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -25124,6 +25124,9 @@ function loadDropoffZones(day, section) {
     const sharedPriceAttr = selectedVehicleOption.getAttribute('data-shared-price') || '';
     const sharableCostPerHourAttr = selectedVehicleOption.getAttribute('data-sharable-cost-per-hour') || '';
     const costPerHourAttr = selectedVehicleOption.getAttribute('data-cost-per-hour') || '';
+    const adultPriceAttr = selectedVehicleOption.getAttribute('data-adult-price') || '';
+    const childPriceAttr = selectedVehicleOption.getAttribute('data-child-price') || '';
+    const infantPriceAttr = selectedVehicleOption.getAttribute('data-infant-price') || '';
     
     const privatePrice = parseFloat(privatePriceAttr) || 0;
     const sharedPrice = parseFloat(sharedPriceAttr) || parseFloat(sharableCostPerHourAttr) || 0;
@@ -25275,25 +25278,31 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
                 if (isHourlyTransport) {
+                    const hourlyCost = costPerHour * selectedHours;
+                    const totalHourlyPrice = displayPrice + hourlyCost;
                     pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Base (vehicle):</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Rate:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly rate:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} per hour</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected Hours:</span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected hours:</span>
                             <span class="fw-semibold" style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span style="color: #6c757d;"><i class="ri-money-dollar-circle-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Cost:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${(costPerHour * selectedHours).toFixed(2)} <small style="color: #6c757d;">($${costPerHour.toFixed(2)} × ${selectedHours})</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-calculator-line" style="color: #667eea; margin-right: 5px;"></i>Hours charge:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} × ${selectedHours} = SGD ${hourlyCost.toFixed(2)}</span>
                         </div>
-                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
-                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
+                        <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
+                            <span style="color: #495057;" class="fw-semibold"><i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Total:</span>
+                            <span class="fw-bold" style="color: #495057;">SGD ${displayPrice.toFixed(2)} + SGD ${hourlyCost.toFixed(2)} = SGD ${totalHourlyPrice.toFixed(2)}</span>
+                        </div>
+                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
+                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: base + (hours × rate per hour).
                         </small>
                     `;
                 } else {
@@ -25335,30 +25344,60 @@ function loadDropoffZones(day, section) {
             `;
             }
         } else if (selectedServiceType === 'Shared') {
-            // For shared service: price is per person (only for non-hourly transport)
+            // For shared service: price is per person
             const isPrivate = false; // Set flag for shared service
-            totalPrice = displayPrice * totalGuests;
+            if (isHourlyTransport && isHourlyService) {
+                let sharedHoursSelect;
+                if (section === 'transport') {
+                    sharedHoursSelect = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
+                } else if (section.startsWith('transport_')) {
+                    const transportIndex = section.split('_')[1];
+                    sharedHoursSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_hourly_selected_hours"]`);
+                }
+                const sharedSelectedHours = sharedHoursSelect && sharedHoursSelect.value ? parseInt(sharedHoursSelect.value) || 1 : 1;
+                const sharedPerPerson = displayPrice + (sharableCostPerHour * sharedSelectedHours);
+                totalPrice = sharedPerPerson * totalGuests;
+            } else {
+                totalPrice = displayPrice * totalGuests;
+            }
             
             if (isHourlyService) {
                     // Get adults and children values for display
                     const adults = parseInt(document.getElementById('adults')?.value) || 0;
                     const children = parseInt(document.getElementById('children')?.value) || 0;
+                    let sharedSelectedHours = 1;
+                    if (isHourlyTransport) {
+                        if (section === 'transport') {
+                            const sh = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
+                            sharedSelectedHours = sh && sh.value ? parseInt(sh.value) || 1 : 1;
+                        } else if (section.startsWith('transport_')) {
+                            const ti = section.split('_')[1];
+                            const sh = document.querySelector(`select[name="day${day}_transport_${ti}_hourly_selected_hours"]`);
+                            sharedSelectedHours = sh && sh.value ? parseInt(sh.value) || 1 : 1;
+                        }
+                    }
+                    const sharedHourlyCost = sharableCostPerHour * sharedSelectedHours;
+                    const sharedPerPerson = displayPrice + (isHourlyTransport ? sharedHourlyCost : 0);
                     
                 pricingDescription = `
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
+                    <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                        <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base (per person):</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly Rate:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${sharableCostPerHour.toFixed(2)} <small style="color: #6c757d;">per person per hour</small></span>
+                    <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                        <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly rate (per person):</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${sharableCostPerHour.toFixed(2)} × ${sharedSelectedHours} h = SGD ${sharedHourlyCost.toFixed(2)}</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total Guests:</span>
-                        <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                    <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                        <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total guests:</span>
+                        <span class="fw-semibold" style="color: #495057;">${totalGuests} (${adults} adults, ${children} children)</span>
                     </div>
-                    <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
-                        <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared service pricing per person. Hourly rate applies for extended services.
+                    <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.85rem;">
+                        <span style="color: #495057;" class="fw-semibold"><i class="ri-calculator-line me-1" style="color: #28a745;"></i>Total:</span>
+                        <span class="fw-semibold" style="color: #495057;">(SGD ${sharedPerPerson.toFixed(2)} per person) × ${totalGuests} = SGD ${(sharedPerPerson * totalGuests).toFixed(2)}</span>
+                    </div>
+                    <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
+                        <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared hourly: (base + hours × rate) × guests.
                     </small>
                 `;
             } else {
@@ -25379,8 +25418,59 @@ function loadDropoffZones(day, section) {
         }
         }
         
+        // Entry/Exit/Other Transport (non-hourly): Shared = total adult/child/infant; Private = unit prices and fixed total. Skip for hourly transport so hour-based calculation is shown.
+        if ((section.startsWith('entry') || section.startsWith('exit') || (section === 'transport' && !isHourlyTransport)) && displayPrice > 0) {
+            const adultsCount = parseInt(document.getElementById('adults')?.value) || 0;
+            const childrenCount = parseInt(document.getElementById('children')?.value) || 0;
+            const infantsCount = parseInt(document.getElementById('infants')?.value) || 0;
+            const adultPrice = parseFloat(adultPriceAttr) || displayPrice;
+            const childPrice = parseFloat(childPriceAttr) || displayPrice;
+            const infantPrice = parseFloat(infantPriceAttr) || 0;
+            if (selectedServiceType === 'Shared') {
+                totalPrice = (adultPrice * adultsCount) + (childPrice * childrenCount) + (infantPrice * infantsCount);
+                const adultTotal = adultPrice * adultsCount;
+                const childTotal = childPrice * childrenCount;
+                const infantTotal = infantPrice * infantsCount;
+                pricingDescription = `
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-line" style="color: #667eea; margin-right: 5px;"></i>Total adult price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-smile-line" style="color: #28a745; margin-right: 5px;"></i>Total child price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-heart-line" style="color: #ffc107; margin-right: 5px;"></i>Total infant price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                </div>
+            `;
+            } else {
+                // Private: show only unit prices (no multiplication), total = fixed vehicle price
+                pricingDescription = `
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-line" style="color: #667eea; margin-right: 5px;"></i>Adult price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-smile-line" style="color: #28a745; margin-right: 5px;"></i>Child price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-heart-line" style="color: #ffc107; margin-right: 5px;"></i>Infant price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                </div>
+                <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
+                    <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).
+                </small>
+            `;
+            }
+        }
+        
         priceDisplay.style.display = 'block';
         const isPrivate = priceType === 'Private';
+        const pricingTitle = section.startsWith('entry') ? 'Entry Port Pricing' : (section.startsWith('exit') ? 'Exit Port Pricing' : 'Transport Pricing');
+        const pricingSubtitle = isHourlyTransport ? 'Hourly: base + (hours × rate per hour)' : ((section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'Vehicle pricing by adult / child / infant' : `${priceType} Service`);
         
         // Additional debug to ensure price is set
         console.log('=== FINAL PRICE DISPLAY ===');
@@ -25398,8 +25488,8 @@ function loadDropoffZones(day, section) {
                                 <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
                             </div>
                             <div>
-                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">${priceType} Service</small>
+                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">${pricingTitle}</h6>
+                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">${pricingSubtitle}</small>
                             </div>
                         </div>
                         <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
@@ -25441,7 +25531,7 @@ function loadDropoffZones(day, section) {
                                             </div>
                                             Total Price
                                         </h6>
-                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$${totalPrice.toFixed(2)}</span>
+                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_${section}_total_price_display">${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${totalPrice.toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -25451,7 +25541,7 @@ function loadDropoffZones(day, section) {
             </div>
         `;
         
-        console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
+        console.log(`${priceType} service selected for day ${day}, section ${section}: ${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
         
         // Add event listener to hours dropdown for hourly transport to update pricing when hours change
         if (isHourlyTransport) {
