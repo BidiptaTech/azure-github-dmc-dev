@@ -1822,9 +1822,11 @@
                              $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data;
                          @endphp
                          
-                         @if(is_array($restaurantData))
-                             @foreach($restaurantData as $booking)
-                                 <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
+                        @if(is_array($restaurantData))
+                            @php $actualBookingIndex = 0; @endphp
+                            @foreach($restaurantData as $booking)
+                                @php $bookingIndex = $actualBookingIndex; $actualBookingIndex++; @endphp
+                                <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
                                      <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%);">
                                          <div class="row align-items-center g-2">
                                              <div class="col-md-8">
