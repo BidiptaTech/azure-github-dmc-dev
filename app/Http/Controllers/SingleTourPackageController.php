@@ -783,7 +783,11 @@ class SingleTourPackageController extends Controller
                             $mainGuestData = null;
                         }
                     }
-                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                    if (is_array($mainGuestData) && !empty($mainGuestData['salutation']) && is_string($mainGuestData['salutation'])) {
+                        $mainGuestData['salutation'] = rtrim($mainGuestData['salutation'], '.'); // Mr. -> Mr
+                    }
+                    // Tour model casts mainguest as 'array' - assign array directly, not json_encode
+                    $tour->mainguest = !empty($mainGuestData) ? $mainGuestData : null;
                 } catch (\Exception $e) {
                     \Log::error('Error processing main guest data', ['error' => $e->getMessage()]);
                     $tour->mainguest = null;
@@ -801,7 +805,14 @@ class SingleTourPackageController extends Controller
                     if (!is_array($additionalGuestData)) {
                         $additionalGuestData = [];
                     }
-                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                    foreach ($additionalGuestData as &$ag) {
+                        if (!empty($ag['salutation']) && is_string($ag['salutation'])) {
+                            $ag['salutation'] = rtrim($ag['salutation'], '.'); // Mr. -> Mr
+                        }
+                    }
+                    unset($ag);
+                    // Tour model casts additionalguest as 'array' - assign array directly, not json_encode
+                    $tour->additionalguest = !empty($additionalGuestData) ? $additionalGuestData : null;
                 } catch (\Exception $e) {
                     \Log::error('Error processing additional guest data', ['error' => $e->getMessage()]);
                     $tour->additionalguest = null;
@@ -838,6 +849,10 @@ class SingleTourPackageController extends Controller
                     return $id;
                 };
                 if (!empty($mainGuestData) && is_array($mainGuestData)) {
+                    $salutation = $mainGuestData['salutation'] ?? null;
+                    if (is_string($salutation)) {
+                        $salutation = rtrim($salutation, '.'); // Mr. -> Mr
+                    }
                     Guest::create([
                         'guest_id' => $nextGuestId(),
                         'tour_id' => [$tourIdForGuests],
@@ -848,7 +863,7 @@ class SingleTourPackageController extends Controller
                         'whatsapp_no' => $mainGuestData['phone'] ?? null,
                         'passport' => $mainGuestData['passport'] ?? null,
                         'passport_exp' => !empty($mainGuestData['passport_exp']) ? $mainGuestData['passport_exp'] : null,
-                        'salutation' => $mainGuestData['salutation'] ?? null,
+                        'salutation' => $salutation,
                     ]);
                 }
                 foreach ($additionalGuestData as $row) {
@@ -860,6 +875,10 @@ class SingleTourPackageController extends Controller
                     if ($name === '' && $contact === '') {
                         continue;
                     }
+                    $salutation = $row['salutation'] ?? null;
+                    if (is_string($salutation)) {
+                        $salutation = rtrim($salutation, '.'); // Mr. -> Mr
+                    }
                     Guest::create([
                         'guest_id' => $nextGuestId(),
                         'tour_id' => [$tourIdForGuests],
@@ -870,7 +889,7 @@ class SingleTourPackageController extends Controller
                         'whatsapp_no' => $contact !== '' ? $contact : null,
                         'passport' => $row['passport_no'] ?? $row['passport'] ?? null,
                         'passport_exp' => !empty($row['passport_exp']) ? $row['passport_exp'] : null,
-                        'salutation' => $row['salutation'] ?? null,
+                        'salutation' => $salutation,
                     ]);
                 }
             } catch (\Exception $e) {
@@ -1073,11 +1092,25 @@ class SingleTourPackageController extends Controller
 
         $firstOrder = $orders->first();
         $customer_info = [];
-        if ($firstOrder && $firstOrder->data) {
+        // Prefer tour->mainguest (updated via Save Guest Changes) over Order data
+        $mainGuest = $tour->mainguest;
+        if (is_array($mainGuest) && !empty(array_filter($mainGuest))) {
+            $customer_info['salutation'] = $mainGuest['salutation'] ?? '';
+            $customer_info['fullName'] = $mainGuest['full_name'] ?? $mainGuest['fullName'] ?? '';
+            $customer_info['email'] = $mainGuest['email'] ?? '';
+            $customer_info['phone'] = $mainGuest['phone'] ?? '';
+            $customer_info['countryCode'] = $mainGuest['country_code'] ?? $mainGuest['countryCode'] ?? '';
+            $customer_info['address1'] = $mainGuest['address1'] ?? '';
+            $customer_info['address2'] = $mainGuest['address2'] ?? '';
+            $customer_info['state'] = $mainGuest['state'] ?? '';
+            $customer_info['zip'] = $mainGuest['zip'] ?? '';
+            $customer_info['specialRequests'] = $mainGuest['special_requests'] ?? $mainGuest['specialRequests'] ?? '';
+        } elseif ($firstOrder && $firstOrder->data) {
             $firstOrderData = is_array($firstOrder->data) ? $firstOrder->data : json_decode($firstOrder->data, true);
             if (isset($firstOrderData[0])) {
                 $firstOrderData = $firstOrderData[0];
             }
+            $customer_info['salutation'] = $firstOrderData['salutation'] ?? '';
             $customer_info['fullName'] = $firstOrderData['fullName'] ?? '';
             $customer_info['email'] = $firstOrderData['email'] ?? '';
             $customer_info['phone'] = $firstOrderData['phone'] ?? '';

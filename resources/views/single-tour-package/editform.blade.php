@@ -4582,8 +4582,9 @@
                             <!-- Combined Guest Information Section (Lead Guest + Additional Guests in same grid) -->
                             <div class="row mb-4">
                                 <div class="col-12">
-                                    <!-- Customer Information Section -->
-                                    @if(isset($customer_info) && !empty($customer_info))
+                                    <!-- Customer Information Section (always show when editing tour so Lead Guest can be added/updated) -->
+                                    @php $customer_info = $customer_info ?? []; @endphp
+                                    @if(isset($tour))
                                     <div class="accordion mb-4" id="customerAccordion">
                                         <div class="accordion-item border-0">
                                             <div class="card shadow-sm border-0">
@@ -4732,17 +4733,16 @@
                                                                             <div class="col-md-2">
                                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
                                                                                 <select 
-                                                                                    class="form-select form-select-sm" 
-                                                                                    id="customerSalutation" 
-                                                                                    name="customer_salutation"
+                                                                                    class="form-select form-select-sm guest-salutation" 
+                                                                                    name="additional_guests[{{ $index }}][salutation]"
                                                                                     style="font-size: 0.85rem;"
                                                                                 >
                                                                                     <option value="">Select</option>
-                                                                                    <option value="Mr" {{ ($customer_info['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
-                                                                                    <option value="Mrs" {{ ($customer_info['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
-                                                                                    <option value="Ms" {{ ($customer_info['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
-                                                                                    <option value="Miss" {{ ($customer_info['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
-                                                                                    <option value="Dr" {{ ($customer_info['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                                                    <option value="Mr" {{ ($guest['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                                                    <option value="Mrs" {{ ($guest['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                                                    <option value="Ms" {{ ($guest['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                                                    <option value="Miss" {{ ($guest['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                                                    <option value="Dr" {{ ($guest['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
                                                                                 </select>
                                                                             </div>
                                                                                 <div class="col-md-3">
@@ -4816,7 +4816,7 @@
                                 
                                 // Function to get current guest count
                                 function getCurrentGuestCount() {
-                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const hasLeadGuest = {{ isset($tour) ? 1 : 0 }};
                                     const additionalGuests = document.querySelectorAll('.guest-card').length;
                                     return hasLeadGuest + additionalGuests;
                                 }
@@ -4829,7 +4829,7 @@
                                 
                                 // Function to add new guest
                                 function addNewGuest() {
-                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const hasLeadGuest = {{ isset($tour) ? 1 : 0 }};
                                     const maxAdditionalGuests = Math.max(0, totalPax - hasLeadGuest);
                                     const currentCount = document.querySelectorAll('.guest-card').length;
                                     
@@ -4952,7 +4952,7 @@
                                 function updateGuestCount() {
                                     const guestCards = document.querySelectorAll('.guest-card');
                                     const count = guestCards.length;
-                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const hasLeadGuest = {{ isset($tour) ? 1 : 0 }};
                                     
                                     // Calculate max additional guests (total pax - lead guest if exists)
                                     const maxAdditionalGuests = Math.max(0, totalPax - hasLeadGuest);
@@ -23266,19 +23266,24 @@
             return;
         }
 
-        // Collect main guest data
+        // Collect main guest data - scope to #customerAccordion to avoid picking wrong elements
+        const leadSection = document.getElementById('customerAccordion');
+        const getLeadVal = (id, name) => {
+            const el = leadSection ? leadSection.querySelector(`#${id}, [name="${name}"]`) : (document.getElementById(id) || document.querySelector(`[name="${name}"]`));
+            return (el?.value || '').trim();
+        };
         const mainGuestData = {
-            salutation: document.getElementById('customerSalutation')?.value || '',
-            full_name: document.getElementById('customerFullName')?.value || '',
-            email: document.getElementById('customerEmail')?.value || '',
-            country_code: document.getElementById('customerCountryCode')?.value || '',
-            phone: document.getElementById('customerPhone')?.value || '',
-            address1: document.getElementById('customerAddress1')?.value || '',
-            address2: document.getElementById('customerAddress2')?.value || '',
-            state: document.getElementById('customerState')?.value || '',
-            zip: document.getElementById('customerZip')?.value || '',
-            special_requests: document.getElementById('customerSpecialRequests')?.value || '',
-            app_password: document.getElementById('customerAppPassword')?.value || ''
+            salutation: getLeadVal('customerSalutation', 'customer_salutation'),
+            full_name: getLeadVal('customerFullName', 'customer_full_name'),
+            email: getLeadVal('customerEmail', 'customer_email'),
+            country_code: getLeadVal('customerCountryCode', 'customer_country_code'),
+            phone: getLeadVal('customerPhone', 'customer_phone'),
+            address1: getLeadVal('customerAddress1', 'customer_address1'),
+            address2: getLeadVal('customerAddress2', 'customer_address2'),
+            state: getLeadVal('customerState', 'customer_state'),
+            zip: getLeadVal('customerZip', 'customer_zip'),
+            special_requests: getLeadVal('customerSpecialRequests', 'customer_special_requests'),
+            app_password: (leadSection ? leadSection.querySelector('#customerAppPassword, [name="customer_app_password"]') : (document.getElementById('customerAppPassword') || document.querySelector('[name="customer_app_password"]')))?.value || ''
         };
 
         // Collect additional guests data from editable fields
@@ -23299,6 +23304,12 @@
                 additionalGuests.push(guest);
             }
         });
+
+        // Validate: if app password is set but email is empty, user may have wrong element picked
+        if (mainGuestData.app_password && !mainGuestData.email) {
+            showToastr('warning', 'Please enter Lead Guest email. Email field was not found or is empty.');
+            return;
+        }
 
         // Prepare form data
         const formData = new FormData();
