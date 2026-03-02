@@ -1000,20 +1000,20 @@
                                     @endphp
                                     
                                     @if($finalInvoice)
-                                        <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}"
+                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}"
                                            class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Final Invoice (Price Breakup)" target="_blank">
                                             <i class="ri-file-paper-2-line"></i>
                                         </a>
-                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}"
+                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}"
                                            class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Final Invoice (Price Only)" target="_blank">
                                             <i class="ri-file-download-line"></i>
                                         </a>
                                     @elseif($proformaInvoice)
-                                        <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}"
+                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}"
                                            class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Proforma Invoice (Price Breakup)" target="_blank">
                                             <i class="ri-file-paper-line"></i>
                                         </a>
-                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}"
+                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}"
                                            class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Proforma Invoice (Price Only)" target="_blank">
                                             <i class="ri-file-download-line"></i>
                                         </a>
@@ -1822,9 +1822,11 @@
                              $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data;
                          @endphp
                          
-                         @if(is_array($restaurantData))
-                             @foreach($restaurantData as $booking)
-                                 <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
+                        @if(is_array($restaurantData))
+                            @php $actualBookingIndex = 0; @endphp
+                            @foreach($restaurantData as $booking)
+                                @php $bookingIndex = $actualBookingIndex; $actualBookingIndex++; @endphp
+                                <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
                                      <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%);">
                                          <div class="row align-items-center g-2">
                                              <div class="col-md-8">

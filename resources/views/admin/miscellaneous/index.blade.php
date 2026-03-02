@@ -1,5 +1,6 @@
 @extends('layouts.layout')
 @section('title', 'Miscellaneous Items')
+@php use Illuminate\Support\Facades\Crypt; @endphp
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -27,7 +28,7 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>#</th>
                                 <th>Image</th>
                                 <th>Item Name</th>
                                 <th>Description</th>
@@ -37,12 +38,12 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($items as $item)
+                            @foreach($items as $key => $item)
                             <tr>
-                                <td>{{ $item->mis_id }}</td>
+                                <td>{{ $key + 1 }}</td>
                                 <td>
                                     @if($item->image)
-                                        <img src="{{ asset('storage/' . $item->image) }}" 
+                                        <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
                                              alt="{{ $item->item_name }}" 
                                              style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
                                     @else
@@ -61,12 +62,12 @@
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
-                                        <a href="{{ route('miscellaneous.edit', $item->mis_id) }}" 
+                                        <a href="{{ route('miscellaneous.edit', Crypt::encrypt($item->mis_id)) }}" 
                                            class="btn btn-sm btn-primary"
                                            title="Edit">
                                             <i class="ri-edit-line"></i>
                                         </a>
-                                        <form action="{{ route('miscellaneous.destroy', $item->mis_id) }}" 
+                                        <form action="{{ route('miscellaneous.destroy', Crypt::encrypt($item->mis_id)) }}" 
                                               method="POST" 
                                               style="display: inline;"
                                               onsubmit="return confirm('Are you sure you want to delete this item? This will also remove it from all DMCs.')">

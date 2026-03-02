@@ -1170,10 +1170,17 @@
                                 @endphp
                                 <div class="actions-icons-wrap">
                                     @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                    @if($tour->is_pro == 1)
+                                    <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                           class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                    @else
                                         <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
                                            class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
                                             <i class="ri-pencil-line"></i>
                                         </a>
+                                    @endif
                                     @endif
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}"
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
@@ -1273,10 +1280,16 @@
                             </td>
                             <td class="col-created align-top">
                                 <div class="d-flex flex-column">
-                                    <span class="created-by-line">
-                                        <i class="ri-user-line"></i>
-                                        <span>{{ $tour->created_by_name ?? 'N/A' }}</span>
-                                    </span>
+                                    @if($tour->created_by)
+                                    @php
+                                        $created_by = App\Models\User::where('userId', $tour->created_by)->first();
+                                        $created_by_name = $created_by->name;
+                                        // dd($created_by_name);
+                                    @endphp
+                                        <span>{{ $created_by_name }}</span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
                                     <span class="created-at-line">
                                         <i class="ri-calendar-line"></i>
                                         <span>{{ $tour->created_at->format('M d, Y') }}</span>
@@ -11289,7 +11302,8 @@ window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, booking
                     Number(fullData?.child_count ?? fullData?.childCount ?? 0)
                 ],
                 p: Number(fullData?.total_price ?? fullData?.totalPrice ?? restaurantData?.totalPrice ?? 0),
-                ref: safeStr(fullData?.reference_id || restaurantData?.reference_id || '', 40)
+                ref: safeStr(fullData?.reference_id || restaurantData?.reference_id || '', 40),
+                dmc: restaurantData?.dmc?.company_name,
             };
 
             var qrContent = JSON.stringify(qrPayload);
@@ -24959,6 +24973,7 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
             if (data.success && data.data && data.data.restaurant_booking) {
                 const restaurantBooking = data.data.restaurant_booking;
                 const restaurantData = {
+                    dmc: data.data.dmc,
                     booking_id: restaurantBooking.booking_id,
                     is_approve: restaurantBooking.is_approve || false,
                     reference_id: restaurantBooking.reference_id || null,
@@ -24989,67 +25004,12 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
         })
         .catch(error => {
             console.error('❌ Error fetching restaurant data from server:', error);
-            console.log('⚠️ Using fallback restaurant data');
-            
-            // Enhanced fallback data that varies based on booking index
-            const fallbackRestaurantNames = ['Cafe Delight', 'Restaurant Paradise', 'Golden Spoon', 'Ocean View Dining'];
-            const fallbackMealTypes = ['Dinner', 'Lunch', 'Breakfast', 'Brunch'];
-            const fallbackTimes = ['6:30 PM', '12:30 PM', '8:00 AM', '10:30 AM'];
-            
-            const fallbackData = {
-                booking_id: null,
-                restaurantDetails: {
-                    restaurant_name: fallbackRestaurantNames[bookingIndex] || `Restaurant ${bookingIndex + 1}`,
-                    meal_type: fallbackMealTypes[bookingIndex] || 'Meal',
-                    meal_specific_type: 'Set Menu',
-                    adult_count: 4,
-                    child_count: 0,
-                    booking_date: '2025-09-11',
-                    visit_time: fallbackTimes[bookingIndex] || '6:30 PM'
-                },
-                totalPrice: 105.00 + (bookingIndex * 25), // Vary price too
-                // Include full restaurant details with meal descriptions
-                restaurant_details: {
-                    fullName: 'dh',
-                    email: 'coactivesolutions456@gmail.com',
-                    phone: '01234567890',
-                    countryCode: null,
-                    address1: 'bankura',
-                    address2: null,
-                    state: 'wb',
-                    zip: '722207',
-                    specialRequests: null,
-                    bookingDate: '2025-09-11',
-                    visitTime: fallbackTimes[bookingIndex] || '6:30 PM',
-                    adultCount: 4,
-                    childCount: 0,
-                    restaurantId: 30,
-                    restaurantName: fallbackRestaurantNames[bookingIndex] || `Restaurant ${bookingIndex + 1}`,
-                    mealType: fallbackMealTypes[bookingIndex] || 'dinner',
-                    mealSpecificType: 'Set Menu',
-                    MealDescription: [
-                        {
-                            item_name: 'Menu Item',
-                            name: 'Premium dinner with special sauce',
-                            price: 35,
-                            meal_id: 29,
-                            category: 'Alcoholic',
-                            item_type: 'Veg',
-                            quantity: 3
-                        }
-                    ],
-                    totalPrice: 105.00 + (bookingIndex * 25),
-                    mealPrice: 105.00 + (bookingIndex * 25),
-                    transport: null,
-                    transportPrice: 0,
-                    priceTypes: ['dmc'],
-                    bookingType: 'enquiry',
-                    dmc_id: 4
-                }
-            };
-            
-            console.log('📋 Using fallback data for booking index', bookingIndex, ':', fallbackData);
-            resolve(fallbackData);
+            // Reject instead of resolving fake data
+            reject({
+                success: false,
+                message: 'Failed to fetch restaurant data',
+                error: error.message
+            });
         });
     });
 }
