@@ -4653,7 +4653,7 @@ class CommonHelper
         self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
     }
 
-    // Get DMC currency
+    // Get DMC Dynamic Currency
     public static function getDmcCurrencyByCountry()
     {
         $user = Auth::user();
