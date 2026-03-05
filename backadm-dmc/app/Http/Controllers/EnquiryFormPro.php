@@ -1172,6 +1172,8 @@ class EnquiryFormPro extends Controller
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
             $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
             $tour->created_by = $user->userId; // Store the user ID who created the tour
+            // Store user currency for this tour based on DMC/user country
+            $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             
             // Store main guest data as JSON

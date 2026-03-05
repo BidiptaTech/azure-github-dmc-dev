@@ -907,7 +907,7 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
-            $tours = Tour::where('tour_status', 'Actual')
+            $tours = Tour::whereIn('tour_status', ['Actual', 'Complete'])
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->select([
@@ -957,7 +957,7 @@ class BookingsController extends Controller
         }
 
         if($dmc_id){
-            $tours = Tour::where('tour_status', 'Actual')
+            $tours = Tour::whereIn('tour_status', ['Actual', 'Complete'])
                 ->where('tours.dmc_id', $dmc_id)
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')

@@ -1767,7 +1767,7 @@
                                                                     @if($hotelTransferCostDisplay > 0)
                                                                     <div class="col-12">
                                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$hotelTransferCostDisplay, 2) }}</div>
                                                                     </div>
                                                                     @endif
                                                                 </div>
@@ -2096,7 +2096,7 @@
                                                                    @if($attractionTransferCostDisplay > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$attractionTransferCostDisplay, 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>
@@ -2418,7 +2418,7 @@
                                                                    @if($restaurantTransferCostDisplay > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$restaurantTransferCostDisplay, 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>
