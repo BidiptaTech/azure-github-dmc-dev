@@ -6501,6 +6501,15 @@
         return parsed;
     }
     
+    // Add N days to an ISO date string (YYYY-MM-DD), return YYYY-MM-DD
+    function addDaysToDateString(isoDateStr, days) {
+        if (!isoDateStr) return '';
+        const d = new Date(isoDateStr);
+        if (isNaN(d.getTime())) return isoDateStr;
+        d.setDate(d.getDate() + parseInt(days, 10));
+        return d.toISOString().slice(0, 10);
+    }
+    
     // Get header start and end dates (ISO strings + Date objects)
     function getHeaderDates() {
         const startDateInput = getHeaderStartInput();
@@ -6964,18 +6973,18 @@
         
         let updated = false;
         
-        // Update start date if different
-        if (currentStartISO !== earliestDate) {
+        // Only expand the range, never shrink: update start only if no start set or a service is before current start
+        if (!currentStartISO || earliestDate < currentStartISO) {
             setHeaderInputValue(startDateInput, earliestDate);
             updated = true;
-            console.log('✓ Updated start date to:', earliestDate);
+            console.log('✓ Set/expanded start date to:', earliestDate);
         }
         
-        // Update end date if different
-        if (currentEndISO !== latestDate) {
+        // Only expand the range, never shrink: update end only if no end set or a service is after current end
+        if (!currentEndISO || latestDate > currentEndISO) {
             setHeaderInputValue(endDateInput, latestDate);
             updated = true;
-            console.log('✓ Updated end date to:', latestDate);
+            console.log('✓ Set/expanded end date to:', latestDate);
         }
         
         if (updated) {
@@ -8513,7 +8522,9 @@
         window.isArrivalDepartureOnlyMode = false;
         window.editingArrivalDepartureIndex = null;
         window.editingArrivalDepartureType = null;
-        window.isEditingArrivalDeparture = false; // Reset edit flag
+        if (!isArrivalDepartureOnly) {
+            window.isEditingArrivalDeparture = false; // Reset only when not editing arrival/departure
+        }
         document.getElementById('selectedHotelsList').innerHTML = '';
         document.getElementById('noHotelsMessage').style.display = 'block';
         document.getElementById('saveAccommodationBtnText').textContent = 'Save & Close';
@@ -10673,6 +10684,8 @@
                                 dateTime: arrivalDateTime,
                                 portName: arrivalPortName,
                                 destination: arrivalDestinationName ? `Arrival: ${arrivalPortName} → ${arrivalDestinationName}` : `Arrival: ${arrivalPortName}`,
+                                destinationId: arrivalDestinationId || transferList[transferIndex].destinationId,
+                                destinationName: arrivalDestinationName || transferList[transferIndex].destinationName,
                                 vehicleId: arrivalVehicleId,
                                 vehicleType: arrivalVehicleType,
                                 vehicleName: arrivalVehicleName,
@@ -10685,6 +10698,12 @@
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
+                            
+                            // Sync linked guide date when arrival date changes
+                            if (item.guideId) {
+                                const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
+                                if (gIdx !== -1) guideList[gIdx].dateTime = arrivalDateTime;
+                            }
                             
                             // Update arrival/departure entry prices
                             arrivalDepartureList[index].cost = finalCost;
@@ -10755,6 +10774,8 @@
                         dateTime: arrivalDateTime,
                         portName: arrivalPortName,
                         destination: arrivalDestinationName ? `Arrival: ${arrivalPortName} → ${arrivalDestinationName}` : `Arrival: ${arrivalPortName}`,
+                        destinationId: arrivalDestinationId || null,
+                        destinationName: arrivalDestinationName || null,
                         vehicleId: arrivalVehicleId,
                         vehicleType: arrivalVehicleType,
                         vehicleName: arrivalVehicleName,
@@ -10930,6 +10951,8 @@
                                 dateTime: departureDateTime,
                                 portName: departurePortName,
                                 destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
+                                destinationId: departureDestinationId || transferList[transferIndex].destinationId,
+                                destinationName: departureDestinationName || transferList[transferIndex].destinationName,
                                 vehicleId: departureVehicleId,
                                 vehicleType: departureVehicleType,
                                 vehicleName: departureVehicleName,
@@ -10942,6 +10965,12 @@
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
+                            
+                            // Sync linked guide date when departure date changes
+                            if (item.guideId) {
+                                const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
+                                if (gIdx !== -1) guideList[gIdx].dateTime = departureDateTime;
+                            }
                             
                             // Update departure entry prices
                             arrivalDepartureList[index].adultCost = prices.cost;
@@ -11000,6 +11029,8 @@
                         dateTime: departureDateTime,
                         portName: departurePortName,
                         destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
+                        destinationId: departureDestinationId || null,
+                        destinationName: departureDestinationName || null,
                         vehicleId: departureVehicleId,
                         vehicleType: departureVehicleType,
                         vehicleName: departureVehicleName,
@@ -13174,7 +13205,7 @@
             
             // Set flag to prevent initializeModalDates from overwriting arrival/departure dates
             window.isEditingArrivalDeparture = true;
-            
+            window.willOpenArrivalDepartureOnly = true; // So openAccommodationModal keeps section and does not reset isEditingArrivalDeparture
             openAccommodationModal();
             
             // Set flag for arrival/departure only mode AFTER opening modal (because openAccommodationModal resets it)
@@ -13276,37 +13307,74 @@
                 console.log('Type:', arrivalDeparture.type);
                 console.log('Original dateTime:', arrivalDeparture.dateTime);
                 
+                // Enrich from linked transfer so modal always shows what's in the Local Transfer row
+                let data = { ...arrivalDeparture };
+                let linked = null;
+                if (data.transferId) {
+                    linked = transferList.find(t => t.id === data.transferId);
+                }
+                if (!linked && data.id) {
+                    const srcType = (data.type || '').toLowerCase();
+                    linked = transferList.find(t => {
+                        const tSrc = (t.sourceType || '').toLowerCase();
+                        return (tSrc === 'arrival' && (data.type === 'Arrival' || data.type === 'arrival')) ||
+                               (tSrc === 'departure' && (data.type === 'Departure' || data.type === 'departure'))
+                            ? (t.sourceId === data.id || t.id === data.transferId) : false;
+                    });
+                }
+                if (linked) {
+                    // Always prefer transfer's vehicle/type/way/destination (source of truth for Local Transfer row)
+                    if (linked.vehicleId != null && linked.vehicleId !== '') data.vehicleId = linked.vehicleId;
+                    if (linked.vehicleType != null && linked.vehicleType !== '') data.vehicleType = linked.vehicleType;
+                    if (linked.vehicleName != null && linked.vehicleName !== '') data.vehicleName = linked.vehicleName;
+                    if (linked.type != null && linked.type !== '') data.transferType = linked.type;
+                    if (linked.way != null && linked.way !== '') data.transferWay = linked.way;
+                    if (linked.destinationId != null && linked.destinationId !== '') data.transferDestinationId = linked.destinationId;
+                    if (linked.destinationName != null && linked.destinationName !== '') data.transferDestinationName = linked.destinationName;
+                    else if (linked.destination) data.transferDestinationName = linked.destination;
+                }
+                const wayVal = (data.transferWay === 'both-way' || data.transferWay === 'Both Way' || data.transferWay === '2way') ? 'both-way' : 'one-way';
+                
                 if (arrivalDeparture.type === 'Arrival') {
                     // Normalize date to YYYY-MM-DDTHH:mm format for datetime-local input
-                    const normalizedDateTime = normalizeDateTimeLocal(arrivalDeparture.dateTime);
+                    const normalizedDateTime = normalizeDateTimeLocal(data.dateTime);
                     console.log('Normalized dateTime for Arrival:', normalizedDateTime);
                     
                     document.getElementById('arrivalDateTime').value = normalizedDateTime || '';
                     console.log('Set arrivalDateTime field to:', document.getElementById('arrivalDateTime').value);
                     
-                    $('#arrivalPort').val(arrivalDeparture.portId).trigger('change');
-                    document.getElementById('arrivalFlightNo').value = arrivalDeparture.flightNo || '';
-                    document.getElementById('arrivalTransfer').checked = arrivalDeparture.hasTransfer || false;
+                    $('#arrivalPort').val(data.portId).trigger('change');
+                    document.getElementById('arrivalFlightNo').value = data.flightNo || '';
+                    document.getElementById('arrivalTransfer').checked = data.hasTransfer || false;
                     toggleArrivalTransferFields(); // Show/hide transfer fields
-                    if (arrivalDeparture.transferDestinationId) {
-                        $('#arrivalDestination').val(arrivalDeparture.transferDestinationId).trigger('change');
+                    if (data.transferDestinationId) {
+                        $('#arrivalDestination').val(data.transferDestinationId).trigger('change');
                     }
-                    document.getElementById('arrivalTransferWay').value = 'one-way';
-                    document.getElementById('arrivalTransferType').value = arrivalDeparture.transferType || 'S';
-                    document.getElementById('arrivalVehicleType').value = arrivalDeparture.vehicleId || '';
-                    document.getElementById('arrivalAdults').value = arrivalDeparture.adultsQty || 2;
-                    document.getElementById('arrivalChild').value = arrivalDeparture.childQty || 0;
-                    document.getElementById('arrivalInfant').value = arrivalDeparture.infantQty || 0;
+                    document.getElementById('arrivalTransferWay').value = wayVal;
+                    document.getElementById('arrivalTransferType').value = data.transferType || 'S';
+                    const arrivalVehicleVal = data.vehicleId != null && data.vehicleId !== '' ? String(data.vehicleId) : '';
+                    $('#arrivalVehicleType').val(arrivalVehicleVal).trigger('change');
+                    if (arrivalVehicleVal && document.getElementById('arrivalVehicleType').value !== arrivalVehicleVal) {
+                        const arrivalVehicleSelect = document.getElementById('arrivalVehicleType');
+                        const opt = Array.from(arrivalVehicleSelect.options).find(o => (o.text || '').trim() === (data.vehicleName || '').trim() || (o.value && String(o.value) === arrivalVehicleVal));
+                        if (opt) arrivalVehicleSelect.value = opt.value;
+                    }
+                    if (typeof $.fn.select2 !== 'undefined' && $('#arrivalVehicleType').hasClass('select2-hidden-accessible')) {
+                        $('#arrivalVehicleType').trigger('change.select2');
+                    }
+                    document.getElementById('arrivalAdults').value = data.adultsQty || 2;
+                    document.getElementById('arrivalChild').value = data.childQty || 0;
+                    document.getElementById('arrivalInfant').value = data.infantQty || 0;
                     // Populate cost and sell
-                    document.getElementById('arrivalCost').value = arrivalDeparture.cost || arrivalDeparture.adultCost || 0;
-                    document.getElementById('arrivalSell').value = arrivalDeparture.sell || arrivalDeparture.adultSell || 0;
+                    document.getElementById('arrivalCost').value = data.cost || data.adultCost || 0;
+                    document.getElementById('arrivalSell').value = data.sell || data.adultSell || 0;
                     
                     // Sync guide counts with transfer values
                     syncArrivalGuideCounts();
                     
                     // Populate arrival guide if exists
-                    if (arrivalDeparture.guideId) {
-                        const guideEntry = guideList.find(g => String(g.id) === String(arrivalDeparture.guideId));
+                    if (data.guideId) {
+                        const guideEntry = guideList.find(g => String(g.id) === String(data.guideId));
                         if (guideEntry) {
                             const arrivalGuideSection = document.getElementById('arrivalGuideSection');
                             if (arrivalGuideSection) {
@@ -13367,35 +13435,44 @@
                     }
                 } else {
                     // Normalize date to YYYY-MM-DDTHH:mm format for datetime-local input
-                    const normalizedDateTime = normalizeDateTimeLocal(arrivalDeparture.dateTime);
+                    const normalizedDateTime = normalizeDateTimeLocal(data.dateTime);
                     console.log('Normalized dateTime for Departure:', normalizedDateTime);
                     
                     document.getElementById('departureDateTime').value = normalizedDateTime || '';
                     console.log('Set departureDateTime field to:', document.getElementById('departureDateTime').value);
                     
-                    $('#departurePort').val(arrivalDeparture.portId).trigger('change');
-                    document.getElementById('departureFlightNo').value = arrivalDeparture.flightNo || '';
-                    document.getElementById('departureTransfer').checked = arrivalDeparture.hasTransfer || false;
+                    $('#departurePort').val(data.portId).trigger('change');
+                    document.getElementById('departureFlightNo').value = data.flightNo || '';
+                    document.getElementById('departureTransfer').checked = data.hasTransfer || false;
                     toggleDepartureTransferFields(); // Show/hide transfer fields
-                    if (arrivalDeparture.transferDestinationId) {
-                        $('#departureDestination').val(arrivalDeparture.transferDestinationId).trigger('change');
+                    if (data.transferDestinationId) {
+                        $('#departureDestination').val(data.transferDestinationId).trigger('change');
                     }
-                    document.getElementById('departureTransferWay').value = 'one-way';
-                    document.getElementById('departureTransferType').value = arrivalDeparture.transferType || 'S';
-                    document.getElementById('departureVehicleType').value = arrivalDeparture.vehicleId || '';
-                    document.getElementById('departureAdults').value = arrivalDeparture.adultsQty || 2;
-                    document.getElementById('departureChild').value = arrivalDeparture.childQty || 0;
-                    document.getElementById('departureInfant').value = arrivalDeparture.infantQty || 0;
+                    document.getElementById('departureTransferWay').value = wayVal;
+                    document.getElementById('departureTransferType').value = data.transferType || 'S';
+                    const departureVehicleVal = data.vehicleId != null && data.vehicleId !== '' ? String(data.vehicleId) : '';
+                    $('#departureVehicleType').val(departureVehicleVal).trigger('change');
+                    if (departureVehicleVal && document.getElementById('departureVehicleType').value !== departureVehicleVal) {
+                        const departureVehicleSelect = document.getElementById('departureVehicleType');
+                        const opt = Array.from(departureVehicleSelect.options).find(o => (o.text || '').trim() === (data.vehicleName || '').trim() || (o.value && String(o.value) === departureVehicleVal));
+                        if (opt) departureVehicleSelect.value = opt.value;
+                    }
+                    if (typeof $.fn.select2 !== 'undefined' && $('#departureVehicleType').hasClass('select2-hidden-accessible')) {
+                        $('#departureVehicleType').trigger('change.select2');
+                    }
+                    document.getElementById('departureAdults').value = data.adultsQty || 2;
+                    document.getElementById('departureChild').value = data.childQty || 0;
+                    document.getElementById('departureInfant').value = data.infantQty || 0;
                     // Populate cost and sell
-                    document.getElementById('departureCost').value = arrivalDeparture.cost || arrivalDeparture.adultCost || 0;
-                    document.getElementById('departureSell').value = arrivalDeparture.sell || arrivalDeparture.adultSell || 0;
+                    document.getElementById('departureCost').value = data.cost || data.adultCost || 0;
+                    document.getElementById('departureSell').value = data.sell || data.adultSell || 0;
                     
                     // Sync guide counts with transfer values
                     syncDepartureGuideCounts();
                     
                     // Populate departure guide if exists
-                    if (arrivalDeparture.guideId) {
-                        const guideEntry = guideList.find(g => String(g.id) === String(arrivalDeparture.guideId));
+                    if (data.guideId) {
+                        const guideEntry = guideList.find(g => String(g.id) === String(data.guideId));
                         if (guideEntry) {
                             const departureGuideSection = document.getElementById('departureGuideSection');
                             if (departureGuideSection) {
@@ -13458,7 +13535,7 @@
                 
                 // Reset the flag after populating
                 window.isEditingArrivalDeparture = false;
-            }, 250);
+            }, 400);
             
             // Update button text based on type
             if (arrivalDeparture.type === 'Arrival') {
@@ -13543,12 +13620,21 @@
             const arrivalDeparture = arrivalDepartureList[index];
             arrivalDeparture.dateTime = value;
             
-            // If this arrival/departure has a linked transfer, update it
+            // If this arrival/departure has a linked transfer, update it (so Local Transfer row shows new date)
             if (arrivalDeparture.transferId) {
                 const transferIndex = transferList.findIndex(t => t.id === arrivalDeparture.transferId);
                 if (transferIndex !== -1) {
                     transferList[transferIndex].dateTime = value;
                     updateTransferTable();
+                }
+            }
+            
+            // If this arrival/departure has a linked guide, update guide's date (so Tour Guide section shows new date)
+            if (arrivalDeparture.guideId) {
+                const gIdx = guideList.findIndex(g => String(g.id) === String(arrivalDeparture.guideId));
+                if (gIdx !== -1) {
+                    guideList[gIdx].dateTime = value;
+                    if (typeof updateGuideTable === 'function') updateGuideTable();
                 }
             }
             
@@ -15282,9 +15368,27 @@
         // Load attractions for the destination
         loadAttractionsByDestination();
         
-        // After attractions load, find and check the matching attraction
+        // After attractions load, set filter type and check the matching attraction
         setTimeout(() => {
             const attractionRows = document.querySelectorAll('.attraction-row');
+            
+            // Determine attraction type (tour site vs attraction) for this tour and set the filter radio accordingly
+            let selectedFilterType = 'attraction'; // default
+            const targetRowForType = Array.from(attractionRows).find(row => {
+                const attrId = row.getAttribute('data-attraction-id');
+                return attrId == tour.attractionId;
+            });
+            if (targetRowForType) {
+                const rowType = parseInt(targetRowForType.getAttribute('data-attraction-type')) || 1;
+                selectedFilterType = (rowType === 1) ? 'toursite' : 'attraction';
+            }
+            const filterRadioId = selectedFilterType === 'toursite' ? 'filterTourSite' : 'filterAttraction';
+            const filterRadio = document.getElementById(filterRadioId);
+            if (filterRadio) {
+                filterRadio.checked = true;
+            }
+            // Apply filter so the selected attraction row is visible
+            filterAttractionsByType(selectedFilterType);
             attractionRows.forEach(row => {
                 const attrId = row.getAttribute('data-attraction-id');
                 if (attrId == tour.attractionId) {
@@ -17747,7 +17851,14 @@
             const mealItemId = checkbox.getAttribute('data-meal-id'); // This is the meal item from database
             const row = checkbox.closest('tr');
             const mealName = row.getAttribute('data-meal-name');
-            const mealType = row.getAttribute('data-meal-type') || mealName;
+            // Use period (Lunch/Breakfast/Dinner) for display, fallback to meal name then type - so we keep "Lunch" not "Set Menu"
+            const mealPeriod = row.getAttribute('data-meal-period') || mealName;
+            const mealTypeRaw = row.getAttribute('data-meal-type') || mealName;
+            const mealType = mealPeriod || mealTypeRaw; // Prefer period for display: "Lunch", "Breakfast"
+            const mealTypeId = row.getAttribute('data-meal-type-id');
+            let mealSpecificType = '';
+            if (mealTypeId == '1') mealSpecificType = '🍽️ Buffet';
+            else if (mealTypeId == '2') mealSpecificType = '📋 Set Menu';
             
             // Get values from the row
             const mealCount = parseInt(row.querySelector('.meal-count').value) || 0;
@@ -18115,6 +18226,7 @@
                 mealId: mealItemId, // This is the meal item ID from database
                 mealName: mealName,
                 mealType: mealType,
+                mealSpecificType: mealSpecificType || oldMeal.mealSpecificType || '', // Preserve "Set Menu"/"Buffet" for display
                 dateTime: dateTime,
                 mealCount: mealCount,
                 adultsQty: adultsQty,
@@ -18372,29 +18484,18 @@
                     childQty: restaurantGuideChildQty
                 };
                 console.log('Guide selected for meals:', guideInfo, 'Hours:', hours, 'Price:', price);
-                const restaurantGuideQuantity = parseInt(document.getElementById('restaurantGuideQuantity')?.value || '1') || 1;
-                for (let gq = 0; gq < restaurantGuideQuantity; gq++) {
-                    const currentGuideId = gq === 0 ? guideEntryId : generateId('guide');
-                    const guideEntry = {
-                        id: currentGuideId,
-                        dateTime: dateTime,
-                        tourActivity: `${restaurantName} (Restaurant Guide)`,
-                        language: guideInfo.languages || 'N/A',
-                        guideName: guideInfo.guideName,
-                        guideId: guideInfo.guideId,
-                        hours: hours,
-                        cost: price,
-                        sell: price,
-                        supplement: false,
-                        isStandalone: false,
-                        linkedTo: 'restaurant',
-                        restaurantName: restaurantName,
-                        adultsQty: restaurantGuideAdultQty,
-                        childQty: restaurantGuideChildQty
-                    };
-                    guideList.push(guideEntry);
-                    console.log('Added guide to guideList (qty ' + (gq + 1) + '/' + restaurantGuideQuantity + '):', guideEntry);
-                }
+                // Guide entries are pushed per meal in the meal loop below (one guide per meal with distributed date)
+            }
+            
+            // For date distribution: get tour start date and time part from modal dateTime
+            const tourStartInput = getHeaderStartInput();
+            const tourStartISO = tourStartInput ? getHeaderInputISO(tourStartInput) : null;
+            let timePart = '12:00';
+            if (dateTime && (dateTime.indexOf('T') !== -1)) {
+                const t = dateTime.split('T')[1];
+                if (t) timePart = t.substring(0, 5);
+            } else if (dateTime && dateTime.length >= 16) {
+                timePart = dateTime.substring(11, 16);
             }
             
             // Adding new meals - loop through selected rows, adding mealCount times per row
@@ -18463,6 +18564,63 @@
                 // Add mealCount entries for this meal row
                 const rowIds = mealIdsPerRow[index];
                 for (let mc = 0; mc < mealCount; mc++) {
+                    // Distributed date: meal 0 = tour start, meal 1 = start+1 day, etc.
+                    const dateTimeForMc = (tourStartISO && timePart)
+                        ? (addDaysToDateString(tourStartISO, mc) + 'T' + timePart)
+                        : dateTime;
+                    
+                    let thisTransferId = null;
+                    let thisTransferInfo = null;
+                    if (transferChecked && transferInfo && (transferId || transferInfo.id)) {
+                        if (mc === 0) {
+                            thisTransferId = transferId;
+                            thisTransferInfo = transferInfo;
+                            const firstTransferEntry = transferList.find(t => t.id === transferId);
+                            if (firstTransferEntry && dateTimeForMc) firstTransferEntry.dateTime = dateTimeForMc;
+                        } else {
+                            const newTransferEntryId = generateId('transfer');
+                            const firstTransferEntry = transferList.find(t => t.id === transferId);
+                            if (firstTransferEntry) {
+                                const cloneEntry = Object.assign({}, firstTransferEntry, { id: newTransferEntryId, sourceId: rowIds[mc], dateTime: dateTimeForMc });
+                                transferList.push(cloneEntry);
+                            }
+                            thisTransferId = newTransferEntryId;
+                            thisTransferInfo = Object.assign({}, transferInfo, { id: newTransferEntryId });
+                        }
+                    }
+                    
+                    let thisGuideId = null;
+                    let thisGuideInfo = null;
+                    let thisGuideOptions = null;
+                    if (guideChecked && guideInfo) {
+                        const hoursSelect = document.getElementById('restaurantGuideHours');
+                        const hours = parseInt(hoursSelect?.value || '12') || 12;
+                        const currentGuideEntryId = mc === 0 ? guideEntryId : generateId('guide');
+                        const guideEntry = {
+                            id: currentGuideEntryId,
+                            dateTime: dateTimeForMc,
+                            tourActivity: `${restaurantName} (Restaurant Guide)`,
+                            language: guideInfo.languages || 'N/A',
+                            guideName: guideInfo.guideName,
+                            guideId: guideInfo.guideId,
+                            hours: hours,
+                            cost: guideInfo.cost,
+                            sell: guideInfo.sell,
+                            supplement: false,
+                            isStandalone: false,
+                            linkedTo: 'restaurant',
+                            restaurantName: restaurantName,
+                            adultsQty: guideInfo.adultsQty,
+                            childQty: guideInfo.childQty
+                        };
+                        guideList.push(guideEntry);
+                        thisGuideId = currentGuideEntryId;
+                        thisGuideInfo = Object.assign({}, guideInfo, { id: currentGuideEntryId });
+                        if (guide_options) {
+                            thisGuideOptions = Object.assign({}, guide_options);
+                        }
+                    }
+                    
                     const mealData = {
                         id: rowIds[mc],
                         destination: document.getElementById('mealDestination').value || 'Singapore',
@@ -18472,7 +18630,7 @@
                         mealName: mealName,
                         mealType: mealType,
                         mealSpecificType: mealSpecificType,
-                        dateTime: dateTime,
+                        dateTime: dateTimeForMc,
                         mealCount: 1,
                         adultsQty: adultsQty,
                         adultCost: adultCost,
@@ -18483,11 +18641,11 @@
                         infantQty: infantQty,
                         infantCost: infantCost,
                         infantSell: infantSell,
-                        transferId: mc === 0 ? transferId : null,
-                        transferInfo: mc === 0 ? transferInfo : null,
-                        guideId: mc === 0 ? guideEntryId : null,
-                        guideInfo: mc === 0 ? guideInfo : null,
-                        guide_options: mc === 0 ? guide_options : null
+                        transferId: thisTransferId,
+                        transferInfo: thisTransferInfo,
+                        guideId: thisGuideId,
+                        guideInfo: thisGuideInfo,
+                        guide_options: thisGuideOptions
                     };
                     
                     mealList.push(mealData);
@@ -19096,26 +19254,18 @@
     function populateMealFormForEdit(meal) {
         console.log('populateMealFormForEdit called with meal:', meal);
         
-        // Find ALL related meals that were added together (share same transferId or guideId AND same restaurant)
-        // This ensures all meals from the same popup submission are checked
-        const relatedMeals = mealList.filter(m => {
-            if (m.restaurantId !== meal.restaurantId) return false;
-            // If they share the same transferId or guideId (and it's not null), they were added together
-            if (meal.transferId && m.transferId === meal.transferId) return true;
-            if (meal.guideId && m.guideId === meal.guideId) return true;
-            // Also include the meal itself
-            if (m.id === meal.id) return true;
-            return false;
-        });
+        // When editing a single meal entry (clicked row), show only that meal type selected.
+        // Match by mealId only so we don't check multiple rows that share the same mealName (e.g. two "Breakfast" types).
+        const relatedMeals = [meal];
         
-        console.log('Related meals to check:', relatedMeals.map(m => ({ id: m.id, mealName: m.mealName, mealType: m.mealType })));
+        console.log('Related meals to check (single entry):', relatedMeals.map(m => ({ id: m.id, mealName: m.mealName, mealId: m.mealId, mealType: m.mealType })));
         
         // Find matching meal row (by mealId or meal name)
         const rows = Array.from(document.querySelectorAll('.meal-row'));
         const targetRow = rows.find(r => {
             const rowMealId = r.getAttribute('data-meal-id');
             const rowName = r.getAttribute('data-meal-name');
-            return (meal.mealId && String(meal.mealId) === rowMealId) || 
+            return (meal.mealId && String(meal.mealId) === String(rowMealId)) || 
                    (meal.mealName && meal.mealName === rowName);
         });
         
@@ -19128,23 +19278,21 @@
         // Reset all checkboxes first
         document.querySelectorAll('.meal-checkbox').forEach(cb => cb.checked = false);
         
-        // Check ALL related meals, not just the one being edited
+        // Check only the one row that matches this meal's mealId (exact match - one meal type only)
         rows.forEach(r => {
             const rowMealId = r.getAttribute('data-meal-id');
-            const rowName = r.getAttribute('data-meal-name');
             
-            // Check if this row matches any of the related meals
+            // Match by mealId only so only the exact meal type row is checked (e.g. only "Breakfast Buffet", not "Breakfast Buffet Alcoholic")
             const matchingRelatedMeal = relatedMeals.find(relMeal => 
-                (relMeal.mealId && String(relMeal.mealId) === String(rowMealId)) || 
-                (relMeal.mealName && String(relMeal.mealName) === String(rowName))
+                relMeal.mealId != null && String(relMeal.mealId) === String(rowMealId)
             );
             
             if (matchingRelatedMeal) {
                 const checkbox = r.querySelector(`.meal-checkbox[data-meal-id="${rowMealId}"]`);
                 if (checkbox) {
                     checkbox.checked = true;
-                    console.log('Checked related meal:', rowName || rowMealId);
-                    // Fill in values for this meal
+                    console.log('Checked meal row for edit:', rowMealId, matchingRelatedMeal.mealName || matchingRelatedMeal.mealType);
+                    // Fill in values for this meal (No of meals = 1 for single entry edit)
                     fillMealRowValues(r, rowMealId, matchingRelatedMeal);
                 }
             }
@@ -19384,16 +19532,21 @@
             const currentType = transfer.type || 'S';
             const currentWay = transfer.way || 'one-way';
             
-            // Create type dropdown (only for local transfers)
-            const typeDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) 
+            // Arrival and Departure: show Type and Way as read-only (user can see but not edit)
+            const isArrivalOrDeparture = (transfer.sourceType === 'arrival' || transfer.sourceType === 'Arrival' || 
+                transfer.sourceType === 'departure' || transfer.sourceType === 'Departure') ||
+                (transfer.destination && (String(transfer.destination).indexOf('Arrival:') === 0 || String(transfer.destination).indexOf('Departure:') === 0));
+            
+            // Create type dropdown (only for local transfers; read-only for Arrival/Departure)
+            const typeDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) && !isArrivalOrDeparture
                 ? `<select onchange="updateTransferField(${index}, 'type', this.value)" style="width: 70px; font-size: 11px; padding: 2px 4px;">
                     <option value="S" ${(currentType === 'S' || currentType === 'sic' || currentType === 'Shared') ? 'selected' : ''}>Shared</option>
                     <option value="P" ${(currentType === 'P' || currentType === 'private' || currentType === 'Private') ? 'selected' : ''}>Private</option>
                    </select>`
                 : getTypeClass(transfer);
             
-            // Create way dropdown (only for local transfers)
-            const wayDropdown = (transfer.transportMode === 'local' || !transfer.transportMode)
+            // Create way dropdown (only for local transfers; read-only for Arrival/Departure)
+            const wayDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) && !isArrivalOrDeparture
                 ? `<select onchange="updateTransferField(${index}, 'way', this.value)" style="width: 80px; font-size: 11px; padding: 2px 4px;">
                     <option value="one-way" ${(currentWay === 'one-way' || currentWay === 'One Way') ? 'selected' : ''}>One Way</option>
                     <option value="both-way" ${(currentWay === 'both-way' || currentWay === 'Both Way' || currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way') ? 'selected' : ''}>Both Way</option>
@@ -19437,20 +19590,39 @@
                 transfer.childQty = value;
             }
             
-            // If dateTime field is changed, only expand header dates
-            // Do NOT update linked service dates when changing from transfer table
+            // If dateTime field is changed, expand header dates and sync to linked arrival/departure and guide
             if (field === 'dateTime' && value) {
-                // Always expand header dates only
+                // Always expand header dates
                 expandHeaderDatesIfNeeded(value, false);
                 
-                // Log the update
+                // If this transfer is linked to an arrival or departure, sync date to that entry and to linked guide
+                const srcType = (transfer.sourceType || '').toLowerCase();
+                if (srcType === 'arrival' || srcType === 'departure') {
+                    const arrDepIndex = arrivalDepartureList.findIndex(item => 
+                        (item.transferId === transfer.id || item.id === transfer.sourceId) &&
+                        ((srcType === 'arrival' && (item.type === 'Arrival' || item.type === 'arrival')) ||
+                         (srcType === 'departure' && (item.type === 'Departure' || item.type === 'departure')))
+                    );
+                    if (arrDepIndex !== -1) {
+                        arrivalDepartureList[arrDepIndex].dateTime = value;
+                        const item = arrivalDepartureList[arrDepIndex];
+                        if (item.guideId) {
+                            const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
+                            if (gIdx !== -1) {
+                                guideList[gIdx].dateTime = value;
+                                if (typeof updateGuideTable === 'function') updateGuideTable();
+                            }
+                        }
+                        if (typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
+                    }
+                }
+                
                 if (transfer.isStandalone) {
                     console.log('Updated standalone transfer date to:', value, '(only header dates updated)');
                 } else {
-                    console.log('Updated linked transfer date to:', value, '(only header dates updated, source service unchanged)');
+                    console.log('Updated linked transfer date to:', value);
                 }
                 
-                // Update the transfer table to reflect the change
                 updateTransferTable();
             }
             
@@ -23361,6 +23533,8 @@
         
         return miscList.map(misc => ({
             id: misc.id || `misc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            itemId: misc.itemId || '',
+            destination: misc.destination || '',
             bookingDate: normalizeDateToYYYYMMDD(misc.dateTime),
             itemName: misc.itemName || "",
             adultsQty: parseInt(misc.adultsQty) || 0,
