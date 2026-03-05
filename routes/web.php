@@ -547,6 +547,7 @@ Route::get('/clear', function () {
                 // Predefined Packages Routes
                 // Country → City
                 Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity'])->name('hotel-city');
+                Route::get('/room-types-by-hotel/{hotelId}', [PackageController::class, 'getRoomTypesByHotel'])->name('room-types-by-hotel');
 
                 Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
                 Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
@@ -572,6 +573,8 @@ Route::get('/clear', function () {
                 Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity'])->name('transport-by-city');
                 Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
+        Route::get('/packages/definition/create', [PackageController::class, 'createDefinition'])->name('packages.definition.create');
+        Route::post('/packages/definition', [PackageController::class, 'storeDefinition'])->name('packages.definition.store');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
         // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
