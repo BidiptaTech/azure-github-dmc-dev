@@ -21,6 +21,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
 use DB;
 use Auth;
 
@@ -2626,5 +2627,76 @@ class UserController extends Controller
             'success' => false,
             'message' => 'Country not found'
         ], 404);
+    }
+
+    public function profile()
+    {
+        $user = Auth::user();
+        return view('users.profile', compact('user'));
+    }
+
+    /**
+     * Update the authenticated user's profile.
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::user();
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:50',
+            'country' => 'nullable|string|max:100',
+            'city' => 'nullable|string|max:100',
+            'address' => 'nullable|string',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif',
+        ]);
+
+        $data = [
+            'name' => $request->name,
+            'phone' => $request->phone ?? $user->phone,
+            'country' => $request->country ?? $user->country,
+            'city' => $request->city ?? $user->city,
+            'address' => $request->address ?? $user->address,
+        ];
+
+        if ($request->hasFile('profile_image')) {
+            $pathData = CommonHelper::image_path('file_storage', $request->file('profile_image'));
+            if (!empty($pathData['master_value'])) {
+                $data['logo'] = $pathData['master_value'];
+            }
+        }
+
+        $user->update($data);
+        return redirect()->route('user.profile')->with('success', 'Profile updated successfully.');
+    }
+
+    /**
+     * Update the authenticated user's password.
+     */
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ], [
+            'current_password.required' => 'Current password is required.',
+            'password.required' => 'New password is required.',
+            'password.min' => 'New password must be at least 8 characters.',
+            'password.confirmed' => 'New password confirmation does not match.',
+        ]);
+
+        $user = Auth::user();
+        if (!Hash::check($request->current_password, $user->password)) {
+            return redirect()->route('user.profile')
+                ->withErrors(['current_password' => 'The current password is incorrect.'])
+                ->withInput($request->only('current_password'))
+                ->with('open_password_modal', true);
+        }
+
+        $user->update([
+            'password' => bcrypt($request->password),
+        ]);
+
+        return redirect()->route('user.profile')
+            ->with('success', 'Password changed successfully.');
     }
 }
