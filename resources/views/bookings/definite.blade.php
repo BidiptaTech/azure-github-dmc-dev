@@ -1,6 +1,7 @@
 @extends('layouts.layout')
 @section('title', 'Definite Bookings')
 @extends('layouts.datatablecss')
+@php $pageCurrency = isset($currency) ? $currency : 'SGD'; @endphp
 
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
@@ -12,6 +13,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>window.bookingCurrency = @json($pageCurrency);</script>
 
 <style>
     /* Guest Management Button */
@@ -1502,7 +1504,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                    <span class="text-success fw-bold fs-5">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1618,7 +1620,7 @@
                                                                     @if(isset($room['beds']) && is_array($room['beds']))
                                                                         @php $totalRoomPrice = collect($room['beds'])->sum('price'); @endphp
                                                                         <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                                            <span class="text-success fw-bold fs-5">SGD {{ number_format($totalRoomPrice, 2) }}</span>
+                                                                            <span class="text-success fw-bold fs-5">{{ $currency }} {{ number_format($totalRoomPrice, 2) }}</span>
                                                                         </div>
                                                                     @endif
                                                                 </div>
@@ -1651,7 +1653,7 @@
                                                                                     </div>
                                                                                     <div class="col-12">
                                                                                         <small class="text-muted">Room Price</small>
-                                                                                        <div class="fs-5 fw-bold text-success">SGD {{ number_format($bed['price'] ?? 0, 2) }}</div>
+                                                                                        <div class="fs-5 fw-bold text-success">{{ $currency }} {{ number_format($bed['price'] ?? 0, 2) }}</div>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -1669,7 +1671,7 @@
                                                                                             <div class="bg-light rounded p-2 mb-2">
                                                                                                 <div class="d-flex justify-content-between align-items-center">
                                                                                                     <span class="fw-medium">{{ $meal['type'] ?? 'Meal Plan' }}</span>
-                                                                                                    <span class="badge bg-success">SGD {{ number_format($meal['price'] ?? 0, 2) }}</span>
+                                                                                                    <span class="badge bg-success">{{ $currency }} {{ number_format($meal['price'] ?? 0, 2) }}</span>
                                                                                                 </div>
                                                                                             </div>
                                                                                         @endforeach
@@ -1677,7 +1679,7 @@
                                                                                         <div class="border-top pt-2 mt-2">
                                                                                             <div class="d-flex justify-content-between">
                                                                                                 <strong>Meal Total:</strong>
-                                                                                                <strong class="text-warning">SGD {{ number_format($totalMealPrice, 2) }}</strong>
+                                                                                                <strong class="text-warning">{{ $currency }} {{ number_format($totalMealPrice, 2) }}</strong>
                                                                                             </div>
                                                                                         </div>
                                                                                     </div>
@@ -1711,7 +1713,7 @@
                                                         </div>
                                                         <div class="col-md-4 text-end">
                                                             <small class="text-muted d-block">Total Amount</small>
-                                                            <div class="fs-3 fw-bold text-white">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                            <div class="fs-3 fw-bold text-white">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2039,7 +2041,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                    <span class="text-success fw-bold fs-5">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2152,7 +2154,7 @@
                                                             <i class="ri-user-line ri-24px"></i>
                                                         </div>
                                                         <h6 class="fw-bold text-success mb-1">Adult Ticket</h6>
-                                                        <div class="fs-4 fw-bold text-success">SGD {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</div>
+                                                        <div class="fs-4 fw-bold text-success">{{ $currency }} {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</div>
                                                         <small class="text-muted">Per person</small>
                                                     </div>
                                                 </div>
@@ -2162,7 +2164,7 @@
                                                             <i class="ri-user-smile-line ri-24px"></i>
                                                         </div>
                                                         <h6 class="fw-bold text-warning mb-1">Child Ticket</h6>
-                                                        <div class="fs-4 fw-bold text-warning">SGD {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</div>
+                                                        <div class="fs-4 fw-bold text-warning">{{ $currency }} {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</div>
                                                         <small class="text-muted">Per child</small>
                                                     </div>
                                                 </div>
@@ -2172,7 +2174,7 @@
                                                             <i class="ri-user-star-line ri-24px"></i>
                                                         </div>
                                                         <h6 class="fw-bold text-info mb-1">Senior Ticket</h6>
-                                                        <div class="fs-4 fw-bold text-info">SGD {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</div>
+                                                        <div class="fs-4 fw-bold text-info">{{ $currency }} {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</div>
                                                         <small class="text-muted">Per senior</small>
                                                     </div>
                                                 </div>
@@ -2185,19 +2187,19 @@
                                                         <h6 class="fw-bold text-dark mb-2">Booking Summary</h6>
                                                         <div class="d-flex gap-3">
                                                             @if($booking['adultCount'] ?? 0 > 0)
-                                                                <span class="badge bg-success">{{ $booking['adultCount'] }} × SGD {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</span>
+                                                                <span class="badge bg-success">{{ $booking['adultCount'] }} × {{ $currency }} {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</span>
                                                             @endif
                                                             @if($booking['childCount'] ?? 0 > 0)
-                                                                <span class="badge bg-warning">{{ $booking['childCount'] }} × SGD {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</span>
+                                                                <span class="badge bg-warning">{{ $booking['childCount'] }} × {{ $currency }} {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</span>
                                                             @endif
                                                             @if($booking['seniorCount'] ?? 0 > 0)
-                                                                <span class="badge bg-info">{{ $booking['seniorCount'] }} × SGD {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</span>
+                                                                <span class="badge bg-info">{{ $booking['seniorCount'] }} × {{ $currency }} {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</span>
                                                             @endif
                                                         </div>
                                                     </div>
                                                     <div class="col-md-4 text-end">
                                                         <small class="text-muted d-block">Total Amount</small>
-                                                        <div class="fs-3 fw-bold text-primary">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fs-3 fw-bold text-primary">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2347,7 +2349,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                    <span class="text-success fw-bold fs-5">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2368,11 +2370,11 @@
                                             <div class="row">
                                                 <div class="col-md-4 mb-3">
                                                     <small class="text-muted">Meal Price</small>
-                                                    <div class="fw-medium text-success">SGD {{ number_format($booking['mealPrice'] ?? 0, 2) }}</div>
+                                                    <div class="fw-medium text-success">{{ $currency }} {{ number_format($booking['mealPrice'] ?? 0, 2) }}</div>
                                                 </div>
                                                 <div class="col-md-4 mb-3">
                                                     <small class="text-muted">Transport Price</small>
-                                                    <div class="fw-medium text-info">SGD {{ number_format($booking['transportPrice'] ?? 0, 2) }}</div>
+                                                    <div class="fw-medium text-info">{{ $currency }} {{ number_format($booking['transportPrice'] ?? 0, 2) }}</div>
                                                 </div>
                                                 {{-- <div class="col-md-4 mb-3">
                                                     <small class="text-muted">DMC ID</small>
@@ -2428,7 +2430,7 @@
                                                             <div class="text-end">
                                                                 <div class="bg-white bg-opacity-95 rounded-3 px-4 py-3 shadow">
                                                                     <small class="text-muted d-block mb-1">Unit Price</small>
-                                                                    <div class="fs-4 fw-bold text-success">SGD {{ number_format($meal['price'] ?? 0, 2) }}</div>
+                                                                    <div class="fs-4 fw-bold text-success">{{ $currency }} {{ number_format($meal['price'] ?? 0, 2) }}</div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2490,7 +2492,7 @@
                                                                     </div>
                                                                     <div class="d-flex align-items-center gap-3">
                                                                         <div class="text-center">
-                                                                            <div class="fs-5 fw-bold text-success">SGD {{ number_format($meal['price'] ?? 0, 2) }}</div>
+                                                                            <div class="fs-5 fw-bold text-success">{{ $currency }} {{ number_format($meal['price'] ?? 0, 2) }}</div>
                                                                             <small class="text-muted">per item</small>
                                                                         </div>
                                                                         <div class="text-primary fs-3">×</div>
@@ -2505,7 +2507,7 @@
                                                                     <div class="bg-white rounded-3 p-4 shadow border border-success border-opacity-50">
                                                                         <small class="text-muted d-block mb-2">Item Subtotal</small>
                                                                         <div class="fs-2 fw-bold text-success">
-                                                                            SGD {{ number_format(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1), 2) }}
+                                                                            {{ $currency }} {{ number_format(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1), 2) }}
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -2530,7 +2532,7 @@
                                                         <div class="col-md-4 text-end">
                                                             <div class="bg-white bg-opacity-95 rounded-3 px-4 py-3 shadow">
                                                                 <small class="text-muted d-block mb-1">Grand Total</small>
-                                                                <div class="fs-2 fw-bold text-success">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                                <div class="fs-2 fw-bold text-success">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -2574,13 +2576,13 @@
                                                                     <i class="ri-money-dollar-circle-line text-success ri-24px me-2"></i>
                                                                     <div>
                                                                         <h6 class="fw-bold text-dark mb-0">Payment Summary</h6>
-                                                                        <small class="text-muted">Meal Price: SGD {{ number_format($booking['mealPrice'] ?? 0, 2) }} | Transport: SGD {{ number_format($booking['transportPrice'] ?? 0, 2) }}</small>
+                                                                        <small class="text-muted">Meal Price: {{ $currency }} {{ number_format($booking['mealPrice'] ?? 0, 2) }} | Transport: {{ $currency }} {{ number_format($booking['transportPrice'] ?? 0, 2) }}</small>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-6 text-end">
                                                                 <div class="fw-bold text-success fs-4">
-                                                                    Total: SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                                    Total: {{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2715,7 +2717,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                    <span class="text-success fw-bold fs-5">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2743,11 +2745,11 @@
                                                         </div> --}}
                                                         <div class="col-6 mb-3">
                                                             <small class="text-muted">Base Price</small>
-                                                            <div class="fw-medium text-success">SGD {{ number_format($booking['basePrice'] ?? 0, 2) }}</div>
+                                                            <div class="fw-medium text-success">{{ $currency }} {{ number_format($booking['basePrice'] ?? 0, 2) }}</div>
                                                         </div>
                                                         <div class="col-6 mb-3">
                                                             <small class="text-muted">Surcharge</small>
-                                                            <div class="fw-medium text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
+                                                            <div class="fw-medium text-warning">{{ $currency }} {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
                                                         </div>
                                                         <div class="col-6 mb-3">
                                                             <small class="text-muted">Tax (%)</small>
@@ -2850,27 +2852,27 @@
                                                 <div class="col-md-3 mb-3">
                                                     <div class="text-center p-3 border rounded" style="border-color: #28a745;">
                                                         <small class="text-muted d-block">Base Price</small>
-                                                        <div class="fs-5 fw-bold text-success">SGD {{ number_format($booking['basePrice'] ?? 0, 2) }}</div>
+                                                        <div class="fs-5 fw-bold text-success">{{ $currency }} {{ number_format($booking['basePrice'] ?? 0, 2) }}</div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3 mb-3">
                                                     <div class="text-center p-3 border rounded" style="border-color: #ffc107;">
                                                         <small class="text-muted d-block">Surcharge</small>
-                                                        <div class="fs-5 fw-bold text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
+                                                        <div class="fs-5 fw-bold text-warning">{{ $currency }} {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3 mb-3">
                                                     <div class="text-center p-3 border rounded" style="border-color: #17a2b8;">
                                                         <small class="text-muted d-block">Tax ({{ $booking['Tax'] ?? 0 }}%)</small>
                                                         <div class="fs-5 fw-bold text-info">
-                                                            SGD {{ number_format((($booking['basePrice'] ?? 0) + ($booking['surcharge'] ?? 0)) * (($booking['Tax'] ?? 0) / 100), 2) }}
+                                                            {{ $currency }} {{ number_format((($booking['basePrice'] ?? 0) + ($booking['surcharge'] ?? 0)) * (($booking['Tax'] ?? 0) / 100), 2) }}
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3 mb-3">
                                                     <div class="text-center p-3 border rounded" style="border-color: #6f42c1; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
                                                         <small class="text-muted d-block">Total Amount</small>
-                                                        <div class="fs-4 fw-bold text-primary">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fs-4 fw-bold text-primary">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2991,7 +2993,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    {{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3274,7 +3276,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    {{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3444,7 +3446,7 @@
                                                     <!-- Compact Pricing Details -->
                                                     <div class="bg-white rounded p-1 mt-1">
                                                         <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Total Price</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
                                         </div>
                                                     </div>
                                                 </div>
@@ -3639,7 +3641,7 @@
                                     <tr style="font-size: 0.85rem;">
                                         <th class="text-center" style="width: 10%; min-width: 90px;">Payment Date</th>
                                         <th class="text-center" style="width: 10%; min-width: 90px;">Record Date</th>
-                                        <th class="text-center" style="width: 12%; min-width: 100px;">Amount (SGD)</th>
+                                        <th class="text-center" style="width: 12%; min-width: 100px;">Amount ({{ $currency }})</th>
                                         <th class="text-center" style="width: 12%; min-width: 100px;">Original Amount</th>
                                         <th class="text-center" style="width: 7%; min-width: 60px;">Currency</th>
                                         <th class="text-center" style="width: 9%; min-width: 75px;">Exchange Rate</th>
@@ -3659,7 +3661,7 @@
                                             <td class="text-center py-2">{{ isset($payment['created_at']) ? \Carbon\Carbon::parse($payment['created_at'])->format('M d, Y') : 'N/A' }}</td>
                                             <td class="text-center py-2 fw-bold text-success">{{ isset($payment['amount']) ? number_format($payment['amount'], 2) : '0.00' }}</td>
                                             <td class="text-center py-2">{{ isset($payment['original_amount']) ? number_format($payment['original_amount'], 2) : number_format($payment['amount'] ?? 0, 2) }}</td>
-                                            <td class="text-center py-2">{{ $payment['currency'] ?? 'SGD' }}</td>
+                                            <td class="text-center py-2">{{ $payment['currency'] ?? $currency }}</td>
                                             <td class="text-center py-2">{{ isset($payment['exchange_rate']) ? number_format($payment['exchange_rate'], 4) : '1.0000' }}</td>
                                             <td class="text-center py-2">
                                                 <span class="badge bg-light text-dark" style="font-size: 0.7rem;">{{ ucfirst($payment['payment_type'] ?? 'N/A') }}</span>
@@ -3813,11 +3815,11 @@
                                 <div class="row text-center mb-2">
                                     <div class="col-6">
                                         <small class="text-muted">Actual Price</small>
-                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} SGD</div>
+                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} {{ $currency }}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Discount</small>
-                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} SGD</div>
+                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} {{ $currency }}</div>
                                     </div>
                                 </div>
                                 <hr class="my-2">
@@ -3825,7 +3827,7 @@
                                 <div class="row text-center mb-2">
                                     <div class="col-4">
                                         <small class="text-muted">Base Amount</small>
-                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} SGD</div>
+                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $currency }}</div>
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted" 
@@ -3834,7 +3836,7 @@
                                             @endif>
                                             Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif
                                         </small>
-                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} SGD</div>
+                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} {{ $currency }}</div>
                                         @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
                                             <div style="font-size: 0.7rem; margin-top: 2px;">
                                                 @foreach($taxBreakdown as $taxName => $taxVal)
@@ -3845,18 +3847,18 @@
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>
-                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} SGD</div>
+                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} {{ $currency }}</div>
                                     </div>
                                 </div>
                                 <hr class="my-2">
                                 <div class="row text-center">
                                     <div class="col-6">
                                         <small class="text-muted">Paid Amount</small>
-                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} SGD</div>
+                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} {{ $currency }}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Remaining</small>
-                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} SGD</div>
+                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} {{ $currency }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -3876,7 +3878,7 @@
                                 required>
                                 <option value="">Select Currency</option>
                                 @foreach(\App\Models\Setting::getCurrencyCodes() as $currency)
-                                    <option value="{{ $currency }}" {{ $currency == 'SGD' ? 'selected' : '' }}>
+                                    <option value="{{ $currency }}" {{ $currency == $pageCurrency ? 'selected' : '' }}>
                                         {{ $currency }}
                                     </option>
                                 @endforeach
@@ -3889,7 +3891,7 @@
                                 <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light">1 SGD =</span>
+                                <span class="input-group-text bg-light">1 {{ $pageCurrency }} =</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
                                     id="exchange_rate{{ $tour->tour_id }}" 
@@ -3898,7 +3900,7 @@
                                     min="0" 
                                     step="0.0001"
                                     oninput="recalculateFromExchangeRate({{ $tour->tour_id }})">
-                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">SGD</span>
+                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">{{ $pageCurrency }}</span>
                             </div>
                             <div class="mt-1">
                                 <small class="text-success" id="exchangeRateSource{{ $tour->tour_id }}">
@@ -3914,7 +3916,7 @@
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">SGD</span>
+                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">{{ $pageCurrency }}</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
                                     id="payment_amount{{ $tour->tour_id }}" 
@@ -3930,7 +3932,7 @@
                             <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
                                 <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Amount in SGD: {{ number_format(round($remainingAmount), 2) }}
+                                    Amount in {{ $pageCurrency }}: {{ number_format(round($remainingAmount), 2) }}
                                 </small>
                             </div>
                             <div class="mt-1">
@@ -5343,7 +5345,7 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                     </div>
                     <div class="col-md-4 text-end">
                         <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                            SGD ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}
+                            ${window.bookingCurrency} ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}
                         </span>
                     </div>
                 </div>
@@ -5367,11 +5369,11 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                                 </div>
                                 <div class="col-6">
                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                    <div class="fw-medium text-success" style="font-size: 0.75rem;">SGD ${parseFloat(guideBooking.basePrice || 0).toFixed(2)}</div>
+                                    <div class="fw-medium text-success" style="font-size: 0.75rem;">${window.bookingCurrency} ${parseFloat(guideBooking.basePrice || 0).toFixed(2)}</div>
                                 </div>
                                 <div class="col-6">
                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                    <div class="fw-medium text-warning" style="font-size: 0.75rem;">SGD ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
+                                    <div class="fw-medium text-warning" style="font-size: 0.75rem;">${window.bookingCurrency} ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                         </div>
@@ -5470,19 +5472,19 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                         <div class="col-md-4">
                             <div class="text-center p-1 border rounded bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.6rem;">Base Price</small>
-                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${parseFloat(guideBooking.basePrice || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat(guideBooking.basePrice || 0).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="text-center p-1 border rounded bg-white" style="border-color: #ffc107 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.6rem;">Surcharge</small>
-                                <div class="fw-bold text-warning" style="font-size: 0.8rem;">SGD ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-warning" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="text-center p-1 border rounded bg-white" style="border-color: #667eea !important; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.6rem;">Total Amount</small>
-                                <div class="fw-bold" style="font-size: 0.95rem; color: #667eea;">SGD ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 0.95rem; color: #667eea;">${window.bookingCurrency} ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
@@ -7052,7 +7054,7 @@ function createAndShowGuideEditModal(tourId, guideOrderIndex, bookingIndex) {
                                             <small id="guide_info_${editModalId}" class="text-white opacity-75">Professional Guide • Tour Service</small>
                                         </div>
                                         <div class="text-end">
-                                            <div class="fw-bold fs-5 text-white" id="guide_price_header_${editModalId}">SGD 0.00</div>
+                                            <div class="fw-bold fs-5 text-white" id="guide_price_header_${editModalId}">${window.bookingCurrency} 0.00</div>
                                             <small class="text-white opacity-75">Total Price</small>
                                         </div>
                                     </div>
@@ -7215,7 +7217,7 @@ function loadGuideDataForEdit(tourId, guideOrderIndex, bookingIndex, editModalId
                 `${guideDetails.guide_name || 'Professional Guide'} • ${guideDetails.hours || 'N/A'} Hours Service`;
             
             document.getElementById(`guide_price_header_${editModalId}`).textContent = 
-                `SGD ${parseFloat(guideDetails.total_price || 0).toFixed(2)}`;
+                `${window.bookingCurrency} ${parseFloat(guideDetails.total_price || 0).toFixed(2)}`;
             
             // Update travel date constraint
             const constraintElement = document.getElementById(`guide_date_constraint_${editModalId}`);
@@ -7690,7 +7692,7 @@ function generateEditGuideForm(tourId, guideOrderIndex, bookingIndex) {
                                     <i class="ri-guide-line me-1"></i>Guide Service
                                 </span>
                                 <span class="badge bg-warning text-dark">
-                                    <i class="ri-price-tag-line me-1"></i><span id="guidePrice_${tourId}_${guideOrderIndex}_${bookingIndex}">SGD 0.00</span>
+                                    <i class="ri-price-tag-line me-1"></i><span id="guidePrice_${tourId}_${guideOrderIndex}_${bookingIndex}">${window.bookingCurrency} 0.00</span>
                                 </span>
                             </div>
                         </div>
@@ -7731,7 +7733,7 @@ function generateEditGuideForm(tourId, guideOrderIndex, bookingIndex) {
                         </div>
                         <div class="col-md-4 mb-2">
                             <small class="text-muted">Total Price:</small>
-                            <div class="fw-medium text-success" id="summaryTotalPrice_${tourId}_${guideOrderIndex}_${bookingIndex}">SGD 0.00</div>
+                            <div class="fw-medium text-success" id="summaryTotalPrice_${tourId}_${guideOrderIndex}_${bookingIndex}">${window.bookingCurrency} 0.00</div>
                         </div>
                     </div>
                 </div>
@@ -7908,7 +7910,7 @@ function loadGuideDataForIndividualEdit(tourId, guideOrderIndex, bookingIndex, a
                 guideNameElement.textContent = guideDetails.guide_name || 'Professional Guide';
             }
             if (guidePriceElement) {
-                guidePriceElement.textContent = `SGD ${parseFloat(guideDetails.total_price || 0).toFixed(2)}`;
+                guidePriceElement.textContent = `${window.bookingCurrency} ${parseFloat(guideDetails.total_price || 0).toFixed(2)}`;
             }
             
             // Update summary section
@@ -7925,7 +7927,7 @@ function loadGuideDataForIndividualEdit(tourId, guideOrderIndex, bookingIndex, a
                 summaryServiceHoursElement.textContent = `${guideDetails.hours || 'N/A'} Hours`;
             }
             if (summaryTotalPriceElement) {
-                summaryTotalPriceElement.textContent = `SGD ${parseFloat(guideDetails.total_price || 0).toFixed(2)}`;
+                summaryTotalPriceElement.textContent = `${window.bookingCurrency} ${parseFloat(guideDetails.total_price || 0).toFixed(2)}`;
             }
             if (bookingIdElement) {
                 bookingIdElement.value = guideDetails.booking_id;
@@ -8410,7 +8412,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                     </div>
                     <div class="col-md-4 text-end">
                         <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                            SGD ${parseFloat(hotelBooking.totalPrice || 0).toFixed(2)}
+                            ${window.bookingCurrency} ${parseFloat(hotelBooking.totalPrice || 0).toFixed(2)}
                         </span>
                     </div>
                 </div>
@@ -8525,7 +8527,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                                 ${hotelBooking.transferOptions.cost && hotelBooking.transferOptions.cost > 0 ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${parseFloat(hotelBooking.transferOptions.cost).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.transferOptions.cost).toFixed(2)}</div>
                                 </div>
                                 ` : ''}
                             </div>
@@ -8548,7 +8550,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                         <div class="col-md-12">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Hotel Price</small>
-                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${parseFloat(hotelBooking.totalPrice || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.totalPrice || 0).toFixed(2)}</div>
                             </div>
                         </div>
                        
@@ -9557,7 +9559,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                     </div>
                     <div class="col-md-4 text-end">
                         <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                            SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}
+                            ${window.bookingCurrency} ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}
                         </span>
                     </div>
                 </div>
@@ -9644,19 +9646,19 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="col-md-4">
                             <div class="border rounded p-2 text-center bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Adult Ticket</small>
-                                <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="border rounded p-2 text-center bg-white" style="border-color: #ffc107 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Child Ticket</small>
-                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="border rounded p-2 text-center bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Senior Ticket</small>
-                                <div class="fw-bold text-info" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.ticketDetails.senior_price || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.ticketDetails.senior_price || 0).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
@@ -9667,13 +9669,13 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                             <div>
                                 <h6 class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">Booking Summary</h6>
                                 <div class="d-flex gap-1 flex-wrap">
-                                    ${attractionBooking.adultCount && parseInt(attractionBooking.adultCount) > 0 ? `<span class="badge bg-success" style="font-size: 0.7rem;">${attractionBooking.adultCount} × SGD ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</span>` : ''}
-                                    ${attractionBooking.childCount && parseInt(attractionBooking.childCount) > 0 ? `<span class="badge bg-warning" style="font-size: 0.7rem;">${attractionBooking.childCount} × SGD ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</span>` : ''}
+                                    ${attractionBooking.adultCount && parseInt(attractionBooking.adultCount) > 0 ? `<span class="badge bg-success" style="font-size: 0.7rem;">${attractionBooking.adultCount} × ${window.bookingCurrency} ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</span>` : ''}
+                                    ${attractionBooking.childCount && parseInt(attractionBooking.childCount) > 0 ? `<span class="badge bg-warning" style="font-size: 0.7rem;">${attractionBooking.childCount} × ${window.bookingCurrency} ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</span>` : ''}
                                 </div>
                             </div>
                             <div class="text-end">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Total Amount</small>
-                                <div class="fw-bold" style="font-size: 1.2rem; color: #fd9853;">SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.2rem; color: #fd9853;">${window.bookingCurrency} ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
@@ -9727,7 +9729,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                                 ${attractionBooking.transferOptions.cost && attractionBooking.transferOptions.cost > 0 ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.transferOptions.cost).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.transferOptions.cost).toFixed(2)}</div>
                                 </div>
                                 ` : ''}
                             </div>
@@ -9767,16 +9769,16 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="col-md-6">
                             <div class="bg-white rounded p-2">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Base Price</small>
-                                <div class="fw-medium text-primary" style="font-size: 0.8rem;">SGD ${parseFloat(attractionBooking.guideOptions.base_price || 0).toFixed(2)}</div>
+                                <div class="fw-medium text-primary" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.guideOptions.base_price || 0).toFixed(2)}</div>
                                 ${attractionBooking.guideOptions.surcharge && attractionBooking.guideOptions.surcharge > 0 ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Night Surcharge</small>
-                                    <div class="fw-medium text-warning" style="font-size: 0.8rem;">SGD ${parseFloat(attractionBooking.guideOptions.surcharge).toFixed(2)}</div>
+                                    <div class="fw-medium text-warning" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.guideOptions.surcharge).toFixed(2)}</div>
                                 </div>
                                 ` : ''}
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Total Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.guideOptions.total_price || 0).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.guideOptions.total_price || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                         </div>
@@ -9811,25 +9813,25 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Attraction Price</small>
-                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD ${parseFloat((attractionBooking.transferOptions?.cost || 0)).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat((attractionBooking.transferOptions?.cost || 0)).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #6c757d !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
-                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">SGD ${parseFloat((attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${window.bookingCurrency} ${parseFloat((attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd9853 !important; background: linear-gradient(135deg, rgba(253,152,83,0.1) 0%, rgba(254,120,84,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">SGD ${(parseFloat(attractionBooking.totalPrice || 0) + parseFloat(attractionBooking.transferOptions?.cost || 0) + parseFloat(attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${window.bookingCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + parseFloat(attractionBooking.transferOptions?.cost || 0) + parseFloat(attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
@@ -10072,7 +10074,7 @@ function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex) {
             
             // Populate form fields
             document.getElementById(`attractionName_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = attractionData.attraction_name || 'Unknown Attraction';
-            document.getElementById(`attractionPrice_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = `SGD ${attractionData.total_price || '0.00'}`;
+            document.getElementById(`attractionPrice_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = `${window.bookingCurrency} ${attractionData.total_price || '0.00'}`;
             document.getElementById(`bookingId_${tourId}_${attractionOrderIndex}_${bookingIndex}`).value = attractionData.booking_id;
             
             // Set visit date
@@ -10549,7 +10551,7 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                     </div>
                     <div class="col-md-4 text-end">
                         <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                            SGD ${(fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}
+                            ${window.bookingCurrency} ${(fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}
                         </span>
                     </div>
                 </div>
@@ -10639,7 +10641,7 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                                 ${(booking.transferOptions?.cost || fullBooking.transfer_options?.cost) ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
                                                 </div>
                                 ` : ''}
                                             </div>
@@ -10664,19 +10666,19 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
-                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${(fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">${window.bookingCurrency} ${(fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
                         </div>
                     </div>
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">${window.bookingCurrency} ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
                 </div>
                         </div>
                     </div>
@@ -12705,7 +12707,7 @@ function confirmDepartureRejection(tourId, departureOrderIndex, departureBooking
 //                 // Update price in header
 //                 const priceHeaderElement = document.getElementById(`arrival_price_header_${editModalId}`);
 //                 if (priceHeaderElement) {
-//                     priceHeaderElement.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+//                     priceHeaderElement.textContent = `${window.bookingCurrency} ${parseFloat(totalPrice).toFixed(2)}`;
 //                 }
                 
 //                 // Update travel date constraint with actual tour dates
@@ -12736,7 +12738,7 @@ function confirmDepartureRejection(tourId, departureOrderIndex, departureBooking
 //                 // Update price in summary
 //                 const summaryPrice = modalElement.querySelector('.fw-bold.text-success');
 //                 if (summaryPrice) {
-//                     summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+//                     summaryPrice.textContent = `${window.bookingCurrency} ${parseFloat(totalPrice).toFixed(2)}`;
 //                 }
 //             }
             
@@ -13219,7 +13221,7 @@ function rejectDepartureBooking(tourId, departureOrderIndex, departureBookingInd
 //             const summaryPrice = document.getElementById(`departure_price_summary_${editModalId}`);
 //             if (summaryPrice) {
 //                 const totalPrice = departureDetails.totalPrice || departureData.total_price || '0';
-//                 summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+//                 summaryPrice.textContent = `${window.bookingCurrency} ${parseFloat(totalPrice).toFixed(2)}`;
 //             }
             
 //             // Update date input constraints with actual tour dates
@@ -13561,7 +13563,7 @@ function createAndShowTravelPointEditModal(tourId, travelPointOrderIndex, travel
                                         </div>
                                         <div class="col-md-3 mb-2">
                                             <small class="text-muted">Total Price</small>
-                                            <div class="fw-medium text-dark" id="travel_point_price_summary_${editModalId}">SGD 0.00</div>
+                                            <div class="fw-medium text-dark" id="travel_point_price_summary_${editModalId}">${window.bookingCurrency} 0.00</div>
                                         </div>
                                     </div>
                                 </div>
@@ -13667,7 +13669,7 @@ function loadTravelPointDataForEdit(tourId, travelPointOrderIndex, travelPointBo
             const summaryPrice = document.getElementById(`travel_point_price_summary_${editModalId}`);
             if (summaryPrice) {
                 const totalPrice = travelPointDetails.totalPrice || travelPointData.total_price || '0';
-                summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+                summaryPrice.textContent = `${window.bookingCurrency} ${parseFloat(totalPrice).toFixed(2)}`;
             }
             
             // Update date input constraints with actual tour dates
@@ -13990,7 +13992,7 @@ function createAndShowTravelHourlyEditModal(tourId, travelHourlyOrderIndex, trav
                                         </div>
                                         <div class="col-md-3 mb-2">
                                             <small class="text-muted">Total Price</small>
-                                            <div class="fw-medium text-dark" id="travel_hourly_price_summary_${editModalId}">SGD 0.00</div>
+                                            <div class="fw-medium text-dark" id="travel_hourly_price_summary_${editModalId}">${window.bookingCurrency} 0.00</div>
                                         </div>
                                     </div>
                                 </div>
@@ -14097,7 +14099,7 @@ function loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, travelHourl
             const summaryPrice = document.getElementById(`travel_hourly_price_summary_${editModalId}`);
             if (summaryPrice) {
                 const totalPrice = travelHourlyDetails.totalPrice || travelHourlyData.total_price || '0';
-                summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+                summaryPrice.textContent = `${window.bookingCurrency} ${parseFloat(totalPrice).toFixed(2)}`;
             }
             
             // Update date input constraints with actual tour dates
@@ -14456,7 +14458,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                         </div>
                         <div class="col-md-4 text-end">
                             <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                SGD ${(travelHourlyData.totalPrice || 0).toFixed(2)}
+                                ${window.bookingCurrency} ${(travelHourlyData.totalPrice || 0).toFixed(2)}
                             </span>
                         </div>
                     </div>
@@ -14965,7 +14967,7 @@ function generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingInd
                         </div>
                         <div class="col-md-4 text-end">
                             <div class="bg-success bg-opacity-10 rounded px-3 py-2">
-                                <span id="edit_travel_hourly_total_price_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="text-success fw-bold">SGD 0.00</span>
+                                <span id="edit_travel_hourly_total_price_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="text-success fw-bold">${window.bookingCurrency} 0.00</span>
                             </div>
                         </div>
                     </div>
@@ -15067,7 +15069,7 @@ function generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingInd
                         <div class="col-md-4 text-center">
                             <div class="bg-light rounded p-3">
                                 <h6 class="fw-bold text-dark mb-2">Total Amount</h6>
-                                <div id="edit_travel_hourly_summary_price_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="fw-bold text-success">SGD 150.00</div>
+                                <div id="edit_travel_hourly_summary_price_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="fw-bold text-success">${window.bookingCurrency} 150.00</div>
                             </div>
                         </div>
                     </div>
@@ -15770,7 +15772,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                         </div>
                         <div class="col-md-4 text-end">
                             <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                                SGD ${(travelPointData.totalPrice || 0).toFixed(2)}
+                                ${window.bookingCurrency} ${(travelPointData.totalPrice || 0).toFixed(2)}
                             </span>
                         </div>
                     </div>
@@ -15942,7 +15944,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <!-- Compact Pricing Details -->
                                 <div class="bg-white rounded p-2 mt-2">
                                     <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Total Price</small>
-                                    <div class="fw-bold text-success" style="font-size: 1rem;">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 1rem;">${window.bookingCurrency} ${(travelPointData.totalPrice || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                         </div>
@@ -16677,7 +16679,7 @@ function loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, bookingInde
             
             // Update total price
             if (totalPriceElement) {
-                totalPriceElement.textContent = `SGD ${(travelHourlyData.totalPrice || 0).toFixed(2)}`;
+                totalPriceElement.textContent = `${window.bookingCurrency} ${(travelHourlyData.totalPrice || 0).toFixed(2)}`;
             }
             
             // Update summary sections
@@ -16685,7 +16687,7 @@ function loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, bookingInde
                 summaryVehicleElement.textContent = travelHourlyData.vehicles_name || 'HOURLY TOUR';
             }
             if (summaryPriceElement) {
-                summaryPriceElement.textContent = `SGD ${(travelHourlyData.totalPrice || 0).toFixed(2)}`;
+                summaryPriceElement.textContent = `${window.bookingCurrency} ${(travelHourlyData.totalPrice || 0).toFixed(2)}`;
             }
             
             // Update date constraint
@@ -17263,7 +17265,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                         </div>
                         <div class="col-md-4 text-end">
                             <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                                SGD ${(travelPointData.totalPrice || 0).toFixed(2)}
+                                ${window.bookingCurrency} ${(travelPointData.totalPrice || 0).toFixed(2)}
                             </span>
                         </div>
                     </div>
@@ -17435,7 +17437,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <!-- Compact Pricing Details -->
                                 <div class="bg-white rounded p-2 mt-2">
                                     <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Total Price</small>
-                                    <div class="fw-bold text-success" style="font-size: 1rem;">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 1rem;">${window.bookingCurrency} ${(travelPointData.totalPrice || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                         </div>
@@ -17804,7 +17806,7 @@ function generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex
                         </div>
                         <div class="col-md-4 text-end">
                             <div class="bg-success bg-opacity-10 rounded px-3 py-2">
-                                <span id="edit_travel_point_total_price_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="text-success fw-bold">SGD 0.00</span>
+                                <span id="edit_travel_point_total_price_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="text-success fw-bold">${window.bookingCurrency} 0.00</span>
                             </div>
                         </div>
                     </div>
@@ -17906,7 +17908,7 @@ function generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex
                         <div class="col-md-4 text-center">
                             <div class="bg-light rounded p-3">
                                 <h6 class="fw-bold text-dark mb-2">Total Amount</h6>
-                                <div id="edit_travel_point_summary_price_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="fw-bold text-success">SGD 150.00</div>
+                                <div id="edit_travel_point_summary_price_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="fw-bold text-success">${window.bookingCurrency} 150.00</div>
                             </div>
                         </div>
                     </div>
@@ -17972,7 +17974,7 @@ function loadTravelPointDataForEdit(tourId, travelPointOrderIndex, bookingIndex)
             
             // Update total price
             if (totalPriceElement) {
-                totalPriceElement.textContent = `SGD ${(travelPointData.totalPrice || 0).toFixed(2)}`;
+                totalPriceElement.textContent = `${window.bookingCurrency} ${(travelPointData.totalPrice || 0).toFixed(2)}`;
             }
             
             // Update summary sections
@@ -17980,7 +17982,7 @@ function loadTravelPointDataForEdit(tourId, travelPointOrderIndex, bookingIndex)
                 summaryVehicleElement.textContent = travelPointData.vehicles_name || 'POINT TO POINT';
             }
             if (summaryPriceElement) {
-                summaryPriceElement.textContent = `SGD ${(travelPointData.totalPrice || 0).toFixed(2)}`;
+                summaryPriceElement.textContent = `${window.bookingCurrency} ${(travelPointData.totalPrice || 0).toFixed(2)}`;
             }
             
             // Update date constraint
@@ -18461,7 +18463,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                         </div>
                         <div class="col-md-4 text-end">
                             <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                <span class="text-success fw-bold fs-5">SGD ${(localTransportData.totalPrice || 0).toFixed(2)}</span>
+                                <span class="text-success fw-bold fs-5">${window.bookingCurrency} ${(localTransportData.totalPrice || 0).toFixed(2)}</span>
                             </div>
                         </div>
                     </div>
@@ -18635,7 +18637,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <small class="text-muted">Total Price</small>
-                                            <div class="fw-bold text-success">SGD ${localTransportData.totalPrice || '0'}</div>
+                                            <div class="fw-bold text-success">${window.bookingCurrency} ${localTransportData.totalPrice || '0'}</div>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <small class="text-muted">Tax</small>
@@ -19582,7 +19584,7 @@ function generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookin
                         </div>
                         <div class="col-md-4 text-end">
                             <div class="bg-success bg-opacity-10 rounded px-3 py-2">
-                                <span id="edit_local_transport_total_price_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="text-success fw-bold">SGD 0.00</span>
+                                <span id="edit_local_transport_total_price_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="text-success fw-bold">${window.bookingCurrency} 0.00</span>
                             </div>
                         </div>
                     </div>
@@ -19684,7 +19686,7 @@ function generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookin
                         <div class="col-md-4 text-center">
                             <div class="bg-light rounded p-3">
                                 <h6 class="fw-bold text-dark mb-2">Total Amount</h6>
-                                <div id="edit_local_transport_summary_price_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="fw-bold text-success">SGD 150.00</div>
+                                <div id="edit_local_transport_summary_price_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="fw-bold text-success">${window.bookingCurrency} 150.00</div>
                             </div>
                         </div>
                     </div>
@@ -19959,7 +19961,7 @@ function loadLocalTransportDataForEdit(tourId, localTransportOrderIndex, booking
             
             // Update total price
             if (totalPriceElement) {
-                totalPriceElement.textContent = `SGD ${(localTransportData.totalPrice || 0).toFixed(2)}`;
+                totalPriceElement.textContent = `${window.bookingCurrency} ${(localTransportData.totalPrice || 0).toFixed(2)}`;
             }
             
             // Update summary sections
@@ -19967,7 +19969,7 @@ function loadLocalTransportDataForEdit(tourId, localTransportOrderIndex, booking
                 summaryVehicleElement.textContent = localTransportData.vehicles_name || 'LOCAL TRANSPORT';
             }
             if (summaryPriceElement) {
-                summaryPriceElement.textContent = `SGD ${(localTransportData.totalPrice || 0).toFixed(2)}`;
+                summaryPriceElement.textContent = `${window.bookingCurrency} ${(localTransportData.totalPrice || 0).toFixed(2)}`;
             }
             
             // Update date constraint
@@ -20571,7 +20573,7 @@ function createAndShowLocalTransportEditModal(tourId, localTransportOrderIndex, 
                                         </div>
                                         <div class="col-md-3 mb-2">
                                             <small class="text-muted">Total Price</small>
-                                            <div class="fw-medium text-dark" id="local_transport_price_summary_${editModalId}">SGD 0.00</div>
+                                            <div class="fw-medium text-dark" id="local_transport_price_summary_${editModalId}">${window.bookingCurrency} 0.00</div>
                                         </div>
                                     </div>
                                 </div>
@@ -21194,7 +21196,7 @@ function generateEditHotelForm(tourId, hotelOrderIndex, bookingIndex) {
                     </div>
                     <div class="text-end">
                         <small class="text-white-50 d-block">Total Price</small>
-                        <div class="fs-3 fw-bold text-white" id="hotelPrice_${tourId}_${hotelOrderIndex}_${bookingIndex}">SGD 0.00</div>
+                        <div class="fs-3 fw-bold text-white" id="hotelPrice_${tourId}_${hotelOrderIndex}_${bookingIndex}">${window.bookingCurrency} 0.00</div>
                     </div>
                 </div>
             </div>
@@ -21230,7 +21232,7 @@ function generateEditHotelForm(tourId, hotelOrderIndex, bookingIndex) {
                         </div>
                         <div class="col-md-3 mb-2">
                             <small class="text-muted">Price:</small>
-                            <div class="fw-medium text-success" id="summaryPrice_${tourId}_${hotelOrderIndex}_${bookingIndex}">SGD 0.00</div>
+                            <div class="fw-medium text-success" id="summaryPrice_${tourId}_${hotelOrderIndex}_${bookingIndex}">${window.bookingCurrency} 0.00</div>
                         </div>
                     </div>
                 </div>
@@ -21957,11 +21959,11 @@ function loadHotelDataForEdit(tourId, hotelOrderIndex, bookingIndex) {
                 const roomCount = hotelData.rooms ? hotelData.rooms.length : 1;
                 
                 if (hotelNameElement) hotelNameElement.textContent = hotelName;
-                if (hotelPriceElement) hotelPriceElement.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+                if (hotelPriceElement) hotelPriceElement.textContent = `${window.bookingCurrency} ${parseFloat(totalPrice).toFixed(2)}`;
                 if (summaryHotelNameElement) summaryHotelNameElement.textContent = hotelName;
                 if (summaryLocationElement) summaryLocationElement.textContent = location;
                 if (summaryRoomsElement) summaryRoomsElement.textContent = roomCount.toString();
-                if (summaryPriceElement) summaryPriceElement.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+                if (summaryPriceElement) summaryPriceElement.textContent = `${window.bookingCurrency} ${parseFloat(totalPrice).toFixed(2)}`;
             }
             
             // Set booking ID from orders table
@@ -22382,11 +22384,11 @@ function testHotelModalWithSampleData(tourId, hotelOrderIndex, bookingIndex) {
         
         // Populate with sample data
         if (hotelNameElement) hotelNameElement.textContent = sampleHotelData.hotelDetails.hotel_name;
-        if (hotelPriceElement) hotelPriceElement.textContent = `SGD ${sampleHotelData.totalPrice.toFixed(2)}`;
+        if (hotelPriceElement) hotelPriceElement.textContent = `${window.bookingCurrency} ${sampleHotelData.totalPrice.toFixed(2)}`;
         if (summaryHotelNameElement) summaryHotelNameElement.textContent = sampleHotelData.hotelDetails.hotel_name;
         if (summaryLocationElement) summaryLocationElement.textContent = sampleHotelData.hotelDetails.location;
         if (summaryRoomsElement) summaryRoomsElement.textContent = '1';
-        if (summaryPriceElement) summaryPriceElement.textContent = `SGD ${sampleHotelData.totalPrice.toFixed(2)}`;
+        if (summaryPriceElement) summaryPriceElement.textContent = `${window.bookingCurrency} ${sampleHotelData.totalPrice.toFixed(2)}`;
         if (bookingIdElement) bookingIdElement.value = sampleHotelData.booking_id;
         
         // Set travel date range
@@ -22442,7 +22444,7 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     const currencySymbol = document.getElementById(`currencySymbol${tourId}`);
     const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
     
-    if (selectedCurrency && selectedCurrency !== 'SGD') {
+    if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
         exchangeRateSection.style.display = 'block';
         exchangeRateCurrency.textContent = selectedCurrency;
         currencySymbol.textContent = selectedCurrency;
@@ -22453,7 +22455,7 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     } else {
         exchangeRateSection.style.display = 'none';
         exchangeRateInput.value = '1.00';
-        currencySymbol.textContent = 'SGD';
+        currencySymbol.textContent = window.bookingCurrency;
         conversionInfoContainer.style.display = 'none';
     }
 }
@@ -22511,11 +22513,11 @@ function validatePaymentAmountInput(tourId) {
     }
     
     // Calculate equivalent SGD amount
-    const equivalentSGD = selectedCurrency === 'SGD' ? paymentAmount : (paymentAmount / exchangeRate);
+    const equivalentSGD = selectedCurrency === window.bookingCurrency ? paymentAmount : (paymentAmount / exchangeRate);
     
     if (equivalentSGD > maxSGDAmount) {
         validationError.style.display = 'block';
-        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} SGD)`;
+        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} ${window.bookingCurrency})`;
         document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
     } else {
         validationError.style.display = 'none';
@@ -22523,10 +22525,10 @@ function validatePaymentAmountInput(tourId) {
     }
     
     // Update conversion info
-    if (selectedCurrency !== 'SGD') {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in SGD: ${equivalentSGD.toFixed(2)}`;
+    if (selectedCurrency !== window.bookingCurrency) {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${window.bookingCurrency}: ${equivalentSGD.toFixed(2)}`;
     } else {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} SGD`;
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} ${window.bookingCurrency}`;
     }
 }
 
@@ -22679,11 +22681,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
             }
             
-            // Reset currency selection to SGD
+            // Reset currency selection to page currency
             const currencySelect = form.querySelector('select[name="currency"]');
             if (currencySelect) {
-                currencySelect.value = 'SGD';
-                updatePaymentAmountEnhanced(tourId, 'SGD');
+                currencySelect.value = window.bookingCurrency;
+                updatePaymentAmountEnhanced(tourId, window.bookingCurrency);
             }
         });
     });
@@ -23545,7 +23547,7 @@ function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, 
                                     <i class="ri-building-2-line me-1"></i>Attraction Booking
                                 </span>
                                 <span class="badge bg-warning text-dark">
-                                    <i class="ri-price-tag-line me-1"></i><span id="attractionPrice_${tourId}_${attractionOrderIndex}_${bookingIndex}">SGD 0.00</span>
+                                    <i class="ri-price-tag-line me-1"></i><span id="attractionPrice_${tourId}_${attractionOrderIndex}_${bookingIndex}">${window.bookingCurrency} 0.00</span>
                                 </span>
                             </div>
                         </div>
@@ -23737,7 +23739,7 @@ function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex) {
                 attractionNameElement.textContent = attractionData.attractionDetails?.attraction_name || 'Unknown Attraction';
             }
             if (attractionPriceElement) {
-                attractionPriceElement.textContent = `SGD ${(attractionData.totalPrice || 0).toFixed(2)}`;
+                attractionPriceElement.textContent = `${window.bookingCurrency} ${(attractionData.totalPrice || 0).toFixed(2)}`;
             }
             
             // Populate summary section
@@ -24549,7 +24551,7 @@ function generateEditRestaurantForm(tourId, restaurantOrderIndex, bookingIndex) 
                                     <i class="ri-restaurant-2-line me-1"></i>Restaurant Booking
                                 </span>
                                 <span class="badge bg-warning text-dark">
-                                    <i class="ri-price-tag-line me-1"></i><span id="restaurantPrice_${tourId}_${restaurantOrderIndex}_${bookingIndex}">SGD 0.00</span>
+                                    <i class="ri-price-tag-line me-1"></i><span id="restaurantPrice_${tourId}_${restaurantOrderIndex}_${bookingIndex}">${window.bookingCurrency} 0.00</span>
                                 </span>
                             </div>
                         </div>
@@ -24825,7 +24827,7 @@ function loadRestaurantDataForEdit(tourId, restaurantOrderIndex, bookingIndex) {
                 restaurantNameElement.textContent = restaurantData.restaurantDetails?.restaurant_name || 'Unknown Restaurant';
             }
             if (restaurantPriceElement) {
-                restaurantPriceElement.textContent = `SGD ${(restaurantData.totalPrice || 0).toFixed(2)}`;
+                restaurantPriceElement.textContent = `${window.bookingCurrency} ${(restaurantData.totalPrice || 0).toFixed(2)}`;
             }
             
             // Populate summary section
@@ -26580,7 +26582,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
         
         if (hotelData.totalPrice) {
             const price = parseFloat(hotelData.totalPrice).toFixed(2);
-            content += `${row('Total Price', 'SGD ' + price)}\n`;
+            content += `${row('Total Price', window.bookingCurrency + ' ' + price)}\n`;
         }
         
         content += `${endBorder}\n\n`;
@@ -27030,11 +27032,11 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
         }
         if (restaurantData.total_price) {
             const price = parseFloat(restaurantData.total_price).toFixed(2);
-            content += `${row('Total Price', 'SGD ' + price)}\n`;
+            content += `${row('Total Price', window.bookingCurrency + ' ' + price)}\n`;
         }
         if (restaurantData.meal_price) {
             const mealPrice = parseFloat(restaurantData.meal_price).toFixed(2);
-            content += `${row('Meal Price', 'SGD ' + mealPrice)}\n`;
+            content += `${row('Meal Price', window.bookingCurrency + ' ' + mealPrice)}\n`;
         }
         
         // Transfer Options
@@ -27048,7 +27050,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             }
             if (restaurantData.transfer_options.cost) {
                 const transferCost = parseFloat(restaurantData.transfer_options.cost).toFixed(2);
-                content += `${row('Transfer Cost', 'SGD ' + transferCost)}\n`;
+                content += `${row('Transfer Cost', window.bookingCurrency + ' ' + transferCost)}\n`;
             }
         }
         
@@ -27410,7 +27412,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
         }
         if (attractionData.total_price) {
             const price = parseFloat(attractionData.total_price).toFixed(2);
-            content += `${row('Total Price', 'SGD ' + price)}\n`;
+            content += `${row('Total Price', window.bookingCurrency + ' ' + price)}\n`;
         }
         
         // Transfer Options
@@ -27424,7 +27426,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             }
             if (attractionData.transfer_options.cost) {
                 const transferCost = parseFloat(attractionData.transfer_options.cost).toFixed(2);
-                content += `${row('Transfer Cost', 'SGD ' + transferCost)}\n`;
+                content += `${row('Transfer Cost', window.bookingCurrency + ' ' + transferCost)}\n`;
             }
         }
         
@@ -27433,7 +27435,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             content += `${row('Guide Required', 'Yes')}\n`;
             if (attractionData.guide_options.total_price) {
                 const guidePrice = parseFloat(attractionData.guide_options.total_price).toFixed(2);
-                content += `${row('Guide Cost', 'SGD ' + guidePrice)}\n`;
+                content += `${row('Guide Cost', window.bookingCurrency + ' ' + guidePrice)}\n`;
             }
         }
         
