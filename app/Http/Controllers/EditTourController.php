@@ -194,17 +194,29 @@ class EditTourController extends Controller
                         $mainGuestData = [];
                     }
 
-                    // Extract password before saving to tour (don't store plaintext password in tour JSON)
+                    // Always extract main guest fields (handle both snake_case and camelCase)
+                    $mainGuestEmail = $mainGuestData['email'] ?? $mainGuestData['Email'] ?? null;
+                    $mainGuestName = $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? null;
+                    $mainGuestCountryCode = $mainGuestData['country_code'] ?? $mainGuestData['countryCode'] ?? null;
+                    $mainGuestPhone = $mainGuestData['phone'] ?? null;
                     if (!empty($mainGuestData['app_password'])) {
                         $mainGuestPassword = $mainGuestData['app_password'];
-                        $mainGuestEmail = $mainGuestData['email'] ?? null;
-                        $mainGuestName = $mainGuestData['full_name'] ?? null;
-                        $mainGuestCountryCode = $mainGuestData['country_code'] ?? null;
-                        $mainGuestPhone = $mainGuestData['phone'] ?? null;
+                    }
+                    // Normalize email: trim and treat empty string as null
+                    if (is_string($mainGuestEmail) && trim($mainGuestEmail) === '') {
+                        $mainGuestEmail = null;
+                    } elseif ($mainGuestEmail !== null) {
+                        $mainGuestEmail = trim((string) $mainGuestEmail);
                     }
                     unset($mainGuestData['app_password']);
 
-                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                    // Normalize salutation: remove trailing period (Mr. -> Mr)
+                    if (!empty($mainGuestData['salutation']) && is_string($mainGuestData['salutation'])) {
+                        $mainGuestData['salutation'] = rtrim($mainGuestData['salutation'], '.');
+                    }
+
+                    // Tour model casts mainguest as 'array' - assign array directly, not json_encode
+                    $tour->mainguest = !empty($mainGuestData) ? $mainGuestData : null;
                 } catch (\Throwable $e) {
                     Log::error('Error processing main guest data during updateGuests', [
                         'error' => $e->getMessage(),
@@ -251,7 +263,15 @@ class EditTourController extends Controller
                     }
                     unset($guestItem);
 
-                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                    // Normalize salutation: remove trailing period (Mr. -> Mr)
+                    foreach ($additionalGuestData as &$ag) {
+                        if (!empty($ag['salutation']) && is_string($ag['salutation'])) {
+                            $ag['salutation'] = rtrim($ag['salutation'], '.');
+                        }
+                    }
+                    unset($ag);
+                    // Tour model casts additionalguest as 'array' - assign array directly, not json_encode
+                    $tour->additionalguest = !empty($additionalGuestData) ? $additionalGuestData : null;
                 } catch (\Throwable $e) {
                     Log::error('Error processing additional guest data during updateGuests', [
                         'error' => $e->getMessage(),
@@ -262,6 +282,9 @@ class EditTourController extends Controller
 
             $tour->save();
             DB::commit();
+
+            // Sync Lead Guest and Additional Guests to guests table (insert or update)
+            $this->syncGuestsToGuestsTable($tour);
 
             // After commit, handle Guest record creation and credential emails
             // Only for Definite / Actual tours
@@ -322,6 +345,23 @@ class EditTourController extends Controller
                 $sentCount = count(array_filter($emailResults, fn($r) => $r['sent'] ?? false));
                 if ($sentCount > 0) {
                     $message .= " Credentials email sent to {$sentCount} guest(s).";
+                } else {
+                    $failed = array_filter($emailResults, fn($r) => !($r['sent'] ?? false));
+                    $firstError = $failed[array_key_first($failed)]['error'] ?? null;
+                    $message .= " Credentials email could not be sent." . ($firstError ? " " . $firstError : "");
+                }
+            } else {
+                // Explain why credentials email was not sent (for Definite/Actual tours)
+                if (in_array($tour->tour_status ?? '', ['Definite', 'Actual'])) {
+                    if (!$mainGuestEmail && !$mainGuestPassword) {
+                        $message .= " Credentials email not sent: enter Lead Guest email and App Password to send login credentials.";
+                    } elseif (!$mainGuestEmail) {
+                        $message .= " Credentials email not sent: Lead Guest email is required.";
+                    } elseif (!$mainGuestPassword) {
+                        $message .= " Credentials email not sent: enter App Password for the lead guest to receive login credentials.";
+                    }
+                } else {
+                    $message .= " Credentials email is only sent for Definite or Actual tours.";
                 }
             }
 
@@ -468,6 +508,136 @@ class EditTourController extends Controller
             'app_password' => Hash::make($plainPassword),
             'image' => $imagePath,
         ]);
+    }
+
+    /**
+     * Sync Lead Guest and Additional Guests from tour to guests table (insert or update).
+     */
+    private function syncGuestsToGuestsTable(Tour $tour)
+    {
+        $tourIdInt = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+
+        try {
+            $nextGuestId = function () {
+                $last = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+                $id = CommonHelper::createId($last->guest_id ?? 0);
+                while (Guest::where('guest_id', $id)->exists()) {
+                    $id = CommonHelper::createId($id);
+                }
+                return $id;
+            };
+
+            // Sync Lead Guest
+            $mainguest = $tour->mainguest;
+            if (is_array($mainguest) && (!empty($mainguest['full_name']) || !empty($mainguest['fullName']) || !empty($mainguest['email']))) {
+                $fullName = $mainguest['full_name'] ?? $mainguest['fullName'] ?? 'Guest';
+                $email = trim((string) ($mainguest['email'] ?? $mainguest['Email'] ?? ''));
+                $phone = trim((string) ($mainguest['phone'] ?? ''));
+                $salutation = $mainguest['salutation'] ?? null;
+                if (is_string($salutation)) {
+                    $salutation = rtrim($salutation, '.'); // Remove trailing period (Mr. -> Mr)
+                }
+                $countryCode = $mainguest['country_code'] ?? $mainguest['countryCode'] ?? null;
+                $passport = $mainguest['passport'] ?? null;
+                $passportExp = !empty($mainguest['passport_exp'] ?? $mainguest['passportExpiry'] ?? null) ? ($mainguest['passport_exp'] ?? $mainguest['passportExpiry']) : null;
+
+                $existing = null;
+                if ($email !== '') {
+                    $existing = Guest::whereJsonContains('tour_id', $tourIdInt)->where('email', $email)->first();
+                }
+                if (!$existing && $fullName !== '' && $phone !== '') {
+                    $existing = Guest::whereJsonContains('tour_id', $tourIdInt)
+                        ->where('guest_name', $fullName)
+                        ->where('contact', $phone)
+                        ->first();
+                }
+
+                $guestData = [
+                    'guest_name' => $fullName ?: 'Guest',
+                    'email' => $email ?: null,
+                    'country_code' => $countryCode ?: null,
+                    'contact' => $phone ?: null,
+                    'whatsapp_no' => $phone ?: null,
+                    'passport' => $passport,
+                    'passport_exp' => $passportExp,
+                    'salutation' => $salutation,
+                ];
+
+                if ($existing) {
+                    $existing->update($guestData);
+                    if (!$existing->hasTourId($tourIdInt)) {
+                        $existing->addTourId($tourIdInt);
+                    }
+                } else {
+                    $guestData['guest_id'] = $nextGuestId();
+                    $guestData['tour_id'] = [$tourIdInt];
+                    Guest::create($guestData);
+                }
+            }
+
+            // Sync Additional Guests
+            $additionalguest = $tour->additionalguest;
+            if (is_array($additionalguest)) {
+                foreach ($additionalguest as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $name = trim((string) ($row['name'] ?? $row['guest_name'] ?? ''));
+                    $contact = trim((string) ($row['contact_no'] ?? $row['contact'] ?? ''));
+                    if ($name === '' && $contact === '') {
+                        continue;
+                    }
+
+                    $email = trim((string) ($row['email'] ?? ''));
+                    $salutation = $row['salutation'] ?? null;
+                    if (is_string($salutation)) {
+                        $salutation = rtrim($salutation, '.');
+                    }
+                    $passport = $row['passport_no'] ?? $row['passport'] ?? null;
+                    $passportExp = !empty($row['passport_exp'] ?? null) ? $row['passport_exp'] : null;
+                    $countryCode = $row['country_code'] ?? $row['countryCode'] ?? '+91';
+
+                    $existing = null;
+                    if ($email !== '') {
+                        $existing = Guest::whereJsonContains('tour_id', $tourIdInt)->where('email', $email)->first();
+                    }
+                    if (!$existing && $name !== '' && $contact !== '') {
+                        $existing = Guest::whereJsonContains('tour_id', $tourIdInt)
+                            ->where('guest_name', $name)
+                            ->where('contact', $contact)
+                            ->first();
+                    }
+
+                    $guestData = [
+                        'guest_name' => $name ?: 'Guest',
+                        'email' => $email ?: null,
+                        'country_code' => $countryCode ?: null,
+                        'contact' => $contact ?: null,
+                        'whatsapp_no' => $contact ?: null,
+                        'passport' => $passport,
+                        'passport_exp' => $passportExp,
+                        'salutation' => $salutation,
+                    ];
+
+                    if ($existing) {
+                        $existing->update($guestData);
+                        if (!$existing->hasTourId($tourIdInt)) {
+                            $existing->addTourId($tourIdInt);
+                        }
+                    } else {
+                        $guestData['guest_id'] = $nextGuestId();
+                        $guestData['tour_id'] = [$tourIdInt];
+                        Guest::create($guestData);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('Error syncing guests to guests table', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 
     /**
