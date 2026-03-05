@@ -4582,8 +4582,9 @@
                             <!-- Combined Guest Information Section (Lead Guest + Additional Guests in same grid) -->
                             <div class="row mb-4">
                                 <div class="col-12">
-                                    <!-- Customer Information Section -->
-                                    @if(isset($customer_info) && !empty($customer_info))
+                                    <!-- Customer Information Section (always show when editing tour so Lead Guest can be added/updated) -->
+                                    @php $customer_info = $customer_info ?? []; @endphp
+                                    @if(isset($tour))
                                     <div class="accordion mb-4" id="customerAccordion">
                                         <div class="accordion-item border-0">
                                             <div class="card shadow-sm border-0">
@@ -4602,6 +4603,22 @@
                                                 <div id="customerInformationSection" class="collapse">
                                                     <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
                                                         <div class="row g-2">
+                                                            <div class="col-md-2">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                                                <select 
+                                                                    class="form-select form-select-sm" 
+                                                                    id="customerSalutation" 
+                                                                    name="customer_salutation"
+                                                                    style="font-size: 0.85rem;"
+                                                                >
+                                                                    <option value="">Select</option>
+                                                                    <option value="Mr" {{ ($customer_info['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                                    <option value="Mrs" {{ ($customer_info['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                                    <option value="Ms" {{ ($customer_info['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                                    <option value="Miss" {{ ($customer_info['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                                    <option value="Dr" {{ ($customer_info['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                                </select>
+                                                            </div>
                                                             <div class="col-md-3">
                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
                                                                 <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" style="font-size: 0.85rem;">
@@ -4625,7 +4642,7 @@
                                                                     @endforeach
                                                                 </select>
                                                             </div>
-                                                            <div class="col-md-4">
+                                                            <div class="col-md-2">
                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
                                                                 <input type="tel" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}" style="font-size: 0.85rem;">
                                                             </div>
@@ -4649,6 +4666,23 @@
                                                                 <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
                                                                 <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
                                                             </div>
+                                                            @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                            <div class="col-md-6">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">
+                                                                    <i class="ri-lock-password-line me-1"></i>App Password
+                                                                </label>
+                                                                <div class="d-flex gap-1">
+                                                                    <input type="password" class="form-control form-control-sm" id="customerAppPassword" name="customer_app_password" placeholder="Enter app password" autocomplete="new-password" style="font-size: 0.85rem; flex: 1;">
+                                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                                        <i class="ri-eye-off-line"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                                        <i class="ri-key-line me-1"></i>Generate
+                                                                    </button>
+                                                                </div>
+                                                                <small class="text-muted" style="font-size: 0.7rem;">Credentials email is sent to the lead guest only when Email and App Password are set and you save.</small>
+                                                            </div>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                 </div>
@@ -4696,10 +4730,21 @@
                                                                         </div>
                                                                         <div class="card-body" style="margin-top:10px">
                                                                             <div class="row g-3">
-                                                                                <div class="col-md-3">
-                                                                                    <label class="form-label fw-semibold">Salutation</label>
-                                                                                    <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
-                                                                                </div>
+                                                                            <div class="col-md-2">
+                                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                                                                <select 
+                                                                                    class="form-select form-select-sm guest-salutation" 
+                                                                                    name="additional_guests[{{ $index }}][salutation]"
+                                                                                    style="font-size: 0.85rem;"
+                                                                                >
+                                                                                    <option value="">Select</option>
+                                                                                    <option value="Mr" {{ ($guest['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                                                    <option value="Mrs" {{ ($guest['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                                                    <option value="Ms" {{ ($guest['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                                                    <option value="Miss" {{ ($guest['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                                                    <option value="Dr" {{ ($guest['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                                                </select>
+                                                                            </div>
                                                                                 <div class="col-md-3">
                                                                                     <label class="form-label fw-semibold">Name</label>
                                                                                     <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
@@ -4716,6 +4761,24 @@
                                                                                     <label class="form-label fw-semibold">Contact No.</label>
                                                                                     <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
                                                                                 </div>
+                                                                                <div class="col-md-4">
+                                                                                    <label class="form-label fw-semibold">Email</label>
+                                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
+                                                                                </div>
+                                                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                                                <div class="col-md-4">
+                                                                                    <label class="form-label fw-semibold"><i class="ri-lock-password-line me-1"></i>App Password</label>
+                                                                                    <div class="d-flex gap-1">
+                                                                                        <input type="password" class="form-control guest-app-password" name="additional_guests[{{ $index }}][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
+                                                                                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                                                            <i class="ri-eye-off-line"></i>
+                                                                                        </button>
+                                                                                        <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                                                            <i class="ri-key-line me-1"></i>Generate
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                                @endif
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -4753,7 +4816,7 @@
                                 
                                 // Function to get current guest count
                                 function getCurrentGuestCount() {
-                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const hasLeadGuest = {{ isset($tour) ? 1 : 0 }};
                                     const additionalGuests = document.querySelectorAll('.guest-card').length;
                                     return hasLeadGuest + additionalGuests;
                                 }
@@ -4766,7 +4829,7 @@
                                 
                                 // Function to add new guest
                                 function addNewGuest() {
-                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const hasLeadGuest = {{ isset($tour) ? 1 : 0 }};
                                     const maxAdditionalGuests = Math.max(0, totalPax - hasLeadGuest);
                                     const currentCount = document.querySelectorAll('.guest-card').length;
                                     
@@ -4806,7 +4869,14 @@
                                             <div class="row g-3">
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold">Salutation</label>
-                                                    <input type="text" class="form-control guest-salutation" name="additional_guests[${newIndex}][salutation]" placeholder="Mr/Mrs/Ms">
+                                                    <select class="form-control guest-salutation" name="additional_guests[${newIndex}][salutation]">
+                                                        <option value="">Select</option>
+                                                        <option value="Mr">Mr</option>
+                                                        <option value="Mrs">Mrs</option>
+                                                        <option value="Ms">Ms</option>
+                                                        <option value="Miss">Miss</option>
+                                                        <option value="Dr">Dr</option>
+                                                    </select>
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold">Name</label>
@@ -4824,6 +4894,24 @@
                                                     <label class="form-label fw-semibold">Contact No.</label>
                                                     <input type="text" class="form-control guest-contact-no" name="additional_guests[${newIndex}][contact_no]" placeholder="Enter contact number">
                                                 </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">Email</label>
+                                                    <input type="email" class="form-control guest-email" name="additional_guests[${newIndex}][email]" placeholder="Enter email">
+                                                </div>
+                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold"><i class="ri-lock-password-line me-1"></i>App Password</label>
+                                                    <div class="d-flex gap-1">
+                                                        <input type="password" class="form-control guest-app-password" name="additional_guests[${newIndex}][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
+                                                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                            <i class="ri-eye-off-line"></i>
+                                                        </button>
+                                                        <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                            <i class="ri-key-line me-1"></i>Generate
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                @endif
                                             </div>
                                         </div>
                                     `;
@@ -4864,7 +4952,7 @@
                                 function updateGuestCount() {
                                     const guestCards = document.querySelectorAll('.guest-card');
                                     const count = guestCards.length;
-                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const hasLeadGuest = {{ isset($tour) ? 1 : 0 }};
                                     
                                     // Calculate max additional guests (total pax - lead guest if exists)
                                     const maxAdditionalGuests = Math.max(0, totalPax - hasLeadGuest);
@@ -4898,6 +4986,50 @@
                                 $(document).ready(function() {
                                     updateGuestCount();
                                 });
+
+                                // Generate random password (10 chars: uppercase + lowercase + digits + special)
+                                function generateRandomPassword() {
+                                    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                                    const lower = 'abcdefghijklmnopqrstuvwxyz';
+                                    const digits = '0123456789';
+                                    const special = '!@#$%&*';
+                                    const all = upper + lower + digits + special;
+                                    // Ensure at least one of each type
+                                    let password = upper[Math.floor(Math.random() * upper.length)]
+                                                 + lower[Math.floor(Math.random() * lower.length)]
+                                                 + digits[Math.floor(Math.random() * digits.length)]
+                                                 + special[Math.floor(Math.random() * special.length)];
+                                    for (let i = 4; i < 10; i++) {
+                                        password += all[Math.floor(Math.random() * all.length)];
+                                    }
+                                    // Shuffle
+                                    return password.split('').sort(() => Math.random() - 0.5).join('');
+                                }
+
+                                // Toggle password visibility
+                                function togglePasswordVisibility(btn) {
+                                    const container = btn.parentElement;
+                                    const input = container.querySelector('input[type="password"], input[type="text"]');
+                                    const icon = btn.querySelector('i');
+                                    if (input.type === 'password') {
+                                        input.type = 'text';
+                                        icon.className = 'ri-eye-line';
+                                    } else {
+                                        input.type = 'password';
+                                        icon.className = 'ri-eye-off-line';
+                                    }
+                                }
+
+                                // Generate password and populate the input
+                                function generatePasswordFor(btn) {
+                                    const container = btn.parentElement;
+                                    const input = container.querySelector('input');
+                                    const password = generateRandomPassword();
+                                    input.value = password;
+                                    input.type = 'text'; // Show generated password
+                                    const eyeBtn = container.querySelector('.btn-outline-secondary i');
+                                    if (eyeBtn) eyeBtn.className = 'ri-eye-line';
+                                }
                             </script>
                         </div>
                     </div>
@@ -6837,8 +6969,8 @@
                             <!-- Vehicle + Service Type in one row -->
                             <div class="col-12">
                                 <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
-                                    <div class="row g-2">
-                                        <div class="col-md-4">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Vehicle</label>
                                             <select class="form-select modern-select vehicle-select" 
                                                     id="modal_transport_vehicle_id" 
@@ -6863,7 +6995,7 @@
 
                                         <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
                                         @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
-                                        <div class="col-md-3" id="transport_manual_price_field_container" style="display: none;">
+                                        <div class="col-md-2" id="transport_manual_price_field_container" style="display: none;">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                                 <i class="ri-money-dollar-circle-line me-1" style="color: #10b981;"></i>Manual Price (Optional)
                                             </label>
@@ -6888,52 +7020,52 @@
                                             </small>
                                         </div>
                                         @endif
-                                        <div class="col-md-3">
-                                            @php
-                                                $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
-                                            @endphp
-                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Number of Passengers</label>
-                                            <input 
-                                                type="number" 
-                                                class="form-control modern-input" 
-                                                id="modal_transport_passengers" 
-                                                name="passengers" 
-                                                min="1" 
-                                                max="{{ $tourMaxPassengers }}" 
-                                                value="" 
-                                                data-tour-guests="{{ $tourMaxPassengers }}"
-                                                onkeyup="updatePricing()" 
-                                                onchange="updatePricing()" 
-                                                style="height: 36px; font-size: 0.8rem;">
-                                            <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
-                                                Maximum: 
-                                                <span id="modal_transport_passengers_help">
-                                                    {{ $tourMaxPassengers }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
-                                                </span>
-                                            </small>
+                                        @php
+                                            $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
+                                        @endphp
+                                        <!-- Adults / Children (visual); pax = adults + children for pricing/submit -->
+                                        <div class="col-md-4">
+                                            <div class="row g-3">
+                                                <div class="col-6 pe-2">
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Adults</label>
+                                                    <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
+                                                        <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.8rem;">Adults</span>
+                                                        <input type="number" class="form-control" id="modal_transport_adults" min="0" max="{{ $tour->adult ?? 50 }}" value="1" placeholder="0"
+                                                            style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
+                                                            oninput="syncModalTransportPax(); updatePricing();"
+                                                            onchange="syncModalTransportPax(); updatePricing();"
+                                                            onwheel="this.blur();">
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 ps-1">
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Children</label>
+                                                    <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
+                                                        <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.8rem;">Children</span>
+                                                        <input type="number" class="form-control" id="modal_transport_children" min="0" max="{{ $tour->child ?? 50 }}" value="0" placeholder="0"
+                                                            style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
+                                                            oninput="syncModalTransportPax(); updatePricing();"
+                                                            onchange="syncModalTransportPax(); updatePricing();"
+                                                            onwheel="this.blur();">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" id="modal_transport_passengers" name="passengers" value="1" data-tour-guests="{{ $tourMaxPassengers }}">
                                         </div>
                                     </div>
                                     
                                     <!-- Price Display for Transport -->
                                     <div class="col-12 mt-3">
                                         <div id="transport_price_display" class="border-0" style="display: none; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 1px solid #e9ecef; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div class="flex-grow-1">
-                                                    <div class="mb-2">
-                                                        <span class="fw-semibold" style="color: #495057; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Transport Price</span>
-                                                    </div>
-                                                    <div id="transport_price_details" class="text-muted" style="font-size: 0.75rem; line-height: 1.5; color: #6c757d;">
-                                                        Select a vehicle and service type to see pricing
-                                                    </div>
-                                                </div>
-                                                <div class="text-end ms-3">
-                                                    <div class="fw-bold" id="transport_total_price_display" style="font-size: 1.25rem; color: #10b981; line-height: 1.2;">
-                                                        $0.00
-                                                    </div>
-                                                    <div class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem;">
-                                                        Total Price
-                                                    </div>
-                                                </div>
+                                            <div class="mb-2">
+                                                <span class="fw-semibold" style="color: #495057; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Transport Price</span>
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;">Vehicle pricing by adult / child / infant</small>
+                                            </div>
+                                            <div id="transport_price_details" class="text-muted mb-2" style="font-size: 0.75rem; line-height: 1.5; color: #6c757d;">
+                                                Select a vehicle and service type to see pricing (Shared: total adult/child/infant price; Private: unit prices only)
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center pt-2 border-top border-1">
+                                                <span class="text-muted" style="font-size: 0.7rem;">Total Price</span>
+                                                <span class="fw-bold" id="transport_total_price_display" style="font-size: 1.25rem; color: #10b981;">SGD 0.00</span>
                                             </div>
                                         </div>
                                         
@@ -7320,23 +7452,16 @@
                                     <!-- Price Display for Local Transfer -->
                                     <div class="col-12 mt-3">
                                         <div id="local_transfer_price_display" class="border-0" style="display: none; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 1px solid #e9ecef; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div class="flex-grow-1">
-                                                    <div class="mb-2">
-                                                        <span class="fw-semibold" style="color: #495057; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Transfer Price</span>
-                                                    </div>
-                                                    <div id="local_transfer_price_details" class="text-muted" style="font-size: 0.75rem; line-height: 1.5; color: #6c757d;">
-                                                        Select a vehicle and service type to see pricing
-                                                    </div>
-                                                </div>
-                                                <div class="text-end ms-3">
-                                                    <div class="fw-bold" id="local_transfer_total_price_display" style="font-size: 1.25rem; color: #10b981; line-height: 1.2;">
-                                                        $0.00
-                                                    </div>
-                                                    <div class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem;">
-                                                        Total Price
-                                                    </div>
-                                                </div>
+                                            <div class="mb-2">
+                                                <span class="fw-semibold" style="color: #495057; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Transfer Price</span>
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;" id="local_transfer_price_subtitle">Vehicle pricing by adult / child / infant</small>
+                                            </div>
+                                            <div id="local_transfer_price_details" class="text-muted mb-2" style="font-size: 0.75rem; line-height: 1.5; color: #6c757d;">
+                                                Select a vehicle and service type to see pricing (Shared: total adult/child/infant; Private: unit prices; Hourly: base + hours × rate)
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center pt-2 border-top border-1">
+                                                <span class="text-muted" style="font-size: 0.7rem;">Total Price</span>
+                                                <span class="fw-bold" id="local_transfer_total_price_display" style="font-size: 1.25rem; color: #10b981;">SGD 0.00</span>
                                             </div>
                                         </div>
                                         
@@ -12568,6 +12693,9 @@
                                     data-seating-capacity="${vehicle.seating_capacity}"
                                     data-private-price="${vehicle.private_price || ''}" 
                                     data-shared-price="${vehicle.shared_price || ''}" 
+                                    data-adult-price="${vehicle.adult_price || ''}" 
+                                    data-child-price="${vehicle.child_price || ''}" 
+                                    data-infant-price="${vehicle.infant_price || ''}" 
                                     data-service-type="${vehicle.service_type || ''}" 
                                     data-cost-per-hour="${vehicle.cost_per_hour || ''}" 
                                     data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}" 
@@ -12697,6 +12825,9 @@
                                     data-seating-capacity="${vehicle.seating_capacity}"
                                     data-private-price="${vehicle.private_price || ''}" 
                                     data-shared-price="${vehicle.shared_price || ''}" 
+                                    data-adult-price="${vehicle.adult_price || ''}" 
+                                    data-child-price="${vehicle.child_price || ''}" 
+                                    data-infant-price="${vehicle.infant_price || ''}" 
                                     data-service-type="${vehicle.service_type || ''}" 
                                     data-cost-per-hour="${vehicle.cost_per_hour || ''}" 
                                     data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}" 
@@ -12979,6 +13110,9 @@
                             data-seating-capacity="${vehicle.seating_capacity || ''}"
                             data-private-price="${vehicle.private_price || ''}"
                             data-shared-price="${vehicle.shared_price || ''}"
+                            data-adult-price="${vehicle.adult_price || ''}"
+                            data-child-price="${vehicle.child_price || ''}"
+                            data-infant-price="${vehicle.infant_price || ''}"
                             data-service-type="${vehicle.service_type || ''}"
                             data-sharable="${vehicle.sharable || ''}"
                             data-image="${vehicle.image || vehicle.vehicle_image || ''}"
@@ -13109,6 +13243,9 @@
                                     data-seating-capacity="${vehicle.seating_capacity || ''}"
                                     data-private-price="${vehicle.private_price || ''}"
                                     data-shared-price="${vehicle.shared_price || ''}"
+                                    data-adult-price="${vehicle.adult_price || ''}"
+                                    data-child-price="${vehicle.child_price || ''}"
+                                    data-infant-price="${vehicle.infant_price || ''}"
                                     data-service-type="${vehicle.service_type || ''}"
                                     data-cost-per-hour="${vehicle.cost_per_hour || ''}"
                                     data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
@@ -13375,8 +13512,14 @@
                             const option = document.createElement('option');
                             option.value = vehicle.vehicle_id;
                             option.textContent = vehicleInfo;
+                            option.setAttribute('data-vehicle-name', vehicle.vehicle_name || '');
+                            option.setAttribute('data-vehicle-type', vehicle.vehicle_type || '');
+                            option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
                             option.setAttribute('data-private-price', vehicle.private_price || '');
                             option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                            option.setAttribute('data-adult-price', vehicle.adult_price || '');
+                            option.setAttribute('data-child-price', vehicle.child_price || '');
+                            option.setAttribute('data-infant-price', vehicle.infant_price || '');
                             option.setAttribute('data-service-type', vehicle.service_type || '');
                             option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
                             option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
@@ -13419,12 +13562,37 @@
             });
     }
     
+    // Sync modal transport pax: adults + children = hidden passengers (for pricing/submit)
+    function syncModalTransportPax() {
+        const adultsEl = document.getElementById('modal_transport_adults');
+        const childrenEl = document.getElementById('modal_transport_children');
+        const passengersEl = document.getElementById('modal_transport_passengers');
+        if (!adultsEl || !childrenEl || !passengersEl) return;
+        let a = parseInt(adultsEl.value, 10) || 0;
+        let c = parseInt(childrenEl.value, 10) || 0;
+        const tourGuests = parseInt(passengersEl.dataset.tourGuests || '0', 10) || 0;
+        const maxAllowed = parseInt(passengersEl.getAttribute('max'), 10) || tourGuests || 99;
+        let total = a + c;
+        if (total > maxAllowed) {
+            a = Math.min(a, maxAllowed);
+            c = Math.max(0, maxAllowed - a);
+            adultsEl.value = a;
+            childrenEl.value = c;
+            total = maxAllowed;
+        }
+        if (total < 1) {
+            adultsEl.value = 1;
+            childrenEl.value = 0;
+            total = 1;
+        }
+        passengersEl.value = total;
+    }
+
     function updateVehicleDetails() {
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         const manualPriceContainer = document.getElementById('transport_manual_price_field_container');
         const passengersInput = document.getElementById('modal_transport_passengers');
-        const passengersHelp = document.getElementById('modal_transport_passengers_help');
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
@@ -13450,9 +13618,9 @@
                 manualPriceContainer.style.display = 'block';
             }
 
-            // Update max passengers based on vehicle capacity and tour guests
+            // Update max passengers based on vehicle capacity and tour guests (hidden field + adults/children)
             if (passengersInput) {
-                const tourGuests = parseInt(passengersInput.dataset.tourGuests || passengersInput.max || '0', 10) || 0;
+                const tourGuests = parseInt(passengersInput.dataset.tourGuests || '0', 10) || 0;
                 const seatingCapacity = parseInt(vehicleData.seatingCapacity || '0', 10) || 0;
 
                 if (tourGuests > 0 || seatingCapacity > 0) {
@@ -13461,21 +13629,8 @@
                         seatingCapacity || tourGuests
                     ));
 
-                    passengersInput.max = maxAllowed;
-
-                    if (passengersInput.value && parseInt(passengersInput.value, 10) > maxAllowed) {
-                        passengersInput.value = maxAllowed;
-                    }
-
-                    if (passengersHelp) {
-                        if (seatingCapacity > 0 && tourGuests > 0) {
-                            passengersHelp.textContent = `${maxAllowed} (Vehicle capacity: ${seatingCapacity}, Tour guests: ${tourGuests})`;
-                        } else if (seatingCapacity > 0) {
-                            passengersHelp.textContent = `${maxAllowed} (Vehicle capacity: ${seatingCapacity})`;
-                        } else {
-                            passengersHelp.textContent = `${maxAllowed} (Tour guests: ${tourGuests})`;
-                        }
-                    }
+                    passengersInput.setAttribute('max', maxAllowed);
+                    if (typeof syncModalTransportPax === 'function') syncModalTransportPax();
                 }
             }
             
@@ -14266,6 +14421,10 @@
             let basePrice = 0;
             let totalPrice = 0;
             
+            const adultPriceAttr = selectedOption.getAttribute('data-adult-price') || '';
+            const childPriceAttr = selectedOption.getAttribute('data-child-price') || '';
+            const infantPriceAttr = selectedOption.getAttribute('data-infant-price') || '';
+            
             if (isManualPriceUsed) {
                 // Use manual price for zone off mode
                 basePrice = manualPrice;
@@ -14281,28 +14440,74 @@
                 }
             }
             
-            // Format price details - cleaner display
-            const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
+            // Adult/child/infant breakdown: use modal transport inputs so Shared price updates when user changes adults/children
+            const modalAdults = document.getElementById('modal_transport_adults');
+            const modalChildren = document.getElementById('modal_transport_children');
+            const adultsCount = modalAdults ? (parseInt(modalAdults.value) || 0) : (parseInt(document.getElementById('adults')?.value) || 0);
+            const childrenCount = modalChildren ? (parseInt(modalChildren.value) || 0) : (parseInt(document.getElementById('children')?.value) || 0);
+            const infantsCount = parseInt(document.getElementById('infants')?.value) || 0;
+            const adultPrice = parseFloat(adultPriceAttr) || basePrice;
+            const childPrice = parseFloat(childPriceAttr) || basePrice;
+            const infantPrice = parseFloat(infantPriceAttr) || 0;
+            
+            let detailsHtml = '';
+            if (serviceType === 'Shared' && !isManualPriceUsed) {
+                totalPrice = (adultPrice * adultsCount) + (childPrice * childrenCount) + (infantPrice * infantsCount);
+                const adultTotal = adultPrice * adultsCount;
+                const childTotal = childPrice * childrenCount;
+                const infantTotal = infantPrice * infantsCount;
+                detailsHtml = `
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                        <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Total adult price:</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                        <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Total child price:</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                        <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Total infant price:</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                    </div>
+                `;
+            } else if (serviceType === 'Private' && !isManualPriceUsed) {
+                detailsHtml = `
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                        <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Adult price:</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                        <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Child price:</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                        <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Infant price:</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                    </div>
+                    <small style="color: #6c757d; font-size: 0.7rem; display: block; margin-top: 0.35rem;">
+                        <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).
+                    </small>
+                `;
+            } else {
+                detailsHtml = `${vehicleData.name} (${vehicleData.seatingCapacity} seats) • ${serviceType} service`;
+                if (serviceType === 'Shared') {
+                    detailsHtml += ` • ${validatedPassengers} passenger${validatedPassengers > 1 ? 's' : ''}`;
+                }
+                if (isManualPriceUsed) {
+                    detailsHtml += ' • Custom price';
+                }
+            }
+            
+            priceDetails.innerHTML = detailsHtml;
+            
             const formattedTotalPrice = totalPrice.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
             
-            // Update price details text
-            let detailsText = `${vehicleData.name} (${vehicleData.seatingCapacity} seats) • ${serviceType} service`;
-            if (serviceType === 'Shared') {
-                detailsText += ` • ${validatedPassengers} passenger${validatedPassengers > 1 ? 's' : ''}`;
-            }
-            if (isManualPriceUsed) {
-                detailsText += ' • Custom price';
-            }
-            
-            priceDetails.textContent = detailsText;
-            
-            // Update total price display
             const totalPriceDisplay = document.getElementById('transport_total_price_display');
             if (totalPriceDisplay) {
-                totalPriceDisplay.textContent = '$' + formattedTotalPrice;
+                totalPriceDisplay.textContent = 'SGD ' + formattedTotalPrice;
             }
             
             // Update hidden fields
@@ -14324,15 +14529,14 @@
         const priceDisplay = document.getElementById('local_transfer_price_display');
         const priceDetails = document.getElementById('local_transfer_price_details');
         const hoursSelect = document.getElementById('local_transfer_hourly_hours');
+        const priceSubtitle = document.getElementById('local_transfer_price_subtitle');
         
         if (!vehicleSelect || !serviceTypeSelect || !passengersInput || !priceDisplay || !priceDetails) {
             return;
         }
         
-        // Validate passenger count
         const passengers = parseInt(passengersInput.value) || 1;
         const maxPassengers = parseInt(passengersInput.getAttribute('max')) || 1;
-        
         if (passengers > maxPassengers) {
             passengersInput.value = maxPassengers;
             showNotification(`Number of passengers cannot exceed ${maxPassengers} (total adults + children in tour)`, 'warning');
@@ -14341,6 +14545,9 @@
         
         if (vehicleSelect.value && serviceTypeSelect.value) {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            const adultPriceAttr = selectedOption.getAttribute('data-adult-price') || '';
+            const childPriceAttr = selectedOption.getAttribute('data-child-price') || '';
+            const infantPriceAttr = selectedOption.getAttribute('data-infant-price') || '';
             const vehicleData = {
                 id: selectedOption.value,
                 name: selectedOption.dataset.vehicleName,
@@ -14352,116 +14559,164 @@
                 costPerHour: selectedOption.dataset.costPerHour,
                 sharableCostPerHour: selectedOption.dataset.sharableCostPerHour,
             };
-            console.log('vehicle data:', vehicleData);
             const serviceType = serviceTypeSelect.value;
             const validatedPassengers = parseInt(passengersInput.value) || 1;
-            
-            // Check if manual price is provided (for point-to-point)
             const manualPrice = manualPriceInput ? parseFloat(manualPriceInput.value) : 0;
             const isManualPriceUsed = manualPriceInput && manualPriceInput.value && manualPrice > 0;
-            
-            // Check if this is hourly service
             const selectedServiceType = document.querySelector('input[name="service_type_selection"]:checked');
             const isHourlyService = selectedServiceType && selectedServiceType.value === 'hourly';
             const selectedHours = hoursSelect ? parseInt(hoursSelect.value) || 0 : 0;
             
-            // Get correct price based on service type or use manual price
             let basePrice = 0;
             let totalPrice = 0;
-            let priceMultiplier = 1;
-            let priceMultiplierText = '';
             
             if (isManualPriceUsed) {
-                // Use manual price for point-to-point; when Shared, multiply by pax
                 basePrice = manualPrice;
                 totalPrice = (serviceType === 'Shared') ? (manualPrice * validatedPassengers) : manualPrice;
             } else {
-                // Use vehicle's default pricing
-                if (serviceType == 'Private') {
+                if (serviceType === 'Private') {
                     basePrice = parseFloat(vehicleData.privatePrice) || 0;
-                    
-                    // Apply hourly calculation if this is hourly service
                     if (isHourlyService && selectedHours > 0) {
                         const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
-                        priceMultiplier = selectedHours;
                         totalPrice = basePrice + (selectedHours * costPerHour);
-                        priceMultiplierText = ` + (${selectedHours} hrs × $${costPerHour.toFixed(2)})`;
                     } else {
                         totalPrice = basePrice;
                     }
-                } else if (serviceType == 'Shared') {
+                } else if (serviceType === 'Shared') {
                     basePrice = parseFloat(vehicleData.sharedPrice) || 0;
-                    
-                    // Apply hourly calculation if this is hourly service
                     if (isHourlyService && selectedHours > 0) {
                         const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
-                        priceMultiplier = selectedHours;
-                        totalPrice = basePrice + (selectedHours * sharableCostPerHour * validatedPassengers);
-                        priceMultiplierText = ` + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax)`;
+                        totalPrice = (basePrice + (selectedHours * sharableCostPerHour)) * validatedPassengers;
                     } else {
                         totalPrice = basePrice * validatedPassengers;
                     }
                 }
             }
             
-            // Format price details
-            const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
-            const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
+            const adultsCount = parseInt(document.getElementById('adults')?.value) || 0;
+            const childrenCount = parseInt(document.getElementById('children')?.value) || 0;
+            const infantsCount = parseInt(document.getElementById('infants')?.value) || 0;
+            const adultPrice = parseFloat(adultPriceAttr) || basePrice;
+            const childPrice = parseFloat(childPriceAttr) || basePrice;
+            const infantPrice = parseFloat(infantPriceAttr) || 0;
             
-            // Format price calculation for better readability
-            let priceCalculationText = '';
-            if (isManualPriceUsed && serviceType === 'Shared') {
-                priceMultiplierText = ` × ${validatedPassengers} pax`;
+            let detailsHtml = '';
+            if (priceSubtitle) {
+                if (isManualPriceUsed) {
+                    priceSubtitle.textContent = 'Custom price';
+                } else if (isHourlyService && selectedHours > 0) {
+                    priceSubtitle.textContent = 'Hourly: base + (hours × rate per hour)';
+                } else {
+                    priceSubtitle.textContent = 'Vehicle pricing by adult / child / infant';
+                }
             }
+            
+            // Point-to-point with manual price: show only simple line and total, no adult/child/infant breakdown
             if (isHourlyService && selectedHours > 0 && !isManualPriceUsed) {
-                if (serviceType == 'Private') {
-                    const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
-                    priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${costPerHour.toFixed(2)}) = $${totalPrice.toFixed(2)}`;
-                } else if (serviceType == 'Shared') {
-                    const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
-                    priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax) = $${totalPrice.toFixed(2)}`;
+                const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+                const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
+                if (serviceType === 'Private') {
+                    const hourlyCost = costPerHour * selectedHours;
+                    detailsHtml = `
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-car-line me-1" style="color: #667eea;"></i>Base (vehicle):</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-time-line me-1" style="color: #667eea;"></i>Hourly rate:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} per hour</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-calendar-check-line me-1" style="color: #667eea;"></i>Selected hours:</span>
+                            <span class="fw-semibold" style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-calculator-line me-1" style="color: #667eea;"></i>Hours charge:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} × ${selectedHours} = SGD ${hourlyCost.toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
+                            <span style="color: #495057;" class="fw-semibold"><i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Total:</span>
+                            <span class="fw-bold" style="color: #495057;">SGD ${basePrice.toFixed(2)} + SGD ${hourlyCost.toFixed(2)} = SGD ${totalPrice.toFixed(2)}</span>
+                        </div>
+                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;"><i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: base + (hours × rate per hour).</small>
+                    `;
+                } else {
+                    const hourlyPerPerson = sharableCostPerHour * selectedHours;
+                    const perPersonTotal = basePrice + hourlyPerPerson;
+                    detailsHtml = `
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-price-tag-3-line me-1" style="color: #28a745;"></i>Base (per person):</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-time-line me-1" style="color: #28a745;"></i>Hourly (per person):</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${sharableCostPerHour.toFixed(2)} × ${selectedHours} h = SGD ${hourlyPerPerson.toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-group-line me-1" style="color: #28a745;"></i>Guests:</span>
+                            <span class="fw-semibold" style="color: #495057;">${validatedPassengers}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
+                            <span style="color: #495057;" class="fw-semibold"><i class="ri-calculator-line me-1" style="color: #28a745;"></i>Total:</span>
+                            <span class="fw-bold" style="color: #495057;">(SGD ${perPersonTotal.toFixed(2)} per person) × ${validatedPassengers} = SGD ${totalPrice.toFixed(2)}</span>
+                        </div>
+                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;"><i class="ri-information-line me-1" style="color: #28a745;"></i>Shared hourly: (base + hours × rate) × guests.</small>
+                    `;
+                }
+            } else if (!isHourlyService && !isManualPriceUsed && (adultsCount > 0 || childrenCount > 0 || infantsCount > 0)) {
+                // Do not show adult/child/infant breakdown when manual price is given (point-to-point)
+                if (serviceType === 'Shared') {
+                    totalPrice = (adultPrice * adultsCount) + (childPrice * childrenCount) + (infantPrice * infantsCount);
+                    const adultTotal = adultPrice * adultsCount;
+                    const childTotal = childPrice * childrenCount;
+                    const infantTotal = infantPrice * infantsCount;
+                    detailsHtml = `
+                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                            <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Total adult price:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                            <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Total child price:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                            <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Total infant price:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                        </div>
+                    `;
+                } else {
+                    detailsHtml = `
+                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                            <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Adult price:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                            <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Child price:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
+                            <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Infant price:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        </div>
+                        <small style="color: #6c757d; font-size: 0.7rem; display: block; margin-top: 0.35rem;"><i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).</small>
+                    `;
                 }
             } else {
-                priceCalculationText = `$${basePrice.toFixed(2)}${priceMultiplierText}` + (totalPrice !== basePrice ? ` = $${totalPrice.toFixed(2)}` : '');
-            }
-            const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
-
-            // Format price details - cleaner display
-            const formattedTotalPrice = totalPrice.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-            
-            // Update price details text
-            let detailsText = `${vehicleData.name} (${vehicleData.seatingCapacity} seats) • ${serviceType} service`;
-            if (serviceType === 'Shared') {
-                detailsText += ` • ${validatedPassengers} passenger${validatedPassengers > 1 ? 's' : ''}`;
-            }
-            if (isHourlyService && selectedHours > 0) {
-                detailsText += ` • ${selectedHours} hour${selectedHours > 1 ? 's' : ''}`;
-            }
-            if (isManualPriceUsed) {
-                detailsText += ' • Custom price';
+                detailsHtml = `${vehicleData.name} (${vehicleData.seatingCapacity} seats) • ${serviceType} service`;
+                if (serviceType === 'Shared') detailsHtml += ` • ${validatedPassengers} passenger${validatedPassengers > 1 ? 's' : ''}`;
+                if (isHourlyService && selectedHours > 0) detailsHtml += ` • ${selectedHours} hour${selectedHours > 1 ? 's' : ''}`;
+                if (isManualPriceUsed) detailsHtml += ' • Custom price';
             }
             
-            priceDetails.textContent = detailsText;
-            
-            // Update total price display
+            priceDetails.innerHTML = detailsHtml;
+            const formattedTotalPrice = totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const totalPriceDisplay = document.getElementById('local_transfer_total_price_display');
-            if (totalPriceDisplay) {
-                totalPriceDisplay.textContent = '$' + formattedTotalPrice;
-            }
+            if (totalPriceDisplay) totalPriceDisplay.textContent = 'SGD ' + formattedTotalPrice;
             
-            // Update hidden fields
             document.getElementById('local_transfer_base_price').value = basePrice.toFixed(2);
             document.getElementById('local_transfer_total_price').value = totalPrice.toFixed(2);
-            
-            // Update manual price hidden field
             const manualPriceHidden = document.getElementById('local_transfer_manual_price_submitted');
-            if (manualPriceHidden) {
-                manualPriceHidden.value = isManualPriceUsed ? manualPrice.toFixed(2) : '';
-            }
-            
+            if (manualPriceHidden) manualPriceHidden.value = isManualPriceUsed ? manualPrice.toFixed(2) : '';
             priceDisplay.style.display = 'block';
         } else {
             priceDisplay.style.display = 'none';
@@ -23032,17 +23287,24 @@
             return;
         }
 
-        // Collect main guest data
+        // Collect main guest data - scope to #customerAccordion to avoid picking wrong elements
+        const leadSection = document.getElementById('customerAccordion');
+        const getLeadVal = (id, name) => {
+            const el = leadSection ? leadSection.querySelector(`#${id}, [name="${name}"]`) : (document.getElementById(id) || document.querySelector(`[name="${name}"]`));
+            return (el?.value || '').trim();
+        };
         const mainGuestData = {
-            full_name: document.getElementById('customerFullName')?.value || '',
-            email: document.getElementById('customerEmail')?.value || '',
-            country_code: document.getElementById('customerCountryCode')?.value || '',
-            phone: document.getElementById('customerPhone')?.value || '',
-            address1: document.getElementById('customerAddress1')?.value || '',
-            address2: document.getElementById('customerAddress2')?.value || '',
-            state: document.getElementById('customerState')?.value || '',
-            zip: document.getElementById('customerZip')?.value || '',
-            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
+            salutation: getLeadVal('customerSalutation', 'customer_salutation'),
+            full_name: getLeadVal('customerFullName', 'customer_full_name'),
+            email: getLeadVal('customerEmail', 'customer_email'),
+            country_code: getLeadVal('customerCountryCode', 'customer_country_code'),
+            phone: getLeadVal('customerPhone', 'customer_phone'),
+            address1: getLeadVal('customerAddress1', 'customer_address1'),
+            address2: getLeadVal('customerAddress2', 'customer_address2'),
+            state: getLeadVal('customerState', 'customer_state'),
+            zip: getLeadVal('customerZip', 'customer_zip'),
+            special_requests: getLeadVal('customerSpecialRequests', 'customer_special_requests'),
+            app_password: (leadSection ? leadSection.querySelector('#customerAppPassword, [name="customer_app_password"]') : (document.getElementById('customerAppPassword') || document.querySelector('[name="customer_app_password"]')))?.value || ''
         };
 
         // Collect additional guests data from editable fields
@@ -23052,15 +23314,23 @@
             const guest = {
                 salutation: card.querySelector('.guest-salutation')?.value || '',
                 name: card.querySelector('.guest-name')?.value || '',
+                email: card.querySelector('.guest-email')?.value || '',
                 passport_no: card.querySelector('.guest-passport-no')?.value || '',
                 passport_exp: card.querySelector('.guest-passport-exp')?.value || '',
                 contact_no: card.querySelector('.guest-contact-no')?.value || '',
+                app_password: card.querySelector('.guest-app-password')?.value || '',
             };
             // Only add if at least name is provided
             if (guest.name.trim() !== '') {
                 additionalGuests.push(guest);
             }
         });
+
+        // Validate: if app password is set but email is empty, user may have wrong element picked
+        if (mainGuestData.app_password && !mainGuestData.email) {
+            showToastr('warning', 'Please enter Lead Guest email. Email field was not found or is empty.');
+            return;
+        }
 
         // Prepare form data
         const formData = new FormData();

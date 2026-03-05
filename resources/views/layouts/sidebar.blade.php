@@ -937,6 +937,7 @@
                             </div>
                         </a>
                     </li>
+                    
                     <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
                         <a href="{{ route('bookings.actual') }}" class="menu-link" title="Actual Bookings">
                             <div class="d-flex justify-content-between align-items-center">
@@ -991,6 +992,15 @@
                             <div data-i18n="Packages" class="menu-tooltip">
                                 <span class="menu-text-with-tooltip">Packages</span>
                                 <span class="tooltip-text">Packages</span>
+                            </div>
+                        </a>
+                    </li>
+                @endif
+                @if(in_array(auth()->user()->role_id, [34, 128, 131, 132, 134, 135, 137, 138]))
+                    <li class="menu-item @if(Request::is('bookings/today')) active @endif">
+                        <a href="{{ route('bookings.today') }}" class="menu-link" title="Trip Logs">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span data-i18n="Trip Logs">Trip Logs</span>
                             </div>
                         </a>
                     </li>
@@ -2463,6 +2473,14 @@
                                 Contact Number
                             </label>
                             <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number">
+                        </div>
+                    </div>
+
+                    <!-- Row 5: Email (optional) -->
+                    <div class="row g-2 mb-1">
+                        <div class="col-12">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Email</label>
+                            <input type="email" class="form-control form-control-sm" id="customerEmail" name="email" placeholder="Optional" autocomplete="email" style="font-size: 10px;">
                         </div>
                     </div>                    
 

@@ -23,8 +23,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DmcMail;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Country;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -4650,5 +4651,71 @@ class CommonHelper
         }
 
         self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
+    }
+
+    // Get DMC Dynamic Currency
+    public static function getDmcCurrencyByCountry()
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return 'SGD';
+        }
+
+        $dmc_id = null;
+
+        switch ($user->role_id) {
+
+            case 1: // Admin
+            case 20: // Virtual DMC
+                return 'SGD'; // or default
+
+            case 11: // DMC
+                $dmc_id = $user->userId;
+                break;
+
+            case 33:
+            case 128:
+            case 129:
+            case 130:
+            case 134:
+            case 135:
+            case 136:
+            case 138:
+                $dmc_id = $user->created_by;
+                break;
+
+            case 37:    // Sales Manager
+            case 39:    // Sales Manager
+                $sales_head = User::where('userId', $user->created_by)->first();
+                $dmc_id = $sales_head?->created_by;
+                break;
+
+            case 38:    // Assistant Sales Manager
+            case 40:    // Assistant Sales Manager
+                $sales_manager = User::where('userId', $user->created_by)->first();
+                $sales_head = User::where('userId', $sales_manager?->created_by)->first();
+                $dmc_id = $sales_head?->created_by;
+                break;
+
+            default:
+                return 'SGD';
+        }
+
+        if (!$dmc_id) {
+            return 'SGD';
+        }
+
+        // Get DMC
+        $dmc = User::where('userId', $dmc_id)->first();
+
+        if (!$dmc || !$dmc->country) {
+            return 'SGD';
+        }
+
+        // Get currency from countries table using country name
+        $country = Country::where('name', $dmc->country)->first();
+
+        return $country->currency ?? 'SGD';
     }
 }

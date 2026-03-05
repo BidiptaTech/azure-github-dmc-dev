@@ -925,22 +925,29 @@
                                 $first_enquiry_actual_amount = $frstenquiry->actual_amount ?? 0;
                                 
                                 // Calculate total tour price from ALL bookings with status 1 or 3
-                                // Includes: base price + transfer price + guide price (for attractions)
+                                // Hotel: use pickup total only (itemPrice) - transport/transfer is already included, do NOT add transfer price
+                                // Other services: base price + transfer price + guide price
                                 $tourTotalPrice = 0;
                                 foreach ($tour->booking as $booking) {
                                     if (in_array($booking->status, [1, 3])) {
                                         $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                                         if (is_array($data)) {
+                                            $orderType = $booking->type ?? '';
                                             foreach ($data as $item) {
                                                 $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
                                                 
-                                                // Add transfer price if exists
+                                                // For hotel: pickup total only - do NOT add transfer (transport added automatically)
                                                 $transferPrice = 0;
-                                                if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                                                    $transferPrice = (float) $item['transfer_options']['cost'];
+                                                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                                                    // PRO tours: prefer totalPrice (base × pax) when available
+                                                    if ($tour->is_pro == 1 && isset($item['transfer_options']['totalPrice'])) {
+                                                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                                                    } else {
+                                                        $transferPrice = (float) $item['transfer_options']['cost'];
+                                                    }
                                                 }
                                                 
-                                                // Add guide price if exists (attractions, entry_port, exit_port, etc.)
+                                                // Add guide price if exists (attractions, entry_port, exit_port, restaurant, etc.)
                                                 $guidePrice = 0;
                                                 if (isset($item['guide_options']) && is_array($item['guide_options'])) {
                                                     $gv = $item['guide_options']['total_price'] ?? $item['guide_options']['cost'] ?? $item['guide_options']['Cost'] ?? $item['guide_options']['sell'] ?? $item['guide_options']['Sell'] ?? 0;
@@ -1041,6 +1048,11 @@
                             </td>
                             <td class="align-top">
                                 <div class="d-flex flex-column">
+                                    @if($tour->created_by)
+                                        <span>{{ $tour->created_by_name }}</span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
                                 @if($tour->created_at)
                                     @php
                                         $createdAt = $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC');
@@ -1283,7 +1295,7 @@
                                         </div>
                                         <div class="col-md-4 text-end">
                                             <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                             </span>
                                         </div>
                                     </div>
@@ -1447,7 +1459,7 @@
                                                         </div>
                                                         @if(isset($room['beds']) && is_array($room['beds']))
                                                             @php $totalRoomPrice = collect($room['beds'])->sum('price'); @endphp
-                                                            <span class="badge bg-success" style="font-size: 0.7rem;">SGD {{ number_format($totalRoomPrice, 2) }}</span>
+                                                            <span class="badge bg-success" style="font-size: 0.7rem;">{{ $currency }} {{ number_format($totalRoomPrice, 2) }}</span>
                                                         @endif
                                                     </div>
                                                     
@@ -1464,13 +1476,13 @@
                                                                     </div>
                                                                     <div class="col-3">
                                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Price</small>
-                                                                        <div class="fw-bold text-success" style="font-size: 0.7rem;">SGD {{ number_format($bed['price'] ?? 0, 2) }}</div>
+                                                                        <div class="fw-bold text-success" style="font-size: 0.7rem;">{{ $currency }} {{ number_format($bed['price'] ?? 0, 2) }}</div>
                                                                     </div>
                                                                     @if(isset($bed['selectedMeals']) && is_array($bed['selectedMeals']) && count($bed['selectedMeals']) > 0)
                                                                         <div class="col-12">
                                                                             <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Meals:</small>
                                                                             @foreach($bed['selectedMeals'] as $mealKey => $meal)
-                                                                                <span class="badge bg-success me-1" style="font-size: 0.6rem;">{{ $meal['type'] ?? 'Meal' }} (SGD {{ number_format((float)($meal['price'] ?? 0), 2) }})</span>
+                                                                                <span class="badge bg-success me-1" style="font-size: 0.6rem;">{{ $meal['type'] ?? 'Meal' }} ({{ $currency }} {{ number_format((float)($meal['price'] ?? 0), 2) }})</span>
                                                                             @endforeach
                                                                         </div>
                                                                     @endif
@@ -1490,7 +1502,7 @@
                                                     </div>
                                                     <div class="text-end">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Total Amount</small>
-                                                        <div class="fw-bold" style="font-size: 0.9rem; color: #74b9ff;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
+                                                        <div class="fw-bold" style="font-size: 0.9rem; color: #74b9ff;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1527,10 +1539,10 @@
                                                     <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-bed-line me-1" style="font-size: 0.8rem;"></i>Child with Bed</div>
                                                     <div class="row g-1">
                                                         <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
-                                                        <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">SGD {{ number_format($cwbPrice, 2) }}</div></div>
+                                                        <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($cwbPrice, 2) }}</div></div>
                                                         <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwbChildren }}</div></div>
                                                         <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
-                                                        <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($cwbTotal, 2) }}</div></div>
+                                                        <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($cwbTotal, 2) }}</div></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1547,10 +1559,10 @@
                                                     <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>Child without Bed</div>
                                                     <div class="row g-1">
                                                         <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
-                                                        <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">SGD {{ number_format($cwobPrice, 2) }}</div></div>
+                                                        <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($cwobPrice, 2) }}</div></div>
                                                         <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwobChildren }}</div></div>
                                                         <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
-                                                        <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($cwobTotal, 2) }}</div></div>
+                                                        <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($cwobTotal, 2) }}</div></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1610,10 +1622,17 @@
                                                                     <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                 </div>
                                                                 @endif
-                                                                @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                                @php
+                                                                    // For PRO tours, show total transfer price (base × pax) when available
+                                                                    $transferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                                    if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                        $transferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                                    }
+                                                                @endphp
+                                                                @if($transferCostDisplay > 0)
                                                                 <div class="col-12">
                                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}</div>
+                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$transferCostDisplay, 2) }}</div>
                                                                 </div>
                                                                 @endif
                                                             </div>
@@ -1718,7 +1737,7 @@
                                         </div>
                                         <div class="col-md-4 text-end">
                                             <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                             </span>
                                         </div>
                                     </div>
@@ -1825,19 +1844,19 @@
                                             <div class="col-4">
                                                 <div class="bg-white border rounded p-1 text-center" style="border-color: #28a745 !important;">
                                                     <small class="text-success fw-bold d-block" style="font-size: 0.7rem;">Adult</small>
-                                                    <div class="fw-bold text-success" style="font-size: 0.75rem;">SGD {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</div>
+                                                    <div class="fw-bold text-success" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</div>
                                                 </div>
                                             </div>
                                             <div class="col-4">
                                                 <div class="bg-white border rounded p-1 text-center" style="border-color: #ffc107 !important;">
                                                     <small class="text-warning fw-bold d-block" style="font-size: 0.7rem;">Child</small>
-                                                    <div class="fw-bold text-warning" style="font-size: 0.75rem;">SGD {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</div>
+                                                    <div class="fw-bold text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</div>
                                                 </div>
                                             </div>
                                             <div class="col-4">
                                                 <div class="bg-white border rounded p-1 text-center" style="border-color: #17a2b8 !important;">
                                                     <small class="text-info fw-bold d-block" style="font-size: 0.7rem;">Senior</small>
-                                                    <div class="fw-bold text-info" style="font-size: 0.75rem;">SGD {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</div>
+                                                    <div class="fw-bold text-info" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1861,7 +1880,7 @@
                                                 </div>
                                                 <div class="text-end">
                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Total</small>
-                                                    <div class="fw-bold" style="font-size: 0.9rem; color: #fd9853;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
+                                                    <div class="fw-bold" style="font-size: 0.9rem; color: #fd9853;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1927,10 +1946,17 @@
                                                                     <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                 </div>
                                                                 @endif
-                                                                @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                                @php
+                                                                    // For PRO tours, show total transfer price (base × pax) when available
+                                                                    $attractionTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                                    if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                        $attractionTransferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                                    }
+                                                                @endphp
+                                                                @if($attractionTransferCostDisplay > 0)
                                                                 <div class="col-12">
                                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}</div>
+                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$attractionTransferCostDisplay, 2) }}</div>
                                                                 </div>
                                                                 @endif
                                                             </div>
@@ -2007,17 +2033,17 @@
                                                         <div class="row g-1">
                                                             <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                                <div class="fw-medium text-primary" style="font-size: 0.75rem;">SGD {{ number_format($booking['guide_options']['base_price'] ?? 0, 2) }}</div>
+                                                                <div class="fw-medium text-primary" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['guide_options']['base_price'] ?? 0, 2) }}</div>
                                                             </div>
                                                             @if(isset($booking['guide_options']['surcharge']) && $booking['guide_options']['surcharge'] > 0)
                                                             <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                                <div class="fw-medium text-warning" style="font-size: 0.75rem;">SGD {{ number_format($booking['guide_options']['surcharge'], 2) }}</div>
+                                                                <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['guide_options']['surcharge'], 2) }}</div>
                                                             </div>
                                                             @endif
                                                             <div class="col-12">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Total Guide Cost</small>
-                                                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($booking['guide_options']['total_price'] ?? 0, 2) }}</div>
+                                                                <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['guide_options']['total_price'] ?? 0, 2) }}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -2096,7 +2122,7 @@
                                         </div>
                                         <div class="col-md-4 text-end">
                                             <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                                                SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                             </span>
                                         </div>
                                     </div>
@@ -2173,7 +2199,7 @@
                                                         </div>
                                                         <div class="col-md-4 text-end">
                                                             <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                                SGD {{ number_format((float)($meal['price'] ?? 0), 2) }}
+                                                                {{ $currency }} {{ number_format((float)($meal['price'] ?? 0), 2) }}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -2191,13 +2217,13 @@
                                                         <div class="col-md-4">
                                                             <div class="bg-light rounded p-1 text-center">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Unit Price</small>
-                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format((float)($meal['price'] ?? 0), 2) }}</div>
+                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format((float)($meal['price'] ?? 0), 2) }}</div>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="bg-light rounded p-1 text-center" style="background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Subtotal</small>
-                                                                <div class="fw-bold" style="font-size: 1rem; color: #fd79a8;">SGD {{ number_format((float)(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1)), 2) }}</div>
+                                                                <div class="fw-bold" style="font-size: 1rem; color: #fd79a8;">{{ $currency }} {{ number_format((float)(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1)), 2) }}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -2218,7 +2244,7 @@
                                                 </div>
                                                 <div class="text-end">
                                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                                    <div class="fw-bold" style="font-size: 1.2rem; color: #fd79a8;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
+                                                    <div class="fw-bold" style="font-size: 1.2rem; color: #fd79a8;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -2288,11 +2314,18 @@
                                                             </div>
                                                         @endif
                                                         
-                                                        @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                        @php
+                                                            // For PRO tours, show total transfer price (base × pax) when available
+                                                            $restaurantTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
+                                                            if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                                $restaurantTransferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                            }
+                                                        @endphp
+                                                        @if($restaurantTransferCostDisplay > 0)
                                                         <div class="mb-0">
                                                             <small class="text-muted d-block">Transfer Cost</small>
                                                             <div class="fs-5 fw-bold text-success">
-                                                                <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}
+                                                                <i class="ri-money-dollar-circle-line me-1"></i>{{ $currency }} {{ number_format((float)$restaurantTransferCostDisplay, 2) }}
                                                             </div>
                                                         </div>
                                                         @endif
@@ -2373,7 +2406,7 @@
                                                         <div class="mb-0">
                                                             <small class="text-muted d-block">Guide Cost</small>
                                                             <div class="fs-5 fw-bold text-info">
-                                                                <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format((float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0), 2) }}
+                                                                <i class="ri-money-dollar-circle-line me-1"></i>{{ $currency }} {{ number_format((float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0), 2) }}
                                                             </div>
                                                         </div>
                                                         @endif
@@ -2394,7 +2427,12 @@
                                         @php
                                             $vehicleCost = 0;
                                             if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
-                                                $vehicleCost = (float) $booking['transfer_options']['cost'];
+                                                // PRO tours: prefer totalPrice (base × pax) when available
+                                                if ($tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
+                                                    $vehicleCost = (float) $booking['transfer_options']['totalPrice'];
+                                                } else {
+                                                    $vehicleCost = (float) $booking['transfer_options']['cost'];
+                                                }
                                             }
                                             $guideCost = 0;
                                             if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
@@ -2412,14 +2450,14 @@
                                             <div class="col-md-{{ $hasTransfer && $hasGuide ? '3' : ($hasTransfer || $hasGuide ? '4' : '6') }}">
                                                 <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
-                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($mealPrice, 2) }}</div>
+                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($mealPrice, 2) }}</div>
                                                 </div>
                                             </div>
                                             @if($hasTransfer)
                                             <div class="col-md-{{ $hasGuide ? '3' : '4' }}">
                                                 <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                                    <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD {{ number_format($vehicleCost, 2) }}</div>
+                                                    <div class="fw-bold text-info" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($vehicleCost, 2) }}</div>
                                                 </div>
                                             </div>
                                             @endif
@@ -2427,22 +2465,16 @@
                                             <div class="col-md-{{ $hasTransfer ? '3' : '4' }}">
                                                 <div class="text-center p-2 border rounded bg-white" style="border-color: #00cec9 !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
-                                                    <div class="fw-bold" style="font-size: 0.8rem; color: #00cec9;">SGD {{ number_format($guideCost, 2) }}</div>
+                                                    <div class="fw-bold" style="font-size: 0.8rem; color: #00cec9;">{{ $currency }} {{ number_format($guideCost, 2) }}</div>
                                                 </div>
                                             </div>
                                             @endif
                                             <div class="col-md-{{ $hasTransfer && $hasGuide ? '3' : ($hasTransfer || $hasGuide ? '4' : '6') }}">
                                                 <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                                    <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD {{ number_format($totalPrice, 2) }}</div>
+                                                    <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">{{ $currency }} {{ number_format($totalPrice, 2) }}</div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="mt-2 text-center">
-                                            <small class="text-muted" style="font-size: 0.75rem;">
-                                                <i class="ri-information-line me-1"></i>
-                                                Total Price includes Restaurant Price@if($hasTransfer) + Vehicle Price@endif@if($hasGuide) + Guide Price@endif
-                                            </small>
                                         </div>
                                     </div>
 
@@ -2517,7 +2549,7 @@
                                         </div>
                                         <div class="col-md-4 text-end">
                                             <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                             </span>
                                         </div>
                                     </div>
@@ -2541,11 +2573,11 @@
                                                     </div>
                                                     <div class="col-6">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                        <div class="fw-medium text-success" style="font-size: 0.75rem;">SGD {{ number_format((float)($booking['basePrice'] ?? 0), 2) }}</div>
+                                                        <div class="fw-medium text-success" style="font-size: 0.75rem;">{{ $currency }} {{ number_format((float)($booking['basePrice'] ?? 0), 2) }}</div>
                                                     </div>
                                                     <div class="col-6">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                        <div class="fw-medium text-warning" style="font-size: 0.75rem;">SGD {{ number_format((float)($booking['surcharge'] ?? 0), 2) }}</div>
+                                                        <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ number_format((float)($booking['surcharge'] ?? 0), 2) }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2643,19 +2675,19 @@
                                             <div class="col-md-4">
                                                 <div class="text-center p-1 border rounded bg-white" style="border-color: #28a745 !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['basePrice'] ?? 0), 2) }}</div>
+                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['basePrice'] ?? 0), 2) }}</div>
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
                                                 <div class="text-center p-1 border rounded bg-white" style="border-color: #ffc107 !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                    <div class="fw-bold text-warning" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['surcharge'] ?? 0), 2) }}</div>
+                                                    <div class="fw-bold text-warning" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['surcharge'] ?? 0), 2) }}</div>
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
                                                 <div class="text-center p-1 border rounded bg-white" style="border-color: #00cec9 !important; background: linear-gradient(135deg, rgba(0,206,201,0.1) 0%, rgba(85,163,255,0.1) 100%) !important;">
                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Total Amount</small>
-                                                    <div class="fw-bold" style="font-size: 0.9rem; color: #00cec9;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
+                                                    <div class="fw-bold" style="font-size: 0.9rem; color: #00cec9;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -2732,7 +2764,7 @@
                                         </div>
                                         <div class="col-md-4 text-end">
                                             <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                SGD {{ number_format($entryCardTotal, 2) }}
+                                                {{ $currency }} {{ number_format($entryCardTotal, 2) }}
                                             </span>
                                         </div>
                                     </div>
@@ -2913,17 +2945,17 @@
                                         <div class="bg-white rounded p-2">
                                             <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
                                                 <span class="text-muted" style="font-size: 0.8rem;">Transfer</span>
-                                                <span class="fw-semibold text-dark">SGD {{ number_format($entryTransferPrice, 2) }}</span>
+                                                <span class="fw-semibold text-dark">{{ $currency }} {{ number_format($entryTransferPrice, 2) }}</span>
                                             </div>
                                             @if($entryGuidePrice > 0)
                                             <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
                                                 <span class="text-muted" style="font-size: 0.8rem;">Guide</span>
-                                                <span class="fw-semibold text-info">SGD {{ number_format($entryGuidePrice, 2) }}</span>
+                                                <span class="fw-semibold text-info">{{ $currency }} {{ number_format($entryGuidePrice, 2) }}</span>
                                             </div>
                                             @endif
                                             <div class="d-flex justify-content-between align-items-center py-2 mt-1">
                                                 <span class="fw-bold text-dark" style="font-size: 0.9rem;">Total</span>
-                                                <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format($entryCardTotal, 2) }}</span>
+                                                <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format($entryCardTotal, 2) }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -2962,7 +2994,7 @@
                                                     <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} H</div>
                                                     @php $arrivalGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
                                                     @if($arrivalGuideCost > 0)
-                                                    <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">SGD {{ number_format($arrivalGuideCost, 2) }}</div>
+                                                    <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">{{ $currency }} {{ number_format($arrivalGuideCost, 2) }}</div>
                                                     @endif
                                                 </div>
                                             </div>
@@ -3043,7 +3075,7 @@
                                         </div>
                                         <div class="col-md-4 text-end">
                                             <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                SGD {{ number_format($exitCardTotal, 2) }}
+                                                {{ $currency }} {{ number_format($exitCardTotal, 2) }}
                                             </span>
                                         </div>
                                     </div>
@@ -3218,17 +3250,17 @@
                                         <div class="bg-white rounded p-2">
                                             <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
                                                 <span class="text-muted" style="font-size: 0.8rem;">Transfer</span>
-                                                <span class="fw-semibold text-dark">SGD {{ number_format($exitTransferPrice, 2) }}</span>
+                                                <span class="fw-semibold text-dark">{{ $currency }} {{ number_format($exitTransferPrice, 2) }}</span>
                                             </div>
                                             @if($exitGuidePrice > 0)
                                             <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
                                                 <span class="text-muted" style="font-size: 0.8rem;">Guide</span>
-                                                <span class="fw-semibold text-info">SGD {{ number_format($exitGuidePrice, 2) }}</span>
+                                                <span class="fw-semibold text-info">{{ $currency }} {{ number_format($exitGuidePrice, 2) }}</span>
                                             </div>
                                             @endif
                                             <div class="d-flex justify-content-between align-items-center py-2 mt-1">
                                                 <span class="fw-bold text-dark" style="font-size: 0.9rem;">Total</span>
-                                                <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format($exitCardTotal, 2) }}</span>
+                                                <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format($exitCardTotal, 2) }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -3267,7 +3299,7 @@
                                                     <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} H</div>
                                                     @php $depGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
                                                     @if($depGuideCost > 0)
-                                                    <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">SGD {{ number_format($depGuideCost, 2) }}</div>
+                                                    <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">{{ $currency }} {{ number_format($depGuideCost, 2) }}</div>
                                                     @endif
                                                 </div>
                                             </div>
@@ -3354,7 +3386,7 @@
                                                 </div>
                                                 <div class="col-md-4 text-end">
                                                     <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                        SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                        {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -3601,7 +3633,7 @@
                                                 </div>
                                                 <div class="col-md-4 text-end">
                                                     <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                        SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                        {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -3756,7 +3788,7 @@
                                                 <div class="row g-2 align-items-center">
                                                     <div class="col-md-4">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Total Price</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
+                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                     </div>
                                                     <div class="col-md-4">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">From Zone</small>
@@ -3877,7 +3909,7 @@
                                                 </div>
                                                 <div class="col-md-4 text-end">
                                                     <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                        SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                        {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -4030,7 +4062,7 @@
                                                 <div class="row g-2 align-items-center">
                                                     <div class="col-md-4">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Total Price</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
+                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                     </div>
                                                     <div class="col-md-4">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">From Zone</small>
@@ -4103,7 +4135,7 @@
                                                     <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</small>
                                                 </div>
                                                 <div class="col-md-4 text-end">
-                                                    <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
+                                                    <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -4150,7 +4182,7 @@
                                                 </div>
                                                 <div class="d-flex justify-content-between align-items-center py-1">
                                                     <span class="text-muted" style="font-size: 0.8rem;">Total</span>
-                                                    <span class="fw-bold text-success" style="font-size: 1rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
+                                                    <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
                                                 </div>
                                                 @if(isset($booking['adultSell']) || isset($booking['childSell']) || isset($booking['infantSell']))
                                                 <small class="text-muted" style="font-size: 0.7rem;">Adult: {{ $booking['adultSell'] ?? 0 }} / Child: {{ $booking['childSell'] ?? 0 }} / Infant: {{ $booking['infantSell'] ?? 0 }}</small>
