@@ -6969,8 +6969,8 @@
                             <!-- Vehicle + Service Type in one row -->
                             <div class="col-12">
                                 <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
-                                    <div class="row g-2">
-                                        <div class="col-md-4">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Vehicle</label>
                                             <select class="form-select modern-select vehicle-select" 
                                                     id="modal_transport_vehicle_id" 
@@ -6995,7 +6995,7 @@
 
                                         <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
                                         @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
-                                        <div class="col-md-3" id="transport_manual_price_field_container" style="display: none;">
+                                        <div class="col-md-2" id="transport_manual_price_field_container" style="display: none;">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                                 <i class="ri-money-dollar-circle-line me-1" style="color: #10b981;"></i>Manual Price (Optional)
                                             </label>
@@ -7020,29 +7020,36 @@
                                             </small>
                                         </div>
                                         @endif
-                                        <div class="col-md-3">
-                                            @php
-                                                $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
-                                            @endphp
-                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Number of Passengers</label>
-                                            <input 
-                                                type="number" 
-                                                class="form-control modern-input" 
-                                                id="modal_transport_passengers" 
-                                                name="passengers" 
-                                                min="1" 
-                                                max="{{ $tourMaxPassengers }}" 
-                                                value="" 
-                                                data-tour-guests="{{ $tourMaxPassengers }}"
-                                                onkeyup="updatePricing()" 
-                                                onchange="updatePricing()" 
-                                                style="height: 36px; font-size: 0.8rem;">
-                                            <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
-                                                Maximum: 
-                                                <span id="modal_transport_passengers_help">
-                                                    {{ $tourMaxPassengers }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
-                                                </span>
-                                            </small>
+                                        @php
+                                            $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
+                                        @endphp
+                                        <!-- Adults / Children (visual); pax = adults + children for pricing/submit -->
+                                        <div class="col-md-4">
+                                            <div class="row g-3">
+                                                <div class="col-6 pe-2">
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Adults</label>
+                                                    <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
+                                                        <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.8rem;">Adults</span>
+                                                        <input type="number" class="form-control" id="modal_transport_adults" min="0" max="{{ $tour->adult ?? 50 }}" value="1" placeholder="0"
+                                                            style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
+                                                            oninput="syncModalTransportPax(); updatePricing();"
+                                                            onchange="syncModalTransportPax(); updatePricing();"
+                                                            onwheel="this.blur();">
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 ps-1">
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Children</label>
+                                                    <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
+                                                        <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.8rem;">Children</span>
+                                                        <input type="number" class="form-control" id="modal_transport_children" min="0" max="{{ $tour->child ?? 50 }}" value="0" placeholder="0"
+                                                            style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
+                                                            oninput="syncModalTransportPax(); updatePricing();"
+                                                            onchange="syncModalTransportPax(); updatePricing();"
+                                                            onwheel="this.blur();">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" id="modal_transport_passengers" name="passengers" value="1" data-tour-guests="{{ $tourMaxPassengers }}">
                                         </div>
                                     </div>
                                     
@@ -13555,12 +13562,37 @@
             });
     }
     
+    // Sync modal transport pax: adults + children = hidden passengers (for pricing/submit)
+    function syncModalTransportPax() {
+        const adultsEl = document.getElementById('modal_transport_adults');
+        const childrenEl = document.getElementById('modal_transport_children');
+        const passengersEl = document.getElementById('modal_transport_passengers');
+        if (!adultsEl || !childrenEl || !passengersEl) return;
+        let a = parseInt(adultsEl.value, 10) || 0;
+        let c = parseInt(childrenEl.value, 10) || 0;
+        const tourGuests = parseInt(passengersEl.dataset.tourGuests || '0', 10) || 0;
+        const maxAllowed = parseInt(passengersEl.getAttribute('max'), 10) || tourGuests || 99;
+        let total = a + c;
+        if (total > maxAllowed) {
+            a = Math.min(a, maxAllowed);
+            c = Math.max(0, maxAllowed - a);
+            adultsEl.value = a;
+            childrenEl.value = c;
+            total = maxAllowed;
+        }
+        if (total < 1) {
+            adultsEl.value = 1;
+            childrenEl.value = 0;
+            total = 1;
+        }
+        passengersEl.value = total;
+    }
+
     function updateVehicleDetails() {
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         const manualPriceContainer = document.getElementById('transport_manual_price_field_container');
         const passengersInput = document.getElementById('modal_transport_passengers');
-        const passengersHelp = document.getElementById('modal_transport_passengers_help');
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
@@ -13586,9 +13618,9 @@
                 manualPriceContainer.style.display = 'block';
             }
 
-            // Update max passengers based on vehicle capacity and tour guests
+            // Update max passengers based on vehicle capacity and tour guests (hidden field + adults/children)
             if (passengersInput) {
-                const tourGuests = parseInt(passengersInput.dataset.tourGuests || passengersInput.max || '0', 10) || 0;
+                const tourGuests = parseInt(passengersInput.dataset.tourGuests || '0', 10) || 0;
                 const seatingCapacity = parseInt(vehicleData.seatingCapacity || '0', 10) || 0;
 
                 if (tourGuests > 0 || seatingCapacity > 0) {
@@ -13597,21 +13629,8 @@
                         seatingCapacity || tourGuests
                     ));
 
-                    passengersInput.max = maxAllowed;
-
-                    if (passengersInput.value && parseInt(passengersInput.value, 10) > maxAllowed) {
-                        passengersInput.value = maxAllowed;
-                    }
-
-                    if (passengersHelp) {
-                        if (seatingCapacity > 0 && tourGuests > 0) {
-                            passengersHelp.textContent = `${maxAllowed} (Vehicle capacity: ${seatingCapacity}, Tour guests: ${tourGuests})`;
-                        } else if (seatingCapacity > 0) {
-                            passengersHelp.textContent = `${maxAllowed} (Vehicle capacity: ${seatingCapacity})`;
-                        } else {
-                            passengersHelp.textContent = `${maxAllowed} (Tour guests: ${tourGuests})`;
-                        }
-                    }
+                    passengersInput.setAttribute('max', maxAllowed);
+                    if (typeof syncModalTransportPax === 'function') syncModalTransportPax();
                 }
             }
             
@@ -14421,9 +14440,11 @@
                 }
             }
             
-            // Adult/child/infant breakdown (same as Entry/Exit/Other Transport)
-            const adultsCount = parseInt(document.getElementById('adults')?.value) || 0;
-            const childrenCount = parseInt(document.getElementById('children')?.value) || 0;
+            // Adult/child/infant breakdown: use modal transport inputs so Shared price updates when user changes adults/children
+            const modalAdults = document.getElementById('modal_transport_adults');
+            const modalChildren = document.getElementById('modal_transport_children');
+            const adultsCount = modalAdults ? (parseInt(modalAdults.value) || 0) : (parseInt(document.getElementById('adults')?.value) || 0);
+            const childrenCount = modalChildren ? (parseInt(modalChildren.value) || 0) : (parseInt(document.getElementById('children')?.value) || 0);
             const infantsCount = parseInt(document.getElementById('infants')?.value) || 0;
             const adultPrice = parseFloat(adultPriceAttr) || basePrice;
             const childPrice = parseFloat(childPriceAttr) || basePrice;
