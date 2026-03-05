@@ -448,19 +448,19 @@
         flex-shrink: 0;
     }
     #toursTable td.col-payment-status .payment-status-badge.status-not-started {
-        background: #fef3c7;
-        color: #b45309;
-        border-color: #fcd34d;
+        background: #fee2e2;
+        color: #dc2626;
+        border-color: #fca5a5;
     }
     #toursTable td.col-payment-status .payment-status-badge.status-pending {
-        background: #f1f5f9;
-        color: #475569;
-        border-color: #e2e8f0;
+        background: #fef3c7;
+        color: #d97706;
+        border-color: #fcd34d;
     }
     #toursTable td.col-payment-status .payment-status-badge.status-partial {
-        background: #e0f2fe;
-        color: #0369a1;
-        border-color: #7dd3fc;
+        background: #fed7aa;
+        color: #ea580c;
+        border-color: #fdba74;
     }
     #toursTable td.col-payment-status .payment-status-badge.status-paid {
         background: #d1fae5;
@@ -712,7 +712,16 @@
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
                                     @if($tour->tour_type)
-                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem;">{{ $tour->tour_type }}</span>
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type);
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
+                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
+                                        @endphp
+                                        <span class="d-inline-block px-2 py-1 rounded"
+                                              style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">
+                                            {{ $tour->tour_type }}
+                                        </span>
                                     @endif
                                     <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
                                     <div class="d-flex align-items-center gap-2 flex-nowrap">
@@ -1289,7 +1298,7 @@
                                         @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
                                                 <button type="button" class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Add Payment" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
-                                                    <i class="ri-add-circle-line"></i>
+                                                    <i class="ri-money-dollar-circle-line"></i>
                                                 </button>
                                             @endif
                                         @endif
@@ -1302,7 +1311,7 @@
                                         @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
                                                 <button type="button" class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Add Payment" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
-                                                    <i class="ri-add-circle-line"></i>
+                                                    <i class="ri-money-dollar-circle-line"></i>
                                                 </button>
                                             @endif
                                         @endif

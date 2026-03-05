@@ -1,6 +1,120 @@
 @extends('layouts.layout')
 @section('title', 'Packaged Attractions')
 
+@section('css')
+<style>
+    :root {
+        --table-border: #e2e8f0;
+        --table-head-bg: #f8fafc;
+        --table-head-text: #334155;
+        --table-body-text: #0f172a;
+        --table-muted: #64748b;
+        /* Primary brand blue used for status / key accents */
+        --table-link: #5c61e6;
+    }
+
+    #packagedAttractionsTable thead th {
+        background: var(--table-head-bg);
+        color: var(--table-head-text);
+        font-weight: 600;
+        font-size: 0.8125rem;
+        padding: 0.5rem 0.75rem;
+        border-color: var(--table-border);
+        white-space: nowrap;
+        line-height: 1.4;
+    }
+
+    #packagedAttractionsTable tbody td {
+        color: var(--table-body-text);
+        border-color: var(--table-border);
+        vertical-align: top;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    /* Package name styling */
+    #packagedAttractionsTable .package-title {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--table-body-text);
+    }
+
+    #packagedAttractionsTable .package-id {
+        color: var(--table-muted);
+        font-size: 0.75rem;
+    }
+
+    /* Status badges - use brand blue for Active, neutral for Inactive */
+    #packagedAttractionsTable .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.375rem;
+    }
+
+    #packagedAttractionsTable .badge.bg-success {
+        background-color: var(--table-link) !important;
+        color: #ffffff;
+    }
+
+    #packagedAttractionsTable .badge.bg-danger {
+        background-color: #e5e7eb !important;
+        color: #111827;
+    }
+
+    .th-tooltip {
+        cursor: help;
+    }
+
+    /* Actions column – same soft icon-badge design as Hotels/Attractions */
+    #packagedAttractionsTable td.col-actions {
+        white-space: nowrap;
+        overflow: visible;
+    }
+
+    #packagedAttractionsTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-content: start;
+        max-width: 100%;
+    }
+
+    #packagedAttractionsTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    #packagedAttractionsTable .action-icon-badge:hover {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+
+    #packagedAttractionsTable .action-icon-badge i,
+    #packagedAttractionsTable .action-icon-badge svg {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+    }
+</style>
+@endsection
+
 @section('content')
 @extends('layouts.datatablecss')
 <div class="content-wrapper">
@@ -46,80 +160,75 @@
                     </div>
                 @endif
 
-                <table class="datatables-basic table table-bordered">
-                    <thead>
+                <table class="datatables-basic table table-bordered" id="packagedAttractionsTable">
+                    <thead class="table-light">
                         <tr>
-                            <th>No</th>
-                            <th>Package Name</th>
-                            <th>Adult Price</th>
-                            <th>Child Price</th>
-                            <th>Senior Price</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                            <th>Created Date</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Serial Number">No</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Package Name & ID">Package Name</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Adult Price">Adult Price</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Child Price">Child Price</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Senior Price">Senior Price</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Current Status">Status</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Available Actions">Actions</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Created Date & Time">Created Date</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($packagedAttractions as $key => $attraction)
                             <tr>
-                                <td>{{ $attraction->id }}</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div>
-                                            <h6 class="mb-0">{{ $attraction->name }}</h6>
-                                            <small class="text-muted">ID: {{ $attraction->package_attraction_id ?? 'N/A' }}</small>
-                                        </div>
+                                <td class="align-top">{{ $attraction->id }}</td>
+                                <td class="align-top">
+                                    <div class="d-flex flex-column">
+                                        <span class="package-title">{{ $attraction->name }}</span>
+                                        <small class="package-id">ID: {{ $attraction->package_attraction_id ?? 'N/A' }}</small>
                                     </div>
                                 </td>
-                                <td>${{ number_format($attraction->adult_price, 2) }}</td>
-                                <td>${{ number_format($attraction->child_price, 2) }}</td>
-                                <td>${{ number_format($attraction->senior_citizen_price, 2) }}</td>
-                                <td>
+                                <td class="align-top">${{ number_format($attraction->adult_price, 2) }}</td>
+                                <td class="align-top">${{ number_format($attraction->child_price, 2) }}</td>
+                                <td class="align-top">${{ number_format($attraction->senior_citizen_price, 2) }}</td>
+                                <td class="align-top">
                                     @if($attraction->status == 1)
                                         <span class="badge bg-success">Active</span>
                                     @else
                                         <span class="badge bg-danger">Inactive</span>
                                     @endif
                                 </td>
-                                <td style="display: inline-block; white-space: nowrap;">
-                                    <!-- View Button -->
-                                    <a href="{{ route('packaged-attractions.show', Crypt::encrypt($attraction->package_attraction_id)) }}" 
-                                        class="btn btn-primary btn-sm rounded-circle" 
-                                        style="width: 28px; height: 28px; padding: 0;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 0 24 24" width="16px" fill="#ffffff">
-                                            <path d="M0 0h24v24H0z" fill="none"/>
-                                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                                        </svg>
-                                    </a>
-                                    
-                                    <!-- Edit Button -->
-                                    <a href="{{ route('packaged-attractions.edit', Crypt::encrypt($attraction->package_attraction_id)) }}" 
-                                        class="btn btn-info btn-sm rounded-circle" 
-                                        style="width: 28px; height: 28px; padding: 0;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                                            <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
-                                        </svg>
-                                    </a>
-                                    
-                                    <!-- Delete Button -->
-                                    @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2)
-                                    <button type="button" 
-                                        class="btn btn-danger btn-sm rounded-circle" 
-                                        style="width: 28px; height: 28px; padding: 0;" 
-                                        onclick="setDeleteForm('{{ route('packaged-attractions.destroy', Crypt::encrypt($attraction->package_attraction_id)) }}', '{{ $attraction->name }}')"
-                                        title="Delete {{ $attraction->name }}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                                            <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
-                                        </svg>
-                                    </button>
-                                    @endif
+                                <td class="align-top col-actions">
+                                    <div class="actions-icons-wrap">
+                                        <!-- View Button -->
+                                        <a href="{{ route('packaged-attractions.show', Crypt::encrypt($attraction->package_attraction_id)) }}" 
+                                           class="action-icon-badge"
+                                           style="--action-color: #0f766e;"
+                                           data-tooltip="View Package">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        
+                                        <!-- Edit Button -->
+                                        <a href="{{ route('packaged-attractions.edit', Crypt::encrypt($attraction->package_attraction_id)) }}" 
+                                           class="action-icon-badge"
+                                           style="--action-color: #047857;"
+                                           data-tooltip="Edit Package">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        
+                                        <!-- Delete Button -->
+                                        @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                        <button type="button"
+                                                class="action-icon-badge"
+                                                style="--action-color: #dc2626;"
+                                                data-tooltip="Delete Package"
+                                                onclick="deletePackagedAttraction('{{ route('packaged-attractions.destroy', Crypt::encrypt($attraction->package_attraction_id)) }}', '{{ $attraction->name }}')">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                        @endif
+                                    </div>
                                     <!-- Debug info (remove in production) -->
                                     <small class="d-none">
                                         Route: {{ route('packaged-attractions.destroy', Crypt::encrypt($attraction->package_attraction_id)) }}
                                         ID: {{ $attraction->package_attraction_id }}
                                     </small>
                                 </td>
-                                <td>
+                                <td class="align-top">
                                     <div class="d-flex flex-column">
                                         <span>{{ $attraction->created_at->format('D,  M d, Y') }}</span>
                                         <small class="text-muted">{{ $attraction->created_at->format('h:i A') }}</small>
@@ -160,6 +269,8 @@
 @endsection
 
 @section('scripts')
+<!-- Add SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <!-- DataTable JS -->
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
@@ -203,43 +314,51 @@
         });
     });
 
-    function setDeleteForm(action, attractionName) {
-        console.log('Setting delete form action:', action);
-        console.log('Attraction name:', attractionName);
-        
-        document.getElementById('deleteForm').action = action;
-        
-        // Update modal body with attraction name
-        var modalBody = document.querySelector('#deleteModal .modal-body p:first-child');
-        if (modalBody) {
-            modalBody.innerHTML = `Are you sure you want to delete the packaged attraction "<strong>${attractionName}</strong>"?`;
-        }
-        
-        // Try to show the modal using Bootstrap 5
-        try {
-            if (typeof bootstrap !== 'undefined') {
-                var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-                deleteModal.show();
-            } else {
-                // Fallback: show modal manually
-                document.getElementById('deleteModal').style.display = 'block';
-                document.getElementById('deleteModal').classList.add('show');
-                document.body.classList.add('modal-open');
-                
-                // Add backdrop
-                var backdrop = document.createElement('div');
-                backdrop.className = 'modal-backdrop fade show';
-                backdrop.id = 'modalBackdrop';
-                document.body.appendChild(backdrop);
+    // SweetAlert-based delete for packaged attractions (same pattern as other pages)
+    window.deletePackagedAttraction = function(deleteUrl, packageName) {
+        Swal.fire({
+            title: 'Delete Package?',
+            text: `Are you sure you want to delete "${packageName}"? This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'No, keep it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const button = document.querySelector(`[onclick*="${deleteUrl}"]`);
+                const originalContent = button ? button.innerHTML : '';
+
+                if (button) {
+                    button.innerHTML = '<i class="ri-loader-4-line spin"></i> Deleting...';
+                    button.disabled = true;
+                }
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = deleteUrl;
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = csrfToken.getAttribute('content');
+                    form.appendChild(csrfInput);
+                }
+
+                const methodInput = document.createElement('input');
+                methodInput.type = 'hidden';
+                methodInput.name = '_method';
+                methodInput.value = 'DELETE';
+                form.appendChild(methodInput);
+
+                document.body.appendChild(form);
+                form.submit();
             }
-        } catch (error) {
-            console.error('Error showing modal:', error);
-            // Fallback: show modal manually
-            document.getElementById('deleteModal').style.display = 'block';
-            document.getElementById('deleteModal').classList.add('show');
-            document.body.classList.add('modal-open');
-        }
-    }
+        });
+    };
 
     // Ensure modal is properly initialized
     $(document).ready(function() {

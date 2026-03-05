@@ -2,6 +2,210 @@
 @section('title', 'Drivers')
 @extends('layouts.datatablecss')
 
+@section('css')
+<!-- Add SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<style>
+    :root {
+        --table-border: #e2e8f0;
+        --table-head-bg: #f8fafc;
+        --table-head-text: #334155;
+        --table-body-text: #0f172a;
+        --table-muted: #64748b;
+        --table-link: #5c61e6;
+    }
+
+    /* Make the table compact and avoid horizontal scrolling */
+    #driversTable {
+        table-layout: fixed;
+        width: 100%;
+        font-size: 0.8rem;
+    }
+
+    #driversTable thead th {
+        background: var(--table-head-bg);
+        color: var(--table-head-text);
+        font-weight: 600;
+        font-size: 0.78rem;
+        padding: 0.35rem 0.4rem;
+        border-color: var(--table-border);
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.3;
+    }
+
+    #driversTable tbody td {
+        color: var(--table-body-text);
+        border-color: var(--table-border);
+        vertical-align: top;
+        padding: 0.35rem 0.4rem;
+        font-size: 0.8rem;
+        line-height: 1.4;
+        white-space: normal;
+        word-wrap: break-word;
+    }
+
+    /* Column width adjustments */
+    #driversTable thead th:nth-child(1),
+    #driversTable tbody td:nth-child(1) { /* No */
+        width: 3%;
+    }
+
+    /* Email column - increased width */
+    #driversTable thead th.email-column,
+    #driversTable tbody td.email-column {
+        width: 15%;
+    }
+
+    /* Driver name styling */
+    #driversTable .driver-detail-title {
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: var(--table-body-text);
+    }
+
+    /* Calendar link styling */
+    #driversTable .calendar-link {
+        color: var(--table-link);
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    #driversTable .calendar-link:hover {
+        text-decoration: underline;
+        color: var(--table-link);
+    }
+
+    #driversTable .calendar-link i {
+        font-size: 0.875rem;
+    }
+
+    /* Status badge styling */
+    #driversTable .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.375rem;
+    }
+
+    #driversTable .badge.bg-success {
+        background-color: var(--table-link) !important;
+        color: #ffffff;
+    }
+
+    #driversTable .badge.bg-danger {
+        background-color: #e5e7eb !important;
+        color: #111827;
+    }
+
+    /* Subtle muted text */
+    #driversTable .text-muted {
+        color: var(--table-muted);
+        font-size: 0.875rem;
+    }
+
+    /* Created date styling */
+    #driversTable .d-flex.flex-column span {
+        font-size: 0.875rem;
+    }
+
+    #driversTable .d-flex.flex-column small {
+        font-size: 0.75rem;
+    }
+
+    .th-tooltip {
+        cursor: help;
+    }
+
+    /* Global tooltip */
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform: translate(-50%, -100%);
+    }
+
+    /* Actions column */
+    #driversTable td.col-actions {
+        white-space: normal;
+        overflow: visible;
+    }
+
+    #driversTable th.col-actions-header,
+    #driversTable td.col-actions {
+        width: 11%;
+    }
+
+    #driversTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, auto));
+        row-gap: 0.35rem;
+        column-gap: 0.35rem;
+        align-items: center;
+        justify-content: start;
+        max-width: 100%;
+    }
+
+    #driversTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        min-width: 28px;
+        padding: 0.25rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    #driversTable .action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+
+    #driversTable .action-icon-badge i {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+    }
+
+    #driversTable .action-icon-badge:hover i {
+        color: var(--action-color, #0f766e);
+    }
+
+    /* Loading spinner animation */
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -45,11 +249,12 @@
                     </div>
                 </div>
                 <x-alert />
-                <table class="datatables-basic table table-bordered">
+                <hr>
+                <table class="datatables-basic table table-bordered" id="driversTable">
                     <thead>
                         <tr>
-                            <th>No</th>
-                            <th>Driver Name</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Serial Number">No</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Driver Name">Driver Name</th>
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
@@ -58,28 +263,31 @@
                             @endphp
 
                             @if($roleId == 10)
-                                <th>DMC</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @elseif(!in_array($roleId, $hideRoles))
-                                <th>Master Dmc</th>
-                                <th>DMC</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @endif
-                            <th>City</th>
-                            <th>Driver Mobile No</th>
-                            <th>Email</th>
-                            <th>License No</th>
-                            <th>Calendar</th>
-                            <th>Status</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="City">City</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Mobile Number">Mobile</th>
+                            <th class="th-tooltip email-column" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Email Address">Email</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="License Number">License</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Status">Status</th>
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 46  || auth()->user()->role_id == 23 || auth()->user()->role_id == 76 || auth()->user()->role_id ==109 || auth()->user()->role_id == 111 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit driver') || hasPermission('delete driver'))
-                                <th>Action</th>
+                                <th class="th-tooltip col-actions-header" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Available Actions">Actions</th>
                             @endif
-                            <th>Created At</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Created Date and Time">Created</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($drivers as $key => $driver)
                             <tr>
-                                <td>{{ ++$key }}</td>
-                                <td class="driver-name">{{ $driver->name }} </td>
+                                <td class="align-top">{{ ++$key }}</td>
+                                <td class="align-top">
+                                    <div class="d-flex flex-column">
+                                        <span class="driver-detail-title">{{ $driver->name }}</span>
+                                    </div>
+                                </td>
                                 @php
                                     $roleId = auth()->user()->role_id;
                                 @endphp
@@ -91,23 +299,20 @@
                                     @php
                                         $dmcUser = App\Models\User::where('userId', $driver->dmc_id)->first();
                                     @endphp
-                                    <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
+                                    <td class="align-top">{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
                                 @elseif(!in_array($roleId, $hideRoles))
                                     @php
                                         $dmcUser = App\Models\User::where('userId', $driver->dmc_id)->first();
                                         $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
                                     @endphp
-                                    <td>{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
-                                    <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
+                                    <td class="align-top">{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
+                                    <td class="align-top">{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
                                 @endif
-                                <td>{{ $driver->city }}</td>
-                                <td>{{ $driver->phone }}</td>
-                                <td>{{ $driver->email }}</td>
-                                <td>{{ $driver->license_no }}</td>
-                                <td> 
-                                    <a href="{{ route('driver.calendar', Crypt::encrypt($driver->driver_id)) }}" target="_blank"><i class="fa fa-calendar-alt"></i>View Calendar</a></td>
-                                </td>
-                                <td>
+                                <td class="align-top">{{ $driver->city }}</td>
+                                <td class="align-top">{{ $driver->phone }}</td>
+                                <td class="align-top email-column">{{ $driver->email }}</td>
+                                <td class="align-top">{{ $driver->license_no }}</td>
+                                <td class="align-top">
                                     @if($driver->is_active == 1)
                                         <span class="badge bg-success">Available</span>
                                     @else
@@ -116,80 +321,51 @@
                                 </td>
                                 @if(hasPermission('edit driver') || hasPermission('delete driver'))
                                     @if($driver->status == 1)
-                                        <td style="display: inline-block; white-space: nowrap;">
-                                            <!-- Edit Button -->
-                                            @if(hasPermission('edit driver'))
-                                            <a href="{{ route('driver.edit', Crypt::encrypt($driver->driver_id)) }}" 
-                                            class="btn btn-primary btn-sm rounded-circle waves-effect waves-light" 
-                                            style="min-width: 28px; min-height: 28px; padding: 0;">
-                                                <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                                                    <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
-                                                </svg>
-                                            </a>
-                                            @endif
+                                        <td class="align-top col-actions">
+                                            <div class="actions-icons-wrap">
+                                                <!-- View Calendar Button -->
+                                                <a href="{{ route('driver.calendar', Crypt::encrypt($driver->driver_id)) }}"
+                                                   target="_blank"
+                                                   class="action-icon-badge"
+                                                   style="--action-color: #2563eb;"
+                                                   data-tooltip="View Driver Calendar">
+                                                    <i class="ri-calendar-line"></i>
+                                                </a>
 
-                                            <!-- Delete Button -->
-                                         {{-- @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2) --}}
-                                         @if(hasPermission('delete driver'))
-                                            <button type="button" 
-                                                class="btn btn-danger btn-sm rounded-circle waves-effect waves-light" 
-                                                style="min-width: 28px; min-height: 28px; padding: 0;" 
-                                                data-toggle="modal" 
-                                                data-target="#deleteModal" 
-                                                onclick="setDeleteForm('{{ route('driver.destroy', Crypt::encrypt($driver->driver_id)) }}')">
-                                                <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                                                    <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
-                                                </svg>
-                                            </button>
-                                        @endif
-                                    </td>
+                                                <!-- Edit Button -->
+                                                @if(hasPermission('edit driver'))
+                                                <a href="{{ route('driver.edit', Crypt::encrypt($driver->driver_id)) }}"
+                                                   class="action-icon-badge"
+                                                   style="--action-color: #047857;"
+                                                   data-tooltip="Edit Driver">
+                                                    <i class="ri-pencil-line"></i>
+                                                </a>
+                                                @endif
+
+                                                <!-- Delete Button -->
+                                                @if(hasPermission('delete driver'))
+                                                <button type="button"
+                                                        class="action-icon-badge"
+                                                        style="--action-color: #dc2626;"
+                                                        data-tooltip="Delete Driver"
+                                                        onclick="deleteDriver('{{ route('driver.destroy', Crypt::encrypt($driver->driver_id)) }}', {{ json_encode($driver->name) }})"
+                                                        id="delete-btn-{{ $driver->driver_id }}">
+                                                    <i class="ri-delete-bin-line"></i>
+                                                </button>
+                                                @endif
+                                            </div>
+                                        </td>
                                     @else
-
-                                            {{-- @if(Auth::user()->role_id == 11)
-                                            <td>
-                                                @if($driver->status == 2)
-                                                    <span>Pending approval from the A.M</span>
-                                                @elseif($driver->status == 4)
-                                                    <span>Awaiting S.M approval</span>
-                                                @elseif($driver->status == 5)
-                                                    <span>Awaiting Admin approval</span>
-                                                @elseif($driver->status == 3)
-                                                    <span>Declined</span>
-                                                @endif
-                                            </td>
-                                            @endif  
-                                            @if(Auth::user()->role_id == 4)
-                                                <td>
-                                                    @if($driver->status == 4)
-                                                        <span>Awaiting S.M approval</span>
-                                                    @elseif($driver->status == 5)
-                                                        <span>Awaiting Admin approval</span>
-                                                    @elseif($driver->status == 3)
-                                                        <span>Declined</span>
-                                                    @endif
-                                                </td>
+                                        <td class="align-top">
+                                            @if($driver->status == 5)
+                                                <span>Your Driver, awaiting for Admin approval</span>
+                                            @elseif($driver->status == 3)
+                                                <span>Declined</span>
                                             @endif
-
-                                            @if(Auth::user()->role_id == 3)
-                                                <td>
-                                                    @if($driver->status == 5)
-                                                        <span>Awaiting Admin approval</span>
-                                                    @elseif($driver->status == 3)
-                                                        <span>Declined</span>
-                                                    @endif
-                                                </td>
-                                            @endif --}}
-
-                                            <td>
-                                                @if($driver->status == 5)
-                                                    <span>Your Driver, awaiting for Admin approval</span>
-                                                @elseif($driver->status == 3)
-                                                    <span>Declined</span>
-                                                @endif
-                                            </td>
+                                        </td>
                                     @endif
                                 @endif
-                                <td>
+                                <td class="align-top">
                                     <div class="d-flex flex-column">
                                         <span>{{ $driver->created_at->format('D,  M d, Y') }}</span>
                                         <small class="text-muted">{{ $driver->created_at->format('h:i A') }}</small>
@@ -203,38 +379,12 @@
         </div>
     </div>
 </div>
-
-
-
-
-
-<!-- driver Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" Category="dialog" 
-        aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog" Category="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Confirmation</h5>
-            </div>
-            <div class="modal-body">
-                Are you sure want to delete?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <form id="deleteForm" action="" method="POST" style="display:inline">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Delete</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- End Modal -->
 @endsection
 
 @section('scripts')
 
+<!-- Add SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <!-- DataTable JS -->
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <!-- DataTables Initialization Script -->
@@ -242,19 +392,21 @@
     $(document).ready(function() {
         // Initialize DataTable with export buttons
         $('.datatables-basic').DataTable({
-            responsive: true,
+            // Keep column widths stable (avoid jump after initialization)
+            responsive: false,
+            autoWidth: false,
             buttons: [
                 'copy',
                 'csv',
                 'excel',
                 'pdf',
-                'print' // Enable copy, CSV, Excel, PDF, and Print buttons
+                'print'
             ],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            lengthMenu: [10, 25, 50, 100],
         });
 
         // Custom export button functionality (for the dropdown)
@@ -280,12 +432,101 @@
     });
 </script>
 <!-- End DataTable JS -->
-
+ 
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 <script>
-    function setDeleteForm(action) {
-        document.getElementById('deleteForm').action = action;
+    // Body-level tooltip for driver headers (use jQuery tooltip to avoid version issues)
+    function initDriverHeaderTooltips() {
+        if (typeof $ === 'undefined' || typeof $.fn.tooltip !== 'function') return;
+
+        $('#driversTable thead .th-tooltip[data-bs-toggle="tooltip"]')
+            .tooltip('dispose')
+            .tooltip({
+                container: 'body',
+                trigger: 'hover focus'
+            });
     }
+
+    // Ensure modal can be closed with escape key and click outside, and init action tooltips
+    $(document).ready(function() {
+        initDriverHeaderTooltips();
+        $('#driversTable').on('draw.dt', function() {
+            initDriverHeaderTooltips();
+        });
+
+        // Global tooltip element for action icons (same pattern as Restaurants/Attractions)
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        } else {
+            $globalTooltip.appendTo('body');
+        }
+
+        // Show tooltip on hover over action icon badges in Drivers table
+        $('#driversTable').on('mouseenter', '.action-icon-badge', function() {
+            var $w = $(this);
+            var text = $w.attr('data-tooltip') || $w.attr('title') || '';
+            if (!text) return;
+            var el = this;
+            var rect = el.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(text);
+        });
+
+        $('#driversTable').on('mouseleave', '.action-icon-badge', function() {
+            $globalTooltip.hide();
+        });
+    });
+
+    // Driver deletion function with SweetAlert (mirrors Restaurants delete behaviour)
+    window.deleteDriver = function(deleteUrl, driverName) {
+        Swal.fire({
+            title: 'Delete Driver?',
+            text: `Are you sure you want to delete "${driverName}"? This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'No, keep it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const button = document.querySelector(`[onclick*="${deleteUrl}"]`);
+                const originalContent = button ? button.innerHTML : '';
+
+                if (button) {
+                    button.innerHTML = '<i class="ri-loader-4-line spin"></i> Deleting...';
+                    button.disabled = true;
+                }
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = deleteUrl;
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = csrfToken.getAttribute('content');
+                    form.appendChild(csrfInput);
+                }
+
+                const methodInput = document.createElement('input');
+                methodInput.type = 'hidden';
+                methodInput.name = '_method';
+                methodInput.value = 'DELETE';
+                form.appendChild(methodInput);
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    };
 </script>
 
 <!--AJAX Call to approve driver-->
