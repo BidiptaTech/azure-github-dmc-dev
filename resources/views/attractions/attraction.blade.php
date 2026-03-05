@@ -2,6 +2,188 @@
 @section('title', 'Attractions & Experiences')
 @extends('layouts.datatablecss')
 
+@section('css')
+<!-- Add SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<style>
+    :root {
+        --table-border: #e2e8f0;
+        --table-head-bg: #f8fafc;
+        --table-head-text: #334155;
+        --table-body-text: #0f172a;
+        --table-muted: #64748b;
+        /* Primary brand blue used for accents (calendar + status) */
+        --table-link: #5c61e6;
+    }
+
+    #attractionsTable thead th {
+        background: var(--table-head-bg);
+        color: var(--table-head-text);
+        font-weight: 600;
+        font-size: 0.8125rem;
+        padding: 0.5rem 0.75rem;
+        border-color: var(--table-border);
+        white-space: nowrap;
+        line-height: 1.4;
+    }
+
+    #attractionsTable tbody td {
+        color: var(--table-body-text);
+        border-color: var(--table-border);
+        vertical-align: top;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* Attraction name styling */
+    #attractionsTable .hotel-detail-title {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--table-body-text);
+    }
+
+    /* Calendar link styling - same as hotels page */
+    #attractionsTable .calendar-link {
+        color: var(--table-link);
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    #attractionsTable .calendar-link:hover {
+        text-decoration: underline;
+        color: var(--table-link);
+    }
+
+    #attractionsTable .calendar-link i {
+        font-size: 0.875rem;
+    }
+
+    /* Status badge styling - standardized colors */
+    #attractionsTable .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.375rem;
+    }
+
+    #attractionsTable .badge.bg-success {
+        background-color: var(--table-link) !important;
+        color: #ffffff;
+    }
+
+    #attractionsTable .badge.bg-danger {
+        background-color: #e5e7eb !important;
+        color: #111827;
+    }
+
+    /* Location and other text styling */
+    #attractionsTable tbody td {
+        line-height: 1.5;
+    }
+
+    /* Subtle muted text */
+    #attractionsTable .text-muted {
+        color: var(--table-muted);
+        font-size: 0.875rem;
+    }
+
+    /* Created date styling */
+    #attractionsTable .d-flex.flex-column span {
+        font-size: 0.875rem;
+    }
+
+    #attractionsTable .d-flex.flex-column small {
+        font-size: 0.75rem;
+    }
+
+    .th-tooltip {
+        cursor: help;
+    }
+
+    /* Global tooltip (same style as Hotels/New Enquiries pages) */
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform: translate(-50%, -100%);
+    }
+
+    /* Actions column: same soft-badge design as Hotels page */
+    #attractionsTable td.col-actions {
+        white-space: nowrap;
+        overflow: visible;
+    }
+
+    #attractionsTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-content: start;
+        max-width: 100%;
+    }
+
+    #attractionsTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    #attractionsTable .action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+
+    #attractionsTable .action-icon-badge i {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+    }
+
+    #attractionsTable .action-icon-badge:hover i {
+        color: var(--action-color, #0f766e);
+    }
+
+    /* Loading spinner animation for delete button */
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -9,7 +191,7 @@
             <div class="card-datatable table-responsive pt-0">
                 <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
                     <div class="d-flex align-items-center">
-                        <h5 class="card-title mb-0">Attractions & Experiences</h5>
+                        <h5 class="card-title mb-0">Attractions & Experienc</h5>
                     </div>
 
                     <div class="d-flex justify-content-between gap-3">
@@ -40,11 +222,11 @@
                 </div>
                 <x-alert />
                 <hr>
-                <table class="datatables-basic table table-bordered">
-                    <thead>
+                <table class="datatables-basic table table-bordered" id="attractionsTable">
+                    <thead class="table-light">
                         <tr>
-                            <th>No</th>
-                            <th>Name</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Serial Number">No</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Attraction Name">Name</th>
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
@@ -53,29 +235,33 @@
                             @endphp
 
                             @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
-                                <th>DMC</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
-                                <th>Master Dmc</th>
-                                <th>DMC</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master Dmc</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @endif
 
                             {{-- <th>Adult Price</th>
                             <th>Child Price</th> --}}
-                            <th>location</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Location">location</th>
                             
-                            <th>Calendar</th>
-                            <th>Status</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Availability Calendar">Calendar</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Status">Status</th>
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id ==91 || auth()->user()->role_id == 93 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || hasPermission('edit attraction') || hasPermission('delete attraction'))
-                                <th>Action</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Available Actions">Action</th>
                             @endif
-                            <th>Created At</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Created Date and Time">Created At</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($attractions as $key => $attraction)
                             <tr>
-                                <td>{{ ++$key }}</td>
-                                <td class="category-name">{{ $attraction->name }}</td>
+                                <td class="align-top">{{ ++$key }}</td>
+                                <td class="align-top">
+                                    <div class="d-flex flex-column">
+                                        <span class="hotel-detail-title">{{ $attraction->name ?? 'N/A' }}</span>
+                                    </div>
+                                </td>
                                 @php
                                     $roleId = auth()->user()->role_id;
                                 @endphp
@@ -88,12 +274,12 @@
                                         $dmcIds = $attraction->getSelectedDmcIds(); // Get array of DMC IDs
                                         $dmcUsers = App\Models\User::whereIn('userId', $dmcIds)->get();
                                     @endphp
-                                    <td>
+                                    <td class="align-top">
                                         @if($dmcUsers->count() > 0)
                                             {{ $dmcUsers->first()->company_name }}
                                             @if($dmcUsers->count() > 1)
                                                 <br><a href="javascript:void(0)" 
-                                                       class="text-primary" 
+                                                       class="btn btn-outline-secondary btn-sm"
                                                        onclick="showDmcModal('{{ $attraction->attraction_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
                                                     <small>+{{ $dmcUsers->count() - 1 }} More</small>
                                                 </a>
@@ -109,9 +295,9 @@
                                         $masterDmcIds = $dmcUsers->pluck('master_dmc_id')->filter()->unique();
                                         $masterDmcUsers = App\Models\User::whereIn('userId', $masterDmcIds)->get();
                                     @endphp
-                                    <td>
+                                    <td class="align-top">
                                         @if($masterDmcUsers->count() > 0)
-                                            <span class="text-primary">{{ $masterDmcUsers->first()->company_name }}</span>
+                                            <span>{{ $masterDmcUsers->first()->company_name }}</span>
                                             @if($masterDmcUsers->count() > 1)
                                                 <br><a href="javascript:void(0)" 
                                                        class="btn btn-primary btn-sm text-white" 
@@ -123,9 +309,9 @@
                                             <span class="text-muted">No DMC assigned</span>
                                         @endif
                                     </td>
-                                    <td>
+                                    <td class="align-top">
                                         @if($dmcUsers->count() > 0)
-                                            <span class="text-primary">{{ $dmcUsers->first()->company_name }}</span>
+                                            <span>{{ $dmcUsers->first()->company_name }}</span>
                                             @if($dmcUsers->count() > 1)
                                                 <br><a href="javascript:void(0)" 
                                                        class="btn btn-primary btn-sm text-white" 
@@ -146,20 +332,23 @@
                                         <span class="badge bg-danger">No details</span>
                                     @endif
                                 </td>
-                                <td>
+                                <td class="align-top">
                                 @if($attraction->child_price)
                                     {{$attraction->child_price}}
                                 @else
                                     <span class="badge bg-danger">No details</span>
                                 @endif
                                 </td> --}}
-                                <td>
-                                    {{$attraction->location}}
+                                <td class="align-top">
+                                    <span>{{ $attraction->location ?: 'N/A' }}</span>
                                 </td>
                                 
-                                <td> 
-                                    <a href="{{ route('attraction.calendar', ['attraction_id' => Crypt::encrypt($attraction->attraction_id)]) }}" target="_blank"><i class="fa fa-calendar-alt"></i>View Calendar</a></td>
-                                <td>
+                                <td class="align-top"> 
+                                    <a href="{{ route('attraction.calendar', ['attraction_id' => Crypt::encrypt($attraction->attraction_id)]) }}" target="_blank" class="calendar-link">
+                                        <i class="ri-calendar-line"></i>View Calendar
+                                    </a>
+                                </td>
+                                <td class="align-top">
                                 @if($attraction->is_active == 1)
                                     <span class="badge bg-success">Active</span>
                                     @else
@@ -168,31 +357,30 @@
                                 </td>
                                 @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id ==91 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || auth()->user()->role_id == 93 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit attraction') || hasPermission('delete attraction'))
                                 @if($attraction->status == 1)
-                                <td style="display: inline-block; white-space: nowrap;">
-                                    <!-- Edit Button -->
-                                    @if(hasPermission('edit attraction'))
-                                    <a href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}" 
-                                    class="btn btn-primary btn-sm rounded-circle waves-effect waves-light" 
-                                    style="min-width: 28px; min-height: 28px; padding: 0;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                                            <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
-                                        </svg>
-                                    </a>
-                                    @endif
+                                <td class="align-top col-actions">
+                                    <div class="actions-icons-wrap">
+                                        <!-- Edit Button -->
+                                        @if(hasPermission('edit attraction'))
+                                        <a href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}" 
+                                           class="action-icon-badge"
+                                           style="--action-color: #047857;"
+                                           data-tooltip="Edit Attraction">
+                                            <i class="ri-pencil-line"></i>
+                                        </a>
+                                        @endif
 
-                                    <!-- Delete Button -->
-                                    @if( Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
-                                    <button type="button" 
-                                        class="btn btn-danger btn-sm rounded-circle waves-effect waves-light" 
-                                        style="min-width: 28px; min-height: 28px; padding: 0;" 
-                                        data-toggle="modal" 
-                                        data-target="#deleteModal" 
-                                        onclick="setDeleteForm('{{ route('attraction.destroy', Crypt::encrypt($attraction->attraction_id)) }}')">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                                            <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
-                                        </svg>
-                                    </button>
-                                    @endif
+                                        <!-- Delete Button -->
+                                        @if( Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                        <button type="button"
+                                                class="action-icon-badge"
+                                                style="--action-color: #dc2626;"
+                                                data-tooltip="Delete Attraction"
+                                                onclick="deleteAttraction('{{ route('attraction.destroy', Crypt::encrypt($attraction->attraction_id)) }}', {{ json_encode($attraction->name) }})"
+                                                id="delete-btn-{{ $attraction->attraction_id }}">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                        @endif
+                                    </div>
                                 </td>
                                 @else
                                     {{-- @if(Auth::user()->role_id == 11)
@@ -238,7 +426,7 @@
                                     </td>
                                 @endif
                             @endif
-                            <td>
+                            <td class="align-top">
                                 <div class="d-flex flex-column">
                                     <span>{{ $attraction->created_at->format('D,  M d, Y') }}</span>
                                     <small class="text-muted">{{ $attraction->created_at->format('h:i A') }}</small>
@@ -299,6 +487,8 @@
 @endsection
 @section('scripts')
 
+<!-- Add SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <!-- DataTable JS -->
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <!-- DataTables Initialization Script -->
@@ -347,6 +537,99 @@
 
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 <script>
+    // Body-level tooltip for attraction action icons and headers (same behaviour as Hotels page)
+    function initAttractionHeaderTooltips() {
+        if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+        document.querySelectorAll('#attractionsTable thead .th-tooltip[data-bs-toggle="tooltip"]').forEach(function(el) {
+            const existing = bootstrap.Tooltip.getInstance(el);
+            if (existing) existing.dispose();
+            new bootstrap.Tooltip(el, {
+                container: 'body',
+                trigger: 'hover focus'
+            });
+        });
+    }
+
+    $(document).ready(function() {
+        initAttractionHeaderTooltips();
+        $('#attractionsTable').on('draw.dt', function() {
+            initAttractionHeaderTooltips();
+        });
+
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        } else {
+            $globalTooltip.appendTo('body');
+        }
+
+        // Tooltips for action icon badges in Attractions table
+        $(document).on('mouseenter', '#attractionsTable .action-icon-badge', function() {
+            var $w = $(this);
+            var text = $w.attr('data-tooltip') || $w.attr('title') || '';
+            if (!text) return;
+            var el = this;
+            var rect = el.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(text);
+        });
+
+        $(document).on('mouseleave', '#attractionsTable .action-icon-badge', function() {
+            $globalTooltip.hide();
+        });
+    });
+
+    // Attraction deletion function with SweetAlert (similar to Hotels page)
+    window.deleteAttraction = function(deleteUrl, attractionName) {
+        Swal.fire({
+            title: 'Delete Attraction?',
+            text: `Are you sure you want to delete "${attractionName}"? This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'No, keep it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const button = document.querySelector(`[onclick*="${deleteUrl}"]`);
+                const originalContent = button ? button.innerHTML : '';
+
+                if (button) {
+                    button.innerHTML = '<i class="ri-loader-4-line spin"></i> Deleting...';
+                    button.disabled = true;
+                }
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = deleteUrl;
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = csrfToken.getAttribute('content');
+                    form.appendChild(csrfInput);
+                }
+
+                const methodInput = document.createElement('input');
+                methodInput.type = 'hidden';
+                methodInput.name = '_method';
+                methodInput.value = 'DELETE';
+                form.appendChild(methodInput);
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    };
+
+    // Existing modal-based delete helper (kept for backward compatibility if needed)
     function setDeleteForm(action) {
         document.getElementById('deleteForm').action = action;
     }

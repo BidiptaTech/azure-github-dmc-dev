@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/datatables-buttons-bs5/buttons.bootstrap5.css' }}" />
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/datatables-rowgroup-bs5/rowgroup.bootstrap5.css' }}" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+<!-- Add SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <style>
     /* Ensure user profile dropdown is visible on hotels page */
     .topbar-item {
@@ -51,6 +53,138 @@
     #exportDropdown + .dropdown-menu.show {
         display: block !important;
     }
+
+    :root {
+        --table-border: #e2e8f0;
+        --table-head-bg: #f8fafc;
+        --table-head-text: #334155;
+        --table-body-text: #0f172a;
+        --table-muted: #64748b;
+        --table-link: #0f766e;
+    }
+
+    #hotelsTable thead th {
+        background: var(--table-head-bg);
+        color: var(--table-head-text);
+        font-weight: 600;
+        font-size: 0.8125rem;
+        border-color: var(--table-border);
+        white-space: nowrap;
+    }
+
+    #hotelsTable tbody td {
+        color: var(--table-body-text);
+        border-color: var(--table-border);
+        vertical-align: top;
+    }
+
+    #hotelsTable .hotel-detail-title {
+        font-weight: 600;
+    }
+
+    #hotelsTable .hotel-detail-meta {
+        color: var(--table-muted);
+    }
+
+    #hotelsTable .hotel-main-image {
+        width: 52px;
+        height: 52px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid var(--table-border);
+    }
+
+    #hotelsTable .calendar-link {
+        color: var(--table-link);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    #hotelsTable .calendar-link:hover {
+        text-decoration: underline;
+    }
+
+    .th-tooltip {
+        cursor: help;
+    }
+
+    /* Global tooltip (same style as New Enquiries page) */
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform: translate(-50%, -100%);
+    }
+
+    /* Actions column: same soft-badge design as New Enquiries */
+    #hotelsTable td.col-actions {
+        white-space: nowrap;
+        overflow: visible;
+    }
+
+    #hotelsTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-content: start;
+        max-width: 100%;
+    }
+
+    #hotelsTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    #hotelsTable .action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+
+    #hotelsTable .action-icon-badge i {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+    }
+
+    #hotelsTable .action-icon-badge:hover i {
+        color: var(--action-color, #0f766e);
+    }
+
+    /* Loading spinner animation for delete button */
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 </style>
 @endsection
 @section('content')
@@ -90,11 +224,11 @@
                 <x-alert />
                 <hr>
 
-                <table class="datatables-basic table table-bordered">
-                    <thead>
+                <table class="datatables-basic table table-bordered" id="hotelsTable">
+                    <thead class="table-light">
                         <tr>
-                            <th>No</th>
-                            <th>Name</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Serial Number">No</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Hotel Name, Phone and Email">Hotel Details</th>
                             {{-- <th>Master Dmc</th> --}}
                             @php
                                 $roleId = auth()->user()->role_id;
@@ -104,21 +238,20 @@
                             @endphp
 
                             @if($roleId == 10 || $roleId == 19)
-                                <th>DMC</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @elseif(!in_array($roleId, $hideRoles))
-                                <th>Master Dmc</th>
-                                <th>DMC</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master Dmc</th>
+                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @endif
                             {{-- <th>Master Dmc</th>
                             <th>Dmc</th> --}}
-                            <th>Phone</th>
-                            <th>Email</th>
-                            <th>Image</th>
-                            <th>Calendar</th>
+                            
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Hotel Main Image">Image</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Availability Calendar">Calendar</th>
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit hotel') || hasPermission('delete hotel'))
                             @if(hasPermission('edit hotel') || hasPermission('delete hotel'))
-                            <th>Action</th>
-                            <th>Created At</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Available Actions">Action</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Created Date and Time">Created At</th>
                             @endif
                             @endif
                         </tr>
@@ -127,8 +260,20 @@
                         @foreach ($hotels as $key => $hotel)
                         <tr>
                             {{-- {{ dd($hotel->dmc->name) }} --}}
-                            <td>{{ ++$key }}</td>
-                            <td>{{ $hotel->name }}</td>
+                            <td class="align-top">{{ ++$key }}</td>
+                            <td class="align-top">
+                                <div class="d-flex flex-column gap-1">
+                                    <span class="hotel-detail-title">
+                                        <i class="ri-hotel-bed-line text-primary me-1"></i>{{ $hotel->name ?? 'N/A' }}
+                                    </span>
+                                    <small class="hotel-detail-meta">
+                                        <i class="ri-phone-line me-1"></i>{{ $hotel->phone ?: 'N/A' }}
+                                    </small>
+                                    <small class="hotel-detail-meta">
+                                        <i class="ri-mail-line me-1"></i>{{ $hotel->email ?: 'N/A' }}
+                                    </small>
+                                </div>
+                            </td>
                             {{-- <td>
                                 @php
                                     $dmcUser = App\Models\User::where('userId', $hotel->dmc_id)->first();
@@ -148,7 +293,7 @@
                                     $dmcIds = $hotel->getSelectedDmcIds(); // Get array of DMC IDs
                                     $dmcUsers = App\Models\User::whereIn('userId', $dmcIds)->get();
                                 @endphp
-                                <td>
+                                <td class="align-top">
                                     @if($dmcUsers->count() > 0)
                                         {{ $dmcUsers->first()->company_name }}
                                         @if($dmcUsers->count() > 1)
@@ -169,7 +314,7 @@
                                     $masterDmcIds = $dmcUsers->pluck('master_dmc_id')->filter()->unique();
                                     $masterDmcUsers = App\Models\User::whereIn('userId', $masterDmcIds)->get();
                                 @endphp
-                                <td>
+                                <td class="align-top">
                                     @if($masterDmcUsers->count() > 0)
                                         <span class="text-primary">{{ $masterDmcUsers->first()->company_name }}</span>
                                         @if($masterDmcUsers->count() > 1)
@@ -208,44 +353,38 @@
                                 
                             </td>
                             <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td> --}}
-                            <td>{{ $hotel->phone }}</td>
-                            <td>{{ $hotel->email }}</td>
-                            <td>
-                                <img src="{{ $hotel->main_image }}" alt="Hotel Image"
-                                    style="width: 50px; height: auto;">
+                           
+                            <td class="align-top">
+                                <img src="{{ $hotel->main_image }}" alt="Hotel Image" class="hotel-main-image">
                             </td>
-                            <td>
-                                <a href="{{ route('hotels.viewcalendar', $hotel->hotel_unique_id) }}" target="_blank">
-                                    <i class="fa fa-calendar-alt"></i>View Calendar
+                            <td class="align-top">
+                                <a href="{{ route('hotels.viewcalendar', $hotel->hotel_unique_id) }}" target="_blank" class="calendar-link">
+                                    <i class="ri-calendar-line me-1"></i>View Calendar
                                 </a>
                             </td>
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || in_array(auth()->user()->role_id, [130, 132, 133, 135, 136, 137, 138, 139, 140]) || hasPermission('edit hotel') || hasPermission('delete hotel'))
                                 @if($hotel->status == 1)
-                                    <td style="display: inline-block; white-space: nowrap;">
-                                        @if(hasPermission('edit hotel'))
-                                        <a href="{{ route('hotels.edit', $hotel->hotel_unique_id) }}"
-                                            class="btn btn-primary btn-sm rounded-circle"
-                                            style="min-width: 28px; min-height: 28px; padding: 0;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
-                                                width="16px" fill="#ffffff">
-                                                <path
-                                                    d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z" />
-                                            </svg>
-                                        </a>
-                                        @endif
-                                        @if( Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
-                                        <button type="button"
-                                            class="btn btn-danger btn-sm rounded-circle"
-                                            style="min-width: 28px; min-height: 28px; padding: 0;" 
-                                            data-bs-toggle="modal" data-bs-target="#deleteModal"
-                                            onclick="setDeleteForm('{{ route('hotels.destroy', $hotel->hotel_unique_id) }}')">
-                                            <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
-                                                width="16px" fill="#ffffff">
-                                                <path
-                                                    d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" />
-                                            </svg>
-                                        </button>
-                                        @endif
+                                    <td class="align-top col-actions">
+                                        <div class="actions-icons-wrap">
+                                            @if(hasPermission('edit hotel'))
+                                            <a href="{{ route('hotels.edit', $hotel->hotel_unique_id) }}"
+                                               class="action-icon-badge"
+                                               style="--action-color: #047857;"
+                                               data-tooltip="Edit Hotel">
+                                                <i class="ri-pencil-line"></i>
+                                            </a>
+                                            @endif
+                                            @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                            <button type="button"
+                                                    class="action-icon-badge"
+                                                    style="--action-color: #dc2626;"
+                                                    data-tooltip="Delete Hotel"
+                                                    onclick="deleteHotel('{{ route('hotels.destroy', $hotel->hotel_unique_id) }}', {{ json_encode($hotel->name) }})"
+                                                    id="delete-btn-{{ $hotel->hotel_unique_id }}">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                            @endif
+                                        </div>
                                     </td>
                                 @else
                                     <!-- @if(Auth::user()->role_id == 11)
@@ -272,7 +411,7 @@
                                             @endif
                                         </td>
                                     @endif -->
-                                    <td>
+                                    <td class="align-top">
                                         @if($hotel->status == 5)
                                             <span>Your Hotel, awaiting for Admin approval</span>
                                         @elseif($hotel->status == 3)
@@ -281,7 +420,7 @@
                                     </td>
                                 @endif
                             @endif
-                            <td>
+                            <td class="align-top">
                                 <div class="d-flex flex-column">
                                     <span>{{ $hotel->created_at->format('D,  M d, Y') }}</span>
                                     <small class="text-muted">{{ $hotel->created_at->format('h:i A') }}</small>
@@ -339,13 +478,27 @@
 @endsection
 
 @section('scripts')
+<!-- Add SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <!-- DataTable JS -->
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
+        function initHeaderTooltips() {
+            if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+            document.querySelectorAll('#hotelsTable thead .th-tooltip[data-bs-toggle="tooltip"]').forEach(function(el) {
+                const existing = bootstrap.Tooltip.getInstance(el);
+                if (existing) existing.dispose();
+                new bootstrap.Tooltip(el, {
+                    container: 'body',
+                    trigger: 'hover focus'
+                });
+            });
+        }
+
         // Initialize DataTable with export buttons
-        $('.datatables-basic').DataTable({
+        const hotelTable = $('.datatables-basic').DataTable({
             responsive: true,
             buttons: [
                 'copy',
@@ -359,6 +512,11 @@
                 searchPlaceholder: "Search...",
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+        });
+
+        initHeaderTooltips();
+        hotelTable.on('draw', function() {
+            initHeaderTooltips();
         });
 
         // Custom export button functionality (for the dropdown)
@@ -387,7 +545,106 @@
  
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
     <script>
-    // Set form action for delete
+    function initHotelHeaderTooltips() {
+        if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+        document.querySelectorAll('#hotelsTable thead .th-tooltip[data-bs-toggle="tooltip"]').forEach(function(el) {
+            const existing = bootstrap.Tooltip.getInstance(el);
+            if (existing) existing.dispose();
+            new bootstrap.Tooltip(el, {
+                container: 'body',
+                trigger: 'hover focus'
+            });
+        });
+    }
+
+    $(document).ready(function() {
+        initHotelHeaderTooltips();
+        $('#hotelsTable').on('draw.dt', function() {
+            initHotelHeaderTooltips();
+        });
+
+        // Shared body-level tooltip for action icons (same behaviour as New Enquiries page)
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        } else {
+            $globalTooltip.appendTo('body');
+        }
+
+        // Tooltips for action icon badges in Hotels table
+        $(document).on('mouseenter', '#hotelsTable .action-icon-badge', function() {
+            var $w = $(this);
+            var text = $w.attr('data-tooltip') || $w.attr('title') || '';
+            if (!text) return;
+            var el = this;
+            var rect = el.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(text);
+        });
+
+        $(document).on('mouseleave', '#hotelsTable .action-icon-badge', function() {
+            $globalTooltip.hide();
+        });
+    });
+
+    // Hotel deletion function with SweetAlert (same style as cancelTour in new-enquiries)
+    window.deleteHotel = function(deleteUrl, hotelName) {
+        // Show SweetAlert confirmation dialog
+        Swal.fire({
+            title: 'Delete Hotel?',
+            text: `Are you sure you want to delete "${hotelName}"? This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'No, keep it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Find the button that triggered this
+                const button = document.querySelector(`[onclick*="${deleteUrl}"]`);
+                const originalContent = button ? button.innerHTML : '';
+                
+                // Show loading state
+                if (button) {
+                    button.innerHTML = '<i class="ri-loader-4-line spin"></i> Deleting...';
+                    button.disabled = true;
+                }
+                
+                // Create a form and submit it
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = deleteUrl;
+                
+                // Add CSRF token
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = csrfToken.getAttribute('content');
+                    form.appendChild(csrfInput);
+                }
+                
+                // Add method spoofing for DELETE
+                const methodInput = document.createElement('input');
+                methodInput.type = 'hidden';
+                methodInput.name = '_method';
+                methodInput.value = 'DELETE';
+                form.appendChild(methodInput);
+                
+                // Append form to body and submit
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    };
+
+    // Set form action for delete (kept for backward compatibility if modal is used elsewhere)
     function setDeleteForm(url) {
         document.getElementById('deleteForm').action = url;
     }
