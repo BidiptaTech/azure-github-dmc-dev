@@ -54,6 +54,7 @@ use App\Http\Controllers\CheckCurrencyController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
+use App\Http\Controllers\MISReportController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\EditTourController;
 use App\Http\Controllers\TaxController;
@@ -88,6 +89,9 @@ Route::get('/clear', function () {
 
         Route::middleware(['auth'])->group(function () {
             // Tour prices route
+            Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
+            Route::post('/user/profile', [UserController::class, 'updateProfile'])->name('user.profile.update');
+            Route::post('/user/password', [UserController::class, 'updatePassword'])->name('user.password.update');
             Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
             Route::get('/check-currency',[CheckCurrencyController::class, 'checkCurrency'])->name('check-currency');
             // Tour creation route
@@ -561,6 +565,10 @@ Route::get('/clear', function () {
                 Route::get('reports/export-balance-history/{agentId}', [FinanceReportController::class, 'exportBalanceHistory'])->name('reports.export-balance-history');
                 Route::get('reports/fetch-agencies-by-dmc', [FinanceReportController::class, 'fetchAgenciesByDmc'])->name('reports.fetch-agencies-by-dmc');
                 Route::get('reports/fetch-agents-by-agency', [FinanceReportController::class, 'fetchAgentsByAgency'])->name('reports.fetch-agents-by-agency');
+
+                // Tour MIS Report
+                Route::get('mis/tours', [MISReportController::class, 'tourMIS'])->name('mis.tours');
+                Route::get('mis/tours/export', [MISReportController::class, 'tourMISExport'])->name('mis.tours.export');
                 
                 Route::get('/cities-by-country/{country}', [PackageController::class, 'getCitiesByCountry'])->name('cities-by-country');
                 // City → Hotel

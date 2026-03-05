@@ -52,11 +52,14 @@
             border-collapse: collapse;
         }
         .header-table td {
-            vertical-align: top;
+            vertical-align: middle;
             padding: 5px;
         }
         .header-left {
             width: 25%;
+            vertical-align: middle;
+            text-align: center;
+            padding: 15px;
         }
         .header-center {
             width: 45%;
@@ -220,17 +223,21 @@
             margin-top: 8px;
         }
         .dmc-logo-wrapper {
-            text-align: left;
-            padding: 0;
+            width: 100%;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .dmc-logo-wrapper img {
-            max-width: 150px;
-            max-height: 80px;
-            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            object-position: center;
         }
         .dmc-logo {
-            max-width: 90px;
-            max-height: 90px;
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
         }
         .client-info-table {
