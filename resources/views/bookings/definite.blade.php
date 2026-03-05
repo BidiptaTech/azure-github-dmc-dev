@@ -467,7 +467,8 @@
         vertical-align: top;
         overflow: hidden;
     }
-    #toursTable td.col-payment-status .payment-status-badge {
+    #toursTable td.col-payment-status .payment-status-badge,
+    #toursTable td.col-status .payment-status-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
@@ -476,35 +477,69 @@
         font-size: 0.7rem;
         font-weight: 600;
         line-height: 1.2;
-        white-space: nowrap;
         max-width: 100%;
+        border: 1px solid transparent;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    #toursTable td.col-payment-status .payment-status-badge {
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        border: 1px solid transparent;
     }
-    #toursTable td.col-payment-status .payment-status-badge i {
+    #toursTable td.col-status .payment-status-badge {
+        white-space: normal;
+        flex-wrap: wrap;
+    }
+    #toursTable td.col-payment-status .payment-status-badge i,
+    #toursTable td.col-status .payment-status-badge i {
         font-size: 0.7rem;
         flex-shrink: 0;
     }
-    #toursTable td.col-payment-status .payment-status-badge.status-not-started {
+    #toursTable td.col-payment-status .payment-status-badge.status-not-started,
+    #toursTable td.col-status .payment-status-badge.status-not-started {
+        background: #fee2e2;
+        color: #dc2626;
+        border-color: #fca5a5;
+    }
+    #toursTable td.col-payment-status .payment-status-badge.status-pending,
+    #toursTable td.col-status .payment-status-badge.status-pending {
         background: #fef3c7;
-        color: #b45309;
+        color: #d97706;
         border-color: #fcd34d;
     }
-    #toursTable td.col-payment-status .payment-status-badge.status-pending {
-        background: #f1f5f9;
-        color: #475569;
-        border-color: #e2e8f0;
+    #toursTable td.col-payment-status .payment-status-badge.status-partial,
+    #toursTable td.col-status .payment-status-badge.status-partial {
+        background: #fed7aa;
+        color: #ea580c;
+        border-color: #fdba74;
     }
-    #toursTable td.col-payment-status .payment-status-badge.status-partial {
-        background: #e0f2fe;
-        color: #0369a1;
-        border-color: #7dd3fc;
-    }
-    #toursTable td.col-payment-status .payment-status-badge.status-paid {
+    #toursTable td.col-payment-status .payment-status-badge.status-paid,
+    #toursTable td.col-status .payment-status-badge.status-paid {
         background: #d1fae5;
         color: #047857;
         border-color: #6ee7b7;
+    }
+    /* Status column - allow wrapping */
+    #toursTable td.col-status {
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    #toursTable td.col-status .status-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    #toursTable td.col-status .status-wrap > div {
+        width: 100%;
+    }
+    #toursTable td.col-status .badge.status-execution {
+        white-space: normal;
+        word-wrap: break-word;
+        display: inline-block;
+        max-width: 100%;
     }
     /* Actions column: same soft-badge design as follow-ups */
     #toursTable td.col-actions {
@@ -776,7 +811,13 @@
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
                                     @if($tour->tour_type)
-                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem;">{{ $tour->tour_type }}</span>
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type);
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
+                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
+                                        @endphp
+                                        <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">{{ $tour->tour_type }}</span>
                                     @endif
                                     <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
                                     <div class="d-flex align-items-center gap-2 flex-nowrap">
@@ -880,10 +921,10 @@
                                             @if($key === 'restaurant')
                                                 {{-- Individual restaurant icon badges --}}
                                                 @if(isset($serviceData['restaurant']) && count($serviceData['restaurant']) > 0)
-                                                    @php $actualBookingIndex = 0; @endphp
                                                     @foreach($serviceData['restaurant'] as $restaurantOrderIndex => $restaurantOrder)
                                                         @php
                                                             $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data;
+                                                            $actualBookingIndex = 0; // Reset booking index for each restaurant order
                                                         @endphp
                                                         @if(is_array($restaurantData))
                                                             @foreach($restaurantData as $originalKey => $booking)
@@ -1089,13 +1130,23 @@
                             <td class="col-status">
               <div class="status-wrap">
         {{-- Execution Status --}}
-        <div class="badge status-execution 
-            @if($executionStatus === 'Ready') bg-success
-            @elseif($executionStatus === 'Soon') bg-warning
-            @else bg-info
-            @endif
-        ">
-            <i class="ri-play-circle-line me-1"></i>{{ $executionStatus }}
+        <div style="margin-bottom: 0.5rem;">
+            <small class="text-muted d-block mb-1" style="font-size: 0.7rem; font-weight: 600;">Execution Status:</small>
+            <div class="badge status-execution 
+                @if($executionStatus === 'Ready') bg-success
+                @elseif($executionStatus === 'Soon') bg-warning
+                @else bg-info
+                @endif
+            ">
+                <i class="ri-play-circle-line me-1"></i>
+                @if($executionStatus === 'Ready')
+                    Ready to Execute
+                @elseif($executionStatus === 'Soon')
+                    Starting Soon
+                @else
+                    {{ $executionStatus }}
+                @endif
+            </div>
         </div>
 
         @php
@@ -1141,15 +1192,16 @@
                                     $remainingAmount = $finalAmount - $totalPaid;
                                 @endphp
                                 <div class="status-wrap">
-                                @if(empty($paymentData))
-                                    <span class="payment-status-badge status-not-started" title="Payment not started"><i class="ri-alert-line"></i> Not Started</span>
-                                @elseif($hasPendingPayments && $totalPaid == 0)
-                                    <span class="payment-status-badge status-pending" title="Pending approval"><i class="ri-time-line"></i> Pending</span>
-                                @elseif($remainingAmount > 0)
-                                    <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
-                                @else
-                                    <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
-                                @endif
+                                    <small class="text-muted d-block mb-1" style="font-size: 0.7rem; font-weight: 600;">Payment Status:</small>
+                                    @if(empty($paymentData))
+                                        <span class="payment-status-badge status-not-started" title="Payment not started"><i class="ri-alert-line"></i> Not Started</span>
+                                    @elseif($hasPendingPayments && $totalPaid == 0)
+                                        <span class="payment-status-badge status-pending" title="Pending approval"><i class="ri-time-line"></i> Pending</span>
+                                    @elseif($remainingAmount > 0)
+                                        <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
+                                    @else
+                                        <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
+                                    @endif
                                 </div>
     </div>
 </td>
@@ -1255,7 +1307,7 @@
                                                 <button type="button" class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Add Payment"
                                                         data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}"
                                                         onclick="checkPendingPayments({{ $tour->tour_id }})">
-                                                    <i class="ri-add-circle-line"></i>
+                                                    <i class="ri-money-dollar-circle-line"></i>
                                                 </button>
                                             @endif
                                         @endif
@@ -1271,7 +1323,7 @@
                                                 <button type="button" class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Add Payment"
                                                         data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}"
                                                         onclick="checkPendingPayments({{ $tour->tour_id }})">
-                                                    <i class="ri-add-circle-line"></i>
+                                                    <i class="ri-money-dollar-circle-line"></i>
                                                 </button>
                                             @endif
                                         @endif
