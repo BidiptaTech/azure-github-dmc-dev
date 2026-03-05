@@ -359,7 +359,8 @@
                                 
                                 <div class="d-flex align-items-center ms-3">
                                     <div class="tour-type-wrapper" style="min-width: 200px;">
-                                        <div class="tour-toggle">
+
+                                    <div class="tour-toggle">
                                             <input type="radio" name="tour_type" id="fit" value="FIT" checked>
                                             <label for="fit">FIT</label>
                                     
@@ -947,12 +948,12 @@
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
                                         <select class="form-select form-select-sm" id="customerSalutation" name="customer_salutation" style="font-size: 0.85rem;">
                                             <option value="">Select</option>
-                                            <option value="Mr.">Mr.</option>
-                                            <option value="Mrs.">Mrs.</option>
-                                            <option value="Ms.">Ms.</option>
+                                            <option value="Mr">Mr</option>
+                                            <option value="Mrs">Mrs</option>
+                                            <option value="Ms">Ms</option>
                                             <option value="Miss">Miss</option>
-                                            <option value="Dr.">Dr.</option>
-                                            <option value="Prof.">Prof.</option>
+                                            <option value="Dr">Dr</option>
+                                            <option value="Prof">Prof</option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
@@ -4859,17 +4860,25 @@
                             return false;
                         }
                         
-                        // Collect main guest data
+                        // Collect main guest data (include salutation, email, passport for tours.mainguest and guests table)
+                        const leadSection = document.getElementById('customerAccordion');
+                        const getLeadVal = (id, name) => {
+                            const el = leadSection ? leadSection.querySelector(`#${id}, [name="${name}"]`) : (document.getElementById(id) || document.querySelector(`[name="${name}"]`));
+                            return (el?.value || '').trim();
+                        };
                         const mainGuestData = {
-                            full_name: document.getElementById('customerFullName')?.value || '',
-                            email: document.getElementById('customerEmail')?.value || '',
-                            country_code: document.getElementById('customerCountryCode')?.value || '',
-                            phone: document.getElementById('customerPhone')?.value || '',
-                            address1: document.getElementById('customerAddress1')?.value || '',
-                            address2: document.getElementById('customerAddress2')?.value || '',
-                            state: document.getElementById('customerState')?.value || '',
-                            zip: document.getElementById('customerZip')?.value || '',
-                            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
+                            salutation: getLeadVal('customerSalutation', 'customer_salutation'),
+                            full_name: getLeadVal('customerFullName', 'customer_full_name'),
+                            email: getLeadVal('customerEmail', 'customer_email'),
+                            country_code: getLeadVal('customerCountryCode', 'customer_country_code'),
+                            phone: getLeadVal('customerPhone', 'customer_phone'),
+                            address1: getLeadVal('customerAddress1', 'customer_address1'),
+                            address2: getLeadVal('customerAddress2', 'customer_address2'),
+                            state: getLeadVal('customerState', 'customer_state'),
+                            zip: getLeadVal('customerZip', 'customer_zip'),
+                            special_requests: getLeadVal('customerSpecialRequests', 'customer_special_requests'),
+                            passport: getLeadVal('customerPassport', 'customer_passport'),
+                            passport_exp: getLeadVal('customerPassportExpiry', 'customer_passport_expiry')
                         };
 
                         // Collect additional guests data
@@ -6665,6 +6674,8 @@
                  }
              }
          });
+
+         // Entry adults/children are populated only when user chooses a vehicle (applyEntryPortPaxFromVehicleAndTour), not from tour here
          
          console.log(`Updated all service guest fields: ${adults} adults (${male} male, ${female} female), ${children} children, ${infants} infants`);
     }
@@ -10815,6 +10826,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Update guest count display in person selector
             updateGuestCountDisplay();
+
+            // Entry adults/children are populated only when user chooses a vehicle (applyEntryPortPaxFromVehicleAndTour), not from tour here
         };
         
         // Function to update guest count display in person selector
@@ -13728,18 +13741,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <i class="ri-car-line me-2"></i>Vehicle Configuration
                                             </h6>
                                             <div class="row g-3">
-                                                <div class="col-md-4">
+                                                <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-car-line me-1 text-primary"></i>Vehicle
                                                     </label>
                                                     <select class="form-select shadow-sm vehicle-select" 
                                                             name="day${day}_entry_vehicle_id" id="day${day}_entry_0_vehicle_id"
-                                                            onchange="updateVehicleDetails(${day}, 'entry_0'); validatePassengerCapacity(${day}, 'entry_0'); updateTypeSelect(event, ${day}, 'entry_0')"
+                                                            onchange="updateVehicleDetails(${day}, 'entry_0'); if(typeof applyEntryPortPaxFromVehicleAndTour==='function') applyEntryPortPaxFromVehicleAndTour(${day}, 0); validatePassengerCapacity(${day}, 'entry_0'); updateTypeSelect(event, ${day}, 'entry_0')"
                                                             style="border: 1px solid #e5e7eb;">
                                                         <option value="">Choose vehicle</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-service-line me-1 text-primary"></i>Service Type
                                                     </label>
@@ -13753,22 +13766,31 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="Private">Private</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-dark">
-                                                        <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
-                                                    </label>
-                                                    <div class="input-group shadow-sm">
-                                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; height: 42px; font-size: 0.735rem;">
-                                                            <i class="ri-user-line"></i>
-                                                        </span>
-                                                        <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" 
-                                                        oninput="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
-                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')" onwheel="event.preventDefault(); return false;"
-                                                        style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
+                                                <div class="col-md-5">
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6 col-6">
+                                                            <label class="form-label fw-semibold text-dark">Adults</label>
+                                                            <div class="input-group input-group-sm shadow-sm">
+                                                                <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.735rem;">Adults</span>
+                                                                <input type="number" class="form-control" id="day${day}_entry_0_adults" min="0" max="50" value="1" placeholder="0"
+                                                                oninput="syncEntryPortPaxAndUpdate(${day}, 0); validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                                onchange="syncEntryPortPaxAndUpdate(${day}, 0); validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                                onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6 col-6">
+                                                            <label class="form-label fw-semibold text-dark">Children</label>
+                                                            <div class="input-group input-group-sm shadow-sm">
+                                                                <span class="input-group-text" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.735rem;">Children</span>
+                                                                <input type="number" class="form-control" id="day${day}_entry_0_children" min="0" max="50" value="0" placeholder="0"
+                                                                oninput="syncEntryPortPaxAndUpdate(${day}, 0); validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                                onchange="syncEntryPortPaxAndUpdate(${day}, 0); validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                                onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <small class="form-text text-muted mt-1">
-                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service. Max: <span id="day${day}_entry_0_max_pax">—</span> pax
-                                                    </small>
+                                                    <input type="hidden" name="day${day}_entry_0_passengers" id="day${day}_entry_0_passengers" value="1">
+                                                    
                                                 </div>
                                             </div>
                                         </div>
@@ -13982,7 +14004,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                 </div>
                                  
-                                                                <!-- Vehicle Results Section (Hidden Initially) -->
+                                <!-- Vehicle Results Section (Hidden Initially) -->
                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
                                     <div class="col-12 mb-3">
                                         <div class="p-3 rounded-3 shadow-sm" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa;">
@@ -14005,19 +14027,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <i class="ri-car-line me-2"></i>Vehicle Configuration
                                             </h6>
                                             <div class="row g-3">
-                                                <div class="col-md-4">
+                                                <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-car-line me-1 text-primary"></i>Vehicle
                                                     </label>
                                                     <select class="form-select shadow-sm vehicle-select" style="height: 42px; font-size: 0.735rem;" 
                                                             name="day${day}_exit_0_vehicle_id" 
                                                             id="day${day}_exit_0_vehicle_id"
-                                                            onchange="updateVehicleDetails(${day}, 'exit_0'); validatePassengerCapacity(${day}, 'exit_0'); updateTypeSelect(event, ${day}, 'exit_0')"
+                                                            onchange="updateVehicleDetails(${day}, 'exit_0'); if(typeof applyExitPortPaxFromVehicleAndTour==='function') applyExitPortPaxFromVehicleAndTour(${day}, 0); validatePassengerCapacity(${day}, 'exit_0'); updateTypeSelect(event, ${day}, 'exit_0')"
                                                             style="border: 1px solid #e5e7eb;">
                                                         <option value="">Choose vehicle</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-service-line me-1 text-primary"></i>Service Type
                                                     </label>
@@ -14031,22 +14053,30 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="Private">Private</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-dark">
-                                                        <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
-                                                    </label>
-                                                    <div class="input-group shadow-sm">
-                                                        <span class="input-group-text" style="height: 42px; font-size: 0.735rem;" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
-                                                            <i class="ri-user-line"></i>
-                                                        </span>
-                                                        <input type="number" onwheel="event.preventDefault(); return false;" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
-                                                        oninput="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
-                                                        onchange="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
-                                                        style="border: 1px solid #e5e7eb;">
+                                                <div class="col-md-5">
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6 col-6">
+                                                            <label class="form-label fw-semibold text-dark">Adults</label>
+                                                            <div class="input-group input-group-sm shadow-sm">
+                                                                <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.735rem;">Adults</span>
+                                                                <input type="number" class="form-control" id="day${day}_exit_0_adults" min="0" max="50" value="1" placeholder="0"
+                                                                oninput="syncExitPortPaxAndUpdate(${day}, 0); validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
+                                                                onchange="syncExitPortPaxAndUpdate(${day}, 0); validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
+                                                                onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; height: 42px; min-width: 3.5rem;">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6 col-6">
+                                                            <label class="form-label fw-semibold text-dark">Children</label>
+                                                            <div class="input-group input-group-sm shadow-sm">
+                                                                <span class="input-group-text" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.735rem;">Children</span>
+                                                                <input type="number" class="form-control" id="day${day}_exit_0_children" min="0" max="50" value="0" placeholder="0"
+                                                                oninput="syncExitPortPaxAndUpdate(${day}, 0); validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
+                                                                onchange="syncExitPortPaxAndUpdate(${day}, 0); validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
+                                                                onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; height: 42px; min-width: 3.5rem;">
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <small class="form-text text-muted mt-1">
-                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service. Max: <span id="day${day}_exit_0_max_pax">—</span> pax
-                                                    </small>
+                                                    <input type="hidden" name="day${day}_exit_0_passengers" id="day${day}_exit_0_passengers" value="1">
                                                 </div>
                                             </div>
                                         </div>
@@ -14062,7 +14092,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                             </div>
                                                             <div>
                                                                 <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Exit Port Pricing</h6>
-                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
+                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                             </div>
                                                         </div>
                                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
@@ -14085,7 +14115,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                 </div>
                                                                 <div class="card-body" style="padding: 1rem;">
                                                                     <div id="day${day}_exit_0_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select exit port options to see pricing</div>
+                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select vehicle and service type to see pricing (Shared: total adult/child/infant price; Private: unit prices only)</div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -14104,7 +14134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                             </div>
                                                                             Total Price
                                                                         </h6>
-                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">$0.00</span>
+                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">SGD 0.00</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -15505,7 +15535,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <select class="form-select vehicle-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_vehicle_id"
                                                         name="day${day}_transport_vehicle_id" 
-                                                        onchange="updateVehicleDetails(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updateTypeSelect(event, ${day}, 'transport');">
+                                                        onchange="updateVehicleDetails(${day}, 'transport'); if(typeof applyTransportPaxFromVehicleAndTour==='function') applyTransportPaxFromVehicleAndTour(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updateTypeSelect(event, ${day}, 'transport'); updatePricing(${day}, 'transport');">
                                                     <option value="">Choose vehicle</option>
                                                 </select>
                                             </div>
@@ -15522,25 +15552,35 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 </select>
                                             </div>
                                             
-                                            <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Number of Passengers</label>
-                                                <div class="input-group shadow-sm">
-                                                    <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; height: 42px; font-size: 0.735rem;">
-                                                        <i class="ri-user-line"></i>
-                                                    </span>
-                                                    <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="50" value="1" 
-                                                        oninput="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();"
-                                                        onchange="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();" 
-                                                        onwheel="event.preventDefault(); return false;"
-                                                        style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
+                                            <!-- Adults / Children (max = min(vehicle capacity, tour pax)) -->
+                                            <div class="col-md-4">
+                                                <div class="row g-2">
+                                                    <div class="col-md-6 col-6">
+                                                        <label class="form-label fw-semibold text-dark">Adults</label>
+                                                        <div class="input-group input-group-sm shadow-sm">
+                                                            <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.735rem;">Adults</span>
+                                                            <input type="number" class="form-control" id="day${day}_transport_adults" min="0" max="50" value="1" placeholder="0"
+                                                                oninput="syncTransportPaxAndUpdate(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();"
+                                                                onchange="syncTransportPaxAndUpdate(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();"
+                                                                onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6 col-6">
+                                                        <label class="form-label fw-semibold text-dark">Children</label>
+                                                        <div class="input-group input-group-sm shadow-sm">
+                                                            <span class="input-group-text" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.735rem;">Children</span>
+                                                            <input type="number" class="form-control" id="day${day}_transport_children" min="0" max="50" value="0" placeholder="0"
+                                                                oninput="syncTransportPaxAndUpdate(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();"
+                                                                onchange="syncTransportPaxAndUpdate(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();"
+                                                                onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <small class="form-text text-muted mt-1">
-                                                    <i class="ri-information-line me-1"></i>Enter number of passengers (adults)
-                                                </small>
+                                                <input type="hidden" name="day${day}_transport_passengers" id="day${day}_transport_passengers" value="1">
                                             </div>
                                             
                                               <!-- Price Field for Point to Point -->
-                                        <div class="col-md-3 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
+                                        <div class="col-md-2 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
                                           
                                                 <div class="form-group">
                                                     <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
@@ -15548,9 +15588,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <span class="input-group-text" style="height: 42px; font-size: 0.735rem;"><i class="ri-money-dollar-circle-line"></i></span>
                                                         <input type="number" onwheel="event.preventDefault(); return false;" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="1" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
                                                     </div>
-                                                    <small class="form-text text-muted">
-                                                        Enter the custom price for this point-to-point service
-                                                    </small>
+                                                    
                                                 </div>
                                            
                                         </div>
@@ -15570,7 +15608,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                             </div>
                                                             <div>
                                                                 <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
+                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                             </div>
                                                         </div>
                                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
@@ -15593,7 +15631,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                 </div>
                                                                 <div class="card-body" style="padding: 1rem;">
                                                                     <div id="day${day}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select transport options to see pricing</div>
+                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select vehicle and service type to see pricing (Shared: total adult/child/infant price; Private: unit prices only)</div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -15612,7 +15650,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                             </div>
                                                                             Total Price
                                                                         </h6>
-                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">$0.00</span>
+                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">SGD 0.00</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -16841,26 +16879,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Column 2: Guide Pricing -->
-                                    <div class="col-md-4">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                        <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                    </div>
-                                                    Guide Pricing
-                                                </h6>
-                                            </div>
-                                            <div class="card-body" style="padding: 1rem;">
-                                                <div id="day${day}_attraction_${newIndex}_guide_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
+
                                     <!-- Column 3: Transport Pricing -->
                                     <div class="col-md-4">
                                         <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
@@ -16875,6 +16894,25 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <div class="card-body" style="padding: 1rem;">
                                                 <div id="day${day}_attraction_${newIndex}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
                                                     <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Column 2: Guide Pricing -->
+                                    <div class="col-md-4">
+                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
+                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                        <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                    </div>
+                                                    Guide Pricing
+                                                </h6>
+                                            </div>
+                                            <div class="card-body" style="padding: 1rem;">
+                                                <div id="day${day}_attraction_${newIndex}_guide_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -19853,36 +19891,58 @@ document.addEventListener('DOMContentLoaded', function() {
                              </div>
                          </div>   
                         <div class="col-12">
-                            <div class="row g-3">
-                                <div class="col-md-5 vehicle-field">
-                                    <label class="form-label fw-semibold">Vehicle</label>
-                                    <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updateTypeSelect(event, ${day}, 'transport_${newIndex}');">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3 vehicle-field">
+                                    <label class="form-label fw-semibold text-dark mb-1">Vehicle</label>
+                                    <select class="form-select vehicle-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_${newIndex}_vehicle_id" id="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}'); if(typeof applyTransportPaxFromVehicleAndTour==='function') applyTransportPaxFromVehicleAndTour(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updateTypeSelect(event, ${day}, 'transport_${newIndex}'); updatePricing(${day}, 'transport_${newIndex}');">
                                         <option value="">Choose vehicle</option>
                                     </select>
                                 </div>
                                 
                                 <div class="col-md-3 service-type-field" id="day${day}_transport_${newIndex}_service_type_field">
-                                    <label class="form-label fw-semibold">Service Type</label>
-                                    <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_${newIndex}_service_type_select" onchange="updatePricing(${day}, 'transport_${newIndex}')">
+                                    <label class="form-label fw-semibold text-dark mb-1">Service Type</label>
+                                    <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_${newIndex}_service_type_select" onchange="updatePricing(${day}, 'transport_${newIndex}')">
                                         <option value="">Select service type</option>
                                         <option value="Shared">Shared</option>
                                         <option value="Private">Private</option>
                                     </select>
                                 </div>
                                 
-                                <!-- Custom Price Field for Point to Point (In Same Row) -->
-                                <div class="col-md-4 point-to-point-price-field" id="day${day}_transport_${newIndex}_price_field" style="display: none;">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">SGD</span>
-                                        <input type="number" onwheel="event.preventDefault(); return false;" class="form-control" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="1" placeholder="Enter custom price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
-                                        <span class="input-group-text">.00</span>
+                                <!-- Adults / Children (max = min(vehicle capacity, tour pax)) -->
+                                <div class="col-md-4">
+                                    <div class="row g-2">
+                                        <div class="col-md-6 col-6">
+                                            <label class="form-label fw-semibold text-dark mb-1">Adults</label>
+                                            <div class="input-group input-group-sm shadow-sm">
+                                                <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.735rem;">Adults</span>
+                                                <input type="number" class="form-control" id="day${day}_transport_${newIndex}_adults" min="0" max="50" value="1" placeholder="0"
+                                                    oninput="syncTransportPaxAndUpdate(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updatePricing(${day}, 'transport_${newIndex}');"
+                                                    onchange="syncTransportPaxAndUpdate(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updatePricing(${day}, 'transport_${newIndex}');"
+                                                    onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 col-6">
+                                            <label class="form-label fw-semibold text-dark mb-1">Children</label>
+                                            <div class="input-group input-group-sm shadow-sm">
+                                                <span class="input-group-text" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.735rem;">Children</span>
+                                                <input type="number" class="form-control" id="day${day}_transport_${newIndex}_children" min="0" max="50" value="0" placeholder="0"
+                                                    oninput="syncTransportPaxAndUpdate(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updatePricing(${day}, 'transport_${newIndex}');"
+                                                    onchange="syncTransportPaxAndUpdate(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updatePricing(${day}, 'transport_${newIndex}');"
+                                                    onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                            </div>
+                                        </div>
                                     </div>
-                                    <small class="form-text text-muted">
-                                        <i class="ri-information-line me-1"></i>Enter the custom price for this point-to-point service
-                                    </small>
+                                    <input type="hidden" name="day${day}_transport_${newIndex}_passengers" id="day${day}_transport_${newIndex}_passengers" value="1">
+                                </div>
+                                
+                                <!-- Custom Price Field for Point to Point (In Same Row) -->
+                                <div class="col-md-2 point-to-point-price-field" id="day${day}_transport_${newIndex}_price_field" style="display: none;">
+                                    <label class="form-label fw-semibold text-dark mb-1">Custom Price <span class="text-danger">*</span></label>
+                                    <div class="input-group" style="height: 42px;">
+                                        <span class="input-group-text d-flex align-items-center" style="height: 42px; font-size: 0.735rem;">SGD</span>
+                                        <input type="number" onwheel="event.preventDefault(); return false;" class="form-control" style="height: 42px; font-size: 0.735rem;" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="1" placeholder="Price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
+                                    </div>
+                                    <small class="form-text text-muted" style="font-size: 0.7rem;">Point-to-point custom price</small>
                                 </div>
                             </div>
                         </div>
@@ -20535,15 +20595,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="card-body" style="background: #ffffff; padding: 1rem;">
                     <div class="row g-2">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                 <i class="ri-car-line me-1"></i>Vehicle
                             </label>
-                            <select class="form-select vehicle-select" name="day${day}_entry_${newIndex}_vehicle_id" id="day${day}_entry_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry_${newIndex}'); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updateTypeSelect(event, ${day}, 'entry_${newIndex}')" data-newFieldType="added_entry_${newIndex}" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
+                            <select class="form-select vehicle-select" name="day${day}_entry_${newIndex}_vehicle_id" id="day${day}_entry_${newIndex}_vehicle_id" data-entry-day="${day}" data-entry-index="${newIndex}" onchange="updateVehicleDetails(${day}, 'entry_${newIndex}'); if(typeof applyEntryPortPaxFromVehicleAndTour==='function') applyEntryPortPaxFromVehicleAndTour(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updateTypeSelect(event, ${day}, 'entry_${newIndex}')" data-newFieldType="added_entry_${newIndex}" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
                                 <option value="">Choose vehicle</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                 <i class="ri-settings-3-line me-1"></i>Service Type
                             </label>
@@ -20553,17 +20613,30 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <option value="Private">Private</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                <i class="ri-user-line me-1"></i>Number of Passengers
-                            </label>
-                            <div class="input-group" >
-    
-                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
+                        <div class="col-md-5">
+                            <div class="row g-2">
+                                <div class="col-md-6 col-6">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">Adults</label>
+                                    <div class="input-group input-group-sm shadow-sm">
+                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.735rem;">Adults</span>
+                                        <input type="number" class="form-control" id="day${day}_entry_${newIndex}_adults" min="0" max="50" value="1" placeholder="0"
+                                            oninput="syncEntryPortPaxAndUpdate(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')"
+                                            onchange="syncEntryPortPaxAndUpdate(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')"
+                                            onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-6">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">Children</label>
+                                    <div class="input-group input-group-sm shadow-sm">
+                                        <span class="input-group-text" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.735rem;">Children</span>
+                                        <input type="number" class="form-control" id="day${day}_entry_${newIndex}_children" min="0" max="50" value="0" placeholder="0"
+                                            oninput="syncEntryPortPaxAndUpdate(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')"
+                                            onchange="syncEntryPortPaxAndUpdate(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')"
+                                            onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                    </div>
+                                </div>
                             </div>
-                            <small class="form-text text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">
-                                Max: <span id="day${day}_entry_${newIndex}_max_pax">—</span> pax
-                            </small>
+                            <input type="hidden" name="day${day}_entry_${newIndex}_passengers" id="day${day}_entry_${newIndex}_passengers" value="1">
                         </div>
                         
                         <div class="col-12 mt-2">
@@ -20868,14 +20941,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
+                    <div class="row g-3">
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold">Vehicle</label>
-                            <select class="form-select vehicle-select" name="day${day}_exit_${newIndex}_vehicle_id" id="day${day}_exit_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'exit_${newIndex}'); validatePassengerCapacity(${day}, 'exit_${newIndex}'); updateTypeSelect(event, ${day}, 'exit_${newIndex}')" data-newFieldType="added_exit_${newIndex}">
+                            <select class="form-select vehicle-select" name="day${day}_exit_${newIndex}_vehicle_id" id="day${day}_exit_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'exit_${newIndex}'); if(typeof applyExitPortPaxFromVehicleAndTour==='function') applyExitPortPaxFromVehicleAndTour(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'exit_${newIndex}'); updateTypeSelect(event, ${day}, 'exit_${newIndex}')" data-newFieldType="added_exit_${newIndex}">
                                 <option value="">Choose vehicle</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold">Service Type</label>
                             <select class="form-select service-type-select" name="day${day}_exit_${newIndex}_service_type" id="day${day}_exit_${newIndex}_service_type" onchange="updatePricing(${day}, 'exit_${newIndex}')">
                                 <option value="">Select service type</option>
@@ -20883,17 +20956,30 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <option value="Private">Private</option>
                             </select>
                         </div>
-                        <div class="col-12 mt-3">
-                            <div class="form-group">
-                                <label class="form-label fw-semibold">Number of Passengers</label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                    <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
+                        <div class="col-md-6">
+                            <div class="row g-2">
+                                <div class="col-md-6 col-6">
+                                    <label class="form-label fw-semibold">Adults</label>
+                                    <div class="input-group input-group-sm shadow-sm">
+                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.735rem;">Adults</span>
+                                        <input type="number" class="form-control" id="day${day}_exit_${newIndex}_adults" min="0" max="50" value="1" placeholder="0"
+                                            oninput="syncExitPortPaxAndUpdate(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')"
+                                            onchange="syncExitPortPaxAndUpdate(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')"
+                                            onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                    </div>
                                 </div>
-                                <small class="form-text text-muted">
-                                    Enter number of passengers for this service. Max: <span id="day${day}_exit_${newIndex}_max_pax">—</span> pax
-                                </small>
+                                <div class="col-md-6 col-6">
+                                    <label class="form-label fw-semibold">Children</label>
+                                    <div class="input-group input-group-sm shadow-sm">
+                                        <span class="input-group-text" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.735rem;">Children</span>
+                                        <input type="number" class="form-control" id="day${day}_exit_${newIndex}_children" min="0" max="50" value="0" placeholder="0"
+                                            oninput="syncExitPortPaxAndUpdate(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')"
+                                            onchange="syncExitPortPaxAndUpdate(${day}, ${newIndex}); validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')"
+                                            onwheel="event.preventDefault(); return false;" style="border: 1px solid #e5e7eb; font-size: 0.735rem; min-width: 3.5rem;">
+                                    </div>
+                                </div>
                             </div>
+                            <input type="hidden" name="day${day}_exit_${newIndex}_passengers" id="day${day}_exit_${newIndex}_passengers" value="1">
                         </div>
                         
                         <div class="col-12 mt-3">
@@ -25115,6 +25201,9 @@ function loadDropoffZones(day, section) {
     const sharedPriceAttr = selectedVehicleOption.getAttribute('data-shared-price') || '';
     const sharableCostPerHourAttr = selectedVehicleOption.getAttribute('data-sharable-cost-per-hour') || '';
     const costPerHourAttr = selectedVehicleOption.getAttribute('data-cost-per-hour') || '';
+    const adultPriceAttr = selectedVehicleOption.getAttribute('data-adult-price') || '';
+    const childPriceAttr = selectedVehicleOption.getAttribute('data-child-price') || '';
+    const infantPriceAttr = selectedVehicleOption.getAttribute('data-infant-price') || '';
     
     const privatePrice = parseFloat(privatePriceAttr) || 0;
     const sharedPrice = parseFloat(sharedPriceAttr) || parseFloat(sharableCostPerHourAttr) || 0;
@@ -25266,25 +25355,31 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
                 if (isHourlyTransport) {
+                    const hourlyCost = costPerHour * selectedHours;
+                    const totalHourlyPrice = displayPrice + hourlyCost;
                     pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Base (vehicle):</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Rate:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly rate:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} per hour</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected Hours:</span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected hours:</span>
                             <span class="fw-semibold" style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span style="color: #6c757d;"><i class="ri-money-dollar-circle-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Cost:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${(costPerHour * selectedHours).toFixed(2)} <small style="color: #6c757d;">($${costPerHour.toFixed(2)} × ${selectedHours})</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span style="color: #6c757d;"><i class="ri-calculator-line" style="color: #667eea; margin-right: 5px;"></i>Hours charge:</span>
+                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} × ${selectedHours} = SGD ${hourlyCost.toFixed(2)}</span>
                         </div>
-                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
-                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
+                        <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
+                            <span style="color: #495057;" class="fw-semibold"><i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Total:</span>
+                            <span class="fw-bold" style="color: #495057;">SGD ${displayPrice.toFixed(2)} + SGD ${hourlyCost.toFixed(2)} = SGD ${totalHourlyPrice.toFixed(2)}</span>
+                        </div>
+                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
+                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: base + (hours × rate per hour).
                         </small>
                     `;
                 } else {
@@ -25326,30 +25421,60 @@ function loadDropoffZones(day, section) {
             `;
             }
         } else if (selectedServiceType === 'Shared') {
-            // For shared service: price is per person (only for non-hourly transport)
+            // For shared service: price is per person
             const isPrivate = false; // Set flag for shared service
-            totalPrice = displayPrice * totalGuests;
+            if (isHourlyTransport && isHourlyService) {
+                let sharedHoursSelect;
+                if (section === 'transport') {
+                    sharedHoursSelect = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
+                } else if (section.startsWith('transport_')) {
+                    const transportIndex = section.split('_')[1];
+                    sharedHoursSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_hourly_selected_hours"]`);
+                }
+                const sharedSelectedHours = sharedHoursSelect && sharedHoursSelect.value ? parseInt(sharedHoursSelect.value) || 1 : 1;
+                const sharedPerPerson = displayPrice + (sharableCostPerHour * sharedSelectedHours);
+                totalPrice = sharedPerPerson * totalGuests;
+            } else {
+                totalPrice = displayPrice * totalGuests;
+            }
             
             if (isHourlyService) {
                     // Get adults and children values for display
                     const adults = parseInt(document.getElementById('adults')?.value) || 0;
                     const children = parseInt(document.getElementById('children')?.value) || 0;
+                    let sharedSelectedHours = 1;
+                    if (isHourlyTransport) {
+                        if (section === 'transport') {
+                            const sh = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
+                            sharedSelectedHours = sh && sh.value ? parseInt(sh.value) || 1 : 1;
+                        } else if (section.startsWith('transport_')) {
+                            const ti = section.split('_')[1];
+                            const sh = document.querySelector(`select[name="day${day}_transport_${ti}_hourly_selected_hours"]`);
+                            sharedSelectedHours = sh && sh.value ? parseInt(sh.value) || 1 : 1;
+                        }
+                    }
+                    const sharedHourlyCost = sharableCostPerHour * sharedSelectedHours;
+                    const sharedPerPerson = displayPrice + (isHourlyTransport ? sharedHourlyCost : 0);
                     
                 pricingDescription = `
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
+                    <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                        <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base (per person):</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly Rate:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${sharableCostPerHour.toFixed(2)} <small style="color: #6c757d;">per person per hour</small></span>
+                    <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                        <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly rate (per person):</span>
+                        <span class="fw-semibold" style="color: #495057;">SGD ${sharableCostPerHour.toFixed(2)} × ${sharedSelectedHours} h = SGD ${sharedHourlyCost.toFixed(2)}</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total Guests:</span>
-                        <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                    <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                        <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total guests:</span>
+                        <span class="fw-semibold" style="color: #495057;">${totalGuests} (${adults} adults, ${children} children)</span>
                     </div>
-                    <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
-                        <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared service pricing per person. Hourly rate applies for extended services.
+                    <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.85rem;">
+                        <span style="color: #495057;" class="fw-semibold"><i class="ri-calculator-line me-1" style="color: #28a745;"></i>Total:</span>
+                        <span class="fw-semibold" style="color: #495057;">(SGD ${sharedPerPerson.toFixed(2)} per person) × ${totalGuests} = SGD ${(sharedPerPerson * totalGuests).toFixed(2)}</span>
+                    </div>
+                    <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
+                        <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared hourly: (base + hours × rate) × guests.
                     </small>
                 `;
             } else {
@@ -25370,8 +25495,94 @@ function loadDropoffZones(day, section) {
         }
         }
         
+        // Entry/Exit/Other Transport (non-hourly): Shared = total adult/child/infant; Private = unit prices and fixed total. Skip for hourly transport so hour-based calculation is shown.
+        if ((section.startsWith('entry') || section.startsWith('exit') || (section.startsWith('transport') && !isHourlyTransport)) && displayPrice > 0) {
+            // Use this section's adults/children for price display (not tour guests)
+            let adultsCount, childrenCount, infantsCount;
+            const entryAdultsEl = document.getElementById('day' + day + '_' + section + '_adults');
+            const entryChildrenEl = document.getElementById('day' + day + '_' + section + '_children');
+            if (section.startsWith('entry') && entryAdultsEl && entryChildrenEl) {
+                adultsCount = parseInt(entryAdultsEl.value) || 0;
+                childrenCount = parseInt(entryChildrenEl.value) || 0;
+                infantsCount = 0;
+            } else if (section.startsWith('exit')) {
+                const exitAdultsEl = document.getElementById('day' + day + '_' + section + '_adults');
+                const exitChildrenEl = document.getElementById('day' + day + '_' + section + '_children');
+                if (exitAdultsEl && exitChildrenEl) {
+                    adultsCount = parseInt(exitAdultsEl.value) || 0;
+                    childrenCount = parseInt(exitChildrenEl.value) || 0;
+                    infantsCount = 0;
+                } else {
+                    adultsCount = parseInt(document.getElementById('adults')?.value) || 0;
+                    childrenCount = parseInt(document.getElementById('children')?.value) || 0;
+                    infantsCount = parseInt(document.getElementById('infants')?.value) || 0;
+                }
+            } else if (section.startsWith('transport')) {
+                // Transport (main and add-more): use this row's Adults & Children inputs, not tour guests
+                const transportAdultsEl = document.getElementById('day' + day + '_' + section + '_adults');
+                const transportChildrenEl = document.getElementById('day' + day + '_' + section + '_children');
+                if (transportAdultsEl && transportChildrenEl) {
+                    adultsCount = parseInt(transportAdultsEl.value) || 0;
+                    childrenCount = parseInt(transportChildrenEl.value) || 0;
+                    infantsCount = 0;
+                } else {
+                    adultsCount = parseInt(document.getElementById('adults')?.value) || 0;
+                    childrenCount = parseInt(document.getElementById('children')?.value) || 0;
+                    infantsCount = parseInt(document.getElementById('infants')?.value) || 0;
+                }
+            } else {
+                adultsCount = parseInt(document.getElementById('adults')?.value) || 0;
+                childrenCount = parseInt(document.getElementById('children')?.value) || 0;
+                infantsCount = parseInt(document.getElementById('infants')?.value) || 0;
+            }
+            const adultPrice = parseFloat(adultPriceAttr) || displayPrice;
+            const childPrice = parseFloat(childPriceAttr) || displayPrice;
+            const infantPrice = parseFloat(infantPriceAttr) || 0;
+            if (selectedServiceType === 'Shared') {
+                totalPrice = (adultPrice * adultsCount) + (childPrice * childrenCount) + (infantPrice * infantsCount);
+                const adultTotal = adultPrice * adultsCount;
+                const childTotal = childPrice * childrenCount;
+                const infantTotal = infantPrice * infantsCount;
+                pricingDescription = `
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-line" style="color: #667eea; margin-right: 5px;"></i>Total adult price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-smile-line" style="color: #28a745; margin-right: 5px;"></i>Total child price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-heart-line" style="color: #ffc107; margin-right: 5px;"></i>Total infant price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                </div>
+            `;
+            } else {
+                // Private: show only unit prices (no multiplication), total = fixed vehicle price
+                pricingDescription = `
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-line" style="color: #667eea; margin-right: 5px;"></i>Adult price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-smile-line" style="color: #28a745; margin-right: 5px;"></i>Child price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span style="color: #6c757d;"><i class="ri-user-heart-line" style="color: #ffc107; margin-right: 5px;"></i>Infant price:</span>
+                    <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                </div>
+                <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
+                    <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).
+                </small>
+            `;
+            }
+        }
+        
         priceDisplay.style.display = 'block';
         const isPrivate = priceType === 'Private';
+        const pricingTitle = section.startsWith('entry') ? 'Entry Port Pricing' : (section.startsWith('exit') ? 'Exit Port Pricing' : 'Transport Pricing');
+        const pricingSubtitle = isHourlyTransport ? 'Hourly: base + (hours × rate per hour)' : ((section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'Vehicle pricing by adult / child / infant' : `${priceType} Service`);
         
         // Additional debug to ensure price is set
         console.log('=== FINAL PRICE DISPLAY ===');
@@ -25389,8 +25600,8 @@ function loadDropoffZones(day, section) {
                                 <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
                             </div>
                             <div>
-                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">${priceType} Service</small>
+                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">${pricingTitle}</h6>
+                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">${pricingSubtitle}</small>
                             </div>
                         </div>
                         <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
@@ -25432,7 +25643,7 @@ function loadDropoffZones(day, section) {
                                             </div>
                                             Total Price
                                         </h6>
-                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$${totalPrice.toFixed(2)}</span>
+                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_${section}_total_price_display">${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${totalPrice.toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -25442,7 +25653,7 @@ function loadDropoffZones(day, section) {
             </div>
         `;
         
-        console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
+        console.log(`${priceType} service selected for day ${day}, section ${section}: ${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
         
         // Add event listener to hours dropdown for hourly transport to update pricing when hours change
         if (isHourlyTransport) {
@@ -30126,6 +30337,7 @@ function populateVehicleDropdown(day, section, vehicles) {
         if (section === 'entry') {
             const entryAddMore = document.getElementById(`day${day}_entry_add_more_section`);
             if (entryAddMore) entryAddMore.style.display = 'block';
+            // Do not pre-fill adults/children here; they stay at default until user chooses a vehicle (applyEntryPortPaxFromVehicleAndTour)
         } else if (section === 'exit') {
             const exitAddMore = document.getElementById(`day${day}_exit_add_more_section`);
             if (exitAddMore) exitAddMore.style.display = 'block';
@@ -30186,14 +30398,266 @@ function validatePassengerCapacity(day, section) {
         // Show error and reset to max capacity
         showNotification(`Passenger count (${passengerCount}) exceeds vehicle capacity (${vehicleCapacity} seats). Please select a larger vehicle or reduce passenger count.`, 'error');
         passengerInput.value = vehicleCapacity;
+        // Keep entry_0 adults/children in sync (visual): sum = vehicleCapacity
+        if (section === 'entry_0') {
+            const adultsEl = document.getElementById('day' + day + '_entry_0_adults');
+            const childrenEl = document.getElementById('day' + day + '_entry_0_children');
+            if (adultsEl) adultsEl.value = vehicleCapacity;
+            if (childrenEl) childrenEl.value = 0;
+        }
+        if (section.startsWith('exit_')) {
+            const adultsEl = document.getElementById('day' + day + '_' + section + '_adults');
+            const childrenEl = document.getElementById('day' + day + '_' + section + '_children');
+            if (adultsEl) adultsEl.value = vehicleCapacity;
+            if (childrenEl) childrenEl.value = 0;
+        }
+        if (section === 'transport') {
+            const adultsEl = document.getElementById('day' + day + '_transport_adults');
+            const childrenEl = document.getElementById('day' + day + '_transport_children');
+            if (adultsEl) adultsEl.value = vehicleCapacity;
+            if (childrenEl) childrenEl.value = 0;
+            if (typeof window.updatePricing === 'function') window.updatePricing(day, 'transport');
+        }
+        if (section.startsWith('transport_')) {
+            const adultsEl = document.getElementById('day' + day + '_' + section + '_adults');
+            const childrenEl = document.getElementById('day' + day + '_' + section + '_children');
+            if (adultsEl) adultsEl.value = vehicleCapacity;
+            if (childrenEl) childrenEl.value = 0;
+            if (typeof window.updatePricing === 'function') window.updatePricing(day, section);
+        }
         passengerInput.focus();
         return false;
     }
-    
+
     // Clear any previous error styling
     passengerInput.classList.remove('is-invalid');
     return true;
 }
+
+// When vehicle is chosen for transport: set adults & children to min(tour pax, vehicle capacity). Max shown = that limit.
+window.applyTransportPaxFromVehicleAndTour = function(day, section) {
+    const sectionId = (section === 'transport' || section === undefined) ? 'transport' : section;
+    const adultsEl = document.getElementById('day' + day + '_' + sectionId + '_adults');
+    const childrenEl = document.getElementById('day' + day + '_' + sectionId + '_children');
+    const passengersEl = document.getElementById('day' + day + '_' + sectionId + '_passengers');
+    const vehicleSelect = document.getElementById('day' + day + '_' + sectionId + '_vehicle_id');
+    if (!adultsEl || !childrenEl || !passengersEl || !vehicleSelect || !vehicleSelect.value) return;
+    const tourAdults = Math.max(0, parseInt(document.getElementById('adults')?.value) || 0);
+    const tourChildren = Math.max(0, parseInt(document.getElementById('children')?.value) || 0);
+    const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+    const vehicleCapacity = parseInt(selectedOption.dataset.seatingCapacity || selectedOption.getAttribute('data-seatingCapacity') || selectedOption.getAttribute('data-seating-capacity')) || 0;
+    if (vehicleCapacity <= 0) return;
+    const tourTotal = tourAdults + tourChildren;
+    const totalPax = Math.min(tourTotal, vehicleCapacity);
+    var a = Math.min(totalPax, tourAdults);
+    var c = totalPax - a;
+    if (c > tourChildren) {
+        c = tourChildren;
+        a = totalPax - c;
+    }
+    a = Math.max(0, a);
+    c = Math.max(0, c);
+    adultsEl.value = a;
+    childrenEl.value = c;
+    passengersEl.value = (a + c) || 1;
+    if (typeof window.syncTransportPaxAndUpdate === 'function') window.syncTransportPaxAndUpdate(day, sectionId);
+    if (typeof window.updatePricing === 'function') window.updatePricing(day, sectionId);
+}
+
+// Sync transport hidden passengers from adults + children; set max to min(tour pax, vehicle capacity) and clamp values.
+window.syncTransportPaxAndUpdate = function(day, section) {
+    const sectionId = (section === 'transport' || section === undefined) ? 'transport' : section;
+    const adultsEl = document.getElementById('day' + day + '_' + sectionId + '_adults');
+    const childrenEl = document.getElementById('day' + day + '_' + sectionId + '_children');
+    const passengersEl = document.getElementById('day' + day + '_' + sectionId + '_passengers');
+    const vehicleSelect = document.getElementById('day' + day + '_' + sectionId + '_vehicle_id');
+    if (!adultsEl || !childrenEl || !passengersEl) return;
+    const tourAdults = parseInt(document.getElementById('adults')?.value) || 0;
+    const tourChildren = parseInt(document.getElementById('children')?.value) || 0;
+    var maxAdults = Math.max(0, tourAdults);
+    var maxChildren = Math.max(0, tourChildren);
+    var maxTotal = maxAdults + maxChildren;
+    if (vehicleSelect && vehicleSelect.value) {
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const vehicleCapacity = parseInt(selectedOption.dataset.seatingCapacity || selectedOption.getAttribute('data-seatingCapacity') || selectedOption.getAttribute('data-seating-capacity')) || 0;
+        if (vehicleCapacity > 0) maxTotal = Math.min(maxTotal, vehicleCapacity);
+    }
+    adultsEl.setAttribute('max', maxAdults || 50);
+    childrenEl.setAttribute('max', maxChildren || 50);
+    var maxAdultsSpan = document.getElementById('day' + day + '_' + sectionId + '_max_adults');
+    var maxChildrenSpan = document.getElementById('day' + day + '_' + sectionId + '_max_children');
+    if (maxAdultsSpan) maxAdultsSpan.textContent = maxAdults || '—';
+    if (maxChildrenSpan) maxChildrenSpan.textContent = maxChildren || '—';
+    var a = parseInt(adultsEl.value) || 0;
+    var c = parseInt(childrenEl.value) || 0;
+    a = Math.min(Math.max(0, a), maxAdults || 50);
+    c = Math.min(Math.max(0, c), maxChildren || 50);
+    if (a + c > maxTotal) {
+        if (a >= maxTotal) {
+            a = maxTotal;
+            c = 0;
+        } else {
+            c = maxTotal - a;
+            c = Math.min(c, maxChildren);
+        }
+    }
+    const total = (a + c) || 1;
+    adultsEl.value = a;
+    childrenEl.value = c;
+    passengersEl.value = total;
+    if (typeof window.updatePricing === 'function') window.updatePricing(day, sectionId);
+}
+
+// When vehicle is chosen: populate adults & children to the least of (tour pax, vehicle capacity). E.g. capacity 5 & pax 7 → show 5; capacity 5 & pax 2 → show 2.
+window.applyEntryPortPaxFromVehicleAndTour = function(day, index) {
+    const adultsEl = document.getElementById('day' + day + '_entry_' + index + '_adults');
+    const childrenEl = document.getElementById('day' + day + '_entry_' + index + '_children');
+    const passengersEl = document.getElementById('day' + day + '_entry_' + index + '_passengers');
+    const vehicleSelect = document.getElementById('day' + day + '_entry_' + index + '_vehicle_id');
+    if (!adultsEl || !childrenEl || !passengersEl || !vehicleSelect || !vehicleSelect.value) return;
+    const tourAdults = Math.max(0, parseInt(document.getElementById('adults')?.value) || 0);
+    const tourChildren = Math.max(0, parseInt(document.getElementById('children')?.value) || 0);
+    const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+    const vehicleCapacity = parseInt(selectedOption.dataset.seatingCapacity || selectedOption.getAttribute('data-seatingCapacity') || selectedOption.getAttribute('data-seating-capacity')) || 0;
+    if (vehicleCapacity <= 0) return;
+    const tourTotal = tourAdults + tourChildren;
+    const totalPax = Math.min(tourTotal, vehicleCapacity);
+    var a = Math.min(totalPax, tourAdults);
+    var c = totalPax - a;
+    if (c > tourChildren) {
+        c = tourChildren;
+        a = totalPax - c;
+    }
+    a = Math.max(0, a);
+    c = Math.max(0, c);
+    adultsEl.value = a;
+    childrenEl.value = c;
+    passengersEl.value = (a + c) || 1;
+    if (typeof window.updatePricing === 'function') window.updatePricing(day, 'entry_' + index);
+}
+
+// Sync entry port hidden passengers (stored) from adults + children (visual only). Clamp to tour max. Store unchanged: pax = adult + child.
+window.syncEntryPortPaxAndUpdate = function(day, index) {
+    const adultsEl = document.getElementById('day' + day + '_entry_' + index + '_adults');
+    const childrenEl = document.getElementById('day' + day + '_entry_' + index + '_children');
+    const passengersEl = document.getElementById('day' + day + '_entry_' + index + '_passengers');
+    if (!adultsEl || !childrenEl || !passengersEl) return;
+    const tourAdults = parseInt(document.getElementById('adults')?.value) || 0;
+    const tourChildren = parseInt(document.getElementById('children')?.value) || 0;
+    const maxAdults = Math.max(0, tourAdults);
+    const maxChildren = Math.max(0, tourChildren);
+    adultsEl.setAttribute('max', maxAdults || 50);
+    childrenEl.setAttribute('max', maxChildren || 50);
+    var maxAdultsSpan = document.getElementById('day' + day + '_entry_' + index + '_max_adults');
+    var maxChildrenSpan = document.getElementById('day' + day + '_entry_' + index + '_max_children');
+    if (maxAdultsSpan) maxAdultsSpan.textContent = maxAdults || '—';
+    if (maxChildrenSpan) maxChildrenSpan.textContent = maxChildren || '—';
+    var a = parseInt(adultsEl.value) || 0;
+    var c = parseInt(childrenEl.value) || 0;
+    a = Math.min(Math.max(0, a), maxAdults || 50);
+    c = Math.min(Math.max(0, c), maxChildren || 50);
+    adultsEl.value = a;
+    childrenEl.value = c;
+    passengersEl.value = (a + c) || 1;
+};
+
+// When vehicle is chosen for exit: populate adults & children to the least of (tour pax, vehicle capacity).
+window.applyExitPortPaxFromVehicleAndTour = function(day, index) {
+    const adultsEl = document.getElementById('day' + day + '_exit_' + index + '_adults');
+    const childrenEl = document.getElementById('day' + day + '_exit_' + index + '_children');
+    const passengersEl = document.getElementById('day' + day + '_exit_' + index + '_passengers');
+    const vehicleSelect = document.getElementById('day' + day + '_exit_' + index + '_vehicle_id');
+    if (!adultsEl || !childrenEl || !passengersEl || !vehicleSelect || !vehicleSelect.value) return;
+    const tourAdults = Math.max(0, parseInt(document.getElementById('adults')?.value) || 0);
+    const tourChildren = Math.max(0, parseInt(document.getElementById('children')?.value) || 0);
+    const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+    const vehicleCapacity = parseInt(selectedOption.dataset.seatingCapacity || selectedOption.getAttribute('data-seatingCapacity') || selectedOption.getAttribute('data-seating-capacity')) || 0;
+    if (vehicleCapacity <= 0) return;
+    const tourTotal = tourAdults + tourChildren;
+    const totalPax = Math.min(tourTotal, vehicleCapacity);
+    var a = Math.min(totalPax, tourAdults);
+    var c = totalPax - a;
+    if (c > tourChildren) {
+        c = tourChildren;
+        a = totalPax - c;
+    }
+    a = Math.max(0, a);
+    c = Math.max(0, c);
+    adultsEl.value = a;
+    childrenEl.value = c;
+    passengersEl.value = (a + c) || 1;
+    if (typeof window.updatePricing === 'function') window.updatePricing(day, 'exit_' + index);
+};
+
+// Sync exit port hidden passengers (stored) from adults + children (visual only). Clamp to tour max.
+window.syncExitPortPaxAndUpdate = function(day, index) {
+    const adultsEl = document.getElementById('day' + day + '_exit_' + index + '_adults');
+    const childrenEl = document.getElementById('day' + day + '_exit_' + index + '_children');
+    const passengersEl = document.getElementById('day' + day + '_exit_' + index + '_passengers');
+    if (!adultsEl || !childrenEl || !passengersEl) return;
+    const tourAdults = parseInt(document.getElementById('adults')?.value) || 0;
+    const tourChildren = parseInt(document.getElementById('children')?.value) || 0;
+    const maxAdults = Math.max(0, tourAdults);
+    const maxChildren = Math.max(0, tourChildren);
+    adultsEl.setAttribute('max', maxAdults || 50);
+    childrenEl.setAttribute('max', maxChildren || 50);
+    var maxAdultsSpan = document.getElementById('day' + day + '_exit_' + index + '_max_adults');
+    var maxChildrenSpan = document.getElementById('day' + day + '_exit_' + index + '_max_children');
+    if (maxAdultsSpan) maxAdultsSpan.textContent = maxAdults || '—';
+    if (maxChildrenSpan) maxChildrenSpan.textContent = maxChildren || '—';
+    var a = parseInt(adultsEl.value) || 0;
+    var c = parseInt(childrenEl.value) || 0;
+    a = Math.min(Math.max(0, a), maxAdults || 50);
+    c = Math.min(Math.max(0, c), maxChildren || 50);
+    adultsEl.value = a;
+    childrenEl.value = c;
+    passengersEl.value = (a + c) || 1;
+};
+
+// When any entry vehicle select changes (main or add-more, including Select2), populate adults/children from vehicle capacity.
+$(document).off('change.entryVehiclePax').on('change.entryVehiclePax', 'select[id*="_entry_"][id*="_vehicle_id"]', function() {
+    const el = this;
+    const id = el.id || '';
+    const match = id.match(/day(\d+)_entry_(\d+)_vehicle_id/);
+    if (!match || !el.value) return;
+    const day = parseInt(match[1], 10);
+    const index = parseInt(match[2], 10);
+    if (typeof window.applyEntryPortPaxFromVehicleAndTour === 'function') {
+        window.applyEntryPortPaxFromVehicleAndTour(day, index);
+    }
+    if (typeof validatePassengerCapacity === 'function') validatePassengerCapacity(day, 'entry_' + index);
+    if (typeof window.updatePricing === 'function') window.updatePricing(day, 'entry_' + index);
+});
+
+// When any exit vehicle select changes (main or add-more, including Select2), populate adults/children from vehicle capacity.
+$(document).off('change.exitVehiclePax').on('change.exitVehiclePax', 'select[id*="_exit_"][id*="_vehicle_id"]', function() {
+    const el = this;
+    const id = el.id || '';
+    const match = id.match(/day(\d+)_exit_(\d+)_vehicle_id/);
+    if (!match || !el.value) return;
+    const day = parseInt(match[1], 10);
+    const index = parseInt(match[2], 10);
+    if (typeof window.applyExitPortPaxFromVehicleAndTour === 'function') {
+        window.applyExitPortPaxFromVehicleAndTour(day, index);
+    }
+    if (typeof validatePassengerCapacity === 'function') validatePassengerCapacity(day, 'exit_' + index);
+    if (typeof window.updatePricing === 'function') window.updatePricing(day, 'exit_' + index);
+});
+
+// When main transport vehicle select changes: set adults/children from min(tour pax, vehicle capacity) and update pricing.
+$(document).off('change.transportVehiclePax').on('change.transportVehiclePax', 'select[id*="_transport_vehicle_id"]', function() {
+    const el = this;
+    const id = el.id || '';
+    const mainMatch = id.match(/day(\d+)_transport_vehicle_id$/);
+    if (mainMatch && el.value) {
+        const day = parseInt(mainMatch[1], 10);
+        if (typeof window.applyTransportPaxFromVehicleAndTour === 'function') {
+            window.applyTransportPaxFromVehicleAndTour(day, 'transport');
+        }
+        if (typeof validatePassengerCapacity === 'function') validatePassengerCapacity(day, 'transport');
+        if (typeof window.updatePricing === 'function') window.updatePricing(day, 'transport');
+    }
+});
 
 // Function to get customer information
 function getCustomerInfo() {

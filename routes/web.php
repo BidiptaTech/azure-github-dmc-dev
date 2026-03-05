@@ -50,6 +50,7 @@ use App\Http\Controllers\PortController;
 use App\Http\Controllers\ZoneController;
 use App\Http\Controllers\DefaultValueController;
 use App\Http\Controllers\JobSheetController;
+use App\Http\Controllers\CheckCurrencyController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
@@ -88,7 +89,7 @@ Route::get('/clear', function () {
         Route::middleware(['auth'])->group(function () {
             // Tour prices route
             Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
-
+            Route::get('/check-currency',[CheckCurrencyController::class, 'checkCurrency'])->name('check-currency');
             // Tour creation route
             Route::post('/create-single-tour', [App\Http\Controllers\TourController::class, 'createTour'])->name('create.tour');
             Route::get('/', function () {
@@ -547,6 +548,7 @@ Route::get('/clear', function () {
                 // Predefined Packages Routes
                 // Country → City
                 Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity'])->name('hotel-city');
+                Route::get('/room-types-by-hotel/{hotelId}', [PackageController::class, 'getRoomTypesByHotel'])->name('room-types-by-hotel');
 
                 Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
                 Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
@@ -572,6 +574,8 @@ Route::get('/clear', function () {
                 Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity'])->name('transport-by-city');
                 Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
+        Route::get('/packages/definition/create', [PackageController::class, 'createDefinition'])->name('packages.definition.create');
+        Route::post('/packages/definition', [PackageController::class, 'storeDefinition'])->name('packages.definition.store');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
         // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
@@ -841,7 +845,7 @@ Route::get('/clear', function () {
 
         //Booking List
         Route::resource('bookinglist', BookingListController::class);
-        Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
+        // Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
         Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
         Route::get('bookinglist/check-price-hide', [BookingListController::class, 'checkPriceHide'])->name('bookinglist.checkPriceHide');

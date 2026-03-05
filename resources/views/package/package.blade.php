@@ -7,9 +7,14 @@
             <h4 class="fw-bold mb-0">
                 <i class="ri-gift-line me-2 text-primary"></i>Packages
             </h4>
-            <a href="{{ route('packages.create') }}" class="btn btn-primary">
-                <i class="ri-add-line me-1"></i>Create New Package
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{{ route('packages.create') }}" class="btn btn-primary">
+                    <i class="ri-add-line me-1"></i>Create New Package
+                </a>
+                <a href="{{ route('packages.definition.create') }}" class="btn btn-outline-primary">
+                    <i class="ri-file-list-3-line me-1"></i>Package Definition
+                </a>
+            </div>
         </div>
 
         <!-- Filter Section -->
