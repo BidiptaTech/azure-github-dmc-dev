@@ -2864,14 +2864,15 @@ class EnquiryFormPro extends Controller
                 'agent_id' => $request->agent_id
             ]);
             
-            // Handle orders marked for deletion
+            // Handle orders marked for deletion (force-delete so no deleted_at lingers)
             if ($request->has('orders_to_delete') && !empty($request->orders_to_delete)) {
                 $ordersToDelete = json_decode($request->orders_to_delete, true);
                 if (is_array($ordersToDelete) && count($ordersToDelete) > 0) {
                     \Log::info('Deleting orders', ['booking_ids' => $ordersToDelete]);
-                    Order::where('tour_id', $tour_id)
+                    Order::withTrashed()
+                        ->where('tour_id', $tour_id)
                         ->whereIn('booking_id', $ordersToDelete)
-                        ->delete();
+                        ->forceDelete();
                 }
             }
             
@@ -2890,10 +2891,10 @@ class EnquiryFormPro extends Controller
             
             // 1. Entry Port Orders (Arrival)
             // ALWAYS delete existing entry_port orders first, then recreate if there are new ones
-            $deletedEntryPorts = Order::where('tour_id', $tour_id)
+            $deletedEntryPorts = Order::withTrashed()->where('tour_id', $tour_id)
                 ->where('type', 'entry_port')
-                ->delete();
-            \Log::info('Deleted existing entry_port orders', ['count' => $deletedEntryPorts, 'tour_id' => $tour_id]);
+                ->forceDelete();
+            \Log::info('Force-deleted existing entry_port orders', ['count' => $deletedEntryPorts, 'tour_id' => $tour_id]);
             
             if ($request->has('entry_port') && !empty($request->entry_port)) {
                 $entryPorts = json_decode($request->entry_port, true);
@@ -2963,10 +2964,10 @@ class EnquiryFormPro extends Controller
             
             // 2. Exit Port Orders (Departure)
             // ALWAYS delete existing exit_port orders first, then recreate if there are new ones
-            $deletedExitPorts = Order::where('tour_id', $tour_id)
+            $deletedExitPorts = Order::withTrashed()->where('tour_id', $tour_id)
                 ->where('type', 'exit_port')
-                ->delete();
-            \Log::info('Deleted existing exit_port orders', ['count' => $deletedExitPorts, 'tour_id' => $tour_id]);
+                ->forceDelete();
+            \Log::info('Force-deleted existing exit_port orders', ['count' => $deletedExitPorts, 'tour_id' => $tour_id]);
             
             if ($request->has('exit_port') && !empty($request->exit_port)) {
                 $exitPorts = json_decode($request->exit_port, true);
@@ -3036,10 +3037,10 @@ class EnquiryFormPro extends Controller
             
             // 3. Accommodation Orders
             // ALWAYS delete existing hotel orders first, then recreate if there are new ones
-            $deletedHotels = Order::where('tour_id', $tour_id)
+            $deletedHotels = Order::withTrashed()->where('tour_id', $tour_id)
                 ->where('type', 'hotel')
-                ->delete();
-            \Log::info('Deleted existing hotel orders', ['count' => $deletedHotels, 'tour_id' => $tour_id]);
+                ->forceDelete();
+            \Log::info('Force-deleted existing hotel orders', ['count' => $deletedHotels, 'tour_id' => $tour_id]);
             
             if ($request->has('accommodations') && !empty($request->accommodations)) {
                 $accommodations = json_decode($request->accommodations, true);
@@ -3088,7 +3089,7 @@ class EnquiryFormPro extends Controller
             
             // 4. Tour/Attraction Orders
             // ALWAYS delete existing attraction orders first, then recreate if there are new ones
-            $deletedAttractions = Order::where('tour_id', $tour_id)->where('type', 'attraction')->delete();
+            $deletedAttractions = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'attraction')->forceDelete();
             \Log::info('Deleted existing attraction orders', ['count' => $deletedAttractions, 'tour_id' => $tour_id]);
             
             if ($request->has('tours') && !empty($request->tours)) {
@@ -3134,7 +3135,7 @@ class EnquiryFormPro extends Controller
             
             // 5. Meal/Restaurant Orders
             // ALWAYS delete existing restaurant orders first, then recreate if there are new ones
-            $deletedMeals = Order::where('tour_id', $tour_id)->where('type', 'restaurant')->delete();
+            $deletedMeals = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'restaurant')->forceDelete();
             \Log::info('Deleted existing restaurant orders', ['count' => $deletedMeals, 'tour_id' => $tour_id]);
             
             if ($request->has('meals') && !empty($request->meals)) {
@@ -3182,7 +3183,7 @@ class EnquiryFormPro extends Controller
             
             // 6. Transfer Orders (Local Transport)
             // ALWAYS delete existing local_transport orders first, then recreate if there are new ones
-            $deletedTransfers = Order::where('tour_id', $tour_id)->where('type', 'local_transport')->delete();
+            $deletedTransfers = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'local_transport')->forceDelete();
             \Log::info('Deleted existing local_transport orders', ['count' => $deletedTransfers, 'tour_id' => $tour_id]);
             
             if ($request->has('transfers') && !empty($request->transfers)) {
@@ -3274,7 +3275,7 @@ class EnquiryFormPro extends Controller
             
             // 7. Guide Orders
             // ALWAYS delete existing guide orders first, then recreate if there are new ones
-            $deletedGuides = Order::where('tour_id', $tour_id)->where('type', 'guide')->delete();
+            $deletedGuides = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'guide')->forceDelete();
             \Log::info('Deleted existing guide orders', ['count' => $deletedGuides, 'tour_id' => $tour_id]);
             
             if ($request->has('guides') && !empty($request->guides)) {
@@ -3313,18 +3314,21 @@ class EnquiryFormPro extends Controller
             }
             
             // 8. Miscellaneous Orders
-            // ALWAYS delete existing miscellaneous orders first, then recreate if there are new ones
-            $deletedMisc = Order::where('tour_id', $tour_id)->where('type', 'miscellaneous')->delete();
-            \Log::info('Deleted existing miscellaneous orders', ['count' => $deletedMisc, 'tour_id' => $tour_id]);
+            // Hard-delete (forceDelete) existing miscellaneous orders first, then recreate.
+            // Using forceDelete instead of soft-delete so records never linger with deleted_at set.
+            $deletedMisc = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'miscellaneous')->forceDelete();
+            \Log::info('Force-deleted existing miscellaneous orders', ['count' => $deletedMisc, 'tour_id' => $tour_id]);
             
             if ($request->has('miscellaneous') && !empty($request->miscellaneous)) {
                 $miscItems = json_decode($request->miscellaneous, true);
                 $seenMisc = [];
                 
                 foreach ($miscItems as $miscItem) {
+                    // Use frontend-generated unique id + itemName + bookingDate as dedup key
+                    // (frontend sends camelCase 'itemName' and 'id', not snake_case 'item_name'/'item_id')
                     $uniqueKey = md5(json_encode([
-                        'item_id' => $miscItem['item_id'] ?? '',
-                        'item_name' => $miscItem['item_name'] ?? '',
+                        'id' => $miscItem['id'] ?? '',
+                        'itemName' => $miscItem['itemName'] ?? ($miscItem['item_name'] ?? ''),
                         'bookingDate' => $miscItem['bookingDate'] ?? ''
                     ]));
                     
@@ -3441,6 +3445,12 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
                 
+                // Skip miscellaneous orders - they are fully managed by the save/update flow
+                // (delete-all + recreate). Multiple misc items with the same name/date are valid.
+                if ($order->type === 'miscellaneous') {
+                    continue;
+                }
+                
                 $orderData = is_array($order->data) ? $order->data : json_decode($order->data, true);
                 $firstItem = $orderData[0] ?? [];
                 
@@ -3534,9 +3544,9 @@ class EnquiryFormPro extends Controller
                 }
             }
             
-            // Delete duplicates
+            // Hard-delete duplicates (forceDelete so no deleted_at lingers in the database)
             if (count($duplicateIds) > 0) {
-                $deletedCount = Order::whereIn('id', $duplicateIds)->delete();
+                $deletedCount = Order::withTrashed()->whereIn('id', $duplicateIds)->forceDelete();
                 \Log::info('Cleaned up duplicate orders', [
                     'tour_id' => $tour_id,
                     'deleted_count' => $deletedCount
