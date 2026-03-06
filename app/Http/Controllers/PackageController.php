@@ -20,6 +20,8 @@ use App\Models\User;
 use App\Models\PackageBooking;
 use App\Models\Vehicle;
 use App\Models\Agent;
+use App\Models\Room;
+use App\Models\Port;
 use Illuminate\Support\Facades\Crypt;
 
 class PackageController extends Controller
@@ -560,7 +562,7 @@ class PackageController extends Controller
      */
     public function getAttractionsByCity($city)
     {
-        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location','master_image']);
+        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location', 'master_image', 'adult_price', 'child_price']);
         return response()->json($attractions);
     }
 
@@ -573,7 +575,7 @@ class PackageController extends Controller
             ->with(['languages' => function ($query) {
                 $query->select('guide_id', 'language'); // columns in guide_language table
             }])
-            ->get(['guide_id', 'name', 'contact_no', 'city', 'status']);
+            ->get(['guide_id', 'name', 'contact_no', 'city', 'status', 'hourly_price', 'two_hour_price', 'four_hour_price', 'six_hour_price', 'eight_hour_price', 'ten_hour_price', 'twelve_hour_price', 'night_surcharge', 'night_start_time', 'night_end_time']);
 
         // Map to flatten language strings if needed
         $guides->transform(function ($guide) {
@@ -582,6 +584,16 @@ class PackageController extends Controller
                 'name'       => $guide->name,
                 'contact_no' => $guide->contact_no,
                 'languages'  => $guide->languages->pluck('language')->toArray(),
+                'hourly_price' => $guide->hourly_price ?? null,
+                'two_hour_price' => $guide->two_hour_price ?? null,
+                'four_hour_price' => $guide->four_hour_price ?? null,
+                'six_hour_price' => $guide->six_hour_price ?? null,
+                'eight_hour_price' => $guide->eight_hour_price ?? null,
+                'ten_hour_price' => $guide->ten_hour_price ?? null,
+                'twelve_hour_price' => $guide->twelve_hour_price ?? null,
+                'night_surcharge' => $guide->night_surcharge ?? null,
+                'night_start_time' => $guide->night_start_time ?? null,
+                'night_end_time' => $guide->night_end_time ?? null,
             ];
         });
 
@@ -593,8 +605,20 @@ class PackageController extends Controller
      */
     public function getRestaurantsByCity($city)
     {
-        $restaurants = Restaurant::where('city', $city)->get(['restaurant_id', 'name', 'city', 'cuisine']);
+        $restaurants = Restaurant::where('city', $city)->get(['restaurant_id', 'name', 'city', 'cuisine', 'bf_price', 'lunch_price', 'dinner_price', 'breakfast_available', 'lunch_available', 'dinner_available']);
         return response()->json(['restaurants' => $restaurants]);
+    }
+
+    /**
+     * Get ports by country (AJAX) for package definition transfers
+     */
+    public function getPortsByCountry($country)
+    {
+        $ports = Port::where('country', $country)
+            ->where('status', 1)
+            ->orderBy('port_name')
+            ->get(['port_id', 'port_name', 'country']);
+        return response()->json($ports);
     }
 
     /**
@@ -602,8 +626,191 @@ class PackageController extends Controller
      */
     public function getTransportByCity($city)
     {
-        $transport = Vehicle::where('city', $city)->get(['vehicle_id', 'name', 'city','vehicle_type','vehicle_capacity','vehicle_image','vehicle_description','vehicle_price','vehicle_status']);
-        return response()->json($transport);
+        $user = Auth::user();
+        $dmc_id = CommonHelper::getDmcId($user);
+        if($dmc_id){
+            $transport = Vehicle::where('city', $city)->where('dmc_id', $dmc_id)->get(['vehicle_id', 'vehicle_name as name', 'city', 'vehicle_type', 'base_price']);
+            return response()->json($transport);
+        }else{
+            return response()->json(['error' => 'You are not authorized to view this page.']);
+        }
+    }
+
+    /**
+     * Show the form for creating a package definition (no day-wise itinerary)
+     */
+    public function createDefinition()
+    {
+        $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        return view('package.package-definition', compact('countries'));
+    }
+
+    /**
+     * Get room types by hotel (AJAX) for package definition
+     */
+    /**
+     * Get rooms by hotel (AJAX) for package definition.
+     * Uses the rooms table; Room.hotel_id = Hotel.hotel_unique_id.
+     */
+    public function getRoomTypesByHotel($hotelId)
+    {
+        $rooms = Room::where('hotel_id', $hotelId)
+            ->get([
+                'room_id',
+                'id',
+                'hotel_id',
+                'room_type',
+                'no_of_room',
+                'weekday_price',
+                'weekend_price',
+                'dimension',
+                'breakfast',
+                'breakfast_included',
+                'lunch',
+                'dinner',
+                'master_image',
+                'features',
+            ]);
+
+        // Map to same shape as before for frontend (id, name) + extra room fields
+        $roomTypes = $rooms->map(function ($room) {
+            return [
+                'id'           => $room->room_id ?? $room->id,
+                'room_id'      => $room->room_id ?? $room->id,
+                'name'         => $room->room_type ?: ('Room ' . ($room->room_id ?? $room->id)),
+                'room_type'    => $room->room_type,
+                'no_of_room'   => $room->no_of_room,
+                'weekday_price'=> $room->weekday_price,
+                'weekend_price'=> $room->weekend_price,
+                'dimension'    => $room->dimension,
+                'breakfast'    => $room->breakfast,
+                'breakfast_included' => $room->breakfast_included,
+                'lunch'        => $room->lunch,
+                'lunch_included'=> $room->lunch_included,
+                'dinner'       => $room->dinner,
+                'dinner_included'=> $room->dinner_included,
+                'master_image' => $room->master_image,
+                'features'     => $room->features,
+            ];
+        });
+
+        return response()->json(['room_types' => $roomTypes]);
+    }
+
+    /**
+     * Store a package definition (no day-wise itinerary)
+     */
+    public function storeDefinition(Request $request)
+    {
+        try {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'destination' => 'required|string|max:255',
+            'city' => 'required|string|max:255',
+            'category' => 'required|string|max:255',
+            'duration_days' => 'required|integer|min:1',
+            'description' => 'nullable|string',
+            'price_adult' => 'required|numeric|min:0',
+            'price_senior' => 'nullable|numeric|min:0',
+            'price_child' => 'nullable|numeric|min:0',
+            'start_date' => 'required|date',
+            'expiry_date' => 'required|date|after:start_date',
+            'main_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'inclusions' => 'nullable|string',
+            'exclusions' => 'nullable|string',
+            'terms_conditions' => 'nullable|string',
+            'status' => 'required',
+            'child_max_age' => 'nullable|integer',
+        ]);
+        } catch (Exception $e) {
+            return back()->withInput()->withErrors(['error' => 'Failed to validate package definition. ' . $e->getMessage()]);
+        }
+
+        try {
+            DB::beginTransaction();
+            $mainImagePath = null;
+            if ($request->hasFile('main_image')) {
+                $imageData = CommonHelper::image_path('file_storage', $request->file('main_image'));
+                if (!empty($imageData['master_value'])) {
+                    $mainImagePath = $imageData['master_value'];
+                }
+            }
+            $galleryImages = [];
+            if ($request->hasFile('gallery_images')) {
+                foreach ($request->file('gallery_images') as $image) {
+                    $imageData = CommonHelper::image_path('file_storage', $image);
+                    if (!empty($imageData['master_value'])) {
+                        $galleryImages[] = $imageData['master_value'];
+                    }
+                }
+            }
+
+            $selectedHotels = $request->input('selected_hotels', '[]');
+            $selectedAttractions = $request->input('selected_attractions', '[]');
+            $selectedRestaurants = $request->input('selected_restaurants', '[]');
+            $localTransfers = $request->input('local_transfers', '[]');
+            $definitionData = [
+                'hotels' => is_string($selectedHotels) ? json_decode($selectedHotels, true) : $selectedHotels,
+                'attractions' => is_string($selectedAttractions) ? json_decode($selectedAttractions, true) : $selectedAttractions,
+                'restaurants' => is_string($selectedRestaurants) ? json_decode($selectedRestaurants, true) : $selectedRestaurants,
+                'arrival_pickup' => (int) $request->input('arrival_pickup', 0),
+                'departure_service' => (int) $request->input('departure_service', 0),
+                'independent_guide' => json_decode($request->input('definition_independent_guide', 'null'), true),
+                'local_transfers' => is_string($localTransfers) ? json_decode($localTransfers, true) : $localTransfers,
+            ];
+
+            $user = Auth::user();
+            $dmc_id = $user->userId;
+            if (in_array($user->role_id, [1, 2, 23])) {
+                $dmc_id = $request->input('dmc_id', $user->userId);
+            }
+
+            $lastPackage = Package::withTrashed()->orderBy('created_at', 'desc')->first();
+            $package_max_id = $lastPackage->package_id ?? 0;
+            $packageId = CommonHelper::createId($package_max_id);
+            while (Package::where('package_id', $packageId)->exists()) {
+                $packageId = CommonHelper::createId($packageId);
+            }
+
+            $package = Package::create([
+                'package_id' => $packageId,
+                'title' => $validated['title'],
+                'destination' => $validated['destination'],
+                'city' => $validated['city'],
+                'category' => $validated['category'],
+                'duration_days' => $validated['duration_days'],
+                'package_type' => 'definition',
+                'description' => $validated['description'] ?? '',
+                'price_adult' => $validated['price_adult'],
+                'price_senior' => $validated['price_senior'] ?? 0,
+                'price_child' => $validated['price_child'] ?? 0,
+                'child_max_age' => $validated['child_max_age'] ?? null,
+                'start_date' => $validated['start_date'],
+                'expire_date' => $validated['expiry_date'],
+                'main_image' => $mainImagePath,
+                'gallery_images' => json_encode($galleryImages),
+                'inclusions' => $validated['inclusions'] ?? '',
+                'exclusions' => $validated['exclusions'] ?? '',
+                'terms_conditions' => $validated['terms_conditions'] ?? '',
+                'status' => $validated['status'],
+                'dmc_id' => $dmc_id,
+                'created_by' => $user->userId,
+                'updated_by' => $user->userId,
+                'selected_hotels' => $selectedHotels,
+                'selected_attractions' => $selectedAttractions,
+                'selected_guide' => $request->input('definition_independent_guide', 'null'),
+                'selected_restaurants' => $selectedRestaurants,
+                'itinerary' => json_encode($definitionData),
+            ]);
+
+            DB::commit();
+            return redirect()->route('packages.index')->with('success', 'Package definition created successfully.');
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Package definition store error: ' . $e->getMessage());
+            return back()->withInput()->withErrors(['error' => 'Failed to create package definition.']);
+        }
     }
 
     /**
