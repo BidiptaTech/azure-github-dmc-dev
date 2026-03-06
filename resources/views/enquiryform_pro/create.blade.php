@@ -2341,11 +2341,11 @@
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Filter By Type:</label>
                             <div class="d-flex gap-2 mt-1">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" checked onchange="filterAttractionsByType()">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" onchange="filterAttractionsByType()">
                                     <label class="form-check-label small" for="filterAttraction" style="font-size: 10px;">Attractions</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" onchange="filterAttractionsByType()">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" checked onchange="filterAttractionsByType()">
                                     <label class="form-check-label small" for="filterTourSite" style="font-size: 10px;">Tour Sites</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
@@ -13894,6 +13894,20 @@
             destinationSelect.value = '';
         }
         
+        // Reset filter to Tour Sites by default
+        const filterTourSite = document.getElementById('filterTourSite');
+        if (filterTourSite) {
+            filterTourSite.checked = true;
+        }
+        const filterAttraction = document.getElementById('filterAttraction');
+        if (filterAttraction) {
+            filterAttraction.checked = false;
+        }
+        const filterAll = document.getElementById('filterAll');
+        if (filterAll) {
+            filterAll.checked = false;
+        }
+        
         // Clear attractions table
         const tbody = document.getElementById('attractionsTableBody');
         if (tbody) {
@@ -14349,7 +14363,7 @@
         // If no type passed, get from radio button
         if (!type) {
             const selectedRadio = document.querySelector('input[name="attractionTypeFilter"]:checked');
-            type = selectedRadio ? selectedRadio.value : 'attraction';
+            type = selectedRadio ? selectedRadio.value : 'toursite';
         }
         
         const rows = document.querySelectorAll('.attraction-row');

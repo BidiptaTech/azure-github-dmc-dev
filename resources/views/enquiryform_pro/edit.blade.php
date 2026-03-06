@@ -1015,23 +1015,23 @@
     @if($isEditMode && isset($tour))
         window.existingTourData = {
             tour_id: {{ $tour->tour_id ?? 'null' }},
-            display_id: '{{ $tour->display_id ?? '' }}',
+            display_id: @json($tour->display_id ?? ''),
             // Customer info from orders JSON (via initialData)
-            customer_name: '{{ $initialData['customer_name'] ?? '' }}',
-            phone: '{{ $initialData['contact_number'] ?? '' }}',
-            email: '{{ $initialData['email'] ?? '' }}',
-            salutation: '{{ $initialData['salutation'] ?? 'Mr' }}',
+            customer_name: @json($initialData['customer_name'] ?? ''),
+            phone: @json($initialData['contact_number'] ?? ''),
+            email: @json($initialData['email'] ?? ''),
+            salutation: @json($initialData['salutation'] ?? 'Mr'),
             adults: {{ $tour->adult ?? 2 }},
             children: {{ $tour->child ?? 0 }},
             infants: {{ $tour->infant ?? 0 }},
-            tour_start_date: '{{ $initialData['tour_start_date'] ?? '' }}',
-            tour_end_date: '{{ $initialData['tour_end_date'] ?? '' }}',
-            country: '{{ $tour->destination ?? '' }}',
+            tour_start_date: @json($initialData['tour_start_date'] ?? ''),
+            tour_end_date: @json($initialData['tour_end_date'] ?? ''),
+            country: @json($tour->destination ?? ''),
             agency_id: {{ $tour->agency_id ?? 'null' }},
             agent_id: {{ $tour->agent_id ?? 'null' }},
-            status: '{{ $tour->status ?? '' }}',
-            remarks: '{{ addslashes($tour->remarks ?? '') }}',
-            created_at: '{{ $tour->created_at ?? '' }}'
+            status: @json((string)($tour->status ?? '')),
+            remarks: @json($tour->remarks ?? ''),
+            created_at: @json($tour->created_at ? $tour->created_at->toISOString() : '')
         };
         console.log('=== EDIT MODE ===');
         console.log('Tour ID:', window.tourId);
@@ -2448,11 +2448,11 @@
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Filter By Type:</label>
                             <div class="d-flex gap-2 mt-1">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" checked onchange="filterAttractionsByType()">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" onchange="filterAttractionsByType()">
                                     <label class="form-check-label small" for="filterAttraction" style="font-size: 10px;">Attractions</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" onchange="filterAttractionsByType()">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" checked onchange="filterAttractionsByType()">
                                     <label class="form-check-label small" for="filterTourSite" style="font-size: 10px;">Tour Sites</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
@@ -8391,7 +8391,7 @@
                     mealPlan: order.meal_plan || order.mealPlan || 'room only',
                     cost: parseFloat(order.cost || 0),
                     sell: parseFloat(order.price || order.sell || 0),
-                    destination: order.destination || order.city || '',
+                    destination: order.destination || order.city || (order.hotelDetails && order.hotelDetails.location ? order.hotelDetails.location : '') || '',
                     adultsPerRoom: parseInt(order.head_count || 2),
                     maxOccupancy: parseInt(order.max_occupancy || 2),
                     // Extra bed and child pricing
@@ -13530,9 +13530,21 @@
         setTimeout(() => {
             // Set the destination first
             const destinationSelect = document.getElementById('hotelDestination');
-            if (destinationSelect && hotel.destination) {
-                destinationSelect.value = hotel.destination;
-                console.log('Set destination:', hotel.destination);
+            const destValue = hotel.destination || (hotel.hotelDetails && hotel.hotelDetails.location ? hotel.hotelDetails.location : '');
+            if (destinationSelect && destValue) {
+                // Try exact match first
+                destinationSelect.value = destValue;
+                // If exact match failed, try case-insensitive search through options
+                if (!destinationSelect.value || destinationSelect.value === '') {
+                    const destLower = destValue.toLowerCase().trim();
+                    const matchingOpt = Array.from(destinationSelect.options).find(
+                        opt => opt.value && opt.value.toLowerCase().trim() === destLower
+                    );
+                    if (matchingOpt) {
+                        destinationSelect.value = matchingOpt.value;
+                    }
+                }
+                console.log('Set destination:', destValue, '-> actual value:', destinationSelect.value);
             }
             
             // Set dates - ensure they have time component for datetime-local input
@@ -14895,6 +14907,20 @@
             destinationSelect.value = '';
         }
         
+        // Reset filter to Tour Sites by default
+        const filterTourSite = document.getElementById('filterTourSite');
+        if (filterTourSite) {
+            filterTourSite.checked = true;
+        }
+        const filterAttraction = document.getElementById('filterAttraction');
+        if (filterAttraction) {
+            filterAttraction.checked = false;
+        }
+        const filterAll = document.getElementById('filterAll');
+        if (filterAll) {
+            filterAll.checked = false;
+        }
+        
         // Clear attractions table
         const tbody = document.getElementById('attractionsTableBody');
         if (tbody) {
@@ -15355,7 +15381,7 @@
         // If no type passed, get from radio button
         if (!type) {
             const selectedRadio = document.querySelector('input[name="attractionTypeFilter"]:checked');
-            type = selectedRadio ? selectedRadio.value : 'attraction';
+            type = selectedRadio ? selectedRadio.value : 'toursite';
         }
         
         const rows = document.querySelectorAll('.attraction-row');
@@ -23753,7 +23779,19 @@
                     sell: parseFloat(item.adultSell || item.sell) || 0,
                     basePrice: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
                     base_price: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
-                    totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
+                    totalPrice: (() => {
+                        const _adultSell = parseFloat(item.adultSell) || 0;
+                        const _childSell = parseFloat(item.childSell) || 0;
+                        const _adultsQty = parseInt(item.adultsQty) || 0;
+                        const _childQty = parseInt(item.childQty) || 0;
+                        const _typeVal = (item.transferType || '').toString().toLowerCase();
+                        const _isShared = _typeVal === 's' || _typeVal === 'shared' || _typeVal === 'sic';
+                        if (_isShared) {
+                            return (_adultSell * _adultsQty) + (_childSell * _childQty);
+                        } else {
+                            return _adultSell || _childSell || parseFloat(item.sell || item.cost || 0) || 0;
+                        }
+                    })(),
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
@@ -23905,7 +23943,19 @@
                     sell: parseFloat(item.adultSell || item.sell) || 0,
                     basePrice: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
                     base_price: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
-                    totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
+                    totalPrice: (() => {
+                        const _adultSell = parseFloat(item.adultSell) || 0;
+                        const _childSell = parseFloat(item.childSell) || 0;
+                        const _adultsQty = parseInt(item.adultsQty) || 0;
+                        const _childQty = parseInt(item.childQty) || 0;
+                        const _typeVal = (item.transferType || '').toString().toLowerCase();
+                        const _isShared = _typeVal === 's' || _typeVal === 'shared' || _typeVal === 'sic';
+                        if (_isShared) {
+                            return (_adultSell * _adultsQty) + (_childSell * _childQty);
+                        } else {
+                            return _adultSell || _childSell || parseFloat(item.sell || item.cost || 0) || 0;
+                        }
+                    })(),
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
@@ -24192,7 +24242,8 @@
                 hotel_unique_id: hotel.hotel_unique_id || hotel.hotelId || "",
                 hotelName: hotel.hotelName || "",
                 roomType: hotel.roomType || "",
-                bedType: cleanBedType
+                bedType: cleanBedType,
+                destination: hotel.destination || hotel.location || ""
             };
             
             return hotelData;

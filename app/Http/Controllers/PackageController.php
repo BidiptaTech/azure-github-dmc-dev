@@ -21,6 +21,7 @@ use App\Models\PackageBooking;
 use App\Models\Vehicle;
 use App\Models\Agent;
 use App\Models\Room;
+use App\Models\Port;
 use Illuminate\Support\Facades\Crypt;
 
 class PackageController extends Controller
@@ -561,7 +562,7 @@ class PackageController extends Controller
      */
     public function getAttractionsByCity($city)
     {
-        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location','master_image']);
+        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location', 'master_image', 'adult_price', 'child_price']);
         return response()->json($attractions);
     }
 
@@ -574,7 +575,7 @@ class PackageController extends Controller
             ->with(['languages' => function ($query) {
                 $query->select('guide_id', 'language'); // columns in guide_language table
             }])
-            ->get(['guide_id', 'name', 'contact_no', 'city', 'status']);
+            ->get(['guide_id', 'name', 'contact_no', 'city', 'status', 'hourly_price', 'two_hour_price', 'four_hour_price', 'six_hour_price', 'eight_hour_price', 'ten_hour_price', 'twelve_hour_price', 'night_surcharge', 'night_start_time', 'night_end_time']);
 
         // Map to flatten language strings if needed
         $guides->transform(function ($guide) {
@@ -583,6 +584,16 @@ class PackageController extends Controller
                 'name'       => $guide->name,
                 'contact_no' => $guide->contact_no,
                 'languages'  => $guide->languages->pluck('language')->toArray(),
+                'hourly_price' => $guide->hourly_price ?? null,
+                'two_hour_price' => $guide->two_hour_price ?? null,
+                'four_hour_price' => $guide->four_hour_price ?? null,
+                'six_hour_price' => $guide->six_hour_price ?? null,
+                'eight_hour_price' => $guide->eight_hour_price ?? null,
+                'ten_hour_price' => $guide->ten_hour_price ?? null,
+                'twelve_hour_price' => $guide->twelve_hour_price ?? null,
+                'night_surcharge' => $guide->night_surcharge ?? null,
+                'night_start_time' => $guide->night_start_time ?? null,
+                'night_end_time' => $guide->night_end_time ?? null,
             ];
         });
 
@@ -594,8 +605,20 @@ class PackageController extends Controller
      */
     public function getRestaurantsByCity($city)
     {
-        $restaurants = Restaurant::where('city', $city)->get(['restaurant_id', 'name', 'city', 'cuisine']);
+        $restaurants = Restaurant::where('city', $city)->get(['restaurant_id', 'name', 'city', 'cuisine', 'bf_price', 'lunch_price', 'dinner_price', 'breakfast_available', 'lunch_available', 'dinner_available']);
         return response()->json(['restaurants' => $restaurants]);
+    }
+
+    /**
+     * Get ports by country (AJAX) for package definition transfers
+     */
+    public function getPortsByCountry($country)
+    {
+        $ports = Port::where('country', $country)
+            ->where('status', 1)
+            ->orderBy('port_name')
+            ->get(['port_id', 'port_name', 'country']);
+        return response()->json($ports);
     }
 
     /**
@@ -606,7 +629,7 @@ class PackageController extends Controller
         $user = Auth::user();
         $dmc_id = CommonHelper::getDmcId($user);
         if($dmc_id){
-            $transport = Vehicle::where('city', $city)->where('dmc_id', $dmc_id)->get(['vehicle_id', 'vehicle_name as name', 'city','vehicle_type']);
+            $transport = Vehicle::where('city', $city)->where('dmc_id', $dmc_id)->get(['vehicle_id', 'vehicle_name as name', 'city', 'vehicle_type', 'base_price']);
             return response()->json($transport);
         }else{
             return response()->json(['error' => 'You are not authorized to view this page.']);
@@ -726,6 +749,7 @@ class PackageController extends Controller
             $selectedHotels = $request->input('selected_hotels', '[]');
             $selectedAttractions = $request->input('selected_attractions', '[]');
             $selectedRestaurants = $request->input('selected_restaurants', '[]');
+            $localTransfers = $request->input('local_transfers', '[]');
             $definitionData = [
                 'hotels' => is_string($selectedHotels) ? json_decode($selectedHotels, true) : $selectedHotels,
                 'attractions' => is_string($selectedAttractions) ? json_decode($selectedAttractions, true) : $selectedAttractions,
@@ -733,6 +757,7 @@ class PackageController extends Controller
                 'arrival_pickup' => (int) $request->input('arrival_pickup', 0),
                 'departure_service' => (int) $request->input('departure_service', 0),
                 'independent_guide' => json_decode($request->input('definition_independent_guide', 'null'), true),
+                'local_transfers' => is_string($localTransfers) ? json_decode($localTransfers, true) : $localTransfers,
             ];
 
             $user = Auth::user();

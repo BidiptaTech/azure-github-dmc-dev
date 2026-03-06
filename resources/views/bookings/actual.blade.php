@@ -576,6 +576,14 @@
                     </select>
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Status</label>
+                    <select class="form-select form-select-sm" id="statusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="Actual" selected>Actual</option>
+                        <option value="Complete">Complete</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Destination</label>
                     <select class="form-select form-select-sm" id="destinationFilter">
                         <option value="">All Destinations</option>
@@ -755,7 +763,9 @@
                             data-created-at="{{ optional($tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-revenue="{{ $totalAmount }}"
-                            data-status="{{ $isActive ? 'Active' : ($isCompleted ? 'Completed' : 'Upcoming') }}"
+                            data-status="{{ $isActive ? 'Active' : ($isCompleted ? 'Complete' : 'Upcoming') }}"
+                            data-execution-status="{{ $tour->tour_status ?? '' }}"
+                            data-tour-status="{{ $tour->tour_status ?? '' }}"
                         >
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
@@ -1128,12 +1138,28 @@
                                 </div>
                             </td>
                             <td>
-                                @if($isActive)
-                                    <span class="badge bg-warning"><i class="ri-play-circle-line me-1"></i>Active</span>
+                                @if($tour->tour_status === 'Actual')
+                                    {{-- Actual tours: distinct style (e.g. blue play icon) --}}
+                                    <span class="badge bg-info text-dark">
+                                        <i class="ri-play-circle-line me-1"></i>Actual
+                                    </span>
+                                @elseif($tour->tour_status === 'Complete')
+                                    {{-- Completed tours: green check icon --}}
+                                    <span class="badge bg-success">
+                                        <i class="ri-checkbox-circle-line me-1"></i>Complete
+                                    </span>
+                                @elseif($isActive)
+                                    <span class="badge bg-warning">
+                                        <i class="ri-play-circle-line me-1"></i>Active
+                                    </span>
                                 @elseif($isCompleted)
-                                    <span class="badge bg-success"><i class="ri-checkbox-circle-line me-1"></i>Completed</span>
+                                    <span class="badge bg-success">
+                                        <i class="ri-checkbox-circle-line me-1"></i>Complete
+                                    </span>
                                 @else
-                                    <span class="badge bg-primary"><i class="ri-calendar-line me-1"></i>Upcoming</span>
+                                    <span class="badge bg-primary">
+                                        <i class="ri-calendar-line me-1"></i>Upcoming
+                                    </span>
                                 @endif
                             </td>
                             {{-- <td>
@@ -25194,7 +25220,7 @@ function filterTable() {
     const rangeCount = visibleRows.length;
     const totalRevenue = visibleRows.reduce((sum, r) => sum + parseFloat(r.getAttribute('data-revenue') || '0'), 0);
     const activeCount = visibleRows.filter(r => r.getAttribute('data-status') === 'Active').length;
-    const completedCount = visibleRows.filter(r => r.getAttribute('data-status') === 'Completed').length;
+    const completedCount = visibleRows.filter(r => r.getAttribute('data-status') === 'Complete').length;
 
     // Update counts and labels
     const countEl = document.getElementById('rangeCount');
@@ -25246,14 +25272,14 @@ function filterTable() {
         if (statActualLabel) statActualLabel.textContent = `Actual - ${label}`;
         if (statRevenueLabel) statRevenueLabel.textContent = `Revenue - ${label}`;
         if (statActiveLabel) statActiveLabel.textContent = `Active - ${label}`;
-        if (statCompletedLabel) statCompletedLabel.textContent = `Completed - ${label}`;
+        if (statCompletedLabel) statCompletedLabel.textContent = `Complete - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
         if (statActualLabel) statActualLabel.textContent = `${month} Actual`;
         if (statRevenueLabel) statRevenueLabel.textContent = `${month} Revenue`;
         if (statActiveLabel) statActiveLabel.textContent = `${month} Active`;
-        if (statCompletedLabel) statCompletedLabel.textContent = `${month} Completed`;
+        if (statCompletedLabel) statCompletedLabel.textContent = `${month} Complete`;
     }
 }
 

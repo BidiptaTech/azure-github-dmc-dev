@@ -1144,10 +1144,17 @@
                             <td class="align-top col-actions">
                                 <div class="actions-icons-wrap">
                                     @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                    @if($tour->is_pro == 1)
+                                    <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
+                                        <i class="ri-pencil-line"></i>
+                                    </a>
+                                    @else
                                     <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
                                        class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
                                         <i class="ri-pencil-line"></i>
                                     </a>
+                                    @endif
                                     @endif
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
@@ -1767,7 +1774,7 @@
                                                                     @if($hotelTransferCostDisplay > 0)
                                                                     <div class="col-12">
                                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$hotelTransferCostDisplay, 2) }}</div>
                                                                     </div>
                                                                     @endif
                                                                 </div>
@@ -2096,7 +2103,7 @@
                                                                    @if($attractionTransferCostDisplay > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$attractionTransferCostDisplay, 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>
@@ -2418,7 +2425,7 @@
                                                                    @if($restaurantTransferCostDisplay > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$restaurantTransferCostDisplay, 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>

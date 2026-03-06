@@ -1172,6 +1172,8 @@ class EnquiryFormPro extends Controller
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
             $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
             $tour->created_by = $user->userId; // Store the user ID who created the tour
+            // Store user currency for this tour based on DMC/user country
+            $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             
             // Store main guest data as JSON
@@ -3193,9 +3195,10 @@ class EnquiryFormPro extends Controller
                 foreach ($transfers as $transfer) {
                     $uniqueKey = md5(json_encode([
                         'vehicle_id' => $transfer['vehicle_id'] ?? '',
-                        'entrypickup' => $transfer['entrypickup'] ?? '',
-                        'entrydropoff' => $transfer['entrydropoff'] ?? '',
-                        'bookingDate' => $transfer['bookingDate'] ?? ''
+                        'entrypickup' => $transfer['entrypickup'] ?? ($transfer['pickup'] ?? ''),
+                        'entrydropoff' => $transfer['entrydropoff'] ?? ($transfer['dropoff'] ?? ''),
+                        'bookingDate' => $transfer['bookingDate'] ?? ($transfer['date'] ?? ''),
+                        'linked_to_hotel' => $transfer['linked_to_hotel'] ?? ($transfer['linkedToHotel'] ?? ''),
                     ]));
                     
                     if (in_array($uniqueKey, $seenTransfers)) continue;
