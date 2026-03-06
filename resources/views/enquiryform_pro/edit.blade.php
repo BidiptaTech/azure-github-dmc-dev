@@ -19094,34 +19094,35 @@
                 const destinationType = transferDestinationOption.attr('data-type') || 'hotel';
                 const dmcId = '{{ $dmc_id ?? "" }}';
                 
-                // Determine pickup and dropoff based on checkbox
-                let pickupId, pickupType, dropoffId, dropoffType, pickupName, dropoffName;
+                // Determine pickup and dropoff NAMES based on checkbox (for display only)
+                let pickupName, dropoffName;
                 if (isDestinationPickup) {
-                    // Destination is pickup, Restaurant is dropoff
-                    pickupId = actualDestinationId;
-                    pickupType = destinationType;
+                    // Destination is pickup, Restaurant is dropoff (for UI only)
                     pickupName = transferDestinationName;
-                    dropoffId = actualRestaurantId;
-                    dropoffType = 'restaurant';
                     dropoffName = restaurantName;
                 } else {
                     // Restaurant is pickup, Destination is dropoff (default behavior)
-                    pickupId = actualRestaurantId;
-                    pickupType = 'restaurant';
                     pickupName = restaurantName;
-                    dropoffId = actualDestinationId;
-                    dropoffType = destinationType;
                     dropoffName = transferDestinationName;
                 }
                 
-                if (vehicleId && pickupId && dropoffId && dmcId) {
+                // IMPORTANT:
+                // For pricing, always treat Restaurant as pickup and Destination as dropoff.
+                // This keeps the transfer price the same whether or not "Is PickUp?" is ticked,
+                // and avoids zero prices when zone mappings exist only in one direction.
+                const pricePickupId = actualRestaurantId;
+                const pricePickupType = 'restaurant';
+                const priceDropoffId = actualDestinationId;
+                const priceDropoffType = destinationType;
+                
+                if (vehicleId && pricePickupId && priceDropoffId && dmcId) {
                     try {
                         restaurantZonePrice = await fetchZonePrice(
                             vehicleId,
-                            pickupId,
-                            pickupType,
-                            dropoffId,
-                            dropoffType,
+                            pricePickupId,
+                            pricePickupType,
+                            priceDropoffId,
+                            priceDropoffType,
                             dmcId
                         );
                         
@@ -19476,34 +19477,33 @@
                 const destinationType = transferDestinationOption.attr('data-type') || 'hotel';
                 const dmcId = '{{ $dmc_id ?? "" }}';
                 
-                // Determine pickup and dropoff based on checkbox
-                let pickupId, pickupType, dropoffId, dropoffType, pickupName, dropoffName;
+                // Determine pickup and dropoff NAMES based on checkbox (for display only)
+                let pickupName, dropoffName;
                 if (isDestinationPickup) {
-                    // Destination is pickup, Restaurant is dropoff
-                    pickupId = actualDestinationId;
-                    pickupType = destinationType;
+                    // Destination is pickup, Restaurant is dropoff (for UI only)
                     pickupName = transferDestinationName;
-                    dropoffId = actualRestaurantId;
-                    dropoffType = 'restaurant';
                     dropoffName = restaurantName;
                 } else {
                     // Restaurant is pickup, Destination is dropoff (default behavior)
-                    pickupId = actualRestaurantId;
-                    pickupType = 'restaurant';
                     pickupName = restaurantName;
-                    dropoffId = actualDestinationId;
-                    dropoffType = destinationType;
                     dropoffName = transferDestinationName;
                 }
                 
-                if (vehicleId && pickupId && dropoffId && dmcId) {
+                // IMPORTANT: For pricing, always use Restaurant as pickup and Destination as dropoff.
+                // This matches create form and avoids 0 price when isPickup is checked (zone may only exist in one direction).
+                const pricePickupId = actualRestaurantId;
+                const pricePickupType = 'restaurant';
+                const priceDropoffId = actualDestinationId;
+                const priceDropoffType = destinationType;
+                
+                if (vehicleId && pricePickupId && priceDropoffId && dmcId) {
                     try {
                         restaurantZonePrice = await fetchZonePrice(
                             vehicleId,
-                            pickupId,
-                            pickupType,
-                            dropoffId,
-                            dropoffType,
+                            pricePickupId,
+                            pricePickupType,
+                            priceDropoffId,
+                            priceDropoffType,
                             dmcId
                         );
                         
@@ -20834,7 +20834,7 @@
     }
     
     // Update transfer field
-    function updateTransferField(index, field, value) {
+    async function updateTransferField(index, field, value) {
         if (transferList[index]) {
             const transfer = transferList[index];
             transfer[field] = value;
@@ -20910,8 +20910,44 @@
             
             // If type or way changes for local transfers, recalculate cost/sell based on zone prices
             if ((field === 'type' || field === 'way') && transfer.transportMode === 'local') {
-                const zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
-                const zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+                let zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
+                let zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+                
+                // If zone prices are missing (e.g. older bookings), try to fetch them so price can update
+                if (zonePrivatePrice === 0 && zoneSharedPrice === 0 && transfer.vehicleId && (transfer.pickupId || transfer.fromZoneId) && (transfer.dropId || transfer.toZoneId)) {
+                    const dmcId = '{{ $dmc_id ?? "" }}';
+                    const pickupIdForFetch = transfer.pickupId || transfer.fromZoneId || '';
+                    const dropIdForFetch = transfer.dropId || transfer.toZoneId || '';
+                    const pickupTypeForFetch = transfer.pickupType || 'hotel';
+                    const dropTypeForFetch = transfer.dropType || 'hotel';
+                    try {
+                        const zonePrice = await fetchZonePrice(transfer.vehicleId, pickupIdForFetch, pickupTypeForFetch, dropIdForFetch, dropTypeForFetch, dmcId);
+                        zonePrivatePrice = parseFloat(zonePrice.private_price) || 0;
+                        zoneSharedPrice = parseFloat(zonePrice.shared_price) || 0;
+                        if (zonePrivatePrice > 0 || zoneSharedPrice > 0) {
+                            transfer.zonePrivatePrice = zonePrivatePrice;
+                            transfer.zoneSharedPrice = zoneSharedPrice;
+                            console.log('Fetched zone prices for transfer type/way change:', { zonePrivatePrice, zoneSharedPrice });
+                        }
+                    } catch (err) {
+                        console.warn('Could not fetch zone price for transfer recalculation:', err);
+                    }
+                }
+                
+                // If we still don't have any zone prices, keep existing cost/sell (do not overwrite with 0)
+                if (zonePrivatePrice === 0 && zoneSharedPrice === 0) {
+                    console.warn('Skipping automatic transfer price recalculation because zone prices are missing.', {
+                        index,
+                        transferId: transfer.id,
+                        existingCost: transfer.cost,
+                        existingSell: transfer.sell
+                    });
+                    updateTransferTable();
+                    if ((field === 'sell' || field === 'adults' || field === 'child' || field === 'type' || field === 'way') && transfer.transportMode === 'local') {
+                        recalculateTotals();
+                    }
+                    return;
+                }
                 
                 // Get current type and way
                 const currentType = transfer.type || 'P';
@@ -28519,6 +28555,8 @@
         // Extract pickup and dropoff IDs
         const pickupId = data.pickupId || data.pickup_id || data.PickupPlaceid || data.from_zone_id || '';
         const dropId = data.dropId || data.drop_id || data.DropoffPlaceid || data.to_zone_id || '';
+        const pickupType = data.pickupType || data.pickup_type || 'hotel';
+        const dropType = data.dropType || data.drop_type || 'hotel';
         
         // CRITICAL FIX: Mark as linked if it has hotel info, linked_to_hotel, or sourceType
         // Transfers with hotelName are hotel-linked transfers
@@ -28556,6 +28594,8 @@
             zoneSharedPrice: zoneSharedPrice,
             fromZoneId: fromZoneId,
             toZoneId: toZoneId,
+            pickupType: pickupType,
+            dropType: dropType,
             taxIncluded: data.taxIncluded || data.tax_included || false,
             supplement: data.supplement !== undefined ? data.supplement : false,
             // Mark as linked if it has hotel info, linked_to_hotel, or sourceType
