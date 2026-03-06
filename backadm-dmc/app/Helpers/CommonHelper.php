@@ -4667,17 +4667,24 @@ class CommonHelper
         switch ($user->role_id) {
 
             case 1: // Admin
-            case 20: // Virtual DMC
-                return 'SGD'; // or default
+            case 20: 
+                return 'SGD'; 
 
             case 11: // DMC
                 $dmc_id = $user->userId;
                 break;
 
             case 33:
+            case 34:
+            case 35:
+            case 36:
             case 128:
             case 129:
             case 130:
+            case 131:
+            case 132:
+            case 133:
+            case 137:
             case 134:
             case 135:
             case 136:
@@ -4686,13 +4693,44 @@ class CommonHelper
                 break;
 
             case 37:    // Sales Manager
-            case 39:    // Sales Manager
+            case 12:
+            case 38:
+            case 64:
+            case 65:
+            case 66:
+            case 67:
+            case 68:
+            case 69:
+            case 70:
+            case 71:
+            case 72:
+            case 73:
+            case 74:
+            case 75:
+            case 76:
+            case 77:
+            case 78:
                 $sales_head = User::where('userId', $user->created_by)->first();
                 $dmc_id = $sales_head?->created_by;
                 break;
 
             case 38:    // Assistant Sales Manager
-            case 40:    // Assistant Sales Manager
+            case 40:
+            case 81:
+            case 84:
+            case 87:
+            case 90:
+            case 93:
+            case 96:
+            case 99:
+            case 102:
+            case 105:
+            case 108:
+            case 111:
+            case 114:
+            case 117:
+            case 120:
+            
                 $sales_manager = User::where('userId', $user->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager?->created_by)->first();
                 $dmc_id = $sales_head?->created_by;
