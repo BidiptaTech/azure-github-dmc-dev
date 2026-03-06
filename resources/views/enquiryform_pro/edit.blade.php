@@ -1015,23 +1015,23 @@
     @if($isEditMode && isset($tour))
         window.existingTourData = {
             tour_id: {{ $tour->tour_id ?? 'null' }},
-            display_id: '{{ $tour->display_id ?? '' }}',
+            display_id: @json($tour->display_id ?? ''),
             // Customer info from orders JSON (via initialData)
-            customer_name: '{{ $initialData['customer_name'] ?? '' }}',
-            phone: '{{ $initialData['contact_number'] ?? '' }}',
-            email: '{{ $initialData['email'] ?? '' }}',
-            salutation: '{{ $initialData['salutation'] ?? 'Mr' }}',
+            customer_name: @json($initialData['customer_name'] ?? ''),
+            phone: @json($initialData['contact_number'] ?? ''),
+            email: @json($initialData['email'] ?? ''),
+            salutation: @json($initialData['salutation'] ?? 'Mr'),
             adults: {{ $tour->adult ?? 2 }},
             children: {{ $tour->child ?? 0 }},
             infants: {{ $tour->infant ?? 0 }},
-            tour_start_date: '{{ $initialData['tour_start_date'] ?? '' }}',
-            tour_end_date: '{{ $initialData['tour_end_date'] ?? '' }}',
-            country: '{{ $tour->destination ?? '' }}',
+            tour_start_date: @json($initialData['tour_start_date'] ?? ''),
+            tour_end_date: @json($initialData['tour_end_date'] ?? ''),
+            country: @json($tour->destination ?? ''),
             agency_id: {{ $tour->agency_id ?? 'null' }},
             agent_id: {{ $tour->agent_id ?? 'null' }},
-            status: '{{ $tour->status ?? '' }}',
-            remarks: '{{ addslashes($tour->remarks ?? '') }}',
-            created_at: '{{ $tour->created_at ?? '' }}'
+            status: @json((string)($tour->status ?? '')),
+            remarks: @json($tour->remarks ?? ''),
+            created_at: @json($tour->created_at ? $tour->created_at->toISOString() : '')
         };
         console.log('=== EDIT MODE ===');
         console.log('Tour ID:', window.tourId);
@@ -2448,11 +2448,11 @@
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Filter By Type:</label>
                             <div class="d-flex gap-2 mt-1">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" checked onchange="filterAttractionsByType()">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" onchange="filterAttractionsByType()">
                                     <label class="form-check-label small" for="filterAttraction" style="font-size: 10px;">Attractions</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" onchange="filterAttractionsByType()">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" checked onchange="filterAttractionsByType()">
                                     <label class="form-check-label small" for="filterTourSite" style="font-size: 10px;">Tour Sites</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
@@ -6702,6 +6702,15 @@
         return parsed;
     }
     
+    // Add N days to an ISO date string (YYYY-MM-DD), return YYYY-MM-DD
+    function addDaysToDateString(isoDateStr, days) {
+        if (!isoDateStr) return '';
+        const d = new Date(isoDateStr);
+        if (isNaN(d.getTime())) return isoDateStr;
+        d.setDate(d.getDate() + parseInt(days, 10));
+        return d.toISOString().slice(0, 10);
+    }
+    
     // Get header start and end dates (ISO strings + Date objects)
     function getHeaderDates() {
         const startDateInput = getHeaderStartInput();
@@ -7165,18 +7174,18 @@
         
         let updated = false;
         
-        // Update start date if different
-        if (currentStartISO !== earliestDate) {
+        // Only expand the range, never shrink: update start only if no start set or a service is before current start
+        if (!currentStartISO || earliestDate < currentStartISO) {
             setHeaderInputValue(startDateInput, earliestDate);
             updated = true;
-            console.log('✓ Updated start date to:', earliestDate);
+            console.log('✓ Set/expanded start date to:', earliestDate);
         }
         
-        // Update end date if different
-        if (currentEndISO !== latestDate) {
+        // Only expand the range, never shrink: update end only if no end set or a service is after current end
+        if (!currentEndISO || latestDate > currentEndISO) {
             setHeaderInputValue(endDateInput, latestDate);
             updated = true;
-            console.log('✓ Updated end date to:', latestDate);
+            console.log('✓ Set/expanded end date to:', latestDate);
         }
         
         if (updated) {
@@ -8382,7 +8391,7 @@
                     mealPlan: order.meal_plan || order.mealPlan || 'room only',
                     cost: parseFloat(order.cost || 0),
                     sell: parseFloat(order.price || order.sell || 0),
-                    destination: order.destination || order.city || '',
+                    destination: order.destination || order.city || (order.hotelDetails && order.hotelDetails.location ? order.hotelDetails.location : '') || '',
                     adultsPerRoom: parseInt(order.head_count || 2),
                     maxOccupancy: parseInt(order.max_occupancy || 2),
                     // Extra bed and child pricing
@@ -9120,7 +9129,9 @@
         window.isArrivalDepartureOnlyMode = false;
         window.editingArrivalDepartureIndex = null;
         window.editingArrivalDepartureType = null;
-        window.isEditingArrivalDeparture = false; // Reset edit flag
+        if (!isArrivalDepartureOnly) {
+            window.isEditingArrivalDeparture = false; // Reset only when not editing arrival/departure
+        }
         document.getElementById('selectedHotelsList').innerHTML = '';
         document.getElementById('noHotelsMessage').style.display = 'block';
         document.getElementById('saveAccommodationBtnText').textContent = 'Save & Close';
@@ -11280,6 +11291,8 @@
                                 dateTime: arrivalDateTime,
                                 portName: arrivalPortName,
                                 destination: arrivalDestinationName ? `Arrival: ${arrivalPortName} → ${arrivalDestinationName}` : `Arrival: ${arrivalPortName}`,
+                                destinationId: arrivalDestinationId || transferList[transferIndex].destinationId,
+                                destinationName: arrivalDestinationName || transferList[transferIndex].destinationName,
                                 vehicleId: arrivalVehicleId,
                                 vehicleType: arrivalVehicleType,
                                 vehicleName: arrivalVehicleName,
@@ -11292,6 +11305,12 @@
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
+                            
+                            // Sync linked guide date when arrival date changes
+                            if (item.guideId) {
+                                const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
+                                if (gIdx !== -1) guideList[gIdx].dateTime = arrivalDateTime;
+                            }
                             
                             // Update arrival/departure entry prices
                             arrivalDepartureList[index].cost = finalCost;
@@ -11362,6 +11381,8 @@
                         dateTime: arrivalDateTime,
                         portName: arrivalPortName,
                         destination: arrivalDestinationName ? `Arrival: ${arrivalPortName} → ${arrivalDestinationName}` : `Arrival: ${arrivalPortName}`,
+                        destinationId: arrivalDestinationId || null,
+                        destinationName: arrivalDestinationName || null,
                         vehicleId: arrivalVehicleId,
                         vehicleType: arrivalVehicleType,
                         vehicleName: arrivalVehicleName,
@@ -11474,6 +11495,8 @@
                                 dateTime: departureDateTime,
                                 portName: departurePortName,
                                 destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
+                                destinationId: departureDestinationId || transferList[transferIndex].destinationId,
+                                destinationName: departureDestinationName || transferList[transferIndex].destinationName,
                                 vehicleId: departureVehicleId,
                                 vehicleType: departureVehicleType,
                                 vehicleName: departureVehicleName,
@@ -11486,6 +11509,12 @@
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
+                            
+                            // Sync linked guide date when departure date changes
+                            if (item.guideId) {
+                                const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
+                                if (gIdx !== -1) guideList[gIdx].dateTime = departureDateTime;
+                            }
                             
                             // Update arrival/departure entry prices
                             arrivalDepartureList[index].cost = finalCost;
@@ -11544,6 +11573,8 @@
                         dateTime: departureDateTime,
                         portName: departurePortName,
                         destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
+                        destinationId: departureDestinationId || null,
+                        destinationName: departureDestinationName || null,
                         vehicleId: departureVehicleId,
                         vehicleType: departureVehicleType,
                         vehicleName: departureVehicleName,
@@ -11719,6 +11750,8 @@
                                 dateTime: departureDateTime,
                                 portName: departurePortName,
                                 destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
+                                destinationId: departureDestinationId || transferList[transferIndex].destinationId,
+                                destinationName: departureDestinationName || transferList[transferIndex].destinationName,
                                 vehicleId: departureVehicleId,
                                 vehicleType: departureVehicleType,
                                 vehicleName: departureVehicleName,
@@ -11731,6 +11764,12 @@
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
+                            
+                            // Sync linked guide date when departure date changes
+                            if (item.guideId) {
+                                const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
+                                if (gIdx !== -1) guideList[gIdx].dateTime = departureDateTime;
+                            }
                             
                             // Update departure entry prices
                             arrivalDepartureList[index].adultCost = prices.cost;
@@ -11789,6 +11828,8 @@
                         dateTime: departureDateTime,
                         portName: departurePortName,
                         destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
+                        destinationId: departureDestinationId || null,
+                        destinationName: departureDestinationName || null,
                         vehicleId: departureVehicleId,
                         vehicleType: departureVehicleType,
                         vehicleName: departureVehicleName,
@@ -13489,9 +13530,21 @@
         setTimeout(() => {
             // Set the destination first
             const destinationSelect = document.getElementById('hotelDestination');
-            if (destinationSelect && hotel.destination) {
-                destinationSelect.value = hotel.destination;
-                console.log('Set destination:', hotel.destination);
+            const destValue = hotel.destination || (hotel.hotelDetails && hotel.hotelDetails.location ? hotel.hotelDetails.location : '');
+            if (destinationSelect && destValue) {
+                // Try exact match first
+                destinationSelect.value = destValue;
+                // If exact match failed, try case-insensitive search through options
+                if (!destinationSelect.value || destinationSelect.value === '') {
+                    const destLower = destValue.toLowerCase().trim();
+                    const matchingOpt = Array.from(destinationSelect.options).find(
+                        opt => opt.value && opt.value.toLowerCase().trim() === destLower
+                    );
+                    if (matchingOpt) {
+                        destinationSelect.value = matchingOpt.value;
+                    }
+                }
+                console.log('Set destination:', destValue, '-> actual value:', destinationSelect.value);
             }
             
             // Set dates - ensure they have time component for datetime-local input
@@ -14154,7 +14207,7 @@
             
             // Set flag to prevent initializeModalDates from overwriting arrival/departure dates
             window.isEditingArrivalDeparture = true;
-            
+            window.willOpenArrivalDepartureOnly = true;
             openAccommodationModal();
             
             // Set flag for arrival/departure only mode AFTER opening modal (because openAccommodationModal resets it)
@@ -14260,37 +14313,72 @@
                 console.log('Type:', arrivalDeparture.type);
                 console.log('Original dateTime:', arrivalDeparture.dateTime);
                 
+                // Enrich from linked transfer so modal always shows what's in the Local Transfer row
+                let data = { ...arrivalDeparture };
+                let linkedTransfer = null;
+                if (data.transferId) {
+                    linkedTransfer = transferList.find(t => t.id === data.transferId);
+                }
+                if (!linkedTransfer && data.id) {
+                    linkedTransfer = transferList.find(t => {
+                        const tSrc = (t.sourceType || '').toLowerCase();
+                        return (tSrc === 'arrival' && (data.type === 'Arrival' || data.type === 'arrival')) ||
+                               (tSrc === 'departure' && (data.type === 'Departure' || data.type === 'departure'))
+                            ? (t.sourceId === data.id || t.id === data.transferId) : false;
+                    });
+                }
+                if (linkedTransfer) {
+                    if (linkedTransfer.vehicleId != null && linkedTransfer.vehicleId !== '') data.vehicleId = linkedTransfer.vehicleId;
+                    if (linkedTransfer.vehicleType != null && linkedTransfer.vehicleType !== '') data.vehicleType = linkedTransfer.vehicleType;
+                    if (linkedTransfer.vehicleName != null && linkedTransfer.vehicleName !== '') data.vehicleName = linkedTransfer.vehicleName;
+                    if (linkedTransfer.type != null && linkedTransfer.type !== '') data.transferType = linkedTransfer.type;
+                    if (linkedTransfer.way != null && linkedTransfer.way !== '') data.transferWay = linkedTransfer.way;
+                    if (linkedTransfer.destinationId != null && linkedTransfer.destinationId !== '') data.transferDestinationId = linkedTransfer.destinationId;
+                    if (linkedTransfer.destinationName != null && linkedTransfer.destinationName !== '') data.transferDestinationName = linkedTransfer.destinationName;
+                    else if (linkedTransfer.destination) data.transferDestinationName = linkedTransfer.destination;
+                }
+                const wayVal = (data.transferWay === 'both-way' || data.transferWay === 'Both Way' || data.transferWay === 'Round Trip') ? 'both-way' : 'one-way';
+                
                 if (arrivalDeparture.type === 'Arrival') {
                     // Normalize date to YYYY-MM-DDTHH:mm format for datetime-local input
-                    const normalizedDateTime = normalizeDateTimeLocal(arrivalDeparture.dateTime);
+                    const normalizedDateTime = normalizeDateTimeLocal(data.dateTime);
                     console.log('Normalized dateTime for Arrival:', normalizedDateTime);
                     
                     document.getElementById('arrivalDateTime').value = normalizedDateTime || '';
                     console.log('Set arrivalDateTime field to:', document.getElementById('arrivalDateTime').value);
                     
-                    $('#arrivalPort').val(arrivalDeparture.portId).trigger('change');
-                    document.getElementById('arrivalFlightNo').value = arrivalDeparture.flightNo || '';
+                    $('#arrivalPort').val(data.portId).trigger('change');
+                    document.getElementById('arrivalFlightNo').value = data.flightNo || '';
                     // Only check transfer if hasTransfer is true (independent of guide)
-                    document.getElementById('arrivalTransfer').checked = arrivalDeparture.hasTransfer || false;
+                    document.getElementById('arrivalTransfer').checked = data.hasTransfer || false;
                     toggleArrivalTransferFields(); // Show/hide transfer fields
-                    if (arrivalDeparture.transferDestinationId) {
-                        $('#arrivalDestination').val(arrivalDeparture.transferDestinationId).trigger('change');
+                    if (data.transferDestinationId) {
+                        $('#arrivalDestination').val(data.transferDestinationId).trigger('change');
                     }
-                    document.getElementById('arrivalTransferWay').value = 'one-way';
-                    document.getElementById('arrivalTransferType').value = arrivalDeparture.transferType || 'S';
-                    document.getElementById('arrivalVehicleType').value = arrivalDeparture.vehicleId || '';
-                    document.getElementById('arrivalAdults').value = arrivalDeparture.adultsQty || 2;
-                    document.getElementById('arrivalChild').value = arrivalDeparture.childQty || 0;
-                    document.getElementById('arrivalInfant').value = arrivalDeparture.infantQty || 0;
+                    document.getElementById('arrivalTransferWay').value = wayVal;
+                    document.getElementById('arrivalTransferType').value = data.transferType || 'S';
+                    const arrivalVehicleVal = data.vehicleId != null && data.vehicleId !== '' ? String(data.vehicleId) : '';
+                    $('#arrivalVehicleType').val(arrivalVehicleVal).trigger('change');
+                    if (arrivalVehicleVal && document.getElementById('arrivalVehicleType').value !== arrivalVehicleVal) {
+                        const arrivalVehicleSelect = document.getElementById('arrivalVehicleType');
+                        const opt = Array.from(arrivalVehicleSelect.options).find(o => (o.text || '').trim() === (data.vehicleName || '').trim() || (o.value && String(o.value) === arrivalVehicleVal));
+                        if (opt) arrivalVehicleSelect.value = opt.value;
+                    }
+                    if (typeof $.fn.select2 !== 'undefined' && $('#arrivalVehicleType').hasClass('select2-hidden-accessible')) {
+                        $('#arrivalVehicleType').trigger('change.select2');
+                    }
+                    document.getElementById('arrivalAdults').value = data.adultsQty || 2;
+                    document.getElementById('arrivalChild').value = data.childQty || 0;
+                    document.getElementById('arrivalInfant').value = data.infantQty || 0;
                     // Populate cost and sell
-                    document.getElementById('arrivalCost').value = arrivalDeparture.cost || arrivalDeparture.adultCost || 0;
-                    document.getElementById('arrivalSell').value = arrivalDeparture.sell || arrivalDeparture.adultSell || 0;
+                    document.getElementById('arrivalCost').value = data.cost || data.adultCost || 0;
+                    document.getElementById('arrivalSell').value = data.sell || data.adultSell || 0;
                     
                     // Sync guide counts with transfer values
                     syncArrivalGuideCounts();
                     
                     // Show guide section if transfer is checked or if guide exists
-                    if (arrivalDeparture.hasTransfer || arrivalDeparture.guideId) {
+                    if (data.hasTransfer || data.guideId) {
                         const arrivalGuideSection = document.getElementById('arrivalGuideSection');
                         if (arrivalGuideSection) {
                             arrivalGuideSection.style.display = 'block';
@@ -14298,8 +14386,8 @@
                     }
                     
                     // Populate arrival guide if exists
-                    if (arrivalDeparture.guideId) {
-                        const guideEntry = guideList.find(g => String(g.id) === String(arrivalDeparture.guideId));
+                    if (data.guideId) {
+                        const guideEntry = guideList.find(g => String(g.id) === String(data.guideId));
                         if (guideEntry) {
                             const arrivalGuideSection = document.getElementById('arrivalGuideSection');
                             if (arrivalGuideSection) {
@@ -14360,35 +14448,35 @@
                     }
                 } else {
                     // Normalize date to YYYY-MM-DDTHH:mm format for datetime-local input
-                    const normalizedDateTime = normalizeDateTimeLocal(arrivalDeparture.dateTime);
+                    const normalizedDateTime = normalizeDateTimeLocal(data.dateTime);
                     console.log('Normalized dateTime for Departure:', normalizedDateTime);
                     
                     document.getElementById('departureDateTime').value = normalizedDateTime || '';
                     console.log('Set departureDateTime field to:', document.getElementById('departureDateTime').value);
                     
-                    $('#departurePort').val(arrivalDeparture.portId).trigger('change');
-                    document.getElementById('departureFlightNo').value = arrivalDeparture.flightNo || '';
+                    $('#departurePort').val(data.portId).trigger('change');
+                    document.getElementById('departureFlightNo').value = data.flightNo || '';
                     // Only check transfer if hasTransfer is true (independent of guide)
-                    document.getElementById('departureTransfer').checked = arrivalDeparture.hasTransfer || false;
+                    document.getElementById('departureTransfer').checked = data.hasTransfer || false;
                     toggleDepartureTransferFields(); // Show/hide transfer fields
-                    if (arrivalDeparture.transferDestinationId) {
-                        $('#departureDestination').val(arrivalDeparture.transferDestinationId).trigger('change');
+                    if (data.transferDestinationId) {
+                        $('#departureDestination').val(data.transferDestinationId).trigger('change');
                     }
-                    document.getElementById('departureTransferWay').value = 'one-way';
-                    document.getElementById('departureTransferType').value = arrivalDeparture.transferType || 'S';
-                    document.getElementById('departureVehicleType').value = arrivalDeparture.vehicleId || '';
-                    document.getElementById('departureAdults').value = arrivalDeparture.adultsQty || 2;
-                    document.getElementById('departureChild').value = arrivalDeparture.childQty || 0;
-                    document.getElementById('departureInfant').value = arrivalDeparture.infantQty || 0;
+                    document.getElementById('departureTransferWay').value = wayVal;
+                    document.getElementById('departureTransferType').value = data.transferType || 'S';
+                    document.getElementById('departureVehicleType').value = data.vehicleId || '';
+                    document.getElementById('departureAdults').value = data.adultsQty || 2;
+                    document.getElementById('departureChild').value = data.childQty || 0;
+                    document.getElementById('departureInfant').value = data.infantQty || 0;
                     // Populate cost and sell
-                    document.getElementById('departureCost').value = arrivalDeparture.cost || arrivalDeparture.adultCost || 0;
-                    document.getElementById('departureSell').value = arrivalDeparture.sell || arrivalDeparture.adultSell || 0;
+                    document.getElementById('departureCost').value = data.cost || data.adultCost || 0;
+                    document.getElementById('departureSell').value = data.sell || data.adultSell || 0;
                     
                     // Sync guide counts with transfer values
                     syncDepartureGuideCounts();
                     
                     // Show guide section if transfer is checked or if guide exists
-                    if (arrivalDeparture.hasTransfer || arrivalDeparture.guideId) {
+                    if (data.hasTransfer || data.guideId) {
                         const departureGuideSection = document.getElementById('departureGuideSection');
                         if (departureGuideSection) {
                             departureGuideSection.style.display = 'block';
@@ -14396,8 +14484,8 @@
                     }
                     
                     // Populate departure guide if exists
-                    if (arrivalDeparture.guideId) {
-                        const guideEntry = guideList.find(g => String(g.id) === String(arrivalDeparture.guideId));
+                    if (data.guideId) {
+                        const guideEntry = guideList.find(g => String(g.id) === String(data.guideId));
                         if (guideEntry) {
                             const departureGuideSection = document.getElementById('departureGuideSection');
                             if (departureGuideSection) {
@@ -14460,7 +14548,7 @@
                 
                 // Reset the flag after populating
                 window.isEditingArrivalDeparture = false;
-            }, 250);
+            }, 400);
             
             // Update button text based on type
             if (arrivalDeparture.type === 'Arrival') {
@@ -14545,12 +14633,21 @@
             const arrivalDeparture = arrivalDepartureList[index];
             arrivalDeparture.dateTime = value;
             
-            // If this arrival/departure has a linked transfer, update it
+            // If this arrival/departure has a linked transfer, update it (so Local Transfer row shows new date)
             if (arrivalDeparture.transferId) {
                 const transferIndex = transferList.findIndex(t => t.id === arrivalDeparture.transferId);
                 if (transferIndex !== -1) {
                     transferList[transferIndex].dateTime = value;
                     updateTransferTable();
+                }
+            }
+            
+            // If this arrival/departure has a linked guide, update guide's date (so Tour Guide row shows new date)
+            if (arrivalDeparture.guideId) {
+                const gIdx = guideList.findIndex(g => String(g.id) === String(arrivalDeparture.guideId));
+                if (gIdx !== -1) {
+                    guideList[gIdx].dateTime = value;
+                    if (typeof updateGuideTable === 'function') updateGuideTable();
                 }
             }
             
@@ -14810,6 +14907,20 @@
             destinationSelect.value = '';
         }
         
+        // Reset filter to Tour Sites by default
+        const filterTourSite = document.getElementById('filterTourSite');
+        if (filterTourSite) {
+            filterTourSite.checked = true;
+        }
+        const filterAttraction = document.getElementById('filterAttraction');
+        if (filterAttraction) {
+            filterAttraction.checked = false;
+        }
+        const filterAll = document.getElementById('filterAll');
+        if (filterAll) {
+            filterAll.checked = false;
+        }
+        
         // Clear attractions table
         const tbody = document.getElementById('attractionsTableBody');
         if (tbody) {
@@ -14969,7 +15080,7 @@
     }
     
     // Load attractions by destination
-    function loadAttractionsByDestination() {
+    function loadAttractionsByDestination(onLoadedCallback) {
         const destination = document.getElementById('tourDestination').value;
         const tbody = document.getElementById('attractionsTableBody');
         
@@ -15249,6 +15360,11 @@
                         // Apply the attraction type filter based on radio button selection (default: attractions only)
                         filterAttractionsByType();
                         console.log('✓ Applied attraction type filter');
+                        
+                        // Fire callback after all auto-selections are done (e.g. for editTour to restore saved values)
+                        if (typeof onLoadedCallback === 'function') {
+                            onLoadedCallback();
+                        }
                     }, 100);
                 } else {
                     tbody.innerHTML = '<tr><td colspan="15" class="text-center text-muted" style="padding: 20px;">No attractions found for this destination</td></tr>';
@@ -15265,7 +15381,7 @@
         // If no type passed, get from radio button
         if (!type) {
             const selectedRadio = document.querySelector('input[name="attractionTypeFilter"]:checked');
-            type = selectedRadio ? selectedRadio.value : 'attraction';
+            type = selectedRadio ? selectedRadio.value : 'toursite';
         }
         
         const rows = document.querySelectorAll('.attraction-row');
@@ -15342,7 +15458,7 @@
             const vehicleId = vehicleTypeSelect?.value || '';
             const vehicleOption = vehicleTypeSelect?.selectedOptions[0];
             const vehicleType = vehicleOption?.getAttribute('data-type') || 'sedan';
-            const vehicleName = vehicleOption?.text || '';
+            const vehicleName = (vehicleOption?.text || '').replace(/\s*\(\d+ seats\)\s*$/i, '').trim();
             const vehicleCapacity = parseInt(vehicleOption?.getAttribute('data-seating')) || 0;
             const transferWay = row.querySelector('.attraction-transfer-way').value;
             const transferType = row.querySelector('.attraction-transfer-type').value;
@@ -15369,6 +15485,11 @@
             const tourId = oldTour.id; // Use existing tour ID
             let transferId = oldTour.transferId; // Keep existing transfer ID if updating
             let guideEntryId = oldTour.guideId; // Keep existing guide ID if updating
+            
+            // Preserve existing transfer prices before removal (fallback if zone price re-fetch returns 0)
+            const oldTransferForPrice = oldTour.transferId ? transferList.find(t => t.id === oldTour.transferId) : null;
+            const oldTransferCost = parseFloat(oldTransferForPrice?.cost) || 0;
+            const oldTransferSell = parseFloat(oldTransferForPrice?.sell) || 0;
             
             if (oldTour.transferId) {
                 transferList = transferList.filter(t => t.id !== oldTour.transferId);
@@ -15714,7 +15835,7 @@
             const vehicleId = vehicleTypeSelect?.value || '';
             const vehicleOption = vehicleTypeSelect?.selectedOptions[0];
             const vehicleType = vehicleOption?.getAttribute('data-type') || 'sedan';
-            const vehicleName = vehicleOption?.text || '';
+            const vehicleName = (vehicleOption?.text || '').replace(/\s*\(\d+ seats\)\s*$/i, '').trim();
             const vehicleCapacity = parseInt(vehicleOption?.getAttribute('data-seating')) || 0;
             const transferWay = row.querySelector('.attraction-transfer-way').value;
             const transferType = row.querySelector('.attraction-transfer-type').value;
@@ -15857,8 +15978,21 @@
                         transferSell = prices.sell || 0;
                     } catch (error) {
                         console.error('Error fetching zone price for attraction transfer:', error);
-                        // Fallback: keep cost and sell as 0
                     }
+                }
+                
+                // Fallback: if new price is 0 but the old transfer had a price, preserve it
+                if (transferCost === 0 && oldTransferCost > 0) {
+                    transferCost = oldTransferCost;
+                    if (oldTransferForPrice) {
+                        zonePrice.private_price = parseFloat(oldTransferForPrice.zonePrivatePrice) || 0;
+                        zonePrice.shared_price = parseFloat(oldTransferForPrice.zoneSharedPrice) || 0;
+                    }
+                    console.log('Using existing attraction transfer cost as fallback:', transferCost);
+                }
+                if (transferSell === 0 && oldTransferSell > 0) {
+                    transferSell = oldTransferSell;
+                    console.log('Using existing attraction transfer sell as fallback:', transferSell);
                 }
                 
                 transferInfo = {
@@ -16281,12 +16415,27 @@
         }
         document.getElementById('tourDateTime').value = dateTimeValue;
         
-        // Load attractions for the destination
-        loadAttractionsByDestination();
-        
-        // After attractions load, find and check the matching attraction
-        setTimeout(() => {
+        // Load attractions for the destination, then restore saved values via callback
+        loadAttractionsByDestination(() => {
             const attractionRows = document.querySelectorAll('.attraction-row');
+            
+            // Determine attraction type (tour site vs attraction) for this tour and set the filter radio accordingly
+            let selectedFilterType = 'attraction'; // default
+            const targetRowForType = Array.from(attractionRows).find(row => {
+                const attrId = row.getAttribute('data-attraction-id');
+                return attrId == tour.attractionId;
+            });
+            if (targetRowForType) {
+                const rowType = parseInt(targetRowForType.getAttribute('data-attraction-type')) || 1;
+                selectedFilterType = (rowType === 1) ? 'toursite' : 'attraction';
+            }
+            const filterRadioId = selectedFilterType === 'toursite' ? 'filterTourSite' : 'filterAttraction';
+            const filterRadio = document.getElementById(filterRadioId);
+            if (filterRadio) {
+                filterRadio.checked = true;
+            }
+            // Apply filter so the selected attraction row is visible
+            filterAttractionsByType(selectedFilterType);
             attractionRows.forEach(row => {
                 const attrId = row.getAttribute('data-attraction-id');
                 if (attrId == tour.attractionId) {
@@ -16319,15 +16468,28 @@
                         if (transferCheckbox) transferCheckbox.checked = true;
                         
                         // Set transfer destination
-                        if (tour.transferInfo.destination) {
+                        if (tour.transferInfo.destination || tour.transferInfo.destinationId) {
                             const transferDestSelect = row.querySelector('.attraction-transfer-destination');
                             if (transferDestSelect) {
-                                // Find the option that matches the destination name
-                                for (let i = 0; i < transferDestSelect.options.length; i++) {
-                                    const optionName = transferDestSelect.options[i].getAttribute('data-name');
-                                    if (optionName === tour.transferInfo.destination) {
-                                        transferDestSelect.value = transferDestSelect.options[i].value;
-                                        break;
+                                let matched = false;
+                                // First try matching by destinationId (most reliable - option value)
+                                if (tour.transferInfo.destinationId) {
+                                    const optById = Array.from(transferDestSelect.options).find(o =>
+                                        String(o.value) === String(tour.transferInfo.destinationId)
+                                    );
+                                    if (optById) {
+                                        transferDestSelect.value = optById.value;
+                                        matched = true;
+                                    }
+                                }
+                                // Fall back to matching by destination name (data-name attribute)
+                                if (!matched && tour.transferInfo.destination) {
+                                    for (let i = 0; i < transferDestSelect.options.length; i++) {
+                                        const optionName = transferDestSelect.options[i].getAttribute('data-name');
+                                        if (optionName === tour.transferInfo.destination) {
+                                            transferDestSelect.value = transferDestSelect.options[i].value;
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -16381,7 +16543,7 @@
                     }
                 }
             });
-        }, 500);
+        });
         
         // Change modal title and button text
         document.getElementById('tourModalTitleText').textContent = 'Edit Tour / Attraction';
@@ -18832,7 +18994,14 @@
                 return;
             }
             const mealName = row.getAttribute('data-meal-name');
-            const mealType = row.getAttribute('data-meal-type') || mealName;
+            // Use period (Lunch/Breakfast/Dinner) for display, fallback to meal name then type - so we keep "Lunch" not "Set Menu"
+            const mealPeriod = row.getAttribute('data-meal-period') || mealName;
+            const mealTypeRaw = row.getAttribute('data-meal-type') || mealName;
+            const mealType = mealPeriod || mealTypeRaw; // Prefer period for display: "Lunch", "Breakfast"
+            const mealTypeId = row.getAttribute('data-meal-type-id');
+            let mealSpecificType = '';
+            if (mealTypeId == '1') mealSpecificType = '🍽️ Buffet';
+            else if (mealTypeId == '2') mealSpecificType = '📋 Set Menu';
             
             // Get values from the row (use optional chaining for all selectors)
             const mealCount = parseInt(row.querySelector('.meal-count')?.value) || 0;
@@ -18858,7 +19027,7 @@
             const vehicleId = vehicleTypeSelect?.value || '';
             const vehicleOption = vehicleTypeSelect?.selectedOptions[0];
             const vehicleType = vehicleOption?.getAttribute('data-type') || 'sedan';
-            const vehicleName = vehicleOption?.text || '';
+            const vehicleName = (vehicleOption?.text || '').replace(/\s*\(\d+ seats\)\s*$/i, '').trim();
             const vehicleCapacity = parseInt(vehicleOption?.getAttribute('data-seating')) || 0;
             const transferWay = document.getElementById('restaurantTransferWay')?.value || 'one-way';
             const transferType = document.getElementById('restaurantTransferType')?.value || 'S';
@@ -18913,6 +19082,11 @@
                 let restaurantTransferCost = 0;
                 let restaurantTransferSell = 0;
                 
+                // Preserve existing prices as fallback in case the zone price lookup fails
+                const existingTransferForPrice = transferId ? transferList.find(t => t.id === transferId) : null;
+                const existingTransferCost = parseFloat(existingTransferForPrice?.cost) || 0;
+                const existingTransferSell = parseFloat(existingTransferForPrice?.sell) || 0;
+                
                 // Get restaurant ID and destination details for zone price calculation
                 const restaurantSelect = document.getElementById('mealRestaurant');
                 const actualRestaurantId = restaurantSelect?.value || '';
@@ -18957,8 +19131,18 @@
                         restaurantTransferSell = prices.sell || 0;
                     } catch (error) {
                         console.error('Error fetching zone price for restaurant transfer:', error);
-                        // Fallback: keep price as 0
                     }
+                }
+                
+                // Fallback: if new price is 0 but the existing transfer had a price, preserve it
+                // (handles guide-only edits where vehicle/destination haven't changed)
+                if (restaurantTransferCost === 0 && existingTransferCost > 0) {
+                    restaurantTransferCost = existingTransferCost;
+                    console.log('Using existing transfer cost as fallback:', restaurantTransferCost);
+                }
+                if (restaurantTransferSell === 0 && existingTransferSell > 0) {
+                    restaurantTransferSell = existingTransferSell;
+                    console.log('Using existing transfer sell as fallback:', restaurantTransferSell);
                 }
                 
                 // Create transfer entry data
@@ -19200,6 +19384,7 @@
                 mealId: mealItemId, // This is the meal item ID from database
                 mealName: mealName,
                 mealType: mealType,
+                mealSpecificType: mealSpecificType || oldMeal.mealSpecificType || '', // Preserve "Set Menu"/"Buffet" for display
                 dateTime: dateTime,
                 mealCount: mealCount,
                 adultsQty: adultsQty,
@@ -19246,7 +19431,7 @@
             const vehicleId = vehicleTypeSelect?.value || '';
             const vehicleOption = vehicleTypeSelect?.selectedOptions[0];
             const vehicleType = vehicleOption?.getAttribute('data-type') || 'sedan';
-            const vehicleName = vehicleOption?.text || '';
+            const vehicleName = (vehicleOption?.text || '').replace(/\s*\(\d+ seats\)\s*$/i, '').trim();
             const vehicleCapacity = parseInt(vehicleOption?.getAttribute('data-seating')) || 0;
             const transferWay = document.getElementById('restaurantTransferWay')?.value || 'one-way';
             const transferType = document.getElementById('restaurantTransferType')?.value || 'S';
@@ -19457,30 +19642,18 @@
                     childQty: restaurantGuideChildQty
                 };
                 console.log('Guide selected for meals:', guideInfo, 'Hours:', hours, 'Price:', price);
-                
-                const restaurantGuideQuantity = parseInt(document.getElementById('restaurantGuideQuantity')?.value || '1') || 1;
-                for (let gq = 0; gq < restaurantGuideQuantity; gq++) {
-                    const currentGuideId = gq === 0 ? guideEntryId : generateId('guide');
-                    const guideEntry = {
-                        id: currentGuideId,
-                        dateTime: dateTime,
-                        tourActivity: `${restaurantName} (Restaurant Guide)`,
-                        language: guideInfo.languages || 'N/A',
-                        guideName: guideInfo.guideName,
-                        guideId: guideInfo.guideId,
-                        hours: hours,
-                        cost: price,
-                        sell: price,
-                        supplement: false,
-                        isStandalone: false, // Linked to restaurant
-                        linkedTo: 'restaurant',
-                        restaurantName: restaurantName,
-                        adultsQty: restaurantGuideAdultQty,
-                        childQty: restaurantGuideChildQty
-                    };
-                    guideList.push(guideEntry);
-                    console.log('Added guide to guideList (qty ' + (gq + 1) + '/' + restaurantGuideQuantity + '):', guideEntry);
-                }
+                // Guide entries are pushed per meal in the meal loop below (one guide per meal with distributed date)
+            }
+            
+            // For date distribution: get tour start date and time part from modal dateTime
+            const tourStartInput = getHeaderStartInput();
+            const tourStartISO = tourStartInput ? getHeaderInputISO(tourStartInput) : null;
+            let timePart = '12:00';
+            if (dateTime && (dateTime.indexOf('T') !== -1)) {
+                const t = dateTime.split('T')[1];
+                if (t) timePart = t.substring(0, 5);
+            } else if (dateTime && dateTime.length >= 16) {
+                timePart = dateTime.substring(11, 16);
             }
             
             // Adding new meals - loop through selected rows, adding mealCount times per row
@@ -19553,6 +19726,63 @@
                 // Add mealCount entries for this meal row
                 const rowIds = mealIdsPerRow[index];
                 for (let mc = 0; mc < mealCount; mc++) {
+                    // Distributed date: meal 0 = tour start, meal 1 = start+1 day, etc.
+                    const dateTimeForMc = (tourStartISO && timePart)
+                        ? (addDaysToDateString(tourStartISO, mc) + 'T' + timePart)
+                        : dateTime;
+                    
+                    let thisTransferId = null;
+                    let thisTransferInfo = null;
+                    if (transferChecked && transferInfo && (transferId || transferInfo.id)) {
+                        if (mc === 0) {
+                            thisTransferId = transferId;
+                            thisTransferInfo = transferInfo;
+                            const firstTransferEntry = transferList.find(t => t.id === transferId);
+                            if (firstTransferEntry && dateTimeForMc) firstTransferEntry.dateTime = dateTimeForMc;
+                        } else {
+                            const newTransferEntryId = generateId('transfer');
+                            const firstTransferEntry = transferList.find(t => t.id === transferId);
+                            if (firstTransferEntry) {
+                                const cloneEntry = Object.assign({}, firstTransferEntry, { id: newTransferEntryId, sourceId: rowIds[mc], dateTime: dateTimeForMc });
+                                transferList.push(cloneEntry);
+                            }
+                            thisTransferId = newTransferEntryId;
+                            thisTransferInfo = Object.assign({}, transferInfo, { id: newTransferEntryId });
+                        }
+                    }
+                    
+                    let thisGuideId = null;
+                    let thisGuideInfo = null;
+                    let thisGuideOptions = null;
+                    if (guideChecked && guideInfo) {
+                        const hoursSelect = document.getElementById('restaurantGuideHours');
+                        const hours = parseInt(hoursSelect?.value || '12') || 12;
+                        const currentGuideEntryId = mc === 0 ? guideEntryId : generateId('guide');
+                        const guideEntry = {
+                            id: currentGuideEntryId,
+                            dateTime: dateTimeForMc,
+                            tourActivity: `${restaurantName} (Restaurant Guide)`,
+                            language: guideInfo.languages || 'N/A',
+                            guideName: guideInfo.guideName,
+                            guideId: guideInfo.guideId,
+                            hours: hours,
+                            cost: guideInfo.cost,
+                            sell: guideInfo.sell,
+                            supplement: false,
+                            isStandalone: false,
+                            linkedTo: 'restaurant',
+                            restaurantName: restaurantName,
+                            adultsQty: guideInfo.adultsQty,
+                            childQty: guideInfo.childQty
+                        };
+                        guideList.push(guideEntry);
+                        thisGuideId = currentGuideEntryId;
+                        thisGuideInfo = Object.assign({}, guideInfo, { id: currentGuideEntryId });
+                        if (guide_options) {
+                            thisGuideOptions = Object.assign({}, guide_options);
+                        }
+                    }
+                    
                     const mealData = {
                         id: rowIds[mc],
                         destination: document.getElementById('mealDestination').value || 'Singapore',
@@ -19562,7 +19792,7 @@
                         mealName: mealName,
                         mealType: mealType,
                         mealSpecificType: mealSpecificType,
-                        dateTime: dateTime,
+                        dateTime: dateTimeForMc,
                         mealCount: 1,
                         adultsQty: adultsQty,
                         adultCost: adultCost,
@@ -19573,11 +19803,11 @@
                         infantQty: infantQty,
                         infantCost: infantCost,
                         infantSell: infantSell,
-                        transferId: mc === 0 ? transferId : null,
-                        transferInfo: mc === 0 ? transferInfo : null,
-                        guideId: mc === 0 ? guideEntryId : null,
-                        guideInfo: mc === 0 ? guideInfo : null,
-                        guide_options: mc === 0 ? guide_options : null
+                        transferId: thisTransferId,
+                        transferInfo: thisTransferInfo,
+                        guideId: thisGuideId,
+                        guideInfo: thisGuideInfo,
+                        guide_options: thisGuideOptions
                     };
                     
                     mealList.push(mealData);
@@ -20200,19 +20430,11 @@
         console.log('populateMealFormForEdit called with meal:', meal);
         console.log('Looking for mealId:', meal.mealId, 'mealName:', meal.mealName);
         
-        // Find ALL related meals that were added together (share same transferId or guideId AND same restaurant)
-        // This ensures all meals from the same popup submission are checked
-        const relatedMeals = mealList.filter(m => {
-            if (m.restaurantId !== meal.restaurantId) return false;
-            // If they share the same transferId or guideId (and it's not null), they were added together
-            if (meal.transferId && m.transferId === meal.transferId) return true;
-            if (meal.guideId && m.guideId === meal.guideId) return true;
-            // Also include the meal itself
-            if (m.id === meal.id) return true;
-            return false;
-        });
+        // When editing a single meal entry (clicked row), show only that meal type selected.
+        // Match by mealId only so we don't check multiple rows that share the same mealName (e.g. two "Breakfast" types).
+        const relatedMeals = [meal];
         
-        console.log('Related meals to check:', relatedMeals.map(m => ({ id: m.id, mealName: m.mealName, mealType: m.mealType })));
+        console.log('Related meals to check (single entry):', relatedMeals.map(m => ({ id: m.id, mealName: m.mealName, mealId: m.mealId, mealType: m.mealType })));
         
         // Find matching meal row (by mealId or meal name)
         const rows = Array.from(document.querySelectorAll('.meal-row'));
@@ -20221,78 +20443,52 @@
         const targetRow = rows.find(r => {
             const rowMealId = r.getAttribute('data-meal-id');
             const rowName = r.getAttribute('data-meal-name');
-            const matches = (meal.mealId && String(meal.mealId) === String(rowMealId)) || 
-                       (meal.mealName && String(meal.mealName) === String(rowName)) ||
-                       (meal.mealId && String(meal.mealId) === String(rowMealId));
-            if (matches) {
-                console.log('Found matching row:', { rowMealId, rowName, mealId: meal.mealId, mealName: meal.mealName });
-            }
-            return matches;
+            return (meal.mealId && String(meal.mealId) === String(rowMealId)) || 
+                   (meal.mealName && meal.mealName === rowName);
         });
         
-        // If no matching row exists, wait a bit for meals to load, then try again
+        // If no matching row exists, create one dynamically
         let rowToUse = targetRow;
         if (!rowToUse) {
-            console.log('No matching row found, waiting for meals to load...');
-            // Wait a bit and try again - meals might still be loading
+            rowToUse = ensureMealRowForEdit(meal);
+        }
+        
+        // If still no row (e.g. meals still loading), retry once after short delay
+        if (!rowToUse) {
             setTimeout(() => {
                 const retryRows = Array.from(document.querySelectorAll('.meal-row'));
-                
-                // Check all related meals
-                relatedMeals.forEach(relMeal => {
-                    const retryRow = retryRows.find(r => {
-                        const rowMealId = r.getAttribute('data-meal-id');
-                        const rowName = r.getAttribute('data-meal-name');
-                        return (relMeal.mealId && String(relMeal.mealId) === String(rowMealId)) || 
-                               (relMeal.mealName && String(relMeal.mealName) === String(rowName));
-                    });
-                    
-                    if (retryRow) {
-                        console.log('Found matching row on retry for:', relMeal.mealName);
-                        const mealId = retryRow.getAttribute('data-meal-id');
-                        const checkbox = retryRow.querySelector(`.meal-checkbox[data-meal-id="${mealId}"]`);
-                        if (checkbox) {
-                            checkbox.checked = true;
-                            // Fill in values for this meal
-                            fillMealRowValues(retryRow, mealId, relMeal);
-                        }
+                document.querySelectorAll('.meal-checkbox').forEach(cb => cb.checked = false);
+                const matchingRow = retryRows.find(r => meal.mealId != null && String(meal.mealId) === String(r.getAttribute('data-meal-id')));
+                if (matchingRow) {
+                    const rowMealId = matchingRow.getAttribute('data-meal-id');
+                    const checkbox = matchingRow.querySelector(`.meal-checkbox[data-meal-id="${rowMealId}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        fillMealRowValues(matchingRow, rowMealId, meal);
                     }
-                });
-                
-                // Scroll to first matching row
-                const firstMatchRow = retryRows.find(r => {
-                    const rowMealId = r.getAttribute('data-meal-id');
-                    const rowName = r.getAttribute('data-meal-name');
-                    return (meal.mealId && String(meal.mealId) === String(rowMealId)) || 
-                           (meal.mealName && String(meal.mealName) === String(rowName));
-                });
-                if (firstMatchRow) {
-                    firstMatchRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    matchingRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 500);
-            return; // Exit early, will be handled by setTimeout
+            return;
         }
         
         // Reset all checkboxes first
         document.querySelectorAll('.meal-checkbox').forEach(cb => cb.checked = false);
         
-        // Check ALL related meals, not just the one being edited
+        // Check only the one row that matches this meal's mealId (exact match - one meal type only)
         rows.forEach(r => {
             const rowMealId = r.getAttribute('data-meal-id');
-            const rowName = r.getAttribute('data-meal-name');
             
-            // Check if this row matches any of the related meals
+            // Match by mealId only so only the exact meal type row is checked
             const matchingRelatedMeal = relatedMeals.find(relMeal => 
-                (relMeal.mealId && String(relMeal.mealId) === String(rowMealId)) || 
-                (relMeal.mealName && String(relMeal.mealName) === String(rowName))
+                relMeal.mealId != null && String(relMeal.mealId) === String(rowMealId)
             );
             
             if (matchingRelatedMeal) {
                 const checkbox = r.querySelector(`.meal-checkbox[data-meal-id="${rowMealId}"]`);
                 if (checkbox) {
                     checkbox.checked = true;
-                    console.log('Checked related meal:', rowName || rowMealId);
-                    // Fill in values for this meal
+                    console.log('Checked meal row for edit:', rowMealId, matchingRelatedMeal.mealName || matchingRelatedMeal.mealType);
                     fillMealRowValues(r, rowMealId, matchingRelatedMeal);
                 }
             }
@@ -20314,13 +20510,22 @@
             
             // If supplement is changed, do NOT sync with linked services
             
-            // If dateTime is changed, sync with linked transfer and expand header dates
+            // If dateTime is changed, sync with linked transfer, guide, and expand header dates
             if (field === 'dateTime' && value) {
                 if (meal.transferId) {
                     const transferIndex = transferList.findIndex(t => t.id === meal.transferId);
                     if (transferIndex !== -1) {
                         transferList[transferIndex].dateTime = value;
                         updateTransferTable();
+                    }
+                }
+                
+                // Also update linked guide if exists
+                if (meal.guideId) {
+                    const guideIndex = guideList.findIndex(g => g.id === meal.guideId);
+                    if (guideIndex !== -1) {
+                        guideList[guideIndex].dateTime = value;
+                        updateGuideTable();
                     }
                 }
                 
@@ -20438,14 +20643,26 @@
         const getVehicleType = (transfer) => {
             const mode = transfer.transportMode || 'local';
             if (mode === 'local') {
-                // Return the vehicle name if available, otherwise vehicle type
+                // Base label: vehicle name if available, otherwise vehicle type
+                let label = '-';
                 if (transfer.vehicleName && transfer.vehicleName !== '-') {
-                    return transfer.vehicleName;
+                    label = transfer.vehicleName;
+                } else {
+                    const vehicleType = transfer.vehicleType || '-';
+                    if (vehicleType !== '-') {
+                        label = vehicleType.charAt(0).toUpperCase() + vehicleType.slice(1);
+                    }
                 }
-                const vehicleType = transfer.vehicleType || '-';
-                if (vehicleType === '-') return '-';
-                // Capitalize first letter
-                return vehicleType.charAt(0).toUpperCase() + vehicleType.slice(1);
+                
+                if (label === '-') return '-';
+                
+                // Append seating capacity when available (e.g. "Jeep (6 seats)")
+                // Guard: don't append if label already contains "(N seats)" to avoid duplication
+                const capacity = parseInt(transfer.capacity || transfer.seatingCapacity || transfer.seats || 0);
+                if (capacity > 0 && !/\(\d+ seats\)/i.test(label)) {
+                    return `${label} (${capacity} seats)`;
+                }
+                return label;
             } else if (mode === 'flight') {
                 return transfer.airline || transfer.operator || '-';
             } else if (mode === 'cruise') {
@@ -20499,11 +20716,24 @@
             });
             
             // Determine display name based on source
-            // Priority: Show actual pickup → dropoff locations for all transfers
             let displayName = '';
             
-            // For all transfers (standalone or linked), show pickup → dropoff if available
-            if (transfer.pickupName && transfer.dropName) {
+            // Detect arrival/departure transfers so we can show labels like \"Arrival:\" / \"Departure:\"
+            const isArrival = transfer.sourceType === 'arrival' || transfer.sourceType === 'Arrival' ||
+                (transfer.destination && String(transfer.destination).indexOf('Arrival:') === 0) ||
+                (transfer.service && String(transfer.service).indexOf('Arrival:') === 0);
+            const isDeparture = transfer.sourceType === 'departure' || transfer.sourceType === 'Departure' ||
+                (transfer.destination && String(transfer.destination).indexOf('Departure:') === 0) ||
+                (transfer.service && String(transfer.service).indexOf('Departure:') === 0);
+            const isArrivalOrDeparture = isArrival || isDeparture;
+            
+            // For Arrival/Departure, prefer the destination/service text which already includes the label
+            if (isArrivalOrDeparture && transfer.destination && (String(transfer.destination).indexOf('Arrival:') === 0 || String(transfer.destination).indexOf('Departure:') === 0)) {
+                displayName = transfer.destination;
+            } else if (isArrivalOrDeparture && transfer.service && (String(transfer.service).indexOf('Arrival:') === 0 || String(transfer.service).indexOf('Departure:') === 0)) {
+                displayName = transfer.service;
+            } else if (transfer.pickupName && transfer.dropName) {
+                // General case: pickup → drop
                 displayName = `${transfer.pickupName} → ${transfer.dropName}`;
             } else if (transfer.pickup && transfer.dropoff) {
                 displayName = `${transfer.pickup} → ${transfer.dropoff}`;
@@ -20526,7 +20756,7 @@
                 // For attraction/restaurant transfers - show the destination name
                 displayName = transfer.destination;
             } else {
-                // For transfers from other services (arrival/departure)
+                // For transfers from other services (fallback)
                 displayName = transfer.portName || '-';
             }
             
@@ -20563,16 +20793,16 @@
             const currentType = transfer.type || 'S';
             const currentWay = transfer.way || 'one-way';
             
-            // Create type dropdown (only for local transfers)
-            const typeDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) 
+            // Create type dropdown (only for local transfers; read-only for Arrival/Departure)
+            const typeDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) && !isArrivalOrDeparture
                 ? `<select onchange="updateTransferField(${index}, 'type', this.value)" style="width: 70px; font-size: 11px; padding: 2px 4px;">
                     <option value="S" ${(currentType === 'S' || currentType === 'sic' || currentType === 'Shared') ? 'selected' : ''}>Shared</option>
                     <option value="P" ${(currentType === 'P' || currentType === 'private' || currentType === 'Private') ? 'selected' : ''}>Private</option>
                    </select>`
                 : getTypeClass(transfer);
             
-            // Create way dropdown (only for local transfers)
-            const wayDropdown = (transfer.transportMode === 'local' || !transfer.transportMode)
+            // Create way dropdown (only for local transfers; read-only for Arrival/Departure)
+            const wayDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) && !isArrivalOrDeparture
                 ? `<select onchange="updateTransferField(${index}, 'way', this.value)" style="width: 80px; font-size: 11px; padding: 2px 4px;">
                     <option value="one-way" ${(currentWay === 'one-way' || currentWay === 'One Way') ? 'selected' : ''}>One Way</option>
                     <option value="both-way" ${(currentWay === 'both-way' || currentWay === 'Both Way' || currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way') ? 'selected' : ''}>Both Way</option>
@@ -20616,20 +20846,65 @@
                 transfer.childQty = value;
             }
             
-            // If dateTime field is changed, only expand header dates
-            // Do NOT update linked service dates when changing from transfer table
+            // If dateTime field is changed, expand header dates and sync to linked services and guides
             if (field === 'dateTime' && value) {
-                // Always expand header dates only
                 expandHeaderDatesIfNeeded(value, false);
-                
-                // Log the update
-                if (transfer.isStandalone) {
-                    console.log('Updated standalone transfer date to:', value, '(only header dates updated)');
-                } else {
-                    console.log('Updated linked transfer date to:', value, '(only header dates updated, source service unchanged)');
+                const srcType = (transfer.sourceType || '').toLowerCase();
+                if (srcType === 'arrival' || srcType === 'departure') {
+                    const arrDepIndex = arrivalDepartureList.findIndex(item => 
+                        (item.transferId === transfer.id || item.id === transfer.sourceId) &&
+                        ((srcType === 'arrival' && (item.type === 'Arrival' || item.type === 'arrival')) ||
+                         (srcType === 'departure' && (item.type === 'Departure' || item.type === 'departure')))
+                    );
+                    if (arrDepIndex !== -1) {
+                        arrivalDepartureList[arrDepIndex].dateTime = value;
+                        const item = arrivalDepartureList[arrDepIndex];
+                        if (item.guideId) {
+                            const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
+                            if (gIdx !== -1) {
+                                guideList[gIdx].dateTime = value;
+                                if (typeof updateGuideTable === 'function') updateGuideTable();
+                            }
+                        }
+                        if (typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
+                    }
+                } else if (srcType === 'tour' || srcType === 'attraction') {
+                    // Sync to linked attraction/tour service
+                    const tourIndex = tourList.findIndex(t =>
+                        t.transferId === transfer.id || String(t.id) === String(transfer.sourceId)
+                    );
+                    if (tourIndex !== -1) {
+                        tourList[tourIndex].dateTime = value;
+                        if (typeof updateTourTable === 'function') updateTourTable();
+                        // Also update linked guide
+                        if (tourList[tourIndex].guideId) {
+                            const gIdx = guideList.findIndex(g => String(g.id) === String(tourList[tourIndex].guideId));
+                            if (gIdx !== -1) {
+                                guideList[gIdx].dateTime = value;
+                                if (typeof updateGuideTable === 'function') updateGuideTable();
+                            }
+                        }
+                        console.log('Synced transfer date to linked tour and guide:', value);
+                    }
+                } else if (srcType === 'meal' || srcType === 'restaurant') {
+                    // Sync to linked restaurant/meal service
+                    const mealIndex = mealList.findIndex(m =>
+                        m.transferId === transfer.id || String(m.id) === String(transfer.sourceId)
+                    );
+                    if (mealIndex !== -1) {
+                        mealList[mealIndex].dateTime = value;
+                        if (typeof updateMealTable === 'function') updateMealTable();
+                        // Also update linked guide
+                        if (mealList[mealIndex].guideId) {
+                            const gIdx = guideList.findIndex(g => String(g.id) === String(mealList[mealIndex].guideId));
+                            if (gIdx !== -1) {
+                                guideList[gIdx].dateTime = value;
+                                if (typeof updateGuideTable === 'function') updateGuideTable();
+                            }
+                        }
+                        console.log('Synced transfer date to linked meal and guide:', value);
+                    }
                 }
-                
-                // Update the transfer table to reflect the change
                 updateTransferTable();
             }
             
@@ -21634,7 +21909,7 @@
             const vehicleId = vehicleSelect.value;
             const vehicleOption = vehicleSelect.selectedOptions[0];
             const vehicleType = vehicleOption?.getAttribute('data-type') || '';
-            const vehicleName = vehicleOption?.text || '';
+            const vehicleName = (vehicleOption?.text || '').replace(/\s*\(\d+ seats\)\s*$/i, '').trim();
             
             const type = document.getElementById('localType').value;
             const way = document.getElementById('localWay').value;
@@ -23504,7 +23779,19 @@
                     sell: parseFloat(item.adultSell || item.sell) || 0,
                     basePrice: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
                     base_price: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
-                    totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
+                    totalPrice: (() => {
+                        const _adultSell = parseFloat(item.adultSell) || 0;
+                        const _childSell = parseFloat(item.childSell) || 0;
+                        const _adultsQty = parseInt(item.adultsQty) || 0;
+                        const _childQty = parseInt(item.childQty) || 0;
+                        const _typeVal = (item.transferType || '').toString().toLowerCase();
+                        const _isShared = _typeVal === 's' || _typeVal === 'shared' || _typeVal === 'sic';
+                        if (_isShared) {
+                            return (_adultSell * _adultsQty) + (_childSell * _childQty);
+                        } else {
+                            return _adultSell || _childSell || parseFloat(item.sell || item.cost || 0) || 0;
+                        }
+                    })(),
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
@@ -23656,7 +23943,19 @@
                     sell: parseFloat(item.adultSell || item.sell) || 0,
                     basePrice: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
                     base_price: parseFloat(item.adultSell || item.adultCost || item.cost) || 0,
-                    totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
+                    totalPrice: (() => {
+                        const _adultSell = parseFloat(item.adultSell) || 0;
+                        const _childSell = parseFloat(item.childSell) || 0;
+                        const _adultsQty = parseInt(item.adultsQty) || 0;
+                        const _childQty = parseInt(item.childQty) || 0;
+                        const _typeVal = (item.transferType || '').toString().toLowerCase();
+                        const _isShared = _typeVal === 's' || _typeVal === 'shared' || _typeVal === 'sic';
+                        if (_isShared) {
+                            return (_adultSell * _adultsQty) + (_childSell * _childQty);
+                        } else {
+                            return _adultSell || _childSell || parseFloat(item.sell || item.cost || 0) || 0;
+                        }
+                    })(),
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
@@ -23943,7 +24242,8 @@
                 hotel_unique_id: hotel.hotel_unique_id || hotel.hotelId || "",
                 hotelName: hotel.hotelName || "",
                 roomType: hotel.roomType || "",
-                bedType: cleanBedType
+                bedType: cleanBedType,
+                destination: hotel.destination || hotel.location || ""
             };
             
             return hotelData;
@@ -24608,6 +24908,8 @@
         
         return miscList.map(misc => ({
             id: misc.id || `misc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            itemId: misc.itemId || '',
+            destination: misc.destination || '',
             bookingDate: normalizeDateToYYYYMMDD(misc.dateTime),
             itemName: misc.itemName || "",
             adultsQty: parseInt(misc.adultsQty) || 0,
@@ -28456,6 +28758,8 @@
             id: order.order_id || generateId('misc'),
             dateTime: data.date || data.dateTime || data.bookingDate || '',
             itemName: itemName,
+            itemId: data.itemId || data.item_id || data.mis_id || '',
+            destination: data.destination || data.city || '',
             description: data.description || data.item_description || itemName,
             adultsQty: parseInt(data.adults || data.adultsQty || data.adults_qty || 0),
             childQty: parseInt(data.children || data.childQty || data.child_qty || 0),

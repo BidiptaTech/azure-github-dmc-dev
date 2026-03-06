@@ -137,15 +137,23 @@
                               </div>
                           </div> --}}
 
-                          <!-- Back to Admin Button -->
+                          <!-- Back to Admin & Profile -->
                           @if(session()->has('login_stack') && count(session('login_stack')) > 0)
-                          <div class="mb-3">
+                          <div class="mb-3 row g-2">
+                            <div class="col-6">
                               <a href="{{ route('admin.revertPreviousUser') }}" 
-                                 class="dropdown-item d-flex align-items-center justify-content-center gap-2 p-3 rounded-3 border border-primary text-primary" 
-                                 style="transition: all 0.3s ease;">
-                                  <i class="ri-arrow-go-back-line"></i>
-                                  <span class="fw-semibold">Back to Previous User</span>
+                                 class="topbar-action-btn topbar-action-btn-outline d-flex align-items-center justify-content-center gap-2 w-100 py-2 px-3 rounded-3 text-decoration-none">
+                                  <i class="ri-arrow-go-back-line" style="font-size: 1.1rem;"></i>
+                                  <span class="fw-semibold small">Switch Back</span>
                               </a>
+                            </div>
+                            <div class="col-6">
+                              <a href="{{ route('user.profile') }}" 
+                                 class="topbar-action-btn topbar-action-btn-primary d-flex align-items-center justify-content-center gap-2 w-100 py-2 px-3 rounded-3 text-decoration-none">
+                                  <i class="ri-user-line" style="font-size: 1.1rem;"></i>
+                                  <span class="fw-semibold small">Profile</span>
+                              </a>
+                            </div>
                           </div>
                           @endif
 
@@ -182,6 +190,35 @@
 
 .dropdown-item:hover {
     background-color: rgba(0,0,0,0.05) !important;
+    transform: translateY(-1px);
+}
+
+/* Topbar action buttons (Back to Previous User / Profile) */
+.topbar-action-btn {
+    transition: all 0.25s ease;
+    border: 1px solid transparent;
+}
+.topbar-action-btn-outline {
+    color: #5a67d8;
+    background-color: rgba(90, 103, 216, 0.08);
+    border-color: rgba(90, 103, 216, 0.35);
+}
+.topbar-action-btn-outline:hover {
+    color: #434190;
+    background-color: rgba(90, 103, 216, 0.14);
+    border-color: #5a67d8;
+    box-shadow: 0 2px 8px rgba(90, 103, 216, 0.2);
+    transform: translateY(-1px);
+}
+.topbar-action-btn-primary {
+    color: #fff;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+}
+.topbar-action-btn-primary:hover {
+    color: #fff;
+    background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     transform: translateY(-1px);
 }
 

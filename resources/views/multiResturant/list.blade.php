@@ -2,10 +2,20 @@
 @section('title', 'Multi Restaurants')
 
 @section('css')
+<!-- Add SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <style>
+    :root {
+        --table-border: #e2e8f0;
+        --table-head-bg: #f8fafc;
+        --table-head-text: #334155;
+        --table-body-text: #0f172a;
+        --table-muted: #64748b;
+        --table-link: #5c61e6;
+    }
     /* Select2 Styling */
     .select2-container .select2-selection--multiple {
         height: auto !important;
@@ -283,6 +293,95 @@
         .table-responsive {
             overflow-x: auto;
         }
+    }
+
+    /* Action icon badges - same style as restaurants/attractions */
+    .action-icons-wrap {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+
+    .action-icon-badge i {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+    }
+
+    .action-icon-badge:hover i {
+        color: var(--action-color, #0f766e);
+    }
+
+    /* Global tooltip (same style as Hotels/Attractions/Restaurants pages) */
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform: translate(-50%, -100%);
+    }
+
+    /* Status badge styling - standardized colors */
+    .badge.bg-success {
+        background-color: var(--table-link) !important;
+        color: #ffffff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.375rem;
+    }
+
+    .badge.bg-danger {
+        background-color: #e5e7eb !important;
+        color: #111827;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.375rem;
+    }
+
+    /* Loading spinner animation for delete button */
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 </style>
 @endsection
@@ -595,27 +694,36 @@
                                             </div>
                                             <div class="col-md-2 text-end">
                                     @if($encId)
-                                    <a href="{{ route('multiResturant.show', $encId) }}"
-                                        class="btn btn-primary btn-sm rounded-circle"
-                                                    style="width: 32px; height: 32px; padding: 0;" title="View">
-                                                    <i class="fas fa-eye"></i>
-                                    </a>
-                                    @if(Auth::user()->role_id == 1 || in_array(Auth::user()->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138]))
-                                                @if(Auth::user()->role_id != 1)
-                                                <button type="button" class="btn btn-info btn-sm rounded-circle edit-btn"
-                                                    style="width: 32px; height: 32px; padding: 0;" title="Edit"
+                                    <div class="action-icons-wrap">
+                                        <!-- View Button -->
+                                        <a href="{{ route('multiResturant.show', $encId) }}"
+                                           class="action-icon-badge"
+                                           style="--action-color: #2563eb;"
+                                           data-tooltip="View Package">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        @if(Auth::user()->role_id == 1 || in_array(Auth::user()->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138]))
+                                            @if(Auth::user()->role_id != 1)
+                                            <!-- Edit Button -->
+                                            <button type="button"
+                                                    class="action-icon-badge edit-btn"
+                                                    style="--action-color: #047857;"
+                                                    data-tooltip="Edit Package"
                                                     data-id="{{ $item->id }}">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                @endif
-                                    <button type="button"
-                                        class="btn btn-danger btn-sm rounded-circle"
-                                                    style="width: 32px; height: 32px; padding: 0;"
-                                                    onclick="setDeleteForm('{{ route('multiResturant.destroy', $encId) }}', '{{ $item->package_name ?? 'this item' }}')"
-                                        title="Delete">
-                                                    <i class="fas fa-trash"></i>
-                                    </button>
-                                    @endif
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            @endif
+                                            <!-- Delete Button -->
+                                            <button type="button"
+                                                    class="action-icon-badge"
+                                                    style="--action-color: #dc2626;"
+                                                    data-tooltip="Delete Package"
+                                                    onclick="deleteMultiRestaurant('{{ route('multiResturant.destroy', $encId) }}', {{ json_encode($item->package_name ?? 'this item') }})"
+                                                    id="delete-btn-{{ $item->id }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        @endif
+                                    </div>
                                     @endif
                                             </div>
                                         </div>
@@ -850,6 +958,8 @@
 @endsection
 
 @section('scripts')
+<!-- Add SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
@@ -1043,6 +1153,33 @@
                 return false;
             }
         });
+
+        // Global tooltip element for action icons (same pattern as Restaurants/Attractions)
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        } else {
+            $globalTooltip.appendTo('body');
+        }
+
+        // Tooltips for action icon badges
+        $(document).on('mouseenter', '.action-icon-badge', function() {
+            var $w = $(this);
+            var text = $w.attr('data-tooltip') || $w.attr('title') || '';
+            if (!text) return;
+            var el = this;
+            var rect = el.getBoundingClientRect();
+            $globalTooltip.css({
+                display: 'block',
+                left: (rect.left + rect.width / 2) + 'px',
+                top: (rect.top - 6) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).text(text);
+        });
+
+        $(document).on('mouseleave', '.action-icon-badge', function() {
+            $globalTooltip.hide();
+        });
     });
 
     function resetNewForm() {
@@ -1051,26 +1188,56 @@
         updateRestaurantIcons('createRestaurantsSelect', 'createRestaurantIcons');
     }
 
-    function setDeleteForm(action, itemName) {
-        document.getElementById('deleteForm').action = action;
-        var modalBody = document.querySelector('#deleteModal .modal-body p:first-child');
-        if (modalBody) {
-            modalBody.innerHTML = 'Are you sure you want to delete "<strong>' + itemName + '</strong>"?';
-        }
-        try {
-            if (typeof bootstrap !== 'undefined') {
-                var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-                deleteModal.show();
-            } else {
-                document.getElementById('deleteModal').style.display = 'block';
-                document.getElementById('deleteModal').classList.add('show');
-                document.body.classList.add('modal-open');
+    // Multi Restaurant deletion function with SweetAlert (same style as Restaurants/Attractions)
+    window.deleteMultiRestaurant = function(deleteUrl, packageName) {
+        Swal.fire({
+            title: 'Delete Package?',
+            text: `Are you sure you want to delete "${packageName}"? This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'No, keep it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const button = document.querySelector(`[onclick*="${deleteUrl}"]`);
+                const originalContent = button ? button.innerHTML : '';
+
+                if (button) {
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    button.disabled = true;
+                }
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = deleteUrl;
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = csrfToken.getAttribute('content');
+                    form.appendChild(csrfInput);
+                }
+
+                const methodInput = document.createElement('input');
+                methodInput.type = 'hidden';
+                methodInput.name = '_method';
+                methodInput.value = 'DELETE';
+                form.appendChild(methodInput);
+
+                document.body.appendChild(form);
+                form.submit();
             }
-        } catch (e) {
-            document.getElementById('deleteModal').style.display = 'block';
-            document.getElementById('deleteModal').classList.add('show');
-            document.body.classList.add('modal-open');
-        }
+        });
+    };
+
+    // Keep old setDeleteForm for backward compatibility (if modal is used elsewhere)
+    function setDeleteForm(action, itemName) {
+        // Use SweetAlert instead of modal
+        deleteMultiRestaurant(action, itemName);
     }
 
     $('#deleteForm').on('submit', function() {
