@@ -580,6 +580,7 @@ Route::get('/clear', function () {
                 Route::get('/restaurants/{city}', [PackageController::class, 'getRestaurantsByCity'])->name('restaurants-by-city');
                 // City → Transport
                 Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity'])->name('transport-by-city');
+                Route::get('/ports-by-country/{country}', [PackageController::class, 'getPortsByCountry'])->name('ports-by-country');
                 Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
         Route::get('/packages/definition/create', [PackageController::class, 'createDefinition'])->name('packages.definition.create');
