@@ -3195,9 +3195,10 @@ class EnquiryFormPro extends Controller
                 foreach ($transfers as $transfer) {
                     $uniqueKey = md5(json_encode([
                         'vehicle_id' => $transfer['vehicle_id'] ?? '',
-                        'entrypickup' => $transfer['entrypickup'] ?? '',
-                        'entrydropoff' => $transfer['entrydropoff'] ?? '',
-                        'bookingDate' => $transfer['bookingDate'] ?? ''
+                        'entrypickup' => $transfer['entrypickup'] ?? ($transfer['pickup'] ?? ''),
+                        'entrydropoff' => $transfer['entrydropoff'] ?? ($transfer['dropoff'] ?? ''),
+                        'bookingDate' => $transfer['bookingDate'] ?? ($transfer['date'] ?? ''),
+                        'linked_to_hotel' => $transfer['linked_to_hotel'] ?? ($transfer['linkedToHotel'] ?? ''),
                     ]));
                     
                     if (in_array($uniqueKey, $seenTransfers)) continue;
