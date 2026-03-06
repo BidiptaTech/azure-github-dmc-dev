@@ -523,6 +523,9 @@
                 </div>
             </div>
 
+            <!-- Optional services aggregated price data (JSON) -->
+            <input type="hidden" name="price_data" id="price-data-hidden" value="[]">
+
             <!-- Optional Services Summary: list and total (shown when any optional service exists) -->
             <div class="card mb-4 border-success border-opacity-25" id="optional-services-summary-card" style="display: none;">
                 <div class="card-header bg-success-subtle py-2">
@@ -1786,6 +1789,7 @@ $(document).ready(function() {
             card.hide();
             tbody.empty();
             totalCell.text('—');
+            $('#price-data-hidden').val('[]');
             return;
         }
         emptyEl.hide();
@@ -1800,6 +1804,10 @@ $(document).ready(function() {
         });
         totalCell.text(formatOptionalPrice(total));
         card.show();
+
+        // Persist the same array to backend (packages.price_data as JSON)
+        // Shape: [{ name: string, type: string, price: number }]
+        $('#price-data-hidden').val(JSON.stringify(items));
     }
 
     // Arrival Pickup: toggle config, sync hidden; Search vehicle → show vehicle dropdown
@@ -2045,6 +2053,9 @@ $(document).ready(function() {
             };
         });
         $('#definition-independent-guide-input').val(JSON.stringify(selectedGuidesPayload));
+
+        // Ensure price_data is set even if the summary card isn't visible
+        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
     });
 
     // Main image preview
