@@ -95,9 +95,8 @@ class TodaysBookingsController extends Controller
                                 $driver = Driver::where('driver_id', $jobsheet->driver_id)->first();
                             } else {
                         
-                                $vehicleId = $order->data[0]['vehicles_id'] ?? null;
-                        
-                                if ($vehicleId) {
+                                $vehicleId = $orderData[0]['vehicles_id'] ?? null;
+                                if ($vehicleId !== null && $vehicleId !== '') {
                                     $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
                                     $driver = $vehicle
                                         ? Driver::where('driver_id', $vehicle->driver_id)->first()
@@ -135,11 +134,15 @@ class TodaysBookingsController extends Controller
                             if(isset($items[0]['transfer_options']['transfer_required']) && $items[0]['transfer_options']['transfer_required'] == true){
                                 
                                 $vehicleId = $items[0]['transfer_options']['vehicle_id'] ?? null;
-                                
-                                $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
-                                $driver = Driver::where('driver_id', $vehicle->driver_id)->first();
-                                $driverName = $driver ? $driver->name.'-'.$driver->license_no : '—';
-                                
+                                $driverName = '—';
+                                if ($vehicleId !== null && $vehicleId !== '') {
+                                    $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                    if ($vehicle && $vehicle->driver_id) {
+                                        $driver = Driver::where('driver_id', $vehicle->driver_id)->first();
+                                        $driverName = $driver ? $driver->name.'-'.$driver->license_no : '—';
+                                    }
+                                }
+
                                 foreach ($items as $item) {
                                     if (!is_array($item)) continue;
                                     if (!$this->itemMatchesDate($item, 'attraction', $tripDate, $end_date)) continue;
@@ -166,10 +169,15 @@ class TodaysBookingsController extends Controller
                     } elseif ($order->type === 'restaurant') {
                         if(isset($items[0]['transfer_options']['transfer_required']) && $items[0]['transfer_options']['transfer_required'] == true){
                             $vehicleId = $items[0]['transfer_options']['vehicle_id'] ?? null;
-                            $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
-                            $driver = Driver::where('driver_id', $vehicle->driver_id)->first();
-                            $driverName = $driver ? $driver->name.'-'.$driver->license_no : '—';
-                            
+                            $driverName = '—';
+                            if ($vehicleId !== null && $vehicleId !== '') {
+                                $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                if ($vehicle && $vehicle->driver_id) {
+                                    $driver = Driver::where('driver_id', $vehicle->driver_id)->first();
+                                    $driverName = $driver ? $driver->name.'-'.$driver->license_no : '—';
+                                }
+                            }
+
                             foreach ($items as $item) {
                                 if (!is_array($item)) continue;
                                 if (!$this->itemMatchesDate($item, 'restaurant', $tripDate, $end_date)) continue;

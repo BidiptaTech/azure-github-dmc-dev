@@ -722,6 +722,7 @@ class PackageController extends Controller
             'terms_conditions' => 'nullable|string',
             'status' => 'required',
             'child_max_age' => 'nullable|integer',
+            'price_data' => 'nullable|json',
         ]);
         } catch (Exception $e) {
             return back()->withInput()->withErrors(['error' => 'Failed to validate package definition. ' . $e->getMessage()]);
@@ -750,14 +751,87 @@ class PackageController extends Controller
             $selectedAttractions = $request->input('selected_attractions', '[]');
             $selectedRestaurants = $request->input('selected_restaurants', '[]');
             $localTransfers = $request->input('local_transfers', '[]');
+            $priceData = $request->input('price_data', '[]');
+
+            // Decode main JSON payloads once so we can derive price_data server-side reliably.
+            // This avoids depending on frontend JS to send price_data correctly.
+            $decodedHotels = is_string($selectedHotels) ? (json_decode($selectedHotels, true) ?: []) : ($selectedHotels ?: []);
+            $decodedAttractions = is_string($selectedAttractions) ? (json_decode($selectedAttractions, true) ?: []) : ($selectedAttractions ?: []);
+            $decodedRestaurants = is_string($selectedRestaurants) ? (json_decode($selectedRestaurants, true) ?: []) : ($selectedRestaurants ?: []);
+            $decodedLocalTransfers = is_string($localTransfers) ? (json_decode($localTransfers, true) ?: []) : ($localTransfers ?: []);
+            $decodedIndependentGuides = json_decode($request->input('definition_independent_guide', '[]'), true) ?: [];
+
+            // If price_data was not sent (or is empty), compute it from optional selections
+            // Shape: [{ name: string, type: string, price: number }]
+            $decodedPriceData = is_string($priceData) ? (json_decode($priceData, true) ?: []) : ($priceData ?: []);
+            if (!is_array($decodedPriceData) || count($decodedPriceData) === 0) {
+                $computedPriceData = [];
+
+                $toPrice = function ($v) {
+                    if ($v === null || $v === '') return 0;
+                    $n = is_numeric($v) ? (float) $v : (float) (is_string($v) ? preg_replace('/[^0-9.\-]/', '', $v) : 0);
+                    return is_nan($n) ? 0 : $n;
+                };
+
+                foreach ($decodedHotels as $h) {
+                    if (!empty($h['optional'])) {
+                        $computedPriceData[] = [
+                            'name' => $h['hotel_name'] ?? $h['name'] ?? '',
+                            'type' => 'Hotel',
+                            'price' => $toPrice($h['optional_price'] ?? 0),
+                        ];
+                    }
+                }
+                foreach ($decodedAttractions as $a) {
+                    if (!empty($a['optional'])) {
+                        $computedPriceData[] = [
+                            'name' => $a['name'] ?? '',
+                            'type' => 'Attraction',
+                            'price' => $toPrice($a['optional_price'] ?? 0),
+                        ];
+                    }
+                }
+                foreach ($decodedRestaurants as $r) {
+                    if (!empty($r['optional'])) {
+                        $computedPriceData[] = [
+                            'name' => $r['restaurant_name'] ?? $r['name'] ?? '',
+                            'type' => 'Restaurant',
+                            'price' => $toPrice($r['optional_price'] ?? 0),
+                        ];
+                    }
+                }
+                foreach ($decodedIndependentGuides as $g) {
+                    if (!empty($g['optional'])) {
+                        $computedPriceData[] = [
+                            'name' => $g['name'] ?? '',
+                            'type' => 'Guide',
+                            'price' => $toPrice($g['optional_price'] ?? 0),
+                        ];
+                    }
+                }
+                foreach ($decodedLocalTransfers as $t) {
+                    if (!empty($t['optional'])) {
+                        $label = trim(($t['pickup_label'] ?? '') . ' → ' . ($t['dropoff_label'] ?? ''));
+                        $computedPriceData[] = [
+                            'name' => $label,
+                            'type' => 'Transfer',
+                            'price' => $toPrice($t['optional_price'] ?? 0),
+                        ];
+                    }
+                }
+
+                $decodedPriceData = $computedPriceData;
+            }
+
             $definitionData = [
-                'hotels' => is_string($selectedHotels) ? json_decode($selectedHotels, true) : $selectedHotels,
-                'attractions' => is_string($selectedAttractions) ? json_decode($selectedAttractions, true) : $selectedAttractions,
-                'restaurants' => is_string($selectedRestaurants) ? json_decode($selectedRestaurants, true) : $selectedRestaurants,
+                'hotels' => $decodedHotels,
+                'attractions' => $decodedAttractions,
+                'restaurants' => $decodedRestaurants,
                 'arrival_pickup' => (int) $request->input('arrival_pickup', 0),
                 'departure_service' => (int) $request->input('departure_service', 0),
-                'independent_guide' => json_decode($request->input('definition_independent_guide', 'null'), true),
-                'local_transfers' => is_string($localTransfers) ? json_decode($localTransfers, true) : $localTransfers,
+                'independent_guide' => $decodedIndependentGuides,
+                'local_transfers' => $decodedLocalTransfers,
+                'price_data' => $decodedPriceData,
             ];
 
             $user = Auth::user();
@@ -801,6 +875,8 @@ class PackageController extends Controller
                 'selected_attractions' => $selectedAttractions,
                 'selected_guide' => $request->input('definition_independent_guide', 'null'),
                 'selected_restaurants' => $selectedRestaurants,
+                // Store as JSON array (like selected_guide), letting Eloquent handle encoding via cast
+                'price_data' => $decodedPriceData,
                 'itinerary' => json_encode($definitionData),
             ]);
 

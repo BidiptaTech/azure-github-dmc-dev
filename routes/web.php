@@ -569,6 +569,7 @@ Route::get('/clear', function () {
                 // Tour MIS Report
                 Route::get('mis/tours', [MISReportController::class, 'tourMIS'])->name('mis.tours');
                 Route::get('mis/tours/export', [MISReportController::class, 'tourMISExport'])->name('mis.tours.export');
+                Route::get('mis/tours/export-pdf', [MISReportController::class, 'tourMISExportPdf'])->name('mis.tours.export-pdf');
                 
                 Route::get('/cities-by-country/{country}', [PackageController::class, 'getCitiesByCountry'])->name('cities-by-country');
                 // City → Hotel

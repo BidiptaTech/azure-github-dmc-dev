@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Helpers\CommonHelper;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
@@ -9,17 +11,29 @@ class MISReportService
 {
     /**
      * Get tour MIS report data using Query Builder.
+     * Restricted to logged-in user's dmc_id. Paginated when $perPage is set.
      *
      * @param array $filters ['from_date', 'to_date', 'agent', 'dmc', 'booking_status']
-     * @return \Illuminate\Support\Collection
+     * @param int|string|null $dmcId DMC ID to restrict data (tours.dmc_id, invoices.dmc_id)
+     * @param int|null $perPage 10 for pagination, null for all (e.g. export)
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator|\Illuminate\Support\Collection
      */
-    public function getTourMISReport(array $filters = []): Collection
+    public function getTourMISReport(array $filters = [], $dmcId = null, $perPage = 10)
     {
         $ordersTable = 'orders';
         $toursTable = 'tours';
         $agentsTable = 'agents';
+        $agenciesTable = 'agencies';
         $usersTable = 'users';
         $invoicesTable = 'invoices';
+
+        if ($dmcId === null) {
+            $currentUser = Auth::user();
+            $dmcId = CommonHelper::getDmcId($currentUser);
+            if ($dmcId === null && $currentUser && in_array($currentUser->role_id ?? 0, [11])) {
+                $dmcId = $currentUser->userId;
+            }
+        }
 
         // Subquery: one row per tour_id (latest final invoice)
         $latestInvoiceIds = DB::table($invoicesTable)
@@ -27,16 +41,18 @@ class MISReportService
             ->where('invoice_type', 'final')
             ->whereNull('deleted_at')
             ->groupBy('tour_id');
+
         $invoiceSub = DB::table($invoicesTable . ' as i')
-            ->joinSub($latestInvoiceIds, 'latest', function ($j) use ($invoicesTable) {
+            ->joinSub($latestInvoiceIds, 'latest', function ($j) {
                 $j->on('i.tour_id', '=', 'latest.tour_id')->on('i.id', '=', 'latest.id');
             })
             ->select('i.tour_id', 'i.invoice_number', 'i.status', 'i.total_amount');
 
-        // Base query: orders with tour, agent, dmc (user), and optional invoice
+        // Base query: orders -> tours, agent -> agency, dmc user, invoice. Access: tours.dmc_id = user DMC OR agency.dmc_id JSON contains user DMC.
         $query = DB::table($ordersTable)
             ->leftJoin($toursTable, "{$ordersTable}.tour_id", '=', "{$toursTable}.tour_id")
             ->leftJoin($agentsTable, "{$ordersTable}.agent_id", '=', "{$agentsTable}.agent_id")
+            ->leftJoin($agenciesTable, "{$agentsTable}.agency_id", '=', "{$agenciesTable}.agency_id")
             ->leftJoin($usersTable . ' as dmc_user', "{$toursTable}.dmc_id", '=', 'dmc_user.userId')
             ->leftJoinSub(
                 $invoiceSub,
@@ -48,7 +64,8 @@ class MISReportService
             ->select(
                 "{$ordersTable}.id as booking_id",
                 "{$ordersTable}.created_at as booking_date",
-                
+                "{$ordersTable}.type as order_type",
+                DB::raw("COALESCE({$toursTable}.display_id, '—') as tour_name"),
                 "{$toursTable}.destination",
                 "{$agentsTable}.name as agent_name",
                 'dmc_user.name as dmc_name',
@@ -63,6 +80,14 @@ class MISReportService
             )
             ->whereNull("{$ordersTable}.deleted_at")
             ->whereNull("{$toursTable}.deleted_at");
+
+        // Restrict to data the current user's DMC has access to: tour belongs to DMC OR agent's agency has this DMC in dmc_id (JSON)
+        if ($dmcId !== null && $dmcId !== '') {
+            $query->where(function ($q) use ($dmcId, $toursTable, $agenciesTable) {
+                $q->where("{$toursTable}.dmc_id", $dmcId)
+                    ->orWhere($this->agencyDmcIdContainsRaw($agenciesTable, $dmcId));
+            });
+        }
 
         // Filters
         if (!empty($filters['from_date'])) {
@@ -83,10 +108,7 @@ class MISReportService
 
         $query->orderBy("{$ordersTable}.created_at", 'desc');
 
-        $rows = $query->get();
-
-        // Map to report rows with computed fields (pax, selling_price, commissions from order data / invoice)
-        return $rows->map(function ($row) {
+        $mapRow = function ($row) {
             $sellingPrice = 0;
             $pax = 0;
             $agentCommission = 0;
@@ -118,6 +140,8 @@ class MISReportService
             return (object) [
                 'booking_id' => $row->booking_id,
                 'booking_date' => $row->booking_date,
+                'type' => $this->orderTypeLabel($row->order_type ?? null),
+                'tour_name' => $row->tour_name ?? '—',
                 'destination' => $row->destination ?: '—',
                 'agent_name' => $row->agent_name ?: '—',
                 'dmc_name' => $row->dmc_name ?: '—',
@@ -130,29 +154,52 @@ class MISReportService
                 'payment_status' => $paymentStatusLabel,
                 'booking_status' => $bookingStatusLabel,
             ];
-        });
+        };
+
+        if ($perPage !== null) {
+            $paginator = $query->paginate($perPage)->withQueryString();
+            $paginator->getCollection()->transform($mapRow);
+            return $paginator;
+        }
+
+        $rows = $query->get();
+        return $rows->map($mapRow);
     }
 
     /**
-     * Get distinct agents for filter dropdown (from users table if agent is user, else from agents table).
-     * Returns agents that have at least one order.
+     * Get distinct agents for filter dropdown. When $dmcId is set, only agents the DMC has access to (tours.dmc_id or agency.dmc_id JSON).
      */
-    public function getAgentsForFilter(): Collection
+    public function getAgentsForFilter($dmcId = null): Collection
     {
-        return DB::table('orders')
+        $q = DB::table('orders')
+            ->join('tours', 'orders.tour_id', '=', 'tours.tour_id')
             ->join('agents', 'orders.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('agencies', 'agents.agency_id', '=', 'agencies.agency_id')
             ->whereNull('orders.deleted_at')
-            ->select('agents.agent_id as id', 'agents.name')
+            ->whereNull('tours.deleted_at');
+        if ($dmcId !== null && $dmcId !== '') {
+            $q->where(function ($sub) use ($dmcId) {
+                $sub->where('tours.dmc_id', $dmcId)
+                    ->orWhere($this->agencyDmcIdContainsRaw('agencies', $dmcId));
+            });
+        }
+        return $q->select('agents.agent_id as id', 'agents.name')
             ->distinct()
             ->orderBy('agents.name')
             ->get();
     }
 
     /**
-     * Get distinct DMCs (users) for filter dropdown.
+     * Get distinct DMCs for filter dropdown. When $dmcId is set, returns only that DMC (single option).
      */
-    public function getDmcsForFilter(): Collection
+    public function getDmcsForFilter($dmcId = null): Collection
     {
+        if ($dmcId !== null && $dmcId !== '') {
+            return DB::table('users')
+                ->where('users.userId', $dmcId)
+                ->select('users.userId as id', 'users.name')
+                ->get();
+        }
         return DB::table('orders')
             ->join('tours', 'orders.tour_id', '=', 'tours.tour_id')
             ->join('users', 'tours.dmc_id', '=', 'users.userId')
@@ -162,6 +209,22 @@ class MISReportService
             ->distinct()
             ->orderBy('users.name')
             ->get();
+    }
+
+    /**
+     * Returns a closure for "agency.dmc_id JSON array contains dmcId" (PostgreSQL and MySQL).
+     */
+    protected function agencyDmcIdContainsRaw(string $agenciesTable, $dmcId): \Closure
+    {
+        return function ($q) use ($agenciesTable, $dmcId) {
+            $driver = DB::connection()->getDriverName();
+            $dmcInt = (int) $dmcId;
+            if ($driver === 'pgsql') {
+                $q->whereRaw($agenciesTable . '.dmc_id::jsonb @> ?::jsonb', [json_encode([$dmcInt])]);
+            } else {
+                $q->whereRaw('JSON_CONTAINS(' . $agenciesTable . '.dmc_id, CAST(? AS JSON), ?)', [$dmcId, '$']);
+            }
+        };
     }
 
     protected function bookingStatusLabel($status): string
@@ -174,5 +237,27 @@ class MISReportService
             4 => 'Cancelled',
         ];
         return $labels[(int) $status] ?? (string) $status;
+    }
+
+    protected function orderTypeLabel($type): string
+    {
+        $type = is_string($type) ? trim(strtolower($type)) : '';
+        if ($type === '') {
+            return '—';
+        }
+
+        $labels = [
+            'entry_port' => 'Arrival',
+            'exit_port' => 'Departure',
+            'hotel' => 'Hotel',
+            'attraction' => 'Attraction',
+            'restaurant' => 'Restaurant',
+            'guide' => 'Guide',
+            'local_transport' => 'Local Tranfer',
+            'travel_hourly' => 'Hourly',
+            'travel_point' => 'Point to Point',
+        ];
+
+        return $labels[$type] ?? ucfirst(str_replace('_', ' ', $type));
     }
 }
