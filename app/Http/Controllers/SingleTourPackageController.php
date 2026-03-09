@@ -690,6 +690,7 @@ class SingleTourPackageController extends Controller
             'children' => 'required|integer|min:0',
             'infants' => 'required|integer|min:0',
             'agent_id' => 'required|exists:agents,agent_id',
+            'reference_number' => 'nullable|string|max:255',
             'package_name' => 'nullable|string|max:255',
             'estimated_budget' => 'nullable|numeric|min:0',
             'package_description' => 'nullable|string',
@@ -768,6 +769,7 @@ class SingleTourPackageController extends Controller
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
+            $tour->reference_id = $request->reference_number ?? null;
             $tour->created_by = Auth::user()->userId;
             $mainGuestData = null;
             $additionalGuestData = [];
@@ -1331,7 +1333,6 @@ class SingleTourPackageController extends Controller
     public function destroy($id)
     {
         try {
-            dd($id);
             $package = Tour::findOrFail($id);
             $package->delete();
 

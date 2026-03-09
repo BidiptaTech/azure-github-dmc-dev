@@ -376,8 +376,17 @@
                             <div id="tourPackageConfigurationSection" class="collapse show">
                                 <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
                             @if($enquiry)
+                            {{-- Reference Number - top single section --}}
+                            <div class="row g-3 mb-0">
+                                <div class="col-md-6">
+                                    <label for="reference_number" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-hashtag me-1"></i>Reference Number
+                                    </label>
+                                    <input type="text" name="reference_number" id="reference_number" class="form-control" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number', $enquiry->reference_number ?? '') }}">
+                                </div>
+                            </div>
                             {{-- Two-row layout when form is in 8 columns (with enquiry sidebar) for proper alignment --}}
-                            <div class="row g-3">
+                            <div class="row g-3 mt-2">
                                 <div class="col-12 col-sm-4">
                                     <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-earth-line me-1"></i>Country
@@ -467,8 +476,17 @@
                                 </div>
                             </div>
                             @else
+                            {{-- Reference Number - top single section --}}
+                            <div class="row g-3 mb-0">
+                                <div class="col-md-6">
+                                    <label for="reference_number" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-hashtag me-1"></i>Reference Number
+                                    </label>
+                                    <input type="text" name="reference_number" id="reference_number" class="form-control" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number') }}">
+                                </div>
+                            </div>
                             {{-- Single row layout when form is full 12 columns --}}
-                            <div class="row g-3">
+                            <div class="row g-3 mt-2">
                                 <!-- Country Selection -->
                                 <div class="col-md-2">
                                     <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
@@ -4915,6 +4933,7 @@
                         tourFormData.append('infants', infants);
                         tourFormData.append('child_ages', childAgesData);
                         tourFormData.append('agent_id', agent);
+                        tourFormData.append('reference_number', document.getElementById('reference_number')?.value || '');
                         tourFormData.append('enquiry_id', enquiry?enquiry.enquiry_id:0);
                         tourFormData.append('mainguest', JSON.stringify(mainGuestData));
                         tourFormData.append('additionalguest', JSON.stringify(additionalGuests));
