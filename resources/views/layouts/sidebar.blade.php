@@ -996,15 +996,7 @@
                         </a>
                     </li>
                 @endif
-                @if(in_array(auth()->user()->role_id, [34, 128, 131, 132, 134, 135, 137, 138]))
-                    <li class="menu-item @if(Request::is('bookings/today')) active @endif">
-                        <a href="{{ route('bookings.today') }}" class="menu-link" title="Trip Logs">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span data-i18n="Trip Logs">Trip Logs</span>
-                            </div>
-                        </a>
-                    </li>
-                @endif
+                
             </ul>
         </li>  
     @endif
@@ -1576,7 +1568,17 @@
 
                         <div data-i18n="Service Delivery">Service Delivery</div>
                         </a>
+                        
                         <ul class="menu-sub">
+                            @if(in_array(auth()->user()->role_id, [34, 128, 131, 132, 134, 135, 137, 138]))
+                                <li class="menu-item @if(Request::is('bookings/today')) active @endif">
+                                    <a href="{{ route('bookings.today') }}" class="menu-link" title="Trip Logs">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span data-i18n="Trip Logs">Trip Logs</span>
+                                        </div>
+                                    </a>
+                                </li>
+                            @endif
                             <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet')) open @endif">
                                 <a href="javascript:void(0);" class="menu-link menu-toggle">
                                 {{-- <i class="menu-icon tf-icons ri-file-list-3-line"></i> --}}
@@ -1599,6 +1601,7 @@
                                     <div data-i18n="Assign Driver">Assign Driver</div>
                                 </a>
                             </li>
+                            
                             </ul>
                             </li>
                             @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108, 128, 131, 132, 134, 135, 137, 138]))

@@ -32,23 +32,37 @@
         <form action="{{ route('packages.definition.store') }}" method="POST" enctype="multipart/form-data" id="package-definition-form">
             @csrf
 
-            <!-- Basic Information -->
+            <!-- Basic Details: info, availability & pricing in one card -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-information-line me-2 text-primary"></i>Basic Information</h5>
+                    <h5 class="mb-0"><i class="ri-file-list-3-line me-2 text-primary"></i>Basic Details</h5>
                 </div>
                 <x-alert />
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
+                    <div class="row g-3 two-col-row">
+                        <div class="col-md-6">
                             <label class="form-label">Package Title <span class="text-danger">*</span></label>
                             <input type="text" class="form-control @error('title') is-invalid @enderror"
                                    name="title" value="{{ old('title') }}" required placeholder="e.g., Singapore Explorer">
                             @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3">
+                            <label class="form-label">Package Start Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="start_date" value="{{ old('start_date') }}" required min="{{ date('Y-m-d') }}" id="start-date-input">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Package Expiry Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="expiry_date" value="{{ old('expiry_date') }}" required min="{{ date('Y-m-d') }}" id="expiry-date-input">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Tour Duration (Days) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control @error('duration_days') is-invalid @enderror"
+                                   name="duration_days" value="{{ old('duration_days') }}" min="1" required placeholder="e.g. 3">
+                            @error('duration_days')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label">Country/Destination <span class="text-danger">*</span></label>
-                            <select class="form-select @error('destination') is-invalid @enderror" id="country-select" name="destination" required>
+                            <select class="form-select w-100 @error('destination') is-invalid @enderror" id="country-select" name="destination" required>
                                 <option value="">Select Country</option>
                                 @foreach($countries as $country)
                                     <option value="{{ $country->name }}" {{ old('destination') == $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
@@ -58,14 +72,14 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">City <span class="text-danger">*</span></label>
-                            <select class="form-select @error('city') is-invalid @enderror" id="city-select" name="city" required disabled>
+                            <select class="form-select w-100 @error('city') is-invalid @enderror" id="city-select" name="city" required disabled>
                                 <option value="">Select Country First</option>
                             </select>
                             @error('city')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Category <span class="text-danger">*</span></label>
-                            <select class="form-select @error('category') is-invalid @enderror" name="category" required>
+                            <select class="form-select w-100 @error('category') is-invalid @enderror" name="category" required>
                                 <option value="">Select Category</option>
                                 <option value="Adventure" {{ old('category') == 'Adventure' ? 'selected' : '' }}>Adventure</option>
                                 <option value="Cultural" {{ old('category') == 'Cultural' ? 'selected' : '' }}>Cultural</option>
@@ -76,11 +90,52 @@
                             </select>
                             @error('category')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Duration (Days) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control @error('duration_days') is-invalid @enderror"
-                                   name="duration_days" value="{{ old('duration_days') }}" min="1" required>
-                            @error('duration_days')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <div class="col-md-3">
+                            <label class="form-label">Adult Price <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="price_adult" value="{{ old('price_adult') }}" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Senior Citizen Price</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="price_senior" value="{{ old('price_senior') }}" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Child Price</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="price_child" value="{{ old('price_child') }}" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Child Max Age</label>
+                            <input type="number" class="form-control" name="child_max_age" value="{{ old('child_max_age') }}" min="1" id="child-max-age-input">
+                        </div>
+                        <!-- Images -->
+                        <div class="card mb-4">
+                            
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Main Image <span class="text-danger">*</span></label>
+                                        <input type="file" id="main_image" name="main_image" accept="image/*" class="d-none">
+                                        <div id="main-image-drop-area" class="form-control" style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; cursor: pointer;">
+                                            Drag & Drop or click to upload.
+                                        </div>
+                                        <small class="text-danger d-none" id="main-image-required-msg">Main image is required.</small>
+                                        <div id="main-image-preview-container" class="mt-2"></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Gallery Images</label>
+                                        <div id="gallery-drop-area" class="form-control" style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; cursor: pointer;">
+                                            Drag & Drop or click to upload.
+                                            <input type="file" id="gallery_images" name="gallery_images[]" accept="image/*" multiple style="display: none;">
+                                        </div>
+                                        <div id="gallery-preview-container" class="mt-2"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Description</label>
@@ -91,330 +146,318 @@
                 </div>
             </div>
 
-            <!-- Pricing & Capacity -->
+            <!-- Hotels & Attractions: two side-by-side boxes -->
             <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-money-dollar-circle-line me-2 text-success"></i>Pricing & Capacity</h5>
+                <div class="card-header bg-light py-2">
+                    <h5 class="mb-0"><i class="ri-hotel-line me-2 text-primary"></i><i class="ri-map-pin-line me-2 text-success"></i>Hotels & Attractions</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body py-3">
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label">Adult Price (SGD) <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text">SGD</span>
-                                <input type="number" class="form-control" name="price_adult" value="{{ old('price_adult') }}" min="0" step="0.01" required>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Senior Citizen Price (SGD)</label>
-                            <div class="input-group">
-                                <span class="input-group-text">SGD</span>
-                                <input type="number" class="form-control" name="price_senior" value="{{ old('price_senior') }}" min="0" step="0.01">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Child Price (SGD)</label>
-                            <div class="input-group">
-                                <span class="input-group-text">SGD</span>
-                                <input type="number" class="form-control" name="price_child" value="{{ old('price_child') }}" min="0" step="0.01">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Child Max Age</label>
-                            <input type="number" class="form-control" name="child_max_age" value="{{ old('child_max_age') }}" min="1" id="child-max-age-input">
-                            <small class="text-muted">Child below this age will be free of charge</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Availability -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-calendar-line me-2 text-primary"></i>Package Availability</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
+                        <!-- Hotel box (col-md-6) -->
                         <div class="col-md-6">
-                            <label class="form-label">Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="start_date" value="{{ old('start_date') }}" required min="{{ date('Y-m-d') }}" id="start-date-input">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="expiry_date" value="{{ old('expiry_date') }}" required min="{{ date('Y-m-d') }}" id="expiry-date-input">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Hotel: select hotel → rooms (AJAX) → select rooms & qty → nights → Add → chosen hotels preview -->
-            <div class="card mb-4">
-                <div class="card-header bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <div>
-                        <h5 class="mb-0"><i class="ri-hotel-line me-2 text-primary"></i>Hotel Accommodations</h5>
-                        <p class="text-muted small mb-0 mt-1">Manage hotel bookings and room configurations</p>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Select Hotel</label>
-                            <select class="form-select" id="definition-hotel-select" name="definition_hotel_id">
-                                <option value="">Select City First</option>
-                            </select>
-                        </div>
-                        <div class="col-md-12" id="definition-rooms-wrapper" style="display: none;">
-                            <div class="card shadow-sm border-primary border-opacity-25">
-                                <div class="card-header bg-primary-subtle py-2">
-                                    <h6 class="mb-0 fw-semibold"><i class="ri-hotel-bed-line me-2"></i>Room Types</h6>
-                                </div>
-                                <div class="card-body">
-                                    <p class="text-muted small mb-2">Select room type(s) and quantity, then set nights and click <strong>Add</strong>.</p>
-                                    <div id="definition-rooms-list" class="definition-rooms-list row"></div>
-                                    <div class="mt-3 d-flex align-items-end gap-3 flex-wrap">
-                                        <div>
-                                            <label class="form-label">Number of Nights <span class="text-danger">*</span></label>
-                                            <input type="number" class="form-control" id="definition-nights" min="1" value="1" style="max-width: 100px;">
+                            <div class="border rounded p-3 h-100 hotel-attraction-box">
+                                <h6 class="fw-semibold mb-2 text-primary"><i class="ri-hotel-line me-1"></i>Hotel</h6>
+                                <label class="form-label small mb-1">Select Hotel</label>
+                                <select class="form-select form-select-sm w-100 mb-2" id="definition-hotel-select" name="definition_hotel_id">
+                                    <option value="">Select City First</option>
+                                </select>
+                                <div id="definition-rooms-wrapper" style="display: none;">
+                                    <div class="bg-primary-subtle rounded p-2 mb-2">
+                                        <h6 class="small fw-semibold mb-1"><i class="ri-hotel-bed-line me-1"></i>Room Type</h6>
+                                        <div class="d-flex align-items-end gap-2 flex-wrap mb-2">
+                                            <div class="flex-grow-1" style="min-width: 140px;">
+                                                <label class="form-label small mb-0">Room Type</label>
+                                                <select class="form-select form-select-sm" id="definition-room-type-select">
+                                                    <option value="">Select room type</option>
+                                                </select>
+                                            </div>
+                                            <div style="width: 70px;">
+                                                <label class="form-label small mb-0">Qty</label>
+                                                <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1">
+                                            </div>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" id="definition-room-add-line"><i class="ri-add-line me-1"></i>Add room</button>
                                         </div>
-                                        <div class="mb-0">
-                                            <button type="button" class="btn btn-primary" id="definition-hotel-add-btn">
-                                                <i class="ri-add-line me-1"></i> Add
-                                            </button>
+                                        <div id="definition-pending-rooms" class="small mb-2"></div>
+                                        <div class="d-flex align-items-end gap-2 flex-wrap">
+                                            <div>
+                                                <label class="form-label small mb-0">Nights</label>
+                                                <input type="number" class="form-control form-control-sm" id="definition-nights" min="1" value="1" style="width: 70px;">
+                                            </div>
+                                            <button type="button" class="btn btn-primary btn-sm" id="definition-hotel-add-btn"><i class="ri-add-line me-1"></i>Add</button>
                                         </div>
                                     </div>
                                 </div>
+                                <div class="pt-2 border-top mt-2">
+                                    <h6 class="small fw-semibold mb-1">Chosen Hotels <span class="text-muted fw-normal">(<span id="definition-total-hotels-count">0</span>)</span></h6>
+                                    <div id="definition-chosen-hotels" class="mb-0">
+                                        <div class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select hotel, add rooms, then Add.</div>
+                                    </div>
+                                    <div id="definition-chosen-hotels-list" class="mt-1" style="display: none;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Attraction box (col-md-6) -->
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 h-100 hotel-attraction-box">
+                                <h6 class="fw-semibold mb-2 text-success"><i class="ri-map-pin-line me-1"></i>Attraction</h6>
+                                <label class="form-label small mb-1">Select Attraction</label>
+                                <select class="form-select form-select-sm w-100 mb-2" id="definition-attraction-select">
+                                    <option value="">Select City First</option>
+                                </select>
+                                <div id="definition-attraction-config" style="display: none;">
+                                    <div class="bg-success-subtle rounded p-2 mb-2">
+                                        <h6 class="small fw-semibold mb-1">Guide & transfer</h6>
+                                        <div class="row g-1">
+                                            <div class="col-12">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="definition-attraction-config-need-guide">
+                                                    <label class="form-check-label small" for="definition-attraction-config-need-guide">Need guide</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-12" id="definition-attraction-config-guide-wrap" style="display: none;">
+                                                <label class="form-label small mb-0">Select guide</label>
+                                                <select class="form-select form-select-sm" id="definition-attraction-config-guide">
+                                                    <option value="">Select guide</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="definition-attraction-config-transfer">
+                                                    <label class="form-check-label small" for="definition-attraction-config-transfer">Include transfer</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-12" id="definition-attraction-config-vehicle-wrap" style="display: none;">
+                                                <div class="row g-2 mb-2">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small mb-0">Vehicle</label>
+                                                        <select class="form-select form-select-sm" id="definition-attraction-config-vehicle"><option value="">Select vehicle</option></select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small mb-0">Pickup (hotels / restaurants)</label>
+                                                        <select class="form-select form-select-sm" id="definition-attraction-config-pickup"><option value="">Add hotels or restaurants first</option></select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small mb-0">Dropoff (e.g. attraction)</label>
+                                                        <select class="form-select form-select-sm" id="definition-attraction-config-dropoff"><option value="">—</option></select>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="private" id="definition-attr-transfer-private"><label class="form-check-label small" for="definition-attr-transfer-private">Private</label></div>
+                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="shared" id="definition-attr-transfer-shared"><label class="form-check-label small" for="definition-attr-transfer-shared">Shared</label></div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-success btn-sm mt-1" id="definition-attraction-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                    </div>
+                                </div>
+                                <div class="pt-2 border-top mt-2">
+                                    <h6 class="small fw-semibold mb-1">Chosen Attractions</h6>
+                                    <div id="definition-attractions-empty" class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select attraction, set options, then Add.</div>
+                                    <div id="definition-attractions-list" class="mt-1" style="display: none;"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Chosen hotels preview -->
-                    <div class="mt-4 pt-3 border-top">
-                        <h6 class="fw-semibold mb-2"><i class="ri-list-check me-2 text-success"></i>Chosen Hotels</h6>
-                        <div id="definition-chosen-hotels" class="mb-0">
-                            <div class="alert alert-info py-3 mb-0 d-flex align-items-center">
-                                <i class="ri-information-line me-2 fs-5"></i>
-                                <span>No hotels selected yet. Choose your hotels above and click <strong>Add</strong>.</span>
-                            </div>
-                        </div>
-                        <div id="definition-chosen-hotels-list" class="mt-2" style="display: none;"></div>
-                        <p class="text-muted small mt-2 mb-0">
-                            <i class="ri-hotel-line me-1"></i> Total Hotels: <span id="definition-total-hotels-count">0</span>
-                        </p>
-                    </div>
-
                     <input type="hidden" name="selected_hotels" id="definition-hotels-input" value="[]">
-                </div>
-            </div>
-
-            <!-- Attractions: select → configure guide/transfer → Add → preview strip (like hotel) -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-map-pin-line me-2 text-success"></i>Attractions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Select Attraction</label>
-                            <select class="form-select" id="definition-attraction-select">
-                                <option value="">Select City First</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="definition-attraction-config" class="card shadow-sm border-success border-opacity-25 mb-3" style="display: none;">
-                        <div class="card-header bg-success-subtle py-2">
-                            <h6 class="mb-0 fw-semibold">Configure guide & transfer, then click Add</h6>
-                        </div>
-                        <div class="card-body p-3">
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <label class="form-label small">Guide (optional)</label>
-                                    <select class="form-select form-select-sm" id="definition-attraction-config-guide">
-                                        <option value="">No guide</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small">Transfer</label>
-                                    <div class="form-check form-check-inline mt-2">
-                                        <input class="form-check-input" type="checkbox" id="definition-attraction-config-transfer">
-                                        <label class="form-check-label">Include</label>
-                                    </div>
-                                </div>
-                                <div class="col-12" id="definition-attraction-config-vehicle-wrap" style="display: none;">
-                                    <div class="row g-2 align-items-end">
-                                        <div class="col-md-4">
-                                            <label class="form-label small">Vehicle</label>
-                                            <select class="form-select form-select-sm" id="definition-attraction-config-vehicle">
-                                                <option value="">Select vehicle</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small">Pickup location</label>
-                                            <select class="form-select form-select-sm" id="definition-attraction-config-pickup">
-                                                <option value="">Add hotels first</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small">Dropoff location</label>
-                                            <select class="form-select form-select-sm" id="definition-attraction-config-dropoff">
-                                                <option value="">—</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="form-check form-check-inline mt-2">
-                                        <input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="private" id="definition-attr-transfer-private"> <label class="form-check-label" for="definition-attr-transfer-private">Private</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="shared" id="definition-attr-transfer-shared"> <label class="form-check-label" for="definition-attr-transfer-shared">Shared</label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-primary btn-sm" id="definition-attraction-add-btn">
-                                    <i class="ri-add-line me-1"></i> Add
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="border-top pt-3">
-                        <h6 class="fw-semibold mb-2">Chosen Attractions</h6>
-                        <div id="definition-attractions-empty" class="alert alert-info py-3 mb-0 d-flex align-items-center">
-                            <i class="ri-information-line me-2 fs-5"></i>
-                            <span>No attractions added yet. Select an attraction, set guide/transfer above, then click <strong>Add</strong>.</span>
-                        </div>
-                        <div id="definition-attractions-list" class="mt-2" style="display: none;"></div>
-                    </div>
                     <input type="hidden" name="selected_attractions" id="definition-attractions-input" value="[]">
                 </div>
             </div>
 
-            <!-- Restaurants: select → configure transfer → Add → preview strip (like hotel) -->
+            <!-- Restaurants & Guide: two side-by-side boxes (same as Hotels & Attractions) -->
             <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-restaurant-line me-2 text-warning"></i>Restaurants</h5>
+                <div class="card-header bg-light py-2">
+                    <h5 class="mb-0"><i class="ri-restaurant-line me-2 text-warning"></i><i class="ri-user-voice-line me-2 text-info"></i>Restaurants & Guide</h5>
                 </div>
-                <div class="card-body">
-                    <div class="row g-3 mb-3">
+                <div class="card-body py-3">
+                    <div class="row g-3">
+                        <!-- Restaurant box (col-md-6) -->
                         <div class="col-md-6">
-                            <label class="form-label">Select Restaurant</label>
-                            <select class="form-select" id="definition-restaurant-select">
-                                <option value="">Select City First</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="definition-restaurant-config" class="card shadow-sm border-warning border-opacity-25 mb-3" style="display: none;">
-                        <div class="card-header bg-warning-subtle py-2">
-                            <h6 class="mb-0 fw-semibold">Configure transfer, then click Add</h6>
-                        </div>
-                        <div class="card-body p-3">
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" id="definition-restaurant-config-transfer">
-                                        <label class="form-check-label">Include transfer</label>
+                            <div class="border rounded p-3 h-100 hotel-attraction-box">
+                                <h6 class="fw-semibold mb-2 text-warning"><i class="ri-restaurant-line me-1"></i>Restaurant</h6>
+                                <label class="form-label small mb-1">Select Restaurant</label>
+                                <select class="form-select form-select-sm w-100 mb-2" id="definition-restaurant-select">
+                                    <option value="">Select City First</option>
+                                </select>
+                                <div id="definition-restaurant-config" style="display: none;">
+                                    <div id="definition-restaurant-meals-wrap" class="bg-warning-subtle rounded p-2 mb-2" style="display: none;">
+                                        <h6 class="small fw-semibold mb-1">Meals</h6>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <div class="form-check form-check-inline mb-0" id="definition-rest-meal-breakfast-wrap" style="display: none;">
+                                                <input class="form-check-input" type="checkbox" id="definition-restaurant-meal-breakfast" value="breakfast">
+                                                <label class="form-check-label small" for="definition-restaurant-meal-breakfast">Breakfast</label>
+                                            </div>
+                                            <div class="form-check form-check-inline mb-0" id="definition-rest-meal-lunch-wrap" style="display: none;">
+                                                <input class="form-check-input" type="checkbox" id="definition-restaurant-meal-lunch" value="lunch">
+                                                <label class="form-check-label small" for="definition-restaurant-meal-lunch">Lunch</label>
+                                            </div>
+                                            <div class="form-check form-check-inline mb-0" id="definition-rest-meal-dinner-wrap" style="display: none;">
+                                                <input class="form-check-input" type="checkbox" id="definition-restaurant-meal-dinner" value="dinner">
+                                                <label class="form-check-label small" for="definition-restaurant-meal-dinner">Dinner</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-warning-subtle rounded p-2 mb-2">
+                                        <h6 class="small fw-semibold mb-1">Transfer</h6>
+                                        <div class="form-check form-check-inline mb-1">
+                                            <input class="form-check-input" type="checkbox" id="definition-restaurant-config-transfer">
+                                            <label class="form-check-label small">Include transfer</label>
+                                        </div>
+                                        <div id="definition-restaurant-config-vehicle-wrap" style="display: none;">
+                                                <div class="row g-2 mb-2">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small mb-0">Vehicle</label>
+                                                        <select class="form-select form-select-sm" id="definition-restaurant-config-vehicle"><option value="">Select vehicle</option></select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small mb-0">Pickup (hotels / attractions)</label>
+                                                        <select class="form-select form-select-sm" id="definition-restaurant-config-pickup"><option value="">Add hotels or attractions first</option></select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small mb-0">Dropoff (restaurant)</label>
+                                                        <select class="form-select form-select-sm" id="definition-restaurant-config-dropoff"><option value="">—</option></select>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="private" id="definition-rest-transfer-private"><label class="form-check-label small" for="definition-rest-transfer-private">Private</label></div>
+                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="shared" id="definition-rest-transfer-shared"><label class="form-check-label small" for="definition-rest-transfer-shared">Shared</label></div>
+                                            </div>
+                                        <button type="button" class="btn btn-warning btn-sm mt-1" id="definition-restaurant-add-btn"><i class="ri-add-line me-1"></i>Add</button>
                                     </div>
                                 </div>
-                                <div class="col-12" id="definition-restaurant-config-vehicle-wrap" style="display: none;">
-                                    <div class="row g-2 align-items-end">
-                                        <div class="col-md-4">
-                                            <label class="form-label small">Vehicle</label>
-                                            <select class="form-select form-select-sm" id="definition-restaurant-config-vehicle">
-                                                <option value="">Select vehicle</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small">Pickup location</label>
-                                            <select class="form-select form-select-sm" id="definition-restaurant-config-pickup">
-                                                <option value="">Add hotels first</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small">Dropoff location</label>
-                                            <select class="form-select form-select-sm" id="definition-restaurant-config-dropoff">
-                                                <option value="">—</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="form-check form-check-inline mt-2">
-                                        <input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="private" id="definition-rest-transfer-private"> <label class="form-check-label" for="definition-rest-transfer-private">Private</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="shared" id="definition-rest-transfer-shared"> <label class="form-check-label" for="definition-rest-transfer-shared">Shared</label>
-                                    </div>
+                                <div class="pt-2 border-top mt-2">
+                                    <h6 class="small fw-semibold mb-1">Chosen Restaurants</h6>
+                                    <div id="definition-restaurants-empty" class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select restaurant, set transfer, then Add.</div>
+                                    <div id="definition-restaurants-list" class="mt-1" style="display: none;"></div>
                                 </div>
                             </div>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-primary btn-sm" id="definition-restaurant-add-btn">
-                                    <i class="ri-add-line me-1"></i> Add
-                                </button>
+                        </div>
+                        <!-- Guide box (col-md-6) -->
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 h-100 hotel-attraction-box">
+                                <h6 class="fw-semibold mb-2 text-info"><i class="ri-user-voice-line me-1"></i>Guide</h6>
+                                <label class="form-label small mb-1">Select Guide</label>
+                                <div class="d-flex gap-2 mb-2">
+                                    <select class="form-select form-select-sm flex-grow-1" id="definition-guide-select">
+                                        <option value="">Select City First / No guide</option>
+                                    </select>
+                                    <button type="button" class="btn btn-info btn-sm align-self-end" id="definition-guide-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                </div>
+                                <div id="definition-guide-duration-wrap" class="bg-info-subtle rounded p-2 mb-2" style="display: none;">
+                                    <h6 class="small fw-semibold mb-1">Duration (time)</h6>
+                                    <select class="form-select form-select-sm" id="definition-guide-duration">
+                                        <option value="">Select duration</option>
+                                        <option value="hourly">1 Hour</option>
+                                        <option value="two_hour">2 Hours</option>
+                                        <option value="four_hour">4 Hours</option>
+                                        <option value="six_hour">6 Hours</option>
+                                        <option value="eight_hour">8 Hours</option>
+                                        <option value="ten_hour">10 Hours</option>
+                                        <option value="twelve_hour">12 Hours</option>
+                                    </select>
+                                    <small class="text-muted d-block mt-1">Price is taken from guide's rate for selected duration.</small>
+                                </div>
+                                <div class="pt-2 border-top mt-2">
+                                    <h6 class="small fw-semibold mb-1">Chosen Guides <span class="text-muted fw-normal">(<span id="definition-total-guides-count">0</span>)</span></h6>
+                                    <div id="definition-guides-empty" class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select guide, then Add.</div>
+                                    <div id="definition-guides-list" class="mt-1" style="display: none;"></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="border-top pt-3">
-                        <h6 class="fw-semibold mb-2">Chosen Restaurants</h6>
-                        <div id="definition-restaurants-empty" class="alert alert-info py-3 mb-0 d-flex align-items-center">
-                            <i class="ri-information-line me-2 fs-5"></i>
-                            <span>No restaurants added yet. Select a restaurant, set transfer above, then click <strong>Add</strong>.</span>
-                        </div>
-                        <div id="definition-restaurants-list" class="mt-2" style="display: none;"></div>
                     </div>
                     <input type="hidden" name="selected_restaurants" id="definition-restaurants-input" value="[]">
+                    <input type="hidden" name="definition_independent_guide" id="definition-independent-guide-input" value="[]">
                 </div>
             </div>
 
-            <!-- Independent Guide -->
+            <!-- Transfers: Arrival (port → hotel) & Departure (hotel → port), search & choose vehicle -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-user-voice-line me-2 text-info"></i>Independent Guide (Optional)</h5>
+                    <h5 class="mb-0"><i class="ri-flight-land-line me-2 text-primary"></i>Arrival & Departure</h5>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <label class="form-label">Select Guide</label>
-                            <select class="form-select" id="definition-guide-select" name="definition_guide_id">
-                                <option value="">Select City First / No guide</option>
-                            </select>
-                        </div>
-                    </div>
-                    <input type="hidden" name="definition_independent_guide" id="definition-independent-guide-input" value="">
-                </div>
-            </div>
-
-            <!-- Arrival Pickup & Departure Service -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-flight-land-line me-2 text-primary"></i>Transfers</h5>
-                </div>
-                <div class="card-body">
+                <div class="card-body" style="margin-top: 12px;">
                     <div class="row g-3">
+                        <!-- Arrival Pickup: port (pickup) → hotel (dropoff), then search vehicle & choose -->
                         <div class="col-md-6">
                             <div class="card border-info border-opacity-25">
                                 <div class="card-body p-3">
-                                    <div class="d-flex align-items-center">
+                                    <div class="d-flex align-items-center mb-2">
                                         <span class="badge bg-info-subtle text-info p-2 rounded-circle me-3"><i class="ri-flight-land-line"></i></span>
                                         <div class="flex-grow-1">
                                             <h6 class="mb-0">Arrival Pickup</h6>
-                                            <small class="text-muted">Airport/port pickup</small>
+                                            <small class="text-muted">Port → Hotel</small>
                                         </div>
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" id="arrival-pickup-def" value="1">
                                             <label class="form-check-label" for="arrival-pickup-def">Include</label>
                                         </div>
                                     </div>
+                                    <div id="arrival-pickup-config" class="mt-2 pt-2 border-top" style="display: none;">
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-6">
+                                                <label class="form-label small mb-0">Pickup (Port)</label>
+                                                <select class="form-select form-select-sm" id="arrival-pickup-port">
+                                                    <option value="">Select country first</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small mb-0">Dropoff (Hotel)</label>
+                                                <select class="form-select form-select-sm" id="arrival-dropoff-hotel">
+                                                    <option value="">Add hotels first</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-info btn-sm mb-2" id="arrival-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle</button>
+                                        <div id="arrival-vehicle-select-wrap" style="display: none;">
+                                            <label class="form-label small mb-0">Choose vehicle (zone-based)</label>
+                                            <div class="d-flex gap-2 mb-1">
+                                                <select class="form-select form-select-sm flex-grow-1" id="arrival-vehicle-select">
+                                                    <option value="">Select vehicle</option>
+                                                </select>
+                                                <button type="button" class="btn btn-info btn-sm" id="arrival-add-vehicle-btn"><i class="ri-add-line"></i> Add</button>
+                                            </div>
+                                            <div id="arrival-chosen-vehicles" class="small mt-1"></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <!-- Departure Service: hotel (pickup) → port (dropoff), then search vehicle & choose -->
                         <div class="col-md-6">
                             <div class="card border-warning border-opacity-25">
                                 <div class="card-body p-3">
-                                    <div class="d-flex align-items-center">
+                                    <div class="d-flex align-items-center mb-2">
                                         <span class="badge bg-warning-subtle text-warning p-2 rounded-circle me-3"><i class="ri-flight-takeoff-line"></i></span>
                                         <div class="flex-grow-1">
                                             <h6 class="mb-0">Departure Service</h6>
-                                            <small class="text-muted">Airport/port dropoff</small>
+                                            <small class="text-muted">Hotel → Port</small>
                                         </div>
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" id="departure-service-def" value="1">
                                             <label class="form-check-label" for="departure-service-def">Include</label>
+                                        </div>
+                                    </div>
+                                    <div id="departure-service-config" class="mt-2 pt-2 border-top" style="display: none;">
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-6">
+                                                <label class="form-label small mb-0">Pickup (Hotel)</label>
+                                                <select class="form-select form-select-sm" id="departure-pickup-hotel">
+                                                    <option value="">Add hotels first</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small mb-0">Dropoff (Port)</label>
+                                                <select class="form-select form-select-sm" id="departure-dropoff-port">
+                                                    <option value="">Select country first</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-warning btn-sm mb-2" id="departure-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle</button>
+                                        <div id="departure-vehicle-select-wrap" style="display: none;">
+                                            <label class="form-label small mb-0">Choose vehicle (zone-based)</label>
+                                            <div class="d-flex gap-2 mb-1">
+                                                <select class="form-select form-select-sm flex-grow-1" id="departure-vehicle-select">
+                                                    <option value="">Select vehicle</option>
+                                                </select>
+                                                <button type="button" class="btn btn-warning btn-sm" id="departure-add-vehicle-btn"><i class="ri-add-line"></i> Add</button>
+                                            </div>
+                                            <div id="departure-chosen-vehicles" class="small mt-1"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -422,78 +465,126 @@
                         </div>
                     </div>
                     <input type="hidden" name="arrival_pickup" id="arrival-pickup-hidden" value="0">
+                    <input type="hidden" name="arrival_pickup_port_id" id="arrival-pickup-port-hidden" value="">
+                    <input type="hidden" name="arrival_dropoff_hotel_id" id="arrival-dropoff-hotel-hidden" value="">
+                    <input type="hidden" name="arrival_vehicles" id="arrival-vehicles-hidden" value="[]">
                     <input type="hidden" name="departure_service" id="departure-service-hidden" value="0">
+                    <input type="hidden" name="departure_pickup_hotel_id" id="departure-pickup-hotel-hidden" value="">
+                    <input type="hidden" name="departure_dropoff_port_id" id="departure-dropoff-port-hidden" value="">
+                    <input type="hidden" name="departure_vehicles" id="departure-vehicles-hidden" value="[]">
                 </div>
             </div>
 
-            <!-- Inclusions & Exclusions -->
-            <div class="card mb-4">
+            <!-- Transport: Local Transfer (pickup & dropoff = hotels, attractions, restaurants, ports; dropoff excludes selected pickup) -->
+            <div class="card mb-5">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-list-check me-2 text-success"></i>Inclusions & Exclusions</h5>
+                    <h5 class="mb-0"><i class="ri-car-line me-2 text-secondary"></i>Transport</h5>
+                </div>
+                <div class="card-body" style="margin-top: 12px;">
+                    <p class="text-muted small mb-3">Pickup and dropoff can be any hotel, attraction, restaurant or port. Dropoff will not show the selected pickup location.</p>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Pickup location</label>
+                            <select class="form-select" id="local-transfer-pickup">
+                                <option value="">Select location</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Dropoff location</label>
+                            <select class="form-select" id="local-transfer-dropoff">
+                                <option value="">Select location (excludes pickup)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Search vehicle</label>
+                            <button type="button" class="btn btn-secondary btn-sm w-100" id="local-transfer-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle (zone-based)</button>
+                            
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div id="local-transfer-vehicle-wrap" class="mt-2" style="display: none;">
+                            <label class="form-label small mb-1">Choose vehicle(s)</label>
+                            <div class="d-flex gap-2 mb-1">
+                                <select class="form-select form-select-sm flex-grow-1" id="local-transfer-vehicle-select">
+                                    <option value="">Select vehicle</option>
+                                </select>
+                                <button type="button" class="btn btn-secondary btn-sm" id="local-transfer-add-vehicle-btn"><i class="ri-add-line"></i> Add</button>
+                            </div>
+                            <div id="local-transfer-chosen-vehicles" class="small"></div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm" id="local-transfer-add-btn"><i class="ri-add-line me-1"></i>Add this transfer</button>
+                    <div class="mt-3 pt-3 border-top">
+                        <h6 class="small fw-semibold mb-2">Chosen local transfers</h6>
+                        <div id="local-transfer-empty" class="alert alert-secondary py-2 small mb-0"><i class="ri-information-line me-1"></i>Add pickup/dropoff and vehicles above, then click Add this transfer.</div>
+                        <div id="local-transfer-list" style="display: none;"></div>
+                    </div>
+                    <input type="hidden" name="local_transfers" id="local-transfers-hidden" value="[]">
+                </div>
+            </div>
+
+            <!-- Optional services aggregated price data (JSON) -->
+            <input type="hidden" name="price_data" id="price-data-hidden" value="[]">
+
+            <!-- Optional Services Summary: list and total (shown when any optional service exists) -->
+            <div class="card mb-4 border-success border-opacity-25" id="optional-services-summary-card" style="display: none;">
+                <div class="card-header bg-success-subtle py-2">
+                    <h5 class="mb-0"><i class="ri-price-tag-3-line me-2 text-success"></i>Optional Services – Price Summary</h5>
                 </div>
                 <div class="card-body">
+                    <p class="text-muted small mb-3">Add-on services marked as optional and their prices. Total is the sum of all optional service prices.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0" id="optional-services-summary-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-nowrap">#</th>
+                                    <th>Service</th>
+                                    <th class="text-nowrap">Type</th>
+                                    <th class="text-end text-nowrap">Price</th>
+                                </tr>
+                            </thead>
+                            <tbody id="optional-services-summary-tbody"></tbody>
+                            <tfoot class="table-light fw-semibold">
+                                <tr>
+                                    <td colspan="3" class="text-end">Total (optional services)</td>
+                                    <td class="text-end" id="optional-services-total-cell">—</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <div id="optional-services-summary-empty" class="alert alert-light border text-muted py-3 mb-0 mt-2 text-center" style="display: none;">
+                        <i class="ri-information-line me-1"></i>No optional services added yet. Mark any hotel, attraction, restaurant, guide or transfer as <strong>Optional</strong> to see their prices from the database here.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inclusions, Exclusions, Terms & Conditions, Status - one box -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="ri-list-check me-2 text-success"></i><i class="ri-file-text-line me-2 text-secondary"></i><i class="ri-toggle-line me-2 text-primary"></i>Inclusions, Exclusions, Terms & Status</h5>
+                </div>
+                <div class="card-body" style="margin-top: 12px;">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Inclusions</label>
-                            <textarea class="form-control" name="inclusions" rows="5" placeholder="What's included...">{{ old('inclusions') }}</textarea>
+                            <textarea class="form-control" name="inclusions" rows="4" placeholder="What's included...">{{ old('inclusions') }}</textarea>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Exclusions</label>
-                            <textarea class="form-control" name="exclusions" rows="5" placeholder="What's not included...">{{ old('exclusions') }}</textarea>
+                            <textarea class="form-control" name="exclusions" rows="4" placeholder="What's not included...">{{ old('exclusions') }}</textarea>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Terms & Conditions -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-file-text-line me-2 text-secondary"></i>Terms & Conditions</h5>
-                </div>
-                <div class="card-body">
-                    <textarea class="form-control" name="terms_conditions" rows="4" placeholder="Terms and conditions...">{{ old('terms_conditions') }}</textarea>
-                </div>
-            </div>
-
-            <!-- Images -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-image-line me-2 text-primary"></i>Package Images</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Main Image <span class="text-danger">*</span></label>
-                            <input type="file" id="main_image" name="main_image" accept="image/*" class="d-none">
-                            <div id="main-image-drop-area" class="form-control" style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; cursor: pointer;">
-                                Drag & Drop or click to upload.
-                            </div>
-                            <small class="text-danger d-none" id="main-image-required-msg">Main image is required.</small>
-                            <div id="main-image-preview-container" class="mt-2"></div>
+                        <div class="col-12">
+                            <label class="form-label">Terms & Conditions</label>
+                            <textarea class="form-control" name="terms_conditions" rows="3" placeholder="Terms and conditions...">{{ old('terms_conditions') }}</textarea>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Gallery Images</label>
-                            <div id="gallery-drop-area" class="form-control" style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; cursor: pointer;">
-                                Drag & Drop or click to upload.
-                                <input type="file" id="gallery_images" name="gallery_images[]" accept="image/*" multiple style="display: none;">
-                            </div>
-                            <div id="gallery-preview-container" class="mt-2"></div>
+                            <label class="form-label">Status <span class="text-danger">*</span></label>
+                            <select class="form-select" name="status" required style="max-width: 200px;">
+                                <option value="1" {{ old('status') == '1' ? 'selected' : '' }}>Active</option>
+                                <option value="0" {{ old('status') == '0' ? 'selected' : '' }}>Inactive</option>
+                            </select>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Status -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-toggle-line me-2 text-primary"></i>Status</h5>
-                </div>
-                <div class="card-body">
-                    <label class="form-label">Status <span class="text-danger">*</span></label>
-                    <select class="form-select" name="status" required style="max-width: 200px;">
-                        <option value="0" {{ old('status') == '0' ? 'selected' : '' }}>Draft</option>
-                        <option value="1" {{ old('status') == '1' ? 'selected' : '' }}>Active</option>
-                    </select>
                 </div>
             </div>
 
@@ -542,7 +633,30 @@ $(document).ready(function() {
         $('#definition-restaurant-config').hide();
         $('#definition-guide-select').empty().append('<option value="">Select City First</option>');
         $('#definition-rooms-wrapper').hide();
+        $('#arrival-pickup-port').empty().append('<option value="">Select country first</option>');
+        $('#departure-dropoff-port').empty().append('<option value="">Select country first</option>');
+        portsByCountry = [];
+        allHotelsForLocalTransfer = [];
+        allAttractionsForLocalTransfer = [];
+        allRestaurantsForLocalTransfer = [];
+        if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
+        if (typeof definitionGuides !== 'undefined') { definitionGuides = []; if (typeof updateDefinitionGuidesInput === 'function') updateDefinitionGuidesInput(); if (typeof renderChosenGuides === 'function') renderChosenGuides(); }
         if (!country) return;
+        $.get(baseUrl + '/ports-by-country/' + encodeURIComponent(country), function(ports) {
+            portsByCountry = ports || [];
+            const arr = $('#arrival-pickup-port'), dep = $('#departure-dropoff-port');
+            arr.empty().append('<option value="">Select port</option>');
+            dep.empty().append('<option value="">Select port</option>');
+            portsByCountry.forEach(function(p) {
+                const portId = p.port_id || p.id;
+                const name = p.port_name || p.name;
+                if (portId && name) {
+                    arr.append(new Option(name, portId));
+                    dep.append(new Option(name, portId));
+                }
+            });
+            if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
+        });
         citySelect.prop('disabled', false);
         $.get(baseUrl + '/cities-by-country/' + encodeURIComponent(country), function(response) {
             citySelect.empty().append('<option value="">Select City</option>');
@@ -550,6 +664,10 @@ $(document).ready(function() {
         });
     });
 
+    let portsByCountry = [];
+    let allHotelsForLocalTransfer = [];
+    let allAttractionsForLocalTransfer = [];
+    let allRestaurantsForLocalTransfer = [];
     let definitionHotels = [];
     let definitionAttractions = [];
     let definitionRestaurants = [];
@@ -560,38 +678,49 @@ $(document).ready(function() {
     $('#city-select').on('change', function() {
         const city = $(this).val();
         if (!city) return;
+        if (typeof definitionGuides !== 'undefined') {
+            definitionGuides = [];
+            if (typeof updateDefinitionGuidesInput === 'function') updateDefinitionGuidesInput();
+            if (typeof renderChosenGuides === 'function') renderChosenGuides();
+        }
 
         $.get(baseUrl + '/hotel-city/' + encodeURIComponent(city), function(response) {
+            allHotelsForLocalTransfer = Array.isArray(response) ? response : [];
             const sel = $('#definition-hotel-select');
             sel.empty().append('<option value="">Select Hotel</option>');
-            response.forEach(function(h) {
+            allHotelsForLocalTransfer.forEach(function(h) {
                 sel.append(new Option(h.name, h.hotel_unique_id));
             });
+            if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
         });
 
         $.get(baseUrl + '/attractions/' + encodeURIComponent(city), function(response) {
+            allAttractionsForLocalTransfer = Array.isArray(response) ? response : [];
             const sel = $('#definition-attraction-select');
             sel.empty().append('<option value="">Select Attraction</option>');
-            response.forEach(function(a) {
+            allAttractionsForLocalTransfer.forEach(function(a) {
                 const opt = new Option(a.name, a.attraction_id);
-                $(opt).data('attraction-data', { attraction_id: a.attraction_id, name: a.name, location: a.location, image: a.master_image || '' });
+                $(opt).data('attraction-data', { attraction_id: a.attraction_id, name: a.name, location: a.location, image: a.master_image || '', adult_price: a.adult_price, child_price: a.child_price });
                 sel.append(opt);
             });
+            if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
         });
 
         $.get(baseUrl + '/restaurants/' + encodeURIComponent(city), function(response) {
+            const list = response.restaurants || response;
+            allRestaurantsForLocalTransfer = Array.isArray(list) ? list : [];
             const sel = $('#definition-restaurant-select');
             sel.empty().append('<option value="">Select Restaurant</option>');
-            const list = response.restaurants || response;
-            list.forEach(function(r) {
+            allRestaurantsForLocalTransfer.forEach(function(r) {
                 sel.append(new Option(r.name, r.restaurant_id));
             });
+            if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
         });
 
         $.get(baseUrl + '/guides/' + encodeURIComponent(city), function(response) {
             guidesByCity = response;
             const sel = $('#definition-guide-select');
-            sel.empty().append('<option value="">No guide</option>');
+            sel.empty().append('<option value="">Select City First / No guide</option>');
             response.forEach(function(g) {
                 const opt = new Option(g.name + (g.languages && g.languages.length ? ' (' + g.languages.join(', ') + ')' : ''), g.guide_id);
                 $(opt).data('guide-data', g);
@@ -599,63 +728,105 @@ $(document).ready(function() {
             });
         });
 
+    // Guide select: show duration dropdown when a guide is selected; enable only options that have a price
+    $('#definition-guide-select').on('change', function() {
+        const val = $(this).val();
+        const wrap = $('#definition-guide-duration-wrap');
+        $('#definition-guide-duration').val('');
+        if (!val) {
+            wrap.hide();
+            return;
+        }
+        const opt = $(this).find('option:selected');
+        const data = opt.data('guide-data');
+        if (data) {
+            wrap.show();
+            const durationSel = $('#definition-guide-duration');
+            durationSel.find('option').each(function() {
+                const key = $(this).val();
+                if (!key) { $(this).prop('disabled', false); return; }
+                const priceKey = key === 'hourly' ? 'hourly_price' : key + '_price';
+                const hasPrice = data[priceKey] != null && data[priceKey] !== '' && !isNaN(parseFloat(data[priceKey]));
+                $(this).prop('disabled', !hasPrice);
+            });
+        } else {
+            wrap.hide();
+        }
+    });
+
         $.get(baseUrl + '/get-transport/' + encodeURIComponent(city), function(response) {
             vehiclesByCity = Array.isArray(response) ? response : [];
         });
     });
 
-    // Hotel → Room types (AJAX)
+    let definitionPendingRooms = [];
+    let definitionRoomTypesByHotel = [];
+
+    // Hotel → Room types (AJAX): populate Room Type select
     $('#definition-hotel-select').on('change', function() {
         const hotelId = $(this).val();
         const wrapper = $('#definition-rooms-wrapper');
-        const list = $('#definition-rooms-list');
-        list.empty();
+        const roomTypeSelect = $('#definition-room-type-select');
+        roomTypeSelect.empty().append('<option value="">Select room type</option>');
+        definitionPendingRooms = [];
+        renderDefinitionPendingRooms();
         if (!hotelId) {
             wrapper.hide();
+            definitionRoomTypesByHotel = [];
             return;
         }
         $.get(baseUrl + '/room-types-by-hotel/' + encodeURIComponent(hotelId), function(res) {
             const roomTypes = res.room_types || [];
+            definitionRoomTypesByHotel = roomTypes;
             if (roomTypes.length === 0) {
-                list.html('<p class="text-muted">No rooms found for this hotel.</p>');
+                roomTypeSelect.append('<option value="" disabled>No rooms found</option>');
             } else {
                 roomTypes.forEach(function(rt) {
-                    list.append(`
-                        <div class="col-md-3 col-sm-6 mb-1">
-                            <div class="border rounded px-2 py-1 d-flex align-items-center justify-content-between small">
-                                <div class="form-check m-0">
-                                    <input class="form-check-input definition-room-check"
-                                        type="checkbox"
-                                        id="rt-${rt.id}"
-                                        data-room-type-id="${rt.id}"
-                                        data-room-name="${escapeHtml(rt.name)}">
-
-                                    <label class="form-check-label ms-1" for="rt-${rt.id}">
-                                        ${escapeHtml(rt.name)}
-                                    </label>
-                                </div>
-
-                                <input type="number"
-                                    class="form-control form-control-sm definition-room-qty"
-                                    style="width: 70px;"
-                                    min="1"
-                                    placeholder="Qty"
-                                    data-room-type-id="${rt.id}"
-                                    value="1"
-                                    disabled>
-                            </div>
-                        </div>
-                    `);
-                });
-                $('.definition-room-check').on('change', function() {
-                    const id = $(this).data('room-type-id');
-                    $(`.definition-room-qty[data-room-type-id="${id}"]`).prop('disabled', !$(this).is(':checked')).val($(this).is(':checked') ? 1 : '');
+                    const opt = new Option(rt.name, rt.id);
+                    roomTypeSelect.append(opt);
                 });
             }
             wrapper.show();
         });
     });
 
+    function renderDefinitionPendingRooms() {
+        const el = $('#definition-pending-rooms');
+        el.empty();
+        if (definitionPendingRooms.length === 0) return;
+        definitionPendingRooms.forEach(function(r, i) {
+            el.append(`
+                <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1 mb-1 bg-white small">
+                    <span>${escapeHtml(r.room_type_name)} × ${r.quantity}</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger definition-pending-room-remove" data-i="${i}" title="Remove"><i class="ri-close-line"></i></button>
+                </div>
+            `);
+        });
+        $('.definition-pending-room-remove').on('click', function() {
+            const i = parseInt($(this).data('i'), 10);
+            definitionPendingRooms.splice(i, 1);
+            renderDefinitionPendingRooms();
+        });
+    }
+
+    $('#definition-room-add-line').on('click', function() {
+        const roomTypeId = $('#definition-room-type-select').val();
+        if (!roomTypeId) {
+            alert('Please select a room type.');
+            return;
+        }
+        const roomTypeName = $('#definition-room-type-select').find('option:selected').text();
+        const qty = parseInt($('#definition-room-type-qty').val(), 10) || 1;
+        if (qty < 1) return;
+        definitionPendingRooms.push({ room_type_id: roomTypeId, room_type_name: roomTypeName, quantity: qty });
+        renderDefinitionPendingRooms();
+        $('#definition-room-type-qty').val(1);
+    });
+
+    function formatOptionalPrice(val) {
+        if (val === '' || val == null || isNaN(parseFloat(val))) return '—';
+        return '₹' + parseFloat(val).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -663,7 +834,7 @@ $(document).ready(function() {
         return div.innerHTML;
     }
 
-    // Add hotel entry to chosen list
+    // Add hotel entry to chosen list (uses pending rooms from select + Add room)
     $('#definition-hotel-add-btn').on('click', function() {
         const hotelId = $('#definition-hotel-select').val();
         const hotelName = $('#definition-hotel-select').find('option:selected').text();
@@ -672,22 +843,27 @@ $(document).ready(function() {
             alert('Please select a hotel.');
             return;
         }
-        const rooms = [];
-        $('.definition-room-check:checked').each(function() {
-            const id = $(this).data('room-type-id');
-            const name = $(this).data('room-name');
-            const qty = parseInt($(`.definition-room-qty[data-room-type-id="${id}"]`).val()) || 1;
-            if (qty > 0) rooms.push({ room_type_id: id, room_type_name: name, quantity: qty });
-        });
+        const rooms = definitionPendingRooms.slice();
         if (rooms.length === 0) {
-            alert('Please select at least one room type and set quantity.');
+            alert('Please add at least one room type (select room type, set quantity, then click Add room).');
             return;
         }
         if (nights < 1) {
             alert('Please set number of nights to at least 1.');
             return;
         }
-        definitionHotels.push({ hotel_id: hotelId, hotel_name: hotelName, nights, rooms, compulsory: false });
+        // Optional price from DB: sum (room weekday_price * quantity) * nights
+        let dbPrice = 0;
+        rooms.forEach(function(r) {
+            const rt = (definitionRoomTypesByHotel || []).find(function(x) { return (x.id || x.room_id) == r.room_type_id; });
+            if (rt && (rt.weekday_price != null || rt.weekend_price != null)) {
+                const p = parseFloat(rt.weekday_price || rt.weekend_price || 0) || 0;
+                dbPrice += p * (parseInt(r.quantity, 10) || 1);
+            }
+        });
+        dbPrice = dbPrice * nights;
+        const hotelBasePrice = dbPrice > 0 ? dbPrice : '';
+        definitionHotels.push({ hotel_id: hotelId, hotel_name: hotelName, nights, rooms, compulsory: false, optional: false, optional_price: hotelBasePrice, base_price: hotelBasePrice });
         updateDefinitionHotelsInput();
         renderChosenHotels();
         resetDefinitionHotelForm();
@@ -696,7 +872,10 @@ $(document).ready(function() {
     function resetDefinitionHotelForm() {
         $('#definition-hotel-select').val('').trigger('change.select2');
         $('#definition-rooms-wrapper').hide();
-        $('#definition-rooms-list').empty();
+        $('#definition-room-type-select').empty().append('<option value="">Select room type</option>');
+        definitionPendingRooms = [];
+        renderDefinitionPendingRooms();
+        $('#definition-room-type-qty').val(1);
         $('#definition-nights').val(1);
     }
 
@@ -716,24 +895,34 @@ $(document).ready(function() {
         definitionHotels.forEach(function(entry, idx) {
             const roomsText = entry.rooms.map(function(r) { return r.room_type_name + ' × ' + r.quantity; }).join(', ');
             const isCompulsory = entry.compulsory === true;
+            const isOptional = entry.optional === true;
+            const optPriceRaw = entry.optional_price != null && entry.optional_price !== '' ? entry.optional_price : (entry.base_price != null && entry.base_price !== '' ? entry.base_price : '');
+            const optPrice = optPriceRaw !== '' ? parseFloat(optPriceRaw) : '';
+            const priceDisplay = isOptional && optPrice !== '' && !isNaN(optPrice) ? '<span class="badge bg-primary ms-2 optional-price-badge">' + formatOptionalPrice(optPrice) + '</span>' : '';
             listEl.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
-                    <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                        <div class="d-flex align-items-center gap-2 flex-grow-1">
-                            <span class="badge bg-primary-subtle text-primary rounded-circle p-2"><i class="ri-hotel-line"></i></span>
-                            <div>
-                                <strong class="d-block">${escapeHtml(entry.hotel_name)}</strong>
-                                <small class="text-muted">${entry.nights} night(s) · ${escapeHtml(roomsText)}</small>
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2 flex-grow-1">
+                                <span class="badge bg-primary-subtle text-primary rounded-circle p-2"><i class="ri-hotel-line"></i></span>
+                                <div>
+                                    <strong class="d-block">${escapeHtml(entry.hotel_name)}${priceDisplay}</strong>
+                                    <small class="text-muted">${entry.nights} night(s) · ${escapeHtml(roomsText)}</small>
+                                </div>
                             </div>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input chosen-hotel-compulsory" type="checkbox" id="hotel-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
-                                <label class="form-check-label small" for="hotel-comp-${idx}">Compulsory</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input chosen-hotel-compulsory" type="checkbox" id="hotel-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="hotel-comp-${idx}">Compulsory</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input chosen-hotel-optional" type="checkbox" id="hotel-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="hotel-opt-${idx}">Optional</label>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-chosen-hotel" data-idx="${idx}" title="Remove">
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-chosen-hotel" data-idx="${idx}" title="Remove">
-                                <i class="ri-delete-bin-line"></i>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -747,9 +936,46 @@ $(document).ready(function() {
         });
         $('.chosen-hotel-compulsory').on('change', function() {
             const idx = parseInt($(this).data('idx'));
+            if ($(this).is(':checked')) {
+                $('#hotel-opt-' + idx).prop('checked', false);
+                if (definitionHotels[idx]) { definitionHotels[idx].optional = false; definitionHotels[idx].optional_price = ''; }
+            }
             if (definitionHotels[idx]) definitionHotels[idx].compulsory = $(this).is(':checked');
             updateDefinitionHotelsInput();
+            renderChosenHotels();
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
         });
+        $('.chosen-hotel-optional').on('change', function() {
+            const idx = parseInt($(this).data('idx'));
+            if ($(this).is(':checked')) {
+                $('#hotel-comp-' + idx).prop('checked', false);
+                if (definitionHotels[idx]) {
+                    definitionHotels[idx].compulsory = false;
+                    if ((definitionHotels[idx].optional_price === '' || definitionHotels[idx].optional_price == null) && definitionHotels[idx].base_price != null && definitionHotels[idx].base_price !== '') {
+                        definitionHotels[idx].optional_price = definitionHotels[idx].base_price;
+                    }
+                }
+            } else {
+                if (definitionHotels[idx]) definitionHotels[idx].optional_price = '';
+            }
+            if (definitionHotels[idx]) definitionHotels[idx].optional = $(this).is(':checked');
+            updateDefinitionHotelsInput();
+            renderChosenHotels();
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        });
+        refreshTransferHotelDropdowns();
+        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+    }
+
+    function refreshTransferHotelDropdowns() {
+        const arrivalDropoff = $('#arrival-dropoff-hotel'), departurePickup = $('#departure-pickup-hotel');
+        arrivalDropoff.empty().append('<option value="">Add hotels first</option>');
+        departurePickup.empty().append('<option value="">Add hotels first</option>');
+        definitionHotels.forEach(function(h) {
+            arrivalDropoff.append(new Option(h.hotel_name, h.hotel_id));
+            departurePickup.append(new Option(h.hotel_name, h.hotel_id));
+        });
+        if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
     }
 
     function updateDefinitionHotelsInput() {
@@ -766,7 +992,7 @@ $(document).ready(function() {
         }
         configEl.show();
         const guideSel = $('#definition-attraction-config-guide');
-        guideSel.empty().append('<option value="">No guide</option>');
+        guideSel.empty().append('<option value="">Select guide</option>');
         guidesByCity.forEach(function(g) {
             guideSel.append(new Option(g.name, g.guide_id));
         });
@@ -775,9 +1001,15 @@ $(document).ready(function() {
         vehiclesByCity.forEach(function(v) {
             vehicleSel.append(new Option(v.name + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : ''), v.vehicle_id));
         });
+        $('#definition-attraction-config-need-guide').prop('checked', false);
+        $('#definition-attraction-config-guide-wrap').hide();
         $('#definition-attraction-config-transfer').prop('checked', false);
         $('#definition-attraction-config-vehicle-wrap').hide();
         $('#definition-attr-transfer-private').prop('checked', true);
+    });
+    $('#definition-attraction-config-need-guide').on('change', function() {
+        const checked = $(this).is(':checked');
+        $('#definition-attraction-config-guide-wrap').toggle(checked);
     });
     $('#definition-attraction-config-transfer').on('change', function() {
         const checked = $(this).is(':checked');
@@ -814,8 +1046,9 @@ $(document).ready(function() {
             alert('Please select an attraction.');
             return;
         }
-        const guideId = $('#definition-attraction-config-guide').val();
-        const g = guidesByCity.find(x => x.guide_id == guideId);
+        const needGuide = $('#definition-attraction-config-need-guide').is(':checked');
+        const guideId = needGuide ? $('#definition-attraction-config-guide').val() : '';
+        const g = guideId ? guidesByCity.find(x => x.guide_id == guideId) : null;
         const transfer = $('#definition-attraction-config-transfer').is(':checked');
         const vehicleId = $('#definition-attraction-config-vehicle').val();
         const v = vehiclesByCity.find(x => x.vehicle_id == vehicleId);
@@ -824,12 +1057,16 @@ $(document).ready(function() {
         const pickupName = $('#definition-attraction-config-pickup').find('option:selected').text();
         const dropoffVal = $('#definition-attraction-config-dropoff').val();
         const dropoffName = $('#definition-attraction-config-dropoff').find('option:selected').text();
+        const attrPrice = (data.adult_price != null && data.adult_price !== '') ? parseFloat(data.adult_price) : '';
         definitionAttractions.push({
             attraction_id: data.attraction_id,
             name: data.name,
             location: data.location,
             image: data.image || '',
             compulsory: false,
+            optional: false,
+            optional_price: attrPrice,
+            base_price: attrPrice,
             guide: g ? { id: g.guide_id, name: g.name, languages: g.languages, contact_no: g.contact_no } : null,
             transfer: transfer,
             vehicle_id: v ? v.vehicle_id : null,
@@ -870,22 +1107,32 @@ $(document).ready(function() {
             }
             const summaryHtml = parts.length ? parts.join(' <span class="text-muted">·</span> ') : '—';
             const isCompulsory = a.compulsory === true;
+            const isOptional = a.optional === true;
+            const optPriceRawA = a.optional_price != null && a.optional_price !== '' ? a.optional_price : (a.base_price != null && a.base_price !== '' ? a.base_price : '');
+            const optPriceA = optPriceRawA !== '' ? parseFloat(optPriceRawA) : '';
+            const priceDisplay = isOptional && optPriceA !== '' && !isNaN(optPriceA) ? '<span class="badge bg-success ms-2 optional-price-badge">' + formatOptionalPrice(optPriceA) + '</span>' : '';
             container.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
-                    <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                        <div class="d-flex align-items-center gap-2 flex-grow-1">
-                            <span class="badge bg-success-subtle text-success rounded-circle p-2"><i class="ri-map-pin-line"></i></span>
-                            <div>
-                                <strong class="d-block">${escapeHtml(a.name)}</strong>
-                                <small class="text-muted">${summaryHtml}</small>
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2 flex-grow-1">
+                                <span class="badge bg-success-subtle text-success rounded-circle p-2"><i class="ri-map-pin-line"></i></span>
+                                <div>
+                                    <strong class="d-block">${escapeHtml(a.name)}${priceDisplay}</strong>
+                                    <small class="text-muted">${summaryHtml}</small>
+                                </div>
                             </div>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input def-attraction-compulsory" type="checkbox" id="attr-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
-                                <label class="form-check-label small" for="attr-comp-${idx}">Compulsory</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-attraction-compulsory" type="checkbox" id="attr-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="attr-comp-${idx}">Compulsory</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-attraction-optional" type="checkbox" id="attr-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="attr-opt-${idx}">Optional</label>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-def-attraction" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-def-attraction" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                         </div>
                     </div>
                 </div>
@@ -899,24 +1146,62 @@ $(document).ready(function() {
         });
         $('.def-attraction-compulsory').on('change', function() {
             const idx = parseInt($(this).data('idx'));
+            if ($(this).is(':checked')) {
+                $('#attr-opt-' + idx).prop('checked', false);
+                if (definitionAttractions[idx]) { definitionAttractions[idx].optional = false; definitionAttractions[idx].optional_price = ''; }
+            }
             if (definitionAttractions[idx]) definitionAttractions[idx].compulsory = $(this).is(':checked');
             updateDefinitionAttractionsInput();
+            renderDefinitionAttractions();
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
         });
+        $('.def-attraction-optional').on('change', function() {
+            const idx = parseInt($(this).data('idx'));
+            if ($(this).is(':checked')) {
+                $('#attr-comp-' + idx).prop('checked', false);
+                if (definitionAttractions[idx]) {
+                    definitionAttractions[idx].compulsory = false;
+                    if ((definitionAttractions[idx].optional_price === '' || definitionAttractions[idx].optional_price == null) && definitionAttractions[idx].base_price != null && definitionAttractions[idx].base_price !== '') {
+                        definitionAttractions[idx].optional_price = definitionAttractions[idx].base_price;
+                    }
+                }
+            } else {
+                if (definitionAttractions[idx]) definitionAttractions[idx].optional_price = '';
+            }
+            if (definitionAttractions[idx]) definitionAttractions[idx].optional = $(this).is(':checked');
+            updateDefinitionAttractionsInput();
+            renderDefinitionAttractions();
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        });
+        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
     }
 
     function updateDefinitionAttractionsInput() {
         $('#definition-attractions-input').val(JSON.stringify(definitionAttractions));
+        if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
     }
 
-    // Restaurant select: show config panel and populate vehicle
+    // Restaurant select: show config panel, meal checkboxes (by availability), and populate vehicle
     $('#definition-restaurant-select').on('change', function() {
         const val = $(this).val();
         const configEl = $('#definition-restaurant-config');
         if (!val) {
             configEl.hide();
+            $('#definition-restaurant-meals-wrap').hide();
             return;
         }
         configEl.show();
+        const rest = allRestaurantsForLocalTransfer.find(function(r) { return r.restaurant_id == val || r.restaurant_id === val; });
+        const mealsWrap = $('#definition-restaurant-meals-wrap');
+        $('#definition-restaurant-meal-breakfast, #definition-restaurant-meal-lunch, #definition-restaurant-meal-dinner').prop('checked', false);
+        if (rest && (rest.breakfast_available == 1 || rest.lunch_available == 1 || rest.dinner_available == 1)) {
+            mealsWrap.show();
+            $('#definition-rest-meal-breakfast-wrap').toggle(rest.breakfast_available == 1);
+            $('#definition-rest-meal-lunch-wrap').toggle(rest.lunch_available == 1);
+            $('#definition-rest-meal-dinner-wrap').toggle(rest.dinner_available == 1);
+        } else {
+            mealsWrap.hide();
+        }
         const vehicleSel = $('#definition-restaurant-config-vehicle');
         vehicleSel.empty().append('<option value="">Select vehicle</option>');
         vehiclesByCity.forEach(function(v) {
@@ -953,7 +1238,7 @@ $(document).ready(function() {
         }
     });
 
-    // Restaurants: Add = current selection + config; preview = strip like hotel
+    // Restaurants: Add = current selection + config + selected meals; preview = strip like hotel
     $('#definition-restaurant-add-btn').on('click', function() {
         const id = $('#definition-restaurant-select').val();
         const name = $('#definition-restaurant-select').find('option:selected').text();
@@ -961,6 +1246,10 @@ $(document).ready(function() {
             alert('Please select a restaurant.');
             return;
         }
+        const selectedMeals = [];
+        if ($('#definition-restaurant-meal-breakfast').is(':checked')) selectedMeals.push('breakfast');
+        if ($('#definition-restaurant-meal-lunch').is(':checked')) selectedMeals.push('lunch');
+        if ($('#definition-restaurant-meal-dinner').is(':checked')) selectedMeals.push('dinner');
         const transfer = $('#definition-restaurant-config-transfer').is(':checked');
         const vehicleId = $('#definition-restaurant-config-vehicle').val();
         const v = vehiclesByCity.find(x => x.vehicle_id == vehicleId);
@@ -969,10 +1258,17 @@ $(document).ready(function() {
         const pickupName = $('#definition-restaurant-config-pickup').find('option:selected').text();
         const dropoffVal = $('#definition-restaurant-config-dropoff').val();
         const dropoffName = $('#definition-restaurant-config-dropoff').find('option:selected').text();
+        const rest = allRestaurantsForLocalTransfer.find(function(r) { return r.restaurant_id == id || r.restaurant_id === id; });
+        const restPrice = rest && (rest.lunch_price != null || rest.bf_price != null || rest.dinner_price != null)
+            ? parseFloat(rest.lunch_price || rest.bf_price || rest.dinner_price || 0) : '';
         definitionRestaurants.push({
             restaurant_id: id,
             restaurant_name: name,
             compulsory: false,
+            optional: false,
+            optional_price: restPrice,
+            base_price: restPrice,
+            selected_meals: selectedMeals,
             transfer: transfer,
             vehicle_id: v ? v.vehicle_id : null,
             vehicle_name: v ? v.name : null,
@@ -1000,34 +1296,46 @@ $(document).ready(function() {
         emptyEl.hide();
         container.show();
         definitionRestaurants.forEach(function(r, idx) {
-            let summaryHtml = '—';
+            const parts = [];
+            if (r.selected_meals && r.selected_meals.length) {
+                parts.push('<i class="ri-restaurant-2-line me-1" title="Meals"></i>' + r.selected_meals.map(function(m) { return m.charAt(0).toUpperCase() + m.slice(1); }).join(', '));
+            }
             if (r.transfer) {
-                const parts = [];
                 if (r.vehicle_name) parts.push('<i class="ri-car-line me-1" title="Vehicle"></i>' + escapeHtml(r.vehicle_name));
                 parts.push('Transfer: ' + (r.transfer_type === 'shared' ? 'Shared' : 'Private'));
                 const pickupName = r.pickup_name || r.pickup_hotel_name;
                 if (pickupName && r.dropoff_name) parts.push(escapeHtml(pickupName) + ' → ' + escapeHtml(r.dropoff_name));
                 else if (pickupName) parts.push(escapeHtml(pickupName) + ' → —');
                 else if (r.dropoff_name) parts.push('— → ' + escapeHtml(r.dropoff_name));
-                summaryHtml = parts.join(' <span class="text-muted">·</span> ');
             }
+            const summaryHtml = parts.length ? parts.join(' <span class="text-muted">·</span> ') : '—';
             const isCompulsory = r.compulsory === true;
+            const isOptional = r.optional === true;
+            const optPriceRawR = r.optional_price != null && r.optional_price !== '' ? r.optional_price : (r.base_price != null && r.base_price !== '' ? r.base_price : '');
+            const optPriceR = optPriceRawR !== '' ? parseFloat(optPriceRawR) : '';
+            const priceDisplay = isOptional && optPriceR !== '' && !isNaN(optPriceR) ? '<span class="badge bg-warning text-dark ms-2 optional-price-badge">' + formatOptionalPrice(optPriceR) + '</span>' : '';
             container.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
-                    <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                        <div class="d-flex align-items-center gap-2 flex-grow-1">
-                            <span class="badge bg-warning-subtle text-warning rounded-circle p-2"><i class="ri-restaurant-line"></i></span>
-                            <div>
-                                <strong class="d-block">${escapeHtml(r.restaurant_name)}</strong>
-                                <small class="text-muted">${summaryHtml}</small>
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2 flex-grow-1">
+                                <span class="badge bg-warning-subtle text-warning rounded-circle p-2"><i class="ri-restaurant-line"></i></span>
+                                <div>
+                                    <strong class="d-block">${escapeHtml(r.restaurant_name)}${priceDisplay}</strong>
+                                    <small class="text-muted">${summaryHtml}</small>
+                                </div>
                             </div>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input def-restaurant-compulsory" type="checkbox" id="rest-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
-                                <label class="form-check-label small" for="rest-comp-${idx}">Compulsory</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-restaurant-compulsory" type="checkbox" id="rest-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="rest-comp-${idx}">Compulsory</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-restaurant-optional" type="checkbox" id="rest-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="rest-opt-${idx}">Optional</label>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-def-restaurant" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-def-restaurant" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                         </div>
                     </div>
                 </div>
@@ -1041,29 +1349,617 @@ $(document).ready(function() {
         });
         $('.def-restaurant-compulsory').on('change', function() {
             const idx = parseInt($(this).data('idx'));
+            if ($(this).is(':checked')) {
+                $('#rest-opt-' + idx).prop('checked', false);
+                if (definitionRestaurants[idx]) { definitionRestaurants[idx].optional = false; definitionRestaurants[idx].optional_price = ''; }
+            }
             if (definitionRestaurants[idx]) definitionRestaurants[idx].compulsory = $(this).is(':checked');
             updateDefinitionRestaurantsInput();
+            renderDefinitionRestaurants();
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
         });
+        $('.def-restaurant-optional').on('change', function() {
+            const idx = parseInt($(this).data('idx'));
+            if ($(this).is(':checked')) {
+                $('#rest-comp-' + idx).prop('checked', false);
+                if (definitionRestaurants[idx]) {
+                    definitionRestaurants[idx].compulsory = false;
+                    if ((definitionRestaurants[idx].optional_price === '' || definitionRestaurants[idx].optional_price == null) && definitionRestaurants[idx].base_price != null && definitionRestaurants[idx].base_price !== '') {
+                        definitionRestaurants[idx].optional_price = definitionRestaurants[idx].base_price;
+                    }
+                }
+            } else {
+                if (definitionRestaurants[idx]) definitionRestaurants[idx].optional_price = '';
+            }
+            if (definitionRestaurants[idx]) definitionRestaurants[idx].optional = $(this).is(':checked');
+            updateDefinitionRestaurantsInput();
+            renderDefinitionRestaurants();
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        });
+        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
     }
 
     function updateDefinitionRestaurantsInput() {
         $('#definition-restaurants-input').val(JSON.stringify(definitionRestaurants));
+        if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
     }
 
-    // Independent guide
-    $('#definition-guide-select').on('change', function() {
-        const opt = $(this).find('option:selected');
-        const data = opt.data('guide-data');
-        const val = data ? JSON.stringify({ id: data.guide_id, name: data.name, languages: data.languages, contact_no: data.contact_no }) : '';
-        $('#definition-independent-guide-input').val(val);
+    // --- Transport: Local Transfer (pickup/dropoff = all hotels, attractions, restaurants, ports from DB; dropoff excludes pickup) ---
+    function buildLocalTransferLocationList() {
+        const list = [];
+        (allHotelsForLocalTransfer || []).forEach(function(h) {
+            const id = h.hotel_unique_id || h.hotel_id;
+            const name = h.name || h.hotel_name || '';
+            if (id && name) list.push({ value: 'hotel_' + id, label: name + ' (Hotel)', type: 'Hotel', zoneId: id });
+        });
+        (allAttractionsForLocalTransfer || []).forEach(function(a) {
+            const id = a.attraction_id || a.id;
+            const name = a.name || '';
+            if (id && name) list.push({ value: 'attraction_' + id, label: name + ' (Attraction)', type: 'Attraction', zoneId: id });
+        });
+        (allRestaurantsForLocalTransfer || []).forEach(function(r) {
+            const id = r.restaurant_id || r.id;
+            const name = r.name || r.restaurant_name || '';
+            if (id && name) list.push({ value: 'restaurant_' + id, label: name + ' (Restaurant)', type: 'Restaurant', zoneId: id });
+        });
+        (portsByCountry || []).forEach(function(p) {
+            const portId = p.port_id || p.id;
+            const name = p.port_name || p.name;
+            if (portId && name) list.push({ value: 'port_' + portId, label: name + ' (Port)', type: 'Port', zoneId: portId });
+        });
+        return list;
+    }
+
+    function refreshLocalTransferPickupDropoff() {
+        const list = buildLocalTransferLocationList();
+        const pickupSel = $('#local-transfer-pickup');
+        const dropoffSel = $('#local-transfer-dropoff');
+        const currentPickup = pickupSel.val();
+        pickupSel.empty().append('<option value="">Select location</option>');
+        list.forEach(function(item) {
+            pickupSel.append(new Option(item.label, item.value));
+        });
+        if (currentPickup && list.some(function(x) { return x.value === currentPickup; })) pickupSel.val(currentPickup);
+        dropoffSel.empty().append('<option value="">Select location (excludes pickup)</option>');
+        list.forEach(function(item) {
+            if (item.value !== pickupSel.val()) dropoffSel.append(new Option(item.label, item.value));
+        });
+        var curDrop = dropoffSel.val();
+        if (curDrop && list.some(function(x) { return x.value === curDrop && x.value !== pickupSel.val(); })) dropoffSel.val(curDrop);
+    }
+
+    let localTransferVehiclesByZone = [];
+    let localTransferChosenVehicles = [];
+    let localTransfersList = [];
+
+    $(document).ready(function() {
+        refreshLocalTransferPickupDropoff();
     });
 
-    // Arrival / Departure: sync hidden inputs
+    $('#local-transfer-pickup').on('change', function() {
+        const list = buildLocalTransferLocationList();
+        const dropoffSel = $('#local-transfer-dropoff');
+        const pickupVal = $(this).val();
+        dropoffSel.empty().append('<option value="">Select location (excludes pickup)</option>');
+        list.forEach(function(item) {
+            if (item.value !== pickupVal) dropoffSel.append(new Option(item.label, item.value));
+        });
+    });
+
+    $('#local-transfer-search-vehicle-btn').on('click', function() {
+        const pickupVal = $('#local-transfer-pickup').val();
+        const dropoffVal = $('#local-transfer-dropoff').val();
+        const city = $('#city-select').val();
+        if (!pickupVal || !dropoffVal) { alert('Select pickup and dropoff first.'); return; }
+        if (!city) { alert('Select city first.'); return; }
+        const list = buildLocalTransferLocationList();
+        const fromItem = list.find(function(x) { return x.value === pickupVal; });
+        const toItem = list.find(function(x) { return x.value === dropoffVal; });
+        if (!fromItem || !toItem) { alert('Invalid pickup or dropoff.'); return; }
+        const btn = $(this).prop('disabled', true);
+        $.ajax({
+            url: fetchVehiclesByZonesUrl,
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                from_zone_id: fromItem.zoneId,
+                to_zone_id: toItem.zoneId,
+                from_zone_type: fromItem.type,
+                to_zone_type: toItem.type,
+                city: city,
+                zone_status: 1
+            },
+            success: function(res) {
+                localTransferVehiclesByZone = res.vehicles || [];
+                const sel = $('#local-transfer-vehicle-select');
+                sel.empty().append('<option value="">Select vehicle</option>');
+                localTransferVehiclesByZone.forEach(function(v) {
+                    const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
+                    sel.append(new Option(name, v.vehicle_id));
+                });
+                $('#local-transfer-vehicle-wrap').show();
+            },
+            error: function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No vehicles found for this route.';
+                alert(msg);
+            }
+        }).always(function() { btn.prop('disabled', false); });
+    });
+
+    $('#local-transfer-add-vehicle-btn').on('click', function() {
+        const val = $('#local-transfer-vehicle-select').val();
+        if (!val) return;
+        const v = localTransferVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
+        if (!v) return;
+        if (localTransferChosenVehicles.some(function(x) { return x.vehicle_id == val; })) return;
+        const priv = parseFloat(v.private_price) || 0;
+        const shared = parseFloat(v.shared_price) || 0;
+        localTransferChosenVehicles.push({ vehicle_id: v.vehicle_id, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type, private_price: priv, shared_price: shared });
+        const html = localTransferChosenVehicles.map(function(x, i) {
+            return '<span class="badge bg-secondary me-1 mb-1">' + (x.vehicle_name || '') + (x.vehicle_type ? ' (' + x.vehicle_type + ')' : '') + ' <a href="#" class="text-white local-transfer-remove-vehicle" data-idx="' + i + '">×</a></span>';
+        }).join('');
+        $('#local-transfer-chosen-vehicles').html(html || '—');
+    });
+
+    $(document).on('click', '.local-transfer-remove-vehicle', function(e) {
+        e.preventDefault();
+        const idx = parseInt($(this).data('idx'), 10);
+        localTransferChosenVehicles.splice(idx, 1);
+        const html = localTransferChosenVehicles.map(function(x, i) {
+            return '<span class="badge bg-secondary me-1 mb-1">' + (x.vehicle_name || '') + (x.vehicle_type ? ' (' + x.vehicle_type + ')' : '') + ' <a href="#" class="text-white local-transfer-remove-vehicle" data-idx="' + i + '">×</a></span>';
+        }).join('');
+        $('#local-transfer-chosen-vehicles').html(html || '—');
+    });
+
+    $('#local-transfer-add-btn').on('click', function() {
+        const pickupVal = $('#local-transfer-pickup').val();
+        const dropoffVal = $('#local-transfer-dropoff').val();
+        if (!pickupVal || !dropoffVal) { alert('Select pickup and dropoff first.'); return; }
+        const list = buildLocalTransferLocationList();
+        const fromItem = list.find(function(x) { return x.value === pickupVal; });
+        const toItem = list.find(function(x) { return x.value === dropoffVal; });
+        if (!fromItem || !toItem) return;
+        const transferPrice = localTransferChosenVehicles.reduce(function(sum, v) {
+            return sum + (parseFloat(v.private_price) || parseFloat(v.shared_price) || 0);
+        }, 0);
+        const transferBasePrice = transferPrice > 0 ? transferPrice : '';
+        localTransfersList.push({
+            pickup_value: pickupVal,
+            pickup_label: fromItem.label,
+            pickup_type: fromItem.type,
+            pickup_zone_id: fromItem.zoneId,
+            dropoff_value: dropoffVal,
+            dropoff_label: toItem.label,
+            dropoff_type: toItem.type,
+            dropoff_zone_id: toItem.zoneId,
+            vehicles: localTransferChosenVehicles.slice(),
+            compulsory: false,
+            optional: false,
+            optional_price: transferBasePrice,
+            base_price: transferBasePrice
+        });
+        localTransferChosenVehicles = [];
+        $('#local-transfer-chosen-vehicles').html('—');
+        $('#local-transfer-vehicle-wrap').hide();
+        $('#local-transfer-vehicle-select').empty().append('<option value="">Select vehicle</option>');
+        renderLocalTransfersList();
+        $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
+    });
+
+    function renderLocalTransfersList() {
+        if (localTransfersList.length === 0) {
+            $('#local-transfer-empty').show();
+            $('#local-transfer-list').hide().empty();
+            return;
+        }
+        $('#local-transfer-empty').hide();
+        const html = localTransfersList.map(function(t, i) {
+            const vList = (t.vehicles || []).map(function(v) { return (v.vehicle_name || '') + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : ''); }).join(', ');
+            const isCompulsory = t.compulsory === true;
+            const isOptional = t.optional === true;
+            const optPriceRawT = t.optional_price != null && t.optional_price !== '' ? t.optional_price : (t.base_price != null && t.base_price !== '' ? t.base_price : '');
+            const optPriceT = optPriceRawT !== '' ? parseFloat(optPriceRawT) : '';
+            const priceDisplay = isOptional && optPriceT !== '' && !isNaN(optPriceT) ? ' <span class="badge bg-secondary optional-price-badge">' + formatOptionalPrice(optPriceT) + '</span>' : '';
+            return '<div class="border rounded p-2 mb-2 small">' +
+                '<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">' +
+                '<div class="flex-grow-1">' +
+                (t.pickup_label || '') + ' → ' + (t.dropoff_label || '') + priceDisplay + (vList ? ' <span class="text-muted">(' + vList + ')</span>' : '') +
+                '</div>' +
+                '<div class="d-flex align-items-center gap-3">' +
+                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-compulsory" type="checkbox" id="lt-comp-' + i + '" data-idx="' + i + '" ' + (isCompulsory ? 'checked' : '') + '><label class="form-check-label small" for="lt-comp-' + i + '">Compulsory</label></div>' +
+                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-optional" type="checkbox" id="lt-opt-' + i + '" data-idx="' + i + '" ' + (isOptional ? 'checked' : '') + '><label class="form-check-label small" for="lt-opt-' + i + '">Optional</label></div>' +
+                '<button type="button" class="btn btn-outline-danger btn-sm local-transfer-remove" data-idx="' + i + '"><i class="ri-delete-bin-line"></i></button>' +
+                '</div></div></div>';
+        }).join('');
+        $('#local-transfer-list').html(html).show();
+        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+    }
+
+    $(document).on('change', '.local-transfer-compulsory', function() {
+        const idx = parseInt($(this).data('idx'), 10);
+        if (localTransfersList[idx]) {
+            localTransfersList[idx].compulsory = $(this).is(':checked');
+            if ($(this).is(':checked')) { localTransfersList[idx].optional = false; localTransfersList[idx].optional_price = ''; }
+            renderLocalTransfersList();
+            $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        }
+    });
+    $(document).on('change', '.local-transfer-optional', function() {
+        const idx = parseInt($(this).data('idx'), 10);
+        if (localTransfersList[idx]) {
+            localTransfersList[idx].optional = $(this).is(':checked');
+            if ($(this).is(':checked')) {
+                localTransfersList[idx].compulsory = false;
+                if ((localTransfersList[idx].optional_price === '' || localTransfersList[idx].optional_price == null) && localTransfersList[idx].base_price != null && localTransfersList[idx].base_price !== '') {
+                    localTransfersList[idx].optional_price = localTransfersList[idx].base_price;
+                }
+            } else {
+                localTransfersList[idx].optional_price = '';
+            }
+            renderLocalTransfersList();
+            $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        }
+    });
+
+    $(document).on('click', '.local-transfer-remove', function(e) {
+        e.preventDefault();
+        const idx = parseInt($(this).data('idx'), 10);
+        localTransfersList.splice(idx, 1);
+        renderLocalTransfersList();
+        $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
+        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+    });
+
+    // Independent guides: multiple with Compulsory/Optional (mutually exclusive)
+    let definitionGuides = [];
+
+    $('#definition-guide-add-btn').on('click', function() {
+        const opt = $('#definition-guide-select').find('option:selected');
+        const data = opt.data('guide-data');
+        if (!data || !opt.val()) {
+            alert('Please select a guide.');
+            return;
+        }
+        const durationKey = $('#definition-guide-duration').val();
+        const priceKey = durationKey === 'hourly' ? 'hourly_price' : (durationKey ? durationKey + '_price' : 'hourly_price');
+        let guidePrice = '';
+        if (durationKey && data[priceKey] != null && data[priceKey] !== '') {
+            guidePrice = parseFloat(data[priceKey]);
+        } else if (data.hourly_price != null && data.hourly_price !== '') {
+            guidePrice = parseFloat(data.hourly_price);
+        }
+        const durationLabels = { hourly: '1 Hour', two_hour: '2 Hours', four_hour: '4 Hours', six_hour: '6 Hours', eight_hour: '8 Hours', ten_hour: '10 Hours', twelve_hour: '12 Hours' };
+        const durationLabel = durationKey ? (durationLabels[durationKey] || '') : '';
+        definitionGuides.push({
+            id: data.guide_id,
+            name: data.name,
+            languages: data.languages || [],
+            contact_no: data.contact_no || '',
+            compulsory: false,
+            optional: false,
+            optional_price: guidePrice,
+            base_price: guidePrice,
+            duration_key: durationKey || 'hourly',
+            duration_label: durationLabel
+        });
+        updateDefinitionGuidesInput();
+        renderChosenGuides();
+        $('#definition-guide-select').val('').trigger('change.select2');
+        $('#definition-guide-duration').val('');
+        $('#definition-guide-duration-wrap').hide();
+    });
+
+    function renderChosenGuides() {
+        const emptyEl = $('#definition-guides-empty');
+        const listEl = $('#definition-guides-list');
+        const countEl = $('#definition-total-guides-count');
+        if (definitionGuides.length === 0) {
+            emptyEl.show();
+            listEl.hide().empty();
+            countEl.text('0');
+            return;
+        }
+        emptyEl.hide();
+        countEl.text(definitionGuides.length);
+        listEl.show().empty();
+        definitionGuides.forEach(function(g, idx) {
+            const isCompulsory = g.compulsory === true;
+            const isOptional = g.optional === true;
+            const langText = g.languages && g.languages.length ? ' (' + g.languages.join(', ') + ')' : '';
+            const durationText = g.duration_label ? ' <span class="text-muted">·</span> ' + escapeHtml(g.duration_label) : '';
+            const optPriceRawG = g.optional_price != null && g.optional_price !== '' ? g.optional_price : (g.base_price != null && g.base_price !== '' ? g.base_price : '');
+            const optPriceG = optPriceRawG !== '' ? parseFloat(optPriceRawG) : '';
+            const priceDisplay = isOptional && optPriceG !== '' && !isNaN(optPriceG) ? '<span class="badge bg-info ms-2 optional-price-badge">' + formatOptionalPrice(optPriceG) + '</span>' : '';
+            listEl.append(`
+                <div class="card mb-2 border shadow-sm" data-idx="${idx}">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2 flex-grow-1">
+                                <span class="badge bg-info-subtle text-info rounded-circle p-2"><i class="ri-user-voice-line"></i></span>
+                                <div>
+                                    <strong class="d-block">${escapeHtml(g.name)}${priceDisplay}</strong>
+                                    <small class="text-muted">${escapeHtml(langText)}${durationText}</small>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-guide-compulsory" type="checkbox" id="guide-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="guide-comp-${idx}">Compulsory</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-guide-optional" type="checkbox" id="guide-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="guide-opt-${idx}">Optional</label>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-def-guide" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+        $('.remove-def-guide').on('click', function() {
+            const idx = parseInt($(this).data('idx'));
+            definitionGuides.splice(idx, 1);
+            renderChosenGuides();
+            updateDefinitionGuidesInput();
+        });
+        $('.def-guide-compulsory').on('change', function() {
+            const idx = parseInt($(this).data('idx'));
+            if ($(this).is(':checked')) {
+                $('#guide-opt-' + idx).prop('checked', false);
+                if (definitionGuides[idx]) { definitionGuides[idx].optional = false; definitionGuides[idx].optional_price = ''; }
+            }
+            if (definitionGuides[idx]) definitionGuides[idx].compulsory = $(this).is(':checked');
+            updateDefinitionGuidesInput();
+            renderChosenGuides();
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        });
+        $('.def-guide-optional').on('change', function() {
+            const idx = parseInt($(this).data('idx'));
+            if ($(this).is(':checked')) {
+                $('#guide-comp-' + idx).prop('checked', false);
+                if (definitionGuides[idx]) {
+                    definitionGuides[idx].compulsory = false;
+                    if ((definitionGuides[idx].optional_price === '' || definitionGuides[idx].optional_price == null) && definitionGuides[idx].base_price != null && definitionGuides[idx].base_price !== '') {
+                        definitionGuides[idx].optional_price = definitionGuides[idx].base_price;
+                    }
+                }
+            } else {
+                if (definitionGuides[idx]) definitionGuides[idx].optional_price = '';
+            }
+            if (definitionGuides[idx]) definitionGuides[idx].optional = $(this).is(':checked');
+            updateDefinitionGuidesInput();
+            renderChosenGuides();
+            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        });
+        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+    }
+
+    function updateDefinitionGuidesInput() {
+        $('#definition-independent-guide-input').val(JSON.stringify(definitionGuides));
+    }
+
+    // Optional Services Summary: collect all optional items and render table + total
+    function renderOptionalServicesSummary() {
+        const items = [];
+        (definitionHotels || []).forEach(function(h) {
+            if (h.optional === true) {
+                const price = parseOptionalPrice(h.optional_price);
+                items.push({ name: h.hotel_name || '', type: 'Hotel', price: price });
+            }
+        });
+        (definitionAttractions || []).forEach(function(a) {
+            if (a.optional === true) {
+                const price = parseOptionalPrice(a.optional_price);
+                items.push({ name: a.name || '', type: 'Attraction', price: price });
+            }
+        });
+        (definitionRestaurants || []).forEach(function(r) {
+            if (r.optional === true) {
+                const price = parseOptionalPrice(r.optional_price);
+                items.push({ name: r.restaurant_name || '', type: 'Restaurant', price: price });
+            }
+        });
+        (definitionGuides || []).forEach(function(g) {
+            if (g.optional === true) {
+                const price = parseOptionalPrice(g.optional_price);
+                items.push({ name: g.name || '', type: 'Guide', price: price });
+            }
+        });
+        (localTransfersList || []).forEach(function(t) {
+            if (t.optional === true) {
+                const price = parseOptionalPrice(t.optional_price);
+                const label = (t.pickup_label || '') + ' → ' + (t.dropoff_label || '');
+                items.push({ name: label, type: 'Transfer', price: price });
+            }
+        });
+        function parseOptionalPrice(v) {
+            if (v === '' || v == null) return 0;
+            const n = parseFloat(v);
+            return isNaN(n) ? 0 : n;
+        }
+        const card = $('#optional-services-summary-card');
+        const tbody = $('#optional-services-summary-tbody');
+        const totalCell = $('#optional-services-total-cell');
+        const emptyEl = $('#optional-services-summary-empty');
+        const tableWrap = $('#optional-services-summary-table').closest('.table-responsive');
+        if (items.length === 0) {
+            card.hide();
+            tbody.empty();
+            totalCell.text('—');
+            $('#price-data-hidden').val('[]');
+            return;
+        }
+        emptyEl.hide();
+        tableWrap.show();
+        let total = 0;
+        tbody.empty();
+        items.forEach(function(row, i) {
+            total += row.price;
+            tbody.append(
+                '<tr><td class="text-muted">' + (i + 1) + '</td><td>' + escapeHtml(row.name) + '</td><td><span class="badge bg-light text-dark">' + escapeHtml(row.type) + '</span></td><td class="text-end">' + formatOptionalPrice(row.price) + '</td></tr>'
+            );
+        });
+        totalCell.text(formatOptionalPrice(total));
+        card.show();
+
+        // Persist the same array to backend (packages.price_data as JSON)
+        // Shape: [{ name: string, type: string, price: number }]
+        $('#price-data-hidden').val(JSON.stringify(items));
+    }
+
+    // Arrival Pickup: toggle config, sync hidden; Search vehicle → show vehicle dropdown
     $('#arrival-pickup-def').on('change', function() {
-        $('#arrival-pickup-hidden').val($(this).is(':checked') ? 1 : 0);
+        const checked = $(this).is(':checked');
+        $('#arrival-pickup-hidden').val(checked ? 1 : 0);
+        $('#arrival-pickup-config').toggle(checked);
+        if (!checked) {
+            $('#arrival-vehicle-select-wrap').hide();
+            arrivalChosenVehicles = [];
+            renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
+            $('#arrival-vehicles-hidden').val('[]');
+        }
     });
     $('#departure-service-def').on('change', function() {
-        $('#departure-service-hidden').val($(this).is(':checked') ? 1 : 0);
+        const checked = $(this).is(':checked');
+        $('#departure-service-hidden').val(checked ? 1 : 0);
+        $('#departure-service-config').toggle(checked);
+        if (!checked) {
+            $('#departure-vehicle-select-wrap').hide();
+            departureChosenVehicles = [];
+            renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
+            $('#departure-vehicles-hidden').val('[]');
+        }
+    });
+
+    // Transfer vehicles: multiple selection, zone-based search
+    let arrivalChosenVehicles = [];
+    let departureChosenVehicles = [];
+    let arrivalVehiclesByZone = [];
+    let departureVehiclesByZone = [];
+    const fetchVehiclesByZonesUrl = '{{ route("fetch-vehicles-by-zones") }}';
+
+    function renderChosenVehiclesList(list, containerId) {
+        const el = $('#' + containerId);
+        el.empty();
+        list.forEach(function(v, idx) {
+            el.append(`
+                <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1 mb-1 bg-white small">
+                    <span>${escapeHtml(v.vehicle_name)}${v.vehicle_type ? ' (' + escapeHtml(v.vehicle_type) + ')' : ''}</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger transfer-vehicle-remove" data-list="${containerId}" data-idx="${idx}" title="Remove"><i class="ri-close-line"></i></button>
+                </div>
+            `);
+        });
+    }
+
+    $(document).on('click', '.transfer-vehicle-remove', function() {
+        const listName = $(this).data('list');
+        const idx = parseInt($(this).data('idx'), 10);
+        if (listName === 'arrival-chosen-vehicles') {
+            arrivalChosenVehicles.splice(idx, 1);
+            renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
+            $('#arrival-vehicles-hidden').val(JSON.stringify(arrivalChosenVehicles));
+        } else {
+            departureChosenVehicles.splice(idx, 1);
+            renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
+            $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles));
+        }
+    });
+
+    $('#arrival-search-vehicle-btn').on('click', function() {
+        const portId = $('#arrival-pickup-port').val();
+        const hotelId = $('#arrival-dropoff-hotel').val();
+        const city = $('#city-select').val();
+        if (!portId || !hotelId) { alert('Select pickup port and dropoff hotel first.'); return; }
+        if (!city) { alert('Select city first.'); return; }
+        const btn = $(this).prop('disabled', true);
+        $.ajax({
+            url: fetchVehiclesByZonesUrl,
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                from_zone_id: portId,
+                to_zone_id: hotelId,
+                from_zone_type: 'Port',
+                to_zone_type: 'Hotel',
+                city: city,
+                zone_status: 1
+            },
+            success: function(res) {
+                arrivalVehiclesByZone = res.vehicles || [];
+                const sel = $('#arrival-vehicle-select');
+                sel.empty().append('<option value="">Select vehicle</option>');
+                arrivalVehiclesByZone.forEach(function(v) {
+                    const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
+                    sel.append(new Option(name, v.vehicle_id));
+                });
+                $('#arrival-vehicle-select-wrap').show();
+            },
+            error: function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No vehicles found for this route (zone).';
+                alert(msg);
+            }
+        }).always(function() { btn.prop('disabled', false); });
+    });
+
+    $('#departure-search-vehicle-btn').on('click', function() {
+        const hotelId = $('#departure-pickup-hotel').val();
+        const portId = $('#departure-dropoff-port').val();
+        const city = $('#city-select').val();
+        if (!hotelId || !portId) { alert('Select pickup hotel and dropoff port first.'); return; }
+        if (!city) { alert('Select city first.'); return; }
+        const btn = $(this).prop('disabled', true);
+        $.ajax({
+            url: fetchVehiclesByZonesUrl,
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                from_zone_id: hotelId,
+                to_zone_id: portId,
+                from_zone_type: 'Hotel',
+                to_zone_type: 'Port',
+                city: city,
+                zone_status: 1
+            },
+            success: function(res) {
+                departureVehiclesByZone = res.vehicles || [];
+                const sel = $('#departure-vehicle-select');
+                sel.empty().append('<option value="">Select vehicle</option>');
+                departureVehiclesByZone.forEach(function(v) {
+                    const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
+                    sel.append(new Option(name, v.vehicle_id));
+                });
+                $('#departure-vehicle-select-wrap').show();
+            },
+            error: function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No vehicles found for this route (zone).';
+                alert(msg);
+            }
+        }).always(function() { btn.prop('disabled', false); });
+    });
+
+    $('#arrival-add-vehicle-btn').on('click', function() {
+        const val = $('#arrival-vehicle-select').val();
+        if (!val) return;
+        const v = arrivalVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
+        if (!v) return;
+        if (arrivalChosenVehicles.some(function(x) { return x.vehicle_id == val; })) return;
+        arrivalChosenVehicles.push({ vehicle_id: v.vehicle_id, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type });
+        renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
+        $('#arrival-vehicles-hidden').val(JSON.stringify(arrivalChosenVehicles));
+    });
+
+    $('#departure-add-vehicle-btn').on('click', function() {
+        const val = $('#departure-vehicle-select').val();
+        if (!val) return;
+        const v = departureVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
+        if (!v) return;
+        if (departureChosenVehicles.some(function(x) { return x.vehicle_id == val; })) return;
+        departureChosenVehicles.push({ vehicle_id: v.vehicle_id, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type });
+        renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
+        $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles));
     });
 
     // Form submit: build full JSON for selected_hotels, selected_attractions, selected_restaurants
@@ -1083,7 +1979,9 @@ $(document).ready(function() {
                 hotel_name: h.hotel_name,
                 nights: h.nights,
                 rooms: h.rooms,
-                compulsory: !!h.compulsory
+                compulsory: !!h.compulsory,
+                optional: !!h.optional,
+                optional_price: h.optional_price != null && h.optional_price !== '' ? parseFloat(h.optional_price) : null
             };
         });
         // Attractions: full data including guide, transfer, pickup/dropoff, compulsory
@@ -1095,6 +1993,8 @@ $(document).ready(function() {
                 location: a.location || '',
                 image: a.image || '',
                 compulsory: !!a.compulsory,
+                optional: !!a.optional,
+                optional_price: a.optional_price != null && a.optional_price !== '' ? parseFloat(a.optional_price) : null,
                 guide: a.guide || null,
                 transfer: !!a.transfer,
                 vehicle_id: a.vehicle_id || null,
@@ -1114,6 +2014,9 @@ $(document).ready(function() {
                 restaurant_id: r.restaurant_id,
                 restaurant_name: r.restaurant_name,
                 compulsory: !!r.compulsory,
+                optional: !!r.optional,
+                optional_price: r.optional_price != null && r.optional_price !== '' ? parseFloat(r.optional_price) : null,
+                selected_meals: r.selected_meals || [],
                 transfer: !!r.transfer,
                 vehicle_id: r.vehicle_id || null,
                 vehicle_name: r.vehicle_name || null,
@@ -1129,9 +2032,30 @@ $(document).ready(function() {
         $('#definition-restaurants-input').val(JSON.stringify(selectedRestaurantsPayload));
         $('#arrival-pickup-hidden').val($('#arrival-pickup-def').is(':checked') ? 1 : 0);
         $('#departure-service-hidden').val($('#departure-service-def').is(':checked') ? 1 : 0);
-        const guideOpt = $('#definition-guide-select').find('option:selected');
-        const guideData = guideOpt.data('guide-data');
-        $('#definition-independent-guide-input').val(guideData ? JSON.stringify({ id: guideData.guide_id, name: guideData.name, languages: guideData.languages, contact_no: guideData.contact_no }) : '');
+        $('#arrival-pickup-port-hidden').val($('#arrival-pickup-port').val() || '');
+        $('#arrival-dropoff-hotel-hidden').val($('#arrival-dropoff-hotel').val() || '');
+        $('#arrival-vehicles-hidden').val(JSON.stringify(arrivalChosenVehicles || []));
+        $('#departure-pickup-hotel-hidden').val($('#departure-pickup-hotel').val() || '');
+        $('#departure-dropoff-port-hidden').val($('#departure-dropoff-port').val() || '');
+        $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles || []));
+        $('#local-transfers-hidden').val(JSON.stringify(localTransfersList || []));
+        const selectedGuidesPayload = definitionGuides.map(function(g) {
+            return {
+                id: g.id,
+                name: g.name,
+                languages: g.languages || [],
+                contact_no: g.contact_no || '',
+                compulsory: !!g.compulsory,
+                optional: !!g.optional,
+                optional_price: g.optional_price != null && g.optional_price !== '' ? parseFloat(g.optional_price) : null,
+                duration_key: g.duration_key || 'hourly',
+                duration_label: g.duration_label || ''
+            };
+        });
+        $('#definition-independent-guide-input').val(JSON.stringify(selectedGuidesPayload));
+
+        // Ensure price_data is set even if the summary card isn't visible
+        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
     });
 
     // Main image preview
@@ -1157,13 +2081,21 @@ $(document).ready(function() {
 
 @section('styles')
 <style>
-.form-control, .form-select { padding: 0.5rem 1rem; border-radius: 0.375rem; }
+.form-control, .form-select { padding: 0.5rem 1rem; border-radius: 0.375rem; min-height: 42px; }
 .card { border: none; box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12); border-radius: 0.5rem; }
 .card-header { border-bottom: 1px solid #d9dee3; padding: 1rem 1.5rem; }
-.select2-container--default .select2-selection--multiple { min-height: 38px; border-radius: 0.375rem; }
+.select2-container--default .select2-selection--multiple { min-height: 42px; border-radius: 0.375rem; }
+/* Two per row: same width and height for every input/select in the row */
+.two-col-row .col-md-6 .form-control,
+.two-col-row .col-md-6 .form-select { width: 100%; min-height: 42px; }
+.two-col-row .col-md-6 .select2-container { width: 100% !important; }
+.two-col-row .col-md-6 .select2-container--default .select2-selection--single { min-height: 42px; border-radius: 0.375rem; }
+.two-col-row .col-md-6 .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 2.25; }
 .bg-primary-subtle { background-color: rgba(105, 108, 255, 0.1) !important; }
 .bg-success-subtle { background-color: rgba(32, 201, 151, 0.1) !important; }
 .bg-info-subtle { background-color: rgba(13, 202, 240, 0.1) !important; }
 .bg-warning-subtle { background-color: rgba(253, 126, 20, 0.1) !important; }
+.hotel-attraction-box { min-height: 280px; }
+.hotel-attraction-box .form-select-sm, .hotel-attraction-box .form-control-sm { min-height: 36px; }
 </style>
 @endsection

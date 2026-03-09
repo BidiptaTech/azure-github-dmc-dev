@@ -196,9 +196,9 @@ class BookingsController extends Controller
 
         // Get filtered agents based on logged-in DMC user
         $filteredAgents = $this->getFilteredAgents();
-
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax'));
+        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax', 'currency'));
     }
 
     public function agentNegotiation(Request $request)
@@ -654,9 +654,9 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
-
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
-        return view('bookings.tentative', compact('tours', 'country_tax'));
+        return view('bookings.tentative', compact('tours', 'country_tax', 'currency'));
     }
 
     /**
@@ -769,7 +769,8 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->get();
         }
-        return view('bookings.confirmed', compact('tours'));
+        $currency = CommonHelper::getDmcCurrencyByCountry();
+        return view('bookings.confirmed', compact('tours', 'currency' ));
     }
 
     /**
@@ -891,8 +892,9 @@ class BookingsController extends Controller
             ->get();
         }
 
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.definite', compact('tours', 'country_tax'));
+        return view('bookings.definite', compact('tours', 'country_tax', 'currency'));
     }
 
     /**
@@ -905,7 +907,7 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
-            $tours = Tour::where('tour_status', 'Actual')
+            $tours = Tour::whereIn('tour_status', ['Actual', 'Complete'])
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->select([
@@ -955,7 +957,7 @@ class BookingsController extends Controller
         }
 
         if($dmc_id){
-            $tours = Tour::where('tour_status', 'Actual')
+            $tours = Tour::whereIn('tour_status', ['Actual', 'Complete'])
                 ->where('tours.dmc_id', $dmc_id)
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
@@ -1006,8 +1008,9 @@ class BookingsController extends Controller
             return $tour;
         });
 
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.actual', compact('tours', 'country_tax'));
+        return view('bookings.actual', compact('tours', 'country_tax', 'currency'));
     }
 
     /**
@@ -1107,8 +1110,9 @@ class BookingsController extends Controller
             ->get();
         }
 
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.cancelled', compact('tours', 'country_tax'));
+        return view('bookings.cancelled', compact('tours', 'country_tax', 'currency'));
     }
 
     /**
@@ -1220,8 +1224,9 @@ class BookingsController extends Controller
             ->get();
         }
         
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.refunds', compact('tours', 'country_tax'));
+        return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
     }
 
     /**
@@ -1315,9 +1320,9 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
-
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
-        return view('bookings.cancellations-refunds', compact('tours', 'country_tax'));
+        return view('bookings.cancellations-refunds', compact('tours', 'country_tax', 'currency'));
     }
 
     /**

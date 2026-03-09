@@ -283,11 +283,11 @@
         white-space: nowrap;
     }
     #toursTable .btn-sm.negotiation-btn {
-        min-width: 130px;
+        min-width: 0;
         height: auto;
         width: auto;
         font-size: 0.78rem;
-        white-space: nowrap;
+        white-space: normal;
         padding: 0.3rem 0.75rem;
     }
     /* Agent column: smaller text */
@@ -299,12 +299,13 @@
     #toursTable td:nth-child(3) small {
         font-size: 0.75rem;
     }
-    /* Negotiation column: allow text to wrap inside column */
+    /* Negotiation column: allow text to wrap inside column and give it more width */
     #toursTable td.col-negotiation {
         min-width: 0;
         white-space: normal;
         word-wrap: break-word;
         overflow-wrap: break-word;
+        width: 16%;
     }
     #toursTable td.col-negotiation .btn-sm.negotiation-btn,
     #toursTable td.col-negotiation .check-negotiation-btn,
@@ -433,7 +434,11 @@
         font-size: 0.8rem;
     }
     /* Auto Cancel column: smaller text */
-    #toursTable td.col-auto-cancel,
+    #toursTable td.col-auto-cancel {
+        font-size: 0.75rem !important;
+        width: 6%;
+        white-space: normal;
+    }
     #toursTable td.col-auto-cancel .fw-semibold,
     #toursTable td.col-auto-cancel small,
     #toursTable td.col-auto-cancel .text-muted {
@@ -825,14 +830,17 @@
                         <col style="width: 13%">
                         @php $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]; @endphp
                         @if(in_array(auth()->user()->role_id, $role))
-                        <col style="width: 9%">
+                        {{-- Negotiation column - give more width --}}
+                        <col style="width: 12%">
+                        {{-- Actions column - keep comfortable width --}}
                         <col style="width: 10%">
                         @endif
                         <col style="width: 12%">
                         <col style="width: 11%">
                         <col style="width: 8%">
                         <col style="width: 8%">
-                        <col style="width: 5%">
+                        {{-- Auto Cancel column - narrower --}}
+                        <col style="width: 4%">
                     </colgroup>
                     <thead class="table-light">
                         <tr>
@@ -877,7 +885,16 @@
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
                                     @if($tour->tour_type)
-                                        <span class="text-white d-inline-block px-2 py-0 rounded" style="background: #3b82f6; font-weight: 500; font-size: 0.75rem;">{{ $tour->tour_type }}</span>
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type);
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
+                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
+                                        @endphp
+                                        <span class="d-inline-block px-2 py-1 rounded"
+                                              style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">
+                                            {{ $tour->tour_type }}
+                                        </span>
                                     @endif
                                     <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
                                     <div class="d-flex align-items-center gap-2 flex-nowrap">
@@ -1127,10 +1144,17 @@
                             <td class="align-top col-actions">
                                 <div class="actions-icons-wrap">
                                     @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                    @if($tour->is_pro == 1)
+                                    <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
+                                        <i class="ri-pencil-line"></i>
+                                    </a>
+                                    @else
                                     <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
                                        class="action-icon-badge" style="--action-color: #047857;" data-tooltip="Edit Tour">
                                         <i class="ri-pencil-line"></i>
                                     </a>
+                                    @endif
                                     @endif
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
@@ -1750,7 +1774,7 @@
                                                                     @if($hotelTransferCostDisplay > 0)
                                                                     <div class="col-12">
                                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$hotelTransferCostDisplay, 2) }}</div>
                                                                     </div>
                                                                     @endif
                                                                 </div>
@@ -2079,7 +2103,7 @@
                                                                    @if($attractionTransferCostDisplay > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$attractionTransferCostDisplay, 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>
@@ -2401,7 +2425,7 @@
                                                                    @if($restaurantTransferCostDisplay > 0)
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['transfer_options']['cost'], 2) }}</div>
+                                                                       <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$restaurantTransferCostDisplay, 2) }}</div>
                                                                    </div>
                                                                    @endif
                                                                </div>
