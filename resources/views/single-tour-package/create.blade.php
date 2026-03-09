@@ -875,56 +875,49 @@
             <input type="hidden" id="portBookings" name="port_bookings" value="[]">
             
             @php
-                // Get current user
+                // Hierarchy: DMC -> Sales Head -> Sales Manager -> Assistant Manager (created_by chain)
                 $currentUser = auth()->user();
                 $currentUserId = $currentUser->userId;
                 $currentUserRole = $currentUser->role_id;
-                
-                // Determine created_by based on role hierarchy
                 $createdBy = null;
                 $dmcUser = null;
                 $isPointToPoint = false;
-                
-                if ($currentUserRole == 33) { // Sales Head
-                    $createdBy = $currentUser->created_by; // DMC
-                } elseif ($currentUserRole == 37) { // SM (Sales Manager)
-                    $createdBy = $currentUserId; // Sales Head is the current user
-                } elseif ($currentUserRole == 38) { // ASM (Assistant Sales Manager)
-                    $createdBy = $currentUser->created_by; // SM
+
+                // Use same DMC resolution as controller (CommonHelper) - single source of truth for rooms, hotels, etc.
+                $finalDmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+
+                // Determine created_by and DMC user for zone_on (point-to-point) and form fields
+                $salesHeadRoleIds = [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
+                $salesManagerRoleIds = [37, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 139];
+                $assistantManagerRoleIds = [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127, 140];
+
+                if ($currentUserRole == 11) {
+                    $createdBy = $currentUserId;
+                    $dmcUser = $currentUser;
+                } elseif (in_array($currentUserRole, $salesHeadRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $dmcUser = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                } elseif (in_array($currentUserRole, $salesManagerRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $salesHead = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
+                } elseif (in_array($currentUserRole, $assistantManagerRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $sm = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                    $salesHead = $sm ? \App\Models\User::where('userId', $sm->created_by)->first() : null;
+                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
                 }
-                
-                // If we have a created_by, get the DMC user to check zone_id
-                if ($createdBy) {
-                    // For role 33 (Sales Head), created_by is directly the DMC
-                    if ($currentUserRole == 33) {
-                        $dmcUser = \App\Models\User::where('userId', $createdBy)->first();
-                    } 
-                    // For role 37 (SM), we need to get the DMC from the Sales Head's created_by
-                    elseif ($currentUserRole == 37) {
-                        $salesHead = \App\Models\User::where('userId', $createdBy)->first();
-                        if ($salesHead) {
-                            $dmcUser = \App\Models\User::where('userId', $salesHead->created_by)->first();
-                        }
-                    }
-                    // For role 38 (ASM), we need to go SM -> Sales Head -> DMC
-                    elseif ($currentUserRole == 38) {
-                        $sm = \App\Models\User::where('userId', $createdBy)->first();
-                        if ($sm) {
-                            $salesHead = \App\Models\User::where('userId', $sm->created_by)->first();
-                            if ($salesHead) {
-                                $dmcUser = \App\Models\User::where('userId', $salesHead->created_by)->first();
-                            }
-                        }
-                    }
+
+                if ($finalDmcId === null && $dmcUser) {
+                    $finalDmcId = $dmcUser->userId;
                 }
-                
-                // Check if zone_id = 0 for Point-to-Point functionality
+                if ($finalDmcId === null) {
+                    $finalDmcId = $currentUser->created_by;
+                }
+
                 if ($dmcUser && isset($dmcUser->zone_on) && $dmcUser->zone_on == 0) {
                     $isPointToPoint = true;
                 }
-                
-                // Final DMC ID for the form
-                $finalDmcId = $dmcUser ? $dmcUser->userId : $currentUser->created_by;
             @endphp
             
             <!-- DMC Information -->
