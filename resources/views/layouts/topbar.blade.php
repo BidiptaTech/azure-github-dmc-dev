@@ -28,7 +28,7 @@
                       
                       <!-- User Avatar with Status Indicator -->
                       <div class="position-relative me-3">
-                          <img src="{{ env('APP_URL') . '/assets/images/users/avatar-1.jpg' }}" 
+                          <img src="{{ Auth::user()->profile_image ?? Auth::user()->logo ?? env('APP_URL') . '/assets/images/users/avatar-1.jpg' }}" 
                                width="42" height="42" 
                                class="rounded-circle shadow-sm border border-2 border-primary" 
                                alt="user-image"
@@ -69,7 +69,7 @@
                       <!-- User Profile Header -->
                       <div class="bg-gradient-primary text-white p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                           <div class="d-flex align-items-center">
-                              <img src="{{ env('APP_URL') . '/assets/images/users/avatar-1.jpg' }}" 
+                              <img src="{{ Auth::user()->profile_image ?? Auth::user()->logo ?? env('APP_URL') . '/assets/images/users/avatar-1.jpg' }}" 
                                    width="60" height="60" 
                                    class="rounded-circle shadow border border-3 border-white me-3" 
                                    alt="user-image"
@@ -140,13 +140,19 @@
                           <!-- Back to Admin & Profile -->
                           @if(session()->has('login_stack') && count(session('login_stack')) > 0)
                           <div class="mb-3 row g-2">
-                            <div class="col-6">
+                            <div class="col-12">
                               <a href="{{ route('admin.revertPreviousUser') }}" 
                                  class="topbar-action-btn topbar-action-btn-outline d-flex align-items-center justify-content-center gap-2 w-100 py-2 px-3 rounded-3 text-decoration-none">
                                   <i class="ri-arrow-go-back-line" style="font-size: 1.1rem;"></i>
                                   <span class="fw-semibold small">Switch Back</span>
                               </a>
                             </div>
+                            
+                          </div>
+                          @endif
+
+                          <!-- Sign Out Button -->
+                          <div class="mb-3 row g-2">
                             <div class="col-6">
                               <a href="{{ route('user.profile') }}" 
                                  class="topbar-action-btn topbar-action-btn-primary d-flex align-items-center justify-content-center gap-2 w-100 py-2 px-3 rounded-3 text-decoration-none">
@@ -154,19 +160,18 @@
                                   <span class="fw-semibold small">Profile</span>
                               </a>
                             </div>
+                          <div class="col-6">
+                            <form method="POST" action="{{ route('logout') }}" class="d-block">
+                                @csrf
+                                <button type="submit" 
+                                        class="topbar-action-btn btn-danger d-flex align-items-center justify-content-center gap-2 w-100 py-2 px-3 rounded-3 text-decoration-none" 
+                                        style="transition: all 0.3s ease;">
+                                    <i class="ri-logout-box-r-line"></i>
+                                    <span class="fw-semibold small">Sign Out</span>
+                                </button>
+                            </form>
                           </div>
-                          @endif
-
-                          <!-- Sign Out Button -->
-                          <form method="POST" action="{{ route('logout') }}" class="d-block">
-                              @csrf
-                              <button type="submit" 
-                                      class="dropdown-item btn btn-danger d-flex align-items-center justify-content-center gap-2 w-100 p-3 rounded-3" 
-                                      style="transition: all 0.3s ease;">
-                                  <i class="ri-logout-box-r-line"></i>
-                                  <span class="fw-semibold">Sign Out</span>
-                              </button>
-                          </form>
+                          </div>
                       </div>
                   </div>
               </div>
