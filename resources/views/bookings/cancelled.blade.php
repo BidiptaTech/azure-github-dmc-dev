@@ -371,6 +371,9 @@
                             <td class="align-top">
                                 <div class="d-flex flex-column gap-1">
                                     <strong class="text-danger">{{ $tour->display_id }}</strong>
+                                    @if($tour->reference_id)
+                                        <small class="text-dark">Ref: {{ $tour->reference_id }}</small>
+                                    @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>

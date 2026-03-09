@@ -752,6 +752,10 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
+                                    
+                                    @if($tour->reference_id)
+                                        <small class="text-dark">Ref: {{ $tour->reference_id }}</small>
+                                    @endif
                                     @if($tour->tour_type)
                                         @php
                                             $tourTypeLower = strtolower($tour->tour_type);

@@ -690,6 +690,7 @@ class SingleTourPackageController extends Controller
             'children' => 'required|integer|min:0',
             'infants' => 'required|integer|min:0',
             'agent_id' => 'required|exists:agents,agent_id',
+            'reference_number' => 'nullable|string|max:255',
             'package_name' => 'nullable|string|max:255',
             'estimated_budget' => 'nullable|numeric|min:0',
             'package_description' => 'nullable|string',
@@ -768,6 +769,7 @@ class SingleTourPackageController extends Controller
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
+            $tour->reference_id = $request->reference_number ?? null;
             $tour->created_by = Auth::user()->userId;
             $mainGuestData = null;
             $additionalGuestData = [];
@@ -1331,7 +1333,6 @@ class SingleTourPackageController extends Controller
     public function destroy($id)
     {
         try {
-            dd($id);
             $package = Tour::findOrFail($id);
             $package->delete();
 
@@ -1383,13 +1384,13 @@ class SingleTourPackageController extends Controller
     }
 
     /**
-     * Fetch zone-assigned locations (attractions, hotels, restaurants) by DMC ID
+     * Fetch zone-assigned locations (attractions, hotels, restaurants) for pickup/dropoff in Local Transfer
      */
     public function fetchZoneAssignedLocations(Request $request) 
     {
         try {
-            $user = User::where('userId', Auth::user()->userId)->first();
-            $dmcId = $user->created_by;
+            // Use same DMC resolution: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             
             if (!$dmcId) {
                 return response()->json([
@@ -2004,24 +2005,8 @@ class SingleTourPackageController extends Controller
     {
         try {
             $hotelId = $request->input('hotel_id');
-            if(Auth::user()->role_id == 11){
-                $dmcId = Auth::user()->userId;
-            }elseif(in_array(Auth::user()->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138])){
-                $user = User::where('userId', Auth::user()->userId)->first();
-                $dmcId = $user->created_by;
-            }elseif(in_array(Auth::user()->role_id, [37, 124])){
-                $dmcIds = Auth::user()->created_by;
-                $user = User::where('userId', $dmcIds)->first();
-                $dmcId = $user->created_by;
-            }elseif(in_array(Auth::user()->role_id, [38, 125])){
-                $dmcIds = Auth::user()->created_by;
-                $user = User::where('userId', $dmcIds)->first();
-                $dmcIdss = $user->created_by;
-                $user = User::where('userId', $dmcIdss)->first();
-                $dmcId = $user->created_by;
-            }else{
-                $dmcId = null;
-            }
+            // Use same DMC resolution as create view: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             if (!$hotelId) {
                 return response()->json([
                     'success' => false,
@@ -2410,7 +2395,8 @@ class SingleTourPackageController extends Controller
     {
         try {
             $city = $request->input('city');
-            $dmcId = $request->input('dmc_id') ?? Auth::user()->created_by;
+            // Use same DMC resolution so Sales Manager gets correct restaurants/meals
+            $dmcId = $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user());
             
             if (!$dmcId) {
                 return response()->json([
@@ -2514,9 +2500,8 @@ class SingleTourPackageController extends Controller
             $restaurantId = $request->input('restaurant_id');
             $mealPeriod = $request->input('meal_period'); // 1=Breakfast, 2=Lunch, 3=Dinner
             
-            // Get DMC ID from authenticated user
-            $user = User::where('userId', Auth::user()->userId)->first();
-            $dmcId = $user->created_by;
+            // Use same DMC resolution: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             
             if (!$dmcId) {
                 return response()->json([
@@ -2645,13 +2630,13 @@ class SingleTourPackageController extends Controller
     }
 
     /**
-     * Fetch zones for transportation dropdowns
+     * Fetch zones for transportation dropdowns (pickup/dropoff locations for Local Transfer)
      */
     public function fetchZones(Request $request)
     {
         try {
-            $user = User::where('userId', Auth::user()->userId)->first();
-            $dmcId = $user->created_by;
+            // Use same DMC resolution: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             
             if (!$dmcId) {
                 return response()->json([
@@ -3135,8 +3120,8 @@ class SingleTourPackageController extends Controller
     public function fetchVehiclesByCityAndDmc(Request $request)
     {
         try {
-            $user = User::where('userId', Auth::user()->userId)->first();
-            $dmcId = $user->created_by;
+            // Use same DMC resolution as elsewhere: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             $city = $request->input('city');
             $showAllVehicles = $request->input('show_all', false); // New parameter for point-to-point and hourly services
             
@@ -4898,8 +4883,7 @@ class SingleTourPackageController extends Controller
             $pickupLocationType = $request->pickup_location_type;
             $transferType = $request->transfer_type;
             
-            // Get current DMC ID using the existing method
-            $dmcId = 4;
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
@@ -5091,8 +5075,7 @@ class SingleTourPackageController extends Controller
             $pickupLocationType = $request->pickup_location_type;
             $transferType = $request->transfer_type;
             
-            // Get current DMC ID using the existing method
-            $dmcId = 4;
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
