@@ -2661,7 +2661,7 @@ class UserController extends Controller
         if ($request->hasFile('profile_image')) {
             $pathData = CommonHelper::image_path('file_storage', $request->file('profile_image'));
             if (!empty($pathData['master_value'])) {
-                $data['logo'] = $pathData['master_value'];
+                $data['profile_image'] = $pathData['master_value'];
             }
         }
 
