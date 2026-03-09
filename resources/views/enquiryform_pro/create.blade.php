@@ -22239,18 +22239,20 @@
         };
     }
     
-    // Create unique key for deduplication
-    function createUniqueKey(item, type) {
+    // Create unique key for deduplication (include rowIndex so multiple arrival/departure services are all sent)
+    function createUniqueKey(item, type, rowIndex) {
         try {
             switch(type) {
                 case 'entry_port':
                 case 'exit_port':
+                    const rowId = (item && (item.id != null && item.id !== '')) ? String(item.id) : ('idx-' + (rowIndex != null ? rowIndex : ''));
                     const portKey = [
+                        rowId,
                         item.portName || item.port_name || '',
                         item.transferDestinationName || item.transfer_destination_name || '',
                         item.dateTime || item.bookingDate || '',
                         item.vehicleId || item.vehicle_id || '',
-                        item.type || ''
+                        item.transferType || item.type || ''
                     ].join('|');
                     return portKey;
                 default:
@@ -22275,7 +22277,8 @@
             exit_port: new Set()
         };
         
-        for (const item of arrivalDepartureList) {
+        for (let i = 0; i < arrivalDepartureList.length; i++) {
+            const item = arrivalDepartureList[i];
             if (item.type === 'Arrival') {
                 // Extract date and time
                 let bookingDate = normalizeDateToYYYYMMDD(item.dateTime);
@@ -22297,8 +22300,8 @@
                 // Fetch vehicle details if vehicle_id exists
                 const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
                 
-                // Check for duplicates
-                const uniqueKey = createUniqueKey(item, 'entry_port');
+                // Check for duplicates (use row index so multiple arrival/departure services are all sent)
+                const uniqueKey = createUniqueKey(item, 'entry_port', i);
                 if (uniqueKey && seenKeys.entry_port.has(uniqueKey)) {
                     console.warn('Skipping duplicate entry_port (frontend):', uniqueKey);
                     continue; // Skip this duplicate
@@ -22463,8 +22466,8 @@
                 // Fetch vehicle details if vehicle_id exists
                 const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
                 
-                // Check for duplicates
-                const uniqueKey = createUniqueKey(item, 'exit_port');
+                // Check for duplicates (use row index so multiple arrival/departure services are all sent)
+                const uniqueKey = createUniqueKey(item, 'exit_port', i);
                 if (uniqueKey && seenKeys.exit_port.has(uniqueKey)) {
                     console.warn('Skipping duplicate exit_port (frontend):', uniqueKey);
                     continue; // Skip this duplicate

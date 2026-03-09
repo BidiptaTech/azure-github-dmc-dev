@@ -2091,12 +2091,12 @@
                                                                            <small class="text-muted" style="font-size: 0.6rem;">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
                                                                        @endif
                                                                    </div>
-                                                                   @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                   {{-- @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Capacity</small>
                                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                    </div>
-                                                                   @endif
+                                                                   @endif --}}
                                                                    @php
                                                                        $attractionTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
                                                                        if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
@@ -2413,12 +2413,12 @@
                                                                            <small class="text-muted" style="font-size: 0.6rem;">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
                                                                        @endif
                                                                    </div>
-                                                                   @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                   {{-- @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Capacity</small>
                                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                    </div>
-                                                                   @endif
+                                                                   @endif --}}
                                                                    @php
                                                                        $restaurantTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
                                                                        if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
