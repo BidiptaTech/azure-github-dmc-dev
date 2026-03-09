@@ -7,9 +7,14 @@
             <h4 class="fw-bold mb-0">
                 <i class="ri-file-list-3-line me-2 text-primary"></i>Tour MIS Report
             </h4>
-            <a href="{{ route('mis.tours.export', request()->query()) }}" class="btn btn-success">
-                <i class="ri-file-excel-2-line me-1"></i>Export to Excel
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{{ route('mis.tours.export', request()->query()) }}" class="btn btn-success">
+                    <i class="ri-file-excel-2-line me-1"></i>Export to Excel
+                </a>
+                <a href="{{ route('mis.tours.export-pdf', request()->query()) }}" class="btn btn-danger">
+                    <i class="ri-file-pdf-line me-1"></i>Export to PDF
+                </a>
+            </div>
         </div>
 
         {{-- Filters --}}
@@ -73,16 +78,14 @@
                     <table class="table table-hover table-striped mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Booking ID</th>
                                 <th>Booking Date</th>
-                                <th>Tour Name</th>
+                                <th>Type</th>
+                                <th>Tour Id</th>
                                 <th>Destination</th>
                                 <th>Agent Name</th>
                                 <th>DMC Name</th>
                                 <th>PAX</th>
                                 <th>Selling Price</th>
-                                <th>Agent Commission</th>
-                                <th>DMC Commission</th>
                                 <th>Net Profit</th>
                                 <th>Transaction Ref.</th>
                                 <th>Payment Status</th>
@@ -92,16 +95,14 @@
                         <tbody>
                             @forelse($report as $row)
                                 <tr>
-                                    <td>{{ $row->booking_id }}</td>
                                     <td>{{ $row->booking_date ? \Carbon\Carbon::parse($row->booking_date)->format('d M Y') : '—' }}</td>
+                                    <td>{{ $row->type ?? '—' }}</td>
                                     <td>{{ $row->tour_name ?? '—' }}</td>
                                     <td>{{ $row->destination }}</td>
                                     <td>{{ $row->agent_name }}</td>
                                     <td>{{ $row->dmc_name }}</td>
                                     <td>{{ $row->pax }}</td>
                                     <td>{{ number_format($row->selling_price, 2) }}</td>
-                                    <td>{{ number_format($row->agent_commission, 2) }}</td>
-                                    <td>{{ number_format($row->dmc_commission, 2) }}</td>
                                     <td>{{ number_format($row->net_profit, 2) }}</td>
                                     <td>{{ $row->transaction_reference_number }}</td>
                                     <td><span class="badge bg-{{ $row->payment_status === 'paid' ? 'success' : ($row->payment_status === 'issued' ? 'warning' : 'secondary') }}">{{ $row->payment_status ?: '—' }}</span></td>
@@ -109,13 +110,18 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="15" class="text-center text-muted py-4">No records found.</td>
+                                    <td colspan="12" class="text-center text-muted py-4">No records found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
+            @if(method_exists($report, 'links'))
+                <div class="card-footer">
+                    {{ $report->withQueryString()->links() }}
+                </div>
+            @endif
         </div>
     </div>
 </div>

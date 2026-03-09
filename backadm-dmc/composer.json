@@ -17,7 +17,7 @@
         "league/flysystem-aws-s3-v3": "3.0",
         "league/flysystem-azure-blob-storage": "^3.28",
         "league/iso3166": "*",
-        "maatwebsite/excel": "^1.1",
+        "maatwebsite/excel": "^3.1",
         "maennchen/zipstream-php": "^3.1",
         "matthewbdaly/laravel-azure-storage": "^2.0",
         "microsoft/azure-storage-blob": "^1.5",
