@@ -899,7 +899,7 @@
                         </div>
                         <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                     </div>
-                    <div id="hotelAccommodationsSection" class="collapse show">
+                    <div id="hotelAccommodationsSection" class="collapse show" data-bs-parent="#servicesAccordion">
                     <div class="card-body mt-3">
                             <div class="row">
                                 @if(isset($hotelOrders) && count($hotelOrders) > 0)
@@ -2392,7 +2392,7 @@
                             </div>
                             <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                         </div>
-                        <div id="arrivalTransportSection" class="collapse">
+                        <div id="arrivalTransportSection" class="collapse" data-bs-parent="#servicesAccordion">
                         <div class="card-body mt-3">
                             @if(count($allArrivalServices) > 0)
                                 @foreach($allArrivalServices as $index => $order)
@@ -2653,7 +2653,7 @@
                                         </div>
                                         <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                                     </div>
-                                    <div id="allAttractionsSection" class="collapse">
+                                    <div id="allAttractionsSection" class="collapse" data-bs-parent="#servicesAccordion">
                                     <div class="card-body mt-3">
                                         @if(count($allAttractions) > 0)
                                         @foreach($allAttractions as $index => $order)
@@ -3258,7 +3258,7 @@
                                         </div>
                                         <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                                     </div>
-                                    <div id="allGuidesSection" class="collapse">
+                                    <div id="allGuidesSection" class="collapse" data-bs-parent="#servicesAccordion">
                                     <div class="card-body mt-3">
                                         @if(count($allGuides) > 0)
                                         @foreach($allGuides as $index => $order)
@@ -3464,7 +3464,7 @@
                                         </div>
                                         <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                                     </div>
-                                    <div id="restaurantServicesSection" class="collapse">
+                                    <div id="restaurantServicesSection" class="collapse" data-bs-parent="#servicesAccordion">
                                     <div class="card-body mt-3">
                                         @if(count($allRestaurants) > 0)
                                         @foreach($allRestaurants as $index => $order)
@@ -3832,7 +3832,7 @@
                                         </div>
                                         <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                                     </div>
-                                    <div id="otherTransportSection" class="collapse">
+                                    <div id="otherTransportSection" class="collapse" data-bs-parent="#servicesAccordion">
                                     <div class="card-body mt-3">
                                         @if(count($allTransportHourly) > 0)
                                             @foreach($allTransportHourly as $index => $order)
@@ -4368,7 +4368,7 @@
                                         </div>
                                         <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                                     </div>
-                                    <div id="departureTransportSection" class="collapse">
+                                    <div id="departureTransportSection" class="collapse" data-bs-parent="#servicesAccordion">
                                     <div class="card-body mt-3">
                                         @if(isset($dayOrdersByType['exit_port']) && count($dayOrdersByType['exit_port']) > 0)
                                         @foreach($dayOrdersByType['exit_port'] as $index => $order)
@@ -4609,7 +4609,7 @@
                                                     </div>
                                                     <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
                                                 </div>
-                                                <div id="customerInformationSection" class="collapse">
+                                                <div id="customerInformationSection" class="collapse" data-bs-parent="#servicesAccordion">
                                                     <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
                                                         <div class="row g-2">
                                                             <div class="col-md-2">
@@ -4704,7 +4704,7 @@
                                     <div class="accordion mb-4" id="additionalGuestsAccordion">
                                         <div class="accordion-item border-0">
                                             <div class="card shadow-sm border-0">
-                                                <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem;">
+                                                <div class="card-header text-white d-flex justify-content-between align-items-center collapsed" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="false" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem;">
                                                     <div class="d-flex align-items-center">
                                                         <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
                                                             <i class="ri-group-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
@@ -4716,9 +4716,9 @@
                                                             </small>
                                                         </div>
                                                     </div>
-                                                    <i class="ri-arrow-up-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
+                                                    <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
                                                 </div>
-                                                <div id="additionalGuestsSection" class="collapse show">
+                                                <div id="additionalGuestsSection" class="collapse" data-bs-parent="#servicesAccordion">
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                                         <div class="mb-3 text-end">
                                                             <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addNewGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -7794,6 +7794,36 @@
             tapToDismiss: true
         };
     }
+
+    // Accordion: only one section open at a time (close others when one opens)
+    (function() {
+        var sectionIds = [
+            'hotelAccommodationsSection', 'arrivalTransportSection', 'allAttractionsSection',
+            'allGuidesSection', 'restaurantServicesSection', 'otherTransportSection',
+            'departureTransportSection', 'customerInformationSection', 'additionalGuestsSection'
+        ];
+        function closeOtherSections(openId) {
+            sectionIds.forEach(function(id) {
+                if (id === openId) return;
+                var el = document.getElementById(id);
+                if (!el || !el.classList.contains('show')) return;
+                var collapseInstance = typeof bootstrap !== 'undefined' && bootstrap.Collapse ? bootstrap.Collapse.getInstance(el) : null;
+                if (collapseInstance) {
+                    collapseInstance.hide();
+                }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            sectionIds.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('show.bs.collapse', function() {
+                        closeOtherSections(id);
+                    });
+                }
+            });
+        });
+    })();
 
     // === Time helpers for edit form (arrival/others) ===
     // Format time input to HH:MM as user types, clamping hours to 1–12 and minutes to 0–59, with max 12:00
