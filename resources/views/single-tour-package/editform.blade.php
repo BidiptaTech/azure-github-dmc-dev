@@ -729,6 +729,15 @@
                             </h2>
                             <div id="tourInfoCollapse" class="accordion-collapse collapse" aria-labelledby="tourInfoHeading" data-bs-parent="#tourInfoAccordion">
                                 <div class="accordion-body" style="padding: 1.25rem; background: #ffffff;">
+                                    <!-- Reference Number - top single section -->
+                                    <div class="row g-3 mb-2">
+                                        <div class="col-md-6">
+                                            <label for="reference_number" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                                <i class="ri-hashtag me-1" style="color: #667eea;"></i>Reference Number
+                                            </label>
+                                            <input type="text" name="reference_number" id="reference_number" class="form-control modern-input" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number', $tour->reference_id ?? '') }}" readonly>
+                                        </div>
+                                    </div>
                                     <div class="row g-3">
                                 <!-- Tour ID -->
                                 <div class="col-md-2">
@@ -7040,7 +7049,7 @@
                                                 <div class="col-6 ps-1">
                                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Children</label>
                                                     <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
-                                                        <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.8rem;">Children</span>
+                                                            <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.8rem;">Children</span>
                                                         <input type="number" class="form-control" id="modal_transport_children" min="0" max="{{ $tour->child ?? 50 }}" value="0" placeholder="0"
                                                             style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
                                                             oninput="syncModalTransportPax(); updatePricing();"
@@ -23438,6 +23447,8 @@
         formData.append('male', maleCountEl ? maleCountEl.value : '0');
         formData.append('female', femaleCountEl ? femaleCountEl.value : '0');
         formData.append('agent_id', agentIdEl ? agentIdEl.value : '');
+        const referenceNumberEl = document.getElementById('reference_number');
+        formData.append('reference_number', referenceNumberEl ? referenceNumberEl.value || '' : '');
         
         // Collect child ages - try multiple sources
         let childAges = '';
