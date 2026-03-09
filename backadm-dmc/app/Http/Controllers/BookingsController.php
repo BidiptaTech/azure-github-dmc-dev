@@ -109,6 +109,7 @@ class BookingsController extends Controller
                             ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -161,6 +162,7 @@ class BookingsController extends Controller
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -512,6 +514,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -577,6 +580,7 @@ class BookingsController extends Controller
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -630,6 +634,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -681,6 +686,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -739,6 +745,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -796,6 +803,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -862,6 +870,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -913,6 +922,7 @@ class BookingsController extends Controller
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -964,6 +974,7 @@ class BookingsController extends Controller
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -1032,6 +1043,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -1086,6 +1098,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -1137,6 +1150,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
@@ -1194,6 +1208,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
@@ -1301,6 +1316,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',

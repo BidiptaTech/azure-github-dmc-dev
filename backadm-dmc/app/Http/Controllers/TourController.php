@@ -962,6 +962,7 @@ class TourController extends Controller
             $tour->tour_status = "New Enquiry";
             $tour->city = $request->city;
             $tour->dmc_id = $request->dmc_id;
+            $tour->reference_id = $request->reference_id ?? null;
             $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             
