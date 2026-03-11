@@ -1249,6 +1249,9 @@ class EnquiryFormPro extends Controller
             // 0. Entry Port Orders (Arrival)
             if ($request->has('entry_port') && !empty($request->entry_port)) {
                 $entryPorts = json_decode($request->entry_port, true);
+                if (!is_array($entryPorts)) {
+                    $entryPorts = $entryPorts ? [$entryPorts] : [];
+                }
                 
                 // Track unique entries to prevent duplicates within the same request
                 $seenEntries = [];
@@ -1320,6 +1323,9 @@ class EnquiryFormPro extends Controller
             // 0b. Exit Port Orders (Departure)
             if ($request->has('exit_port') && !empty($request->exit_port)) {
                 $exitPorts = json_decode($request->exit_port, true);
+                if (!is_array($exitPorts)) {
+                    $exitPorts = $exitPorts ? [$exitPorts] : [];
+                }
                 
                 // Track unique exits to prevent duplicates within the same request
                 $seenExits = [];
@@ -2900,6 +2906,9 @@ class EnquiryFormPro extends Controller
             
             if ($request->has('entry_port') && !empty($request->entry_port)) {
                 $entryPorts = json_decode($request->entry_port, true);
+                if (!is_array($entryPorts)) {
+                    $entryPorts = $entryPorts ? [$entryPorts] : [];
+                }
                 
                 // Use a set to track unique entries to prevent duplicates within the same request
                 $seenEntries = [];
@@ -2973,6 +2982,9 @@ class EnquiryFormPro extends Controller
             
             if ($request->has('exit_port') && !empty($request->exit_port)) {
                 $exitPorts = json_decode($request->exit_port, true);
+                if (!is_array($exitPorts)) {
+                    $exitPorts = $exitPorts ? [$exitPorts] : [];
+                }
                 
                 // Use a set to track unique entries to prevent duplicates within the same request
                 $seenExits = [];

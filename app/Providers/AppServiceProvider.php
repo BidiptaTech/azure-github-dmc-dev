@@ -11,6 +11,7 @@ use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+        Paginator::useBootstrapFive();
 
         Storage::extend('azure', function($app, $config) {
             try {

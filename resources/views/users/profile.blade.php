@@ -29,10 +29,10 @@
                         <div class="position-relative d-inline-block mb-3">
                             @php
                             $profileImg = asset('assets/img/avatars/1.png');
-                            if (!empty($user->logo)) {
-                                $profileImg = str_starts_with($user->logo, 'http') ? $user->logo : asset('storage/' . $user->logo);
-                            } elseif (!empty($user->profile_image)) {
-                                $profileImg = $user->profile_image;
+                            if (!empty($user->profile_image)) {
+                                $profileImg = str_starts_with($user->profile_image, 'http') ? $user->profile_image : asset('storage/' . $user->profile_image);
+                            } else {
+                                $profileImg = $user->logo ?? asset('assets/img/avatars/1.png');
                             }
                             @endphp
                             <img id="profile-image-preview" 
