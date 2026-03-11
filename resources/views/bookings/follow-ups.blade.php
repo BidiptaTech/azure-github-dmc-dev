@@ -2518,7 +2518,7 @@
 
                                    </div>
                                </div>
-                           @endforeach
+                           @endforeach 
                        @endif
                    @endforeach
                @else

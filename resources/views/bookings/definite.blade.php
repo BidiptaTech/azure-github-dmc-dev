@@ -1735,6 +1735,103 @@
                                             </div>
                                         @endif
 
+                                        <!-- Child Accommodation (child_with_bed / child_without_bed) -->
+                                        @php
+                                            $hotelNights = 0;
+                                            if (isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 1) {
+                                                $checkIn = \Carbon\Carbon::parse($booking['bookingDate'][0]);
+                                                $checkOut = \Carbon\Carbon::parse(end($booking['bookingDate']));
+                                                $hotelNights = $checkIn->diffInDays($checkOut);
+                                            }
+
+                                            // Check if child accommodation data exists (with or without enabled flag)
+                                            $hasChildWithBed = isset($booking['child_with_bed']) && is_array($booking['child_with_bed']) && (
+                                                (isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled']) ||
+                                                (isset($booking['child_with_bed']['price']) && $booking['child_with_bed']['price'] > 0) ||
+                                                (isset($booking['child_with_bed']['children']) && $booking['child_with_bed']['children'] > 0)
+                                            );
+                                            $hasChildWithoutBed = isset($booking['child_without_bed']) && is_array($booking['child_without_bed']) && (
+                                                (isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled']) ||
+                                                (isset($booking['child_without_bed']['price']) && $booking['child_without_bed']['price'] > 0) ||
+                                                (isset($booking['child_without_bed']['children']) && $booking['child_without_bed']['children'] > 0)
+                                            );
+                                        @endphp
+                                        @if($hasChildWithBed || $hasChildWithoutBed)
+                                        <div class="bg-light rounded p-3 shadow-sm mb-4">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-info rounded-circle p-2 me-3">
+                                                    <i class="ri-user-add-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Child Accommodation</h6>
+                                            </div>
+                                            <div class="row g-3">
+                                                @if($hasChildWithBed)
+                                                @php
+                                                    $cwb = $booking['child_with_bed'];
+                                                    $cwbPrice = (float)($cwb['price'] ?? 0);
+                                                    $cwbChildren = (int)($cwb['children'] ?? 0);
+                                                    $cwbTotal = isset($cwb['total_cost']) ? (float)$cwb['total_cost'] : ($cwbPrice * $cwbChildren * $hotelNights);
+                                                @endphp
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-3 border h-100" style="border-color: #74b9ff !important;">
+                                                        <div class="fw-bold text-dark mb-2"><i class="ri-bed-line me-2"></i>Child with Bed</div>
+                                                        <div class="row g-2">
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block">Price/Night</small>
+                                                                <div class="fw-medium">{{ $currency }} {{ number_format($cwbPrice, 2) }}</div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block">Children</small>
+                                                                <div class="fw-medium">{{ $cwbChildren }}</div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block">Nights</small>
+                                                                <div class="fw-medium">{{ $hotelNights }}</div>
+                                                            </div>
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block">Total (Price × Children × Nights)</small>
+                                                                <div class="fw-bold text-success">{{ $currency }} {{ number_format($cwbTotal, 2) }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+
+                                                @if($hasChildWithoutBed)
+                                                @php
+                                                    $cwob = $booking['child_without_bed'];
+                                                    $cwobPrice = (float)($cwob['price'] ?? 0);
+                                                    $cwobChildren = (int)($cwob['children'] ?? 0);
+                                                    $cwobTotal = isset($cwob['total_cost']) ? (float)$cwob['total_cost'] : ($cwobPrice * $cwobChildren * $hotelNights);
+                                                @endphp
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-3 border h-100" style="border-color: #74b9ff !important;">
+                                                        <div class="fw-bold text-dark mb-2"><i class="ri-user-smile-line me-2"></i>Child without Bed</div>
+                                                        <div class="row g-2">
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block">Price/Night</small>
+                                                                <div class="fw-medium">{{ $currency }} {{ number_format($cwobPrice, 2) }}</div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block">Children</small>
+                                                                <div class="fw-medium">{{ $cwobChildren }}</div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block">Nights</small>
+                                                                <div class="fw-medium">{{ $hotelNights }}</div>
+                                                            </div>
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block">Total (Price × Children × Nights)</small>
+                                                                <div class="fw-bold text-success">{{ $currency }} {{ number_format($cwobTotal, 2) }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        @endif
+
                                         <!-- Individual Hotel Action Buttons -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-3 border-top">
                                             <div class="d-flex justify-content-between align-items-center">
@@ -8348,6 +8445,11 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                     hotelData.rooms[0].beds[0].bed_type || 'N/A' : 'N/A',
                 mealPlan: hotelData.rooms && hotelData.rooms.length > 0 && hotelData.rooms[0].beds && hotelData.rooms[0].beds.length > 0 && hotelData.rooms[0].beds[0].mealTypes && hotelData.rooms[0].beds[0].mealTypes.length > 0 ? 
                     hotelData.rooms[0].beds[0].mealTypes[0] : 'Room Only',
+                // Child accommodation
+                childWithBed: hotelData.child_with_bed || hotelData.childWithBed || null,
+                childWithoutBed: hotelData.child_without_bed || hotelData.childWithoutBed || null,
+                // Transfer Options
+                transferOptions: hotelData.transfer_options || null,
                 // Approval status
                 isApprove: hotelData.is_approve || false,
                 referenceId: hotelData.reference_id || null,
@@ -8482,6 +8584,87 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
 
             
 
+                <!-- Child Accommodation (child_with_bed / child_without_bed) -->
+                ${(hotelBooking.childWithBed && (hotelBooking.childWithBed.enabled || hotelBooking.childWithBed.price > 0 || hotelBooking.childWithBed.children > 0)) || (hotelBooking.childWithoutBed && (hotelBooking.childWithoutBed.enabled || hotelBooking.childWithoutBed.price > 0 || hotelBooking.childWithoutBed.children > 0)) ? `
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-user-add-line text-white" style="font-size: 0.9rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Child Accommodation</h6>
+                    </div>
+                    <div class="row g-2">
+                        ${hotelBooking.childWithBed && (hotelBooking.childWithBed.enabled || hotelBooking.childWithBed.price > 0 || hotelBooking.childWithBed.children > 0) ? `
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2 border h-100" style="border-color: #667eea !important;">
+                                <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;">
+                                    <i class="ri-bed-line me-1" style="font-size: 0.8rem;"></i>Child with Bed
+                                </div>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Price/Night</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.childWithBed.price || 0).toFixed(2)}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Children</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${hotelBooking.childWithBed.children || 0}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Nights</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${typeof hotelBooking.nights === 'number' ? hotelBooking.nights : (parseInt(hotelBooking.nights) || 0)}</div>
+                                    </div>
+                                    <div class="col-12 pt-1 border-top mt-1">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small>
+                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">
+                                            ${window.bookingCurrency} ${(
+                                                (parseFloat(hotelBooking.childWithBed.price || 0) || 0) *
+                                                (parseInt(hotelBooking.childWithBed.children || 0) || 0) *
+                                                (typeof hotelBooking.nights === 'number' ? hotelBooking.nights : (parseInt(hotelBooking.nights) || 0))
+                                            ).toFixed(2)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        ${hotelBooking.childWithoutBed && (hotelBooking.childWithoutBed.enabled || hotelBooking.childWithoutBed.price > 0 || hotelBooking.childWithoutBed.children > 0) ? `
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2 border h-100" style="border-color: #667eea !important;">
+                                <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;">
+                                    <i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>Child without Bed
+                                </div>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Price/Night</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.childWithoutBed.price || 0).toFixed(2)}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Children</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${hotelBooking.childWithoutBed.children || 0}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Nights</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${typeof hotelBooking.nights === 'number' ? hotelBooking.nights : (parseInt(hotelBooking.nights) || 0)}</div>
+                                    </div>
+                                    <div class="col-12 pt-1 border-top mt-1">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small>
+                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">
+                                            ${window.bookingCurrency} ${(
+                                                (parseFloat(hotelBooking.childWithoutBed.price || 0) || 0) *
+                                                (parseInt(hotelBooking.childWithoutBed.children || 0) || 0) *
+                                                (typeof hotelBooking.nights === 'number' ? hotelBooking.nights : (parseInt(hotelBooking.nights) || 0))
+                                            ).toFixed(2)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
                 <!-- Transfer Options -->
                 ${hotelBooking.transferOptions && (hotelBooking.transferOptions.transfer_required === true || hotelBooking.transferOptions.transfer_required === 'true' || hotelBooking.transferOptions.transfer_required === 'Yes') ? `
                 <div class="bg-light rounded p-2 mb-3">
@@ -8524,10 +8707,10 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
                                     <div class="fw-medium" style="font-size: 0.8rem;">${hotelBooking.transferOptions.vehicle_id}</div>
                                 ` : ''}
-                                ${hotelBooking.transferOptions.cost && hotelBooking.transferOptions.cost > 0 ? `
+                                ${(hotelBooking.transferOptions.totalPrice && hotelBooking.transferOptions.totalPrice > 0) || (hotelBooking.transferOptions.cost && hotelBooking.transferOptions.cost > 0) ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.transferOptions.cost).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.transferOptions.totalPrice || hotelBooking.transferOptions.cost || 0).toFixed(2)}</div>
                                 </div>
                                 ` : ''}
                             </div>
@@ -8538,7 +8721,86 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
 
              
 
-                <!-- Pricing Overview -->
+                                        <!-- Guide Options (for restaurant with attached guide booking) -->
+                                        @if(isset($booking['guide_options']) && is_array($booking['guide_options']) && (isset($booking['guide_options']['guideId']) || isset($booking['guide_options']['guide_id']) || isset($booking['guide_options']['guideName']) || isset($booking['guide_options']['guide_name']) || isset($booking['guide_options']['name'])))
+                                        <div class="bg-light rounded p-2 mb-3">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">Guide Details</h6>
+                                            </div>
+                                            <div class="row g-2">
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-2 h-100">
+                                                        <div class="row g-1">
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                                                <div class="fw-medium" style="font-size: 0.8rem;">
+                                                                    <i class="ri-user-voice-line me-1"></i>{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
+                                                                <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Language</small>
+                                                                <span class="badge bg-success" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                            </div>
+                                                            @if(isset($booking['guide_options']['tourActivity']) || isset($booking['guide_options']['tour_activity']) || isset($booking['guide_options']['Activity']))
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Tour Activity</small>
+                                                                <div class="fw-medium text-primary" style="font-size: 0.8rem;">
+                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['guide_options']['tourActivity'] ?? $booking['guide_options']['tour_activity'] ?? $booking['guide_options']['Activity'] ?? 'N/A' }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-2 h-100">
+                                                        <div class="row g-1">
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Service Hours</small>
+                                                                <div class="fw-medium" style="font-size: 0.8rem;">
+                                                                    <i class="ri-time-line me-1"></i>{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} Hours
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Group Size</small>
+                                                                <div class="row g-1">
+                                                                    <div class="col-6">
+                                                                        <div class="bg-light rounded p-1 text-center border">
+                                                                            <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $booking['guide_options']['adultsQty'] ?? $booking['guide_options']['adults_qty'] ?? $booking['guide_options']['adultQty'] ?? $booking['guide_options']['adult_qty'] ?? 0 }}</div>
+                                                                            <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-6">
+                                                                        <div class="bg-light rounded p-1 text-center border">
+                                                                            <div class="fw-bold text-warning" style="font-size: 0.8rem;">{{ $booking['guide_options']['childQty'] ?? $booking['guide_options']['child_qty'] ?? $booking['guide_options']['childrenQty'] ?? $booking['guide_options']['children_qty'] ?? 0 }}</div>
+                                                                            <small class="text-muted" style="font-size: 0.55rem;">Children</small>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['guide_options']['cost']) || isset($booking['guide_options']['Cost']) || isset($booking['guide_options']['sell']) || isset($booking['guide_options']['Sell']))
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Cost</small>
+                                                                <div class="fw-bold" style="font-size: 0.85rem; color: #00cec9;">
+                                                                    {{ $currency }} {{ number_format((float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0), 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+
+                                        <!-- Pricing Overview -->
                 <div class="bg-light rounded p-2 mb-3">
                     <div class="d-flex align-items-center mb-2">
                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
@@ -10648,6 +10910,87 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                                                 </div>
                                                 </div>
                                             </div>
+                ` : ''}
+
+                <!-- Guide Options -->
+                ${fullBooking.guide_options || fullBooking.guideInfo ? `
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">Guide Details</h6>
+                    </div>
+                    ${(() => {
+                        const g = fullBooking.guide_options || fullBooking.guideInfo || {};
+                        const guideName = g.guideName || g.guide_name || g.name || 'N/A';
+                        const serviceType = g.serviceType || g.service_type || 'N/A';
+                        const language = g.language || g.languages || 'N/A';
+                        const hours = g.hours || g.service_hours || 'N/A';
+                        const adultsQty = g.adultsQty || g.adults_qty || g.adultQty || g.adult_qty || 0;
+                        const childQty = g.childQty || g.child_qty || g.childrenQty || g.children_qty || 0;
+                        const cost = g.cost ?? g.Cost ?? g.sell ?? g.Sell ?? 0;
+                        return `
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2 h-100">
+                                <div class="row g-1">
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                        <div class="fw-medium" style="font-size: 0.8rem;">
+                                            <i class="ri-user-voice-line me-1"></i>${guideName}
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
+                                        <span class="badge bg-info" style="font-size: 0.65rem;">${serviceType}</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Language</small>
+                                        <span class="badge bg-success" style="font-size: 0.65rem;">${language}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2 h-100">
+                                <div class="row g-1">
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Service Hours</small>
+                                        <div class="fw-medium" style="font-size: 0.8rem;">
+                                            <i class="ri-time-line me-1"></i>${hours} Hours
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Group Size</small>
+                                        <div class="row g-1">
+                                            <div class="col-6">
+                                                <div class="bg-light rounded p-1 text-center border">
+                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">${adultsQty}</div>
+                                                    <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="bg-light rounded p-1 text-center border">
+                                                    <div class="fw-bold text-warning" style="font-size: 0.8rem;">${childQty}</div>
+                                                    <small class="text-muted" style="font-size: 0.55rem;">Children</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ${cost && Number(cost) > 0 ? `
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Cost</small>
+                                        <div class="fw-bold" style="font-size: 0.85rem; color: #00cec9;">${window.bookingCurrency} ${Number(cost).toFixed(2)}</div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        `;
+                    })()}
+                </div>
                 ` : ''}
 
                 ${fullBooking.MealDescription && fullBooking.MealDescription.length > 0 ? `
