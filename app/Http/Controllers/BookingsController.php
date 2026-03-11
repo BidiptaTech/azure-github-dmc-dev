@@ -1579,4 +1579,248 @@ class BookingsController extends Controller
             'qr_code' => $qrCode
         ]);
     }
+
+    public function confirmationVoucher(Request $request, $tourId)
+    {
+        try {
+            $tourId = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            abort(404, 'Invalid tour ID');
+        }
+
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            abort(404, 'Tour not found');
+        }
+
+        $orders = Order::where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->whereNull('deleted_at')
+            ->where('is_approve', 1)
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return back()->with('error', 'No approved services found for this tour.');
+        }
+
+        $dmcUser = User::where('userId', $tour->dmc_id)->first();
+
+        $hotels = [];
+        $inclusions = [];
+        $lowestDueDate = null;
+        $totalRooms = 0;
+        $confirmationNos = [];
+        $allMealPlans = [];
+
+        $str = function ($val, $default = '') {
+            if (is_array($val) || is_object($val)) return $default;
+            return (string) ($val ?? $default);
+        };
+
+        foreach ($orders as $order) {
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($data)) continue;
+
+            foreach ($data as $booking) {
+                if (!is_array($booking)) continue;
+
+                switch ($order->type) {
+                    case 'hotel':
+                        $hotelName = $str($booking['hotelDetails']['hotel_name'] ?? ($booking['hotel_name'] ?? null), 'Hotel');
+
+                        $bookingDate = $booking['bookingDate'] ?? [];
+                        $checkIn = '';
+                        $checkOut = '';
+                        if (is_array($bookingDate) && count($bookingDate) >= 2) {
+                            $checkIn = $str($bookingDate[0]);
+                            $checkOut = $str($bookingDate[1]);
+                        } else {
+                            $checkIn = $str($booking['checkIn'] ?? ($booking['check_in_date'] ?? null));
+                            $checkOut = $str($booking['checkOut'] ?? ($booking['check_out_date'] ?? null));
+                        }
+
+                        $roomTypes = [];
+                        $hotelRooms = 0;
+                        $hotelMeals = [];
+                        $roomsArr = $booking['rooms'] ?? [];
+                        if (is_array($roomsArr)) {
+                            foreach ($roomsArr as $room) {
+                                if (!is_array($room)) continue;
+                                $rt = $str($room['room_type'] ?? null);
+                                $nr = (int) ($room['number_of_rooms'] ?? 1);
+                                $hotelRooms += $nr;
+                                if ($rt) $roomTypes[] = $rt;
+
+                                $beds = $room['beds'] ?? [];
+                                if (is_array($beds)) {
+                                    foreach ($beds as $bed) {
+                                        if (!is_array($bed)) continue;
+                                        if (isset($bed['selectedMeals']) && is_array($bed['selectedMeals'])) {
+                                            foreach ($bed['selectedMeals'] as $meal) {
+                                                if (is_array($meal) && isset($meal['type']) && is_string($meal['type'])) {
+                                                    $hotelMeals[] = $meal['type'];
+                                                }
+                                            }
+                                        } elseif (isset($bed['mealTypes']) && is_array($bed['mealTypes'])) {
+                                            foreach ($bed['mealTypes'] as $mt) {
+                                                if (is_string($mt)) $hotelMeals[] = $mt;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (empty($roomTypes)) {
+                            $rt = $str($booking['room_type'] ?? null);
+                            if ($rt) $roomTypes[] = $rt;
+                        }
+                        if ($hotelRooms === 0) {
+                            $hotelRooms = (int) ($booking['number_of_rooms'] ?? 1);
+                        }
+
+                        $totalRooms += $hotelRooms;
+                        $allMealPlans = array_merge($allMealPlans, $hotelMeals);
+
+                        $hotels[] = [
+                            'name' => $hotelName,
+                            'room_type' => implode(', ', array_filter($roomTypes)),
+                            'check_in' => $checkIn,
+                            'check_out' => $checkOut,
+                            'meal_plan' => implode(', ', array_unique($hotelMeals)),
+                            'rooms' => $hotelRooms,
+                        ];
+
+                        if ($order->reference_id) {
+                            $cn = $str($order->reference_id);
+                            if ($cn) $confirmationNos[] = $cn;
+                        }
+
+                        if ($order->display_due_date) {
+                            try {
+                                $dueDate = Carbon::parse($order->display_due_date);
+                                if (!$lowestDueDate || $dueDate->lt($lowestDueDate)) {
+                                    $lowestDueDate = $dueDate;
+                                }
+                            } catch (\Exception $e) {}
+                        }
+                        break;
+
+                    case 'attraction':
+                        $name = $str($booking['AttractionName'] ?? ($booking['attraction_name'] ?? null), 'Attraction');
+                        $ticketName = $str($booking['ticketName'] ?? ($booking['ticket_name'] ?? null));
+                        $inclusions[] = $ticketName ? $name . ' (' . $ticketName . ')' : $name;
+
+                        $tf = $booking['transfer_options'] ?? null;
+                        if (is_array($tf) && !empty($tf['transfer_required'])) {
+                            $tvName = $str($tf['vehicle_name'] ?? ($tf['vehicle_details']['vehicle_name'] ?? null));
+                            $tvType = $str($tf['type'] ?? null, 'Private');
+                            $tvWay = $str($tf['way'] ?? null, 'One Way');
+                            if ($tvName) {
+                                $inclusions[] = $name . ' Transfer (' . $tvName . ' - ' . $tvType . ' - ' . $tvWay . ')';
+                            }
+                        }
+                        break;
+
+                    case 'restaurant':
+                        $name = $str($booking['restaurantName'] ?? ($booking['restaurant_name'] ?? null), 'Restaurant');
+                        $mealType = $str($booking['mealType'] ?? ($booking['meal_type'] ?? null));
+                        $inclusions[] = $mealType ? $name . ' (' . $mealType . ')' : $name;
+
+                        $tf = $booking['transfer_options'] ?? null;
+                        if (is_array($tf) && !empty($tf['transfer_required'])) {
+                            $tvName = $str($tf['vehicle_name'] ?? ($tf['vehicle_details']['vehicle_name'] ?? null));
+                            $tvType = $str($tf['type'] ?? null, 'Private');
+                            $tvWay = $str($tf['way'] ?? null, 'One Way');
+                            if ($tvName) {
+                                $inclusions[] = $name . ' Transfer (' . $tvName . ' - ' . $tvType . ' - ' . $tvWay . ')';
+                            }
+                        }
+                        break;
+
+                    case 'guide':
+                        $name = $str($booking['guide_name'] ?? null, 'Guide');
+                        $hours = $str($booking['hours'] ?? ($booking['service_hours'] ?? null));
+                        $inclusions[] = $hours ? $name . ' - ' . $hours . 'H' : $name;
+                        break;
+
+                    case 'entry_port':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transfer');
+                        $bType = $str($booking['type'] ?? null, 'Private');
+                        $inclusions[] = 'Arrival Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        break;
+
+                    case 'exit_port':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transfer');
+                        $bType = $str($booking['type'] ?? null, 'Private');
+                        $inclusions[] = 'Departure Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        break;
+
+                    case 'local_transport':
+                    case 'travel_hourly':
+                    case 'travel_point':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transport');
+                        $bType = $str($booking['type'] ?? null);
+                        $inclusions[] = $bType ? $vehicle . ' - ' . $bType : $vehicle;
+                        break;
+                }
+            }
+        }
+
+        $paxName = '';
+        if ($tour->mainguest) {
+            $guest = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+            if (is_array($guest)) {
+                $paxName = $str($guest['salutation'] ?? null) . ' ' . $str($guest['first_name'] ?? null) . ' ' . $str($guest['last_name'] ?? null);
+                $paxName = trim($paxName);
+            }
+        }
+        if (empty($paxName)) {
+            $paxName = $str($tour->customer_name ?? null, 'Guest');
+        }
+
+        $travelDates = '';
+        if ($tour->check_in_time && $tour->check_out_time) {
+            $travelDates = Carbon::parse($tour->check_in_time)->format('d M Y') . ' - ' . Carbon::parse($tour->check_out_time)->format('d M Y');
+        }
+
+        $adultCount = (int) ($tour->adult ?? 0);
+        $childCount = (int) ($tour->child ?? 0);
+        $infantCount = (int) ($tour->infant ?? 0);
+        $noOfPax = sprintf('%02d', $adultCount) . ' Adults';
+        if ($childCount > 0) $noOfPax .= ', ' . $childCount . ' Children';
+        if ($infantCount > 0) $noOfPax .= ', ' . $infantCount . ' Infants';
+
+        $refId = $tour->reference_id ?? $tour->display_id ?? '';
+        $referenceId = is_array($refId) ? (string) ($refId[0] ?? '') : (string) $refId;
+
+        $mealPlanSummary = !empty($allMealPlans) ? implode(', ', array_unique($allMealPlans)) : '';
+        $confirmationNo = !empty($confirmationNos) ? implode(', ', $confirmationNos) : 'na';
+
+        $voucherData = [
+            'tour' => $tour,
+            'dmcUser' => $dmcUser,
+            'hotels' => $hotels,
+            'inclusions' => $inclusions,
+            'lowestDueDate' => $lowestDueDate,
+            'paxName' => (string) $paxName,
+            'travelDates' => (string) $travelDates,
+            'noOfPax' => (string) $noOfPax,
+            'referenceId' => $referenceId,
+            'totalRooms' => $totalRooms > 0 ? (string) $totalRooms : 'na',
+            'confirmationNo' => (string) $confirmationNo,
+            'mealPlanSummary' => (string) $mealPlanSummary,
+        ];
+
+        $dompdf = new Dompdf();
+        $dompdf->set_option('isRemoteEnabled', true);
+        $dompdf->set_option('isHtml5ParserEnabled', true);
+        $html = view('bookings.voucher-pdf', $voucherData)->render();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = 'Confirmation_Voucher_' . ($tour->display_id ?? $tourId) . '.pdf';
+        return $dompdf->stream($filename, ['Attachment' => true]);
+    }
 }
