@@ -706,6 +706,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.taxes',
                 'tours.is_pro',
+                'tours.user_currency',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -765,6 +766,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.taxes',
                 'tours.is_pro',
+                'tours.user_currency',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -822,6 +824,8 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.payment_details',
                 'tours.taxes',
+                'tours.is_pro',
+                'tours.user_currency',
                 'tours.created_at',
                 'tours.created_by',
                 'tours.updated_at',
@@ -889,6 +893,8 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.payment_details',
                 'tours.taxes',
+                'tours.is_pro',
+                'tours.user_currency',
                 'tours.created_at',
                 'tours.created_by',
                 'tours.updated_at',
@@ -916,7 +922,12 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
-            $tours = Tour::whereIn('tour_status', ['Actual', 'Complete'])
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+                ->whereIn('tour_status', ['Actual', 'Complete'])
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->select([
@@ -941,6 +952,8 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.payment_details',
                     'tours.taxes',
+                    'tours.is_pro',
+                    'tours.user_currency',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
@@ -967,7 +980,12 @@ class BookingsController extends Controller
         }
 
         if($dmc_id){
-            $tours = Tour::whereIn('tour_status', ['Actual', 'Complete'])
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+                ->whereIn('tour_status', ['Actual', 'Complete'])
                 ->where('tours.dmc_id', $dmc_id)
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
@@ -993,6 +1011,8 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.payment_details',
                     'tours.taxes',
+                    'tours.is_pro',
+                    'tours.user_currency',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
@@ -1682,6 +1702,13 @@ class BookingsController extends Controller
                         $totalRooms += $hotelRooms;
                         $allMealPlans = array_merge($allMealPlans, $hotelMeals);
 
+                        $hotelDueDate = null;
+                        if ($order->display_due_date) {
+                            try {
+                                $hotelDueDate = Carbon::parse($order->display_due_date)->format('d-M-Y');
+                            } catch (\Exception $e) {}
+                        }
+
                         $hotels[] = [
                             'name' => $hotelName,
                             'room_type' => implode(', ', array_filter($roomTypes)),
@@ -1689,6 +1716,7 @@ class BookingsController extends Controller
                             'check_out' => $checkOut,
                             'meal_plan' => implode(', ', array_unique($hotelMeals)),
                             'rooms' => $hotelRooms,
+                            'due_date' => $hotelDueDate,
                         ];
 
                         if ($order->reference_id) {
@@ -1747,13 +1775,21 @@ class BookingsController extends Controller
                     case 'entry_port':
                         $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transfer');
                         $bType = $str($booking['type'] ?? null, 'Private');
-                        $inclusions[] = 'Arrival Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        $pickup = $str($booking['entrypickup'] ?? null);
+                        $dropoff = $str($booking['entrydropoff'] ?? null);
+                        $label = 'Arrival Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
                         break;
 
                     case 'exit_port':
                         $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transfer');
                         $bType = $str($booking['type'] ?? null, 'Private');
-                        $inclusions[] = 'Departure Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        $pickup = $str($booking['exitpickup'] ?? null);
+                        $dropoff = $str($booking['exitdropoff'] ?? null);
+                        $label = 'Departure Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
                         break;
 
                     case 'local_transport':
@@ -1761,7 +1797,11 @@ class BookingsController extends Controller
                     case 'travel_point':
                         $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transport');
                         $bType = $str($booking['type'] ?? null);
-                        $inclusions[] = $bType ? $vehicle . ' - ' . $bType : $vehicle;
+                        $pickup = $str($booking['entrypickup'] ?? null);
+                        $dropoff = $str($booking['entrydropoff'] ?? ($booking['dropoffLocation'] ?? null));
+                        $label = $bType ? $vehicle . ' - ' . $bType : $vehicle;
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
                         break;
                 }
             }

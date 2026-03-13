@@ -797,6 +797,7 @@
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
                             data-child="{{ (int)($tour->child ?? 0) }}"
                             data-tour-id="{{ $tour->tour_id }}"
+                            data-is-pro="{{ $tour->is_pro ?? 0 }}"
                             data-check-in="{{ $tour->check_in_time }}"
                             data-check-out="{{ $tour->check_out_time }}"
                             data-execution-status="{{ $executionStatus }}"
@@ -873,11 +874,16 @@
                                             'travel_hourly' => 0,
                                             'travel_point' => 0,
                                             'local_transport' => 0,
+                                            'miscellaneous' => 0,
                                         ];
                                         $serviceData = [];
                                         
+                                        // Group orders by type (miscellaneous only when is_pro)
                                         foreach($orders as $order) {
                                             $type = $order->type;
+                                            if ($type === 'miscellaneous' && (isset($tour->is_pro) ? (int)$tour->is_pro : 0) != 1) {
+                                                continue;
+                                            }
                                             if(isset($svc[$type])) {
                                                 $svc[$type]++;
                                                 if(!isset($serviceData[$type])) {
@@ -904,6 +910,16 @@
                                             'travel_hourly' => 'ri-time-line',
                                             'travel_point' => 'ri-route-line',
                                             'local_transport' => 'ri-car-line',
+                                            'miscellaneous' => 'ri-list-check-2',
+                                        ];
+                                        $serviceLabels = [
+                                            'hotel' => 'Hotel',
+                                            'attraction' => 'Attraction',
+                                            'restaurant' => 'Restaurant',
+                                            'guide' => 'Guide',
+                                            'entry_port' => 'Arrival',
+                                            'exit_port' => 'Departure',
+                                            'miscellaneous' => 'Miscellaneous',
                                         ];
                                 @endphp
                                 @php
@@ -917,6 +933,7 @@
                                         'travel_hourly' => '#64748b',
                                         'travel_point' => '#0369a1',
                                         'local_transport' => '#78716c',
+                                        'miscellaneous' => '#7c3aed',
                                     ];
                                 @endphp
                                 <div class="services-icons-wrap">
@@ -1099,6 +1116,25 @@
                                                         @endif
                                                     @endforeach
                                                 @endif
+                                            @elseif($key === 'miscellaneous')
+                                                {{-- Miscellaneous (is_pro only): single icon with count --}}
+                                                @php
+                                                    $label = $serviceLabels[$key] ?? 'Miscellaneous';
+                                                    $tooltipText = $label . ': ' . $count;
+                                                    $isMiscApproved = false;
+                                                    if(isset($serviceData[$key])) {
+                                                        foreach($serviceData[$key] as $miscOrder) {
+                                                            if($miscOrder->is_approve == 1) { $isMiscApproved = true; break; }
+                                                        }
+                                                    }
+                                                @endphp
+                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
+                                                    <span class="service-icon-badge @if($isMiscApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                          onclick="openServiceModal('miscellaneous', {{ $tour->tour_id }}, event)">
+                                                        <i class="{{ $icons[$key] }}"></i>
+                                                    </span>
+                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
+                                                </span>
                                             @elseif(in_array($key, ['entry_port', 'exit_port']))
                                                 @php
                                                     $isServiceApproved = false;
@@ -1155,18 +1191,37 @@
         </div>
 
         @php
-                                    // Same payment calculation as before
+                                    // Payment calculation (match proforma: is_pro transfer totalPrice vs cost, guide when present, hotel transfer once per order)
                                     $tourTotalPrice = 0;
-                                    foreach ($tour->booking as $booking) {
-                                        if (in_array($booking->status, [1, 2, 3])) {
-                                            $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
-                                            if (is_array($data)) {
-                                                foreach ($data as $item) {
-                                                    $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-                                                    $transferPrice = isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0 ? (float) $item['transfer_options']['cost'] : 0;
-                                                    $guidePrice = isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0 ? (float) $item['guide_options']['total_price'] : 0;
-                                                    $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
+                                    $isProPayment = (int)($tour->is_pro ?? 0);
+                                    foreach ($tour->booking as $order) {
+                                        if (!in_array($order->status, [1, 2, 3])) continue;
+                                        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                                        if (!is_array($data)) continue;
+                                        $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
+                                        $orderType = $order->type ?? '';
+                                        if ($orderType === 'hotel') {
+                                            $orderTotal = 0;
+                                            foreach ($items as $item) {
+                                                if (!is_array($item)) continue;
+                                                $orderTotal += (float)($item['totalPrice'] ?? $item['price'] ?? 0);
+                                            }
+                                            $tourTotalPrice += $orderTotal;
+                                        } else {
+                                            foreach ($items as $item) {
+                                                if (!is_array($item)) continue;
+                                                $itemPrice = (float)($item['totalPrice'] ?? $item['price'] ?? 0);
+                                                $transferPrice = 0;
+                                                $to = $item['transfer_options'] ?? $item['transferOptions'] ?? null;
+                                                if ($to && is_array($to)) {
+                                                    $transferPrice = $isProPayment ? (float)($to['totalPrice'] ?? $to['cost'] ?? 0) : (float)($to['cost'] ?? 0);
                                                 }
+                                                $guidePrice = 0;
+                                                $go = $item['guide_options'] ?? null;
+                                                if ($go && is_array($go)) {
+                                                    $guidePrice = (float)($go['total_price'] ?? $go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
+                                                }
+                                                $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                             }
                                         }
                                     }
@@ -1296,6 +1351,13 @@
                                            class="action-icon-badge" style="--action-color: #0284c7;" data-tooltip="Add Guests">
                                             <i class="ri-user-add-line"></i>
                                         </a>
+                                        <a href="{{ route('bookings.confirmation-voucher', Crypt::encrypt($tour->tour_id)) }}" 
+                                        class="action-icon-badge" 
+                                        style="--action-color: #7c3aed;"
+                                        data-tooltip="Confirmation Voucher"
+                                        target="_blank">
+                                            <i class="ri-file-download-line"></i>
+                                        </a>
                                         <button type="button" class="action-icon-badge" style="--action-color: #dc3545;" data-tooltip="Cancel Booking"
                                                 onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')"
                                                 id="cancel-btn-{{ $tour->tour_id }}">
@@ -1410,7 +1472,7 @@
 @foreach($tours as $tour)
     @php
         // Re-fetch orders and process service data for modals
-        $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->get();
+        $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->where('bookingType', 'booking')->whereNull('deleted_at')->get();
         $svc = [
             'hotel' => 0,
             'attraction' => 0,
@@ -1421,11 +1483,16 @@
             'travel_hourly' => 0,
             'travel_point' => 0,
             'local_transport' => 0,
+            'miscellaneous' => 0,
         ];
         $serviceData = [];
+        $isProForModals = (int)($tour->is_pro ?? 0);
         
         foreach($orders as $order) {
             $type = $order->type;
+            if ($type === 'miscellaneous' && $isProForModals != 1) {
+                continue;
+            }
             if(isset($svc[$type])) {
                 $svc[$type]++;
                 if(!isset($serviceData[$type])) {
@@ -1495,7 +1562,7 @@
                         
                         @if(is_array($hotelData))
                             @foreach($hotelData as $bookingIndex => $booking)
-                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;" data-hotel-order="{{ $hotelOrderIndex }}" data-booking-index="{{ $bookingIndex }}">
+                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;" data-hotel-order="{{ $index }}" data-booking-index="{{ $bookingIndex }}">
                                     <!-- Booking Header -->
                                     <div class="card-header border-0" style="background: linear-gradient(90deg, #74b9ff 0%, #0984e3 100%); padding: 20px;">
                                         <div class="row align-items-center">
@@ -1720,6 +1787,48 @@
                                                         </div>
                                                     </div>
                                                 </div>
+                                            </div>
+                                        @endif
+
+                                        <!-- Transfer (is_pro only) -->
+                                        @if($tour->is_pro == 1 && isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
+                                            <div class="bg-light rounded p-2 mb-3">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                                        <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Transfer</h6>
+                                                </div>
+                                                <div class="row g-2">
+                                                    <div class="col-md-6">
+                                                        <div class="bg-white rounded p-2 border" style="border-color: #74b9ff !important;">
+                                                            <small class="text-muted d-block" style="font-size: 0.7rem;">Type / Way</small>
+                                                            <span class="badge bg-primary me-1" style="font-size: 0.7rem;">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
+                                                            <span class="badge bg-info" style="font-size: 0.7rem;">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
+                                                            @if(isset($booking['transfer_options']['destination_name']) && !empty($booking['transfer_options']['destination_name']))
+                                                                <div class="mt-1 fw-medium text-primary" style="font-size: 0.8rem;"><i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['destination_name'] }}</div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="bg-white rounded p-2 border" style="border-color: #74b9ff !important;">
+                                                            @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']) && isset($booking['transfer_options']['vehicle_details']['vehicle_name']))
+                                                                <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle</small>
+                                                                <div class="fw-medium" style="font-size: 0.85rem;">{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] }}</div>
+                                                            @endif
+                                                            @if((isset($booking['transfer_options']['totalPrice']) && $booking['transfer_options']['totalPrice'] > 0) || (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0))
+                                                                <div class="fw-bold text-success mt-1" style="font-size: 0.9rem;">{{ $currency }} {{ number_format((float)($booking['transfer_options']['totalPrice'] ?? $booking['transfer_options']['cost'] ?? 0), 2) }}</div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
+                                                    <div class="mt-2 d-flex align-items-center">
+                                                        <i class="ri-map-pin-2-line text-info me-1" style="font-size: 0.85rem;"></i>
+                                                        <small class="text-muted" style="font-size: 0.75rem;">Pickup: </small>
+                                                        <span class="fw-medium text-info ms-1" style="font-size: 0.85rem;">{{ $booking['transfer_options']['pickup_location_name'] }}</span>
+                                                    </div>
+                                                @endif
                                             </div>
                                         @endif
 
@@ -3081,6 +3190,13 @@
                             @php $actualBookingIndex = 0; @endphp
                             @foreach($entryData as $originalKey => $booking)
                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                @php
+                                    $entryCardTotal = (float)($booking['totalPrice'] ?? 0);
+                                    if ($tour->is_pro == 1 && !empty($booking['guide_options']) && is_array($booking['guide_options'])) {
+                                        $go = $booking['guide_options'];
+                                        $entryCardTotal += (float)($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? $go['total_price'] ?? 0);
+                                    }
+                                @endphp
                                 <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #00b894 !important;">
                                     <!-- Compact Card Header -->
                                     <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #00b894 0%, #55a3ff 100%);">
@@ -3093,7 +3209,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    {{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    {{ $currency }} {{ number_format($entryCardTotal, 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3197,6 +3313,43 @@
                                             </div>
                                         </div>
 
+                                        @if($tour->is_pro == 1 && !empty($booking['guide_options']['guide_required']) && (isset($booking['guide_options']['guide_name']) || isset($booking['guide_options']['guideName']) || isset($booking['guide_options']['name'])))
+                                        <!-- Arrival with Guide (is_pro only) -->
+                                        <div class="bg-light rounded p-2 mb-2" style="border-left: 3px solid #fd9853;">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Arrival with Guide</h6>
+                                            </div>
+                                            @php $go = $booking['guide_options'] ?? []; @endphp
+                                            <div class="row g-1">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $go['guide_name'] ?? $go['guideName'] ?? $go['name'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Hours</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $go['hours'] ?? $go['service_hours'] ?? 'N/A' }}H</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Activity</small>
+                                                    <div class="fw-medium text-truncate" style="font-size: 0.7rem;" title="{{ $go['tour_activity'] ?? $go['tourActivity'] ?? $go['Activity'] ?? '' }}">{{ $go['tour_activity'] ?? $go['tourActivity'] ?? $go['Activity'] ?? 'N/A' }}</div>
+                                                </div>
+                                                @if(!empty($go['language']) || !empty($go['languages']))
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Language(s)</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ is_array($go['languages'] ?? null) ? implode(', ', $go['languages']) : ($go['language'] ?? $go['languages'] ?? 'N/A') }}</div>
+                                                </div>
+                                                @endif
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
+                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? $go['total_price'] ?? 0), 2) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+
                                         <!-- Vehicle & Location Information -->
                                         <div class="row mb-2 g-2">
                                             <div class="col-md-6">
@@ -3266,6 +3419,11 @@
                                                         <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $booking['Night_Start_Time'] }} - {{ $booking['Night_End_Time'] }}</div>
                                                 </div>
                                                         @endif
+                                                    <!-- Compact Pricing Details -->
+                                                    <div class="bg-white rounded p-1 mt-1">
+                                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Total Price</small>
+                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($entryCardTotal, 2) }}</div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -3364,6 +3522,13 @@
                         @if(is_array($exitData))
                             @php $actualBookingIndex = 0; @endphp
                             @foreach($exitData as $bookingIndex => $booking)
+                                @php
+                                    $exitCardTotal = (float)($booking['totalPrice'] ?? 0);
+                                    if ($tour->is_pro == 1 && !empty($booking['guide_options']) && is_array($booking['guide_options'])) {
+                                        $go = $booking['guide_options'];
+                                        $exitCardTotal += (float)($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? $go['total_price'] ?? 0);
+                                    }
+                                @endphp
                                 <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #fd7f6f !important;">
                                     <!-- Compact Card Header -->
                                     <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #fd7f6f 0%, #feb47b 100%);">
@@ -3376,7 +3541,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    {{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    {{ $currency }} {{ number_format($exitCardTotal, 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3480,6 +3645,43 @@
                                             </div>
                                         </div>
 
+                                        @if($tour->is_pro == 1 && !empty($booking['guide_options']['guide_required']) && (isset($booking['guide_options']['guide_name']) || isset($booking['guide_options']['guideName']) || isset($booking['guide_options']['name'])))
+                                        <!-- Departure with Guide (is_pro only) -->
+                                        <div class="bg-light rounded p-2 mb-2" style="border-left: 3px solid #fd9853;">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Departure with Guide</h6>
+                                            </div>
+                                            @php $go = $booking['guide_options'] ?? []; @endphp
+                                            <div class="row g-1">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $go['guide_name'] ?? $go['guideName'] ?? $go['name'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Hours</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $go['hours'] ?? $go['service_hours'] ?? 'N/A' }}H</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Activity</small>
+                                                    <div class="fw-medium text-truncate" style="font-size: 0.7rem;" title="{{ $go['tour_activity'] ?? $go['tourActivity'] ?? $go['Activity'] ?? '' }}">{{ $go['tour_activity'] ?? $go['tourActivity'] ?? $go['Activity'] ?? 'N/A' }}</div>
+                                                </div>
+                                                @if(!empty($go['language']) || !empty($go['languages']))
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Language(s)</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ is_array($go['languages'] ?? null) ? implode(', ', $go['languages']) : ($go['language'] ?? $go['languages'] ?? 'N/A') }}</div>
+                                                </div>
+                                                @endif
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
+                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? $go['total_price'] ?? 0), 2) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+
                                         <!-- Vehicle & Location Information -->
                                         <div class="row mb-2 g-2">
                                             <div class="col-md-6">
@@ -3546,7 +3748,7 @@
                                                     <!-- Compact Pricing Details -->
                                                     <div class="bg-white rounded p-1 mt-1">
                                                         <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Total Price</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($exitCardTotal, 2) }}</div>
                                         </div>
                                                     </div>
                                                 </div>
@@ -3621,6 +3823,116 @@
         </div>
     </div>
     @endif
+
+    <!-- Miscellaneous Details Modal (is_pro only) -->
+    @if(isset($svc['miscellaneous']) && $svc['miscellaneous'] > 0 && isset($serviceData['miscellaneous']) && count($serviceData['miscellaneous']) > 0)
+    <div class="modal fade" id="miscellaneousDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="miscellaneousDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header border-0 py-2 px-3" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
+                        <div class="text-white">
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-file-list-3-line me-1" style="font-size: 0.9rem;"></i>Miscellaneous - Tour #{{ $tour->tour_id }}
+                            </h6>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('miscellaneous', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
+                    @foreach($serviceData['miscellaneous'] as $index => $miscOrder)
+                        @php $miscData = is_string($miscOrder->data) ? json_decode($miscOrder->data, true) : $miscOrder->data; @endphp
+                        @if(is_array($miscData))
+                            @php $miscItems = (isset($miscData[0]) && is_array($miscData[0])) ? $miscData : [$miscData]; @endphp
+                            @foreach($miscItems as $booking)
+                                @if(is_array($booking))
+                                <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #7c3aed !important;">
+                                    <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);">
+                                        <div class="row align-items-center g-1">
+                                            <div class="col-md-8">
+                                                <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                                                    <i class="ri-file-list-3-line me-1"></i>{{ $booking['itemName'] ?? $booking['item_name'] ?? 'Miscellaneous Item' }}
+                                                </h6>
+                                                <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</small>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? $booking['total_price'] ?? 0), 2) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-2" style="background-color: #ffffff;">
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Item</small>
+                                                    <div class="fw-medium" style="font-size: 0.85rem;">{{ $booking['itemName'] ?? $booking['item_name'] ?? 'N/A' }}</div>
+                                                    <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Date</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Pax</small>
+                                                    <div class="row g-1">
+                                                        <div class="col-4 text-center">
+                                                            <div class="bg-white rounded p-1 border">
+                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adultsQty'] ?? $booking['adults_qty'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-4 text-center">
+                                                            <div class="bg-white rounded p-1 border">
+                                                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['childQty'] ?? $booking['child_qty'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.6rem;">Child</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-4 text-center">
+                                                            <div class="bg-white rounded p-1 border">
+                                                                <div class="fw-bold text-info" style="font-size: 0.9rem;">{{ $booking['infantQty'] ?? $booking['infant_qty'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.6rem;">Infant</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="bg-light rounded p-2">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <i class="ri-money-dollar-circle-line text-primary me-2" style="font-size: 0.9rem;"></i>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing</h6>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center py-1">
+                                                <span class="text-muted" style="font-size: 0.8rem;">Total</span>
+                                                <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? $booking['total_price'] ?? 0), 2) }}</span>
+                                            </div>
+                                            @if(isset($booking['adultSell']) || isset($booking['adult_sell']) || isset($booking['childSell']) || isset($booking['child_sell']) || isset($booking['infantSell']) || isset($booking['infant_sell']))
+                                            <small class="text-muted" style="font-size: 0.7rem;">Adult: {{ $booking['adultSell'] ?? $booking['adult_sell'] ?? 0 }} / Child: {{ $booking['childSell'] ?? $booking['child_sell'] ?? 0 }} / Infant: {{ $booking['infantSell'] ?? $booking['infant_sell'] ?? 0 }}</small>
+                                            @endif
+                                        </div>
+                                        @if(!empty($booking['city']) || !empty($booking['country']))
+                                        <div class="mt-2">
+                                            <small class="text-muted" style="font-size: 0.65rem;">Location</small>
+                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? '' }}{{ !empty($booking['city']) && !empty($booking['country']) ? ', ' : '' }}{{ $booking['country'] ?? '' }}</div>
+                                        </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+                            @endforeach
+                        @endif
+                    @endforeach
+                </div>
+                <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                    <div class="d-flex gap-2 w-100 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('miscellaneous', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
+                            <i class="ri-close-line me-1"></i>Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 @endforeach
 
 <!-- Payment Processing Overlay -->
@@ -3632,38 +3944,45 @@
 <!-- Payment Modals for each tour -->
 @foreach($tours as $tour)
     @php
-        // Recalculate payment details for modals
-        // Includes: base price + transfer price + guide price (for attractions)
+        // Recalculate payment details for modals (match proforma: is_pro transfer totalPrice vs cost, guide when present, hotel transfer once per order)
         $tourTotalPrice = 0;
-        foreach ($tour->booking as $booking) {
-            if (in_array($booking->status, [1, 2, 3])) {
-                $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
-                if (is_array($data)) {
-                    foreach ($data as $item) {
-                        $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-                        
-                        // Add transfer price if exists
-                        $transferPrice = 0;
-                        if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                            $transferPrice = (float) $item['transfer_options']['cost'];
-                        }
-                        
-                        // Add guide price if exists (for attractions)
-                        $guidePrice = 0;
-                        if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
-                            $guidePrice = (float) $item['guide_options']['total_price'];
-                        }
-                        
-                        $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
+        $isProPayment = (int)($tour->is_pro ?? 0);
+        foreach ($tour->booking as $order) {
+            if (!in_array($order->status, [1, 2, 3])) continue;
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($data)) continue;
+            $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
+            $orderType = $order->type ?? '';
+            if ($orderType === 'hotel') {
+                $orderTotal = 0;
+                foreach ($items as $item) {
+                    if (!is_array($item)) continue;
+                    $orderTotal += (float)($item['totalPrice'] ?? $item['price'] ?? 0);
+                }
+                $tourTotalPrice += $orderTotal;
+            } else {
+                foreach ($items as $item) {
+                    if (!is_array($item)) continue;
+                    $itemPrice = (float)($item['totalPrice'] ?? $item['price'] ?? 0);
+                    $transferPrice = 0;
+                    $to = $item['transfer_options'] ?? $item['transferOptions'] ?? null;
+                    if ($to && is_array($to)) {
+                        $transferPrice = $isProPayment ? (float)($to['totalPrice'] ?? $to['cost'] ?? 0) : (float)($to['cost'] ?? 0);
                     }
+                    $guidePrice = 0;
+                    $go = $item['guide_options'] ?? null;
+                    if ($go && is_array($go)) {
+                        $guidePrice = (float)($go['total_price'] ?? $go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
+                    }
+                    $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                 }
             }
         }
         $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-        $enquiry_amount = $enquiry->amount ?? 0;
+        $enquiry_amount = $enquiry ? ($enquiry->amount ?? 0) : 0;
         $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
-        $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
-        $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
+        $first_enquiry_amount = $frstenquiry ? ($frstenquiry->actual_amount ?? 0) : 0;
+        $discountAmount = $first_enquiry_amount - $enquiry_amount;
         
         // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
         $baseAmount = round($tourTotalPrice) - $discountAmount;
@@ -3694,6 +4013,7 @@
             }
         }
         $remainingAmount = $finalAmount - $totalPaid;
+        $tourCurrency = $tour->user_currency ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
     @endphp
 
     <!-- Payment Details Modal -->
@@ -3909,17 +4229,20 @@
                             <label class="form-label fw-bold">
                                 <i class="fas fa-info-circle text-info me-2"></i>Payment Information
                             </label>
+                            <div class="mb-2">
+                                <small class="text-muted">Tour currency: <strong>{{ $tourCurrency }}</strong></small>
+                            </div>
                             <div class="alert alert-info">
                                 <!-- Pricing Breakdown -->
                                 @if($discountAmount > 0)
                                 <div class="row text-center mb-2">
                                     <div class="col-6">
                                         <small class="text-muted">Actual Price</small>
-                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Discount</small>
-                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                 </div>
                                 <hr class="my-2">
@@ -3927,7 +4250,7 @@
                                 <div class="row text-center mb-2">
                                     <div class="col-4">
                                         <small class="text-muted">Base Amount</small>
-                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted" 
@@ -3936,7 +4259,7 @@
                                             @endif>
                                             Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif
                                         </small>
-                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} {{ $tourCurrency }}</div>
                                         @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
                                             <div style="font-size: 0.7rem; margin-top: 2px;">
                                                 @foreach($taxBreakdown as $taxName => $taxVal)
@@ -3947,18 +4270,18 @@
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>
-                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                 </div>
                                 <hr class="my-2">
                                 <div class="row text-center">
                                     <div class="col-6">
                                         <small class="text-muted">Paid Amount</small>
-                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Remaining</small>
-                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -4779,53 +5102,23 @@
     @endphp
 
     @if(isset($svc['local_transport']) && $svc['local_transport'] > 0)
-        <div class="modal fade" id="local_transportDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="local_transportModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content border-0 shadow-lg">
-                    @php
-                        $firstOrder = $serviceData['local_transport'][0] ?? null;
-                        $firstBookingData = null;
-                        $headerFromZone = 'N/A';
-                        $headerToZone = 'N/A';
-                        
-                        if ($firstOrder) {
-                            $firstBookingData = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
-                            $firstBookingData = is_array($firstBookingData) && isset($firstBookingData[0]) ? $firstBookingData[0] : $firstBookingData;
-                            
-                            // Get zone names for header
-                            if(isset($firstBookingData['from_zone_id']) && $firstBookingData['from_zone_id']) {
-                                $fromZone = \DB::table('zones')->where('zone_id', $firstBookingData['from_zone_id'])->first();
-                                $headerFromZone = $fromZone ? $fromZone->zone_type : 'Zone ' . $firstBookingData['from_zone_id'];
-                            }
-                            
-                            if(isset($firstBookingData['to_zone_id']) && $firstBookingData['to_zone_id']) {
-                                $toZone = \DB::table('zones')->where('zone_id', $firstBookingData['to_zone_id'])->first();
-                                $headerToZone = $toZone ? $toZone->zone_type : 'Zone ' . $firstBookingData['to_zone_id'];
-                            }
-                        }
-                    @endphp
-                    
-                    <!-- Modal Header -->
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+        <div class="modal fade" id="local_transportDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="local_transportModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Compact Purple Header -->
+                    <div class="modal-header border-0 py-2 px-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-car-line me-2"></i>Local Transport
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Local Transport Service • {{ $headerFromZone }} → {{ $headerToZone }}</p>
-                                <div class="mt-2">
-                                    <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
-                                        <i class="ri-calendar-line me-1"></i>
-                                        {{ isset($firstBookingData['bookingDate']) ? \Carbon\Carbon::parse($firstBookingData['bookingDate'])->format('M d, Y') : 'Date not specified' }}
-                                    </span>
-                                </div>
+                                <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                    <i class="ri-car-line me-1" style="font-size: 0.9rem;"></i>Local Transport Details
+                                </h6>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                         </div>
                     </div>
 
                     <!-- Modal Body -->
-                    <div class="modal-body p-4" style="background: #f8fafc;">
+                    <div class="modal-body p-2" style="background: #f8f9fa;">
                         @if(isset($serviceData['local_transport']) && count($serviceData['local_transport']) > 0)
                             @foreach($serviceData['local_transport'] as $index => $transportOrder)
                                 @php
@@ -4852,237 +5145,206 @@
                                         @endphp
                                         
                                         @if($index > 0 || $bookingIndex > 0)
-                                            <hr class="my-4">
+                                            <hr class="my-2">
                                         @endif
                                 
-                                <div class="row mb-4">
-                                    <div class="col-md-12">
-                                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                                            <div class="card-header bg-transparent border-0 text-white">
-                                                <h5 class="card-title mb-0 fw-bold">
-                                                    <i class="ri-car-line me-2"></i>{{ $booking['vehicles_name'] ?? 'Local Transport Service' }}
-                                                </h5>
+                                <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                                    <!-- Compact Card Header -->
+                                    <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+                                        <div class="row align-items-center g-1">
+                                            <div class="col-md-8">
+                                                <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                                                    <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['vehicles_name'] ?? 'Local Transport Service' }}
+                                                </h6>
+                                                <small class="text-white opacity-90" style="font-size: 0.7rem;">Local Transport {{ $index + 1 }} • {{ $booking['type'] ?? 'Standard' }}</small>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
+                                                    {{ $pageCurrency ?? 'SGD' }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-
-                                <!-- Service Schedule & Group Information -->
-                                <div class="row mb-4">
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-primary rounded-circle p-2 me-3">
-                                                    <i class="ri-calendar-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Transport Schedule</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Date</small>
-                                                    <div class="fw-medium">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Time</small>
-                                                    <div class="fw-medium">{{ $booking['entrytime'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Distance</small>
-                                                    <span class="badge bg-info">{{ $booking['distance'] ?? 'N/A' }} km</span>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Service Type</small>
-                                                    <span class="badge bg-warning">{{ $booking['type'] ?? 'Standard' }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-success rounded-circle p-2 me-3">
-                                                    <i class="ri-group-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Adults</small>
-                                                    <div class="fw-medium">{{ $booking['adults'] ?? 0 }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Children</small>
-                                                    <div class="fw-medium">{{ $booking['children'] ?? 0 }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Total Guests</small>
-                                                    <span class="badge bg-primary">{{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }}</span>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Service Hours</small>
-                                                    <div class="fw-medium text-muted small">{{ $booking['Night_Start_Time'] ?? 'N/A' }} - {{ $booking['Night_End_Time'] ?? 'N/A' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Route Details -->
-                                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="bg-warning rounded-circle p-2 me-3">
-                                            <i class="ri-direction-line text-white"></i>
-                                        </div>
-                                        <h6 class="fw-bold mb-0 text-dark">Route Details</h6>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <div class="d-flex align-items-start">
-                                                <div class="bg-success rounded-circle p-2 me-3 mt-1">
-                                                    <i class="ri-play-circle-line text-white"></i>
-                                                </div>
-                                                <div>
-                                                    <small class="text-muted">Pickup Location</small>
-                                                    <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
-                                                    <small class="text-success">Origin</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <div class="d-flex align-items-start">
-                                                <div class="bg-danger rounded-circle p-2 me-3 mt-1">
-                                                    <i class="ri-flag-line text-white"></i>
-                                                </div>
-                                                <div>
-                                                    <small class="text-muted">Drop-off Location</small>
-                                                    <div class="fw-medium">{{ $booking['entrydropoff'] ?? 'N/A' }}</div>
-                                                    <small class="text-danger">Destination</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">City</small>
-                                            <div class="fw-medium">{{ $booking['city'] ?? 'N/A' }}</div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Country</small>
-                                            <div class="fw-medium">{{ $booking['country'] ?? 'N/A' }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Vehicle Information -->
-                                <div class="row mb-4">
-                                    <div class="col-md-8">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-warning rounded-circle p-2 me-3">
-                                                    <i class="ri-car-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-6 mb-3">
-                                                    <small class="text-muted">Vehicle Name</small>
-                                                    <div class="fw-medium">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-6 mb-3">
-                                                    <small class="text-muted">Service Type</small>
-                                                    <div class="fw-medium">{{ $booking['type'] ?? 'N/A' }} Transport</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        @if(isset($booking['image']))
-                                            <img src="{{ $booking['image'] }}" 
-                                                 alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
-                                                 class="img-fluid rounded shadow-sm" 
-                                                 style="height: 150px; width: 100%; object-fit: cover;">
-                                        @else
-                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
-                                                <i class="ri-car-line ri-48px text-muted"></i>
-                                            </div>
-                                        @endif
-                                    </div>
-                                </div>
-
-                                <!-- Pricing & Customer Information -->
-                                <div class="row mb-4">
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-warning rounded-circle p-2 me-3">
-                                                    <i class="ri-money-dollar-circle-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Total Price</small>
-                                                    <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">From Zone</small>
-                                                    <div class="fw-medium">{{ $fromZoneName }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">To Zone</small>
-                                                    <div class="fw-medium">{{ $toZoneName }}</div>
-                                                </div>
-                                                <div class="col-12 mb-3">
-                                                    <small class="text-muted">Booking Type</small>
-                                                    <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                        </div>
-
-                               
-
-                                        <!-- Action Buttons -->
-                                        <div class="bg-white rounded p-3 shadow-sm mt-4">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="bg-primary rounded-circle p-2 me-3">
-                                                        <i class="ri-settings-line text-white"></i>
+                                    
+                                    <div class="card-body p-2" style="background-color: #ffffff;">
+                                        <!-- Service Schedule & Group Information -->
+                                        <div class="row mb-2 g-2">
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
                                                     </div>
-                                                    <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                                                    <div class="row g-1">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('Y-m-d') : 'N/A' }}</div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
+                                                            <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ $booking['type'] ?? 'Standard' }}</span></div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Transport</small>
+                                                            <div><span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">Local</span></div>
+                                                        </div>
+                                                    </div>
                                                 </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
+                                                    </div>
+                                                    <div class="row g-1 mb-1">
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.55rem;">Children</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-center">
+                                                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
+                                                            Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Route Information -->
+                                        <div class="bg-light rounded p-2 mb-2">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-route-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Information</h6>
+                                            </div>
+                                            <div class="row g-1 mb-1">
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-1">
+                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
+                                                        <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                            <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
+                                                            <span class="text-truncate">{{ $booking['entrypickup'] ?? 'N/A' }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-1">
+                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
+                                                        <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                            <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
+                                                            <span class="text-truncate">{{ $booking['entrydropoff'] ?? 'N/A' }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
+                                                <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrypickup'] ?? 'Pickup', 15) }}</span>
+                                                <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
+                                                <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrydropoff'] ?? 'Dropoff', 15) }}</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Vehicle & Location Information -->
+                                        <div class="row mb-2 g-2">
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                            <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Vehicle Details</h6>
+                                                    </div>
+                                                    <div class="row g-1 mb-2">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
+                                                            <div class="fw-medium text-truncate" style="font-size: 0.75rem;">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
+                                                        @if(isset($booking['image']) && $booking['image'])
+                                                            <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
+                                                                <img src="{{ $booking['image'] }}" alt="Vehicle" class="rounded-circle shadow-sm" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid #667eea;">
+                                                                <span class="position-absolute badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="top: -3px; right: -3px; width: 20px; height: 20px; font-size: 0.6rem; cursor: pointer;" onclick="window.open('{{ $booking['image'] }}', '_blank')"><i class="ri-zoom-in-line"></i></span>
+                                                            </div>
+                                                        @else
+                                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef;">
+                                                                <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Location Information</h6>
+                                                    </div>
+                                                    <div class="row g-1 mb-1">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="bg-white rounded p-1 mt-1">
+                                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Total Price</small>
+                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $pageCurrency ?? 'SGD' }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Booking Status -->
+                                        <div class="bg-light rounded p-2">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-file-list-3-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Booking Status</h6>
+                                            </div>
+                                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                            <div class="d-flex gap-1 mt-1">
+                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1" onclick="editIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})" style="border-radius: 6px; font-size: 0.75rem;"><i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit</button>
+                                                @endif
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
-                                                            class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                                            onclick="editIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-edit-line me-1"></i>Edit
-                                                    </button>
-                                                    {{-- <button type="button" 
-                                                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                            onclick="approveIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-check-line me-1"></i>Approve
-                                                    </button> --}}
-                                                    @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
-                                                            class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                                            onclick="rejectIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-close-line me-1"></i>Reject
-                                                    </button>
-                                                    @endif
-                                                </div>
+                                                <button type="button" class="btn btn-outline-danger btn-sm px-2 py-1" onclick="rejectIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})" style="border-radius: 6px; font-size: 0.75rem;"><i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject</button>
                                                 @endif
                                             </div>
+                                            @endif
                                         </div>
+                                    </div>
+                                </div>
+
                                         @php $actualBookingIndex++; @endphp
                                     @endforeach
                                 @endif
@@ -9810,6 +10072,8 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
         month: 'short', 
         day: 'numeric' 
     }) : 'N/A';
+    const tourRow = document.querySelector('tr[data-tour-id="' + tourId + '"]');
+    const isPro = tourRow ? parseInt(tourRow.getAttribute('data-is-pro') || 0) : 0;
     
     const content = `
         <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd9853 !important;">
@@ -9991,10 +10255,10 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
                                     <div class="fw-medium" style="font-size: 0.8rem;">${attractionBooking.transferOptions.vehicle_id}</div>
                                 ` : ''}
-                                ${attractionBooking.transferOptions.cost && attractionBooking.transferOptions.cost > 0 ? `
+                                ${((attractionBooking.transferOptions.cost && attractionBooking.transferOptions.cost > 0) || (isPro == 1 && attractionBooking.transferOptions.totalPrice > 0)) ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.transferOptions.cost).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(isPro == 1 && attractionBooking.transferOptions.totalPrice > 0 ? attractionBooking.transferOptions.totalPrice : (attractionBooking.transferOptions.cost || 0)).toFixed(2)}</div>
                                 </div>
                                 ` : ''}
                             </div>
@@ -10084,7 +10348,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat((attractionBooking.transferOptions?.cost || 0)).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat(isPro == 1 && attractionBooking.transferOptions?.totalPrice > 0 ? attractionBooking.transferOptions.totalPrice : (attractionBooking.transferOptions?.cost || 0)).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -10096,7 +10360,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd9853 !important; background: linear-gradient(135deg, rgba(253,152,83,0.1) 0%, rgba(254,120,84,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${window.bookingCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + parseFloat(attractionBooking.transferOptions?.cost || 0) + parseFloat(attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${window.bookingCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + parseFloat(isPro == 1 && attractionBooking.transferOptions.totalPrice > 0 ? attractionBooking.transferOptions.totalPrice : (attractionBooking.transferOptions.cost || 0)) + parseFloat(attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
@@ -10802,7 +11066,13 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
     const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
     const allowedRestaurantQrRoles = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138];
     const canAccessRestaurantQR = allowedRestaurantQrRoles.includes(userRole);
-    
+    const tourRow = document.querySelector('tr[data-tour-id="' + tourId + '"]');
+    const isPro = tourRow ? parseInt(tourRow.getAttribute('data-is-pro') || 0) : 0;
+    const tf = booking.transferOptions || fullBooking.transfer_options;
+    const transferPrice = tf ? (isPro == 1 ? (tf.totalPrice ?? tf.cost ?? 0) : (tf.cost ?? 0)) : 0;
+    const g = fullBooking.guide_options || fullBooking.guideInfo || {};
+    const guidePrice = parseFloat(g.total_price ?? g.cost ?? g.Cost ?? g.sell ?? g.Sell ?? 0) || 0;
+
     return `
         <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
             <!-- Compact Card Header -->
@@ -10903,10 +11173,10 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
                                     <div class="fw-medium" style="font-size: 0.8rem;">${booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id}</div>
                                 ` : ''}
-                                ${(booking.transferOptions?.cost || fullBooking.transfer_options?.cost) ? `
+                                ${transferPrice > 0 ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(transferPrice).toFixed(2)}</div>
                                                 </div>
                                 ` : ''}
                                             </div>
@@ -11009,29 +11279,37 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
                                     </div>
                     <div class="row g-2">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
                                 <div class="fw-bold text-success" style="font-size: 0.8rem;">${window.bookingCurrency} ${(fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}</div>
-                                </div>
                             </div>
-                        <div class="col-md-4">
+                        </div>
+                        <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat(transferPrice).toFixed(2)}</div>
+                            </div>
                         </div>
-                    </div>
-                        <div class="col-md-4">
+                        ${guidePrice > 0 ? `
+                        <div class="col-md-3">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #6c757d !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
+                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${window.bookingCurrency} ${guidePrice.toFixed(2)}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">${window.bookingCurrency} ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
-                </div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">${window.bookingCurrency} ${(parseFloat(fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0) + parseFloat(transferPrice) + parseFloat(guidePrice)).toFixed(2)}</div>
+                            </div>
                         </div>
                     </div>
                     <div class="mt-2 text-center">
                         <small class="text-muted" style="font-size: 0.75rem;">
                             <i class="ri-information-line me-1"></i>
-                            Total Price includes Restaurant Price + Vehicle Price
+                            Total Price includes Restaurant Price + Vehicle Price${guidePrice > 0 ? ' + Guide Price' : ''}
                         </small>
                     </div>
                 </div>
@@ -18798,292 +19076,268 @@ function displayLocalTransportErrorContent(modalId, message) {
 function generateIndividualLocalTransportContent(localTransportData, modalId, tourId, localTransportOrderIndex, bookingIndex) {
     try {
         const content = `
-            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                    <div class="row align-items-center">
+            <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                <!-- Compact Card Header -->
+                <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+                    <div class="row align-items-center g-1">
                         <div class="col-md-8">
-                            <h5 class="mb-1 fw-bold text-white">
-                                <i class="ri-car-line me-2"></i>${localTransportData.vehicles_name || 'Local Transport Service'}
-                            </h5>
-                            <p class="mb-0 text-white opacity-75">Local Transport ${parseInt(localTransportOrderIndex) + 1} • ${localTransportData.type || 'Standard'} Service</p>
+                            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                                <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>${localTransportData.vehicles_name || 'Local Transport Service'}
+                            </h6>
+                            <small class="text-white opacity-90" style="font-size: 0.7rem;">Local Transport ${parseInt(localTransportOrderIndex) + 1} • ${localTransportData.type || 'Standard'}</small>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                <span class="text-success fw-bold fs-5">${window.bookingCurrency} ${(localTransportData.totalPrice || 0).toFixed(2)}</span>
-                            </div>
+                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
+                                ${window.bookingCurrency} ${(localTransportData.totalPrice || 0).toFixed(2)}
+                            </span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card-body p-4" style="background-color: #f8f9fa;">
+                <div class="card-body p-2" style="background-color: #ffffff;">
                     <!-- Service Schedule & Group Information -->
-                    <div class="row mb-4">
+                    <div class="row mb-2 g-2">
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-primary rounded-circle p-2 me-3">
-                                        <i class="ri-calendar-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Booking Date</small>
-                                        <div class="fw-medium">${localTransportData.bookingDate || 'N/A'}</div>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${localTransportData.bookingDate || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Time</small>
-                                        <div class="fw-medium">${localTransportData.entrytime || 'N/A'}</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${localTransportData.entrytime || 'TBC'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Service Type</small>
-                                        <span class="badge bg-warning">${localTransportData.type || 'Standard'}</span>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
+                                        <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">${localTransportData.type || 'Standard'}</span></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Transport Type</small>
-                                        <span class="badge bg-info">Local Transport</span>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Transport</small>
+                                        <div><span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">Local</span></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success rounded-circle p-2 me-3">
-                                        <i class="ri-group-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Adults</small>
-                                        <div class="fw-medium">${localTransportData.adults || 0}</div>
+                                <div class="row g-1 mb-1">
+                                    <div class="col-6 text-center">
+                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                            <div class="fw-bold text-success" style="font-size: 0.9rem;">${localTransportData.adults || 0}</div>
+                                            <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Children</small>
-                                        <div class="fw-medium">${localTransportData.children || 0}</div>
+                                    <div class="col-6 text-center">
+                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                            <div class="fw-bold text-warning" style="font-size: 0.9rem;">${localTransportData.children || 0}</div>
+                                            <small class="text-muted" style="font-size: 0.55rem;">Children</small>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Total Guests</small>
-                                        <span class="badge bg-primary">${(parseInt(localTransportData.adults || 0) + parseInt(localTransportData.children || 0))}</span>
-                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
+                                        Total: ${(parseInt(localTransportData.adults || 0) + parseInt(localTransportData.children || 0))} Guests
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Route Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success rounded-circle p-2 me-3">
-                                        <i class="ri-route-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Route Information</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Pickup Point</small>
-                                        <div class="fw-medium d-flex align-items-center">
-                                            <i class="ri-map-pin-line text-success me-2"></i>
-                                            ${localTransportData.pickupPoint || 'N/A'}
-                                        </div>
-                                        <small class="text-success">Origin</small>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Dropoff Point</small>
-                                        <div class="fw-medium d-flex align-items-center">
-                                            <i class="ri-map-pin-2-line text-danger me-2"></i>
-                                            ${localTransportData.dropoffPoint || 'N/A'}
-                                        </div>
-                                        <small class="text-danger">Destination</small>
+                    <div class="bg-light rounded p-2 mb-2">
+                        <div class="d-flex align-items-center mb-1">
+                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-route-line text-white" style="font-size: 0.8rem;"></i>
+                            </div>
+                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Information</h6>
+                        </div>
+                        <div class="row g-1 mb-1">
+                            <div class="col-md-6">
+                                <div class="bg-white rounded p-1">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
+                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                        <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
+                                        <span class="text-truncate">${localTransportData.pickupPoint || 'N/A'}</span>
                                     </div>
                                 </div>
-                                <!-- Route Direction Visual -->
-                                <div class="d-flex align-items-center justify-content-center mt-3 p-3 bg-light rounded">
-                                    <div class="text-center">
-                                        <span class="badge bg-success me-2">${localTransportData.pickupPoint || 'Pickup'}</span>
-                                        <i class="ri-arrow-right-line text-primary mx-2"></i>
-                                        <span class="badge bg-danger">${localTransportData.dropoffPoint || 'Dropoff'}</span>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="bg-white rounded p-1">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
+                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                        <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
+                                        <span class="text-truncate">${localTransportData.dropoffPoint || 'N/A'}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <!-- Compact Route Direction Visual -->
+                        <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
+                            <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">${(localTransportData.pickupPoint || 'Pickup').substring(0, 15)}</span>
+                            <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
+                            <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">${(localTransportData.dropoffPoint || 'Dropoff').substring(0, 15)}</span>
+                        </div>
                     </div>
 
                     <!-- Vehicle & Location Information -->
-                    <div class="row mb-4">
+                    <div class="row mb-2 g-2">
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-warning rounded-circle p-2 me-3">
-                                        <i class="ri-car-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
                                 </div>
-                                <div class="row mb-3">
-                                    <div class="col-6 mb-2">
-                                        <small class="text-muted">Vehicle Name</small>
-                                        <div class="fw-medium">${localTransportData.vehicles_name || 'N/A'}</div>
+                                <div class="row g-1 mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
+                                        <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="${localTransportData.vehicles_name || 'N/A'}">${localTransportData.vehicles_name || 'N/A'}</div>
                                     </div>
-                                    <div class="col-6 mb-2">
-                                        <small class="text-muted">Service Type</small>
-                                        <div class="fw-medium">${localTransportData.type || 'N/A'} Transport</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${localTransportData.type || 'N/A'}</div>
                                     </div>
                                 </div>
-                                <!-- Vehicle Image Display -->
-                                <div class="vehicle-image-container">
-                                    ${localTransportData.image ? `
-                                        <div class="position-relative">
+                                <!-- Compact Vehicle Image Display -->
+                                <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
+                                    ${localTransportData.image && localTransportData.image.trim() !== '' ? `
+                                        <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
                                             <img src="${localTransportData.image}" 
-                                                 alt="${localTransportData.vehicles_name || 'Vehicle'}" 
-                                                 class="img-fluid rounded shadow-sm w-100" 
-                                                 style="height: 180px; object-fit: cover; border-radius: 12px !important; cursor: pointer;"
+                                                 alt="Vehicle Image" 
+                                                 class="rounded-circle shadow-sm" 
+                                                 style="width: 80px; height: 80px; object-fit: cover; object-position: center; border: 2px solid #667eea; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\\' style=\\'width: 80px; height: 80px; border: 2px solid #e9ecef;\\'><i class=\\'ri-car-line text-muted\\' style=\\'font-size: 2rem;\\'></i></div>';"
                                                  onclick="openVehicleImageModal('${localTransportData.image}', '${localTransportData.vehicles_name || 'Vehicle'}')">
-                                            <div class="position-absolute top-0 end-0 m-2">
-                                                <span class="badge bg-dark bg-opacity-75 text-white">
-                                                    <i class="ri-zoom-in-line me-1"></i>View
+                                            <div class="position-absolute" style="top: -3px; right: -3px; z-index: 10;">
+                                                <span class="badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 20px; height: 20px; font-size: 0.6rem; padding: 0; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
+                                                      onclick="event.stopPropagation(); openVehicleImageModal('${localTransportData.image}', '${localTransportData.vehicles_name || 'Vehicle'}')">
+                                                    <i class="ri-zoom-in-line"></i>
                                                 </span>
                                             </div>
                                         </div>
                                     ` : `
-                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
-                                            <div class="text-center">
-                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
-                                                <div class="text-muted">No Vehicle Image</div>
-                                            </div>
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
+                                            <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
                                         </div>
                                     `}
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info rounded-circle p-2 me-3">
-                                        <i class="ri-map-pin-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Location Information</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Location Information</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">City</small>
-                                        <div class="fw-medium">${localTransportData.city || 'N/A'}</div>
+                                <div class="row g-1 mb-1">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${localTransportData.city || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Country</small>
-                                        <div class="fw-medium">${localTransportData.country || 'N/A'}</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${localTransportData.country || 'N/A'}</div>
                                     </div>
                                 </div>
-                                
-                                <!-- Pricing Details -->
-                                <div class="mt-3">
-                                    <h6 class="fw-bold mb-2 text-dark">Pricing Details</h6>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Total Price</small>
-                                            <div class="fw-bold text-success">${window.bookingCurrency} ${localTransportData.totalPrice || '0'}</div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Tax</small>
-                                            <div class="fw-medium">${localTransportData.Tax || '0'}%</div>
-                                        </div>
-                                    </div>
+                                <!-- Compact Pricing Details -->
+                                <div class="bg-white rounded p-1 mt-1">
+                                    <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Total Price</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${(localTransportData.totalPrice || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Customer Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info rounded-circle p-2 me-3">
-                                        <i class="ri-user-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <small class="text-muted">Name</small>
-                                        <div class="fw-medium">${localTransportData.fullName || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <small class="text-muted">Email</small>
-                                        <div class="fw-medium">${localTransportData.email || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${localTransportData.phone || 'N/A'}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                  
 
-                    ${localTransportData.specialRequests ? `
-                        <!-- Special Requests -->
-                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-message-2-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                    <!-- Booking Status -->
+                    <div class="bg-light rounded p-1">
+                        <div class="d-flex align-items-center mb-1">
+                            <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
                             </div>
-                            <p class="text-muted mb-0">${localTransportData.specialRequests}</p>
+                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
                         </div>
-                    ` : ''}
-
-                    <!-- Individual Action Buttons -->
-                    <div class="bg-white rounded p-3 shadow-sm border-top">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-settings-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                        ${(localTransportData.is_approve == 1 || localTransportData.is_approve === '1' || localTransportData.is_approve === true) ? `
+                            <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                                <strong>Approved</strong>
+                                ${localTransportData.reference_id ? `<span class="ms-1">• Ref: ${localTransportData.reference_id}</span>` : ''}
+                                ${localTransportData.display_due_date ? `<span class="ms-1">• Due: ${localTransportData.display_due_date}</span>` : ''}
                             </div>
-                            ${localTransportData.is_approve == 1 ? `
-                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                    <i class="ri-check-circle-fill me-1"></i>
-                                    <small><strong>Approved Booking</strong></small>
-                                    ${localTransportData.reference_id ? `<br><small class="text-muted">Ref: ${localTransportData.reference_id}</small>` : ''}
-                                    ${localTransportData.display_due_date ? `<br><small class="text-muted">Due: ${localTransportData.display_due_date}</small>` : ''}
-                                </div>
-                            ` : `
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                            <div class="d-flex gap-2">
-                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <button type="button" 
-                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                        onclick="editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-edit-line me-1"></i>Edit
-                                </button>
-                                
-                                @endif
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <button type="button" 
-                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                        onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-close-line me-1"></i>Reject
-
-                                </button>
-                                @endif
+                        ` : `
+                            <div class="d-flex gap-1 flex-wrap" id="localTransport_buttons_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
+                                <!-- Buttons will be dynamically added based on user role -->
                             </div>
-                            
-                            @endif
-                            `}
-                        </div>
+                        `}
                     </div>
                 </div>
             </div>
         `;
         
         document.getElementById(`${modalId}_content`).innerHTML = content;
+        
+        // Add action buttons based on user role and approval status
+        if (!(localTransportData.is_approve == 1 || localTransportData.is_approve === '1' || localTransportData.is_approve === true)) {
+            const userRoleId = {{ auth()->user()->role_id ?? 0 }};
+            const buttonsContainer = document.getElementById(`localTransport_buttons_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            
+            if (buttonsContainer) {
+                let buttonsHTML = '';
+                
+                // Check permissions
+                const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+                const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
+                const hasAnyPermission = canEdit || canReject;
+                
+                if (hasAnyPermission) {
+                // Edit button (DMC and Operational Head only)
+                    if (canEdit) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                    class="btn btn-sm px-2 py-1" 
+                                onclick="editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.75rem;">
+                                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                        </button>
+                    `;
+                    }
+                    
+                    // Reject button (for users with reject permission)
+                    if (canReject) {
+                        buttonsHTML += `
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm px-2 py-1" 
+                                    onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                            </button>
+                        `;
+                    }
+                } else {
+                    // Show pending approval only if user has no permissions
+                    buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
+                }
+                
+                buttonsContainer.innerHTML = buttonsHTML;
+                }
+        }
         
     } catch (error) {
         console.error('Error generating individual local transport content:', error);

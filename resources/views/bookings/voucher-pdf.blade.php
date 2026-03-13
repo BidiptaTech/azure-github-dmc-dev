@@ -64,17 +64,21 @@
             color: #cc0000;
             font-weight: bold;
             font-size: 12px;
-            text-decoration: line-through;
+            /* text-decoration: line-through; */
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            letter-spacing: 0.5px;
+            line-height: 1.6;
         }
         .deadline-note {
             font-size: 8px;
             color: #cc0000;
-            line-height: 1.4;
+            line-height: 1.5;
             display: block;
             word-wrap: break-word;
             text-align: center;
+            padding-top: 2px;
         }
         .deadline-note strong {
             font-size: 8.5px;
@@ -82,8 +86,14 @@
         .inclusion-item {
             font-weight: bold;
             font-size: 10px;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
+            padding-bottom: 4px;
             display: block;
+            border-bottom: 1px dotted #ccc;
+        }
+        .inclusion-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
         }
     </style>
 </head>
@@ -168,6 +178,9 @@
             <td class="value-cell">
                 @foreach($hotels as $i => $hotel)
                     {{ $hotel['name'] }}
+                    @if(!empty($hotel['due_date']))
+                        <span style="color: #cc0000; font-weight: bold;"> ({{ $hotel['due_date'] }})</span>
+                    @endif
                     @if($hotel['check_in'] && $hotel['check_out'])
                         <br><small>{{ \Carbon\Carbon::parse($hotel['check_in'])->format('d M Y') }} - {{ \Carbon\Carbon::parse($hotel['check_out'])->format('d M Y') }}</small>
                     @endif
@@ -213,7 +226,7 @@
                 <strong style="text-decoration: underline;">INCLUSIONS;</strong>
                 <br><br>
                 @foreach($inclusions as $item)
-                    <span class="inclusion-item">{{ $item }}</span>
+                    <span class="inclusion-item">{!! nl2br(e($item)) !!}</span>
                 @endforeach
             </td>
         </tr>
