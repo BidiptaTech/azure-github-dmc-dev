@@ -194,7 +194,10 @@ class multiRestaurantController extends Controller
 
         // Package ID is static MR-1 for every package as per requirement
         $packageId = 'MR-1';
-
+        $packageUniqueId = CommonHelper::createId(MultiRestaurant::max('package_unique_id') ?? 0);
+        while (MultiRestaurant::where('package_unique_id', $packageUniqueId)->exists()) {
+            $packageUniqueId = CommonHelper::createId($packageUniqueId);
+        }
         MultiRestaurant::create([
             'package_id' => $packageId,
             'package_name' => $validated['package_name'],
@@ -209,6 +212,7 @@ class multiRestaurantController extends Controller
             'dinner_time' => $dinnerTime,
             'status' => (int) $validated['status'],
             'dmc_id' => $dmcId,
+            'package_unique_id' => $packageUniqueId,
         ]);
 
         return redirect()->route('multiResturant.index')->with('success', 'Multi restaurant package created successfully.');

@@ -10015,6 +10015,9 @@
         const tbody = document.getElementById('roomCombinationsTableBody');
         tbody.innerHTML = '';
         
+        window.lastCheckedRoomComboId = null;
+        window.selectedRoomComboOrder = [];
+        
         if (combinations.length === 0) {
             tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No room combinations available</td></tr>';
             return;
@@ -10051,8 +10054,8 @@
             
             // Default adults per room is 2
             const defaultAdults = 2;
-            // Default rooms is 1 (will be adjusted when checkbox is checked)
-            const defaultRooms = 1;
+            // Default rooms 0 for unchecked; will be set by distributePaxAcrossRooms when checked
+            const defaultRooms = 0;
             
             // Get extra bed, CWB, CNB, Infant prices from room data
             const extraBedPrice = parseFloat(combo.extraBedPrice || combo.roomData?.extra_bed_price || 0);
@@ -10082,8 +10085,8 @@
                 <td style="padding: 2px 8px;">${combo.bedType}</td>
                 <td style="padding: 2px 8px;">${combo.mealPlanLabel}</td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm combo-rooms" 
-                           data-combo-id="${combo.id}" value="${defaultRooms}" min="1" 
+                    <input type="number" class="form-control form-control-sm combo-rooms"
+                           data-combo-id="${combo.id}" value="${defaultRooms}" min="0"
                            style="font-size: 10px; padding: 2px 4px; text-align: center;">
                 </td>
                 <td style="padding: 2px 8px; text-align: center;" class="combo-price-cell">--</td>
@@ -10133,6 +10136,11 @@
             tbody.appendChild(row);
         });
         
+        // Ensure all room inputs start at 0 (first time all rooms showing 0)
+        tbody.querySelectorAll('.combo-rooms').forEach(input => {
+            input.value = '0';
+        });
+        
         const recalcPrice = (comboId) => {
             const combo = window.currentRoomCombinations.find(c => c.id === comboId);
             if (!combo) return;
@@ -10165,51 +10173,74 @@
             }
         };
 
-        // Function to calculate rooms needed based on pax and update room counts
+        // Distribute rooms by adults and max capacity across SELECTED room types (in selection order).
+        // - 1 type selected: rooms = ceil(adults/maxCap) e.g. 4 adults, max 2 → 2 rooms.
+        // - 2 types: 1 and 1. 3 types: 1,1,1. 4 types: 1,1,1,1.
+        // - If user selects a 5th type: first 4 keep 1,1,1,1; 5th gets 0. When user unselects one of the four, the 5th gets 1 (redistribute among 4 selected).
         const distributePaxAcrossRooms = () => {
             const headerValues = getHeaderValues();
             const totalAdults = headerValues.adults || 0;
-            const totalChildren = headerValues.children || 0;
-            
-            // Get all checked combinations
-            const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
-            
-            if (checkedBoxes.length === 0) {
-                return;
-            }
-            
-            // Default adults per room is 2 (double sharing)
-            const defaultAdultsPerRoom = 2;
-            // Room calculation should only use adults, not children
-            // Children don't require additional rooms - they share with adults
-            
-            // Calculate rooms needed: adults/2 rounded up (children share with adults)
-            const roomsNeeded = Math.ceil(totalAdults / defaultAdultsPerRoom);
-            
-            // Update rooms count for each checked room
-            checkedBoxes.forEach((checkbox, index) => {
-                const comboId = checkbox.getAttribute('data-combo-id');
-                const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
-                if (!row) return;
-                
-                const roomsInput = row.querySelector('.combo-rooms');
-                const combo = window.currentRoomCombinations.find(c => c.id === comboId);
-                
-                // First checked room gets all the rooms, others get 0
-                if (index === 0) {
-                    if (roomsInput) roomsInput.value = Math.max(1, roomsNeeded);
-                } else {
-                    if (roomsInput) roomsInput.value = 0;
-                }
-                
-                // Update pricing
-                recalcPrice(comboId);
-                
-                // Update pricing summary for first combo
-                if (index === 0 && combo && typeof updatePricingSummary === 'function') {
-                    updatePricingSummary(combo);
-                }
+
+            const allRows = tbody.querySelectorAll('tr.room-combination-row');
+            if (!window.selectedRoomComboOrder) window.selectedRoomComboOrder = [];
+            const order = window.selectedRoomComboOrder.filter(id => {
+                const cb = tbody.querySelector(`.room-combination-checkbox[data-combo-id="${id}"]`);
+                return cb && cb.checked;
             });
+            window.selectedRoomComboOrder = order;
+            const N = order.length;
+
+            // Reset all rows to 0 rooms
+            allRows.forEach(row => {
+                const roomsInput = row.querySelector('.combo-rooms');
+                if (roomsInput) roomsInput.value = '0';
+            });
+
+            if (N === 0) return;
+
+            const totalAdultsForRooms = Math.max(0, totalAdults);
+
+            // Special case: adults == number of selected types → 1 room each (4 adults, 4 types → 1,1,1,1)
+            if (totalAdultsForRooms === N) {
+                order.forEach(comboId => {
+                    const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
+                    if (!row) return;
+                    const roomsInput = row.querySelector('.combo-rooms');
+                    if (roomsInput) roomsInput.value = '1';
+                });
+            } else {
+                // General case: distribute total rooms needed as evenly as possible across selected types.
+                // Approximate capacity as 2 pax/room when calculating how many rooms are needed overall.
+                // (Per-room max occupancy is still enforced elsewhere when validating totals.)
+                const approxCapacity = 2;
+                const roomsNeeded = totalAdultsForRooms > 0
+                    ? Math.max(1, Math.ceil(totalAdultsForRooms / approxCapacity))
+                    : 0;
+
+                if (roomsNeeded === 0) {
+                    // No adults → keep all rooms at 0
+                } else {
+                    const baseRooms = Math.floor(roomsNeeded / N);
+                    const remainderRooms = roomsNeeded % N;
+
+                    order.forEach((comboId, index) => {
+                        const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
+                        if (!row) return;
+                        const roomsInput = row.querySelector('.combo-rooms');
+                        if (!roomsInput) return;
+
+                        const rooms = baseRooms + (index < remainderRooms ? 1 : 0);
+                        roomsInput.value = rooms > 0 ? String(rooms) : '0';
+                    });
+                }
+            }
+
+            order.forEach(comboId => {
+                recalcPrice(comboId);
+                const combo = window.currentRoomCombinations.find(c => c.id === comboId);
+                if (combo && typeof updatePricingSummary === 'function') updatePricingSummary(combo);
+            });
+            if (typeof validateTotalOccupancy === 'function') validateTotalOccupancy();
         };
         
         // Add event listener for room count changes
@@ -10275,25 +10306,18 @@
             checkbox.addEventListener('change', function() {
                 const comboId = this.getAttribute('data-combo-id');
                 const isChecked = this.checked;
-                
-                // When checkbox is toggled, update room counts
+                if (!window.selectedRoomComboOrder) window.selectedRoomComboOrder = [];
                 if (isChecked) {
-                    const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
-                    if (row) {
-                        const roomsInput = row.querySelector('.combo-rooms');
-                        if (!roomsInput.value || parseInt(roomsInput.value) === 0) {
-                            roomsInput.value = 1;
-                        }
+                    if (!window.selectedRoomComboOrder.includes(comboId)) {
+                        window.selectedRoomComboOrder.push(comboId);
                     }
-                    
-                    // Calculate rooms needed and update
-                    distributePaxAcrossRooms();
-                    
-                    // Update pricing summary when checkbox is checked
+                } else {
+                    window.selectedRoomComboOrder = window.selectedRoomComboOrder.filter(id => id !== comboId);
+                }
+                distributePaxAcrossRooms();
+                if (isChecked) {
                     const combo = window.currentRoomCombinations.find(c => c.id === comboId);
-                    if (combo && typeof updatePricingSummary === 'function') {
-                        updatePricingSummary(combo);
-                    }
+                    if (combo && typeof updatePricingSummary === 'function') updatePricingSummary(combo);
                 }
             });
         });
@@ -19094,34 +19118,35 @@
                 const destinationType = transferDestinationOption.attr('data-type') || 'hotel';
                 const dmcId = '{{ $dmc_id ?? "" }}';
                 
-                // Determine pickup and dropoff based on checkbox
-                let pickupId, pickupType, dropoffId, dropoffType, pickupName, dropoffName;
+                // Determine pickup and dropoff NAMES based on checkbox (for display only)
+                let pickupName, dropoffName;
                 if (isDestinationPickup) {
-                    // Destination is pickup, Restaurant is dropoff
-                    pickupId = actualDestinationId;
-                    pickupType = destinationType;
+                    // Destination is pickup, Restaurant is dropoff (for UI only)
                     pickupName = transferDestinationName;
-                    dropoffId = actualRestaurantId;
-                    dropoffType = 'restaurant';
                     dropoffName = restaurantName;
                 } else {
                     // Restaurant is pickup, Destination is dropoff (default behavior)
-                    pickupId = actualRestaurantId;
-                    pickupType = 'restaurant';
                     pickupName = restaurantName;
-                    dropoffId = actualDestinationId;
-                    dropoffType = destinationType;
                     dropoffName = transferDestinationName;
                 }
                 
-                if (vehicleId && pickupId && dropoffId && dmcId) {
+                // IMPORTANT:
+                // For pricing, always treat Restaurant as pickup and Destination as dropoff.
+                // This keeps the transfer price the same whether or not "Is PickUp?" is ticked,
+                // and avoids zero prices when zone mappings exist only in one direction.
+                const pricePickupId = actualRestaurantId;
+                const pricePickupType = 'restaurant';
+                const priceDropoffId = actualDestinationId;
+                const priceDropoffType = destinationType;
+                
+                if (vehicleId && pricePickupId && priceDropoffId && dmcId) {
                     try {
                         restaurantZonePrice = await fetchZonePrice(
                             vehicleId,
-                            pickupId,
-                            pickupType,
-                            dropoffId,
-                            dropoffType,
+                            pricePickupId,
+                            pricePickupType,
+                            priceDropoffId,
+                            priceDropoffType,
                             dmcId
                         );
                         
@@ -19476,34 +19501,33 @@
                 const destinationType = transferDestinationOption.attr('data-type') || 'hotel';
                 const dmcId = '{{ $dmc_id ?? "" }}';
                 
-                // Determine pickup and dropoff based on checkbox
-                let pickupId, pickupType, dropoffId, dropoffType, pickupName, dropoffName;
+                // Determine pickup and dropoff NAMES based on checkbox (for display only)
+                let pickupName, dropoffName;
                 if (isDestinationPickup) {
-                    // Destination is pickup, Restaurant is dropoff
-                    pickupId = actualDestinationId;
-                    pickupType = destinationType;
+                    // Destination is pickup, Restaurant is dropoff (for UI only)
                     pickupName = transferDestinationName;
-                    dropoffId = actualRestaurantId;
-                    dropoffType = 'restaurant';
                     dropoffName = restaurantName;
                 } else {
                     // Restaurant is pickup, Destination is dropoff (default behavior)
-                    pickupId = actualRestaurantId;
-                    pickupType = 'restaurant';
                     pickupName = restaurantName;
-                    dropoffId = actualDestinationId;
-                    dropoffType = destinationType;
                     dropoffName = transferDestinationName;
                 }
                 
-                if (vehicleId && pickupId && dropoffId && dmcId) {
+                // IMPORTANT: For pricing, always use Restaurant as pickup and Destination as dropoff.
+                // This matches create form and avoids 0 price when isPickup is checked (zone may only exist in one direction).
+                const pricePickupId = actualRestaurantId;
+                const pricePickupType = 'restaurant';
+                const priceDropoffId = actualDestinationId;
+                const priceDropoffType = destinationType;
+                
+                if (vehicleId && pricePickupId && priceDropoffId && dmcId) {
                     try {
                         restaurantZonePrice = await fetchZonePrice(
                             vehicleId,
-                            pickupId,
-                            pickupType,
-                            dropoffId,
-                            dropoffType,
+                            pricePickupId,
+                            pricePickupType,
+                            priceDropoffId,
+                            priceDropoffType,
                             dmcId
                         );
                         
@@ -20834,7 +20858,7 @@
     }
     
     // Update transfer field
-    function updateTransferField(index, field, value) {
+    async function updateTransferField(index, field, value) {
         if (transferList[index]) {
             const transfer = transferList[index];
             transfer[field] = value;
@@ -20910,8 +20934,44 @@
             
             // If type or way changes for local transfers, recalculate cost/sell based on zone prices
             if ((field === 'type' || field === 'way') && transfer.transportMode === 'local') {
-                const zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
-                const zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+                let zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
+                let zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+                
+                // If zone prices are missing (e.g. older bookings), try to fetch them so price can update
+                if (zonePrivatePrice === 0 && zoneSharedPrice === 0 && transfer.vehicleId && (transfer.pickupId || transfer.fromZoneId) && (transfer.dropId || transfer.toZoneId)) {
+                    const dmcId = '{{ $dmc_id ?? "" }}';
+                    const pickupIdForFetch = transfer.pickupId || transfer.fromZoneId || '';
+                    const dropIdForFetch = transfer.dropId || transfer.toZoneId || '';
+                    const pickupTypeForFetch = transfer.pickupType || 'hotel';
+                    const dropTypeForFetch = transfer.dropType || 'hotel';
+                    try {
+                        const zonePrice = await fetchZonePrice(transfer.vehicleId, pickupIdForFetch, pickupTypeForFetch, dropIdForFetch, dropTypeForFetch, dmcId);
+                        zonePrivatePrice = parseFloat(zonePrice.private_price) || 0;
+                        zoneSharedPrice = parseFloat(zonePrice.shared_price) || 0;
+                        if (zonePrivatePrice > 0 || zoneSharedPrice > 0) {
+                            transfer.zonePrivatePrice = zonePrivatePrice;
+                            transfer.zoneSharedPrice = zoneSharedPrice;
+                            console.log('Fetched zone prices for transfer type/way change:', { zonePrivatePrice, zoneSharedPrice });
+                        }
+                    } catch (err) {
+                        console.warn('Could not fetch zone price for transfer recalculation:', err);
+                    }
+                }
+                
+                // If we still don't have any zone prices, keep existing cost/sell (do not overwrite with 0)
+                if (zonePrivatePrice === 0 && zoneSharedPrice === 0) {
+                    console.warn('Skipping automatic transfer price recalculation because zone prices are missing.', {
+                        index,
+                        transferId: transfer.id,
+                        existingCost: transfer.cost,
+                        existingSell: transfer.sell
+                    });
+                    updateTransferTable();
+                    if ((field === 'sell' || field === 'adults' || field === 'child' || field === 'type' || field === 'way') && transfer.transportMode === 'local') {
+                        recalculateTotals();
+                    }
+                    return;
+                }
                 
                 // Get current type and way
                 const currentType = transfer.type || 'P';
@@ -23652,18 +23712,20 @@
         };
     }
     
-    // Create unique key for deduplication
-    function createUniqueKey(item, type) {
+    // Create unique key for deduplication (include rowIndex so multiple arrival/departure services are all sent)
+    function createUniqueKey(item, type, rowIndex) {
         try {
             switch(type) {
                 case 'entry_port':
                 case 'exit_port':
+                    const rowId = (item && (item.id != null && item.id !== '')) ? String(item.id) : ('idx-' + (rowIndex != null ? rowIndex : ''));
                     const portKey = [
+                        rowId,
                         item.portName || item.port_name || '',
                         item.transferDestinationName || item.transfer_destination_name || '',
                         item.dateTime || item.bookingDate || '',
                         item.vehicleId || item.vehicle_id || '',
-                        item.type || ''
+                        item.transferType || item.type || ''
                     ].join('|');
                     return portKey;
                 default:
@@ -23688,7 +23750,8 @@
             exit_port: new Set()
         };
         
-        for (const item of arrivalDepartureList) {
+        for (let i = 0; i < arrivalDepartureList.length; i++) {
+            const item = arrivalDepartureList[i];
             if (item.type === 'Arrival') {
                 // Extract date and time
                 let bookingDate = normalizeDateToYYYYMMDD(item.dateTime);
@@ -23710,8 +23773,8 @@
                 // Fetch vehicle details if vehicle_id exists
                 const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
                 
-                // Check for duplicates
-                const uniqueKey = createUniqueKey(item, 'entry_port');
+                // Check for duplicates (use row index so multiple arrival/departure services are all sent)
+                const uniqueKey = createUniqueKey(item, 'entry_port', i);
                 if (uniqueKey && seenKeys.entry_port.has(uniqueKey)) {
                     console.warn('Skipping duplicate entry_port (frontend):', uniqueKey);
                     continue; // Skip this duplicate
@@ -23872,8 +23935,8 @@
                 // Fetch vehicle details if vehicle_id exists
                 const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
                 
-                // Check for duplicates
-                const uniqueKey = createUniqueKey(item, 'exit_port');
+                // Check for duplicates (use row index so multiple arrival/departure services are all sent)
+                const uniqueKey = createUniqueKey(item, 'exit_port', i);
                 if (uniqueKey && seenKeys.exit_port.has(uniqueKey)) {
                     console.warn('Skipping duplicate exit_port (frontend):', uniqueKey);
                     continue; // Skip this duplicate
@@ -28519,6 +28582,8 @@
         // Extract pickup and dropoff IDs
         const pickupId = data.pickupId || data.pickup_id || data.PickupPlaceid || data.from_zone_id || '';
         const dropId = data.dropId || data.drop_id || data.DropoffPlaceid || data.to_zone_id || '';
+        const pickupType = data.pickupType || data.pickup_type || 'hotel';
+        const dropType = data.dropType || data.drop_type || 'hotel';
         
         // CRITICAL FIX: Mark as linked if it has hotel info, linked_to_hotel, or sourceType
         // Transfers with hotelName are hotel-linked transfers
@@ -28556,6 +28621,8 @@
             zoneSharedPrice: zoneSharedPrice,
             fromZoneId: fromZoneId,
             toZoneId: toZoneId,
+            pickupType: pickupType,
+            dropType: dropType,
             taxIncluded: data.taxIncluded || data.tax_included || false,
             supplement: data.supplement !== undefined ? data.supplement : false,
             // Mark as linked if it has hotel info, linked_to_hotel, or sourceType

@@ -880,7 +880,42 @@
                             <td class="align-top">
                                 <div class="d-flex flex-column gap-1">
                                     <strong class="text-primary">{{ $tour->display_id }}</strong>
+                                    @if($tour->reference_id)
+                                        <small class="text-dark">Ref: {{ $tour->reference_id }}</small>
+                                    @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
+
+                                    @php
+                                        $mainGuest = $tour->mainguest;
+                                        if (is_string($mainGuest)) {
+                                            $mainGuest = json_decode($mainGuest, true) ?: [];
+                                        }
+
+                                        $leadGuestName = null;
+                                        if (is_array($mainGuest)) {
+                                            $salutation = trim($mainGuest['salutation'] ?? '');
+                                            $fullName   = trim($mainGuest['full_name'] ?? '');
+                                            $firstName  = trim($mainGuest['first_name'] ?? '');
+                                            $lastName   = trim($mainGuest['last_name'] ?? '');
+
+                                            if (!empty($fullName)) {
+                                                $leadGuestName = trim($salutation . ' ' . $fullName);
+                                            } else {
+                                                $leadGuestName = trim($salutation . ' ' . $firstName . ' ' . $lastName);
+                                            }
+                                        }
+
+                                        if (empty($leadGuestName) && !empty($tour->customer_name)) {
+                                            $leadGuestName = $tour->customer_name;
+                                        }
+                                    @endphp
+
+                                    @if(!empty($leadGuestName))
+                                        <small class="text-secondary">
+                                            <i class="ri-user-line me-1"></i>{{ $leadGuestName }}
+                                        </small>
+                                    @endif
+
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
@@ -2088,12 +2123,12 @@
                                                                            <small class="text-muted" style="font-size: 0.6rem;">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
                                                                        @endif
                                                                    </div>
-                                                                   @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                   {{-- @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Capacity</small>
                                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                    </div>
-                                                                   @endif
+                                                                   @endif --}}
                                                                    @php
                                                                        $attractionTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
                                                                        if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
@@ -2410,12 +2445,12 @@
                                                                            <small class="text-muted" style="font-size: 0.6rem;">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
                                                                        @endif
                                                                    </div>
-                                                                   @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                   {{-- @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
                                                                    <div class="col-12">
                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Capacity</small>
                                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
                                                                    </div>
-                                                                   @endif
+                                                                   @endif --}}
                                                                    @php
                                                                        $restaurantTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
                                                                        if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
@@ -2518,7 +2553,7 @@
 
                                    </div>
                                </div>
-                           @endforeach
+                           @endforeach 
                        @endif
                    @endforeach
                @else

@@ -109,6 +109,7 @@ class BookingsController extends Controller
                             ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -131,12 +132,21 @@ class BookingsController extends Controller
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'tours.created_by',
+                    'tours.mainguest', 
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+                foreach ($tours as $t) {
+                    \Log::info('New Enquiry guest debug', [
+                        'tour_id'        => $t->tour_id,
+                        'display_id'     => $t->display_id,
+                        'mainguest_raw'  => $t->mainguest,
+                        'customer_name'  => $t->customer_name ?? null,
+                    ]);
+                }
         }
 
         
@@ -161,6 +171,7 @@ class BookingsController extends Controller
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -183,12 +194,22 @@ class BookingsController extends Controller
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'tours.created_by',
+                    'tours.mainguest', 
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+
+            foreach ($tours as $t) {
+                \Log::info('New Enquiry guest debug (DMC scope)', [
+                    'tour_id'        => $t->tour_id,
+                    'display_id'     => $t->display_id,
+                    'mainguest_raw'  => $t->mainguest,
+                    'customer_name'  => $t->customer_name ?? null,
+                ]);
+            }
         }
 
         $enquary_comments = Enquiry::where('dmcId', $dmc_id)->get();
@@ -512,6 +533,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -525,6 +547,7 @@ class BookingsController extends Controller
                 'tours.port',
                 'tours.destination',
                 'tours.city',
+                'tours.mainguest',
                 'tours.check_in_time',
                 'tours.check_out_time',
                 'tours.tour_status',
@@ -577,6 +600,7 @@ class BookingsController extends Controller
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -590,6 +614,7 @@ class BookingsController extends Controller
                     'tours.port',
                     'tours.destination',
                     'tours.city',
+                    'tours.mainguest',
                     'tours.check_in_time',
                     'tours.check_out_time',
                     'tours.tour_status',
@@ -630,6 +655,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -681,6 +707,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -700,6 +727,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.taxes',
                 'tours.is_pro',
+                'tours.user_currency',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -739,6 +767,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -758,6 +787,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.taxes',
                 'tours.is_pro',
+                'tours.user_currency',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -797,6 +827,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -815,6 +846,8 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.payment_details',
                 'tours.taxes',
+                'tours.is_pro',
+                'tours.user_currency',
                 'tours.created_at',
                 'tours.created_by',
                 'tours.updated_at',
@@ -863,6 +896,7 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
@@ -881,6 +915,8 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.payment_details',
                 'tours.taxes',
+                'tours.is_pro',
+                'tours.user_currency',
                 'tours.created_at',
                 'tours.created_by',
                 'tours.updated_at',
@@ -908,12 +944,18 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
-            $tours = Tour::whereIn('tour_status', ['Actual', 'Complete'])
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+                ->whereIn('tour_status', ['Actual', 'Complete'])
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -932,6 +974,8 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.payment_details',
                     'tours.taxes',
+                    'tours.is_pro',
+                    'tours.user_currency',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
@@ -958,13 +1002,19 @@ class BookingsController extends Controller
         }
 
         if($dmc_id){
-            $tours = Tour::whereIn('tour_status', ['Actual', 'Complete'])
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+                ->whereIn('tour_status', ['Actual', 'Complete'])
                 ->where('tours.dmc_id', $dmc_id)
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
                     'tours.tour_type',
                     'tours.adult',
@@ -983,6 +1033,8 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.payment_details',
                     'tours.taxes',
+                    'tours.is_pro',
+                    'tours.user_currency',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
@@ -1033,11 +1085,13 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
+                'tours.mainguest',
                 'tours.hotel',
                 'tours.attraction',
                 'tours.travel',
@@ -1087,11 +1141,13 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
+                'tours.mainguest',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -1138,11 +1194,13 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
                 'tours.hotel',
+                'tours.mainguest',
                 'tours.attraction',
                 'tours.travel',
                 'tours.restaurent',
@@ -1195,11 +1253,13 @@ class BookingsController extends Controller
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
                 'tours.hotel',
+                'tours.mainguest',
                 'tours.attraction',
                 'tours.travel',
                 'tours.restaurent',
@@ -1302,6 +1362,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
@@ -1563,5 +1624,269 @@ class BookingsController extends Controller
             'order_id' => $order->booking_id,
             'qr_code' => $qrCode
         ]);
+    }
+
+    public function confirmationVoucher(Request $request, $tourId)
+    {
+        try {
+            $tourId = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            abort(404, 'Invalid tour ID');
+        }
+
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            abort(404, 'Tour not found');
+        }
+
+        $orders = Order::where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->whereNull('deleted_at')
+            ->where('is_approve', 1)
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return back()->with('error', 'No approved services found for this tour.');
+        }
+
+        $dmcUser = User::where('userId', $tour->dmc_id)->first();
+
+        $hotels = [];
+        $inclusions = [];
+        $lowestDueDate = null;
+        $totalRooms = 0;
+        $confirmationNos = [];
+        $allMealPlans = [];
+
+        $str = function ($val, $default = '') {
+            if (is_array($val) || is_object($val)) return $default;
+            return (string) ($val ?? $default);
+        };
+
+        foreach ($orders as $order) {
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($data)) continue;
+
+            foreach ($data as $booking) {
+                if (!is_array($booking)) continue;
+
+                switch ($order->type) {
+                    case 'hotel':
+                        $hotelName = $str($booking['hotelDetails']['hotel_name'] ?? ($booking['hotel_name'] ?? null), 'Hotel');
+
+                        $bookingDate = $booking['bookingDate'] ?? [];
+                        $checkIn = '';
+                        $checkOut = '';
+                        if (is_array($bookingDate) && count($bookingDate) >= 2) {
+                            $checkIn = $str($bookingDate[0]);
+                            $checkOut = $str($bookingDate[1]);
+                        } else {
+                            $checkIn = $str($booking['checkIn'] ?? ($booking['check_in_date'] ?? null));
+                            $checkOut = $str($booking['checkOut'] ?? ($booking['check_out_date'] ?? null));
+                        }
+
+                        $roomTypes = [];
+                        $hotelRooms = 0;
+                        $hotelMeals = [];
+                        $roomsArr = $booking['rooms'] ?? [];
+                        if (is_array($roomsArr)) {
+                            foreach ($roomsArr as $room) {
+                                if (!is_array($room)) continue;
+                                $rt = $str($room['room_type'] ?? null);
+                                $nr = (int) ($room['number_of_rooms'] ?? 1);
+                                $hotelRooms += $nr;
+                                if ($rt) $roomTypes[] = $rt;
+
+                                $beds = $room['beds'] ?? [];
+                                if (is_array($beds)) {
+                                    foreach ($beds as $bed) {
+                                        if (!is_array($bed)) continue;
+                                        if (isset($bed['selectedMeals']) && is_array($bed['selectedMeals'])) {
+                                            foreach ($bed['selectedMeals'] as $meal) {
+                                                if (is_array($meal) && isset($meal['type']) && is_string($meal['type'])) {
+                                                    $hotelMeals[] = $meal['type'];
+                                                }
+                                            }
+                                        } elseif (isset($bed['mealTypes']) && is_array($bed['mealTypes'])) {
+                                            foreach ($bed['mealTypes'] as $mt) {
+                                                if (is_string($mt)) $hotelMeals[] = $mt;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (empty($roomTypes)) {
+                            $rt = $str($booking['room_type'] ?? null);
+                            if ($rt) $roomTypes[] = $rt;
+                        }
+                        if ($hotelRooms === 0) {
+                            $hotelRooms = (int) ($booking['number_of_rooms'] ?? 1);
+                        }
+
+                        $totalRooms += $hotelRooms;
+                        $allMealPlans = array_merge($allMealPlans, $hotelMeals);
+
+                        $hotelDueDate = null;
+                        if ($order->display_due_date) {
+                            try {
+                                $hotelDueDate = Carbon::parse($order->display_due_date)->format('d-M-Y');
+                            } catch (\Exception $e) {}
+                        }
+
+                        $hotels[] = [
+                            'name' => $hotelName,
+                            'room_type' => implode(', ', array_filter($roomTypes)),
+                            'check_in' => $checkIn,
+                            'check_out' => $checkOut,
+                            'meal_plan' => implode(', ', array_unique($hotelMeals)),
+                            'rooms' => $hotelRooms,
+                            'due_date' => $hotelDueDate,
+                        ];
+
+                        if ($order->reference_id) {
+                            $cn = $str($order->reference_id);
+                            if ($cn) $confirmationNos[] = $cn;
+                        }
+
+                        if ($order->display_due_date) {
+                            try {
+                                $dueDate = Carbon::parse($order->display_due_date);
+                                if (!$lowestDueDate || $dueDate->lt($lowestDueDate)) {
+                                    $lowestDueDate = $dueDate;
+                                }
+                            } catch (\Exception $e) {}
+                        }
+                        break;
+
+                    case 'attraction':
+                        $name = $str($booking['AttractionName'] ?? ($booking['attraction_name'] ?? null), 'Attraction');
+                        $ticketName = $str($booking['ticketName'] ?? ($booking['ticket_name'] ?? null));
+                        $inclusions[] = $ticketName ? $name . ' (' . $ticketName . ')' : $name;
+
+                        $tf = $booking['transfer_options'] ?? null;
+                        if (is_array($tf) && !empty($tf['transfer_required'])) {
+                            $tvName = $str($tf['vehicle_name'] ?? ($tf['vehicle_details']['vehicle_name'] ?? null));
+                            $tvType = $str($tf['type'] ?? null, 'Private');
+                            $tvWay = $str($tf['way'] ?? null, 'One Way');
+                            if ($tvName) {
+                                $inclusions[] = $name . ' Transfer (' . $tvName . ' - ' . $tvType . ' - ' . $tvWay . ')';
+                            }
+                        }
+                        break;
+
+                    case 'restaurant':
+                        $name = $str($booking['restaurantName'] ?? ($booking['restaurant_name'] ?? null), 'Restaurant');
+                        $mealType = $str($booking['mealType'] ?? ($booking['meal_type'] ?? null));
+                        $inclusions[] = $mealType ? $name . ' (' . $mealType . ')' : $name;
+
+                        $tf = $booking['transfer_options'] ?? null;
+                        if (is_array($tf) && !empty($tf['transfer_required'])) {
+                            $tvName = $str($tf['vehicle_name'] ?? ($tf['vehicle_details']['vehicle_name'] ?? null));
+                            $tvType = $str($tf['type'] ?? null, 'Private');
+                            $tvWay = $str($tf['way'] ?? null, 'One Way');
+                            if ($tvName) {
+                                $inclusions[] = $name . ' Transfer (' . $tvName . ' - ' . $tvType . ' - ' . $tvWay . ')';
+                            }
+                        }
+                        break;
+
+                    case 'guide':
+                        $name = $str($booking['guide_name'] ?? null, 'Guide');
+                        $hours = $str($booking['hours'] ?? ($booking['service_hours'] ?? null));
+                        $inclusions[] = $hours ? $name . ' - ' . $hours . 'H' : $name;
+                        break;
+
+                    case 'entry_port':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transfer');
+                        $bType = $str($booking['type'] ?? null, 'Private');
+                        $pickup = $str($booking['entrypickup'] ?? null);
+                        $dropoff = $str($booking['entrydropoff'] ?? null);
+                        $label = 'Arrival Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
+                        break;
+
+                    case 'exit_port':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transfer');
+                        $bType = $str($booking['type'] ?? null, 'Private');
+                        $pickup = $str($booking['exitpickup'] ?? null);
+                        $dropoff = $str($booking['exitdropoff'] ?? null);
+                        $label = 'Departure Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
+                        break;
+
+                    case 'local_transport':
+                    case 'travel_hourly':
+                    case 'travel_point':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transport');
+                        $bType = $str($booking['type'] ?? null);
+                        $pickup = $str($booking['entrypickup'] ?? null);
+                        $dropoff = $str($booking['entrydropoff'] ?? ($booking['dropoffLocation'] ?? null));
+                        $label = $bType ? $vehicle . ' - ' . $bType : $vehicle;
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
+                        break;
+                }
+            }
+        }
+
+        $paxName = '';
+        if ($tour->mainguest) {
+            $guest = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+            if (is_array($guest)) {
+                $paxName = $str($guest['salutation'] ?? null) . ' ' . $str($guest['first_name'] ?? null) . ' ' . $str($guest['last_name'] ?? null);
+                $paxName = trim($paxName);
+            }
+        }
+        if (empty($paxName)) {
+            $paxName = $str($tour->customer_name ?? null, 'Guest');
+        }
+
+        $travelDates = '';
+        if ($tour->check_in_time && $tour->check_out_time) {
+            $travelDates = Carbon::parse($tour->check_in_time)->format('d M Y') . ' - ' . Carbon::parse($tour->check_out_time)->format('d M Y');
+        }
+
+        $adultCount = (int) ($tour->adult ?? 0);
+        $childCount = (int) ($tour->child ?? 0);
+        $infantCount = (int) ($tour->infant ?? 0);
+        $noOfPax = sprintf('%02d', $adultCount) . ' Adults';
+        if ($childCount > 0) $noOfPax .= ', ' . $childCount . ' Children';
+        if ($infantCount > 0) $noOfPax .= ', ' . $infantCount . ' Infants';
+
+        $refId = $tour->reference_id ?? $tour->display_id ?? '';
+        $referenceId = is_array($refId) ? (string) ($refId[0] ?? '') : (string) $refId;
+
+        $mealPlanSummary = !empty($allMealPlans) ? implode(', ', array_unique($allMealPlans)) : '';
+        $confirmationNo = !empty($confirmationNos) ? implode(', ', $confirmationNos) : 'na';
+
+        $voucherData = [
+            'tour' => $tour,
+            'dmcUser' => $dmcUser,
+            'hotels' => $hotels,
+            'inclusions' => $inclusions,
+            'lowestDueDate' => $lowestDueDate,
+            'paxName' => (string) $paxName,
+            'travelDates' => (string) $travelDates,
+            'noOfPax' => (string) $noOfPax,
+            'referenceId' => $referenceId,
+            'totalRooms' => $totalRooms > 0 ? (string) $totalRooms : 'na',
+            'confirmationNo' => (string) $confirmationNo,
+            'mealPlanSummary' => (string) $mealPlanSummary,
+        ];
+
+        $dompdf = new Dompdf();
+        $dompdf->set_option('isRemoteEnabled', true);
+        $dompdf->set_option('isHtml5ParserEnabled', true);
+        $html = view('bookings.voucher-pdf', $voucherData)->render();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = 'Confirmation_Voucher_' . ($tour->display_id ?? $tourId) . '.pdf';
+        return $dompdf->stream($filename, ['Attachment' => true]);
     }
 }

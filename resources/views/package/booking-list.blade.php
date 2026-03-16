@@ -799,28 +799,154 @@
 
 <div id="service-icon-global-tooltip" aria-hidden="true"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 
 <script>
-    $(document).ready(function() {
-        setTimeout(function() {
-            initializeDataTable();
-            initializeSelect2();
-            filterTable();
-        }, 200);
-    });
+    // Load Select2 dynamically after jQuery is stable
+    // This ensures Select2 attaches to the final jQuery instance (after footer loads)
+    var select2Loaded = false;
     
-    function initializeSelect2() {
-        $('#agentFilter').select2({
-            placeholder: 'All Agents',
-            allowClear: true,
-            width: '100%'
-        });
+    function loadSelect2IfNeeded(callback) {
+        // Check if Select2 script already exists
+        var existingScript = document.querySelector('script[src*="select2"]');
+        if (existingScript && select2Loaded) {
+            // Script already loaded, just wait for attachment
+            waitForSelect2Attachment(callback);
+            return;
+        }
         
-        $('#agentFilter').on('change', function() {
-            filterTable();
-        });
+        // Wait for jQuery to be stable (after footer scripts load)
+        function waitForStableJQuery() {
+            var $ = window.jQuery || window.$;
+            if (typeof $ === 'undefined') {
+                setTimeout(waitForStableJQuery, 100);
+                return;
+            }
+            
+            // jQuery is available, now load Select2
+            if (!existingScript) {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js';
+                script.onload = function() {
+                    select2Loaded = true;
+                    // Wait a moment for Select2 to attach to jQuery
+                    setTimeout(function() {
+                        waitForSelect2Attachment(callback);
+                    }, 200);
+                };
+                script.onerror = function() {
+                    console.error('Failed to load Select2 script');
+                };
+                document.head.appendChild(script);
+            } else {
+                // Script exists, wait for it to load and attach
+                waitForSelect2Attachment(callback);
+            }
+        }
+        
+        // Wait a bit for footer scripts to finish loading
+        setTimeout(waitForStableJQuery, 500);
+    }
+    
+    function waitForSelect2Attachment(callback, maxAttempts) {
+        maxAttempts = maxAttempts || 30;
+        var attempts = 0;
+        
+        function check() {
+            attempts++;
+            var $ = window.jQuery || window.$;
+            
+            if (typeof $ === 'undefined') {
+                if (attempts < maxAttempts) {
+                    setTimeout(check, 100);
+                }
+                return;
+            }
+            
+            if (typeof $.fn !== 'undefined' && typeof $.fn.select2 !== 'undefined') {
+                callback($);
+            } else if (attempts < maxAttempts) {
+                setTimeout(check, 100);
+            } else {
+                console.error('Select2 did not attach to jQuery after ' + maxAttempts + ' attempts');
+                console.log('jQuery version:', $.fn ? $.fn.jquery : 'unknown');
+            }
+        }
+        
+        check();
+    }
+    
+    // Initialize when DOM is ready
+    (function() {
+        function init() {
+            // Wait for jQuery to be available first
+            if (typeof window.jQuery === 'undefined' && typeof window.$ === 'undefined') {
+                setTimeout(init, 50);
+                return;
+            }
+            
+            var $ = window.jQuery || window.$;
+            
+            $(document).ready(function() {
+                setTimeout(function() {
+                    initializeDataTable();
+                    
+                    // Load Select2 and wait for it to attach to jQuery
+                    loadSelect2IfNeeded(function($) {
+                        initializeSelect2($);
+                    });
+                    
+                    filterTable();
+                }, 300);
+            });
+        }
+        
+        // Start initialization
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    
+    function initializeSelect2($) {
+        // Use the jQuery instance passed in
+        $ = $ || (window.jQuery || window.$);
+        
+        // Final check
+        if (typeof $ === 'undefined' || typeof $.fn === 'undefined' || typeof $.fn.select2 === 'undefined') {
+            console.error('Select2 not available. jQuery:', typeof $ !== 'undefined', 'Select2:', typeof $ !== 'undefined' && typeof $.fn !== 'undefined' && typeof $.fn.select2 !== 'undefined');
+            return;
+        }
+        
+        // Check if element exists
+        var $agentFilter = $('#agentFilter');
+        if ($agentFilter.length === 0) {
+            console.warn('agentFilter element not found');
+            return;
+        }
+        
+        // Check if already initialized
+        if ($agentFilter.hasClass('select2-hidden-accessible')) {
+            return;
+        }
+        
+        try {
+            $agentFilter.select2({
+                placeholder: 'All Agents',
+                allowClear: true,
+                width: '100%'
+            });
+            
+            $agentFilter.on('change', function() {
+                filterTable();
+            });
+            
+            console.log('Select2 initialized successfully on element:', $agentFilter.attr('id'));
+        } catch (error) {
+            console.error('Error initializing Select2:', error);
+            console.error('Error stack:', error.stack);
+        }
     }
 
     var table;

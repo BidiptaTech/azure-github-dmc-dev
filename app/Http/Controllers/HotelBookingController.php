@@ -741,7 +741,9 @@ class HotelBookingController extends Controller
                         'qr_code' => $restaurantOrder->qr_code ?? null,
                         'restaurant_details' => $booking, // This contains the full JSON data
                         // Transfer Options
-                        'transfer_options' => $booking['transfer_options'] ?? null
+                        'transfer_options' => $booking['transfer_options'] ?? null,
+                        // Guide Options (if any guide is attached to this restaurant booking)
+                        'guide_options' => $booking['guide_options'] ?? null,
                     ],
                     'dmc' => $dmc,
                 ]
@@ -1188,6 +1190,9 @@ class HotelBookingController extends Controller
                         // Room details
                         'rooms' => $booking['rooms'] ?? [],
                         'hotel_details' => $booking['hotelDetails'] ?? [],
+                        // Child accommodation
+                        'child_with_bed' => $booking['child_with_bed'] ?? null,
+                        'child_without_bed' => $booking['child_without_bed'] ?? null,
                         // Transfer Options
                         'transfer_options' => $booking['transfer_options'] ?? null,
                         // Approval status

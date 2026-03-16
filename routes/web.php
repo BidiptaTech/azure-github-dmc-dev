@@ -946,6 +946,7 @@ Route::get('/clear', function () {
             Route::post('/invoices/{invoiceId}/convert-to-final', [InvoiceController::class, 'convertToFinal'])->name('invoices.convert-to-final');
             Route::post('/invoices/tour/{tourId}/handle-cancellation', [InvoiceController::class, 'handleCancellation'])->name('invoices.handle-cancellation');
         Route::get('/bookings/export-tour-pdf/{tourId}', [BookingsController::class, 'exportTourPDF'])->name('bookings.export-tour-pdf');
+        Route::get('/bookings/confirmation-voucher/{tourId}', [BookingsController::class, 'confirmationVoucher'])->name('bookings.confirmation-voucher');
         Route::post('/bookings/cancel-tour/{tourId}', [BookingsController::class, 'cancelTour'])->name('bookings.cancel-tour');
         Route::post('/bookings/{encryptedId}/save-qr', [BookingsController::class, 'saveQrCode'])->name('bookings.save-qr');
         Route::post('/booking/approve-hotel-booking', [HotelBookingController::class, 'approveHotelBooking'])->name('booking.approve.hotel.booking');
