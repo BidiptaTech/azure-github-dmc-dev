@@ -900,7 +900,23 @@ class SingleTourPackageController extends Controller
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
             if($request->enquiry_id){
-                EnquiryForm::where('enquiry_id', $request->enquiry_id)->update(['unique_tour_id' => $thisTour->unique_tour_id]);
+                $enquiryUpdate = ['unique_tour_id' => $thisTour->unique_tour_id];
+                if ($request->has('hotel_remarks')) {
+                    $enquiryUpdate['hotel_remarks'] = $request->hotel_remarks;
+                }
+                if ($request->has('attraction_remarks')) {
+                    $enquiryUpdate['attraction_remarks'] = $request->attraction_remarks;
+                }
+                if ($request->has('restaurant_remarks')) {
+                    $enquiryUpdate['restaurant_remarks'] = $request->restaurant_remarks;
+                }
+                if ($request->has('guide_remarks')) {
+                    $enquiryUpdate['guide_remarks'] = $request->guide_remarks;
+                }
+                if ($request->has('port_remarks')) {
+                    $enquiryUpdate['pickup_remarks'] = $request->port_remarks;
+                }
+                EnquiryForm::where('enquiry_id', $request->enquiry_id)->update($enquiryUpdate);
             }
             $cities = City::where('country', $request->user_country)->get();
             
