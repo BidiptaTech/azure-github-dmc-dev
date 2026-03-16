@@ -782,6 +782,38 @@
                                     @else
                                         <small class="text-muted">Check-in/out: Not specified</small>
                                     @endif
+
+                                    @php
+                                        $mainGuest = $tour->mainguest;
+                                        if (is_string($mainGuest)) {
+                                            $mainGuest = json_decode($mainGuest, true) ?: [];
+                                        }
+
+                                        $leadGuestName = null;
+                                        if (is_array($mainGuest)) {
+                                            $salutation = trim($mainGuest['salutation'] ?? '');
+                                            // Prefer full_name if present (matches logged structure)
+                                            $fullName   = trim($mainGuest['full_name'] ?? '');
+                                            $firstName  = trim($mainGuest['first_name'] ?? '');
+                                            $lastName   = trim($mainGuest['last_name'] ?? '');
+
+                                            if (!empty($fullName)) {
+                                                $leadGuestName = trim($salutation . ' ' . $fullName);
+                                            } else {
+                                                $leadGuestName = trim($salutation . ' ' . $firstName . ' ' . $lastName);
+                                            }
+                                        }
+
+                                        if (empty($leadGuestName) && !empty($tour->customer_name)) {
+                                            $leadGuestName = $tour->customer_name;
+                                        }
+                                    @endphp
+
+                                    @if(!empty($leadGuestName))
+                                        <small class="text-secondary">
+                                            <i class="ri-user-line me-1"></i>{{ $leadGuestName }}
+                                        </small>
+                                    @endif
                                 </div>
                             </td>
                             <td class="align-top">
