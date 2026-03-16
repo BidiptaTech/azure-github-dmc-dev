@@ -699,6 +699,7 @@
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
                             data-child="{{ (int)($tour->child ?? 0) }}"
                             data-tour-id="{{ $tour->tour_id }}"
+                            data-is-pro="{{ $tour->is_pro ?? 0 }}"
                             data-check-in="{{ $tour->check_in_time }}"
                             data-check-out="{{ $tour->check_out_time }}"
                         >
@@ -777,12 +778,16 @@
                                             'travel_hourly' => 0,
                                             'travel_point' => 0,
                                             'local_transport' => 0,
+                                            'miscellaneous' => 0,
                                         ];
                                         $serviceData = [];
                                         
-                                        // Group orders by type and count them
+                                        // Group orders by type and count them (miscellaneous only when is_pro)
                                         foreach($orders as $order) {
                                             $type = $order->type;
+                                            if ($type === 'miscellaneous' && (isset($tour->is_pro) ? (int)$tour->is_pro : 0) != 1) {
+                                                continue;
+                                            }
                                             if(isset($svc[$type])) {
                                                 $svc[$type]++;
                                                 if(!isset($serviceData[$type])) {
@@ -808,6 +813,7 @@
                                             'travel_hourly' => 'ri-time-line',
                                             'travel_point' => 'ri-route-line',
                                             'local_transport' => 'ri-car-line',
+                                            'miscellaneous' => 'ri-list-check-2',
                                         ];
                                         $serviceLabels = [
                                             'hotel' => 'Hotel',
@@ -819,6 +825,7 @@
                                             'travel_hourly' => 'Local-Tour Hourly',
                                             'travel_point' => 'Local-Tour Point to Point',
                                             'local_transport' => 'Local Transport',
+                                            'miscellaneous' => 'Miscellaneous',
                                         ];
                                         $serviceColors = [
                                             'hotel' => '#4338ca',
@@ -830,6 +837,7 @@
                                             'travel_hourly' => '#b45309',
                                             'travel_point' => '#5b21b6',
                                             'local_transport' => '#334155',
+                                            'miscellaneous' => '#7c3aed',
                                         ];
                                     @endphp
                                     <div class="services-icons-wrap">
@@ -1028,6 +1036,26 @@
                                                         @endif
                                                     @endforeach
                                                 @endif
+                                            @elseif($key === 'miscellaneous')
+                                                {{-- Miscellaneous (is_pro only): single icon with count --}}
+                                                @php
+                                                    $label = $serviceLabels[$key] ?? 'Miscellaneous';
+                                                    $tooltipText = $label . ': ' . $count;
+                                                    $isMiscApproved = false;
+                                                    if(isset($serviceData[$key])) {
+                                                        foreach($serviceData[$key] as $miscOrder) {
+                                                            if($miscOrder->is_approve == 1) { $isMiscApproved = true; break; }
+                                                        }
+                                                    }
+                                                @endphp
+                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
+                                                    <span class="service-icon-badge @if($isMiscApproved) service-icon-badge-approved @endif" style="--service-color: {{ $bgColor }};" data-clickable="true" role="button" tabindex="0"
+                                                          onclick="openServiceModal('miscellaneous', {{ $tour->tour_id }}, event)"
+                                                          data-debug-info="{{ json_encode($debugInfo) }}">
+                                                        <i class="{{ $icons[$key] }}"></i>
+                                                    </span>
+                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
+                                                </span>
                                             @elseif(in_array($key, ['entry_port', 'exit_port']))
                                                 {{-- Entry/exit port: single icon with count (uses openServiceModal) --}}
                                                 @php
@@ -1063,18 +1091,38 @@
                             @php /* $svc and $serviceData kept in scope for modals below */ @endphp
                             <td class="align-top col-payment-status">
                                 @php
-                                    // Calculate payment details
+                                    // Calculate payment details (match proforma: is_pro transfer, guide when is_pro, hotel transfer once per order)
                                     $tourTotalPrice = 0;
-                                    foreach ($tour->booking as $booking) {
-                                        if (in_array($booking->status, [1, 2, 3])) {
-                                            $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
-                                            if (is_array($data)) {
-                                                foreach ($data as $item) {
-                                                    $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-                                                    $transferPrice = isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0 ? (float) $item['transfer_options']['cost'] : 0;
-                                                    $guidePrice = isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0 ? (float) $item['guide_options']['total_price'] : 0;
-                                                    $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
+                                    $isProPayment = (int)($tour->is_pro ?? 0);
+                                    foreach ($tour->booking as $order) {
+                                        if (!in_array($order->status, [1, 2, 3])) continue;
+                                        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                                        if (!is_array($data)) continue;
+                                        $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
+                                        $orderType = $order->type ?? '';
+
+                                        if ($orderType === 'hotel') {
+                                            $orderTotal = 0;
+                                            foreach ($items as $item) {
+                                                if (!is_array($item)) continue;
+                                                $orderTotal += (float)($item['totalPrice'] ?? $item['price'] ?? 0);
+                                            }
+                                            $tourTotalPrice += $orderTotal;
+                                        } else {
+                                            foreach ($items as $item) {
+                                                if (!is_array($item)) continue;
+                                                $itemPrice = (float)($item['totalPrice'] ?? $item['price'] ?? 0);
+                                                $transferPrice = 0;
+                                                $to = $item['transfer_options'] ?? $item['transferOptions'] ?? null;
+                                                if ($to && is_array($to)) {
+                                                    $transferPrice = $isProPayment ? (float)($to['totalPrice'] ?? $to['cost'] ?? 0) : (float)($to['cost'] ?? 0);
                                                 }
+                                                $guidePrice = 0;
+                                                $go = $item['guide_options'] ?? null;
+                                                if ($go && is_array($go)) {
+                                                    $guidePrice = (float)($go['total_price'] ?? $go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
+                                                }
+                                                $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                             }
                                         }
                                     }
@@ -1288,6 +1336,13 @@
                                        data-tooltip="Add Guests">
                                         <i class="ri-user-add-line"></i>
                                     </a>
+                                    <a href="{{ route('bookings.confirmation-voucher', Crypt::encrypt($tour->tour_id)) }}" 
+                                       class="action-icon-badge" 
+                                       style="--action-color: #7c3aed;"
+                                       data-tooltip="Confirmation Voucher"
+                                       target="_blank">
+                                        <i class="ri-file-download-line"></i>
+                                    </a>
                                     <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
                                             class="action-icon-badge" 
                                             style="--action-color: #dc3545;"
@@ -1398,11 +1453,15 @@
             'travel_hourly' => 0,
             'travel_point' => 0,
             'local_transport' => 0,
+            'miscellaneous' => 0,
         ];
         $serviceData = [];
-        
+        $isProForModals = (int)($tour->is_pro ?? 0);
         foreach($orders as $order) {
             $type = $order->type;
+            if ($type === 'miscellaneous' && $isProForModals != 1) {
+                continue;
+            }
             if(isset($svc[$type])) {
                 $svc[$type]++;
                 if(!isset($serviceData[$type])) {
@@ -1664,6 +1723,79 @@
                                                     <span class="badge" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); color: white; font-size: 0.8rem;">{{ count($booking['rooms']) }} room(s) • Total {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
                                                 </div>
                                             </div>
+                                        @endif
+
+                                        <!-- Child Accommodation (child_with_bed / child_without_bed) -->
+                                        @php
+                                            $hotelNights = 0;
+                                            if (isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 1) {
+                                                $checkIn = \Carbon\Carbon::parse($booking['bookingDate'][0]);
+                                                $checkOut = \Carbon\Carbon::parse(end($booking['bookingDate']));
+                                                $hotelNights = $checkIn->diffInDays($checkOut);
+                                            }
+                                            // Check if child accommodation data exists (with or without enabled flag)
+                                            $hasChildWithBed = isset($booking['child_with_bed']) && is_array($booking['child_with_bed']) && (
+                                                (isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled']) ||
+                                                (isset($booking['child_with_bed']['price']) && $booking['child_with_bed']['price'] > 0) ||
+                                                (isset($booking['child_with_bed']['children']) && $booking['child_with_bed']['children'] > 0)
+                                            );
+                                            $hasChildWithoutBed = isset($booking['child_without_bed']) && is_array($booking['child_without_bed']) && (
+                                                (isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled']) ||
+                                                (isset($booking['child_without_bed']['price']) && $booking['child_without_bed']['price'] > 0) ||
+                                                (isset($booking['child_without_bed']['children']) && $booking['child_without_bed']['children'] > 0)
+                                            );
+                                        @endphp
+                                        @if($hasChildWithBed || $hasChildWithoutBed)
+                                        <div class="bg-light rounded p-2 mb-2">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-add-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Child Accommodation</h6>
+                                            </div>
+                                            <div class="row g-2">
+                                                @if($hasChildWithBed)
+                                                @php
+                                                    $cwb = $booking['child_with_bed'];
+                                                    $cwbPrice = (float)($cwb['price'] ?? 0);
+                                                    $cwbChildren = (int)($cwb['children'] ?? 0);
+                                                    $cwbTotal = isset($cwb['total_cost']) ? (float)$cwb['total_cost'] : ($cwbPrice * $cwbChildren * $hotelNights);
+                                                @endphp
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
+                                                        <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-bed-line me-1" style="font-size: 0.8rem;"></i>Child with Bed</div>
+                                                        <div class="row g-1">
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($cwbPrice, 2) }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwbChildren }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
+                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($cwbTotal, 2) }}</div></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                                @if($hasChildWithoutBed)
+                                                @php
+                                                    $cwob = $booking['child_without_bed'];
+                                                    $cwobPrice = (float)($cwob['price'] ?? 0);
+                                                    $cwobChildren = (int)($cwob['children'] ?? 0);
+                                                    $cwobTotal = isset($cwob['total_cost']) ? (float)$cwob['total_cost'] : ($cwobPrice * $cwobChildren * $hotelNights);
+                                                @endphp
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
+                                                        <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>Child without Bed</div>
+                                                        <div class="row g-1">
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($cwobPrice, 2) }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwobChildren }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
+                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($cwobTotal, 2) }}</div></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                            </div>
+                                        </div>
                                         @endif
 
                                         <!-- Transfer (compact) -->
@@ -2626,6 +2758,85 @@
                                             </div>
                                         </div>
 
+                                        <!-- Guide Options (for restaurant with attached guide booking) -->
+                                        @if(isset($booking['guide_options']) && is_array($booking['guide_options']) && (isset($booking['guide_options']['guideId']) || isset($booking['guide_options']['guide_id']) || isset($booking['guide_options']['guideName']) || isset($booking['guide_options']['guide_name']) || isset($booking['guide_options']['name'])))
+                                        <div class="bg-light rounded p-2 mb-3">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">Guide Details</h6>
+                                            </div>
+                                            <div class="row g-2">
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-2 h-100">
+                                                        <div class="row g-1">
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                                                <div class="fw-medium" style="font-size: 0.8rem;">
+                                                                    <i class="ri-user-voice-line me-1"></i>{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
+                                                                <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Language</small>
+                                                                <span class="badge bg-success" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                            </div>
+                                                            @if(isset($booking['guide_options']['tourActivity']) || isset($booking['guide_options']['tour_activity']) || isset($booking['guide_options']['Activity']))
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Tour Activity</small>
+                                                                <div class="fw-medium text-primary" style="font-size: 0.8rem;">
+                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['guide_options']['tourActivity'] ?? $booking['guide_options']['tour_activity'] ?? $booking['guide_options']['Activity'] ?? 'N/A' }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-2 h-100">
+                                                        <div class="row g-1">
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Service Hours</small>
+                                                                <div class="fw-medium" style="font-size: 0.8rem;">
+                                                                    <i class="ri-time-line me-1"></i>{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} Hours
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Group Size</small>
+                                                                <div class="row g-1">
+                                                                    <div class="col-6">
+                                                                        <div class="bg-light rounded p-1 text-center border">
+                                                                            <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $booking['guide_options']['adultsQty'] ?? $booking['guide_options']['adults_qty'] ?? $booking['guide_options']['adultQty'] ?? $booking['guide_options']['adult_qty'] ?? 0 }}</div>
+                                                                            <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-6">
+                                                                        <div class="bg-light rounded p-1 text-center border">
+                                                                            <div class="fw-bold text-warning" style="font-size: 0.8rem;">{{ $booking['guide_options']['childQty'] ?? $booking['guide_options']['child_qty'] ?? $booking['guide_options']['childrenQty'] ?? $booking['guide_options']['children_qty'] ?? 0 }}</div>
+                                                                            <small class="text-muted" style="font-size: 0.55rem;">Children</small>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['guide_options']['cost']) || isset($booking['guide_options']['Cost']) || isset($booking['guide_options']['sell']) || isset($booking['guide_options']['Sell']))
+                                                            <div class="col-12">
+                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Cost</small>
+                                                                <div class="fw-bold" style="font-size: 0.85rem; color: #00cec9;">
+                                                                    {{ $currency }} {{ number_format((float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0), 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+
                                         <!-- Pricing Overview -->
                                         <div class="bg-light rounded p-2 mb-3">
                                             <div class="d-flex align-items-center mb-2">
@@ -3215,6 +3426,13 @@
                             @php $actualBookingIndex = 0; @endphp
                             @foreach($entryData as $originalKey => $booking)
                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                @php
+                                    $entryCardTotal = (float)($booking['totalPrice'] ?? 0);
+                                    if ($tour->is_pro == 1 && !empty($booking['guide_options']) && is_array($booking['guide_options'])) {
+                                        $go = $booking['guide_options'];
+                                        $entryCardTotal += (float)($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
+                                    }
+                                @endphp
                                 <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #00b894 !important;">
                                     <!-- Compact Card Header -->
                                     <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #00b894 0%, #55a3ff 100%);">
@@ -3227,7 +3445,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                    {{ $currency }} {{ number_format($entryCardTotal, 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3330,6 +3548,43 @@
                                                 <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrydropoff'] ?? 'Dropoff', 15) }}</span>
                                             </div>
                                         </div>
+
+                                        @if($tour->is_pro == 1 && !empty($booking['guide_options']['guide_required']) && (isset($booking['guide_options']['guide_name']) || isset($booking['guide_options']['guideName']) || isset($booking['guide_options']['name'])))
+                                        <!-- Arrival with Guide (is_pro only) -->
+                                        <div class="bg-light rounded p-2 mb-2" style="border-left: 3px solid #fd9853;">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Arrival with Guide</h6>
+                                            </div>
+                                            @php $go = $booking['guide_options'] ?? []; @endphp
+                                            <div class="row g-1">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $go['guide_name'] ?? $go['guideName'] ?? $go['name'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Hours</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $go['hours'] ?? $go['service_hours'] ?? 'N/A' }}H</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Activity</small>
+                                                    <div class="fw-medium text-truncate" style="font-size: 0.7rem;" title="{{ $go['tour_activity'] ?? $go['tourActivity'] ?? $go['Activity'] ?? '' }}">{{ $go['tour_activity'] ?? $go['tourActivity'] ?? $go['Activity'] ?? 'N/A' }}</div>
+                                                </div>
+                                                @if(!empty($go['language']) || !empty($go['languages']))
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Language(s)</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ is_array($go['languages'] ?? null) ? implode(', ', $go['languages']) : ($go['language'] ?? $go['languages'] ?? 'N/A') }}</div>
+                                                </div>
+                                                @endif
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
+                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0), 2) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
 
                                         <!-- Vehicle & Location Information -->
                                         <div class="row mb-2 g-2">
@@ -3499,6 +3754,13 @@
                         @if(is_array($exitData))
                             @php $actualBookingIndex = 0; @endphp
                             @foreach($exitData as $bookingIndex => $booking)
+                                @php
+                                    $exitCardTotal = (float)($booking['totalPrice'] ?? 0);
+                                    if ($tour->is_pro == 1 && !empty($booking['guide_options']) && is_array($booking['guide_options'])) {
+                                        $go = $booking['guide_options'];
+                                        $exitCardTotal += (float)($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
+                                    }
+                                @endphp
                                 <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #fd7f6f !important;">
                                     <!-- Compact Card Header -->
                                     <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #fd7f6f 0%, #feb47b 100%);">
@@ -3511,7 +3773,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
+                                                    {{ $currency }} {{ number_format($exitCardTotal, 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3614,6 +3876,43 @@
                                                 <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['exitdropoff'] ?? 'Dropoff', 15) }}</span>
                                             </div>
                                         </div>
+
+                                        @if($tour->is_pro == 1 && !empty($booking['guide_options']['guide_required']) && (isset($booking['guide_options']['guide_name']) || isset($booking['guide_options']['guideName']) || isset($booking['guide_options']['name'])))
+                                        <!-- Departure with Guide (is_pro only) -->
+                                        <div class="bg-light rounded p-2 mb-2" style="border-left: 3px solid #fd9853;">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Departure with Guide</h6>
+                                            </div>
+                                            @php $go = $booking['guide_options'] ?? []; @endphp
+                                            <div class="row g-1">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $go['guide_name'] ?? $go['guideName'] ?? $go['name'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Hours</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $go['hours'] ?? $go['service_hours'] ?? 'N/A' }}H</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Activity</small>
+                                                    <div class="fw-medium text-truncate" style="font-size: 0.7rem;" title="{{ $go['tour_activity'] ?? $go['tourActivity'] ?? $go['Activity'] ?? '' }}">{{ $go['tour_activity'] ?? $go['tourActivity'] ?? $go['Activity'] ?? 'N/A' }}</div>
+                                                </div>
+                                                @if(!empty($go['language']) || !empty($go['languages']))
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Language(s)</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ is_array($go['languages'] ?? null) ? implode(', ', $go['languages']) : ($go['language'] ?? $go['languages'] ?? 'N/A') }}</div>
+                                                </div>
+                                                @endif
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
+                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0), 2) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
 
                                         <!-- Vehicle & Location Information -->
                                         <div class="row mb-2 g-2">
@@ -3756,6 +4055,116 @@
         </div>
     </div>
     @endif
+
+    <!-- Miscellaneous Details Modal (is_pro only) -->
+    @if(isset($svc['miscellaneous']) && $svc['miscellaneous'] > 0 && isset($serviceData['miscellaneous']) && count($serviceData['miscellaneous']) > 0)
+    <div class="modal fade" id="miscellaneousDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="miscellaneousDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header border-0 py-2 px-3" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
+                        <div class="text-white">
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-file-list-3-line me-1" style="font-size: 0.9rem;"></i>Miscellaneous - Tour #{{ $tour->tour_id }}
+                            </h6>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('miscellaneous', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
+                    @foreach($serviceData['miscellaneous'] as $index => $miscOrder)
+                        @php $miscData = is_string($miscOrder->data) ? json_decode($miscOrder->data, true) : $miscOrder->data; @endphp
+                        @if(is_array($miscData))
+                            @php $miscItems = (isset($miscData[0]) && is_array($miscData[0])) ? $miscData : [$miscData]; @endphp
+                            @foreach($miscItems as $booking)
+                                @if(is_array($booking))
+                                <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #7c3aed !important;">
+                                    <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);">
+                                        <div class="row align-items-center g-1">
+                                            <div class="col-md-8">
+                                                <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                                                    <i class="ri-file-list-3-line me-1"></i>{{ $booking['itemName'] ?? $booking['item_name'] ?? 'Miscellaneous Item' }}
+                                                </h6>
+                                                <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</small>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? $booking['total_price'] ?? 0), 2) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-2" style="background-color: #ffffff;">
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Item</small>
+                                                    <div class="fw-medium" style="font-size: 0.85rem;">{{ $booking['itemName'] ?? $booking['item_name'] ?? 'N/A' }}</div>
+                                                    <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Date</small>
+                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2">
+                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Pax</small>
+                                                    <div class="row g-1">
+                                                        <div class="col-4 text-center">
+                                                            <div class="bg-white rounded p-1 border">
+                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adultsQty'] ?? $booking['adults_qty'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-4 text-center">
+                                                            <div class="bg-white rounded p-1 border">
+                                                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['childQty'] ?? $booking['child_qty'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.6rem;">Child</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-4 text-center">
+                                                            <div class="bg-white rounded p-1 border">
+                                                                <div class="fw-bold text-info" style="font-size: 0.9rem;">{{ $booking['infantQty'] ?? $booking['infant_qty'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.6rem;">Infant</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="bg-light rounded p-2">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <i class="ri-money-dollar-circle-line text-primary me-2" style="font-size: 0.9rem;"></i>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing</h6>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center py-1">
+                                                <span class="text-muted" style="font-size: 0.8rem;">Total</span>
+                                                <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? $booking['total_price'] ?? 0), 2) }}</span>
+                                            </div>
+                                            @if(isset($booking['adultSell']) || isset($booking['adult_sell']) || isset($booking['childSell']) || isset($booking['child_sell']) || isset($booking['infantSell']) || isset($booking['infant_sell']))
+                                            <small class="text-muted" style="font-size: 0.7rem;">Adult: {{ $booking['adultSell'] ?? $booking['adult_sell'] ?? 0 }} / Child: {{ $booking['childSell'] ?? $booking['child_sell'] ?? 0 }} / Infant: {{ $booking['infantSell'] ?? $booking['infant_sell'] ?? 0 }}</small>
+                                            @endif
+                                        </div>
+                                        @if(!empty($booking['city']) || !empty($booking['country']))
+                                        <div class="mt-2">
+                                            <small class="text-muted" style="font-size: 0.65rem;">Location</small>
+                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? '' }}{{ !empty($booking['city']) && !empty($booking['country']) ? ', ' : '' }}{{ $booking['country'] ?? '' }}</div>
+                                        </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+                            @endforeach
+                        @endif
+                    @endforeach
+                </div>
+                <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                    <div class="d-flex gap-2 w-100 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('miscellaneous', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
+                            <i class="ri-close-line me-1"></i>Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 @endforeach
 
 <!-- Payment Processing Overlay -->
@@ -3767,30 +4176,40 @@
 <!-- Payment Modals for each tour -->
 @foreach($tours as $tour)
     @php
-        // Recalculate payment details for modals
-        // Includes: base price + transfer price + guide price (for attractions)
+        // Recalculate payment details for modals (match proforma: is_pro transfer totalPrice vs cost, guide when is_pro, hotel transfer once per order)
         $tourTotalPrice = 0;
-        foreach ($tour->booking as $booking) {
-            if (in_array($booking->status, [1, 2, 3])) {
-                $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
-                if (is_array($data)) {
-                    foreach ($data as $item) {
-                        $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-                        
-                        // Add transfer price if exists
-                        $transferPrice = 0;
-                        if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                            $transferPrice = (float) $item['transfer_options']['cost'];
-                        }
-                        
-                        // Add guide price if exists (for attractions)
-                        $guidePrice = 0;
-                        if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
-                            $guidePrice = (float) $item['guide_options']['total_price'];
-                        }
-                        
-                        $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
+        $isProPayment = (int)($tour->is_pro ?? 0);
+        foreach ($tour->booking as $order) {
+            if (!in_array($order->status, [1, 2, 3])) continue;
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($data)) continue;
+            $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
+            $orderType = $order->type ?? '';
+
+            if ($orderType === 'hotel') {
+                // Hotel: sum each booking totalPrice (room + child with bed + child without bed) only - no transfer in add payment
+                $orderTotal = 0;
+                foreach ($items as $item) {
+                    if (!is_array($item)) continue;
+                    $orderTotal += (float)($item['totalPrice'] ?? $item['price'] ?? 0);
+                }
+                $tourTotalPrice += $orderTotal;
+            } else {
+                // Other types: per-item base + transfer (is_pro totalPrice else cost) + guide (both is_pro 0 and 1 when present)
+                foreach ($items as $item) {
+                    if (!is_array($item)) continue;
+                    $itemPrice = (float)($item['totalPrice'] ?? $item['price'] ?? 0);
+                    $transferPrice = 0;
+                    $to = $item['transfer_options'] ?? $item['transferOptions'] ?? null;
+                    if ($to && is_array($to)) {
+                        $transferPrice = $isProPayment ? (float)($to['totalPrice'] ?? $to['cost'] ?? 0) : (float)($to['cost'] ?? 0);
                     }
+                    $guidePrice = 0;
+                    $go = $item['guide_options'] ?? null;
+                    if ($go && is_array($go)) {
+                        $guidePrice = (float)($go['total_price'] ?? $go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
+                    }
+                    $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                 }
             }
         }
@@ -3824,6 +4243,7 @@
             }
         }
         $remainingAmount = $finalAmount - $totalPaid;
+        $tourCurrency = $tour->user_currency ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
     @endphp
 
     <!-- Payment Details Modal -->
@@ -4038,17 +4458,20 @@
                             <label class="form-label fw-bold">
                                 <i class="fas fa-info-circle text-info me-2"></i>Payment Information
                             </label>
+                            <div class="mb-2">
+                                <small class="text-muted">Tour currency: <strong>{{ $tourCurrency }}</strong></small>
+                            </div>
                             <div class="alert alert-info">
                                 <!-- Pricing Breakdown -->
                                 @if($discountAmount > 0)
                                 <div class="row text-center mb-2">
                                     <div class="col-6">
                                         <small class="text-muted">Actual Price</small>
-                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Discount</small>
-                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                 </div>
                                 <hr class="my-2">
@@ -4056,7 +4479,7 @@
                                 <div class="row text-center mb-2">
                                     <div class="col-4">
                                         <small class="text-muted">Base Amount</small>
-                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted" 
@@ -4065,7 +4488,7 @@
                                             @endif>
                                             Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif
                                         </small>
-                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} {{ $tourCurrency }}</div>
                                         @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
                                             <div style="font-size: 0.7rem; margin-top: 2px;">
                                                 @foreach($taxBreakdown as $taxName => $taxVal)
@@ -4076,18 +4499,18 @@
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>
-                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                 </div>
                                 <hr class="my-2">
                                 <div class="row text-center">
                                     <div class="col-6">
                                         <small class="text-muted">Paid Amount</small>
-                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Remaining</small>
-                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} {{ $currency }}</div>
+                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -8530,6 +8953,9 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                     hotelData.rooms[0].beds[0].bed_type || 'N/A' : 'N/A',
                 mealPlan: hotelData.rooms && hotelData.rooms.length > 0 && hotelData.rooms[0].beds && hotelData.rooms[0].beds.length > 0 && hotelData.rooms[0].beds[0].mealTypes && hotelData.rooms[0].beds[0].mealTypes.length > 0 ? 
                     hotelData.rooms[0].beds[0].mealTypes[0] : 'Room Only',
+                // Child accommodation
+                childWithBed: hotelData.child_with_bed || hotelData.childWithBed || null,
+                childWithoutBed: hotelData.child_without_bed || hotelData.childWithoutBed || null,
                 // Transfer Options
                 transferOptions: hotelData.transfer_options || null,
                 // Approval status
@@ -8544,6 +8970,8 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
             console.log('🔍 Transfer options in hotel booking:', hotelBooking.transferOptions);
             console.log('🔍 Transfer required value:', hotelBooking.transferOptions?.transfer_required);
             console.log('🔍 Transfer required type:', typeof hotelBooking.transferOptions?.transfer_required);
+            console.log('👶 Child with bed data:', hotelBooking.childWithBed);
+            console.log('👶 Child without bed data:', hotelBooking.childWithoutBed);
             generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
         } else {
             console.error('❌ Hotel data fetch failed', data);
@@ -8711,10 +9139,10 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
                                     <div class="fw-medium" style="font-size: 0.8rem;">${hotelBooking.transferOptions.vehicle_id}</div>
                                 ` : ''}
-                                ${hotelBooking.transferOptions.cost && hotelBooking.transferOptions.cost > 0 ? `
+                                ${hotelBooking.transferOptions.totalPrice && hotelBooking.transferOptions.totalPrice > 0 ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.transferOptions.cost).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.transferOptions.totalPrice).toFixed(2)}</div>
                                 </div>
                                 ` : ''}
                             </div>
@@ -8745,6 +9173,95 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                     </div>
                  
                 </div>
+
+                <!-- Child Accommodation (child_with_bed / child_without_bed) -->
+                ${(hotelBooking.childWithBed && (hotelBooking.childWithBed.enabled || hotelBooking.childWithBed.price > 0 || hotelBooking.childWithBed.children > 0)) || (hotelBooking.childWithoutBed && (hotelBooking.childWithoutBed.enabled || hotelBooking.childWithoutBed.price > 0 || hotelBooking.childWithoutBed.children > 0)) ? `
+                <div class="bg-light rounded p-2 mb-3 mt-2">
+                    <div class="d-flex align-items-center mb-1">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-user-add-line text-white" style="font-size: 0.8rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Child Accommodation</h6>
+                    </div>
+                    <div class="row g-2">
+                        ${hotelBooking.childWithBed && (hotelBooking.childWithBed.enabled || hotelBooking.childWithBed.price > 0 || hotelBooking.childWithBed.children > 0) ? `
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2 border h-100" style="border-color: #667eea !important;">
+                                <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;">
+                                    <i class="ri-bed-line me-1" style="font-size: 0.8rem;"></i>Child with Bed
+                                </div>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Status</small>
+                                        <div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Price/Night</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.childWithBed.price || 0).toFixed(2)}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Children</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${hotelBooking.childWithBed.children || 0}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Nights</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${typeof hotelBooking.nights === 'number' ? hotelBooking.nights : (parseInt(hotelBooking.nights) || 0)}</div>
+                                    </div>
+                                    <div class="col-12 pt-1 border-top mt-1">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small>
+                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">
+                                            ${window.bookingCurrency} ${(
+                                                (parseFloat(hotelBooking.childWithBed.price || 0) || 0) *
+                                                (parseInt(hotelBooking.childWithBed.children || 0) || 0) *
+                                                (typeof hotelBooking.nights === 'number' ? hotelBooking.nights : (parseInt(hotelBooking.nights) || 0))
+                                            ).toFixed(2)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        ${hotelBooking.childWithoutBed && (hotelBooking.childWithoutBed.enabled || hotelBooking.childWithoutBed.price > 0 || hotelBooking.childWithoutBed.children > 0) ? `
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2 border h-100" style="border-color: #667eea !important;">
+                                <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;">
+                                    <i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>Child without Bed
+                                </div>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Status</small>
+                                        <div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Price/Night</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${window.bookingCurrency} ${parseFloat(hotelBooking.childWithoutBed.price || 0).toFixed(2)}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Children</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${hotelBooking.childWithoutBed.children || 0}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Nights</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${typeof hotelBooking.nights === 'number' ? hotelBooking.nights : (parseInt(hotelBooking.nights) || 0)}</div>
+                                    </div>
+                                    <div class="col-12 pt-1 border-top mt-1">
+                                        <small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small>
+                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">
+                                            ${window.bookingCurrency} ${(
+                                                (parseFloat(hotelBooking.childWithoutBed.price || 0) || 0) *
+                                                (parseInt(hotelBooking.childWithoutBed.children || 0) || 0) *
+                                                (typeof hotelBooking.nights === 'number' ? hotelBooking.nights : (parseInt(hotelBooking.nights) || 0))
+                                            ).toFixed(2)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
 
                 <!-- Booking Status -->
                 <div class="bg-light rounded p-1">
@@ -9665,6 +10182,10 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
         month: 'short', 
         day: 'numeric' 
     }) : 'N/A';
+    const tourRow = document.querySelector('tr[data-tour-id="' + tourId + '"]');
+    const isPro = tourRow ? parseInt(tourRow.getAttribute('data-is-pro') || 0) : 0;
+    const transferPrice = attractionBooking.transferOptions ? (isPro == 1 ? (attractionBooking.transferOptions.totalPrice ?? 0) : (attractionBooking.transferOptions.cost ?? 0)) : 0;
+    const guidePriceAmount = attractionBooking.guideOptions ? (parseFloat(attractionBooking.guideOptions.total_price) || parseFloat(attractionBooking.guideOptions.cost) || parseFloat(attractionBooking.guideOptions.Cost) || parseFloat(attractionBooking.guideOptions.sell) || parseFloat(attractionBooking.guideOptions.Sell) || 0) : 0;
     
     const content = `
         <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd9853 !important;">
@@ -9846,10 +10367,10 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
                                     <div class="fw-medium" style="font-size: 0.8rem;">${attractionBooking.transferOptions.vehicle_id}</div>
                                 ` : ''}
-                                ${attractionBooking.transferOptions.cost && attractionBooking.transferOptions.cost > 0 ? `
+                                ${transferPrice && parseFloat(transferPrice) > 0 ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(attractionBooking.transferOptions.cost).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(transferPrice).toFixed(2)}</div>
                                 </div>
                                 ` : ''}
                             </div>
@@ -9939,26 +10460,26 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${parseFloat((attractionBooking.transferOptions?.cost || 0)).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${(parseFloat(transferPrice) || 0).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #6c757d !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
-                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${window.bookingCurrency} ${parseFloat((attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${window.bookingCurrency} ${guidePriceAmount.toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd9853 !important; background: linear-gradient(135deg, rgba(253,152,83,0.1) 0%, rgba(254,120,84,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${window.bookingCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + parseFloat(attractionBooking.transferOptions?.cost || 0) + parseFloat(attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${window.bookingCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + (parseFloat(transferPrice) || 0) + guidePriceAmount).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
                     <div class="mt-2 text-center">
                         <small class="text-muted" style="font-size: 0.75rem;">
                             <i class="ri-information-line me-1"></i>
-                            Grand Total includes Attraction Price + Vehicle Price + Guide Price
+                            Grand Total includes Attraction Price + Vehicle Price${guidePriceAmount > 0 ? ' + Guide Price' : ''}
                         </small>
                     </div>
                 </div>
@@ -10693,6 +11214,12 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
     const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
     const allowedRestaurantQrRoles = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138];
     const canAccessRestaurantQR = allowedRestaurantQrRoles.includes(userRole);
+    const tourRow = document.querySelector('tr[data-tour-id="' + tourId + '"]');
+    const isPro = tourRow ? parseInt(tourRow.getAttribute('data-is-pro') || 0) : 0;
+    const tf = booking.transferOptions || fullBooking.transfer_options;
+    const transferPrice = tf ? (isPro == 1 ? (tf.totalPrice ?? 0) : (tf.cost ?? 0)) : 0;
+    const g = fullBooking.guide_options || fullBooking.guideInfo || {};
+    const guidePrice = parseFloat(g.total_price ?? g.cost ?? g.Cost ?? g.sell ?? g.Sell ?? 0) || 0;
     
     return `
         <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
@@ -10794,15 +11321,96 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
                                     <div class="fw-medium" style="font-size: 0.8rem;">${booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id}</div>
                                 ` : ''}
-                                ${(booking.transferOptions?.cost || fullBooking.transfer_options?.cost) ? `
+                                ${transferPrice && parseFloat(transferPrice) > 0 ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">${window.bookingCurrency} ${parseFloat(transferPrice).toFixed(2)}</div>
                                 </div>
                                 ` : ''}
                             </div>
                         </div>
                     </div>
+                </div>
+                ` : ''}
+
+                <!-- Guide Options -->
+                ${fullBooking.guide_options || fullBooking.guideInfo ? `
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">Guide Details</h6>
+                    </div>
+                    ${(() => {
+                        const g = fullBooking.guide_options || fullBooking.guideInfo || {};
+                        const guideName = g.guideName || g.guide_name || g.name || 'N/A';
+                        const serviceType = g.serviceType || g.service_type || 'N/A';
+                        const language = g.language || g.languages || 'N/A';
+                        const hours = g.hours || g.service_hours || 'N/A';
+                        const adultsQty = g.adultsQty || g.adults_qty || g.adultQty || g.adult_qty || 0;
+                        const childQty = g.childQty || g.child_qty || g.childrenQty || g.children_qty || 0;
+                        const cost = g.cost ?? g.Cost ?? g.sell ?? g.Sell ?? 0;
+                        return `
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2 h-100">
+                                <div class="row g-1">
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                        <div class="fw-medium" style="font-size: 0.8rem;">
+                                            <i class="ri-user-voice-line me-1"></i>${guideName}
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
+                                        <span class="badge bg-info" style="font-size: 0.65rem;">${serviceType}</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Language</small>
+                                        <span class="badge bg-success" style="font-size: 0.65rem;">${language}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2 h-100">
+                                <div class="row g-1">
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Service Hours</small>
+                                        <div class="fw-medium" style="font-size: 0.8rem;">
+                                            <i class="ri-time-line me-1"></i>${hours} Hours
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Group Size</small>
+                                        <div class="row g-1">
+                                            <div class="col-6">
+                                                <div class="bg-light rounded p-1 text-center border">
+                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">${adultsQty}</div>
+                                                    <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="bg-light rounded p-1 text-center border">
+                                                    <div class="fw-bold text-warning" style="font-size: 0.8rem;">${childQty}</div>
+                                                    <small class="text-muted" style="font-size: 0.55rem;">Children</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ${cost && Number(cost) > 0 ? `
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Cost</small>
+                                        <div class="fw-bold" style="font-size: 0.85rem; color: #00cec9;">${window.bookingCurrency} ${Number(cost).toFixed(2)}</div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        `;
+                    })()}
                 </div>
                 ` : ''}
 
@@ -10819,29 +11427,37 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
                     </div>
                     <div class="row g-2">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
                                 <div class="fw-bold text-success" style="font-size: 0.8rem;">${window.bookingCurrency} ${(fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}</div>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${window.bookingCurrency} ${(parseFloat(transferPrice) || 0).toFixed(2)}</div>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        ${isPro == 1 && guidePrice > 0 ? `
+                        <div class="col-md-3">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #6c757d !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
+                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${window.bookingCurrency} ${guidePrice.toFixed(2)}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">${window.bookingCurrency} ${((fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">${window.bookingCurrency} ${((parseFloat(fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0) || 0) + (parseFloat(transferPrice) || 0) + (isPro == 1 ? guidePrice : 0)).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
                     <div class="mt-2 text-center">
                         <small class="text-muted" style="font-size: 0.75rem;">
                             <i class="ri-information-line me-1"></i>
-                            Total Price includes Restaurant Price + Vehicle Price
+                            Total Price includes Restaurant Price + Vehicle Price${isPro == 1 && guidePrice > 0 ? ' + Guide Price' : ''}
                         </small>
                     </div>
                 </div>
