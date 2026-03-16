@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Agent;
+use App\Models\BankDetail;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Tour;
@@ -10,6 +11,8 @@ use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Barryvdh\DomPDF\Facade\Pdf;
+
 class BookingListController extends Controller
 {
     /**
@@ -1273,6 +1276,389 @@ class BookingListController extends Controller
             'agent_info' => $agent_info,
             'allPassengers' => $allPassengers
         ]);
+    }
+
+    /**
+     * Download itinerary as PDF in the formatted layout (company header, hotel table, daily breakdown).
+     * Uses HTML template rendered server-side with DomPDF.
+     */
+    public function downloadItineraryFormattedPdf(Request $request, $tourId)
+    {
+        try {
+            $tourId = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Invalid tour.');
+        }
+
+        $data = $this->buildItineraryPdfData($tourId);
+        if (!$data) {
+            return redirect()->back()->with('error', 'Tour not found or no itinerary data.');
+        }
+
+        $data['emergency_contact'] = $request->input('emergency_contact', '');
+        $data['sic_timing'] = $request->input('sic_timing', '');
+        $data['meeting_points'] = $request->input('meeting_points', '');
+
+        $pdf = Pdf::loadView('bookingList.itinerary-pdf', $data)
+            ->setPaper('a4', 'portrait');
+
+        $filename = 'Itinerary_' . ($data['display_id'] ?? $tourId) . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Build data for the formatted itinerary PDF (hotels, days with time/description/type rows).
+     */
+    private function buildItineraryPdfData($tourId)
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return null;
+        }
+
+        $user_dmc = null;
+        if ($tour->dmc_id) {
+            $user_dmc = User::select('name', 'email', 'phone', 'company_name', 'logo', 'country', 'city', 'address')
+                ->where('userId', $tour->dmc_id)->first();
+            if ($user_dmc && $user_dmc->logo && !str_starts_with($user_dmc->logo, 'data:image')) {
+                try {
+                    $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                    $imageContent = @file_get_contents($user_dmc->logo, false, $context);
+                    if ($imageContent !== false) {
+                        $imageInfo = @getimagesizefromstring($imageContent);
+                        if ($imageInfo !== false) {
+                            $user_dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Logo base64 failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $agent_info = null;
+        $agent_id = $tour->agent_id ?? (Order::where('tour_id', $tourId)->where('bookingType', 'booking')->value('agent_id'));
+        if ($agent_id) {
+            $agent = Agent::with('agency')->where('agent_id', $agent_id)->first();
+            if ($agent) {
+                $agency = $agent->agency;
+                $agent_info = [
+                    'company_name' => ($agency && $agency->agency_name) ? $agency->agency_name : '',
+                    'agent_name' => $agent->name ?? '',
+                ];
+            }
+        }
+
+        $tourDetails = Tour::with(['booking' => function ($q) {
+            $q->where(function ($q2) {
+                $q2->where('type', '!=', 'hotel')->orWhere('status', '!=', 2);
+            });
+        }])->where('tour_id', $tourId)->first();
+
+        $bookings = Order::with('tour')
+            ->where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->where('status', 1)
+            ->orderByDesc('booking_id')
+            ->get();
+
+        if ($bookings->isEmpty()) {
+            $pdfHotels = [];
+            $pdfDays = [];
+        } else {
+            $bookings = $this->formatBookings($bookings);
+            $itineraryByDate = [];
+            foreach ($bookings as $booking) {
+                $data = $booking->data_decoded;
+                $first = $data[0] ?? [];
+                $date = null;
+                if (isset($first['bookingDate'])) {
+                    $date = is_array($first['bookingDate']) ? ($first['bookingDate'][0] ?? null) : $first['bookingDate'];
+                } elseif (isset($first['pickupdate'])) {
+                    $date = $first['pickupdate'];
+                } elseif (isset($first['exitpickupdate'])) {
+                    $date = $first['exitpickupdate'];
+                }
+                if ($date) {
+                    $dateStr = \Carbon\Carbon::parse($date)->format('Y-m-d');
+                    if (!isset($itineraryByDate[$dateStr])) {
+                        $itineraryByDate[$dateStr] = [];
+                    }
+                    $itineraryByDate[$dateStr][] = $booking;
+                }
+                // Hotel: expand by check-in/check-out range
+                if (strtolower($booking->type ?? '') === 'hotel' && isset($first['bookingDate']) && is_array($first['bookingDate']) && count($first['bookingDate']) >= 2) {
+                    $checkIn = \Carbon\Carbon::parse($first['bookingDate'][0]);
+                    $checkOut = \Carbon\Carbon::parse($first['bookingDate'][1]);
+                    $current = $checkIn->copy();
+                    while ($current->lt($checkOut)) {
+                        $d = $current->format('Y-m-d');
+                        if (!isset($itineraryByDate[$d])) {
+                            $itineraryByDate[$d] = [];
+                        }
+                        $itineraryByDate[$d][] = $booking;
+                        $current->addDay();
+                    }
+                }
+            }
+            ksort($itineraryByDate);
+
+            $pdfHotels = $this->buildPdfHotels($bookings);
+            $pdfDays = $this->buildPdfDays($itineraryByDate, $tourDetails);
+        }
+
+        $startDate = $tourDetails && $tourDetails->check_in_time ? \Carbon\Carbon::parse($tourDetails->check_in_time) : null;
+        $endDate = $tourDetails && $tourDetails->check_out_time ? \Carbon\Carbon::parse($tourDetails->check_out_time) : null;
+        if (!$startDate && !empty($pdfDays)) {
+            $firstKey = array_key_first($pdfDays);
+            $startDate = \Carbon\Carbon::parse($firstKey);
+        }
+        if (!$endDate && !empty($pdfDays)) {
+            $lastKey = array_key_last($pdfDays);
+            $endDate = \Carbon\Carbon::parse($lastKey);
+        }
+
+        $dmcId = CommonHelper::getDmcId(auth()->user());
+        if ($dmcId === null && $tour) {
+            $dmcId = $tour->dmc_id;
+        }
+        $terms_and_conditions = '';
+        if ($dmcId) {
+            $bankDetail = BankDetail::where('dmc_id', $dmcId)->where('is_active', 1)->first();
+            
+            if ($bankDetail && !empty($bankDetail->terms_and_conditions)) {
+                $terms_and_conditions = $bankDetail->terms_and_conditions;
+            }
+        }
+
+        return [
+            'tourId' => $tourId,
+            'tourDetails' => $tourDetails,
+            'display_id' => $tourDetails->display_id ?? $tourId,
+            'user_dmc' => $user_dmc,
+            'agent_info' => $agent_info ?? [],
+            'adults' => $tourDetails->adult ?? 0,
+            'pdfHotels' => $pdfHotels ?? [],
+            'pdfDays' => $pdfDays ?? [],
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'terms_and_conditions' => $terms_and_conditions,
+        ];
+    }
+
+    private function buildPdfHotels($bookings)
+    {
+        $hotels = [];
+        $seen = [];
+        foreach ($bookings as $booking) {
+            if (strtolower($booking->type ?? '') !== 'hotel') {
+                continue;
+            }
+            $data = $booking->data_decoded[0] ?? [];
+            $name = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? null;
+            if (!$name) {
+                continue;
+            }
+            $bookingDate = $data['bookingDate'] ?? null;
+            $checkIn = $checkOut = null;
+            if (is_array($bookingDate) && count($bookingDate) >= 2) {
+                $checkIn = $bookingDate[0];
+                $checkOut = $bookingDate[1];
+            } elseif (is_array($bookingDate) && count($bookingDate) === 1) {
+                $checkIn = $bookingDate[0];
+                $checkOut = $bookingDate[0];
+            } else {
+                $checkIn = $bookingDate;
+                $checkOut = $bookingDate;
+            }
+            $key = $name . '|' . $checkIn;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $nights = 1;
+            if ($checkIn && $checkOut) {
+                $nights = \Carbon\Carbon::parse($checkIn)->diffInDays(\Carbon\Carbon::parse($checkOut));
+            }
+            $hotels[] = [
+                'name' => $name,
+                'check_in' => $checkIn,
+                'check_out' => $checkOut,
+                'nights' => $nights,
+            ];
+        }
+        usort($hotels, function ($a, $b) {
+            return strcmp($a['check_in'] ?? '', $b['check_in'] ?? '');
+        });
+        return $hotels;
+    }
+
+    private function buildPdfDays($itineraryByDate, $tourDetails)
+    {
+        $days = [];
+        foreach ($itineraryByDate as $dateStr => $dayBookings) {
+            $rows = [];
+            $entryPorts = [];
+            $exitPorts = [];
+            $hotels = [];
+            $regular = [];
+
+            foreach ($dayBookings as $booking) {
+                $data = $booking->data_decoded[0] ?? [];
+                $type = strtolower($booking->type ?? '');
+                if ($type === 'hotel') {
+                    $bdate = $data['bookingDate'] ?? null;
+                    $checkOut = is_array($bdate) && isset($bdate[1]) ? $bdate[1] : $bdate;
+                    if ($checkOut && \Carbon\Carbon::parse($checkOut)->format('Y-m-d') === $dateStr) {
+                        continue; // skip checkout-only day
+                    }
+                    if (($data['stay_type'] ?? '') === 'checkout') {
+                        continue;
+                    }
+                }
+
+                $timeSlot = $data['timeslot'] ?? $data['time'] ?? $data['pickuptime'] ?? $data['exitpickuptime'] ?? $data['visitTime'] ?? $data['entrytime'] ?? '00:00';
+                $sortTime = $timeSlot;
+                if (preg_match('/(\d{1,2}):(\d{2})\s*(AM|PM)?/i', $timeSlot, $m)) {
+                    $h = (int)$m[1];
+                    $min = (int)($m[2] ?? 0);
+                    if (!empty($m[3]) && strtoupper($m[3]) === 'PM' && $h < 12) {
+                        $h += 12;
+                    }
+                    if (!empty($m[3]) && strtoupper($m[3]) === 'AM' && $h === 12) {
+                        $h = 0;
+                    }
+                    $sortTime = sprintf('%02d:%02d', $h, $min);
+                }
+
+                $row = $this->bookingToPdfRow($booking, $data, $type, $dateStr);
+                if (!$row) {
+                    continue;
+                }
+                $row['sort_time'] = $sortTime;
+                if ($type === 'entry port' || $type === 'entry_port') {
+                    $entryPorts[] = $row;
+                } elseif ($type === 'exit port' || $type === 'exit_port') {
+                    $exitPorts[] = $row;
+                } elseif ($type === 'hotel') {
+                    $hotels[] = $row;
+                } else {
+                    $regular[] = $row;
+                }
+            }
+
+            $cmp = function ($a, $b) {
+                return strcmp($a['sort_time'], $b['sort_time']);
+            };
+            usort($entryPorts, $cmp);
+            usort($exitPorts, $cmp);
+            usort($hotels, $cmp);
+            usort($regular, $cmp);
+
+            $isFirst = empty($days);
+            $isLast = ($dateStr === array_key_last($itineraryByDate));
+            $all = [];
+            if ($isFirst) {
+                $all = array_merge($all, $entryPorts);
+            }
+            // Hotels are shown only in the hotel table at the top, not in the day-wise itinerary
+            $all = array_merge($all, $regular);
+            if ($isLast) {
+                $all = array_merge($all, $exitPorts);
+            }
+
+            foreach ($all as $r) {
+                unset($r['sort_time']);
+                $rows[] = $r;
+            }
+
+            $days[$dateStr] = [
+                'date_label' => \Carbon\Carbon::parse($dateStr)->format('d M Y, l'),
+                'rows' => $rows,
+            ];
+        }
+        return $days;
+    }
+
+    private function bookingToPdfRow($booking, $data, $type, $dateStr)
+    {
+        $time = $data['timeslot'] ?? $data['time'] ?? $data['pickuptime'] ?? $data['exitpickuptime'] ?? $data['visitTime'] ?? $data['entrytime'] ?? '00:00';
+        if (preg_match('/^(\d{1,2}):(\d{2})/', $time, $m)) {
+            $time = $m[1] . ':' . ($m[2] ?? '00');
+        }
+
+        $transferType = ucfirst(strtolower($data['type'] ?? $data['transfer_options']['type'] ?? 'Private'));
+        $description = '';
+        $note = null;
+        $wrap = function ($s) {
+            return '<span class="loc">' . e($s) . '</span>';
+        };
+
+        if ($type === 'entry port' || $type === 'entry_port') {
+            $pickup = $data['entrypickup'] ?? $data['entry_pickup'] ?? $data['pickup'] ?? '';
+            $dropoff = $data['entrydropoff'] ?? $data['entry_dropoff'] ?? $data['dropoff'] ?? '';
+            $description = 'Arrive at ' . $wrap($pickup) . ' and Proceed to ' . $wrap($dropoff);
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+            if ($data['originFlightNumber'] ?? $data['arrivalFlightNumber'] ?? null) {
+                $note = ($data['originFlightNumber'] ?? '') . ' ' . ($data['arrivalFlightNumber'] ?? '') . ' ' . ($note ?? '');
+            }
+        } elseif ($type === 'exit port' || $type === 'exit_port') {
+            $pickup = $data['exitpickup'] ?? $data['exit_pickup'] ?? $data['pickup'] ?? '';
+            $dropoff = $data['exitdropoff'] ?? $data['exit_dropoff'] ?? $data['dropoff'] ?? '';
+            $description = 'Transfer from ' . $wrap($pickup) . ' to ' . $wrap($dropoff);
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+        } elseif ($type === 'hotel') {
+            $name = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? 'Hotel';
+            $stayType = $data['stay_type'] ?? '';
+            if ($stayType === 'checkout') {
+                return null;
+            }
+            $description = 'Check-in at ' . $name;
+            if ($stayType === 'stay') {
+                $description = 'Stay at ' . $name;
+            }
+        } elseif (strpos($type, 'travel') !== false || $type === 'travel_point' || $type === 'travel_hourly' || $type === 'point to point' || $type === 'hourly' || $type === 'local_transport') {
+            $pickup = $data['entrypickup'] ?? $data['pickup'] ?? '';
+            $dropoff = $data['entrydropoff'] ?? $data['dropoff'] ?? $data['dropoffLocation'] ?? '';
+            $description = 'Transfer by ' . e($transferType) . ' Vehicle from ' . $wrap($pickup) . ' to ' . $wrap($dropoff);
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+        } else                if ($type === 'attraction') {
+            $name = $data['AttractionName'] ?? $data['name'] ?? 'Attraction';
+            $hasTransfer = isset($data['transfer_options']['transfer_required']) && $data['transfer_options']['transfer_required'];
+            if ($hasTransfer) {
+                $pickup = $data['transfer_options']['pickup_location_name'] ?? '';
+                $description = 'Transfer by ' . e($transferType) . ' Vehicle from ' . $wrap($pickup) . ' to ' . $wrap($name);
+                $activity = 'Visit ' . $name;
+                if (!empty($data['visitTime'])) {
+                    $activity .= ' (' . $data['visitTime'] . ')';
+                }
+                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => null, 'activity' => $activity];
+            }
+            $description = 'Visit ' . $name;
+            $note = $data['specialRequests'] ?? null;
+        } elseif ($type === 'restaurant') {
+            $name = $data['restaurantName'] ?? $data['name'] ?? 'Restaurant';
+            $hasTransfer = isset($data['transfer_options']['transfer_required']) && $data['transfer_options']['transfer_required'];
+            if ($hasTransfer) {
+                $pickup = $data['transfer_options']['pickup_location_name'] ?? '';
+                $description = 'Transfer by ' . e($transferType) . ' Vehicle from ' . $wrap($pickup) . ' to ' . $wrap($name);
+                $mealType = $data['mealType'] ?? $data['mealSpecificType'] ?? '';
+                $pax = ($data['adultCount'] ?? $data['adult_count'] ?? 0) + ($data['childCount'] ?? $data['child_count'] ?? 0);
+                $activity = ($mealType ? $mealType . ' for ' : 'Meal for ') . $pax . ' members';
+                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => null, 'activity' => $activity];
+            }
+            $description = ($data['mealType'] ?? 'Meal') . ' at ' . $name;
+            $note = $data['specialRequests'] ?? null;
+        } elseif ($type === 'guide') {
+            $name = $data['guide_name'] ?? $data['guideName'] ?? $data['name'] ?? 'Guide';
+            $description = 'Guide service - ' . $name;
+            $note = $data['remark'] ?? $data['specialRequests'] ?? null;
+        } else {
+            $description = $data['name'] ?? ucfirst($type);
+            $note = $data['remark'] ?? $data['specialRequests'] ?? null;
+        }
+
+        return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note];
     }
     
     /**

@@ -51,11 +51,12 @@
                 <th style="min-width: 140px;">
                   <div class="text-center">
                    
-                    <div class="d-flex justify-content-between mt-1" style="font-size: 10px;">
+                    <div class="d-flex justify-content-between mt-1" style="font-size: 10px; gap: 10px;">
                       <span class="fw-bold">Zone On</span>
                       <span class="fw-bold">Price Hide</span>
                       <span class="fw-bold">Email On</span>
-                      <span class="fw-bold">Auto Cancel</span>
+                      <span class="fw-bold">Auto Cancel Status</span>
+                      <span class="fw-bold header-auto-cancel-label" id="header_auto_cancel_label" style="display: none;">Auto Cancel</span>
                       <span class="fw-bold">Guide Pax</span>
                     </div>
                   </div>
@@ -145,14 +146,24 @@
                                 style="width: 25px; height: 15px;">
                         </div>
                         
-                        <!-- Auto Cancel Dropdown -->
-                        <div class="form-group">
-                  
-                            <select class="form-select auto-cancel-dropdown" 
+                        <!-- Auto Cancel Toggle -->
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="auto_cancel_on" value="0">
+                            <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
+                                class="form-check-input auto-cancel-toggle"
+                                data-user-id="{{ $user->userId }}"
+                                type="checkbox"
+                                id="auto_cancel_toggle_{{ $user->userId }}"
+                                value="1"
+                                style="width: 25px; height: 15px;">
+                        </div>
+                        <!-- Auto Cancel Day Dropdown (shown when toggle is ON) -->
+                        <div class="form-group auto-cancel-day-wrap" data-user-id="{{ $user->userId }}" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
+                            <select class="form-select auto-cancel-dropdown"
                                 data-user-id="{{ $user->userId }}"
                                 id="auto_cancel_{{ $user->userId }}"
-                                style="width: 65px; height: 25px; font-size: 14px; padding: 2px;">
-                                <option value="1" {{ ($user->auto_cancel_date == 1 || is_null($user->auto_cancel_date)) ? 'selected' : ''  }}>D-1</option>
+                                style="width: 60px; height: 25px; font-size: 12px; padding: 1px;">
+                                <option value="1" {{ ($user->auto_cancel_date == 1 || is_null($user->auto_cancel_date)) ? 'selected' : '' }}>D-1</option>
                                 <option value="2" {{ $user->auto_cancel_date == 2 ? 'selected' : '' }}>D-2</option>
                                 <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
                                 <option value="4" {{ $user->auto_cancel_date == 4 ? 'selected' : '' }}>D-4</option>
@@ -175,7 +186,7 @@
                                 id="guide_pax_{{ $user->userId }}"
                                 value="{{ $user->guide_pax ?? 0 }}"
                                 maxlength="2" inputmode="numeric" pattern="[0-9]*"
-                                style="width: 65px; height: 25px; font-size: 14px; padding: 2px; text-align: center;"
+                                style="width: 50px; height: 25px; font-size: 12px; padding: 1px; text-align: center;"
                                 oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
                         </div>
                       @else
@@ -218,12 +229,16 @@
                                 disabled>
                         </div>
                         
-                        <!-- Auto Cancel Dropdown (Disabled) -->
-                        <div class="form-group">
-                            <select class="form-select" 
-                                id="auto_cancel_disabled"
-                                style="width: 50px; height: 25px; font-size: 10px; padding: 2px;" 
-                                disabled>
+                        <!-- Auto Cancel Toggle (Disabled) -->
+                        <div class="form-check form-switch">
+                            <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
+                                class="form-check-input" type="checkbox" value="1"
+                                style="width: 25px; height: 15px;" disabled>
+                        </div>
+                        <!-- Auto Cancel Dropdown (Disabled, shown when value set) -->
+                        <div class="form-group" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
+                            <select class="form-select" id="auto_cancel_disabled"
+                                style="width: 50px; height: 25px; font-size: 10px; padding: 2px;" disabled>
                                 <option value="">--</option>
                                 <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
                                 <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
@@ -607,6 +622,53 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
+    // Show/hide "Auto Cancel" header label based on whether any row has auto cancel checked
+    function updateHeaderAutoCancelLabel() {
+        const anyChecked = $('.auto-cancel-toggle:checked').length > 0;
+        $('#header_auto_cancel_label').css('display', anyChecked ? 'inline' : 'none');
+    }
+
+    // Set initial header label visibility on load
+    updateHeaderAutoCancelLabel();
+
+    // Auto Cancel toggle: show/hide day dropdown and sync with backend
+    $(document).on('change', '.auto-cancel-toggle', function() {
+        const $toggle = $(this);
+        const userId = $toggle.data('user-id');
+        const isOn = $toggle.prop('checked');
+        const $wrap = $('.auto-cancel-day-wrap[data-user-id="' + userId + '"]');
+        const $dropdown = $('.auto-cancel-dropdown[data-user-id="' + userId + '"]');
+
+        $wrap.css('display', isOn ? 'block' : 'none');
+        updateHeaderAutoCancelLabel();
+
+        $toggle.prop('disabled', true);
+        $.ajax({
+            url: "{{ route('update.autocancel') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                auto_cancel_date: isOn ? ($dropdown.val() || '1') : '',
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $toggle.prop('disabled', false);
+                if (response.success) {
+                    toastr.success(response.message || (isOn ? 'Auto cancel enabled' : 'Auto cancel disabled'));
+                } else {
+                    toastr.error(response.message || 'Error updating auto cancel');
+                }
+            },
+            error: function() {
+                $toggle.prop('disabled', false);
+                toastr.error('Error updating auto cancel');
+                $wrap.css('display', isOn ? 'none' : 'block');
+                $toggle.prop('checked', !isOn);
+                updateHeaderAutoCancelLabel();
+            }
+        });
+    });
+
     // Use event delegation for auto cancel dropdown to work with pagination
     $(document).on('change', '.auto-cancel-dropdown', function() {
         const userId = $(this).data('user-id');

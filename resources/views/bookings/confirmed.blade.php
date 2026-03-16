@@ -1,7 +1,8 @@
 @extends('layouts.layout')
 @section('title', 'Confirmed Bookings')
 @extends('layouts.datatablecss')
-@php $pageCurrency = isset($currency) ? $currency : 'SGD'; @endphp
+@php $pageCurrency = isset($currency) ? $currency : 'SGD';  @endphp
+
 
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
