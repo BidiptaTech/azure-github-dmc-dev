@@ -2413,7 +2413,47 @@
                         <button id="downloadExcelFormat" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-file-excel"></i> Download Itinerary
                         </button>
-                        
+
+                        <button type="button" class="btn-modern btn-primary-modern" data-bs-toggle="modal" data-bs-target="#itineraryPdfModal">
+                            <i class="fas fa-file-pdf"></i> Download PDF (Formatted)
+                        </button>
+
+                        {{-- Modal: SIC Timing & Meeting Points before PDF download --}}
+                        <div class="modal fade" id="itineraryPdfModal" tabindex="-1" aria-labelledby="itineraryPdfModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="itineraryPdfModalLabel">PDF Options</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <form action="{{ route('bookinglist.itinerary.pdf', ['tourId' => \Illuminate\Support\Facades\Crypt::encrypt($tourId)]) }}" method="POST" target="_blank">
+                                        @csrf
+                                        <div class="modal-body">
+                                            <p class="text-muted small mb-3">Optionally add the following to the PDF. Leave blank to omit.</p>
+                                            <div class="mb-3">
+                                                <label for="pdf_emergency_contact" class="form-label fw-semibold">EMERGENCY CONTACT NOS:</label>
+                                                <textarea class="form-control" id="pdf_emergency_contact" name="emergency_contact" rows="4" placeholder="e.g. 24/7 Customer Services: Name: +00 00000000 / Name: +00 00000000&#10;Singapore Office: +00 00000000 / +00 00000000"></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="pdf_sic_timing" class="form-label fw-semibold">SIC TOUR PICK UP/DROP TIMING:</label>
+                                                <textarea class="form-control" id="pdf_sic_timing" name="sic_timing" rows="5" placeholder="e.g. City Tour / Flyer: 0000 / 0000 hrs&#10;Night Safari: 0000 / 0000 hrs"></textarea>
+                                            </div>
+                                            <div class="mb-0">
+                                                <label for="pdf_meeting_points" class="form-label fw-semibold">MEETING POINTS:</label>
+                                                <textarea class="form-control" id="pdf_meeting_points" name="meeting_points" rows="4" placeholder="e.g. Airport: Information Counter&#10;Harbour Front Cruise Terminal: Lobby C Money Exchange Counter"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-file-pdf me-1"></i> Download PDF
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
                         {{-- <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
                         </button> --}}

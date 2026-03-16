@@ -4753,6 +4753,7 @@ class CommonHelper
 
         // Get currency from countries table using country name
         $country = Country::where('name', $dmc->country)->first();
+        
 
         return $country->currency ?? 'SGD';
     }
