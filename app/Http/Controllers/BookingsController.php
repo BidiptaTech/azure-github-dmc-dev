@@ -800,6 +800,7 @@ class BookingsController extends Controller
             ->get();
         }
         $currency = CommonHelper::getDmcCurrencyByCountry();
+        
         return view('bookings.confirmed', compact('tours', 'currency' ));
     }
 
