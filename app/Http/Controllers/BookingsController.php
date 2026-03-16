@@ -132,12 +132,21 @@ class BookingsController extends Controller
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'tours.created_by',
+                    'tours.mainguest', 
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+                foreach ($tours as $t) {
+                    \Log::info('New Enquiry guest debug', [
+                        'tour_id'        => $t->tour_id,
+                        'display_id'     => $t->display_id,
+                        'mainguest_raw'  => $t->mainguest,
+                        'customer_name'  => $t->customer_name ?? null,
+                    ]);
+                }
         }
 
         
@@ -185,12 +194,22 @@ class BookingsController extends Controller
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'tours.created_by',
+                    'tours.mainguest', 
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+
+            foreach ($tours as $t) {
+                \Log::info('New Enquiry guest debug (DMC scope)', [
+                    'tour_id'        => $t->tour_id,
+                    'display_id'     => $t->display_id,
+                    'mainguest_raw'  => $t->mainguest,
+                    'customer_name'  => $t->customer_name ?? null,
+                ]);
+            }
         }
 
         $enquary_comments = Enquiry::where('dmcId', $dmc_id)->get();
@@ -528,6 +547,7 @@ class BookingsController extends Controller
                 'tours.port',
                 'tours.destination',
                 'tours.city',
+                'tours.mainguest',
                 'tours.check_in_time',
                 'tours.check_out_time',
                 'tours.tour_status',
@@ -594,6 +614,7 @@ class BookingsController extends Controller
                     'tours.port',
                     'tours.destination',
                     'tours.city',
+                    'tours.mainguest',
                     'tours.check_in_time',
                     'tours.check_out_time',
                     'tours.tour_status',
@@ -1069,6 +1090,7 @@ class BookingsController extends Controller
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
+                'tours.mainguest',
                 'tours.hotel',
                 'tours.attraction',
                 'tours.travel',
@@ -1124,6 +1146,7 @@ class BookingsController extends Controller
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
+                'tours.mainguest',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -1176,6 +1199,7 @@ class BookingsController extends Controller
                 'tours.child',
                 'tours.infant',
                 'tours.hotel',
+                'tours.mainguest',
                 'tours.attraction',
                 'tours.travel',
                 'tours.restaurent',
@@ -1234,6 +1258,7 @@ class BookingsController extends Controller
                 'tours.child',
                 'tours.infant',
                 'tours.hotel',
+                'tours.mainguest',
                 'tours.attraction',
                 'tours.travel',
                 'tours.restaurent',
