@@ -21,7 +21,7 @@
                         @csrf
                         
                         <div class="row mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="zone_name" class="form-label">Zone Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control @error('zone_name') is-invalid @enderror" id="zone_name" name="zone_name" value="{{ old('zone_name') }}" required>
                                 @error('zone_name')
@@ -29,7 +29,7 @@
                                 @enderror
                             </div>
                             
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="zone_type" class="form-label">Zone Type <span class="text-danger">*</span></label>
                                 <select class="form-select @error('zone_type') is-invalid @enderror" id="zone_type" name="zone_type" required>
                                     <option value="">-- Select Zone Type --</option>
@@ -41,7 +41,21 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-4">
+
+                            <div class="col-md-3">
+                                <label for="vehicle_type" class="form-label">Vehicle Type<span class="text-danger">*</span></label>
+                                <select class="form-select @error('vehicle_type') is-invalid @enderror" id="vehicle_type" name="vehicle_type" required>
+                                    <option value="">-- Select Vehicle Type --</option>
+                                    <option value="Shraed" {{ old('vehicle_type') == 'Shraed' ? 'selected' : '' }}>Shraed</option>
+                                    <option value="Private" {{ old('vehicle_type') == 'Private' ? 'selected' : '' }}>Private</option>
+                                    <option value="Both" {{ old('vehicle_type') == 'Both' ? 'selected' : '' }}>Both</option>
+                                </select>
+                                @error('vehicle_type')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-3">
                                 <label for="city" class="form-label">City <span class="text-danger">*</span></label>
                                 <select class="form-select @error('city') is-invalid @enderror" id="city" name="city" required>
                                     <option value="">-- Select City --</option>
