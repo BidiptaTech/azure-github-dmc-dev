@@ -3513,7 +3513,10 @@ class SingleTourPackageController extends Controller
                                         'tour_id' => $tourId,
                                         
                                         // Remarks (from hotel_remarks textarea)
-                                        'remarks' => $hotelBooking['remarks'] ?? null
+                                        'remarks' => $hotelBooking['remarks'] ?? null,
+                                        
+                                        // supplement: true if supplement checkbox or service for fewer adults than tour (stored as supplement in DB)
+                                        'supplement' => $hotelBooking['supplement'] ?? $hotelBooking['is_supplement'] ?? false
                                     ];
                                     
                                     // Log transfer options for debugging

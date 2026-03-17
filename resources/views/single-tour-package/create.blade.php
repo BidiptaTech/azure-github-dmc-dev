@@ -2205,7 +2205,15 @@
                             transfer_options: hotel.transferOptions || null,
                             
                             // Remarks - use current section-level hotel_remarks or per-hotel remarks
-                            remarks: document.getElementById('hotel_remarks')?.value || hotel.remarks || ''
+                            remarks: document.getElementById('hotel_remarks')?.value || hotel.remarks || '',
+                            
+                            // supplement: true if checkbox checked OR if service adults < tour adults (stored as supplement in DB)
+                            supplement: (() => {
+                                const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                const serviceAdults = (parseInt(hotel.selectedPersons) || 1) * (parseInt(hotel.numberOfRooms) || 1);
+                                const checkboxChecked = document.getElementById(`hotel_is_supplement_${index}`)?.checked || false;
+                                return (serviceAdults < tourAdults) || checkboxChecked;
+                            })()
                         };
                     });
                     
@@ -2472,6 +2480,13 @@
                                     // Remarks
                                     remarks: document.getElementById(`day${day}_attraction_${index}_remarks`)?.value || '',
                                     
+                                    // supplement: true if checkbox checked OR if service adults < tour adults (stored as supplement in DB)
+                                    supplement: (() => {
+                                        const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                        const serviceAdults = guestInfo.adults || 0;
+                                        return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_attraction_${index}_is_supplement`)?.checked || false);
+                                    })(),
+                                    
                                     // Guide Options
                                     guide_options: (() => {
                                         const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`)?.value || 'No';
@@ -2680,7 +2695,12 @@
                                     country: "Singapore", // Default country
                                     languages: selectedOption.dataset.languages ? JSON.parse(selectedOption.dataset.languages) : [], // Parse languages if available
                                     experience: parseInt(selectedOption.dataset.experience) || 0, // Get experience from dataset
-                                    remarks: document.getElementById(`day${day}_guide_${index}_remarks`)?.value || ''
+                                    remarks: document.getElementById(`day${day}_guide_${index}_remarks`)?.value || '',
+                                    supplement: (() => {
+                                        const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                        const serviceAdults = parseInt(guestInfo.adults) || 0;
+                                        return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_guide_${index}_is_supplement`)?.checked || false);
+                                    })()
                                 });
                             }
                         }
@@ -2889,7 +2909,12 @@
                                     transfer_options: transferOptions,
                                     
                                     // Remarks
-                                    remarks: document.getElementById(`day${day}_restaurant_${index}_remarks`)?.value || ''
+                                    remarks: document.getElementById(`day${day}_restaurant_${index}_remarks`)?.value || '',
+                                    supplement: (() => {
+                                        const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                        const serviceAdults = guestInfo.adults || 0;
+                                        return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_restaurant_${index}_is_supplement`)?.checked || false);
+                                    })()
                                 });
                             }
                         }
@@ -2997,6 +3022,11 @@
                                         travel_type: "entry_port",
                                         arrival_transport_type: document.querySelector(`input[name="day${day}_arrival_transport_type"]:checked`)?.value || "flight",
                                         arrival_flight_no: document.getElementById(`day${day}_arrival_flight_no`)?.value || "",
+                                        supplement: (() => {
+                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                            const serviceAdults = parseInt(passengerCount) || 0;
+                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_entry_${vehicleIndex}_is_supplement`)?.checked || false);
+                                        })(),
                                         entrypickup: pickupZone.text,
                                         entrydropoff: dropoffZone.text,
                                         PickupPlaceid: {
@@ -3053,7 +3083,8 @@
                                             specialRequests: customerData.specialRequests || null
                                         },
                                         bookingType: "enquiry",
-                                        vehicleIndex: vehicleIndex // Add index to identify which additional vehicle this is
+                                        vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
+                                        remarks: document.getElementById(`day${day}_entry_${vehicleIndex}_remarks`)?.value || ''
                                     };
                                     
                                     entryPortArray.push(transportData);
@@ -3116,6 +3147,11 @@
                                         travel_type: "exit_port",
                                         departure_transport_type: document.querySelector(`input[name="day${day}_departure_transport_type"]:checked`)?.value || "flight",
                                         departure_flight_no: document.getElementById(`day${day}_departure_flight_no`)?.value || "",
+                                        supplement: (() => {
+                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                            const serviceAdults = parseInt(passengerCount) || 0;
+                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_exit_${vehicleIndex}_is_supplement`)?.checked || false);
+                                        })(),
                                         vehicle_type: vehicle.dataset.vehicle_type || "SUV",
                                         vehicle_model: vehicle.dataset.vehicle_model || "",
                                         model_year: parseInt(vehicle.dataset.model_year) || 0,
@@ -3175,7 +3211,8 @@
                                             specialRequests: customerData.specialRequests || null
                                         },
                                         bookingType: "enquiry",
-                                        vehicleIndex: vehicleIndex // Add index to identify which additional vehicle this is
+                                        vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
+                                        remarks: document.getElementById(`day${day}_exit_${vehicleIndex}_remarks`)?.value || ''
                                     };
                                     
                                     exitPortArray.push(transportData);
@@ -3326,7 +3363,12 @@
                                         Night_Start_Time: null,
                                         Night_End_Time: null,
                                         bookingType: "enquiry",
-                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || ''
+                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
+                                        supplement: (() => {
+                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                            const serviceAdults = parseInt(adultCount) || 1;
+                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked || false);
+                                        })()
                                     };
                                     
                                     transportDataArray.push(transportData);
@@ -3415,7 +3457,12 @@
                                         Night_End_Time: null,
                                         selectedHours: parseInt(selectedHours?.value || 1),
                                         bookingType: "enquiry",
-                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || ''
+                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
+                                        supplement: (() => {
+                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                            const serviceAdults = parseInt(adultCount) || 1;
+                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked || false);
+                                        })()
                                     };
                                     
                                     transportDataArray.push(transportData);
@@ -3583,7 +3630,12 @@
                                         tour_id: tourId,
                                         pickup_zone_id: pickupZoneId,
                                         dropoff_zone_id: dropoffZoneId,
-                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || ''
+                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
+                                        supplement: (() => {
+                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                            const serviceAdults = parseInt(adultCount) || 0;
+                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked || false);
+                                        })()
                                     };
                                     
                                     transportDataArray.push(transportData);
@@ -3712,6 +3764,11 @@
                                             travel_type: "entry_port",
                                             arrival_transport_type: document.querySelector(`input[name="day${day}_arrival_transport_type"]:checked`)?.value || "flight",
                                             arrival_flight_no: document.getElementById(`day${day}_arrival_flight_no`)?.value || "",
+                                            supplement: (() => {
+                                                const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                                const serviceAdults = parseInt(passengerCount) || 0;
+                                                return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_entry_0_is_supplement`)?.checked || false);
+                                            })(),
                                             entrypickup: pickupZone?.text || '',
                                             entrydropoff: dropoffZone?.text || '',
                                             PickupPlaceid: {
@@ -3754,7 +3811,8 @@
                                                 zip: customerData.zip,
                                                 specialRequests: customerData.specialRequests || null
                                             },
-                                            bookingType: "enquiry"
+                                            bookingType: "enquiry",
+                                            remarks: document.getElementById(`day${day}_entry_0_remarks`)?.value || ''
                                         };
                                         entryPortArray.push(transportData);
                                         console.log(`✅ Added main entry port transport: ${transportData.vehicles_name}`, transportData);
@@ -3772,6 +3830,11 @@
                                             travel_type: "exit_port",
                                             departure_transport_type: document.querySelector(`input[name="day${day}_departure_transport_type"]:checked`)?.value || "flight",
                                             departure_flight_no: document.getElementById(`day${day}_departure_flight_no`)?.value || "",
+                                            supplement: (() => {
+                                                const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                                const serviceAdults = parseInt(passengerCount) || 0;
+                                                return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_exit_0_is_supplement`)?.checked || false);
+                                            })(),
                                             vehicle_type: vehicle.dataset.vehicle_type || "SUV",
                                             vehicle_model: vehicle.dataset.vehicle_model || "",
                                             model_year: parseInt(vehicle.dataset.model_year) || 0,
@@ -3818,7 +3881,8 @@
                                             address2: customerData.address2,
                                             state: customerData.state,
                                             zip: customerData.zip,
-                                            specialRequests: customerData.specialRequests
+                                            specialRequests: customerData.specialRequests,
+                                            remarks: document.getElementById(`day${day}_exit_0_remarks`)?.value || ''
                                         };
                                         exitPortArray.push(transportData);
                                         console.log(`✅ Added exit port transport: ${transportData.vehicles_name}`, transportData);
@@ -3944,6 +4008,11 @@
                                                 travel_type: "entry_port",
                                                 arrival_transport_type: document.querySelector(`input[name="day${vehicleDay}_arrival_transport_type"]:checked`)?.value || "flight",
                                                 arrival_flight_no: document.getElementById(`day${vehicleDay}_arrival_flight_no`)?.value || "",
+                                                supplement: (() => {
+                                                    const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                                    const serviceAdults = parseInt(passengerCount) || 0;
+                                                    return (serviceAdults < tourAdults) || (document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_is_supplement`)?.checked || false);
+                                                })(),
                                                 entrypickup: pickupField.value,
                                                 entrydropoff: dropoffField.value,
                                                 PickupPlaceid: {
@@ -3979,7 +4048,8 @@
                                                     return countryValue || "Singapore";
                                                 })(),
                                                                 bookingType: "enquiry",
-                                                                vehicleIndex: vehicleIndex // Add index to identify which vehicle this is
+                                                                vehicleIndex: vehicleIndex, // Add index to identify which vehicle this is
+                                                                remarks: document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_remarks`)?.value || ''
                                             };
                                             
                                             entryPortArray.push(transportData);
@@ -4107,6 +4177,11 @@
                                                 travel_type: "exit_port",
                                                 departure_transport_type: document.querySelector(`input[name="day${vehicleDay}_departure_transport_type"]:checked`)?.value || "flight",
                                                 departure_flight_no: document.getElementById(`day${vehicleDay}_departure_flight_no`)?.value || "",
+                                                supplement: (() => {
+                                                    const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                                    const serviceAdults = parseInt(passengerCount) || 0;
+                                                    return (serviceAdults < tourAdults) || (document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_is_supplement`)?.checked || false);
+                                                })(),
                                                 exitpickup: pickupField.value,
                                                 exitdropoff: dropoffField.value,
                                                 PickupPlaceid: {
@@ -4154,7 +4229,8 @@
                                                     specialRequests: customerData.specialRequests || null
                                                 },
                                                 bookingType: "enquiry",
-                                                vehicleIndex: vehicleIndex // Add index to identify which additional vehicle this is
+                                                vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
+                                                remarks: document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_remarks`)?.value || ''
                                             };
                                             
                                             exitPortArray.push(transportData);
@@ -13507,6 +13583,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                              <div class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border-radius: 6px; font-size: 0.85rem; font-weight: 600; padding: 0.5rem 0.875rem; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">${hotel.totalNights} nights</div>
                                          </div>
+                                         <div class="mt-2 pt-2" style="border-top: 1px solid rgba(125, 211, 192, 0.5);">
+                                             <span class="fw-semibold" style="color: #495057; font-size: 0.8rem;">REMARKS :: </span><span style="color: #212529; font-size: 0.8rem;">${hotel.remarks || ''}</span>
+                                         </div>
                                      </div>
                                      
                                      <!-- Meal Costs Breakdown -->
@@ -13662,19 +13741,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                     </div>
                                     
-                                    <!-- Remarks for this Hotel -->
-                                    <div class="mt-2">
-                                        <label class="form-label fw-semibold mb-1" style="color: #f9fafb; font-size: 0.8rem;">
-                                            <i class="ri-chat-quote-line me-1"></i>Remarks
-                                        </label>
-                                        <textarea
-                                            class="form-control"
-                                            name="hotel_${index}_remarks"
-                                            id="hotel_${index}_remarks"
-                                            rows="2"
-                                            placeholder="Optional notes for this hotel booking..."
-                                            style="font-size: 0.8rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); background: rgba(15,23,42,0.15); color: #f9fafb;"
-                                        >${hotel.remarks || ''}</textarea>
+                                    <!-- Is Supplement -->
+                                    <div class="mt-2 form-check">
+                                        <input class="form-check-input" type="checkbox" name="hotel_is_supplement_${index}" id="hotel_is_supplement_${index}" ${(hotel.supplement || hotel.is_supplement || ((hotel.selectedPersons || 1) * (hotel.numberOfRooms || 1)) < (parseInt(document.getElementById('adults')?.value || 1)) ? 'checked' : '')} onchange="if(typeof updateHotelDataField==='function') updateHotelDataField();">
+                                        <label class="form-check-label" style="color: #495057; font-size: 0.85rem;" for="hotel_is_supplement_${index}">Supplement (fewer adults than tour)</label>
                                     </div>
                                  </div>
                              </div>
@@ -13974,9 +14044,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         </div>
                                                    </div>
                                                    <input type="hidden" name="day${day}_entry_0_passengers" id="day${day}_entry_0_passengers" value="1">
-                                                   
-                                                   <!-- Remarks just below vehicle / pax configuration -->
-                                                   <div class="mt-2">
+                                               </div>
+                                                   <!-- Remarks full width (col-md-12) -->
+                                                   <div class="col-md-12 mt-2">
+                                                       <div class="form-check mb-2">
+                                                           <input class="form-check-input" type="checkbox" name="day${day}_entry_0_is_supplement" id="day${day}_entry_0_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
+                                                           <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_entry_0_is_supplement">Supplement (fewer adults than tour)</label>
+                                                       </div>
                                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                            <i class="ri-chat-quote-line me-1"></i>Remarks
                                                        </label>
@@ -13989,7 +14063,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                            style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6; color: #212529; background-color: #f8f9fa;"
                                                        ></textarea>
                                                    </div>
-                                               </div>
                                             </div>
                                         </div>
                                         
@@ -14290,9 +14363,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         </div>
                                                    </div>
                                                    <input type="hidden" name="day${day}_exit_0_passengers" id="day${day}_exit_0_passengers" value="1">
-
-                                                   <!-- Remarks just below vehicle / pax configuration -->
-                                                   <div class="mt-2">
+                                               </div>
+                                                   <!-- Remarks full width (col-md-12) -->
+                                                   <div class="col-md-12 mt-2">
+                                                       <div class="form-check mb-2">
+                                                           <input class="form-check-input" type="checkbox" name="day${day}_exit_0_is_supplement" id="day${day}_exit_0_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
+                                                           <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_exit_0_is_supplement">Supplement (fewer adults than tour)</label>
+                                                       </div>
                                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                            <i class="ri-chat-quote-line me-1"></i>Remarks
                                                        </label>
@@ -14305,7 +14382,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                            style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6; color: #212529; background-color: #f8f9fa;"
                                                        ></textarea>
                                                    </div>
-                                               </div>
                                             </div>
                                         </div>
                                         
@@ -14834,6 +14910,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 </div>
                                             </div>
 
+                                            <!-- Is Supplement -->
+                                            <div class="row mt-2">
+                                                <div class="col-12">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" name="day${day}_attraction_1_is_supplement" id="day${day}_attraction_1_is_supplement" onchange="if(typeof updateAttractionDataField==='function') updateAttractionDataField();">
+                                                        <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_attraction_1_is_supplement">Supplement (fewer adults than tour)</label>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             <!-- Remarks for this Attraction item -->
                                             <div class="row mt-3">
                                                 <div class="col-12">
@@ -15068,6 +15153,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                                  `}
                                  <!-- Remarks for this Guide service (shown for both layouts) -->
+                                 <div class="row mt-2">
+                                     <div class="col-12">
+                                         <div class="form-check">
+                                             <input class="form-check-input" type="checkbox" name="day${day}_guide_1_is_supplement" id="day${day}_guide_1_is_supplement" onchange="if(typeof updateGuideDataField==='function') updateGuideDataField();">
+                                             <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="day${day}_guide_1_is_supplement">Supplement (fewer adults than tour)</label>
+                                         </div>
+                                     </div>
+                                 </div>
                                  <div class="row mt-3">
                                      <div class="col-12">
                                          <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;">
@@ -15311,7 +15404,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                                          </div>
                                                      </div>
 
-                                                     <!-- Remarks for this Restaurant service -->
+                                                     <!-- Is Supplement -->
+                                                     <div class="row mt-2">
+                                                         <div class="col-12">
+                                                             <div class="form-check">
+                                                                 <input class="form-check-input" type="checkbox" name="day${day}_restaurant_1_is_supplement" id="day${day}_restaurant_1_is_supplement" onchange="if(typeof updateRestaurantDataField==='function') updateRestaurantDataField();">
+                                                                 <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_restaurant_1_is_supplement">Supplement (fewer adults than tour)</label>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                    <!-- Remarks for this Restaurant service -->
                                                      <div class="row mt-3">
                                                          <div class="col-12">
                                                              <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -15843,6 +15945,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <input type="hidden" name="day${day}_transport_passengers" id="day${day}_transport_passengers" value="1">
                                             </div>
 
+                                            <!-- Is Supplement -->
+                                            <div class="col-12 mt-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="day${day}_transport_1_is_supplement" id="day${day}_transport_1_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_transport_1_is_supplement">Supplement (fewer adults than tour)</label>
+                                                </div>
+                                            </div>
                                             <!-- Remarks for this Other Transport service -->
                                             <div class="col-12 mt-3">
                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -17217,6 +17326,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                 </div>
 
+                                <!-- Is Supplement -->
+                                <div class="row mt-2">
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="day${day}_attraction_${newIndex}_is_supplement" id="day${day}_attraction_${newIndex}_is_supplement" onchange="if(typeof updateAttractionDataField==='function') updateAttractionDataField();">
+                                            <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_attraction_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                        </div>
+                                    </div>
+                                </div>
                                 <!-- Remarks for this Attraction item -->
                                 <div class="row mt-3">
                                     <div class="col-12">
@@ -18823,6 +18941,15 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                     </div>
 
+                    <!-- Is Supplement -->
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="day${day}_restaurant_${newIndex}_is_supplement" id="day${day}_restaurant_${newIndex}_is_supplement" onchange="if(typeof updateRestaurantDataField==='function') updateRestaurantDataField();">
+                                <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_restaurant_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                            </div>
+                        </div>
+                    </div>
                     <!-- Remarks for this additional Restaurant service -->
                     <div class="row mt-3">
                         <div class="col-12">
@@ -19796,6 +19923,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     `}
                     <!-- Remarks for this additional Guide (shown for both layouts) -->
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="day${day}_guide_${newIndex}_is_supplement" id="day${day}_guide_${newIndex}_is_supplement" onchange="if(typeof updateGuideDataField==='function') updateGuideDataField();">
+                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="day${day}_guide_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                            </div>
+                        </div>
+                    </div>
                     <div class="row mt-3">
                         <div class="col-12">
                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;">
@@ -20249,6 +20384,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <input type="hidden" name="day${day}_transport_${newIndex}_passengers" id="day${day}_transport_${newIndex}_passengers" value="1">
                                             </div>
 
+                                            <!-- Is Supplement -->
+                                            <div class="col-12 mt-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="day${day}_transport_${newIndex}_is_supplement" id="day${day}_transport_${newIndex}_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_transport_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                                </div>
+                                            </div>
                                             <!-- Remarks for this additional Other Transport service -->
                                             <div class="col-12 mt-3">
                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -20967,6 +21109,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <input type="hidden" name="day${day}_entry_${newIndex}_passengers" id="day${day}_entry_${newIndex}_passengers" value="1">
 
+                            <!-- Is Supplement -->
+                            <div class="mt-2 col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="day${day}_entry_${newIndex}_is_supplement" id="day${day}_entry_${newIndex}_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
+                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_entry_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                </div>
+                            </div>
                             <!-- Remarks for additional Arrival Transport (full width under config) -->
                             <div class="mt-2 col-12">
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -21325,6 +21474,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <input type="hidden" name="day${day}_exit_${newIndex}_passengers" id="day${day}_exit_${newIndex}_passengers" value="1">
 
+                            <!-- Is Supplement -->
+                            <div class="mt-2 col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="day${day}_exit_${newIndex}_is_supplement" id="day${day}_exit_${newIndex}_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
+                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_exit_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                </div>
+                            </div>
                             <!-- Remarks for additional Departure Transport (full width under config) -->
                             <div class="mt-2 col-12">
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
