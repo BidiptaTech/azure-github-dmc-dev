@@ -728,6 +728,7 @@ class BookingsController extends Controller
                 'tours.taxes',
                 'tours.is_pro',
                 'tours.user_currency',
+                'tours.mainguest',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -788,6 +789,7 @@ class BookingsController extends Controller
                 'tours.taxes',
                 'tours.is_pro',
                 'tours.user_currency',
+                'tours.mainguest',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -848,6 +850,7 @@ class BookingsController extends Controller
                 'tours.taxes',
                 'tours.is_pro',
                 'tours.user_currency',
+                'tours.mainguest',
                 'tours.created_at',
                 'tours.created_by',
                 'tours.updated_at',
@@ -917,6 +920,7 @@ class BookingsController extends Controller
                 'tours.taxes',
                 'tours.is_pro',
                 'tours.user_currency',
+                'tours.mainguest',
                 'tours.created_at',
                 'tours.created_by',
                 'tours.updated_at',
@@ -976,6 +980,7 @@ class BookingsController extends Controller
                     'tours.taxes',
                     'tours.is_pro',
                     'tours.user_currency',
+                    'tours.mainguest',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
@@ -1035,6 +1040,7 @@ class BookingsController extends Controller
                     'tours.taxes',
                     'tours.is_pro',
                     'tours.user_currency',
+                    'tours.mainguest',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
@@ -1657,6 +1663,8 @@ class BookingsController extends Controller
         $totalRooms = 0;
         $confirmationNos = [];
         $allMealPlans = [];
+        $childWithBedTotal = 0;
+        $childWithoutBedTotal = 0;
 
         $str = function ($val, $default = '') {
             if (is_array($val) || is_object($val)) return $default;
@@ -1725,14 +1733,42 @@ class BookingsController extends Controller
                             $hotelRooms = (int) ($booking['number_of_rooms'] ?? 1);
                         }
 
+                        $cwb = $booking['child_with_bed'] ?? null;
+                        $cnb = $booking['child_without_bed'] ?? null;
+                        if (is_array($cwb) && isset($cwb['children'])) {
+                            $n = (int) $cwb['children'];
+                            if ($n > $childWithBedTotal) $childWithBedTotal = $n;
+                        }
+                        if (is_array($cnb) && isset($cnb['children'])) {
+                            $n = (int) $cnb['children'];
+                            if ($n > $childWithoutBedTotal) $childWithoutBedTotal = $n;
+                        }
+
                         $totalRooms += $hotelRooms;
                         $allMealPlans = array_merge($allMealPlans, $hotelMeals);
 
                         $hotelDueDate = null;
                         if ($order->display_due_date) {
                             try {
-                                $hotelDueDate = Carbon::parse($order->display_due_date)->format('d-M-Y');
+                                $hotelDueDate = Carbon::parse($order->display_due_date)->format('d/m/Y');
                             } catch (\Exception $e) {}
+                        }
+
+                        $hotelMealFormatted = '';
+                        if (!empty($hotelMeals)) {
+                            $mealNames = [];
+                            foreach (array_unique($hotelMeals) as $mp) {
+                                $mp = preg_replace('/^room\s+with\s+/i', '', (string) $mp);
+                                $mp = preg_replace('/^room\s+only\s*/i', '', $mp);
+                                $mp = trim($mp);
+                                if (empty($mp)) continue;
+                                $parts = preg_split('/\s*\+\s*|\s+and\s+/i', $mp);
+                                foreach ($parts as $p) {
+                                    $p = trim($p);
+                                    if (!empty($p)) $mealNames[] = ucfirst(strtolower($p));
+                                }
+                            }
+                            $hotelMealFormatted = implode(', ', array_unique($mealNames));
                         }
 
                         $hotels[] = [
@@ -1740,9 +1776,10 @@ class BookingsController extends Controller
                             'room_type' => implode(', ', array_filter($roomTypes)),
                             'check_in' => $checkIn,
                             'check_out' => $checkOut,
-                            'meal_plan' => implode(', ', array_unique($hotelMeals)),
+                            'meal_plan' => $hotelMealFormatted,
                             'rooms' => $hotelRooms,
                             'due_date' => $hotelDueDate,
+                            'confirmation_no' => $order->reference_id ? $str($order->reference_id) : '',
                         ];
 
                         if ($order->reference_id) {
@@ -1847,20 +1884,42 @@ class BookingsController extends Controller
 
         $travelDates = '';
         if ($tour->check_in_time && $tour->check_out_time) {
-            $travelDates = Carbon::parse($tour->check_in_time)->format('d M Y') . ' - ' . Carbon::parse($tour->check_out_time)->format('d M Y');
+            $travelDates = Carbon::parse($tour->check_in_time)->format('d/m/Y') . ' - ' . Carbon::parse($tour->check_out_time)->format('d/m/Y');
         }
 
         $adultCount = (int) ($tour->adult ?? 0);
         $childCount = (int) ($tour->child ?? 0);
         $infantCount = (int) ($tour->infant ?? 0);
         $noOfPax = sprintf('%02d', $adultCount) . ' Adults';
-        if ($childCount > 0) $noOfPax .= ', ' . $childCount . ' Children';
+        if ($childWithBedTotal > 0 || $childWithoutBedTotal > 0) {
+            if ($childWithBedTotal > 0) $noOfPax .= '+' . sprintf('%02d', $childWithBedTotal) . ' cwb';
+            if ($childWithoutBedTotal > 0) $noOfPax .= '+' . sprintf('%02d', $childWithoutBedTotal) . ' cnb';
+        } elseif ($childCount > 0) {
+            $noOfPax .= ', ' . $childCount . ' Children';
+        }
         if ($infantCount > 0) $noOfPax .= ', ' . $infantCount . ' Infants';
 
         $refId = $tour->reference_id ?? $tour->display_id ?? '';
         $referenceId = is_array($refId) ? (string) ($refId[0] ?? '') : (string) $refId;
 
-        $mealPlanSummary = !empty($allMealPlans) ? implode(', ', array_unique($allMealPlans)) : '';
+        $mealPlanSummary = '';
+        if (!empty($allMealPlans)) {
+            $mealNames = [];
+            foreach (array_unique($allMealPlans) as $mp) {
+                $mp = preg_replace('/^room\s+with\s+/i', '', (string) $mp);
+                $mp = preg_replace('/^room\s+only\s*/i', '', $mp);
+                $mp = trim($mp);
+                if (empty($mp)) continue;
+                $parts = preg_split('/\s*\+\s*|\s+and\s+/i', $mp);
+                foreach ($parts as $p) {
+                    $p = trim($p);
+                    if (!empty($p)) {
+                        $mealNames[] = ucfirst(strtolower($p));
+                    }
+                }
+            }
+            $mealPlanSummary = implode(', ', array_unique($mealNames));
+        }
         $confirmationNo = !empty($confirmationNos) ? implode(', ', $confirmationNos) : 'na';
 
         $voucherData = [
