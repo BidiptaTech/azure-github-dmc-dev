@@ -6359,9 +6359,15 @@
         
         // Set modal values
         document.getElementById('mainModalMale').textContent = male;
-        document.getElementById('mainModalFemale').textContent = female;
-        document.getElementById('mainModalChildren').textContent = children;
-        document.getElementById('mainModalInfants').textContent = infants;
+       document.getElementById('mainModalFemale').textContent = female;
+       document.getElementById('mainModalChildren').textContent = children;
+       document.getElementById('mainModalInfants').textContent = infants;
+       
+       // Set total adults (male + female) if the element exists
+       const adultsEl = document.getElementById('mainModalAdults');
+       if (adultsEl) {
+           adultsEl.textContent = (male + female);
+       }
         
         // Update child age dropdowns (will auto-populate existing ages)
         updateChildAgeDropdowns(children);
@@ -6406,9 +6412,24 @@
                                                 <i class="ri-user-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>Adults
                                             </h6>
                                         </div>
-                                        <div class="card-body" style="padding: 1rem 0.875rem;">
-                                            <!-- Male -->
-                                            <div class="guest-counter mb-3">
+                                       <div class="card-body" style="padding: 1rem 0.875rem;">
+                                           <!-- Adults Total -->
+                                           <div class="guest-counter mb-3">
+                                               <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                                   <i class="ri-user-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Adults
+                                               </label>
+                                               <div class="d-flex align-items-center justify-content-center">
+                                                   <button type="button" class="btn" onclick="updateMainAdults(-1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                       <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                   </button>
+                                                   <span class="mx-3 fw-bold" id="mainModalAdults" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                                   <button type="button" class="btn" onclick="updateMainAdults(1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                       <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                   </button>
+                                               </div>
+                                           </div>
+                                           <!-- Male -->
+                                           <div class="guest-counter mb-3">
                                                 <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
                                                     <i class="ri-user-3-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Male
                                                 </label>
@@ -6427,12 +6448,12 @@
                                                 <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
                                                     <i class="ri-user-4-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Female
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateMainGuest('female', -1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                               <div class="d-flex align-items-center justify-content-center">
+                                                   <button type="button" class="btn" onclick="updateMainFemale(-1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                                         <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="mainModalFemale" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateMainGuest('female', 1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                   <span class="mx-3 fw-bold" id="mainModalFemale" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                                   <button type="button" class="btn" onclick="updateMainFemale(1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                                         <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                                     </button>
                                                 </div>
@@ -6512,7 +6533,7 @@
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
     
-    window.updateMainGuest = function(type, change) {
+   window.updateMainGuest = function(type, change) {
         const element = document.getElementById('mainModal' + type.charAt(0).toUpperCase() + type.slice(1));
         const currentValue = parseInt(element.textContent) || 0;
         let newValue = Math.max(0, currentValue + change);
@@ -6522,22 +6543,100 @@
             const maleEl = document.getElementById('mainModalMale');
             const femaleEl = document.getElementById('mainModalFemale');
             const maleCount = maleEl ? parseInt(maleEl.textContent) || 0 : 0;
-            const femaleCount = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
-            
-            const totalAdults = (type === 'male' ? newValue : maleCount) + (type === 'female' ? newValue : femaleCount);
-            
-            if (totalAdults < 1) {
-                return; // Don't allow reducing to 0 adults
-            }
-        }
-        
-        element.textContent = newValue;
-        
-        // Handle child age dropdowns
-        if (type === 'children') {
-            updateChildAgeDropdowns(newValue);
-        }
-    };
+           const femaleCount = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
+           
+           const totalAdults = (type === 'male' ? newValue : maleCount) + (type === 'female' ? newValue : femaleCount);
+           
+           if (totalAdults < 1) {
+               return; // Don't allow reducing to 0 adults
+           }
+           
+           // Update total adults display if present
+           const adultsEl = document.getElementById('mainModalAdults');
+           if (adultsEl) {
+               adultsEl.textContent = totalAdults;
+           }
+       }
+       
+       element.textContent = newValue;
+       
+       // Handle child age dropdowns
+       if (type === 'children') {
+           updateChildAgeDropdowns(newValue);
+       }
+   };
+   
+   // Update total adults; when adults increased, add to male by default
+   window.updateMainAdults = function(change) {
+       const adultsEl = document.getElementById('mainModalAdults');
+       const maleEl = document.getElementById('mainModalMale');
+       const femaleEl = document.getElementById('mainModalFemale');
+       
+       if (!adultsEl || !maleEl || !femaleEl) return;
+       
+       let adults = parseInt(adultsEl.textContent) || 0;
+       let male = parseInt(maleEl.textContent) || 0;
+       let female = parseInt(femaleEl.textContent) || 0;
+       
+       let newAdults = Math.max(0, adults + change);
+       
+       const currentAdults = male + female;
+       
+       // If adults increased, add difference to male
+       if (newAdults > currentAdults) {
+           const diff = newAdults - currentAdults;
+           male += diff;
+       } else if (newAdults < currentAdults) {
+           // If adults decreased, reduce from male first
+           let toRemove = currentAdults - newAdults;
+           const removableFromMale = Math.min(male, toRemove);
+           male -= removableFromMale;
+           toRemove -= removableFromMale;
+           
+           // If still more to remove, reduce from female
+           if (toRemove > 0) {
+               female = Math.max(0, female - toRemove);
+           }
+           
+           newAdults = male + female;
+       }
+       
+       adultsEl.textContent = newAdults;
+       maleEl.textContent = male;
+       femaleEl.textContent = female;
+   };
+   
+   // When clicking female +/-: move count between male and female, keeping adults total same
+   window.updateMainFemale = function(change) {
+       const adultsEl = document.getElementById('mainModalAdults');
+       const maleEl = document.getElementById('mainModalMale');
+       const femaleEl = document.getElementById('mainModalFemale');
+       
+       if (!maleEl || !femaleEl) return;
+       
+       let male = parseInt(maleEl.textContent) || 0;
+       let female = parseInt(femaleEl.textContent) || 0;
+       
+       if (change > 0) {
+           // Increase female by taking from male
+           if (male <= 0) return;
+           male -= 1;
+           female += 1;
+       } else if (change < 0) {
+           // Decrease female by giving back to male
+           if (female <= 0) return;
+           female -= 1;
+           male += 1;
+       }
+       
+       maleEl.textContent = male;
+       femaleEl.textContent = female;
+       
+       // Keep adults total in sync if element exists
+       if (adultsEl) {
+           adultsEl.textContent = male + female;
+       }
+   };
     
     // Function to create/update child age dropdowns
     function updateChildAgeDropdowns(childCount) {
@@ -13726,23 +13825,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <div class="mb-4">
                                      <div class="row g-3">
                                          <div class="col-12 col-md-4">
-                                             <label class="form-label fw-semibold text-dark">Transport Type</label>
-                                             <div class="d-flex gap-3 pt-2">
-                                                 <div class="form-check">
-                                                     <input class="form-check-input" type="radio" name="day${day}_arrival_transport_type" id="day${day}_arrival_transport_flight" value="flight" checked>
-                                                     <label class="form-check-label" for="day${day}_arrival_transport_flight">Flight</label>
-                                                 </div>
-                                                 <div class="form-check">
-                                                     <input class="form-check-input" type="radio" name="day${day}_arrival_transport_type" id="day${day}_arrival_transport_train" value="train">
-                                                     <label class="form-check-label" for="day${day}_arrival_transport_train">Train</label>
-                                                 </div>
-                                                 <div class="form-check">
-                                                     <input class="form-check-input" type="radio" name="day${day}_arrival_transport_type" id="day${day}_arrival_transport_bus" value="bus">
-                                                     <label class="form-check-label" for="day${day}_arrival_transport_bus">Bus</label>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                         <div class="col-12 col-md-4">
                                              <label class="form-label fw-semibold text-dark" for="day${day}_arrival_flight_no">
                                                 Arrival Flight/Train/Bus No.
                                              </label>
@@ -14055,23 +14137,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <i class="ri-flight-takeoff-line me-2"></i>Departure Flight/Train/Bus Details
                                      </h6>
                                      <div class="row g-3">
-                                         <div class="col-12 col-md-4">
-                                             <label class="form-label fw-semibold text-dark">Transport Type</label>
-                                             <div class="d-flex gap-3 pt-2">
-                                                 <div class="form-check">
-                                                     <input class="form-check-input" type="radio" name="day${day}_departure_transport_type" id="day${day}_departure_transport_flight" value="flight" checked>
-                                                     <label class="form-check-label" for="day${day}_departure_transport_flight">Flight</label>
-                                                 </div>
-                                                 <div class="form-check">
-                                                     <input class="form-check-input" type="radio" name="day${day}_departure_transport_type" id="day${day}_departure_transport_train" value="train">
-                                                     <label class="form-check-label" for="day${day}_departure_transport_train">Train</label>
-                                                 </div>
-                                                 <div class="form-check">
-                                                     <input class="form-check-input" type="radio" name="day${day}_departure_transport_type" id="day${day}_departure_transport_bus" value="bus">
-                                                     <label class="form-check-label" for="day${day}_departure_transport_bus">Bus</label>
-                                                 </div>
-                                             </div>
-                                         </div>
                                          <div class="col-12 col-md-4">
                                              <label class="form-label fw-semibold text-dark" for="day${day}_departure_flight_no">
                                                  Departure Flight/Train/Bus No.
@@ -21590,6 +21655,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </h6>
                                         </div>
                                         <div class="card-body" style="padding: 1rem 0.875rem;">
+                                            <!-- Adults Total (Male + Female) -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                                    <i class="ri-user-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Adults (Total)
+                                                </label>
+                                                <div class="d-flex align-items-center justify-content-center">
+                                                    <span class="mx-3 fw-bold" id="serviceModalAdults" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                                </div>
+                                            </div>
                                             <!-- Male -->
                                             <div class="guest-counter mb-3">
                                                 <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
@@ -21742,15 +21816,17 @@ document.addEventListener('DOMContentLoaded', function() {
          infants = Math.min(infants, maxInfants);
          
          // Set modal values
-         const maleEl = document.getElementById('serviceModalMale');
-         const femaleEl = document.getElementById('serviceModalFemale');
-         const childrenEl = document.getElementById('serviceModalChildren');
-         const infantsEl = document.getElementById('serviceModalInfants');
-         
-         if (maleEl) maleEl.textContent = male;
-         if (femaleEl) femaleEl.textContent = female;
-         if (childrenEl) childrenEl.textContent = children;
-         if (infantsEl) infantsEl.textContent = infants;
+        const maleEl = document.getElementById('serviceModalMale');
+        const femaleEl = document.getElementById('serviceModalFemale');
+        const childrenEl = document.getElementById('serviceModalChildren');
+        const infantsEl = document.getElementById('serviceModalInfants');
+        const adultsEl = document.getElementById('serviceModalAdults');
+        
+        if (maleEl) maleEl.textContent = male;
+        if (femaleEl) femaleEl.textContent = female;
+        if (childrenEl) childrenEl.textContent = children;
+        if (infantsEl) infantsEl.textContent = infants;
+        if (adultsEl) adultsEl.textContent = male + female;
     }
      
     window.updateServiceGuest = function(type, change) {
@@ -21787,7 +21863,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-         element.textContent = newValue;
+        element.textContent = newValue;
+        
+        // Keep total adults (male + female) in sync
+        if (type === 'male' || type === 'female') {
+            const maleEl = document.getElementById('serviceModalMale');
+            const femaleEl = document.getElementById('serviceModalFemale');
+            const adultsEl = document.getElementById('serviceModalAdults');
+            
+            if (maleEl && femaleEl && adultsEl) {
+                const maleCount = parseInt(maleEl.textContent) || 0;
+                const femaleCount = parseInt(femaleEl.textContent) || 0;
+                adultsEl.textContent = maleCount + femaleCount;
+            }
+        }
     };
      
     window.applyGuestSelection = function() {
