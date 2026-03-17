@@ -447,7 +447,7 @@ $(document).ready(function() {
                 
                 tableHTML += `
                     <tr>
-                        <td>${item.tour_id || 'N/A'}</td>
+                        <td>${item.display_id || item.tour_id || 'N/A'}</td>
                         <td>${dataItem.entrytime || 'N/A'}</td>
                         <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
                         <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
@@ -460,7 +460,7 @@ $(document).ready(function() {
                         <td>${item.pickup_zone || 'N/A'}</td>
                         <td>${dataItem.entrydropoff || 'N/A'}</td>
                         <td>${item.dropoff_zone || 'N/A'}</td>
-                        <td>${item.tour_id || 'N/A'}</td>
+                        <td>${item.display_id || item.tour_id || 'N/A'}</td>
                         <td></td>
                         <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
                         <td class="assign-driver-cell">
@@ -634,7 +634,7 @@ $(document).ready(function() {
                         
                         tableHTML += `
                             <tr>
-                                <td>${item.tour_id || 'N/A'}</td>
+                                <td>${item.display_id || item.tour_id || 'N/A'}</td>
                                 <td>${dataItem.entrytime || 'N/A'}</td>
                                 <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
                                 <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
@@ -647,7 +647,7 @@ $(document).ready(function() {
                                 <td>${item.pickup_zone || 'N/A'}</td>
                                 <td>${dataItem.entrydropoff || 'N/A'}</td>
                                 <td>${item.dropoff_zone || 'N/A'}</td>
-                                <td>${item.tour_id || 'N/A'}</td>
+                                <td>${item.display_id || item.tour_id || 'N/A'}</td>
                                 <td></td>
                                 <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
                                 <td class="assign-driver-cell">
