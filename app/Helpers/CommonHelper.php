@@ -26,6 +26,7 @@ use App\Mail\DmcMail;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -4651,6 +4652,68 @@ class CommonHelper
         }
 
         self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
+    }
+
+    /**
+     * When a service is removed (soft deleted) from a tour, revert tour_status to "New Enquiry"
+     * only if the tour went through negotiation (has records in enquiry_comments).
+     * If the tour was directly confirmed without any enquiry_comments, do not change tour_status.
+     *
+     * Call this after removing/rejecting a service from a tour.
+     *
+     * @param int $tourId
+     * @return void
+     */
+    public static function maybeRevertTourStatusToNewEnquiry(int $tourId): void
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->first();
+            if (!$tour) {
+                return;
+            }
+
+            $currentStatus = $tour->tour_status ?? '';
+            $statusesToRevert = ['Prospect', 'Tentative', 'Confirmed', 'Definite', 'Actual'];
+
+            // Do nothing if already "New Enquiry"
+            if ($currentStatus === 'New Enquiry') {
+                return;
+            }
+
+            // Do nothing if status is not in the list that should trigger revert
+            if (!in_array($currentStatus, $statusesToRevert, true)) {
+                return;
+            }
+
+            // Check if tour_id exists in enquiry_comments (negotiation history)
+            $hasEnquiryComments = DB::table('enquiry_comments')
+                ->where('tour_id', $tourId)
+                ->whereNull('deleted_at')
+                ->exists();
+
+            // Only revert if tour went through negotiation
+            if ($hasEnquiryComments) {
+                $previousStatus = $tour->tour_status;
+                $tour->tour_status = 'New Enquiry';
+                $tour->save();
+
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+
+                self::appendTourStatusTrack($tour, $previousStatus, 'New Enquiry', null, null, 'Service removed - reverted to New Enquiry', null, $changedByName, $changedByUserId);
+
+                Log::info('Tour status reverted to New Enquiry after service removal', [
+                    'tour_id' => $tourId,
+                    'previous_status' => $previousStatus,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('maybeRevertTourStatusToNewEnquiry failed', [
+                'tour_id' => $tourId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     // Get DMC Dynamic Currency
