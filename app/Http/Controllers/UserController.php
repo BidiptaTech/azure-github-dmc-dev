@@ -2512,20 +2512,22 @@ class UserController extends Controller
 
         // Store previous value for potential rollback
         $previousValue = $user->auto_cancel_date;
-        
-        // Update the auto_cancel_date field
+
+        // Update auto_cancel_date and auto_cancel_status (1 = on, 0 = off)
         $user->auto_cancel_date = $request->auto_cancel_date ?: null;
+        $user->auto_cancel_status = $request->auto_cancel_date ? 1 : 0;
         $user->save();
-        
+
         $message = $request->auto_cancel_date ? 
             "Auto cancel date updated to D-{$request->auto_cancel_date} successfully" : 
             "Auto cancel date cleared successfully";
         
         return response()->json([
-            'success' => true, 
-            'message' => $message, 
-            'user_id' => $request->user_id, 
+            'success' => true,
+            'message' => $message,
+            'user_id' => $request->user_id,
             'auto_cancel_date' => $request->auto_cancel_date,
+            'auto_cancel_status' => $user->auto_cancel_status,
             'previous_value' => $previousValue
         ]);
     }
