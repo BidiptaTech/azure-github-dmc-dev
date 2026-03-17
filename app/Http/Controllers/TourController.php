@@ -896,6 +896,79 @@ class TourController extends Controller
         }
     }
 
+    public function deletePayment(Request $request, $tourId)
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->firstOrFail();
+            $paymentIndex = (int) $request->input('payment_index');
+
+            $paymentDetails = json_decode($tour->payment_details, true) ?: [];
+            if (!isset($paymentDetails[$paymentIndex])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
+            }
+
+            array_splice($paymentDetails, $paymentIndex, 1);
+            $tour->payment_details = json_encode(array_values($paymentDetails));
+            $tour->save();
+
+            return response()->json(['success' => true, 'message' => 'Payment removed successfully']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Tour not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function updatePayment(Request $request, $tourId)
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->firstOrFail();
+            $paymentIndex = (int) $request->input('payment_index');
+
+            $request->validate([
+                'payment_amount' => 'required|numeric|min:0.01',
+                'currency' => 'required|string',
+                'payment_date' => 'required|date',
+                'payment_type' => 'required|string'
+            ]);
+
+            $selectedCurrency = $request->input('currency', 'SGD');
+            $exchangeRate = (float) $request->input('exchange_rate', 1);
+            $originalAmount = (float) $request->input('payment_amount');
+
+            $sgdAmount = $selectedCurrency === 'SGD' ? $originalAmount : $originalAmount / $exchangeRate;
+
+            $paymentDetails = json_decode($tour->payment_details, true) ?: [];
+            if (!isset($paymentDetails[$paymentIndex])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
+            }
+
+            $paymentDetails[$paymentIndex] = [
+                'amount' => $sgdAmount,
+                'original_amount' => $originalAmount,
+                'currency' => $selectedCurrency,
+                'exchange_rate' => $exchangeRate,
+                'transaction_id' => $request->input('transaction_id'),
+                'remarks' => $request->input('remarks'),
+                'date' => $paymentDetails[$paymentIndex]['date'] ?? now()->format('Y-m-d H:i:s'),
+                'payment_date' => $request->payment_date,
+                'payment_type' => $request->payment_type,
+                'status' => $paymentDetails[$paymentIndex]['status'] ?? 0,
+            ];
+
+            $tour->payment_details = json_encode($paymentDetails);
+            $tour->save();
+
+            return response()->json(['success' => true, 'message' => 'Payment updated successfully']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Tour not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function createTour(Request $request)
     {
         $user = auth()->user();

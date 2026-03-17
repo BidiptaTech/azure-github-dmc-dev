@@ -179,6 +179,7 @@ class ZoneController extends Controller
         $validator = Validator::make($request->all(), [
             'zone_name' => 'required|string|max:255',
             'zone_type' => 'required|string|max:255',
+            'vehicle_type' => 'required|string|max:255',
             'description' => 'nullable|string',
             'city' => 'required',
             'status' => 'required|integer',
@@ -244,6 +245,7 @@ class ZoneController extends Controller
         $validator = Validator::make($request->all(), [
             'zone_name' => 'required|string|max:255',
             'zone_type' => 'required|string|max:255',
+            'vehicle_type' => 'required|string|max:255',
             'description' => 'nullable|string',
             'city' => 'required',
             'status' => 'required|integer',
