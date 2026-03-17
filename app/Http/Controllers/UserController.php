@@ -1532,6 +1532,10 @@ class UserController extends Controller
             'password' => bcrypt($request->input('password')),
             'sales_manager_admin' => (int) ($salemg_admin ?? 0), // Ensure integer
             'company_name' => $request->company_name ?? Auth::user()->company_name ?? 'Travclicks',
+            'company_code' => $request->input('company_code') ?: null,
+            'user_code' => $request->input('user_code') ?: null,
+            'company_reg_no' => $request->input('company_reg_no') ?: null,
+            'licence_no' => $request->input('licence_no') ?: null,
             'timezone' => $request->timezone ?? 'UTC',
         ]);
         
@@ -2136,7 +2140,7 @@ class UserController extends Controller
         }
 
         // Update user with all the properly determined values
-        $user->update([
+        $updateData = [
             'salutation' => $request->salutation,
             'name' => $request->yourname,
             'user_type' => (int) $user_type,
@@ -2160,7 +2164,23 @@ class UserController extends Controller
             'markup_service' => $request->filled('markup_service') ? $request->markup_service : $user->markup_service,
             'markup_type' => $request->has('markup_type') && $request->markup_type !== '' ? (int) $request->markup_type : $user->markup_type,
             'markup_price' => $request->filled('markup_price') ? (int) $request->markup_price : $user->markup_price,
-        ]);
+        ];
+
+        // Optional codes / registration fields (update only when present in request)
+        if ($request->has('company_code')) {
+            $updateData['company_code'] = $request->input('company_code') ?: null;
+        }
+        if ($request->has('user_code')) {
+            $updateData['user_code'] = $request->input('user_code') ?: null;
+        }
+        if ($request->has('company_reg_no')) {
+            $updateData['company_reg_no'] = $request->input('company_reg_no') ?: null;
+        }
+        if ($request->has('licence_no')) {
+            $updateData['licence_no'] = $request->input('licence_no') ?: null;
+        }
+
+        $user->update($updateData);
 
         // Update role
         $role = Role::where('role_id', $request->role)->first();

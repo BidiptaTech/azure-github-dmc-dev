@@ -172,54 +172,85 @@ class JobSheetController extends Controller
                 $drivers = Driver::where('dmc_id', $dmcId)->get();
                 $vehicles = Vehicle::where('dmc_id', $dmcId)->get();
                 if(!is_null($dmcId)){
-                    $tomorrow = Carbon::tomorrow()->toDateString();
-                    
-                    // Get transportation orders
-                    $transportOrders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])
-                        ->where('data->0->>dmc_id', $dmcId)
+                    $orderTypes = ['entry_port', 'exit_port', 'travel_point', 'local_transport', 'travel_hourly'];
+
+                    // Get transportation orders (same as getOrdersByDate: join tours, filter by tour_status)
+                    $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                            'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
+                        ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                        ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                        ->whereIn('orders.type', $orderTypes)
+                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                         ->where(function ($q) use ($tomorrow) {
-                            // Some orders use pickupdate, some use exitpickupdate – support both
-                            $q->where('data->0->>pickupdate', $tomorrow)
-                              ->orWhere('data->0->>exitpickupdate', $tomorrow);
+                            $q->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
+                              ->orWhereRaw("data->0->>'exitpickupdate' = ?", [$tomorrow]);
                         })
+                        ->whereNotNull('orders.tour_id')
+                        ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                         ->get();
-                    
+
                     // Get attraction orders with transfer
-                    $allAttractionOrders = Order::where('type', 'attraction')
-                        ->where('data->0->>dmc_id', $dmcId)
-                        ->where('data->0->>bookingDate', $tomorrow)
+                    $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                            'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
+                        ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                        ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                        ->where('orders.type', 'attraction')
+                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
+                        ->whereRaw("data->0->>'bookingDate' = ?", [$tomorrow])
+                        ->whereNotNull('orders.tour_id')
+                        ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                         ->get();
-                    
-                    // Filter to only include orders with transfer_required = true
+
                     $attractionOrders = $allAttractionOrders->filter(function($order) {
                         $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                         if (is_array($orderData) && isset($orderData[0])) {
-                            return isset($orderData[0]['transfer_options']) && 
-                                   isset($orderData[0]['transfer_options']['transfer_required']) && 
+                            return isset($orderData[0]['transfer_options']) &&
+                                   isset($orderData[0]['transfer_options']['transfer_required']) &&
                                    $orderData[0]['transfer_options']['transfer_required'] === true;
                         }
                         return false;
                     });
-                    
+
                     // Get restaurant orders with transfer
-                    $allRestaurantOrders = Order::where('type', 'restaurant')
-                        ->where('data->0->>dmc_id', $dmcId)
-                        ->where('data->0->>bookingDate', $tomorrow)
+                    $allRestaurantOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                            'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
+                        ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                        ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                        ->where('orders.type', 'restaurant')
+                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
+                        ->whereRaw("data->0->>'bookingDate' = ?", [$tomorrow])
+                        ->whereNotNull('orders.tour_id')
+                        ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                         ->get();
-                    
-                    // Filter to only include orders with transfer_required = true
+
                     $restaurantOrders = $allRestaurantOrders->filter(function($order) {
                         $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                         if (is_array($orderData) && isset($orderData[0])) {
-                            return isset($orderData[0]['transfer_options']) && 
-                                   isset($orderData[0]['transfer_options']['transfer_required']) && 
+                            return isset($orderData[0]['transfer_options']) &&
+                                   isset($orderData[0]['transfer_options']['transfer_required']) &&
                                    $orderData[0]['transfer_options']['transfer_required'] === true;
                         }
                         return false;
                     });
-                    
-                    // Combine and process all orders
-                    $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders)->map(function($order) use ($dmcId, $tomorrow) {
+
+                    $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders);
+
+                    // Format display_id: strip DMC- and prefix with company_code/user_code (same as getOrdersByDate)
+                    foreach ($orders as $order) {
+                        $rest = preg_replace('/^DMC\-/i', '', $order->display_id ?? '');
+                        $prefixParts = array_filter([$order->dmc_company_code ?? '', $order->created_by_user_code ?? ''], 'strlen');
+                        $formattedDisplayId = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+                        $order->display_id = $formattedDisplayId;
+                        if (isset($order->tour) && is_object($order->tour)) {
+                            $order->tour->display_id = $formattedDisplayId;
+                        }
+                    }
+
+                    // Process all orders: zones, jobsheet assignments, driver/vehicle
+                    $orders = $orders->map(function($order) use ($dmcId, $tomorrow) {
                         // Add zone information for pickup and dropoff
                         $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                         if (is_array($orderData) && isset($orderData[0])) {
@@ -244,13 +275,12 @@ class JobSheetController extends Controller
                                     }
                                 }
                                 
-                                // Check if there's an assignment in the jobsheets table
+                                // Check if there's an assignment in the jobsheets table (same as getOrdersByDate)
                                 $jobsheet = Jobsheet::where('date', $tomorrow)
                                     ->where('type', $order->type)
                                     ->where('service_type', $dataItem['type'] ?? null)
                                     ->where('journey_time', $dataItem['entrytime'] ?? null)
-                                    ->where('dmc_id', $dmcId)
-                                    ->where('order_id', $order->order_id)
+                                    ->where('order_id', $order->booking_id)
                                     ->first();
                                 
                                 // Priority: Jobsheet assignment > Vehicle from order data
@@ -479,9 +509,76 @@ class JobSheetController extends Controller
                 }
             }
             else if(in_array($user->role_id, [1, 2, 3])){
-                $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
-                ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
-               ->get();
+                // Same fetch as getOrdersByDate when no dmcId: join tours, filter by tour_status, format display_id
+                $orderTypes = ['entry_port', 'exit_port', 'travel_point', 'local_transport', 'travel_hourly'];
+
+                $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
+                    ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                    ->whereIn('orders.type', $orderTypes)
+                    ->where(function ($q) use ($tomorrow) {
+                        $q->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
+                          ->orWhereRaw("data->0->>'exitpickupdate' = ?", [$tomorrow]);
+                    })
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
+                    ->get();
+
+                $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
+                    ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                    ->where('orders.type', 'attraction')
+                    ->whereRaw("data->0->>'bookingDate' = ?", [$tomorrow])
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
+                    ->get();
+
+                $attractionOrders = $allAttractionOrders->filter(function($order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (is_array($orderData) && isset($orderData[0])) {
+                        return isset($orderData[0]['transfer_options']) &&
+                               isset($orderData[0]['transfer_options']['transfer_required']) &&
+                               $orderData[0]['transfer_options']['transfer_required'] === true;
+                    }
+                    return false;
+                });
+
+                $allRestaurantOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
+                    ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                    ->where('orders.type', 'restaurant')
+                    ->whereRaw("data->0->>'bookingDate' = ?", [$tomorrow])
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
+                    ->get();
+
+                $restaurantOrders = $allRestaurantOrders->filter(function($order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (is_array($orderData) && isset($orderData[0])) {
+                        return isset($orderData[0]['transfer_options']) &&
+                               isset($orderData[0]['transfer_options']['transfer_required']) &&
+                               $orderData[0]['transfer_options']['transfer_required'] === true;
+                    }
+                    return false;
+                });
+
+                $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders);
+
+                foreach ($orders as $order) {
+                    $rest = preg_replace('/^DMC\-/i', '', $order->display_id ?? '');
+                    $prefixParts = array_filter([$order->dmc_company_code ?? '', $order->created_by_user_code ?? ''], 'strlen');
+                    $formattedDisplayId = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+                    $order->display_id = $formattedDisplayId;
+                    if (isset($order->tour) && is_object($order->tour)) {
+                        $order->tour->display_id = $formattedDisplayId;
+                    }
+                }
             }
             else{
                 return redirect()->back()->with('error', 'You are not authorized to access this page');
@@ -1134,6 +1231,7 @@ class JobSheetController extends Controller
     public function createGuideJobsheet()
     {
         try {
+            
             $user = auth()->user();
             $tomorrow = now()->addDay()->format('Y-m-d');
             $orders = [];
@@ -1165,14 +1263,27 @@ class JobSheetController extends Controller
                 $guides = Guide::where('dmc_id', $dmcId)->with('languages')->get();
 
                 // Get orders with tour information
-                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                     ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                     ->get();
-                
-                    
+
+                // Format display_id: strip DMC- and prefix with company_code/user_code
+                foreach ($orders as $order) {
+                    $rest = preg_replace('/^DMC\-/i', '', $order->display_id ?? '');
+                    $prefixParts = array_filter([$order->dmc_company_code ?? '', $order->created_by_user_code ?? ''], 'strlen');
+                    $formattedDisplayId = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+                    $order->display_id = $formattedDisplayId;
+                    if (isset($order->tour) && is_object($order->tour)) {
+                        $order->tour->display_id = $formattedDisplayId;
+                    }
+                }
+
                 // Process guide data for orders - check jobsheets table for assignments
                 $orders->map(function($order) use ($tomorrow) {
                     $orderData = is_array($order->data) ? $order->data : json_decode($order->data, true);
@@ -1252,11 +1363,25 @@ class JobSheetController extends Controller
             }
             else {
                 // For other roles, just get all orders for tomorrow
-                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                     ->get();
+
+                // Format display_id: strip DMC- and prefix with company_code/user_code
+                foreach ($orders as $order) {
+                    $rest = preg_replace('/^DMC\-/i', '', $order->display_id ?? '');
+                    $prefixParts = array_filter([$order->dmc_company_code ?? '', $order->created_by_user_code ?? ''], 'strlen');
+                    $formattedDisplayId = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+                    $order->display_id = $formattedDisplayId;
+                    if (isset($order->tour) && is_object($order->tour)) {
+                        $order->tour->display_id = $formattedDisplayId;
+                    }
+                }
             }
            
             
@@ -2331,8 +2456,11 @@ class JobSheetController extends Controller
             if (!is_null($dmcId)) {
                 // If DMC ID is available, filter by both DMC and date
                 if($type === 'guide'){
-                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'dmc_Id' = ?", [$dmcId])
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
@@ -2342,8 +2470,11 @@ class JobSheetController extends Controller
                 }
                 else{
                     // Get transportation orders
-                    $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                    $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                            'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                         ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                        ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                         ->whereIn('orders.type', $orderTypes)
                         ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                         ->where(function ($q) use ($date) {
@@ -2356,8 +2487,11 @@ class JobSheetController extends Controller
                         ->get();
                     
                     // Get attraction orders with transfer
-                    $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                    $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                            'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                         ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                        ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                         ->where('orders.type', 'attraction')
                         ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                         ->whereRaw("data->0->>'bookingDate' = ?", [$date])
@@ -2377,8 +2511,11 @@ class JobSheetController extends Controller
                     });
                     
                     // Get restaurant orders with transfer
-                    $allRestaurantOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                    $allRestaurantOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                            'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                         ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                        ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                         ->where('orders.type', 'restaurant')
                         ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                         ->whereRaw("data->0->>'bookingDate' = ?", [$date])
@@ -2401,8 +2538,11 @@ class JobSheetController extends Controller
                 }
             } else {
                 // Otherwise just filter by date
-                $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
                     ->where(function ($q) use ($date) {
                         // Some orders use pickupdate, some use exitpickupdate – support both
@@ -2414,8 +2554,11 @@ class JobSheetController extends Controller
                     ->get();
                 
                 // Get attraction orders with transfer
-                $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->where('orders.type', 'attraction')
                     ->whereRaw("data->0->>'bookingDate' = ?", [$date])
                     ->whereNotNull('orders.tour_id')
@@ -2434,8 +2577,11 @@ class JobSheetController extends Controller
                 });
                 
                 // Get restaurant orders with transfer
-                $allRestaurantOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                $allRestaurantOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                    ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->where('orders.type', 'restaurant')
                     ->whereRaw("data->0->>'bookingDate' = ?", [$date])
                     ->whereNotNull('orders.tour_id')
@@ -2455,6 +2601,19 @@ class JobSheetController extends Controller
                 
                 $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders);
             }
+
+            // Format display_id: strip DMC- and prefix with company_code/user_code
+            foreach ($orders as $order) {
+                $rest = preg_replace('/^DMC\-/i', '', $order->display_id ?? '');
+                $prefixParts = array_filter([$order->dmc_company_code ?? '', $order->created_by_user_code ?? ''], 'strlen');
+                $formattedDisplayId = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+                $order->display_id = $formattedDisplayId;
+                // Update nested tour->display_id (Order model eager-loads tour) so API response is consistent
+                if (isset($order->tour) && is_object($order->tour)) {
+                    $order->tour->display_id = $formattedDisplayId;
+                }
+            }
+
             // Fetch assigned drivers/guides for each order and add zone information
             if ($type === 'guide') {
                 $orders->map(function($order) use ($dmcId, $date) {

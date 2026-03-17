@@ -1307,6 +1307,209 @@ class BookingListController extends Controller
     }
 
     /**
+     * Download Handover Acknowledgement Checklist as PDF.
+     * Route passes tour_id in encrypted form.
+     */
+    public function downloadHandoverChecklistPdf(Request $request, $tour_id)
+    {
+        try {
+            $tourId = Crypt::decrypt($tour_id);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Invalid tour.');
+        }
+
+        $data = $this->buildHandoverChecklistData($tourId);
+        if (!$data) {
+            return redirect()->back()->with('error', 'Tour not found or no data for handover checklist.');
+        }
+
+        try {
+            $pdf = Pdf::loadView('bookingList.handover-checklist-pdf', $data)
+                ->setPaper('a4', 'portrait');
+            $filename = 'Handover_Checklist_' . ($data['display_id'] ?? $tourId) . '.pdf';
+            return $pdf->download($filename);
+        } catch (\Exception $e) {
+            \Log::error('Handover Checklist PDF error: ' . $e->getMessage(), ['tour_id' => $tourId]);
+            return redirect()->back()->with('error', 'Failed to generate PDF.');
+        }
+    }
+
+    /**
+     * Build data for the handover acknowledgement checklist PDF.
+     */
+    private function buildHandoverChecklistData($tourId)
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return null;
+        }
+
+        $dmcId = CommonHelper::getDmcId(auth()->user());
+        if ($dmcId === null) {
+            $dmcId = $tour->dmc_id;
+        }
+
+        $dmc = new \stdClass();
+        $dmc->company_name = config('app.name');
+        $dmc->name = '';
+        $dmc->address = $dmc->phone = $dmc->tel = $dmc->fax = $dmc->email = $dmc->website = $dmc->logo = null;
+
+        if ($dmcId) {
+            $userDmc = User::select('name', 'email', 'phone', 'company_name', 'logo', 'country', 'city', 'address')
+                ->where('userId', $dmcId)->first();
+            if ($userDmc) {
+                $dmc->company_name = $userDmc->company_name ?? $userDmc->name ?? config('app.name');
+                $dmc->name = $userDmc->name ?? '';
+                $dmc->address = $userDmc->address ?? null;
+                $dmc->phone = $userDmc->phone ?? null;
+                $dmc->tel = $userDmc->tel ?? $userDmc->phone ?? null;
+                $dmc->fax = $userDmc->fax ?? null;
+                $dmc->email = $userDmc->email ?? null;
+                $dmc->website = $userDmc->website ?? null;
+                $dmc->logo = $userDmc->logo ?? null;
+                if ($dmc->logo && !str_starts_with($dmc->logo, 'data:image')) {
+                    try {
+                        $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                        $imageContent = @file_get_contents($dmc->logo, false, $context);
+                        if ($imageContent !== false) {
+                            $imageInfo = @getimagesizefromstring($imageContent);
+                            if ($imageInfo !== false) {
+                                $dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        \Log::warning('Handover checklist DMC logo base64 failed: ' . $e->getMessage());
+                    }
+                }
+            }
+        }
+
+        $guest_name = 'N/A';
+        $nationality = 'N/A';
+        if (!empty($tour->mainguest)) {
+            try {
+                $mainguest = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                if (is_array($mainguest) && !empty($mainguest)) {
+                    $guest_name = $mainguest['full_name'] ?? $mainguest['name'] ?? 'N/A';
+                    $nationality = $mainguest['nationality'] ?? 'N/A';
+                }
+            } catch (\Exception $e) {
+                // ignore
+            }
+        }
+
+        $destination = $tour->destination ?? '';
+        if ($destination === '' && $tour->tour_id) {
+            $firstOrder = Order::where('tour_id', $tourId)->where('bookingType', 'booking')->where('status', 1)->first();
+            if ($firstOrder && $firstOrder->data) {
+                $decoded = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
+                $first = is_array($decoded) && isset($decoded[0]) ? $decoded[0] : $decoded;
+                if (is_array($first)) {
+                    $destination = $first['destination'] ?? $first['hotelDetails']['location'] ?? '';
+                }
+            }
+        }
+
+        $adults = (int) ($tour->adult ?? 0);
+        $cwb = 0;
+        $cnb = 0;
+
+        $hotelOrders = Order::where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->where('type', 'hotel')
+            ->where('status', 1)
+            ->get();
+
+        foreach ($hotelOrders as $order) {
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($data)) {
+                continue;
+            }
+            $first = isset($data[0]) ? $data[0] : $data;
+            if (!is_array($first)) {
+                continue;
+            }
+            if (isset($first['child_with_bed']['children'])) {
+                $cwb += (int) $first['child_with_bed']['children'];
+            }
+            if (isset($first['child_without_bed']['children'])) {
+                $cnb += (int) $first['child_without_bed']['children'];
+            }
+        }
+
+        $ticketCoupons = [];
+        $attractionRestaurantOrders = Order::where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->whereIn('type', ['attraction', 'restaurant'])
+            ->where('status', 1)
+            ->orderBy('booking_id')
+            ->get();
+
+        foreach ($attractionRestaurantOrders as $order) {
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($data) || empty($data)) {
+                continue;
+            }
+            $first = isset($data[0]) ? $data[0] : $data;
+            if (!is_array($first)) {
+                continue;
+            }
+
+            $serviceDate = null;
+            if (isset($first['bookingDate'])) {
+                $serviceDate = is_array($first['bookingDate']) ? ($first['bookingDate'][0] ?? null) : $first['bookingDate'];
+            } elseif (isset($first['date'])) {
+                $serviceDate = $first['date'];
+            }
+            if ($serviceDate) {
+                $serviceDate = \Carbon\Carbon::parse($serviceDate)->format('Y-m-d');
+            }
+
+            $serviceType = '';
+            $service = '';
+
+            if (strtolower($order->type) === 'attraction') {
+                $serviceType = 'Sightseeing';
+                $service = $first['AttractionName'] ?? $first['attractionName'] ?? $first['attraction_name'] ?? 'Attraction';
+            } elseif (strtolower($order->type) === 'restaurant') {
+                $serviceType = 'Meal Voucher';
+                $pax = (int)($first['adultCount'] ?? 0) + (int)($first['childCount'] ?? 0);
+                $mealType = $first['mealType'] ?? $first['mealSpecificType'] ?? 'Meal';
+                $restaurantName = $first['restaurantName'] ?? 'Restaurant';
+                $service = $mealType . ' for ' . $pax . ' members @ ' . $restaurantName;
+            }
+
+            $ticketCoupons[] = [
+                'service_date' => $serviceDate,
+                'service_type' => $serviceType,
+                'service' => $service,
+                'is_subrow' => false,
+            ];
+        }
+
+        usort($ticketCoupons, function ($a, $b) {
+            $dA = $a['service_date'] ?? '';
+            $dB = $b['service_date'] ?? '';
+            return strcmp($dA, $dB);
+        });
+
+        return [
+            'tourId' => $tourId,
+            'tourDetails' => $tour,
+            'display_id' => $tour->display_id ?? $tourId,
+            'dmc' => $dmc,
+            'guest_name' => $guest_name,
+            'nationality' => $nationality,
+            'destination' => $destination,
+            'arrival_date' => $tour->check_in_time ?? null,
+            'adults' => $adults,
+            'cwb' => $cwb,
+            'cnb' => $cnb,
+            'ticketCoupons' => $ticketCoupons,
+        ];
+    }
+
+    /**
      * Build data for the formatted itinerary PDF (hotels, days with time/description/type rows).
      */
     private function buildItineraryPdfData($tourId)
