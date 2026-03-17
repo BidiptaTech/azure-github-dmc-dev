@@ -470,6 +470,46 @@
         color: #047857;
         border-color: #6ee7b7;
     }
+    /* Due Date Badge - color by rule */
+    #toursTable td.col-payment-status .due-date-badge {
+        font-size: 0.65rem;
+        padding: 0.3rem 0.5rem;
+        font-weight: 600;
+        border-radius: 6px;
+        white-space: normal;
+        word-wrap: break-word;
+        max-width: 100%;
+        display: inline-block;
+    }
+    #toursTable td.col-payment-status .due-date-badge.due-red {
+        background: #dc2626 !important;
+        color: #ffffff !important;
+        border: 2px solid #991b1b !important;
+        animation: blink-alert 1.5s infinite;
+        box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+    }
+    #toursTable td.col-payment-status .due-date-badge.due-orange {
+        background: #f59e0b !important;
+        color: #111827 !important;
+        border: 2px solid #b45309 !important;
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+    }
+    #toursTable td.col-payment-status .due-date-badge.due-blue {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: 2px solid #1e40af !important;
+        box-shadow: 0 0 6px rgba(37, 99, 235, 0.35);
+    }
+    @keyframes blink-alert {
+        0%, 100% {
+            opacity: 1;
+            box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+        }
+        50% {
+            opacity: 0.7;
+            box-shadow: 0 0 12px rgba(220, 38, 38, 0.8);
+        }
+    }
     /* Actions column: same soft-badge design as follow-ups */
     #toursTable td.col-actions {
         min-height: 72px;
@@ -1095,12 +1135,71 @@
                                     // Calculate payment details (match proforma: is_pro transfer, guide when is_pro, hotel transfer once per order)
                                     $tourTotalPrice = 0;
                                     $isProPayment = (int)($tour->is_pro ?? 0);
+                                    
+                                    // Collect all display_due_date values from all orders and nested bookings
+                                    // NOTE: display_due_date may be stored as 'd-m-Y' (e.g. 20-03-2026) or 'Y-m-d' (e.g. 2026-03-20).
+                                    $parseDisplayDueDate = function ($value) {
+                                        if (empty($value)) return null;
+                                        try {
+                                            return \Carbon\Carbon::createFromFormat('d-m-Y', $value)->startOfDay();
+                                        } catch (\Exception $e) {
+                                            // ignore
+                                        }
+                                        try {
+                                            return \Carbon\Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+                                        } catch (\Exception $e) {
+                                            // ignore
+                                        }
+                                        try {
+                                            return \Carbon\Carbon::parse($value)->startOfDay();
+                                        } catch (\Exception $e) {
+                                            return null;
+                                        }
+                                    };
+                                    $allDueDates = [];
                                     foreach ($tour->booking as $order) {
                                         if (!in_array($order->status, [1, 2, 3])) continue;
+                                        
+                                        // Collect display_due_date from order level if it exists
+                                        if (!empty($order->display_due_date)) {
+                                            $dueDate = $parseDisplayDueDate($order->display_due_date);
+                                            if ($dueDate) $allDueDates[] = $dueDate;
+                                        }
+                                        
                                         $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                                         if (!is_array($data)) continue;
                                         $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
                                         $orderType = $order->type ?? '';
+                                        
+                                        // Check for nested display_due_date in bookings/items (for services with multiple bookings)
+                                        foreach ($items as $item) {
+                                            if (!is_array($item)) continue;
+                                            
+                                            // Check if item has display_due_date directly
+                                            if (!empty($item['display_due_date'])) {
+                                                $dueDate = $parseDisplayDueDate($item['display_due_date']);
+                                                if ($dueDate) $allDueDates[] = $dueDate;
+                                            }
+                                            
+                                            // Check for nested bookings array (e.g., hotel bookings, guide bookings)
+                                            if (isset($item['bookings']) && is_array($item['bookings'])) {
+                                                foreach ($item['bookings'] as $booking) {
+                                                    if (!is_array($booking)) continue;
+                                                    if (!empty($booking['display_due_date'])) {
+                                                        $dueDate = $parseDisplayDueDate($booking['display_due_date']);
+                                                        if ($dueDate) $allDueDates[] = $dueDate;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // Check for guide_details nested structure
+                                            if (isset($item['guide_details']) && is_array($item['guide_details'])) {
+                                                if (!empty($item['guide_details']['display_due_date'])) {
+                                                    $dueDate = $parseDisplayDueDate($item['guide_details']['display_due_date']);
+                                                    if ($dueDate) $allDueDates[] = $dueDate;
+                                                }
+                                            }
+                                        }
 
                                         if ($orderType === 'hotel') {
                                             $orderTotal = 0;
@@ -1127,6 +1226,13 @@
                                             }
                                         }
                                     }
+                                    
+                                    // Find the earliest due date
+                                    $earliestDueDate = null;
+                                    if (!empty($allDueDates)) {
+                                        $earliestDueDate = collect($allDueDates)->min();
+                                    }
+                                    
                                     $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
                                     $enquiry_amount = $enquiry ? ($enquiry->amount ?? 0) : 0;
                                     $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
@@ -1151,15 +1257,44 @@
                                     }
                                     $remainingAmount = $finalAmount - $totalPaid;
                                 @endphp
-                                @if(empty($paymentData))
-                                    <span class="payment-status-badge status-not-started" title="Payment not started"><i class="ri-alert-line"></i> Not Started</span>
-                                @elseif($hasPendingPayments && $totalPaid == 0)
-                                    <span class="payment-status-badge status-pending" title="Pending approval"><i class="ri-time-line"></i> Pending</span>
-                                @elseif($remainingAmount > 0)
-                                    <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
-                                @else
-                                    <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
-                                @endif
+                                <div class="d-flex flex-column gap-1">
+                                    @if(empty($paymentData))
+                                        <span class="payment-status-badge status-not-started" title="Payment not started"><i class="ri-alert-line"></i> Not Started</span>
+                                    @elseif($hasPendingPayments && $totalPaid == 0)
+                                        <span class="payment-status-badge status-pending" title="Pending approval"><i class="ri-time-line"></i> Pending</span>
+                                    @elseif($remainingAmount > 0)
+                                        <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
+                                    @else
+                                        <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
+                                    @endif
+                                    
+                                    @if($earliestDueDate)
+                                        @php
+                                            // Requirement (use TODAY to color by due date):
+                                            // Example due date = 20 and today = 17 => orange (due-3)
+                                            // - Blue: today < (due-3)
+                                            // - Orange: (due-3) .. (due-1)
+                                            // - Red: due date onwards (today >= due)
+                                            $today = now()->startOfDay();
+                                            $dueDay = $earliestDueDate->copy()->startOfDay();
+                                            $dueMinus3 = $dueDay->copy()->subDays(3);
+
+                                            $dueBadgeClass = 'due-blue';
+                                            if ($today->gte($dueDay)) {
+                                                $dueBadgeClass = 'due-red';
+                                            } elseif ($today->gte($dueMinus3)) {
+                                                $dueBadgeClass = 'due-orange';
+                                            }
+                                        @endphp
+                                        <span class="badge due-date-badge {{ $dueBadgeClass }}" 
+                                            title="Earliest due date among all services: {{ $earliestDueDate->format('d-m-Y') }}">
+                                            <i class="ri-calendar-check-line me-1"></i>
+                                            <span style="white-space: normal; word-wrap: break-word; display: inline-block; max-width: 100%;">
+                                                Due: {{ $earliestDueDate->format('d-m-Y') }}
+                                            </span>
+                                        </span>
+                                    @endif
+                                </div>
                             </td>                                                       
                             <td>
                                 <div class="d-flex flex-column">
