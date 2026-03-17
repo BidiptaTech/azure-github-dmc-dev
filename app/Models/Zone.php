@@ -39,6 +39,7 @@ class Zone extends Model
         'id',
         'zone_name',
         'zone_type',
+        'vehicle_type',
         'description',
         'city',
         'status',

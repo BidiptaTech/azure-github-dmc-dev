@@ -619,6 +619,8 @@ Route::get('/clear', function () {
         
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
         Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
+        Route::post('/tour/{tourId}/delete-payment', [TourController::class, 'deletePayment'])->name('tour.delete-payment');
+        Route::post('/tour/{tourId}/update-payment', [TourController::class, 'updatePayment'])->name('tour.update-payment');
         Route::get('/get-ports', [HotelController::class, 'getPorts'])->name('get.ports');
         Route::POST('/cancel-book', [BookingListController::class, 'cancelBooking'])->name('booking.cancel');
         Route::POST('/approve-book', [BookingListController::class, 'approveBooking'])->name('booking.approve');
@@ -1184,6 +1186,8 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
     Route::group(['middleware' => ['manager']], function () {
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
         Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
+        Route::post('/tour/{tourId}/delete-payment', [TourController::class, 'deletePayment'])->name('tour.delete-payment');
+        Route::post('/tour/{tourId}/update-payment', [TourController::class, 'updatePayment'])->name('tour.update-payment');
     });
 
 });    
