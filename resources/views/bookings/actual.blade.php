@@ -1490,10 +1490,31 @@
                                         </a>
                                     @endif
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11|| auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <!-- <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-warning btn-sm rounded-pill">
-                                        <i class="ri-settings-3-line"></i> Add/Remove Services
-                                    </a> -->
+                                        @if($tour->is_pro == 1)
+                                            <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                               class="action-icon-badge"
+                                               style="--action-color: #047857;"
+                                               data-tooltip="Edit Tour"
+                                               onclick="event.stopPropagation();">
+                                                <i class="ri-pencil-line"></i>
+                                            </a>
+                                        @else
+                                            <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                               class="action-icon-badge"
+                                               style="--action-color: #047857;"
+                                               data-tooltip="Edit Tour"
+                                               onclick="event.stopPropagation();">
+                                                <i class="ri-pencil-line"></i>
+                                            </a>
+                                        @endif
+
+                                        <!-- <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}"
+                                           class="action-icon-badge"
+                                           style="--action-color: #f59e0b;"
+                                           data-tooltip="Edit Tour (Add/Remove Services)"
+                                           onclick="event.stopPropagation();">
+                                            <i class="ri-settings-3-line"></i>
+                                        </a> -->
                                     <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="action-icon-badge" 
                                        style="--action-color: #0dcaf0;"
