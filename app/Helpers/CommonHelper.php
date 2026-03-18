@@ -4727,6 +4727,74 @@ class CommonHelper
         }
     }
 
+    /**
+     * When adding a new service to an enquiry: if tour_status is prospect, tentative, confirmed, or actual
+     * AND tour_id exists in enquiry_comments (negotiation history), revert tour_status to "New Enquiry".
+     * Call this when creating new orders (adding services) during enquiry update.
+     *
+     * @param int $tourId
+     * @return void
+     */
+    public static function maybeRevertTourStatusWhenAddingService(int $tourId): void
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->first();
+            if (!$tour) {
+                return;
+            }
+
+            $currentStatus = $tour->tour_status ?? '';
+            $statusesToRevert = ['Prospect', 'Tentative', 'Confirmed', 'Actual'];
+
+            // Do nothing if already "New Enquiry"
+            if ($currentStatus === 'New Enquiry') {
+                return;
+            }
+
+            // Do nothing if status is not in the list that should trigger revert
+            if (!in_array($currentStatus, $statusesToRevert, true)) {
+                return;
+            }
+
+            // Check if tour_id exists in enquiry_comments (negotiation history)
+            $hasEnquiryComments = DB::table('enquiry_comments')
+                ->where('tour_id', $tourId)
+                ->whereNull('deleted_at')
+                ->exists();
+
+            // Only revert if tour went through negotiation
+            if ($hasEnquiryComments) {
+                $previousStatus = $tour->tour_status;
+                $tour->tour_status = 'New Enquiry';
+                $tour->payment_details = null;
+                $tour->save();
+
+                Order::where('tour_id', $tourId)->update(['bookingType' => 'enquiry']);
+
+                DB::table('enquiry_comments')
+                    ->where('tour_id', $tourId)
+                    ->whereNull('deleted_at')
+                    ->update(['deleted_at' => Carbon::now()]);
+
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+
+                self::appendTourStatusTrack($tour, $previousStatus, 'New Enquiry', null, null, 'New service added - reverted to New Enquiry', null, $changedByName, $changedByUserId);
+
+                Log::info('Tour status reverted to New Enquiry after adding new service', [
+                    'tour_id' => $tourId,
+                    'previous_status' => $previousStatus,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('maybeRevertTourStatusWhenAddingService failed', [
+                'tour_id' => $tourId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     // Get DMC Dynamic Currency
     public static function getDmcCurrencyByCountry()
     {
