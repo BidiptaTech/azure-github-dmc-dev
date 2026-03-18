@@ -1317,18 +1317,20 @@
                                     @if($earliestDueDate)
                                         @php
                                             // Requirement (use TODAY to color by due date):
-                                            // Example due date = 20 and today = 17 => orange (due-3)
-                                            // - Blue: today < (due-3)
-                                            // - Orange: (due-3) .. (due-1)
+                                            // Example due date = 20 and today = 17 => orange (due-N)
+                                            // - Blue: today < (due-N)
+                                            // - Orange: (due-N) .. (due-1)
                                             // - Red: due date onwards (today >= due)
                                             $today = now()->startOfDay();
                                             $dueDay = $earliestDueDate->copy()->startOfDay();
-                                            $dueMinus3 = $dueDay->copy()->subDays(3);
+                                            $dueOffsetDays = (int) ($tour->dmc_auto_cancel_day ?? 3);
+                                            $dueOffsetDays = max(1, min(30, $dueOffsetDays));
+                                            $dueMinusOffset = $dueDay->copy()->subDays($dueOffsetDays);
 
                                             $dueBadgeClass = 'due-blue';
                                             if ($today->gte($dueDay)) {
                                                 $dueBadgeClass = 'due-red';
-                                            } elseif ($today->gte($dueMinus3)) {
+                                            } elseif ($today->gte($dueMinusOffset)) {
                                                 $dueBadgeClass = 'due-orange';
                                             }
                                         @endphp
