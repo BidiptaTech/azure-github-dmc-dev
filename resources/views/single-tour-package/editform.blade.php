@@ -1,4 +1,8 @@
 @extends('layouts.layout')
+<!-- SweetAlert2 for remove service confirmation -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+@include('single-tour-package.partials.remove-service-alert-js')
 <!-- Toastr CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
 <!-- Select2 CSS -->
@@ -89,9 +93,11 @@
         } elseif ($currentUserRole == 125) { // AOM (Assistant Operation Manager)
             $createdBy = $currentUserId; // Operation Manager is the current user
         }
+        $hasNegotiationHistory = isset($tour) && $tour ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
     
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
@@ -992,6 +998,8 @@
                                     $transportPrice = $transferOptions['price'] ?? 0;
                                     $transportWay = $transferOptions['way'] ?? 'One Way';
                                     $transportReturn = ($transportWay === 'Two Way');
+                                    $hotelRemarks = $hotelInfo['remarks'] ?? '';
+                                    $hotelSupplement = ($hotelInfo['supplement'] ?? $hotelInfo['is_supplement'] ?? false);
                                 @endphp
                                 <div class="col-12 mb-4">
                                     <div class="border border-warning rounded-3 p-4 shadow-sm hotel-edit-form" data-update-url="{{ route('edit-tour.update-hotel', $hotelOrder->booking_id) }}">
@@ -2292,6 +2300,18 @@
                                             </div>
                                         </div>
                                         
+                                        <!-- Supplement & Remarks -->
+                                        <div class="row mt-3">
+                                            <div class="col-12">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="supplement" id="hotel_supplement_{{ $hotelOrder->booking_id }}" value="1" {{ $hotelSupplement ? 'checked' : '' }}>
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="hotel_supplement_{{ $hotelOrder->booking_id }}">Supplement </label>
+                                                </div>
+                                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                <textarea class="form-control" name="remarks" id="hotel_remarks_{{ $hotelOrder->booking_id }}" rows="2" placeholder="Optional notes for this hotel booking..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $hotelRemarks }}</textarea>
+                                            </div>
+                                        </div>
+                                        
                                         <!-- Price Breakdown Grid -->
                                         <div class="row mt-2">
                                             <div class="col-12">
@@ -2409,6 +2429,9 @@
                                         $vehicleType = $transportData['type'] ?? '';
                                         $passengers = $transportData['passengers'] ?? '';
                                         $availableVehicles = $vehicles ?? collect();
+                                        $transportRemarks = $transportData['remarks'] ?? '';
+                                        $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
+                                        $arrivalFlightNo = $transportData['arrival_flight_no'] ?? '';
                                     @endphp
                                     <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="entry_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                         @csrf
@@ -2422,6 +2445,10 @@
                                             </div>
                                         </div>
                                         <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-flight-land-line me-1 text-primary"></i>Arrival Flight/Train/Bus No.</label>
+                                                <input type="text" class="form-control border-2" style="height: 35px;" name="arrival_flight_no" id="arrival_flight_no_{{ $order->booking_id }}" value="{{ $arrivalFlightNo }}" placeholder="e.g. SQ 123">
+                                            </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
                                                 <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
@@ -2530,6 +2557,14 @@
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                 <input type="number" class="form-control border-2" id="arrival_total_price_{{ $order->booking_id }}" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
+                                            </div>
+                                            <div class="col-12 mt-2">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="supplement" id="arrival_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="arrival_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                </div>
+                                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                <textarea class="form-control" name="remarks" id="arrival_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this arrival transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -2721,6 +2756,8 @@
                                             $guideHours = $guideOptions['hours'] ?? 0;
                                             $guideSurcharge = $guideOptions['surcharge'] ?? 0;
                                             $guideTotalPrice = $guideOptions['total_price'] ?? 0;
+                                            $attractionRemarks = $payload['remarks'] ?? $attractionNotes ?? '';
+                                            $attractionSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
@@ -3207,6 +3244,16 @@
                                                 </div>
                                             </div>
                                         </div>
+                                            <div class="row mt-3">
+                                                <div class="col-12">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="supplement" id="attraction_supplement_{{ $order->booking_id }}" value="1" {{ $attractionSupplement ? 'checked' : '' }}>
+                                                        <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="attraction_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                    </div>
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                    <textarea class="form-control" name="remarks" id="attraction_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this attraction..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $attractionRemarks }}</textarea>
+                                                </div>
+                                            </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="attraction_feedback_{{ $order->booking_id }}"></div>
                                                 <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
@@ -3300,6 +3347,8 @@
                                                     }
                                                 }
                                             }
+                                            $guideRemarks = $payload['remarks'] ?? $guideNotes ?? '';
+                                            $guideSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
                                             @csrf
@@ -3413,6 +3462,16 @@
                                                     <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
                                             </div>
+                                            <div class="row mt-3">
+                                                <div class="col-12">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="supplement" id="guide_supplement_{{ $order->booking_id }}" value="1" {{ $guideSupplement ? 'checked' : '' }}>
+                                                        <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="guide_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                    </div>
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                    <textarea class="form-control" name="remarks" id="guide_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this guide..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $guideRemarks }}</textarea>
+                                                </div>
+                                            </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="guide_feedback_{{ $order->booking_id }}"></div>
                                                 <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
@@ -3516,6 +3575,8 @@
                                             $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
+                                            $restaurantRemarks = $payload['remarks'] ?? $restaurantNotes ?? '';
+                                            $restaurantSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
                                             @csrf
@@ -3781,6 +3842,16 @@
                                             </div>
                                                 
                                             </div>
+                                            <div class="row mt-3">
+                                                <div class="col-12">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="supplement" id="restaurant_supplement_{{ $order->booking_id }}" value="1" {{ $restaurantSupplement ? 'checked' : '' }}>
+                                                        <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="restaurant_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                    </div>
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                    <textarea class="form-control" name="remarks" id="restaurant_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this restaurant..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $restaurantRemarks }}</textarea>
+                                                </div>
+                                            </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="restaurant_feedback_{{ $order->booking_id }}"></div>
                                                 <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
@@ -3862,6 +3933,8 @@
                                                     $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
                                                     $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
                                                     $availableVehicles = $vehicles ?? collect();
+                                                    $transportRemarks = $transportData['remarks'] ?? $notes;
+                                                    $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_hourly" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
@@ -3932,6 +4005,14 @@
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-hourglass-line me-1 text-info"></i>Hours</label>
                                                             <input type="number" class="form-control border-2" style="height: 42px;" name="selected_hours" min="1" value="{{ $selectedHours }}" placeholder="e.g. 4">
                                                         </div>
+                                                        <div class="col-12 mt-2">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox" name="supplement" id="hourly_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="hourly_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                            </div>
+                                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                            <textarea class="form-control" name="remarks" id="hourly_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_hourly"></div>
@@ -3978,6 +4059,8 @@
                                                     $pickupPlaceId = $transportData['pickup_place_id'] ?? '';
                                                     $dropoffPlaceId = $transportData['dropoff_place_id'] ?? '';
                                                     $availableVehicles = $vehicles ?? collect();
+                                                    $transportRemarks = $transportData['remarks'] ?? $notes;
+                                                    $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_point" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
@@ -4074,6 +4157,14 @@
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
                                                         </div>
+                                                        <div class="col-12 mt-2">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox" name="supplement" id="point_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="point_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                            </div>
+                                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                            <textarea class="form-control" name="remarks" id="point_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_point"></div>
@@ -4122,6 +4213,8 @@
                                                     $availableAttractions = $attractions ?? collect();
                                                     $availableRestaurants = $restaurants ?? collect();
                                                     $availableVehicles = $vehicles ?? collect();
+                                                    $transportRemarks = $transportData['remarks'] ?? $notes;
+                                                    $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                 @endphp
                                                 <form
                                                     class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form"
@@ -4317,6 +4410,14 @@
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
+                                                        <div class="col-12 mt-2">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox" name="supplement" id="local_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="local_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                            </div>
+                                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                            <textarea class="form-control" name="remarks" id="local_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_local_transport"></div>
@@ -4386,12 +4487,15 @@
                                                     $passengers = $transportData['passengers'] ?? '';
                                                     $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
                                                     $availableVehicles = $vehicles ?? collect();
+                                                    $transportRemarks = $transportData['remarks'] ?? '';
+                                                    $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
+                                                    $departureFlightNo = $transportData['departure_flight_no'] ?? '';
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="exit_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
                                                     <input type="hidden" name="type" value="exit_port">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <h6 class="mb-0 fw-bold text-danger"></i>Departure Transfer #{{ $index + 1 }}</h6>
+                                                        <h6 class="mb-0 fw-bold text-danger"><i class="ri-logout-circle-line me-2"></i>Departure Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -4399,6 +4503,10 @@
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-flight-takeoff-line me-1 text-primary"></i>Departure Flight/Train/Bus No.</label>
+                                                            <input type="text" class="form-control border-2" style="height: 35px;" name="departure_flight_no" id="departure_flight_no_{{ $order->booking_id }}" value="{{ $departureFlightNo }}" placeholder="e.g. SQ 123">
+                                                        </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
                                                             <select class="form-select border-2" style="height: 35px;" name="city">
@@ -4546,6 +4654,14 @@
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2 departure-total-price" style="height: 35px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                        </div>
+                                                        <div class="col-12 mt-2">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox" name="supplement" id="exit_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="exit_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                            </div>
+                                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                            <textarea class="form-control" name="remarks" id="exit_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this departure transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
                                                         </div>
                                                         <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
@@ -5167,6 +5283,26 @@
                             <input type="hidden" name="pickup_time" id="modal_guide_pickup_time">
                         </div>
 
+                        <!-- Supplement + Remarks -->
+                        <div class="col-12">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-4">
+                                    <div class="form-check" style="margin-top: 4px;">
+                                        <input class="form-check-input" type="checkbox" name="modal_guide_supplement" id="modal_guide_supplement" value="1">
+                                        <label class="form-check-label fw-semibold" for="modal_guide_supplement" style="color: #495057; font-size: 0.8rem;">
+                                            Supplement 
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <label for="modal_guide_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                        <i class="ri-sticky-note-line me-1" style="color: #fda085;"></i>Remarks
+                                    </label>
+                                    <input type="text" class="form-control modern-input" id="modal_guide_remarks" name="modal_guide_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Guide Details Display -->
                         <div class="col-12 mt-2" id="guide_details_container" style="display: none;">
                             <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
@@ -5496,6 +5632,29 @@
                             </div>
                         </div>
                     </div> -->
+                    
+                    <!-- Supplement + Remarks (saved into hotel data JSON) -->
+                    <div class="row g-1 mt-2">
+                        <div class="col-12">
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" name="modal_hotel_supplement" id="modal_hotel_supplement" value="1">
+                                <label class="form-check-label fw-semibold" for="modal_hotel_supplement" style="color: #495057; font-size: 0.8rem;">
+                                    Supplement 
+                                </label>
+                            </div>
+                            <label for="modal_hotel_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                <i class="ri-chat-quote-line me-1"></i>Remarks
+                            </label>
+                            <textarea
+                                class="form-control"
+                                id="modal_hotel_remarks"
+                                name="modal_hotel_remarks"
+                                rows="2"
+                                placeholder="Optional notes for this hotel booking..."
+                                style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem;"
+                            ></textarea>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer border-0" style="background: #f8f9fa; padding: 0.75rem 1rem;">
@@ -5633,6 +5792,26 @@
                             <select class="form-select modern-select" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Time Slot</option>
                             </select>
+                        </div>
+
+                        <!-- Supplement + Remarks -->
+                        <div class="col-12 mt-1">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-4">
+                                    <div class="form-check" style="margin-top: 4px;">
+                                        <input class="form-check-input" type="checkbox" name="modal_restaurant_supplement" id="modal_restaurant_supplement" value="1">
+                                        <label class="form-check-label fw-semibold" for="modal_restaurant_supplement" style="color: #495057; font-size: 0.8rem;">
+                                            Supplement 
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <label for="modal_restaurant_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                        <i class="ri-sticky-note-line me-1" style="color: #f5576c;"></i>Remarks
+                                    </label>
+                                    <input type="text" class="form-control modern-input" id="modal_restaurant_remarks" name="modal_restaurant_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Restaurant Details Display -->
@@ -6327,6 +6506,22 @@
                             <small id="modal_attraction_ticket_prices" class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;"></small>
                         </div>
 
+                        <!-- Supplement -->
+                        <div class="col-12 mt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="modal_attraction_supplement" id="modal_attraction_supplement" value="1">
+                                <label class="form-check-label fw-semibold" for="modal_attraction_supplement" style="color: #495057; font-size: 0.8rem;">Supplement </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Remarks -->
+                        <div class="col-12 mt-2">
+                            <label for="modal_attraction_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                <i class="ri-sticky-note-line me-1" style="color: #fa709a;"></i>Remarks
+                            </label>
+                            <input type="text" class="form-control modern-input" id="modal_attraction_remarks" name="modal_attraction_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                        </div>
+
                         <!-- Attraction Price Display -->
                         <!-- <div class="col-12 mt-2" id="attraction_price_display" style="display: none;">
                             <div class="card border-0" style="background: #e7f3ff; border-radius: 8px; padding: 0.75rem; border: 1px solid #b3d9ff;">
@@ -6864,6 +7059,28 @@
                     <input type="hidden" id="modal_transport_type" name="transport_type" value="entry_port">
                     
                     <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                        <div class="row g-2 mb-2">
+                            <div class="col-12 col-md-5 col-lg-4">
+                                <label class="form-label fw-semibold mb-1" id="modal_transport_flight_no_label" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-flight-land-line me-1" style="color: #667eea;"></i>Arrival Flight/Train/Bus No.
+                                </label>
+                                <input type="text" class="form-control modern-input" id="modal_transport_flight_no" name="modal_transport_flight_no" placeholder="e.g. SQ 123" style="height: 36px; font-size: 0.8rem;">
+                            </div>
+                            <div class="col-12 col-md-7 col-lg-8">
+                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-sticky-note-line me-1" style="color: #667eea;"></i>Remarks
+                                </label>
+                                <input type="text" class="form-control modern-input" id="modal_transport_remarks" name="modal_transport_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="modal_transport_supplement" id="modal_transport_supplement" value="1">
+                                    <label class="form-check-label fw-semibold" for="modal_transport_supplement" style="color: #495057; font-size: 0.8rem;">Supplement </label>
+                                </div>
+                            </div>
+                        </div>
                         <div class="row g-2">
                             <div class="col-md-6 col-lg-4">
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
@@ -7033,29 +7250,23 @@
                                             $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
                                         @endphp
                                         <!-- Adults / Children (visual); pax = adults + children for pricing/submit -->
-                                        <div class="col-md-4">
-                                            <div class="row g-3">
-                                                <div class="col-6 pe-2">
+                                        <div class="col-12 col-md-4">
+                                            <div class="row g-2">
+                                                <div class="col-6">
                                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Adults</label>
-                                                    <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
-                                                        <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.8rem;">Adults</span>
-                                                        <input type="number" class="form-control" id="modal_transport_adults" min="0" max="{{ $tour->adult ?? 50 }}" value="1" placeholder="0"
-                                                            style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
-                                                            oninput="syncModalTransportPax(); updatePricing();"
-                                                            onchange="syncModalTransportPax(); updatePricing();"
-                                                            onwheel="this.blur();">
-                                                    </div>
+                                                    <input type="number" class="form-control" id="modal_transport_adults" min="0" max="{{ $tour->adult ?? 50 }}" value="1" placeholder="0"
+                                                        style="font-size: 0.8rem; border: 1px solid #e5e7eb; height: 36px;"
+                                                        oninput="syncModalTransportPax(); updatePricing();"
+                                                        onchange="syncModalTransportPax(); updatePricing();"
+                                                        onwheel="this.blur();">
                                                 </div>
-                                                <div class="col-6 ps-1">
+                                                <div class="col-6">
                                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Children</label>
-                                                    <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
-                                                            <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.8rem;">Children</span>
-                                                        <input type="number" class="form-control" id="modal_transport_children" min="0" max="{{ $tour->child ?? 50 }}" value="0" placeholder="0"
-                                                            style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
-                                                            oninput="syncModalTransportPax(); updatePricing();"
-                                                            onchange="syncModalTransportPax(); updatePricing();"
-                                                            onwheel="this.blur();">
-                                                    </div>
+                                                    <input type="number" class="form-control" id="modal_transport_children" min="0" max="{{ $tour->child ?? 50 }}" value="0" placeholder="0"
+                                                        style="font-size: 0.8rem; border: 1px solid #e5e7eb; height: 36px;"
+                                                        oninput="syncModalTransportPax(); updatePricing();"
+                                                        onchange="syncModalTransportPax(); updatePricing();"
+                                                        onwheel="this.blur();">
                                                 </div>
                                             </div>
                                             <input type="hidden" id="modal_transport_passengers" name="passengers" value="1" data-tour-guests="{{ $tourMaxPassengers }}">
@@ -7457,6 +7668,24 @@
                                             </small>
                                         </div>
                                     </div>
+
+                                    <!-- Supplement + Remarks -->
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-12 col-md-4">
+                                            <div class="form-check" style="margin-top: 4px;">
+                                                <input class="form-check-input" type="checkbox" name="local_transfer_supplement" id="local_transfer_supplement" value="1">
+                                                <label class="form-check-label fw-semibold" for="local_transfer_supplement" style="color: #495057; font-size: 0.8rem;">
+                                                    Supplement 
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-md-8">
+                                            <label for="local_transfer_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                                <i class="ri-sticky-note-line me-1" style="color: #06b6d4;"></i>Remarks
+                                            </label>
+                                            <input type="text" class="form-control modern-input" id="local_transfer_remarks" name="local_transfer_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                                        </div>
+                                    </div>
                                     
                                     <!-- Price Display for Local Transfer -->
                                     <div class="col-12 mt-3">
@@ -7529,6 +7758,36 @@
                             </div>
                         </div>
                         <div class="card-body bg-white">
+                            <div class="row g-4 align-items-end mb-3">
+                                <div class="col-12 col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-flight-takeoff-line text-primary me-2"></i>Departure Flight/Train/Bus No.
+                                        </label>
+                                        <div class="position-relative">
+                                            <input type="text" class="form-control border-2" id="modal_dropoff_transport_flight_no" name="modal_dropoff_transport_flight_no" placeholder="e.g. SQ 123" style="height: 36px; font-size: 0.8rem;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-sticky-note-line text-primary me-2"></i>Remarks
+                                        </label>
+                                        <div class="position-relative">
+                                            <input type="text" class="form-control border-2" id="modal_dropoff_transport_remarks" name="modal_dropoff_transport_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-4 align-items-end mb-3">
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="modal_dropoff_transport_supplement" id="modal_dropoff_transport_supplement" value="1">
+                                        <label class="form-check-label fw-semibold" for="modal_dropoff_transport_supplement" style="color: #495057; font-size: 0.8rem;">Supplement </label>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="row g-4 align-items-end">
                                 <div class="col-md-3">
                                     <div class="form-group">
@@ -10849,6 +11108,10 @@
         document.getElementById('modal_attraction_tour_dates').textContent = `${startDate} to ${endDate}`;
         document.getElementById('modal_attraction_destination').textContent = `${country}`;
         // City display removed
+        const attractionSupplementEl = document.getElementById('modal_attraction_supplement');
+        if (attractionSupplementEl) attractionSupplementEl.checked = false;
+        const attractionRemarksEl = document.getElementById('modal_attraction_remarks');
+        if (attractionRemarksEl) attractionRemarksEl.value = '';
         
         // Show modal
         const modalElement = document.getElementById('attractionSelectionModal');
@@ -11790,6 +12053,18 @@
         // Update modal title based on type
         const modalTitle = document.getElementById('transportSelectionModalLabel');
         const modalHeader = document.getElementById('transport_modal_header');
+        const flightNoLabel = document.getElementById('modal_transport_flight_no_label');
+        if (flightNoLabel) {
+            flightNoLabel.innerHTML = transportType === 'exit_port'
+                ? '<i class="ri-flight-takeoff-line me-1" style="color: #667eea;"></i>Departure Flight/Train/Bus No.'
+                : '<i class="ri-flight-land-line me-1" style="color: #667eea;"></i>Arrival Flight/Train/Bus No.';
+        }
+        const flightNoInput = document.getElementById('modal_transport_flight_no');
+        if (flightNoInput) flightNoInput.value = '';
+        const remarksInput = document.getElementById('modal_transport_remarks');
+        if (remarksInput) remarksInput.value = '';
+        const supplementCheck = document.getElementById('modal_transport_supplement');
+        if (supplementCheck) supplementCheck.checked = false;
         if (transportType === 'exit_port') {
             modalTitle.innerHTML = 'Departure Transport Service Selection';
             if (modalHeader) {
@@ -12030,6 +12305,11 @@
         // Initialize the modal
         const localTransferModal = new bootstrap.Modal(document.getElementById('localTransferSelectionModal'));
         localTransferModal.show();
+
+        const localTransferSupplementEl = document.getElementById('local_transfer_supplement');
+        if (localTransferSupplementEl) localTransferSupplementEl.checked = false;
+        const localTransferRemarksEl = document.getElementById('local_transfer_remarks');
+        if (localTransferRemarksEl) localTransferRemarksEl.value = '';
         
         // Set default modal title to "Point To Point Service Selection" if no serviceType is provided
         const modalTitle = document.getElementById('localTransferSelectionModalLabel');
@@ -12128,6 +12408,12 @@
         // Initialize the modal
         const dropoffTransportModal = new bootstrap.Modal(document.getElementById('dropoffTransportSelectionModal'));
         dropoffTransportModal.show();
+        const dropoffFlightNoInput = document.getElementById('modal_dropoff_transport_flight_no');
+        if (dropoffFlightNoInput) dropoffFlightNoInput.value = '';
+        const dropoffRemarksInput = document.getElementById('modal_dropoff_transport_remarks');
+        if (dropoffRemarksInput) dropoffRemarksInput.value = '';
+        const dropoffSupplementCheck = document.getElementById('modal_dropoff_transport_supplement');
+        if (dropoffSupplementCheck) dropoffSupplementCheck.checked = false;
         
         // Set hidden fields
         document.getElementById('modal_dropoff_transport_tour_id').value = tourId;
@@ -14317,6 +14603,12 @@
         const actualDropoffPlaceId = dropoffValue || null;
 
         // Build the transport booking data (updated format)
+        const departureFlightNoInput = document.getElementById('modal_dropoff_transport_flight_no');
+        const departureFlightNo = departureFlightNoInput ? departureFlightNoInput.value.trim() : '';
+        const dropoffRemarksInput = document.getElementById('modal_dropoff_transport_remarks');
+        const dropoffRemarks = dropoffRemarksInput ? dropoffRemarksInput.value.trim() : '';
+        const dropoffSupplementCheck = document.getElementById('modal_dropoff_transport_supplement');
+        const dropoffSupplement = dropoffSupplementCheck ? dropoffSupplementCheck.checked : false;
         const transportData = {
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -14349,12 +14641,15 @@
             Night_End_Time: null,
             city: vehicleData.city || "Singapore",
             country: vehicleData.country || "Singapore",
-            id: `entry-${Date.now()}`,
+            id: `exit-${Date.now()}`,
             vehicle_type: vehicleData.vehicleType || "",
             vehicle_model: vehicleData.vehicleModel || "",
             model_year: vehicleData.modelYear || null,
             seating_capacity: vehicleData.seatingCapacity || 0,
-            booking_id: null
+            booking_id: null,
+            departure_flight_no: departureFlightNo,
+            remarks: dropoffRemarks,
+            supplement: dropoffSupplement
         };
         
         console.log('Dropoff Transport booking data:', transportData);
@@ -14923,15 +15218,24 @@
         };
         
         // Update transport data based on type (entry_port or exit_port)
+        const flightNoInput = document.getElementById('modal_transport_flight_no');
+        const flightNo = flightNoInput ? flightNoInput.value.trim() : '';
+        const transportRemarksInput = document.getElementById('modal_transport_remarks');
+        const transportRemarks = transportRemarksInput ? transportRemarksInput.value.trim() : '';
+        transportData.remarks = transportRemarks || '';
+        const transportSupplementCheck = document.getElementById('modal_transport_supplement');
+        transportData.supplement = transportSupplementCheck ? transportSupplementCheck.checked : false;
         if (transportType === 'exit_port') {
             transportData.exitpickup = pickupZoneName;
             transportData.exitdropoff = dropoffZoneName;
             transportData.exitpickupdate = pickupTime;
+            transportData.departure_flight_no = flightNo;
             transportData.id = `exit-${Date.now()}`;
         } else {
             transportData.entrypickup = pickupZoneName;
             transportData.entrydropoff = dropoffZoneName;
             transportData.entrytime = pickupTime;
+            transportData.arrival_flight_no = flightNo;
             transportData.id = `entry-${Date.now()}`;
         }
         
@@ -15040,6 +15344,10 @@
 
         const dmcUser = @json($UserDmc);
         
+        // Remarks and supplement (same modal fields as local transfer)
+        const pointRemarks = document.getElementById('local_transfer_remarks') ? document.getElementById('local_transfer_remarks').value.trim() : '';
+        const pointSupplement = document.getElementById('local_transfer_supplement') ? document.getElementById('local_transfer_supplement').checked : false;
+        
         // Build the booking data in required format
         const bookingData = [{
             bookingDate: pickupDate,
@@ -15090,7 +15398,9 @@
             },
             bookingType: 'booking',
             service_category: 'point_to_point',
-            tour_id: tourId
+            tour_id: tourId,
+            remarks: pointRemarks || '',
+            supplement: pointSupplement
         }];
         
         console.log('Point-to-Point booking data:', bookingData);
@@ -15143,6 +15453,9 @@
         const pickupLng = document.getElementById('local_transfer_hourly_pickup_lng').value;
 
         const dmcUser = @json($UserDmc);
+        // Remarks and supplement (same modal fields as local transfer)
+        const hourlyRemarks = document.getElementById('local_transfer_remarks') ? document.getElementById('local_transfer_remarks').value.trim() : '';
+        const hourlySupplement = document.getElementById('local_transfer_supplement') ? document.getElementById('local_transfer_supplement').checked : false;
         // Build the booking data in required format
         const bookingData = [{
             bookingDate: pickupDate,
@@ -15188,7 +15501,9 @@
             },
             bookingType: 'booking',
             service_category: 'hourly',
-            tour_id: tourId
+            tour_id: tourId,
+            remarks: hourlyRemarks || '',
+            supplement: hourlySupplement
         }];
         
         console.log('Hourly booking data:', bookingData);
@@ -15308,6 +15623,8 @@
         const dmcUser = @json($UserDmc);
         
         // Build the booking data in required format
+        const localTransferRemarks = document.getElementById('local_transfer_remarks') ? document.getElementById('local_transfer_remarks').value.trim() : '';
+        const localTransferSupplement = document.getElementById('local_transfer_supplement') ? document.getElementById('local_transfer_supplement').checked : false;
         const bookingData = [{
             bookingDate: pickupDate,
             vehicles_id: vehicleId,
@@ -15317,6 +15634,8 @@
             Mode: 'dmc',
             type: serviceType,
             entrypickup: pickupZoneName,
+            remarks: localTransferRemarks,
+            supplement: localTransferSupplement,
             PickupPlaceid: {
                 lat: '', // Zone-based transfers don't have specific coordinates
                 lng: ''
@@ -15450,6 +15769,8 @@
         }
         
         // Build the complex booking data structure in required format
+        const guideRemarks = document.getElementById('modal_guide_remarks') ? document.getElementById('modal_guide_remarks').value.trim() : '';
+        const guideSupplement = document.getElementById('modal_guide_supplement') ? document.getElementById('modal_guide_supplement').checked : false;
         const bookingData = [{
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -15484,7 +15805,9 @@
             bookingType: "enquiry",
             package_type: 0,
             package_attraction_id: attractionData.package_attraction_id || 0,
-            dmc_id: Array.isArray(attractionData.dmc_id) ? attractionData.dmc_id[0] : attractionData.dmc_id
+            dmc_id: Array.isArray(attractionData.dmc_id) ? attractionData.dmc_id[0] : attractionData.dmc_id,
+            supplement: document.getElementById('modal_attraction_supplement') ? document.getElementById('modal_attraction_supplement').checked : false,
+            remarks: document.getElementById('modal_attraction_remarks') ? document.getElementById('modal_attraction_remarks').value.trim() : ''
         }];
         
         // Collect transport data if transport is required
@@ -17382,6 +17705,14 @@
             bookingDate: [checkIn, checkOut],
             transfer_options: null
         };
+
+        // Supplement + Remarks (from hotel modal)
+        const modalRemarks = document.getElementById('modal_hotel_remarks')?.value || '';
+        const manualSupplement = document.getElementById('modal_hotel_supplement')?.checked || false;
+        const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+        const serviceAdults = (parseInt(document.getElementById('person_count_select')?.value || 1) || 1) * (parseInt(document.getElementById('number_of_rooms_modal')?.value || 1) || 1);
+        bookingData.supplement = (serviceAdults < tourAdults) || manualSupplement;
+        bookingData.remarks = modalRemarks;
         
         // Collect transport data if transport is required
         const needTransportYes = document.getElementById('modal_need_hotel_transport_yes');
@@ -17523,6 +17854,10 @@
         document.getElementById('modal_guide_tour_dates').textContent = `${startDate} to ${endDate}`;
         document.getElementById('modal_guide_destination').textContent = `${country}`;
         // City display removed
+        const guideSupplementEl = document.getElementById('modal_guide_supplement');
+        if (guideSupplementEl) guideSupplementEl.checked = false;
+        const guideRemarksEl = document.getElementById('modal_guide_remarks');
+        if (guideRemarksEl) guideRemarksEl.value = '';
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('guideSelectionModal'));
@@ -17952,6 +18287,10 @@
         // The time input already returns 24-hour format, so use it directly
         const entryTime = pickupTime || '12:00';
         
+        // Supplement + remarks from guide modal
+        const guideRemarks = document.getElementById('modal_guide_remarks') ? document.getElementById('modal_guide_remarks').value.trim() : '';
+        const guideSupplement = document.getElementById('modal_guide_supplement') ? document.getElementById('modal_guide_supplement').checked : false;
+        
         // Build the complex booking data structure in required format
         const bookingData = [{
             bookingDate: serviceDate,
@@ -17985,6 +18324,8 @@
             countryCode: customer_info.countryCode,
             bookingType: "enquiry",
             agent_id: agentId,
+            remarks: guideRemarks,
+            supplement: guideSupplement,
             userInfo: {
                 fullName: customer_info.fullName,
                 email: customer_info.email,
@@ -18076,6 +18417,10 @@
         document.getElementById('modal_restaurant_tour_dates').textContent = `${startDate} to ${endDate}`;
         document.getElementById('modal_restaurant_destination').textContent = `${country}`;
         // City display removed
+        const restaurantSupplementEl = document.getElementById('modal_restaurant_supplement');
+        if (restaurantSupplementEl) restaurantSupplementEl.checked = false;
+        const restaurantRemarksEl = document.getElementById('modal_restaurant_remarks');
+        if (restaurantRemarksEl) restaurantRemarksEl.value = '';
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('restaurantSelectionModal'));
@@ -20349,6 +20694,9 @@
         const mealSpecificType = (mealData && mealData.type != null) ? (mealData.type == 1 ? 'Buffet' : mealData.type == 2 ? 'Set Menu' : mealData.type == 3 ? 'A-La-Carte' : '...') : (dishId === 'buffet' ? 'Buffet' : '...');
         const numericRestaurantId = isMultiRestaurant ? (restaurantData.id || String(restaurantId).replace('multi_restaurant_', '')) : parseInt(restaurantId);
         
+        const restaurantRemarks = document.getElementById('modal_restaurant_remarks') ? document.getElementById('modal_restaurant_remarks').value.trim() : '';
+        const restaurantSupplement = document.getElementById('modal_restaurant_supplement') ? document.getElementById('modal_restaurant_supplement').checked : false;
+        
         const bookingData = [{
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -20381,7 +20729,9 @@
             totalPrice: totalPrice,
             priceTypes: ["dmc"],
             dmc_id: dmcUser.userId || "",
-            bookingType: "enquiry"
+            bookingType: "enquiry",
+            remarks: restaurantRemarks,
+            supplement: restaurantSupplement
         }];
         
         if (isMultiRestaurant && bookingData[0]) {
@@ -20569,18 +20919,15 @@
     function removeService(orderId, serviceType) {
         console.log(`removeService called with orderId: ${orderId}, serviceType: ${serviceType}`);
         
-        if (confirm(`Are you sure you want to remove this ${serviceType} service?`)) {
+        showRemoveServiceAlert(serviceType, () => {
             showNotification(`Removing ${serviceType} service...`, 'info');
             
-            // Get CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             if (!csrfToken) {
                 console.error('CSRF token not found');
                 showNotification('CSRF token not found. Please refresh the page.', 'error');
                 return;
             }
-            
-            console.log('CSRF Token:', csrfToken);
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             
@@ -20591,13 +20938,8 @@
                     'X-CSRF-TOKEN': csrfToken
                 }
             })
-            .then(response => {
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('Response data:', data);
                 if (data.success) {
                     showNotification(`${serviceType} service removed successfully`, 'success');
                     setTimeout(() => location.reload(), 1500);
@@ -20609,7 +20951,7 @@
                 console.error(`Error removing ${serviceType} service:`, error);
                 showNotification(`Error removing ${serviceType} service: ${error.message}`, 'error');
             });
-        }
+        }, window.hasNegotiationHistory);
     }
     
     // Initialize page functionality

@@ -639,6 +639,8 @@ class SingleTourPackageController extends Controller
 
             $order->delete();
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order cancelled successfully'
@@ -3510,7 +3512,13 @@ class SingleTourPackageController extends Controller
                                         'child_without_bed' => $hotelBooking['child_without_bed'] ?? null,
                                         
                                         // Tour ID
-                                        'tour_id' => $tourId
+                                        'tour_id' => $tourId,
+                                        
+                                        // Remarks (from hotel_remarks textarea)
+                                        'remarks' => $hotelBooking['remarks'] ?? null,
+                                        
+                                        // supplement: true if supplement checkbox or service for fewer adults than tour (stored as supplement in DB)
+                                        'supplement' => $hotelBooking['supplement'] ?? $hotelBooking['is_supplement'] ?? false
                                     ];
                                     
                                     // Log transfer options for debugging
@@ -3537,6 +3545,7 @@ class SingleTourPackageController extends Controller
                                         'type' => $type,
                                         'status' => 1,
                                         'bookingType' => 'enquiry',
+                                        'remarks' => $hotelBooking['remarks'] ?? null,
                                     ]);
 
                                     \Log::info("Hotel order created successfully", [
@@ -3627,6 +3636,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $type,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
+                                    'remarks' => $attraction['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("Attraction order created successfully", [
@@ -3701,6 +3711,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $type,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
+                                    'remarks' => $restaurant['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("Restaurant order created successfully", [
@@ -3743,6 +3754,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $type,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
+                                    'remarks' => $guide['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("Guide order created successfully", [
@@ -3814,6 +3826,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
+                                    'remarks' => $transport['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("Transport order created successfully", [
@@ -3884,6 +3897,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
+                                    'remarks' => $transport['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("{$type} transport order created successfully", [

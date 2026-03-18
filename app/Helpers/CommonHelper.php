@@ -4695,7 +4695,18 @@ class CommonHelper
             if ($hasEnquiryComments) {
                 $previousStatus = $tour->tour_status;
                 $tour->tour_status = 'New Enquiry';
+                // Clear payment_details when reverting - tour will need re-confirmation
+                $tour->payment_details = null;
                 $tour->save();
+
+                // Update all existing orders for this tour to bookingType = enquiry
+                Order::where('tour_id', $tourId)->update(['bookingType' => 'enquiry']);
+
+                // Soft delete negotiation records for this tour in enquiry_comments
+                DB::table('enquiry_comments')
+                    ->where('tour_id', $tourId)
+                    ->whereNull('deleted_at')
+                    ->update(['deleted_at' => Carbon::now()]);
 
                 $currentUser = Auth::user();
                 $changedByName = $currentUser ? ($currentUser->name ?? null) : null;

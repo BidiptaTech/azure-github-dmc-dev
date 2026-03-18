@@ -7,13 +7,17 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+@include('bookings.partials.reject-service-alert-js')
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
 <!-- CSRF Token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>window.bookingCurrency = @json($pageCurrency);</script>
+<script>
+    window.bookingCurrency = @json($pageCurrency);
+    window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
+</script>
 
 <style>
     /* Guest Management Button */
@@ -813,6 +817,38 @@
                                         <small class="text-dark">Ref: {{ $tour->reference_id }}</small>
                                     @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
+
+                                    @php
+                                        $mainGuest = $tour->mainguest;
+                                        if (is_string($mainGuest)) {
+                                            $mainGuest = json_decode($mainGuest, true) ?: [];
+                                        }
+
+                                        $leadGuestName = null;
+                                        if (is_array($mainGuest)) {
+                                            $salutation = trim($mainGuest['salutation'] ?? '');
+                                            $fullName   = trim($mainGuest['full_name'] ?? '');
+                                            $firstName  = trim($mainGuest['first_name'] ?? '');
+                                            $lastName   = trim($mainGuest['last_name'] ?? '');
+
+                                            if (!empty($fullName)) {
+                                                $leadGuestName = trim($salutation . ' ' . $fullName);
+                                            } else {
+                                                $leadGuestName = trim($salutation . ' ' . $firstName . ' ' . $lastName);
+                                            }
+                                        }
+
+                                        if (empty($leadGuestName) && !empty($tour->customer_name)) {
+                                            $leadGuestName = $tour->customer_name;
+                                        }
+                                    @endphp
+
+                                    @if(!empty($leadGuestName))
+                                        <small class="text-secondary">
+                                            <i class="ri-user-line me-1"></i>{{ $leadGuestName }}
+                                        </small>
+                                    @endif
+
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
@@ -5997,8 +6033,9 @@ window.approveIndividualGuide = function(tourId, guideOrderIndex, bookingIndex) 
 
 // Make guide reject function globally accessible
 window.rejectIndividualGuide = function(tourId, guideOrderIndex, bookingIndex) {
-    console.log('👨‍💼 GUIDE REJECT: Opening rejection modal', { tourId, guideOrderIndex, bookingIndex });
-    createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex);
+    showRejectServiceAlert('guide', () => {
+        createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex);
+    }, tourId);
 }
 
 function createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex) {
@@ -6569,8 +6606,9 @@ window.approveTravelHourlyBooking = function(tourId, hourlyOrderIndex, bookingIn
 }
 
 window.rejectTravelHourlyBooking = function(tourId, hourlyOrderIndex, bookingIndex) {
-    console.log('⏰ HOURLY REJECT: Opening rejection modal', { tourId, hourlyOrderIndex, bookingIndex });
-    createHourlyRejectionModal(tourId, hourlyOrderIndex, bookingIndex);
+    showRejectServiceAlert('hourly', () => {
+        createHourlyRejectionModal(tourId, hourlyOrderIndex, bookingIndex);
+    }, tourId);
 }
 
 function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
@@ -9240,9 +9278,9 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
 }
 
 function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
-    console.log('Rejecting individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
-    // Create and show the hotel reject modal (reuse existing reject functionality)
-    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
+    showRejectServiceAlert('hotel', () => {
+        createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
+    }, tourId);
 }
 
 // Override any previous definitions - this is the correct attraction approve function
@@ -9255,10 +9293,9 @@ window.approveIndividualAttraction = function(tourId, attractionOrderIndex, book
 
 // Override any previous definitions - this is the correct attraction reject function
 window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    console.log('🎢 ATTRACTION REJECT - CORRECT FUNCTION: Rejecting individual attraction:', { tourId, attractionOrderIndex, bookingIndex });
-    console.log('🎢 This is the CORRECT reject function with full modal support');
-    // Create and show the attraction reject modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
+    showRejectServiceAlert('attraction', () => {
+        createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
+    }, tourId);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
@@ -12165,8 +12202,9 @@ window.approveArrivalBooking = function(tourId, arrivalOrderIndex, arrivalBookin
 }
 
 window.rejectArrivalBooking = function(tourId, arrivalOrderIndex, arrivalBookingIndex) {
-    console.log('🚗 ARRIVAL REJECT: Opening rejection modal', { tourId, arrivalOrderIndex, arrivalBookingIndex });
-    createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, 'reject');
+    showRejectServiceAlert('arrival', () => {
+        createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, 'reject');
+    }, tourId);
 }
 
 function createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, action) {
@@ -12642,8 +12680,9 @@ window.approveDepartureBooking = function(tourId, departureOrderIndex, departure
 }
 
 window.rejectDepartureBooking = function(tourId, departureOrderIndex, departureBookingIndex) {
-    console.log('✈️ DEPARTURE REJECT: Opening rejection modal', { tourId, departureOrderIndex, departureBookingIndex });
-    createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, 'reject');
+    showRejectServiceAlert('departure', () => {
+        createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, 'reject');
+    }, tourId);
 }
 
 function createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, action) {
@@ -16658,9 +16697,9 @@ window.approveTravelPointBooking = function(tourId, travelPointOrderIndex, booki
 };
 
 window.rejectTravelPointBooking = function(tourId, travelPointOrderIndex, bookingIndex) {
-    console.log('🚗 TRAVEL POINT REJECT: Opening reject modal', { tourId, travelPointOrderIndex, bookingIndex });
-    console.log('🔍 REJECT STATUS CHECK: Before opening reject modal - checking if booking is already approved');
-    createTravelPointRejectionModal(tourId, travelPointOrderIndex, bookingIndex);
+    showRejectServiceAlert('point_to_point', () => {
+        createTravelPointRejectionModal(tourId, travelPointOrderIndex, bookingIndex);
+    }, tourId);
 };
 
 function createTravelPointApprovalModal(tourId, travelPointOrderIndex, bookingIndex) {
@@ -19377,8 +19416,9 @@ window.approveIndividualLocalTransport = function(tourId, localTransportOrderInd
 };
 
 window.rejectIndividualLocalTransport = function(tourId, localTransportOrderIndex, bookingIndex) {
-    console.log('🚌 LOCAL TRANSPORT REJECT: Opening reject modal', { tourId, localTransportOrderIndex, bookingIndex });
-    createLocalTransportRejectionModal(tourId, localTransportOrderIndex, bookingIndex);
+    showRejectServiceAlert('local_transport', () => {
+        createLocalTransportRejectionModal(tourId, localTransportOrderIndex, bookingIndex);
+    }, tourId);
 };
 
 function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, bookingIndex) {
@@ -21605,27 +21645,21 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
 }
 
 function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
-    try {
-        console.log('Opening individual hotel reject modal for tour:', tourId, 'hotel order:', hotelOrderIndex, 'booking:', bookingIndex);
-        
-        // Close the hotel details modal first
-        const hotelDetailsModal = document.getElementById('hotelDetailsModal' + tourId);
-        if (hotelDetailsModal) {
-            const hotelModal = bootstrap.Modal.getInstance(hotelDetailsModal);
-            if (hotelModal) {
-                hotelModal.hide();
+    showRejectServiceAlert('hotel', () => {
+        try {
+            const hotelDetailsModal = document.getElementById('hotelDetailsModal' + tourId);
+            if (hotelDetailsModal) {
+                const hotelModal = bootstrap.Modal.getInstance(hotelDetailsModal);
+                if (hotelModal) hotelModal.hide();
             }
+            setTimeout(() => {
+                createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
+            }, 300);
+        } catch (error) {
+            console.error('Error opening individual hotel reject modal:', error);
+            alert('Error opening reject modal. Please try again.');
         }
-        
-        // Wait a moment for the modal to close, then show reject modal
-        setTimeout(() => {
-            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual hotel reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
-    }
+    }, tourId);
 }
 
 function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, action, autoCancelDate=null) {
@@ -25062,27 +25096,21 @@ function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex,
 }
 
 function rejectIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) {
-    try {
-        console.log('Opening individual restaurant reject modal for tour:', tourId, 'restaurant order:', restaurantOrderIndex, 'booking:', bookingIndex);
-        
-        // Close the restaurant details modal first
-        const restaurantDetailsModal = document.getElementById('restaurantDetailsModal' + tourId);
-        if (restaurantDetailsModal) {
-            const restaurantModal = bootstrap.Modal.getInstance(restaurantDetailsModal);
-            if (restaurantModal) {
-                restaurantModal.hide();
+    showRejectServiceAlert('restaurant', () => {
+        try {
+            const restaurantDetailsModal = document.getElementById('restaurantDetailsModal' + tourId);
+            if (restaurantDetailsModal) {
+                const restaurantModal = bootstrap.Modal.getInstance(restaurantDetailsModal);
+                if (restaurantModal) restaurantModal.hide();
             }
+            setTimeout(() => {
+                createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'reject');
+            }, 300);
+        } catch (error) {
+            console.error('Error opening individual restaurant reject modal:', error);
+            alert('Error opening reject modal. Please try again.');
         }
-        
-        // Wait a moment for the modal to close, then show individual reject modal
-        setTimeout(() => {
-            createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'reject');
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual restaurant reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
-    }
+    }, tourId);
 }
 
 function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
