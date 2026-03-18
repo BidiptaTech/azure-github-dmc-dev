@@ -526,6 +526,50 @@
         color: #047857;
         border-color: #6ee7b7;
     }
+    /* Due Date Badge - color by rule */
+    #toursTable td.col-payment-status .due-date-badge,
+    #toursTable td.col-status .due-date-badge {
+        font-size: 0.65rem;
+        padding: 0.3rem 0.5rem;
+        font-weight: 600;
+        border-radius: 6px;
+        white-space: normal;
+        word-wrap: break-word;
+        max-width: 100%;
+        display: inline-block;
+    }
+    #toursTable td.col-payment-status .due-date-badge.due-red,
+    #toursTable td.col-status .due-date-badge.due-red {
+        background: #dc2626 !important;
+        color: #ffffff !important;
+        border: 2px solid #991b1b !important;
+        animation: blink-alert 1.5s infinite;
+        box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+    }
+    #toursTable td.col-payment-status .due-date-badge.due-orange,
+    #toursTable td.col-status .due-date-badge.due-orange {
+        background: #f59e0b !important;
+        color: #111827 !important;
+        border: 2px solid #b45309 !important;
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+    }
+    #toursTable td.col-payment-status .due-date-badge.due-blue,
+    #toursTable td.col-status .due-date-badge.due-blue {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: 2px solid #1e40af !important;
+        box-shadow: 0 0 6px rgba(37, 99, 235, 0.35);
+    }
+    @keyframes blink-alert {
+        0%, 100% {
+            opacity: 1;
+            box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+        }
+        50% {
+            opacity: 0.7;
+            box-shadow: 0 0 12px rgba(220, 38, 38, 0.8);
+        }
+    }
     /* Status column - allow wrapping */
     #toursTable td.col-status {
         white-space: normal;
@@ -818,6 +862,36 @@
                                     @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
 
+                                  
+
+                                    @if($tour->multi_enq_id)
+                                        <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
+                                    @endif
+                                    @if($tour->tour_type)
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type);
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
+                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
+                                        @endphp
+                                        <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">{{ $tour->tour_type }}</span>
+                                    @endif
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
+                                            <br>
+                                            @if($tour->check_out_time)<span><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
+                                        </small>
+                                    @else
+                                        <small class="text-muted">Check-in/out: Not specified</small>
+                                    @endif
+
                                     @php
                                         $mainGuest = $tour->mainguest;
                                         if (is_string($mainGuest)) {
@@ -844,36 +918,17 @@
                                     @endphp
 
                                     @if(!empty($leadGuestName))
-                                        <small class="text-secondary">
-                                            <i class="ri-user-line me-1"></i>{{ $leadGuestName }}
-                                        </small>
-                                    @endif
-
-                                    @if($tour->multi_enq_id)
-                                        <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
-                                    @endif
-                                    @if($tour->tour_type)
                                         @php
-                                            $tourTypeLower = strtolower($tour->tour_type);
+                                            $tourTypeLower = strtolower($tour->tour_type ?? '');
                                             $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
                                             $textColor = '#ffffff';
-                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
                                         @endphp
-                                        <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">{{ $tour->tour_type }}</span>
-                                    @endif
-                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
-                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
-                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
-                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
-                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
-                                    </div>
-                                    @if($tour->check_in_time || $tour->check_out_time)
                                         <small>
-                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
-                                            @if($tour->check_out_time)<span class="ms-1"><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
+                                            <i class="ri-user-line me-1"></i>
+                                            <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.3px;">
+                                                {{ $leadGuestName }}
+                                            </span>
                                         </small>
-                                    @else
-                                        <small class="text-muted">Check-in/out: Not specified</small>
                                     @endif
                                 </div>
                             </td>
@@ -1210,7 +1265,7 @@
         <div style="margin-bottom: 0.5rem;">
             <small class="text-muted d-block mb-1" style="font-size: 0.7rem; font-weight: 600;">Execution Status:</small>
             <div class="badge status-execution 
-                @if($executionStatus === 'Ready') bg-success
+                @if($executionStatus === 'Ready') bg-primary
                 @elseif($executionStatus === 'Soon') bg-warning
                 @else bg-info
                 @endif
@@ -1230,12 +1285,72 @@
                                     // Payment calculation (match proforma: is_pro transfer totalPrice vs cost, guide when present, hotel transfer once per order)
                                     $tourTotalPrice = 0;
                                     $isProPayment = (int)($tour->is_pro ?? 0);
+
+                                    // Collect all display_due_date values from all orders and nested bookings
+                                    // NOTE: display_due_date may be stored as 'd-m-Y' (e.g. 20-03-2026) or 'Y-m-d' (e.g. 2026-03-20).
+                                    $parseDisplayDueDate = function ($value) {
+                                        if (empty($value)) return null;
+                                        try {
+                                            return \Carbon\Carbon::createFromFormat('d-m-Y', $value)->startOfDay();
+                                        } catch (\Exception $e) {
+                                            // ignore
+                                        }
+                                        try {
+                                            return \Carbon\Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+                                        } catch (\Exception $e) {
+                                            // ignore
+                                        }
+                                        try {
+                                            return \Carbon\Carbon::parse($value)->startOfDay();
+                                        } catch (\Exception $e) {
+                                            return null;
+                                        }
+                                    };
+                                    $allDueDates = [];
                                     foreach ($tour->booking as $order) {
                                         if (!in_array($order->status, [1, 2, 3])) continue;
+
+                                        // Collect display_due_date from order level if it exists
+                                        if (!empty($order->display_due_date)) {
+                                            $dueDate = $parseDisplayDueDate($order->display_due_date);
+                                            if ($dueDate) $allDueDates[] = $dueDate;
+                                        }
+
                                         $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                                         if (!is_array($data)) continue;
                                         $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
                                         $orderType = $order->type ?? '';
+
+                                        // Check for nested display_due_date in bookings/items (for services with multiple bookings)
+                                        foreach ($items as $item) {
+                                            if (!is_array($item)) continue;
+
+                                            // Check if item has display_due_date directly
+                                            if (!empty($item['display_due_date'])) {
+                                                $dueDate = $parseDisplayDueDate($item['display_due_date']);
+                                                if ($dueDate) $allDueDates[] = $dueDate;
+                                            }
+
+                                            // Check for nested bookings array (e.g., hotel bookings, guide bookings)
+                                            if (isset($item['bookings']) && is_array($item['bookings'])) {
+                                                foreach ($item['bookings'] as $booking) {
+                                                    if (!is_array($booking)) continue;
+                                                    if (!empty($booking['display_due_date'])) {
+                                                        $dueDate = $parseDisplayDueDate($booking['display_due_date']);
+                                                        if ($dueDate) $allDueDates[] = $dueDate;
+                                                    }
+                                                }
+                                            }
+
+                                            // Check for guide_details nested structure
+                                            if (isset($item['guide_details']) && is_array($item['guide_details'])) {
+                                                if (!empty($item['guide_details']['display_due_date'])) {
+                                                    $dueDate = $parseDisplayDueDate($item['guide_details']['display_due_date']);
+                                                    if ($dueDate) $allDueDates[] = $dueDate;
+                                                }
+                                            }
+                                        }
+
                                         if ($orderType === 'hotel') {
                                             $orderTotal = 0;
                                             foreach ($items as $item) {
@@ -1260,6 +1375,12 @@
                                                 $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                             }
                                         }
+                                    }
+
+                                    // Find the earliest due date
+                                    $earliestDueDate = null;
+                                    if (!empty($allDueDates)) {
+                                        $earliestDueDate = collect($allDueDates)->min();
                                     }
                                     $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
                                     $enquiry_amount = $enquiry->amount ?? 0;
@@ -1297,6 +1418,32 @@
                                         <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
                                     @else
                                         <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
+                                    @endif
+
+                                    @if($earliestDueDate)
+                                        @php
+                                            // Requirement (use TODAY to color by due date):
+                                            // Example due date = 20 and today = 17 => orange (due-3)
+                                            // - Blue: today < (due-3)
+                                            // - Orange: (due-3) .. (due-1)
+                                            // - Red: due date onwards (today >= due)
+                                            $today = now()->startOfDay();
+                                            $dueDay = $earliestDueDate->copy()->startOfDay();
+                                            $dueMinus3 = $dueDay->copy()->subDays(3);
+
+                                            $dueBadgeClass = 'due-blue';
+                                            if ($today->gte($dueDay)) {
+                                                $dueBadgeClass = 'due-red';
+                                            } elseif ($today->gte($dueMinus3)) {
+                                                $dueBadgeClass = 'due-orange';
+                                            }
+                                        @endphp
+                                        <span class="badge due-date-badge {{ $dueBadgeClass }}"
+                                              title="Earliest due date among all services: {{ $earliestDueDate->format('d-m-Y') }}">
+                                            <span style="white-space: normal; word-wrap: break-word; display: inline-block; max-width: 100%;">
+                                                Due: {{ $earliestDueDate->format('d-m-Y') }}
+                                            </span>
+                                        </span>
                                     @endif
                                 </div>
     </div>
