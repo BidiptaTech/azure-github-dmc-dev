@@ -2515,6 +2515,7 @@ class EditTourController extends Controller
                     // If no services left, soft delete the order (sets deleted_at timestamp), otherwise update it
                     if (empty($serviceData)) {
                         $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
+                        $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                         Log::info('Soft deleted entire order - all services outside date range', [
                             'order_id' => $orderId,
                             'deleted_at' => $order->deleted_at ? $order->deleted_at->toDateTimeString() : 'N/A',
@@ -2531,6 +2532,7 @@ class EditTourController extends Controller
                 } else {
                     // Single service, soft delete the entire order (sets deleted_at timestamp)
                     $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
+                    $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                     Log::info('Soft deleted order - single service outside date range', [
                         'order_id' => $orderId,
                         'service_type' => $services[0]['type'],
@@ -2544,6 +2546,10 @@ class EditTourController extends Controller
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        foreach (array_unique($tourIdsWithSoftDeletes) as $tourId) {
+            CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
         }
     }
 }

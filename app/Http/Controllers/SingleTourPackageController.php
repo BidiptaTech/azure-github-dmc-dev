@@ -639,6 +639,8 @@ class SingleTourPackageController extends Controller
 
             $order->delete();
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order cancelled successfully'
@@ -3032,16 +3034,62 @@ class SingleTourPackageController extends Controller
             ]);
                 
             // Format the response with vehicle details and pricing
-            
 
+            // Enforce dropoff zone vehicle_type against vehicles.sharable
+            // Zones.vehicle_type: Shared / Private / Both
+            // Vehicles.sharable: 1=Private, 2=Shared, 3=Both
+            $zoneVehicleType = null;
+            try {
+                $dropoffZoneId = null;
 
-            
+                // Prefer resolved numeric zone id
+                if (is_numeric($actualToZoneId)) {
+                    $dropoffZoneId = (int) $actualToZoneId;
+                } elseif (!empty($toZoneType)) {
+                    // Resolve location id -> zone id (Hotel/Attraction/Restaurant/Port)
+                    $resolved = $this->getActualZoneId($toZoneId, $toZoneType, $dmcId);
+                    if (is_numeric($resolved)) {
+                        $dropoffZoneId = (int) $resolved;
+                    }
+                } elseif (is_numeric($toZoneId)) {
+                    $dropoffZoneId = (int) $toZoneId;
+                }
+
+                if ($dropoffZoneId) {
+                    $zoneVehicleType = DB::table('zones')
+                        ->where('zone_id', $dropoffZoneId)
+                        ->value('vehicle_type');
+                    $zoneVehicleType = is_string($zoneVehicleType) ? trim($zoneVehicleType) : $zoneVehicleType;
+
+                    if (in_array($zoneVehicleType, ['Shared', 'Private', 'Both'], true)) {
+                        $vehicles = collect($vehicles)->filter(function ($vehicle) use ($zoneVehicleType) {
+                            $sharable = isset($vehicle['sharable']) ? (int) $vehicle['sharable'] : null;
+
+                            if ($zoneVehicleType === 'Shared' && $sharable === 1) {
+                                return false;
+                            }
+                            if ($zoneVehicleType === 'Private' && $sharable === 2) {
+                                return false;
+                            }
+                            return true;
+                        })->values();
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to enforce dropoff zone vehicle_type vs sharable', [
+                    'to_zone_id' => $toZoneId ?? null,
+                    'actual_to_zone_id' => $actualToZoneId ?? null,
+                    'to_zone_type' => $toZoneType ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Debug logging for final response
             \Log::info('Final Vehicle Response', [
                 'from_zone_id' => $actualFromZoneId,
                 'to_zone_id' => $actualToZoneId,
                 'total_vehicles' => count($vehicles),
-                'vehicles_data' => $vehicles->toArray()
+                'vehicles_data' => collect($vehicles)->toArray()
             ]);
             
             return response()->json([
@@ -3051,7 +3099,8 @@ class SingleTourPackageController extends Controller
                 'from_zone_id' => $actualFromZoneId,
                 'to_zone_id' => $actualToZoneId,
                 'original_from_zone_id' => $fromZoneId,
-                'original_to_zone_id' => $toZoneId
+                'original_to_zone_id' => $toZoneId,
+                'zone_vehicle_type' => $zoneVehicleType,
             ]);
 
         } catch (\Exception $e) {
@@ -4071,6 +4120,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Fix room_ids in booking data
         $hotelId = $bookingData['hotelDetails']['hotel_id'] ?? $bookingData['hotel_id'] ?? null;
@@ -4095,6 +4147,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
         
         // Update tour destination with hotel location if location is provided
@@ -4152,6 +4205,9 @@ class SingleTourPackageController extends Controller
             $bookingType = 'enquiry';
         }
 
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
+
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
         while (Order::where('booking_id', $bookingId)->exists()) {
@@ -4168,6 +4224,7 @@ class SingleTourPackageController extends Controller
             'discount' => $commission,
             'markup_percentage' => $markup_percentage,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4220,6 +4277,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
        
         // Generate unique booking ID
         $max_book_id = Order::max('booking_id') ?? 0;
@@ -4238,6 +4298,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4280,6 +4341,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -4299,6 +4363,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4343,6 +4408,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -4383,6 +4451,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4430,6 +4499,9 @@ class SingleTourPackageController extends Controller
             $bookingType = 'enquiry';
         }
 
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
+
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
         while (Order::where('booking_id', $bookingId)->exists()) {
@@ -4454,6 +4526,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;

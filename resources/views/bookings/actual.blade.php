@@ -6,13 +6,14 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+@include('bookings.partials.reject-service-alert-js')
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
 <!-- CSRF Token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script>
-    // Used by the JS-generated modals (individual service views)
     window.bookingCurrency = @json($currency ?? 'SGD');
+    window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
 </script>
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -411,6 +412,50 @@
         color: #047857;
         border-color: #6ee7b7;
     }
+    /* Due Date Badge - color by rule */
+    #toursTable td.col-payment-details .due-date-badge,
+    #toursTable td.col-payment-status .due-date-badge {
+        font-size: 0.65rem;
+        padding: 0.3rem 0.5rem;
+        font-weight: 600;
+        border-radius: 6px;
+        white-space: normal;
+        word-wrap: break-word;
+        max-width: 100%;
+        display: inline-block;
+    }
+    #toursTable td.col-payment-details .due-date-badge.due-red,
+    #toursTable td.col-payment-status .due-date-badge.due-red {
+        background: #dc2626 !important;
+        color: #ffffff !important;
+        border: 2px solid #991b1b !important;
+        animation: blink-alert 1.5s infinite;
+        box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+    }
+    #toursTable td.col-payment-details .due-date-badge.due-orange,
+    #toursTable td.col-payment-status .due-date-badge.due-orange {
+        background: #f59e0b !important;
+        color: #111827 !important;
+        border: 2px solid #b45309 !important;
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+    }
+    #toursTable td.col-payment-details .due-date-badge.due-blue,
+    #toursTable td.col-payment-status .due-date-badge.due-blue {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: 2px solid #1e40af !important;
+        box-shadow: 0 0 6px rgba(37, 99, 235, 0.35);
+    }
+    @keyframes blink-alert {
+        0%, 100% {
+            opacity: 1;
+            box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+        }
+        50% {
+            opacity: 0.7;
+            box-shadow: 0 0 12px rgba(220, 38, 38, 0.8);
+        }
+    }
     /* Actions column - same as confirmed */
     #toursTable td.col-actions {
         min-height: 72px;
@@ -698,12 +743,72 @@
                             // Payment calculation (match proforma: is_pro transfer totalPrice vs cost, guide when present, hotel transfer once per order)
                             $tourTotalPrice = 0;
                             $isProPayment = (int)($tour->is_pro ?? 0);
+
+                            // Collect all display_due_date values from all orders and nested bookings
+                            // NOTE: display_due_date may be stored as 'd-m-Y' (e.g. 20-03-2026) or 'Y-m-d' (e.g. 2026-03-20).
+                            $parseDisplayDueDate = function ($value) {
+                                if (empty($value)) return null;
+                                try {
+                                    return \Carbon\Carbon::createFromFormat('d-m-Y', $value)->startOfDay();
+                                } catch (\Exception $e) {
+                                    // ignore
+                                }
+                                try {
+                                    return \Carbon\Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+                                } catch (\Exception $e) {
+                                    // ignore
+                                }
+                                try {
+                                    return \Carbon\Carbon::parse($value)->startOfDay();
+                                } catch (\Exception $e) {
+                                    return null;
+                                }
+                            };
+                            $allDueDates = [];
                             foreach ($tour->booking ?? [] as $order) {
                                 if (!in_array($order->status ?? 0, [1, 2, 3])) continue;
+
+                                // Collect display_due_date from order level if it exists
+                                if (!empty($order->display_due_date)) {
+                                    $dueDate = $parseDisplayDueDate($order->display_due_date);
+                                    if ($dueDate) $allDueDates[] = $dueDate;
+                                }
+
                                 $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                                 if (!is_array($data)) continue;
                                 $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
                                 $orderType = $order->type ?? '';
+
+                                // Check for nested display_due_date in bookings/items (for services with multiple bookings)
+                                foreach ($items as $item) {
+                                    if (!is_array($item)) continue;
+
+                                    // Check if item has display_due_date directly
+                                    if (!empty($item['display_due_date'])) {
+                                        $dueDate = $parseDisplayDueDate($item['display_due_date']);
+                                        if ($dueDate) $allDueDates[] = $dueDate;
+                                    }
+
+                                    // Check for nested bookings array (e.g., hotel bookings, guide bookings)
+                                    if (isset($item['bookings']) && is_array($item['bookings'])) {
+                                        foreach ($item['bookings'] as $booking) {
+                                            if (!is_array($booking)) continue;
+                                            if (!empty($booking['display_due_date'])) {
+                                                $dueDate = $parseDisplayDueDate($booking['display_due_date']);
+                                                if ($dueDate) $allDueDates[] = $dueDate;
+                                            }
+                                        }
+                                    }
+
+                                    // Check for guide_details nested structure
+                                    if (isset($item['guide_details']) && is_array($item['guide_details'])) {
+                                        if (!empty($item['guide_details']['display_due_date'])) {
+                                            $dueDate = $parseDisplayDueDate($item['guide_details']['display_due_date']);
+                                            if ($dueDate) $allDueDates[] = $dueDate;
+                                        }
+                                    }
+                                }
+
                                 if ($orderType === 'hotel') {
                                     $orderTotal = 0;
                                     foreach ($items as $item) {
@@ -728,6 +833,12 @@
                                         $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                     }
                                 }
+                            }
+
+                            // Find the earliest due date
+                            $earliestDueDate = null;
+                            if (!empty($allDueDates)) {
+                                $earliestDueDate = collect($allDueDates)->min();
                             }
                             
                             $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
@@ -787,6 +898,35 @@
                                     @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
 
+                                   
+
+                                    @if($tour->multi_enq_id)
+                                        <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
+                                    @endif
+                                    @if($tour->tour_type)
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type);
+                                            $tourTypeClass = $tourTypeLower === 'group' ? 'group' : 'fit';
+                                        @endphp
+                                        <span class="tour-type-badge {{ $tourTypeClass }}" title="{{ $tour->tour_type }}">
+                                            {{ $tour->tour_type }}
+                                        </span>
+                                    @endif
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
+                                            <br>
+                                            @if($tour->check_out_time)<span><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
+                                        </small>
+                                    @else
+                                        <small class="text-muted">Check-in/out: Not specified</small>
+                                    @endif
                                     @php
                                         $mainGuest = $tour->mainguest;
                                         if (is_string($mainGuest)) {
@@ -813,36 +953,17 @@
                                     @endphp
 
                                     @if(!empty($leadGuestName))
-                                        <small class="text-secondary">
-                                            <i class="ri-user-line me-1"></i>{{ $leadGuestName }}
-                                        </small>
-                                    @endif
-
-                                    @if($tour->multi_enq_id)
-                                        <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
-                                    @endif
-                                    @if($tour->tour_type)
                                         @php
-                                            $tourTypeLower = strtolower($tour->tour_type);
-                                            $tourTypeClass = $tourTypeLower === 'group' ? 'group' : 'fit';
+                                            $tourTypeLower = strtolower($tour->tour_type ?? '');
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
                                         @endphp
-                                        <span class="tour-type-badge {{ $tourTypeClass }}" title="{{ $tour->tour_type }}">
-                                            {{ $tour->tour_type }}
-                                        </span>
-                                    @endif
-                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
-                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
-                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
-                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
-                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
-                                    </div>
-                                    @if($tour->check_in_time || $tour->check_out_time)
                                         <small>
-                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
-                                            @if($tour->check_out_time)<span class="ms-1"><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
+                                            <i class="ri-user-line me-1"></i>
+                                            <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.3px;">
+                                                {{ $leadGuestName }}
+                                            </span>
                                         </small>
-                                    @else
-                                        <small class="text-muted">Check-in/out: Not specified</small>
                                     @endif
                                 </div>
                             </td>
@@ -1182,6 +1303,32 @@
                                         @else
                                             <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
                                         @endif
+
+                                        @if($earliestDueDate)
+                                            @php
+                                                // Requirement (use TODAY to color by due date):
+                                                // Example due date = 20 and today = 17 => orange (due-3)
+                                                // - Blue: today < (due-3)
+                                                // - Orange: (due-3) .. (due-1)
+                                                // - Red: due date onwards (today >= due)
+                                                $today = now()->startOfDay();
+                                                $dueDay = $earliestDueDate->copy()->startOfDay();
+                                                $dueMinus3 = $dueDay->copy()->subDays(3);
+
+                                                $dueBadgeClass = 'due-blue';
+                                                if ($today->gte($dueDay)) {
+                                                    $dueBadgeClass = 'due-red';
+                                                } elseif ($today->gte($dueMinus3)) {
+                                                    $dueBadgeClass = 'due-orange';
+                                                }
+                                            @endphp
+                                            <span class="badge due-date-badge {{ $dueBadgeClass }}"
+                                                  title="Earliest due date among all services: {{ $earliestDueDate->format('d-m-Y') }}">
+                                                <span style="white-space: normal; word-wrap: break-word; display: inline-block; max-width: 100%;">
+                                                    Due: {{ $earliestDueDate->format('d-m-Y') }}
+                                                </span>
+                                            </span>
+                                        @endif
                                     </div>
                                     {{-- Amount & methods --}}
                                     <div class="payment-details-info">
@@ -1223,7 +1370,7 @@
                                         <i class="ri-play-circle-line me-1"></i>Active
                                     </span>
                                 @elseif($isCompleted)
-                                    <span class="badge bg-success">
+                                    <span class="badge bg-success ">
                                         <i class="ri-checkbox-circle-line me-1"></i>Complete
                                     </span>
                                 @else
@@ -1343,10 +1490,31 @@
                                         </a>
                                     @endif
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11|| auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <!-- <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-warning btn-sm rounded-pill">
-                                        <i class="ri-settings-3-line"></i> Add/Remove Services
-                                    </a> -->
+                                        @if($tour->is_pro == 1)
+                                            <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                               class="action-icon-badge"
+                                               style="--action-color: #047857;"
+                                               data-tooltip="Edit Tour"
+                                               onclick="event.stopPropagation();">
+                                                <i class="ri-pencil-line"></i>
+                                            </a>
+                                        @else
+                                            <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                               class="action-icon-badge"
+                                               style="--action-color: #047857;"
+                                               data-tooltip="Edit Tour"
+                                               onclick="event.stopPropagation();">
+                                                <i class="ri-pencil-line"></i>
+                                            </a>
+                                        @endif
+
+                                        <!-- <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}"
+                                           class="action-icon-badge"
+                                           style="--action-color: #f59e0b;"
+                                           data-tooltip="Edit Tour (Add/Remove Services)"
+                                           onclick="event.stopPropagation();">
+                                            <i class="ri-settings-3-line"></i>
+                                        </a> -->
                                     <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="action-icon-badge" 
                                        style="--action-color: #0dcaf0;"
@@ -1359,6 +1527,13 @@
                                         data-tooltip="Confirmation Voucher"
                                         target="_blank">
                                             <i class="ri-file-download-line"></i>
+                                    </a>
+                                    <a href="{{ route('bookinglist.handoverChecklist.pdf',  Crypt::encrypt($tour->tour_id)) }}" 
+                                       class="action-icon-badge" 
+                                       style="--action-color: #0d9488;"
+                                       data-tooltip="Handover Checklist PDF"
+                                       target="_blank">
+                                        <i class="ri-file-list-3-line"></i>
                                     </a>
                                     @endif
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
@@ -5279,8 +5454,9 @@ window.approveIndividualGuide = function(tourId, guideOrderIndex, bookingIndex) 
 
 // Make guide reject function globally accessible
 window.rejectIndividualGuide = function(tourId, guideOrderIndex, bookingIndex) {
-    console.log('👨‍💼 GUIDE REJECT: Opening rejection modal', { tourId, guideOrderIndex, bookingIndex });
-    createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex);
+    showRejectServiceAlert('guide', () => {
+        createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex);
+    }, tourId);
 }
 
 function createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex) {
@@ -5851,8 +6027,9 @@ window.approveTravelHourlyBooking = function(tourId, hourlyOrderIndex, bookingIn
 }
 
 window.rejectTravelHourlyBooking = function(tourId, hourlyOrderIndex, bookingIndex) {
-    console.log('⏰ HOURLY REJECT: Opening rejection modal', { tourId, hourlyOrderIndex, bookingIndex });
-    createHourlyRejectionModal(tourId, hourlyOrderIndex, bookingIndex);
+    showRejectServiceAlert('hourly', () => {
+        createHourlyRejectionModal(tourId, hourlyOrderIndex, bookingIndex);
+    }, tourId);
 }
 
 function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
@@ -8375,9 +8552,9 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
 }
 
 function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
-    console.log('Rejecting individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
-    // Create and show the hotel reject modal (reuse existing reject functionality)
-    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
+    showRejectServiceAlert('hotel', () => {
+        createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
+    }, tourId);
 }
 
 // Override any previous definitions - this is the correct attraction approve function
@@ -8390,10 +8567,9 @@ window.approveIndividualAttraction = function(tourId, attractionOrderIndex, book
 
 // Override any previous definitions - this is the correct attraction reject function
 window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    console.log('🎢 ATTRACTION REJECT - CORRECT FUNCTION: Rejecting individual attraction:', { tourId, attractionOrderIndex, bookingIndex });
-    console.log('🎢 This is the CORRECT reject function with full modal support');
-    // Create and show the attraction reject modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
+    showRejectServiceAlert('attraction', () => {
+        createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
+    }, tourId);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
@@ -11138,8 +11314,9 @@ window.approveArrivalBooking = function(tourId, arrivalOrderIndex, arrivalBookin
 }
 
 window.rejectArrivalBooking = function(tourId, arrivalOrderIndex, arrivalBookingIndex) {
-    console.log('🚗 ARRIVAL REJECT: Opening rejection modal', { tourId, arrivalOrderIndex, arrivalBookingIndex });
-    createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, 'reject');
+    showRejectServiceAlert('arrival', () => {
+        createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, 'reject');
+    }, tourId);
 }
 
 function createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, action) {
@@ -11615,8 +11792,9 @@ window.approveDepartureBooking = function(tourId, departureOrderIndex, departure
 }
 
 window.rejectDepartureBooking = function(tourId, departureOrderIndex, departureBookingIndex) {
-    console.log('✈️ DEPARTURE REJECT: Opening rejection modal', { tourId, departureOrderIndex, departureBookingIndex });
-    createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, 'reject');
+    showRejectServiceAlert('departure', () => {
+        createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, 'reject');
+    }, tourId);
 }
 
 function createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, action) {
@@ -14305,27 +14483,22 @@ function approveIndividualTravelHourly(tourId, travelHourlyOrderIndex, bookingIn
 }
 
 function rejectIndividualTravelHourly(tourId, travelHourlyOrderIndex, bookingIndex) {
-    try {
-        console.log('Opening individual travel hourly reject modal for tour:', tourId, 'order:', travelHourlyOrderIndex, 'booking:', bookingIndex);
-        
-        // Close any open modals first
-        const viewModalId = `individualTravelHourlyViewModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`;
-        const viewModal = document.getElementById(viewModalId);
-        if (viewModal) {
-            const modal = bootstrap.Modal.getInstance(viewModal);
-            if (modal) {
-                modal.hide();
+    showRejectServiceAlert('hourly', () => {
+        try {
+            const viewModalId = `individualTravelHourlyViewModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`;
+            const viewModal = document.getElementById(viewModalId);
+            if (viewModal) {
+                const modal = bootstrap.Modal.getInstance(viewModal);
+                if (modal) modal.hide();
             }
+            setTimeout(() => {
+                createAndShowIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, bookingIndex, 'reject');
+            }, 300);
+        } catch (error) {
+            console.error('Error opening individual travel hourly reject modal:', error);
+            alert('Error opening reject modal. Please try again.');
         }
-        
-        setTimeout(() => {
-            createAndShowIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, bookingIndex, 'reject');
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual travel hourly reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
-    }
+    }, tourId);
 }
 
 function createAndShowIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, bookingIndex, action) {
@@ -15575,9 +15748,9 @@ window.approveTravelPointBooking = function(tourId, travelPointOrderIndex, booki
 };
 
 window.rejectTravelPointBooking = function(tourId, travelPointOrderIndex, bookingIndex) {
-    console.log('🚗 TRAVEL POINT REJECT: Opening reject modal', { tourId, travelPointOrderIndex, bookingIndex });
-    console.log('🔍 REJECT STATUS CHECK: Before opening reject modal - checking if booking is already approved');
-    createTravelPointRejectionModal(tourId, travelPointOrderIndex, bookingIndex);
+    showRejectServiceAlert('point_to_point', () => {
+        createTravelPointRejectionModal(tourId, travelPointOrderIndex, bookingIndex);
+    }, tourId);
 };
 
 function createTravelPointApprovalModal(tourId, travelPointOrderIndex, bookingIndex) {
@@ -17088,27 +17261,22 @@ function approveIndividualTravelPoint(tourId, travelPointOrderIndex, bookingInde
 }
 
 function rejectIndividualTravelPoint(tourId, travelPointOrderIndex, bookingIndex) {
-    try {
-        console.log('Opening individual travel point reject modal for tour:', tourId, 'order:', travelPointOrderIndex, 'booking:', bookingIndex);
-        
-        // Close any open modals first
-        const viewModalId = `individualTravelPointViewModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
-        const viewModal = document.getElementById(viewModalId);
-        if (viewModal) {
-            const modal = bootstrap.Modal.getInstance(viewModal);
-            if (modal) {
-                modal.hide();
+    showRejectServiceAlert('point_to_point', () => {
+        try {
+            const viewModalId = `individualTravelPointViewModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+            const viewModal = document.getElementById(viewModalId);
+            if (viewModal) {
+                const modal = bootstrap.Modal.getInstance(viewModal);
+                if (modal) modal.hide();
             }
+            setTimeout(() => {
+                createAndShowIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex, 'reject');
+            }, 300);
+        } catch (error) {
+            console.error('Error opening individual travel point reject modal:', error);
+            alert('Error opening reject modal. Please try again.');
         }
-        
-        setTimeout(() => {
-            createAndShowIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex, 'reject');
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual travel point reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
-    }
+    }, tourId);
 }
 
 function createAndShowIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex, action) {
@@ -18540,8 +18708,9 @@ window.approveIndividualLocalTransport = function(tourId, localTransportOrderInd
 };
 
 window.rejectIndividualLocalTransport = function(tourId, localTransportOrderIndex, bookingIndex) {
-    console.log('🚌 LOCAL TRANSPORT REJECT: Opening reject modal', { tourId, localTransportOrderIndex, bookingIndex });
-    createLocalTransportRejectionModal(tourId, localTransportOrderIndex, bookingIndex);
+    showRejectServiceAlert('local_transport', () => {
+        createLocalTransportRejectionModal(tourId, localTransportOrderIndex, bookingIndex);
+    }, tourId);
 };
 
 function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, bookingIndex) {
@@ -20768,27 +20937,21 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
 }
 
 function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
-    try {
-        console.log('Opening individual hotel reject modal for tour:', tourId, 'hotel order:', hotelOrderIndex, 'booking:', bookingIndex);
-        
-        // Close the hotel details modal first
-        const hotelDetailsModal = document.getElementById('hotelDetailsModal' + tourId);
-        if (hotelDetailsModal) {
-            const hotelModal = bootstrap.Modal.getInstance(hotelDetailsModal);
-            if (hotelModal) {
-                hotelModal.hide();
+    showRejectServiceAlert('hotel', () => {
+        try {
+            const hotelDetailsModal = document.getElementById('hotelDetailsModal' + tourId);
+            if (hotelDetailsModal) {
+                const hotelModal = bootstrap.Modal.getInstance(hotelDetailsModal);
+                if (hotelModal) hotelModal.hide();
             }
+            setTimeout(() => {
+                createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
+            }, 300);
+        } catch (error) {
+            console.error('Error opening individual hotel reject modal:', error);
+            alert('Error opening reject modal. Please try again.');
         }
-        
-        // Wait a moment for the modal to close, then show reject modal
-        setTimeout(() => {
-            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual hotel reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
-    }
+    }, tourId);
 }
 
 function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, action, autoCancelDate=null) {
@@ -23136,27 +23299,21 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex,
 }
 
 function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    try {
-        console.log('Opening individual attraction reject modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
-        
-        // Close the attraction details modal first
-        const attractionDetailsModal = document.getElementById('attractionDetailsModal' + tourId);
-        if (attractionDetailsModal) {
-            const attractionModal = bootstrap.Modal.getInstance(attractionDetailsModal);
-            if (attractionModal) {
-                attractionModal.hide();
+    showRejectServiceAlert('attraction', () => {
+        try {
+            const attractionDetailsModal = document.getElementById('attractionDetailsModal' + tourId);
+            if (attractionDetailsModal) {
+                const attractionModal = bootstrap.Modal.getInstance(attractionDetailsModal);
+                if (attractionModal) attractionModal.hide();
             }
+            setTimeout(() => {
+                createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
+            }, 300);
+        } catch (error) {
+            console.error('Error opening individual attraction reject modal:', error);
+            alert('Error opening reject modal. Please try again.');
         }
-        
-        // Wait a moment for the modal to close, then show individual reject modal
-        setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual attraction reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
-    }
+    }, tourId);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
@@ -24129,27 +24286,21 @@ function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex,
 }
 
 function rejectIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) {
-    try {
-        console.log('Opening individual restaurant reject modal for tour:', tourId, 'restaurant order:', restaurantOrderIndex, 'booking:', bookingIndex);
-        
-        // Close the restaurant details modal first
-        const restaurantDetailsModal = document.getElementById('restaurantDetailsModal' + tourId);
-        if (restaurantDetailsModal) {
-            const restaurantModal = bootstrap.Modal.getInstance(restaurantDetailsModal);
-            if (restaurantModal) {
-                restaurantModal.hide();
+    showRejectServiceAlert('restaurant', () => {
+        try {
+            const restaurantDetailsModal = document.getElementById('restaurantDetailsModal' + tourId);
+            if (restaurantDetailsModal) {
+                const restaurantModal = bootstrap.Modal.getInstance(restaurantDetailsModal);
+                if (restaurantModal) restaurantModal.hide();
             }
+            setTimeout(() => {
+                createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'reject');
+            }, 300);
+        } catch (error) {
+            console.error('Error opening individual restaurant reject modal:', error);
+            alert('Error opening reject modal. Please try again.');
         }
-        
-        // Wait a moment for the modal to close, then show individual reject modal
-        setTimeout(() => {
-            createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'reject');
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual restaurant reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
-    }
+    }, tourId);
 }
 
 function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
@@ -25297,27 +25448,21 @@ function approveIndividualGuide(tourId, guideOrderIndex, bookingIndex) {
 }
 
 function rejectIndividualGuide(tourId, guideOrderIndex, bookingIndex) {
-    try {
-        console.log('Opening individual guide reject modal for tour:', tourId, 'guide order:', guideOrderIndex, 'booking:', bookingIndex);
-        
-        // Close the guide details modal first
-        const guideDetailsModal = document.getElementById('guideDetailsModal' + tourId);
-        if (guideDetailsModal) {
-            const guideModal = bootstrap.Modal.getInstance(guideDetailsModal);
-            if (guideModal) {
-                guideModal.hide();
+    showRejectServiceAlert('guide', () => {
+        try {
+            const guideDetailsModal = document.getElementById('guideDetailsModal' + tourId);
+            if (guideDetailsModal) {
+                const guideModal = bootstrap.Modal.getInstance(guideDetailsModal);
+                if (guideModal) guideModal.hide();
             }
+            setTimeout(() => {
+                createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, 'reject');
+            }, 300);
+        } catch (error) {
+            console.error('Error opening individual guide reject modal:', error);
+            alert('Error opening reject modal. Please try again.');
         }
-        
-        // Wait a moment for the modal to close, then show individual reject modal
-        setTimeout(() => {
-            createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, 'reject');
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual guide reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
-    }
+    }, tourId);
 }
 
 function createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, action) {
