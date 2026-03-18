@@ -2064,8 +2064,18 @@
                 @endif --}}
 
                     <!-- Settings -->
-                    @if(in_array(Auth::user()->role_id, [1]))
-                    @if(hasPermission('settings') || hasPermission('edit settings') || hasPermission('view country'))
+                    @php
+                        $sidebarRoleId = Auth::user()->role_id;
+                        $sidebarIsAdmin = in_array($sidebarRoleId, [1]);
+                        $sidebarIsDmc = in_array($sidebarRoleId, [11]);
+                        $sidebarIsOperational = in_array($sidebarRoleId, [34, 124,125]);
+                        $sidebarIsFinance = in_array($sidebarRoleId, [36, 126,127]);
+                        $sidebarIsLimitedGeneralSettings = $sidebarIsDmc || $sidebarIsOperational || $sidebarIsFinance;
+                    @endphp
+                    @if(
+                        ($sidebarIsAdmin && (hasPermission('settings') || hasPermission('edit settings') || hasPermission('view country')))
+                        || ($sidebarIsLimitedGeneralSettings)
+                    )
                     <li class="menu-header mt-5">
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
@@ -2077,6 +2087,7 @@
                         </a>
 
                         <ul class="menu-sub">
+                            @if($sidebarIsAdmin)
                             @if(hasPermission('settings') && hasPermission('edit settings'))
                             <li class="menu-item @if(Request::is('master-setting')) active @endif">
                                 <a href="{{ route('master-setting') }}" class="menu-link">
@@ -2085,29 +2096,33 @@
                             </li>
                             @endif
 
-                        <!-- List City -->
-                        <li class="menu-item @if(Request::is('country')) active @endif">
+                            <!-- List City -->
                             @if(hasPermission('view country'))
-                            <a href="{{ route('country.index') }}" class="menu-link">
-                                <div data-i18n="City Charges">City Charges</div>
-                            </a>
+                            <li class="menu-item @if(Request::is('country')) active @endif">
+                                <a href="{{ route('country.index') }}" class="menu-link">
+                                    <div data-i18n="City Charges">City Charges</div>
+                                </a>
+                            </li>
                             @endif
-                        </li>
 
-                        <!-- Cities -->
-                        <li class="menu-item @if(Request::is('cities*')) active @endif">
-                            <a href="{{ route('cities.index') }}" class="menu-link">
-                                <div data-i18n="Cities">Cities</div>
-                            </a>
-                        </li>
+                            <!-- Cities -->
+                            <li class="menu-item @if(Request::is('cities*')) active @endif">
+                                <a href="{{ route('cities.index') }}" class="menu-link">
+                                    <div data-i18n="Cities">Cities</div>
+                                </a>
+                            </li>
+                            @endif
 
                         <!-- Countries -->
-                        <li class="menu-item @if(Request::is('countries')) active @endif">
-                            <a href="{{ route('countries.index') }}" class="menu-link">
-                                <div data-i18n="Countries">Countries</div>
-                            </a>
-                        </li>
+                        @if(hasPermission('view country') || $sidebarIsLimitedGeneralSettings)
+                            <li class="menu-item @if(Request::is('countries')) active @endif">
+                                <a href="{{ route('countries.index') }}" class="menu-link">
+                                    <div data-i18n="Countries">Countries</div>
+                                </a>
+                            </li>
+                        @endif
 
+                            @if($sidebarIsAdmin)
                         <!-- Email Settings -->
                         <li class="menu-item @if(Request::is('mail/settings')) active @endif">
                             <a href="{{ route('mail.settings') }}" class="menu-link">
@@ -2121,9 +2136,9 @@
                                 <div data-i18n="App Management Settings">App Management Settings</div>
                             </a>
                         </li>
+                            @endif
                     </ul>
                 </li>
-                @endif
                 @endif
                 <!-- End Settings -->
 
