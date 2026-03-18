@@ -865,8 +865,23 @@ class BookingsController extends Controller
             $this->formatToursDisplayId($tours);
         }
         $currency = CommonHelper::getDmcCurrencyByCountry();
-        
-        return view('bookings.confirmed', compact('tours', 'currency' ));
+
+        $tourIds = $tours->pluck('tour_id')->toArray();
+        $tourNegotiationHistory = [];
+        if (!empty($tourIds)) {
+            $withComments = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->pluck('tour_id')
+                ->flip()
+                ->toArray();
+            foreach ($tourIds as $tid) {
+                $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
+            }
+        }
+
+        return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory'));
     }
 
     /**
@@ -1006,7 +1021,23 @@ class BookingsController extends Controller
 
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.definite', compact('tours', 'country_tax', 'currency'));
+
+        $tourIds = $tours->pluck('tour_id')->toArray();
+        $tourNegotiationHistory = [];
+        if (!empty($tourIds)) {
+            $withComments = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->pluck('tour_id')
+                ->flip()
+                ->toArray();
+            foreach ($tourIds as $tid) {
+                $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
+            }
+        }
+
+        return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
     }
 
     /**
@@ -1148,7 +1179,23 @@ class BookingsController extends Controller
 
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.actual', compact('tours', 'country_tax', 'currency'));
+
+        $tourIds = $tours->pluck('tour_id')->toArray();
+        $tourNegotiationHistory = [];
+        if (!empty($tourIds)) {
+            $withComments = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->pluck('tour_id')
+                ->flip()
+                ->toArray();
+            foreach ($tourIds as $tid) {
+                $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
+            }
+        }
+
+        return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
     }
 
     /**

@@ -2769,6 +2769,8 @@ class HotelBookingController extends Controller
                 'deleted_at' => now()
             ]);
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Hotel booking rejected successfully',
@@ -3297,6 +3299,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason
             ]);
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Restaurant booking rejected successfully',
@@ -3418,6 +3422,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3676,6 +3682,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3937,6 +3945,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $request->cancel_reason
             ]);
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Arrival booking rejected successfully',
@@ -4194,6 +4204,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $request->cancel_reason
             ]);
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Departure booking rejected successfully',
@@ -4449,6 +4461,8 @@ class HotelBookingController extends Controller
                 'order_id' => $hourlyOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4706,6 +4720,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $request->cancel_reason
             ]);
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Point to point booking rejected successfully',
@@ -4953,6 +4969,8 @@ class HotelBookingController extends Controller
                 'order_id' => $localTransportOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
