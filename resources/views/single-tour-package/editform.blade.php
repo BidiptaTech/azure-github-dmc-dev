@@ -13802,9 +13802,41 @@
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
         }
+
+        // Extra rule: lock Service Type options based on dropoff zone vehicle_type (Shared/Private/Both).
+        // Applies even when sharable = 3 (Both).
+        try {
+            const zoneMap = window.zoneVehicleTypeByServiceTypeSelectId || {};
+            const zoneVehicleType = String(zoneMap['modal_transport_service_type'] || '').trim();
+            if (zoneVehicleType === 'Shared' || zoneVehicleType === 'Private') {
+                const privateOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Private');
+                const sharedOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Shared');
+
+                if (privateOpt) privateOpt.disabled = false;
+                if (sharedOpt) sharedOpt.disabled = false;
+
+                if (zoneVehicleType === 'Shared' && privateOpt) {
+                    privateOpt.disabled = true;
+                    if (sharedOpt) serviceTypeSelect.value = 'Shared';
+                } else if (zoneVehicleType === 'Private' && sharedOpt) {
+                    sharedOpt.disabled = true;
+                    if (privateOpt) serviceTypeSelect.value = 'Private';
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to apply zone vehicle type UI lock (transport modal)', e);
+        }
         
         serviceTypeSelect.disabled = false;
         console.log('Service type options updated for transport modal');
+
+        // If Select2 is used, force it to refresh disabled options + value
+        if (typeof jQuery !== 'undefined') {
+            const $el = jQuery(serviceTypeSelect);
+            if ($el.data('select2')) {
+                $el.trigger('change.select2');
+            }
+        }
     }
     
     function searchLocalTransferVehicles() {
