@@ -1394,6 +1394,13 @@
                                         target="_blank">
                                             <i class="ri-file-download-line"></i>
                                         </a>
+                                            <a href="{{ route('bookinglist.handoverChecklist.pdf', Crypt::encrypt($tour->tour_id)) }}" 
+                                            class="action-icon-badge" 
+                                            style="--action-color: #0d9488;"
+                                            data-tooltip="Handover Checklist PDF"
+                                            target="_blank">
+                                            <i class="ri-file-list-3-line"></i>
+                                        </a>
                                         <button type="button" class="action-icon-badge" style="--action-color: #dc3545;" data-tooltip="Cancel Booking"
                                                 onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')"
                                                 id="cancel-btn-{{ $tour->tour_id }}">

@@ -1361,6 +1361,13 @@
                                         target="_blank">
                                             <i class="ri-file-download-line"></i>
                                     </a>
+                                    <a href="{{ route('bookinglist.handoverChecklist.pdf',  Crypt::encrypt($tour->tour_id)) }}" 
+                                       class="action-icon-badge" 
+                                       style="--action-color: #0d9488;"
+                                       data-tooltip="Handover Checklist PDF"
+                                       target="_blank">
+                                        <i class="ri-file-list-3-line"></i>
+                                    </a>
                                     @endif
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Payment Details" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
