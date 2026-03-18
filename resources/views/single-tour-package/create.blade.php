@@ -25140,6 +25140,20 @@ function loadDropoffZones(day, section) {
         })
              .then(response => response.json())
              .then(data => {
+                // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+                try {
+                    const zvt = String(data.zone_vehicle_type || '').trim();
+                    window.zoneVehicleTypeBySection = window.zoneVehicleTypeBySection || {};
+                    window.zoneVehicleTypeBySection[`${day}_${section}`] = zvt;
+                    // Also store common transport variants
+                    if (section === 'transport') {
+                        window.zoneVehicleTypeBySection[`${day}_transport_0`] = zvt;
+                        window.zoneVehicleTypeBySection[`${day}_transport`] = zvt;
+                    }
+                } catch (e) {
+                    console.warn('Failed to store zone_vehicle_type for UI (loadVehiclesForZones)', e);
+                }
+
                  if (data.success && data.vehicles && data.vehicles.length > 0) {
                      vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
                      
@@ -25409,6 +25423,51 @@ function loadDropoffZones(day, section) {
                 sharedOption.value = 'Shared';
                 sharedOption.textContent = 'Shared';
                 serviceTypeSelect.appendChild(sharedOption);
+            }
+
+            // Extra rule: lock Service Type options based on dropoff zone vehicle_type (Shared/Private/Both)
+            // This must apply even when vehicle.sharable = 3 (Both).
+            try {
+                const baseSection =
+                    (typeof section === 'string' && section.startsWith('entry')) ? 'entry' :
+                    (typeof section === 'string' && section.startsWith('exit')) ? 'exit' :
+                    section;
+
+                const zoneKeyCandidates = [
+                    `${day}_${section}`,
+                    `${day}_${baseSection}`,
+                ];
+
+                const zoneMap = window.zoneVehicleTypeBySection || {};
+                let zoneVehicleType = '';
+                for (const k of zoneKeyCandidates) {
+                    if (typeof zoneMap[k] === 'string' && zoneMap[k].trim() !== '') {
+                        zoneVehicleType = zoneMap[k].trim();
+                        break;
+                    }
+                }
+
+                if (zoneVehicleType === 'Shared' || zoneVehicleType === 'Private') {
+                    const privateOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Private');
+                    const sharedOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Shared');
+
+                    // reset
+                    if (privateOpt) privateOpt.disabled = false;
+                    if (sharedOpt) sharedOpt.disabled = false;
+
+                    if (zoneVehicleType === 'Shared' && privateOpt) {
+                        privateOpt.disabled = true;
+                        if (sharedOpt) serviceTypeSelect.value = 'Shared';
+                    } else if (zoneVehicleType === 'Private' && sharedOpt) {
+                        sharedOpt.disabled = true;
+                        if (privateOpt) serviceTypeSelect.value = 'Private';
+                    }
+
+                    // trigger pricing refresh
+                    serviceTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            } catch (e) {
+                console.warn('Failed to apply zone vehicle type UI lock', e);
             }
             
             serviceTypeSelect.disabled = false;
@@ -28073,6 +28132,19 @@ window.saveService = function(day, type) {
          .then(response => response.json())
          .then(data => {
                 console.log('Vehicle search response (zone-based):', data);
+            // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+            try {
+                const zvt = String(data.zone_vehicle_type || '').trim();
+                window.zoneVehicleTypeBySection = window.zoneVehicleTypeBySection || {};
+                // Store multiple keys so updateTypeSelect can find it regardless of section naming
+                window.zoneVehicleTypeBySection[`${day}_${section}`] = zvt;
+                window.zoneVehicleTypeBySection[`${day}_${baseSection}`] = zvt;
+                window.zoneVehicleTypeBySection[`${day}_${baseSection}_0`] = zvt;
+                if (section === 'entry') window.zoneVehicleTypeBySection[`${day}_entry_0`] = zvt;
+                if (section === 'exit') window.zoneVehicleTypeBySection[`${day}_exit_0`] = zvt;
+            } catch (e) {
+                console.warn('Failed to store zone_vehicle_type for UI', e);
+            }
              if (data.success && data.vehicles && data.vehicles.length > 0) {
                  // Remove duplicate vehicles by vehicle_id (backend should handle this, but add safety check)
                  const uniqueVehicles = [];
