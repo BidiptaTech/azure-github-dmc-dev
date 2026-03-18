@@ -38,8 +38,8 @@
             line-height: 1.4;
         }
         .logo-img {
-            max-height: 80px;
-            max-width: 120px;
+            max-height: 120px;
+            max-width: 180px;
             display: inline-block;
         }
         .title-row {
@@ -63,9 +63,14 @@
         }
         .summary-label {
             font-weight: bold;
+            color: #f97316;
+        }
+        .summary-value {
+            color: #f97316;
+            font-weight: 600;
         }
         .section-title {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
             margin: 10px 0 4px;
             padding: 4px 6px;
@@ -75,7 +80,7 @@
         .tickets-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9px;
+            font-size: 10px;
         }
         .tickets-table th,
         .tickets-table td {
@@ -89,12 +94,28 @@
         }
         .tickets-table td.service-subrow {
             font-style: italic;
+            color: #666;
+            padding-left: 10px;
+            background: #fafafa;
         }
         .tickets-table td.center {
             text-align: center;
         }
         .tickets-table td.right {
             text-align: right;
+        }
+        .divider-line {
+            border-top: 1px solid #000;
+            margin: 6px 0 10px;
+        }
+        .approval {
+            font-weight: 700;
+        }
+        .approval.approved {
+            color: #16a34a; /* green */
+        }
+        .approval.pending {
+            color: #dc2626; /* red */
         }
     </style>
 </head>
@@ -135,18 +156,20 @@
         <div class="title-main">HANDOVER ACKNOWLEDGEMENT CHECKLIST</div>
     </div>
 
+    <div class="divider-line"></div>
+
     <table class="summary-table">
         <tr>
             <td class="summary-label" style="width: 14%;">Destination :</td>
-            <td style="width: 36%;">{{ $destination ?? ($tourDetails->destination ?? '') }}</td>
+            <td class="summary-value" style="width: 36%;">{{ $destination ?? ($tourDetails->destination ?? '') }}</td>
             <td class="summary-label" style="width: 16%;">Sales Ref No :</td>
-            <td style="width: 34%;">{{ $display_id ?? $tourId ?? '' }}</td>
+            <td class="summary-value" style="width: 34%;">{{ $display_id ?? $tourId ?? '' }}</td>
         </tr>
         <tr>
             <td class="summary-label">Guest Name :</td>
-            <td>{{ $guest_name ?? ($tourDetails->guest_name ?? '') }}</td>
+            <td class="summary-value">{{ $guest_name ?? ($tourDetails->guest_name ?? '') }}</td>
             <td class="summary-label">Date Of Arrival :</td>
-            <td>
+            <td class="summary-value">
                 @if(!empty($arrival_date))
                     {{ \Carbon\Carbon::parse($arrival_date)->format('d M Y') }}
                 @elseif(!empty($tourDetails->check_in_time))
@@ -156,19 +179,18 @@
         </tr>
         <tr>
             <td class="summary-label">Adults :</td>
-            <td>{{ $adults ?? ($tourDetails->adult ?? 0) }}</td>
+            <td class="summary-value">{{ $adults ?? ($tourDetails->adult ?? 0) }}</td>
             <td class="summary-label">Nationality :</td>
-            <td>{{ $nationality ?? '' }}</td>
+            <td class="summary-value">{{ $nationality ?? '' }}</td>
         </tr>
         <tr>
             <td class="summary-label">CWB :</td>
-            <td>{{ $cwb ?? 0 }}</td>
+            <td class="summary-value">{{ $cwb ?? 0 }}</td>
             <td class="summary-label">CNB :</td>
-            <td>{{ $cnb ?? 0 }}</td>
+            <td class="summary-value">{{ $cnb ?? 0 }}</td>
         </tr>
     </table>
 
-    <div class="section-title">Ticket Coupons</div>
 
     <table class="tickets-table">
         <thead>
@@ -176,26 +198,38 @@
                 <th style="width: 18%;">Service Date</th>
                 <th style="width: 18%;">Service Type</th>
                 <th>Service</th>
+                <th style="width: 14%;">Approval</th>
             </tr>
         </thead>
         <tbody>
             @forelse($ticketCoupons ?? [] as $row)
                 <tr>
                     <td class="center">
-                        @if(!empty($row['service_date']))
+                        @if(empty($row['is_subrow']) && !empty($row['service_date']))
                             {{ \Carbon\Carbon::parse($row['service_date'])->format('d M, Y') }}
                         @endif
                     </td>
                     <td class="center">
-                        {{ $row['service_type'] ?? '' }}
+                        @if(empty($row['is_subrow']))
+                            {{ $row['service_type'] ?? '' }}
+                        @endif
                     </td>
                     <td class="{{ !empty($row['is_subrow']) ? 'service-subrow' : '' }}">
                         {!! $row['service'] ?? '' !!}
                     </td>
+                    <td class="center">
+                        @if(empty($row['is_subrow']))
+                            @if(!empty($row['is_approve']))
+                                <span class="approval approved">&#10003; Approved</span>
+                            @else
+                                <span class="approval pending">Pending</span>
+                            @endif
+                        @endif
+                    </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="3" class="center">No ticket coupons available.</td>
+                    <td colspan="4" class="center">No ticket coupons available.</td>
                 </tr>
             @endforelse
         </tbody>
