@@ -11,6 +11,11 @@ class Country extends Model
     protected $table = 'countries'; 
     protected $guarded = []; 
 
+    protected $casts = [
+        'remitance_charge' => 'array',
+        'exchange_rate' => 'array',
+    ];
+
     protected $fillable = [
         'name',
         'country_code',
@@ -20,6 +25,8 @@ class Country extends Model
         'tax_percentage',
         'gateway_percentage',
         'commission_percentage',
+        'remitance_charge',
+        'exchange_rate',
         'card_type',
         'card_length',
         'min_length',
