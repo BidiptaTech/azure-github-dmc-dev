@@ -1437,54 +1437,205 @@ class BookingListController extends Controller
             }
         }
 
+        $getScalarString = function ($value, string $default = ''): string {
+            if (is_array($value)) {
+                $value = $value[0] ?? null;
+            }
+            if (is_object($value)) {
+                return $default;
+            }
+            return (string)($value ?? $default);
+        };
+
+        $parseServiceDate = function ($value): ?string {
+            if (is_array($value)) {
+                $value = $value[0] ?? null;
+            }
+            if (empty($value) || is_array($value) || is_object($value)) {
+                return null;
+            }
+            try {
+                return \Carbon\Carbon::parse($value)->format('Y-m-d');
+            } catch (\Exception $e) {
+                return null;
+            }
+        };
+
+        $getServiceTypeLabel = function (string $orderType): string {
+            return match ($orderType) {
+                'attraction' => 'Sightseeing',
+                'restaurant' => 'Meal Voucher',
+                'hotel' => 'Hotel',
+                'guide' => 'Guide',
+                'entry_port' => 'Airport Arrival',
+                'exit_port' => 'Airport Departure',
+                'travel_hourly' => 'Travel Hourly',
+                'travel_point' => 'Transfer',
+                'local_transport', 'local_transfer' => 'Point to Point',
+                'miscellaneous' => 'Miscellaneous',
+                default => ucfirst(str_replace('_', ' ', $orderType)),
+            };
+        };
+
+        $extractOrderServiceDate = function (string $orderType, array $booking) use ($parseServiceDate): ?string {
+            return match ($orderType) {
+                'hotel' => $parseServiceDate($booking['bookingDate'][0] ?? ($booking['checkIn'] ?? ($booking['check_in_date'] ?? null))),
+                'exit_port' => $parseServiceDate($booking['exitpickupdate'] ?? ($booking['pickupdate'] ?? ($booking['bookingDate'] ?? null))),
+                'entry_port', 'travel_hourly', 'travel_point', 'local_transport', 'local_transfer', 'guide'
+                    => $parseServiceDate($booking['pickupdate'] ?? ($booking['bookingDate'] ?? null)),
+                'attraction', 'restaurant'
+                    => $parseServiceDate($booking['bookingDate'] ?? ($booking['date'] ?? null)),
+                default => $parseServiceDate($booking['bookingDate'] ?? ($booking['date'] ?? ($booking['pickupdate'] ?? null))),
+            };
+        };
+
+        $buildServiceMainRow = function (string $orderType, array $booking) use ($getScalarString): string {
+            return match ($orderType) {
+                'attraction' => $getScalarString($booking['AttractionName'] ?? ($booking['attractionName'] ?? ($booking['attraction_name'] ?? null)), 'Attraction'),
+                'restaurant' => (function () use ($booking, $getScalarString) {
+                    $adultCount = (int)($booking['adultCount'] ?? ($booking['adults'] ?? 0));
+                    $childCount = (int)($booking['childCount'] ?? ($booking['children'] ?? 0));
+                    $pax = $adultCount + $childCount;
+                    $mealType = $getScalarString($booking['mealType'] ?? ($booking['mealSpecificType'] ?? ($booking['meal_type'] ?? null)), 'Meal');
+                    $restaurantName = $getScalarString($booking['restaurantName'] ?? ($booking['restaurant_name'] ?? ($booking['name'] ?? null)), 'Restaurant');
+                    return $mealType . ' for ' . $pax . ' members @ ' . $restaurantName;
+                })(),
+                'hotel' => (function () use ($booking, $getScalarString) {
+                    $hotelName = $getScalarString($booking['hotelDetails']['hotel_name'] ?? ($booking['hotel_name'] ?? null), 'Hotel');
+                    $bookingDates = $booking['bookingDate'] ?? [];
+                    if (!is_array($bookingDates)) {
+                        $bookingDates = [$bookingDates];
+                    }
+                    $checkIn = $bookingDates[0] ?? ($booking['checkIn'] ?? ($booking['check_in_date'] ?? null));
+                    $checkOut = $bookingDates[1] ?? ($booking['checkOut'] ?? ($booking['check_out_date'] ?? null));
+                    if (!empty($checkIn) && !empty($checkOut)) {
+                        return $hotelName . ' (' . $checkIn . ' - ' . $checkOut . ')';
+                    }
+                    return $hotelName;
+                })(),
+                'guide' => (function () use ($booking, $getScalarString) {
+                    $guideName = $getScalarString($booking['guide_name'] ?? ($booking['name'] ?? null), 'Guide');
+                    $hours = $getScalarString($booking['hours'] ?? ($booking['service_hours'] ?? null));
+                    return $hours !== '' ? ($guideName . ' - ' . $hours . 'H') : $guideName;
+                })(),
+                'entry_port' => (function () use ($booking, $getScalarString) {
+                    $vehicle = $getScalarString($booking['vehicles_name'] ?? ($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null)), 'Transfer');
+                    $bookingType = $getScalarString($booking['type'] ?? null, 'Private');
+                    $pickup = $getScalarString($booking['entrypickup'] ?? null);
+                    $dropoff = $getScalarString($booking['entrydropoff'] ?? null);
+                    $service = 'Arrival Transfer (' . $vehicle . ' - ' . $bookingType . ' - One Way)';
+                    if ($pickup !== '' && $dropoff !== '') {
+                        $service .= '<br>' . e($pickup) . ' to ' . e($dropoff);
+                    }
+                    return $service;
+                })(),
+                'exit_port' => (function () use ($booking, $getScalarString) {
+                    $vehicle = $getScalarString($booking['vehicles_name'] ?? ($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null)), 'Transfer');
+                    $bookingType = $getScalarString($booking['type'] ?? null, 'Private');
+                    $pickup = $getScalarString($booking['exitpickup'] ?? null);
+                    $dropoff = $getScalarString($booking['exitdropoff'] ?? null);
+                    $service = 'Departure Transfer (' . $vehicle . ' - ' . $bookingType . ' - One Way)';
+                    if ($pickup !== '' && $dropoff !== '') {
+                        $service .= '<br>' . e($pickup) . ' to ' . e($dropoff);
+                    }
+                    return $service;
+                })(),
+                'local_transport', 'local_transfer', 'travel_hourly', 'travel_point' => (function () use ($booking, $getScalarString) {
+                    $vehicle = $getScalarString($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transport');
+                    $bookingType = $getScalarString($booking['type'] ?? null);
+                    $pickup = $getScalarString($booking['entrypickup'] ?? null);
+                    $dropoff = $getScalarString($booking['entrydropoff'] ?? ($booking['dropoffLocation'] ?? null));
+                    $service = $bookingType !== '' ? ($vehicle . ' - ' . $bookingType) : $vehicle;
+                    if ($pickup !== '' && $dropoff !== '') {
+                        $service .= '<br>' . e($pickup) . ' to ' . e($dropoff);
+                    }
+                    return $service;
+                })(),
+                default => $getScalarString($booking['name'] ?? null, 'Service'),
+            };
+        };
+
+        $buildServiceSubrows = function (string $orderType, array $booking) use ($getScalarString): array {
+            if ($orderType !== 'attraction') {
+                return [];
+            }
+
+            $subrows = [];
+            $ticketName = $getScalarString($booking['ticketName'] ?? ($booking['ticket_name'] ?? null));
+            if ($ticketName !== '') {
+                $subrows[] = '# ' . $ticketName;
+            }
+
+            $ticketDetails = $booking['ticket_details'] ?? null;
+            if (is_array($ticketDetails)) {
+                $ticketLabel = $getScalarString($ticketDetails['ticket_name'] ?? ($ticketDetails['name'] ?? null));
+                if ($ticketLabel !== '' && $ticketLabel !== $ticketName) {
+                    $subrows[] = '# ' . $ticketLabel;
+                }
+            }
+
+            $includedTickets = $booking['includedTickets'] ?? ($booking['included_tickets'] ?? null);
+            if (is_array($includedTickets)) {
+                foreach ($includedTickets as $includedTicket) {
+                    if (!is_array($includedTicket)) {
+                        continue;
+                    }
+                    $includedTicketName = $getScalarString($includedTicket['ticketName'] ?? ($includedTicket['name'] ?? null));
+                    if ($includedTicketName !== '') {
+                        $subrows[] = '# ' . $includedTicketName;
+                    }
+                }
+            }
+
+            return array_values(array_unique($subrows));
+        };
+
         $ticketCoupons = [];
-        $attractionRestaurantOrders = Order::where('tour_id', $tourId)
+        $serviceOrders = Order::where('tour_id', $tourId)
             ->where('bookingType', 'booking')
-            ->whereIn('type', ['attraction', 'restaurant'])
             ->where('status', 1)
+            ->whereNull('deleted_at')
             ->orderBy('booking_id')
             ->get();
 
-        foreach ($attractionRestaurantOrders as $order) {
-            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
-            if (!is_array($data) || empty($data)) {
-                continue;
-            }
-            $first = isset($data[0]) ? $data[0] : $data;
-            if (!is_array($first)) {
+        foreach ($serviceOrders as $order) {
+            $decodedData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($decodedData) || empty($decodedData)) {
                 continue;
             }
 
-            $serviceDate = null;
-            if (isset($first['bookingDate'])) {
-                $serviceDate = is_array($first['bookingDate']) ? ($first['bookingDate'][0] ?? null) : $first['bookingDate'];
-            } elseif (isset($first['date'])) {
-                $serviceDate = $first['date'];
-            }
-            if ($serviceDate) {
-                $serviceDate = \Carbon\Carbon::parse($serviceDate)->format('Y-m-d');
-            }
+            $bookings = (isset($decodedData[0]) && is_array($decodedData[0])) ? $decodedData : [$decodedData];
+            foreach ($bookings as $booking) {
+                if (!is_array($booking)) {
+                    continue;
+                }
 
-            $serviceType = '';
-            $service = '';
+                $serviceDate = $extractOrderServiceDate((string)$order->type, $booking);
+                if (!$serviceDate) {
+                    continue;
+                }
 
-            if (strtolower($order->type) === 'attraction') {
-                $serviceType = 'Sightseeing';
-                $service = $first['AttractionName'] ?? $first['attractionName'] ?? $first['attraction_name'] ?? 'Attraction';
-            } elseif (strtolower($order->type) === 'restaurant') {
-                $serviceType = 'Meal Voucher';
-                $pax = (int)($first['adultCount'] ?? 0) + (int)($first['childCount'] ?? 0);
-                $mealType = $first['mealType'] ?? $first['mealSpecificType'] ?? 'Meal';
-                $restaurantName = $first['restaurantName'] ?? 'Restaurant';
-                $service = $mealType . ' for ' . $pax . ' members @ ' . $restaurantName;
+                $serviceTypeLabel = $getServiceTypeLabel((string)$order->type);
+                $serviceMainHtml = $buildServiceMainRow((string)$order->type, $booking);
+
+                $ticketCoupons[] = [
+                    'service_date' => $serviceDate,
+                    'is_approve' => (bool) ($order->is_approve ?? false),
+                    'service_type' => $serviceTypeLabel,
+                    'service' => $serviceMainHtml,
+                    'is_subrow' => false,
+                ];
+
+                foreach ($buildServiceSubrows((string)$order->type, $booking) as $subrowText) {
+                    $ticketCoupons[] = [
+                        'service_date' => $serviceDate,
+                        'is_approve' => (bool) ($order->is_approve ?? false),
+                        'service_type' => '',
+                        'service' => e($subrowText),
+                        'is_subrow' => true,
+                    ];
+                }
             }
-
-            $ticketCoupons[] = [
-                'service_date' => $serviceDate,
-                'service_type' => $serviceType,
-                'service' => $service,
-                'is_subrow' => false,
-            ];
         }
 
         usort($ticketCoupons, function ($a, $b) {
