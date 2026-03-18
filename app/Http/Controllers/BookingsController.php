@@ -95,6 +95,23 @@ class BookingsController extends Controller
     }
 
     /**
+     * Format display_id as company_code/user_code/ENQxxxx (strip DMC- prefix).
+     * Expects tour items to have created_by_company_code and created_by_user_code, or dmc_company_code and created_by_user_code.
+     */
+    private function formatToursDisplayId($tours)
+    {
+        $items = $tours instanceof \Illuminate\Pagination\LengthAwarePaginator ? $tours->getCollection() : $tours;
+        foreach ($items as $t) {
+            $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
+            $companyCode = $t->dmc_company_code ?? $t->created_by_company_code ?? '';
+            $userCode = $t->created_by_user_code ?? '';
+            $prefixParts = array_filter([$companyCode, $userCode], 'strlen');
+            $t->display_id = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+        }
+        return $tours;
+    }
+
+    /**
      * Display New Enquiries (tour_status = 'New Enquiry')
      */
     public function newEnquiries()
@@ -103,9 +120,10 @@ class BookingsController extends Controller
         $dmc_id = null;
         $tours = collect([]);
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
-        $tours = Tour::where('tour_status', 'New Enquiry')
+            $tours = Tour::where('tour_status', 'New Enquiry')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                             ->select([
                     'tours.tour_id',
                     'tours.display_id',
@@ -135,10 +153,22 @@ class BookingsController extends Controller
                     'tours.mainguest', 
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
-                    'created_by_user.name as created_by_name'
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+
+            foreach ($tours as $t) {
+                $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
+                $prefixParts = array_filter([
+                    $t->dmc_company_code ?? '',
+                    $t->created_by_user_code ?? ''
+                ], 'strlen');
+                $t->display_id = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+            }
+
                 foreach ($tours as $t) {
                     \Log::info('New Enquiry guest debug', [
                         'tour_id'        => $t->tour_id,
@@ -168,6 +198,7 @@ class BookingsController extends Controller
                 ->where('tours.dmc_id', $dmc_id)
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
@@ -197,10 +228,21 @@ class BookingsController extends Controller
                     'tours.mainguest', 
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
-                    'created_by_user.name as created_by_name'
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+
+            foreach ($tours as $t) {
+                $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
+                $prefixParts = array_filter([
+                    $t->dmc_company_code ?? '',
+                    $t->created_by_user_code ?? ''
+                ], 'strlen');
+                $t->display_id = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+            }
 
             foreach ($tours as $t) {
                 \Log::info('New Enquiry guest debug (DMC scope)', [
@@ -213,8 +255,7 @@ class BookingsController extends Controller
         }
 
         $enquary_comments = Enquiry::where('dmcId', $dmc_id)->get();
-        
-
+ 
         // Get filtered agents based on logged-in DMC user
         $filteredAgents = $this->getFilteredAgents();
         $currency = CommonHelper::getDmcCurrencyByCountry();
@@ -522,6 +563,7 @@ class BookingsController extends Controller
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->leftJoin('enquiry_comments', function($join) {
                 $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
                      ->whereRaw('enquiry_comments.enquiry_id = (
@@ -567,9 +609,12 @@ class BookingsController extends Controller
                 'enquiry_comments.sender_type as enquiry_comment_sender_type',
                 'enquiry_comments.created_at as enquiry_comment_created_at',
                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code',
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -589,6 +634,7 @@ class BookingsController extends Controller
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->leftJoin('enquiry_comments', function($join) {
                     $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
                          ->whereRaw('enquiry_comments.enquiry_id = (
@@ -634,10 +680,13 @@ class BookingsController extends Controller
                     'enquiry_comments.sender_type as enquiry_comment_sender_type',
                     'enquiry_comments.created_at as enquiry_comment_created_at',
                     'enquiry_comments.updated_at as enquiry_comment_updated_at',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code',
                 ])
                 ->where('tours.dmc_id', $dmc_id)
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->formatToursDisplayId($tours);
         }
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
         $currency = CommonHelper::getDmcCurrencyByCountry();
@@ -652,6 +701,8 @@ class BookingsController extends Controller
         $user = Auth::user();
         $tours = Tour::where('tour_status', 'Tentative')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
@@ -676,10 +727,14 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code',
+                'created_by_user.company_code as created_by_company_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
+        $this->formatToursDisplayId($tours);
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
         return view('bookings.tentative', compact('tours', 'country_tax', 'currency'));
@@ -703,6 +758,7 @@ class BookingsController extends Controller
             ->where('tour_status', 'Confirmed')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
@@ -735,10 +791,13 @@ class BookingsController extends Controller
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
-                'created_by_user.name as created_by_name'
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -764,6 +823,7 @@ class BookingsController extends Controller
             ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
@@ -796,10 +856,13 @@ class BookingsController extends Controller
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
-                'created_by_user.name as created_by_name'
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
         $currency = CommonHelper::getDmcCurrencyByCountry();
 
@@ -840,6 +903,7 @@ class BookingsController extends Controller
             ])
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
@@ -873,7 +937,9 @@ class BookingsController extends Controller
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
-                'created_by_user.name as created_by_name'
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->where(function ($query) use ($today) {
                 $query->where('tours.tour_status', 'Definite');
@@ -881,6 +947,7 @@ class BookingsController extends Controller
             })
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -910,6 +977,7 @@ class BookingsController extends Controller
             ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
@@ -942,10 +1010,13 @@ class BookingsController extends Controller
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
 
         $currency = CommonHelper::getDmcCurrencyByCountry();
@@ -987,6 +1058,7 @@ class BookingsController extends Controller
                 ->whereIn('tour_status', ['Actual', 'Complete'])
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
@@ -1018,10 +1090,13 @@ class BookingsController extends Controller
                     'tours.agent_id',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
-                    'created_by_user.name as created_by_name'
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code'
                 ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -1047,6 +1122,7 @@ class BookingsController extends Controller
                 ->where('tours.dmc_id', $dmc_id)
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
@@ -1078,10 +1154,13 @@ class BookingsController extends Controller
                     'tours.agent_id',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
-                    'created_by_user.name as created_by_name'
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code'
                 ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->formatToursDisplayId($tours);
         }
 
         // Parse payment details for each tour
@@ -1135,6 +1214,7 @@ class BookingsController extends Controller
             })
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
@@ -1164,10 +1244,13 @@ class BookingsController extends Controller
                 'tours.created_by',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
-                'created_by_user.name as created_by_name'
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
 
         if($user->role_id == 11){
@@ -1191,6 +1274,7 @@ class BookingsController extends Controller
             ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
@@ -1214,10 +1298,13 @@ class BookingsController extends Controller
                 'tours.created_by',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
-                'created_by_user.name as created_by_name'
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
 
         $currency = CommonHelper::getDmcCurrencyByCountry();
@@ -1243,6 +1330,7 @@ class BookingsController extends Controller
             ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
@@ -1273,10 +1361,13 @@ class BookingsController extends Controller
                 'tours.created_by',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
-                'created_by_user.name as created_by_name'
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -1302,6 +1393,7 @@ class BookingsController extends Controller
             ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
@@ -1332,10 +1424,13 @@ class BookingsController extends Controller
                 'tours.created_by',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
-                'created_by_user.name as created_by_name'
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
         
         $currency = CommonHelper::getDmcCurrencyByCountry();
@@ -1412,6 +1507,8 @@ class BookingsController extends Controller
         $user = Auth::user();
         $tours = Tour::where('tour_status', 'Cancelled')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
@@ -1431,10 +1528,13 @@ class BookingsController extends Controller
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+        $this->formatToursDisplayId($tours);
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
         return view('bookings.cancellations-refunds', compact('tours', 'country_tax', 'currency'));

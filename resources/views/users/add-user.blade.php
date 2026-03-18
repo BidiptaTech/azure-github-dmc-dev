@@ -163,7 +163,7 @@
                         <div class="col-md-12">
                             <div class="row">
                             <!-- Dependent Country Select Box (Initially Hidden) -->
-                            <div class="col-md-4" id="mastercountryContainer" style="display: none;">
+                            <div class="col-md-4 mb-3" id="mastercountryContainer" style="display: none;">
                                 <!-- <div class="mb-3">
                                     <label for="masater_country_name" class="form-label"><strong>Country Names</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
@@ -175,7 +175,7 @@
                             </div>
                             
                             <!-- Multiple country select -->
-                            <div class="col-md-4" id="country_names" style="display: none;">
+                            <div class="col-md-4 mb-3" id="country_names" style="display: none;">
                                 <div class="mb-3">
                                     <label for="country_names" class="form-label">
                                         <strong>Country Names</strong>
@@ -194,7 +194,7 @@
                             </div>
 
                             <!-- Assistant Manager Select -->
-                            <div class="col-md-4" id="assistant_manager_container" style="display: none;">
+                            <div class="col-md-4 mb-3" id="assistant_manager_container" style="display: none;">
                                 <!-- <div class="mb-3">
                                     <label for="assistant_manager" class="form-label">
                                         <strong>Assistant Manager</strong>
@@ -210,7 +210,7 @@
                             </div>
 
                             <!-- Master Dmc Logo -->
-                            <div class="col-md-3" id="master_logo" style="display: none;">
+                            <div class="col-md-4 mb-3" id="master_logo" style="display: none;">
                                 <div class="mb-3">
                                     <label for="master_logo" class="form-label">
                                         <strong>Master Dmc Logo</strong>
@@ -221,7 +221,7 @@
                                 </div>
                             </div>
                         @endif
-                            <div class="col-md-3" id="company_name" style="display: none;">
+                            <div class="col-md-4 mb-3" id="company_name" style="display: none;">
                                 <div class="mb-3">
                                     <label for="company_name" class="form-label">
                                         <strong>Company Name</strong>
@@ -231,9 +231,45 @@
                                         name="company_name" placeholder="Enter Your Name">
                                 </div>
                             </div>
+                            <div class="col-md-4 mb-3" id="company_code_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="company_code" class="form-label">
+                                        <strong>Company Code</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="company_code"
+                                        name="company_code" placeholder="Enter Company Code">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3" id="user_code_container">
+                                <div class="mb-3">
+                                    <label for="user_code" class="form-label">
+                                        <strong>User Code</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="user_code"
+                                        name="user_code" placeholder="Enter User Code">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3" id="company_reg_no_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="company_reg_no" class="form-label">
+                                        <strong>Company Reg. No</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="company_reg_no"
+                                        name="company_reg_no" placeholder="Enter Company Reg. No">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3" id="licence_no_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="licence_no" class="form-label">
+                                        <strong>TA License No</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="licence_no"
+                                        name="licence_no" placeholder="Enter TA License No">
+                                </div>
+                            </div>
                         @if(auth()->user()->user_type == 1 || auth()->user()->user_type == 3 || auth()->user()->user_type == 2)
                             <!-- Single Country Select-->
-                            <div class="col-md-4" id="country_name" style="display: none;">
+                            <div class="col-md-4 mb-3" id="country_name" style="display: none;">
                                 <div class="mb-3">
                                     <label for="country_name" class="form-label">
                                         <strong>Country Name</strong>
@@ -251,7 +287,7 @@
                             </div>
                             @endif
 
-                            <div class="col-md-4" id="user_coun">
+                            <div class="col-md-4 mb-3" id="user_coun">
                                 <div class="mb-3">
                                     <label for="user_country" class="form-label">
                                         <strong> User Country</strong>
@@ -266,7 +302,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4" id="city_name">
+                            <div class="col-md-4 mb-3" id="city_name">
                                 <div class="mb-3">
                                     <label for="city" class="form-label">
                                         <strong> User City</strong>
@@ -279,7 +315,7 @@
                             </div>
                             
 
-                            <div class="col-md-4" id="city_name">
+                            <div class="col-md-4 mb-3" id="city_name">
                                 <div class="mb-3">
                                     <label for="address" class="form-label">
                                         <strong>Address</strong>
@@ -295,7 +331,7 @@
 
                             @if(auth()->user()->user_type == 1)
                             <!-- Dmc Select-->
-                            <div class="col-md-4" id="inputDmcContainer" style="display: none;">
+                            <div class="col-md-4 mb-3" id="inputDmcContainer" style="display: none;">
                                 <div class="mb-3">
                                     <label for="inputDmc" class="form-label"><strong>Dmc</strong><span
                                             style="color: red; font-weight: bold;">*</span></label>
@@ -311,7 +347,7 @@
                                 </div>
                             </div>
                             <!-- Sales Manager Admin Select--> 
-                            <div class="col-md-4" id="inputSalespersonContainerAdmin" style="display: none;">
+                            <div class="col-md-4 mb-3" id="inputSalespersonContainerAdmin" style="display: none;">
                                 @if(auth()->user()->role_id != 3)
                                 <div class="mb-3">
                                     <label for="inputSalesperson" class="form-label"><strong>Sales Manager (Admin)</strong><span
@@ -496,6 +532,10 @@
     var country_names = document.getElementById('country_names');
     var master_logo = document.getElementById('master_logo');
     var company_name = document.getElementById('company_name');
+    var company_code_container = document.getElementById('company_code_container');
+    var user_code_container = document.getElementById('user_code_container');
+    var company_reg_no_container = document.getElementById('company_reg_no_container');
+    var licence_no_container = document.getElementById('licence_no_container');
     var inputSalespersonContainerAdmin = document.getElementById('inputSalespersonContainerAdmin');
     var markuptypes = document.getElementById('markuptypes');
     var mastercountryContainer = document.getElementById('mastercountryContainer');
@@ -506,7 +546,8 @@
             '#inputDmcContainer input, #inputDmcContainer select, ' +
             '#country_name input, #country_name select, ' +
             '#inputSalespersonContainerAdmin input, #inputSalespersonContainerAdmin select, ' +
-            '#markuptypes select'
+            '#markuptypes select, #company_code_container input, ' +
+            '#company_reg_no_container input, #licence_no_container input'
         ).forEach(function (element) {
             element.value = '';
         });
@@ -523,11 +564,15 @@
         if (country_names) country_names.style.display = 'none';
         if (master_logo) master_logo.style.display = 'none';
         if (company_name) company_name.style.display = 'none';
+        if (company_code_container) company_code_container.style.display = 'none';
+        if (company_reg_no_container) company_reg_no_container.style.display = 'none';
+        if (licence_no_container) licence_no_container.style.display = 'none';
         if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'none';
         if (markuptypes) markuptypes.style.display = 'none';
         if (mastercountryContainer) mastercountryContainer.style.display = 'none';
 
         resetHiddenFieldValues(); // Reset input fields
+        if (user_code_container) user_code_container.style.display = 'block';
 
         // Show elements based on userRole
         if (userRole >= 5 && userRole <= 9) {
@@ -539,9 +584,12 @@
         } else if (userRole === 11 || userRole === 20) {
             if ({{ auth()->user()->role_id }} == 10 || {{ auth()->user()->role_id }} == 19) {
                 if (country_name) country_name.style.display = 'block';
+                if (company_code_container) company_code_container.style.display = 'block';
             }
             if (inputRoleContainer) inputRoleContainer.style.display = 'block';
             if (company_name) company_name.style.display = 'block';
+            if (company_reg_no_container) company_reg_no_container.style.display = 'block';
+            if (licence_no_container) licence_no_container.style.display = 'block';
         } else if (userRole === 4) {
             if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'block';
         } else if ([3, 24, 25, 26, 27].includes(userRole)) {
@@ -1058,6 +1106,6 @@
 </script>
 <script>
     document.getElementById('timezone').value =
-        Intl.DateTimeFormat().resolvedOptions().timeZone;
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
 </script>
 @endsection

@@ -860,9 +860,9 @@ Route::get('/clear', function () {
         // Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
         Route::match(['get', 'post'], 'tour-itinerary/{tourId}/pdf-formatted', [BookingListController::class, 'downloadItineraryFormattedPdf'])->name('bookinglist.itinerary.pdf');
+        Route::get('booking-list/handover-checklist/{tour_id}', [BookingListController::class, 'downloadHandoverChecklistPdf'])->name('bookinglist.handoverChecklist.pdf');
         Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
         Route::get('bookinglist/check-price-hide', [BookingListController::class, 'checkPriceHide'])->name('bookinglist.checkPriceHide');
-
         Route::resource('enquirylist', EnquiryListController::class);
 
         //Drivers Approval
