@@ -3,10 +3,10 @@
 @extends('layouts.datatablecss')
 
 @php
-    // Determine if we're in edit mode
     $isEditMode = isset($tour) && $tour;
     $tourId = $isEditMode ? $tour->tour_id : null;
     $existingOrders = $isEditMode ? ($orders ?? []) : [];
+    $hasNegotiationHistory = $isEditMode ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
 @endphp
 
 @section('css')
@@ -938,6 +938,11 @@
 @endsection
 
 @section('content')
+<!-- SweetAlert2 for remove form selection confirmation -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+@include('enquiryform_pro.partials.remove-form-selection-alert-js')
+<script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
 @php
     // DMC information for cost sheet print (same pattern as invoices/pdf/final.blade.php)
     $dmcUser = isset($dmc_id) && $dmc_id ? \App\Models\User::find($dmc_id) : ($user ?? null);
@@ -14106,36 +14111,40 @@
         }
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Also remove associated arrival/departure entries and their transfers
-        accommodationList.forEach(hotel => {
-            if (idsToRemove.includes(String(hotel.id))) {
-                // Remove arrival/departure entries
-                if (hotel.arrivalDepartureIds) {
-                    const linkedIds = new Set(hotel.arrivalDepartureIds.map(id => String(id)));
-                    // Remove transfers associated with these arrival/departure entries
-                    arrivalDepartureList.forEach(item => {
-                        if (linkedIds.has(String(item.id)) && item.transferId) {
-                            transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
-                        }
-                    });
-                    arrivalDepartureList = arrivalDepartureList.filter(item => !linkedIds.has(String(item.id)));
-                }
-                // Remove hotel transfers
-                if (hotel.transferIds && hotel.transferIds.length > 0) {
-                    hotel.transferIds.forEach(transferId => {
-                        transferList = transferList.filter(t => String(t.id) !== String(transferId));
-                    });
-                }
-            }
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = accommodationList.find(h => String(h.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
         });
-        
-        accommodationList = accommodationList.filter(hotel => !idsToRemove.includes(String(hotel.id)));
-        updateAccommodationTable();
-        updateArrivalDepartureTable();
-        updateTransferTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'accommodation' : 'accommodations';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            accommodationList.forEach(hotel => {
+                if (idsToRemove.includes(String(hotel.id))) {
+                    if (hotel.arrivalDepartureIds) {
+                        const linkedIds = new Set(hotel.arrivalDepartureIds.map(id => String(id)));
+                        arrivalDepartureList.forEach(item => {
+                            if (linkedIds.has(String(item.id)) && item.transferId) {
+                                transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
+                            }
+                        });
+                        arrivalDepartureList = arrivalDepartureList.filter(item => !linkedIds.has(String(item.id)));
+                    }
+                    if (hotel.transferIds && hotel.transferIds.length > 0) {
+                        hotel.transferIds.forEach(transferId => {
+                            transferList = transferList.filter(t => String(t.id) !== String(transferId));
+                        });
+                    }
+                }
+            });
+            
+            accommodationList = accommodationList.filter(hotel => !idsToRemove.includes(String(hotel.id)));
+            updateAccommodationTable();
+            updateArrivalDepartureTable();
+            updateTransferTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
 
     // Update Arrival/Departure table
@@ -14892,29 +14901,32 @@
         }
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Also remove associated transfers and guides
-        arrivalDepartureList.forEach(item => {
-            if (idsToRemove.includes(String(item.id))) {
-                // Remove linked transfer
-                if (item.transferId) {
-                    transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
-                    console.log('Removed linked transfer for arrival/departure:', item.transferId);
-                }
-                // Remove linked guide
-                if (item.guideId) {
-                    guideList = guideList.filter(g => String(g.id) !== String(item.guideId));
-                    console.log('Removed linked guide for arrival/departure:', item.guideId);
-                }
-            }
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = arrivalDepartureList.find(a => String(a.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
         });
-        
-        arrivalDepartureList = arrivalDepartureList.filter(item => !idsToRemove.includes(String(item.id)));
-        updateArrivalDepartureTable();
-        updateTransferTable();
-        updateGuideTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'arrival/departure entry' : 'arrival/departure entries';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            arrivalDepartureList.forEach(item => {
+                if (idsToRemove.includes(String(item.id))) {
+                    if (item.transferId) {
+                        transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
+                    }
+                    if (item.guideId) {
+                        guideList = guideList.filter(g => String(g.id) !== String(item.guideId));
+                    }
+                }
+            });
+            
+            arrivalDepartureList = arrivalDepartureList.filter(item => !idsToRemove.includes(String(item.id)));
+            updateArrivalDepartureTable();
+            updateTransferTable();
+            updateGuideTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
 
     // ==================== TOUR FUNCTIONS ====================
@@ -16630,33 +16642,36 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected tour(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Also remove associated transfers and guides
-        tourList.forEach(tour => {
-            if (idsToRemove.includes(String(tour.id))) {
-                if (tour.transferId) {
-                    transferList = transferList.filter(t => String(t.id) !== String(tour.transferId));
-                }
-                if (tour.guideId) {
-                    guideList = guideList.filter(g => String(g.id) !== String(tour.guideId));
-                }
-            }
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = tourList.find(t => String(t.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
         });
         
-        tourList = tourList.filter(tour => !idsToRemove.includes(String(tour.id)));
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'tour' : 'tours';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            tourList.forEach(tour => {
+                if (idsToRemove.includes(String(tour.id))) {
+                    if (tour.transferId) {
+                        transferList = transferList.filter(t => String(t.id) !== String(tour.transferId));
+                    }
+                    if (tour.guideId) {
+                        guideList = guideList.filter(g => String(g.id) !== String(tour.guideId));
+                    }
+                }
+            });
+            
+            tourList = tourList.filter(tour => !idsToRemove.includes(String(tour.id)));
         
-        updateTourTable();
-        updateTransferTable();
-        updateGuideTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+            updateTourTable();
+            updateTransferTable();
+            updateGuideTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
-    
+
     // ==================== GUIDE FUNCTIONS ====================
     
     // Open Guide Modal
@@ -17318,11 +17333,15 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected guide(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = guideList.find(g => String(g.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
+        
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'guide' : 'guides';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
         
         // CASCADE: Remove guide links from parent services
         idsToRemove.forEach(guideIdToRemove => {
@@ -17389,18 +17408,19 @@
             });
         });
         
-        // Remove guides from guideList
-        guideList = guideList.filter(guide => !idsToRemove.includes(String(guide.id)));
-        
-        // Update all affected tables
-        updateGuideTable();
-        updateTourTable();
-        updateTransferTable();
-        updateAccommodationTable();
-        updateMealTable();
-        updateArrivalDepartureTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+            // Remove guides from guideList
+            guideList = guideList.filter(guide => !idsToRemove.includes(String(guide.id)));
+            
+            // Update all affected tables
+            updateGuideTable();
+            updateTourTable();
+            updateTransferTable();
+            updateAccommodationTable();
+            updateMealTable();
+            updateArrivalDepartureTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
     
     // Update guide field
@@ -17915,18 +17935,23 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected item(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        miscList = miscList.filter(item => !idsToRemove.includes(String(item.id)));
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = miscList.find(m => String(m.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         
-        updateMiscTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'item' : 'items';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            miscList = miscList.filter(item => !idsToRemove.includes(String(item.id)));
+            
+            updateMiscTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
-    
+
     // Toggle select all miscellaneous items (main table)
     function toggleSelectAllMiscMain() {
         const selectAll = document.getElementById('selectAllMiscMain');
@@ -20585,31 +20610,34 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected meal(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Also remove associated transfers and guides
-        mealList.forEach(meal => {
-            if (idsToRemove.includes(String(meal.id))) {
-                if (meal.transferId) {
-                    transferList = transferList.filter(t => String(t.id) !== String(meal.transferId));
-                }
-                if (meal.guideId) {
-                    guideList = guideList.filter(g => String(g.id) !== String(meal.guideId));
-                }
-            }
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = mealList.find(m => String(m.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
         });
         
-        mealList = mealList.filter(meal => !idsToRemove.includes(String(meal.id)));
-        
-        updateMealTable();
-        updateTransferTable();
-        updateGuideTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'meal' : 'meals';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            mealList.forEach(meal => {
+                if (idsToRemove.includes(String(meal.id))) {
+                    if (meal.transferId) {
+                        transferList = transferList.filter(t => String(t.id) !== String(meal.transferId));
+                    }
+                    if (meal.guideId) {
+                        guideList = guideList.filter(g => String(g.id) !== String(meal.guideId));
+                    }
+                }
+            });
+            
+            mealList = mealList.filter(meal => !idsToRemove.includes(String(meal.id)));
+            
+            updateMealTable();
+            updateTransferTable();
+            updateGuideTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
 
     // ==================== TRANSFER FUNCTIONS ====================
@@ -22559,17 +22587,19 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected transfer(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = transferList.find(t => String(t.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         
-        // Collect linked guide IDs to remove (guides linked to local transfers being deleted)
-        const guideIdsToRemove = [];
-        
-        // CASCADE: Remove transfer links from parent services
-        idsToRemove.forEach(transferIdToRemove => {
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'transfer' : 'transfers';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            
+            const guideIdsToRemove = [];
+            
+            idsToRemove.forEach(transferIdToRemove => {
             // Find the transfer being removed to check for linked guide
             const transferToRemove = transferList.find(t => String(t.id) === String(transferIdToRemove));
             if (transferToRemove && transferToRemove.guideId) {
@@ -22637,26 +22667,25 @@
                     console.log('Unchecked transfer checkbox for arrival/departure (guide remains if checked):', item);
                 }
             });
-        });
-        
-        // Remove transfers from transferList
-        transferList = transferList.filter(transfer => !idsToRemove.includes(String(transfer.id)));
-        
-        // Remove linked guides from guideList
-        if (guideIdsToRemove.length > 0) {
-            guideList = guideList.filter(guide => !guideIdsToRemove.includes(String(guide.id)));
-            console.log('Removed linked guides:', guideIdsToRemove);
-        }
-        
-        // Update all affected tables
-        updateTransferTable();
-        updateTourTable();
-        updateAccommodationTable();
-        updateMealTable();
-        updateArrivalDepartureTable();
-        updateGuideTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+            });
+            
+            transferList = transferList.filter(transfer => !idsToRemove.includes(String(transfer.id)));
+            
+            // Remove linked guides from guideList
+            if (guideIdsToRemove.length > 0) {
+                guideList = guideList.filter(guide => !guideIdsToRemove.includes(String(guide.id)));
+            }
+            
+            // Update all affected tables
+            updateTransferTable();
+            updateTourTable();
+            updateAccommodationTable();
+            updateMealTable();
+            updateArrivalDepartureTable();
+            updateGuideTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
 
     // Helper: normalize local transfer pricing with type and way
@@ -27327,6 +27356,7 @@
         
         const arrival = {
             id: order.order_id || generateId('arrival'),
+            orderId: order.id || order.order_id,
             type: 'Arrival',
             dateTime: data.bookingDate || data.dateTime || '',
             portId: data.port_id || data.portId || '',
@@ -27369,6 +27399,7 @@
             const transferId = generateId('transfer');
             const transferEntry = {
                 id: transferId,
+                orderId: order.id || order.order_id,
                 transportMode: 'local',
                 dateTime: arrival.dateTime,
                 pickup: arrival.portName,
@@ -27414,6 +27445,7 @@
                 
                 const guideEntry = {
                     id: data.guideId || order.order_id || generateId('guide'),
+                    orderId: order.id || order.order_id,
                     dateTime: arrival.dateTime,
                     tourActivity: data.guide_options.tourActivity || data.guide_options.tour_activity || `Arrival: ${arrival.portName} → ${arrival.transferDestinationName || 'Destination'} (Guide)`,
                     tourName: data.guide_options.tourActivity || data.guide_options.tour_activity || `Arrival: ${arrival.portName} → ${arrival.transferDestinationName || 'Destination'} (Guide)`,
@@ -27465,6 +27497,7 @@
         
         const departure = {
             id: order.order_id || generateId('departure'),
+            orderId: order.id || order.order_id,
             type: 'Departure',
             dateTime: data.bookingDate || data.dateTime || '',
             portId: data.port_id || data.portId || '',
@@ -27507,6 +27540,7 @@
             const transferId = generateId('transfer');
             const transferEntry = {
                 id: transferId,
+                orderId: order.id || order.order_id,
                 transportMode: 'local',
                 dateTime: departure.dateTime,
                 pickup: departure.transferDestinationName,
@@ -27552,6 +27586,7 @@
                 
                 const guideEntry = {
                     id: data.guideId || order.order_id || generateId('guide'),
+                    orderId: order.id || order.order_id,
                     dateTime: departure.dateTime,
                     tourActivity: data.guide_options.tourActivity || data.guide_options.tour_activity || `Departure: ${departure.transferDestinationName || 'Destination'} → ${departure.portName} (Guide)`,
                     tourName: data.guide_options.tourActivity || data.guide_options.tour_activity || `Departure: ${departure.transferDestinationName || 'Destination'} → ${departure.portName} (Guide)`,
@@ -27652,6 +27687,7 @@
         
         const hotel = {
             id: originalFrontendId || order.order_id || generateId('hotel'),
+            orderId: order.id || order.order_id,
             bookingId: order.booking_id || order.bookingId || null, // Store booking_id for matching linked transfers
             hotelId: hotelId,
             hotel_unique_id: hotel_unique_id, // Store unique ID separately for matching
@@ -27718,6 +27754,7 @@
         
         const tour = {
             id: order.order_id || generateId('tour'),
+            orderId: order.id || order.order_id,
             dateTime: data.date || data.dateTime || data.bookingDate || '',
             attractionId: data.attraction_id || data.attractionId || '',
             attractionName: data.attraction_name || data.attractionName || '',
@@ -27874,6 +27911,7 @@
                     
                     const transferEntry = {
                         id: transferId,
+                        orderId: order.id || order.order_id,
                         transportMode: 'local',
                         dateTime: tour.dateTime,
                         pickup: pickupName,
@@ -27991,6 +28029,7 @@
                     
                     const guideEntry = {
                         id: guideEntryId,
+                        orderId: order.id || order.order_id,
                         dateTime: data.dateTime || data.date || data.bookingDate || tour.dateTime,
                         tourActivity: tourActivityText,
                         tourName: tourActivityText,
@@ -28061,6 +28100,7 @@
         
         const meal = {
             id: order.order_id || generateId('meal'),
+            orderId: order.id || order.order_id,
             dateTime: data.date || data.dateTime || data.bookingDate || '',
             restaurantId: data.restaurant_id || data.restaurantId || '',
             restaurantName: data.restaurant_name || data.restaurantName || '',
@@ -28223,6 +28263,7 @@
                     
                     const transferEntry = {
                         id: transferId,
+                        orderId: order.id || order.order_id,
                         transportMode: 'local',
                         dateTime: meal.dateTime,
                         pickup: pickupName,
@@ -28344,6 +28385,7 @@
                     
                     const guideEntry = {
                         id: guideEntryId,
+                        orderId: order.id || order.order_id,
                         dateTime: data.dateTime || data.date || data.bookingDate || meal.dateTime,
                         tourActivity: tourActivityText,
                         tourName: tourActivityText,
@@ -28591,6 +28633,7 @@
         
         const transfer = {
             id: order.order_id || generateId('transfer'),
+            orderId: order.id || order.order_id,
             transportMode: transportMode,
             dateTime: dateTimeValue,
             pickup: pickup,
@@ -28662,6 +28705,7 @@
             
             const guideEntry = {
                 id: data.guideId || order.order_id || generateId('guide'),
+                orderId: order.id || order.order_id,
                 dateTime: transfer.dateTime || data.dateTime || data.date,
                 tourActivity: data.guide_options.tourActivity || data.guide_options.tour_activity || `${transfer.pickupName || transfer.pickup} → ${transfer.dropName || transfer.dropoff} (Local Transfer Guide)`,
                 tourName: data.guide_options.tourActivity || data.guide_options.tour_activity || `${transfer.pickupName || transfer.pickup} → ${transfer.dropName || transfer.dropoff} (Local Transfer Guide)`,
@@ -28772,6 +28816,7 @@
         
         const guide = {
             id: order.order_id || data.id || generateId('guide'),
+            orderId: order.id || order.order_id,
             dateTime: dateTimeValue,
             tourActivity: data.tour_activity || data.tourActivity || '',
             tourName: data.tour_activity || data.tourActivity || '',
@@ -28823,6 +28868,7 @@
         
         const misc = {
             id: order.order_id || generateId('misc'),
+            orderId: order.id || order.order_id,
             dateTime: data.date || data.dateTime || data.bookingDate || '',
             itemName: itemName,
             itemId: data.itemId || data.item_id || data.mis_id || '',

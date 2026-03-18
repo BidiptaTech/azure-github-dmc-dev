@@ -639,6 +639,8 @@ class SingleTourPackageController extends Controller
 
             $order->delete();
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order cancelled successfully'
