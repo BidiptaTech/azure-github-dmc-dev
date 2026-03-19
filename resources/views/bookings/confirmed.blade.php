@@ -1323,6 +1323,13 @@
                                             // - Red: due date onwards (today >= due)
                                             $today = now()->startOfDay();
                                             $dueDay = $earliestDueDate->copy()->startOfDay();
+                                            
+                                            // If hotel services are NOT included, due date is 1 day earlier.
+                                            $hotelIncluded = isset($serviceData['hotel']) && is_array($serviceData['hotel']) && count($serviceData['hotel']) > 0;
+                                            if (!$hotelIncluded) {
+                                                $dueDay = $dueDay->copy()->subDay();
+                                            }
+
                                             $dueOffsetDays = (int) ($tour->dmc_auto_cancel_day ?? 3);
                                             $dueOffsetDays = max(1, min(30, $dueOffsetDays));
                                             $dueMinusOffset = $dueDay->copy()->subDays($dueOffsetDays);
@@ -1335,10 +1342,10 @@
                                             }
                                         @endphp
                                         <span class="badge due-date-badge {{ $dueBadgeClass }}" 
-                                            title="Earliest due date among all services: {{ $earliestDueDate->format('d-m-Y') }}">
+                                            title="Earliest due date among all services: {{ $dueDay->format('d-m-Y') }}">
                                            
                                             <span style="white-space: normal; word-wrap: break-word; display: inline-block; max-width: 100%;">
-                                                Due: {{ $earliestDueDate->format('d-m-Y') }}
+                                                Due: {{ $dueDay->format('d-m-Y') }}
                                             </span>
                                         </span>
                                     @endif
