@@ -2509,7 +2509,13 @@
                                                                </div>
                                                                <div class="col-6">
                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Language</small>
-                                                                   <span class="badge bg-success" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                                   @php
+                                                                       $languageValue = $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A';
+                                                                       if (is_array($languageValue)) {
+                                                                           $languageValue = implode(', ', $languageValue);
+                                                                       }
+                                                                   @endphp
+                                                                   <span class="badge bg-success" style="font-size: 0.65rem;">{{ $languageValue }}</span>
                                                                </div>
                                                                @if(isset($booking['guide_options']['tourActivity']) || isset($booking['guide_options']['tour_activity']) || isset($booking['guide_options']['Activity']))
                                                                <div class="col-12">
@@ -3055,7 +3061,13 @@
                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}</div>
                                                        <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
                                                        <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
-                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                       @php
+                                                           $languageValue = $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A';
+                                                           if (is_array($languageValue)) {
+                                                               $languageValue = implode(', ', $languageValue);
+                                                           }
+                                                       @endphp
+                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $languageValue }}</span>
                                                    </div>
                                                </div>
                                                <div class="col-md-6">
@@ -3350,7 +3362,13 @@
                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}</div>
                                                        <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
                                                        <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
-                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                       @php
+                                                           $languageValue = $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A';
+                                                           if (is_array($languageValue)) {
+                                                               $languageValue = implode(', ', $languageValue);
+                                                           }
+                                                       @endphp
+                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $languageValue }}</span>
                                                    </div>
                                                </div>
                                                <div class="col-md-6">
