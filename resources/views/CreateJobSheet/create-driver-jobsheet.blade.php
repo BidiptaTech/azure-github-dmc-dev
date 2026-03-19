@@ -76,63 +76,45 @@
         color: #4a4a4a;
         font-weight: 600;
         border-bottom: 2px solid #efefef;
-        padding: 12px 1px 12px 10px;
-        font-size: 12px;
-    }
-    
-    .table td {
-        padding: 8px 1px 8px 10px;
-        vertical-align: middle;
+        padding: 6px 8px;
         font-size: 11px;
     }
     
-    /* Ensure DataTables cells also have the same padding */
-    table.dataTable#tourOrdersTable thead th,
-    table.dataTable#tourOrdersTable tbody td {
-        padding-right: 1px !important;
-        padding-left: 10px !important;
+    .table td {
+        padding: 6px 8px;
+        vertical-align: middle;
+        font-size: 11px;
+        line-height: 1.2;
     }
     
-    /* First column needs extra left padding for the toggle button */
-    table.dataTable#tourOrdersTable thead th:first-child,
-    table.dataTable#tourOrdersTable tbody td:first-child {
-        padding-left: 30px !important; /* Extra space for toggle button */
-        padding-right: 1px !important;
+    /* Ensure DataTables cells compact */
+    table.dataTable#tourOrdersTable thead th,
+    table.dataTable#tourOrdersTable tbody td {
+        padding: 6px 8px !important;
     }
     
     .table tbody tr:hover {
         background-color: #f9f9f9;
     }
     
-    /* DataTables Responsive toggle button styling - Arrow without background circle */
-    table.dataTable.dtr-inline.collapsed > tbody > tr > td:first-child:before,
-    table.dataTable.dtr-inline.collapsed > tbody > tr > th:first-child:before {
-        content: "▶" !important; /* Right-pointing arrow (solid triangle) */
-        background: none !important; /* Remove background circle */
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        left: 8px;
-        color: #000000 !important;
-        font-size: 10px;
-        line-height: 16px;
-        width: 16px;
-        height: 16px;
-        text-align: center;
-        display: inline-block !important; /* Ensure arrow is visible */
+    /* Horizontal scroll for job sheet table */
+    .card-body .table-responsive {
+        overflow-x: auto !important;
     }
     
-    table.dataTable.dtr-inline.collapsed > tbody > tr.parent > td:first-child:before,
-    table.dataTable.dtr-inline.collapsed > tbody > tr.parent > th:first-child:before {
-        content: "▼" !important; /* Down-pointing arrow when expanded */
-        background: none !important; /* Remove background circle */
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        color: #588061 !important;
-        display: inline-block !important; /* Ensure arrow is visible */
+    /* Fix scrollX header/body column alignment: same box model and borders */
+    #tourOrdersTable,
+    #tourOrdersTable thead th,
+    #tourOrdersTable tbody td,
+    .dataTables_scrollHeadInner table,
+    .dataTables_scrollHeadInner table th {
+        box-sizing: border-box !important;
+    }
+    .dataTables_scrollHeadInner table th {
+        padding: 6px 8px !important;
+        font-size: 11px !important;
+        border: 1px solid #f2f2f2;
+        border-bottom: 2px solid #efefef;
     }
     
     /* Smaller font for table content */
@@ -179,6 +161,8 @@
     .select2-dropdown {
         border-color: #e2e5ec;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 9999 !important;
+        min-width: 200px;
     }
     
     /* Custom alert styling */
@@ -225,15 +209,15 @@
     /* Assign Vehicle / Driver: view (read-only text + pen) vs edit (dropdown) */
     .assign-vehicle-cell,
     .assign-driver-cell {
-        min-width: 180px;
+        min-width: 160px;
     }
     .assign-vehicle-view,
     .assign-driver-view {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
-        min-height: 38px;
+        gap: 6px;
+        min-height: 32px;
     }
     .assign-vehicle-text,
     .assign-driver-text {
@@ -315,7 +299,7 @@
                         <input type="hidden" name="tourId" id="hiddenTourId" value="">
                         <input type="hidden" name="date" id="hiddenDate" value="">
                         <div class="table-responsive">
-                            <table class="table table-bordered table-hover" id="tourOrdersTable">
+                            <table class="table table-bordered table-hover table-sm" id="tourOrdersTable">
                                 <thead>
                                     <tr>
                                         <th>Tour ID</th>
@@ -796,19 +780,22 @@ $(document).ready(function() {
                            !$('#tourOrdersTableBody tr td[colspan]').length;
             
             if (hasData) {
-                // Initialize DataTable with responsive mode (toggle in first column)
-                $('#tourOrdersTable').DataTable({
+                // Initialize DataTable with horizontal scroll (no responsive toggle)
+                var dt = $('#tourOrdersTable').DataTable({
                     paging: true,
                     ordering: true,
                     info: true,
                     searching: true,
-                    responsive: true, // Enable responsive mode
+                    responsive: false,
+                    scrollX: true,
+                    autoWidth: false,
                     columnDefs: [
-                        { orderable: false, targets: [16, 17] },  // Disable sorting on Assign Driver and Assign Vehicle columns
-                        { responsivePriority: 1, targets: 0 },   // Tour ID - always visible
-                        { responsivePriority: 2, targets: 1 },   // Pickup Time - high priority
-                        { responsivePriority: 3, targets: 9 }     // Pickup Location - high priority
-                    ]
+                        { orderable: false, targets: [16, 17] }  // Disable sorting on Assign Driver and Assign Vehicle columns
+                    ],
+                    drawCallback: function() {
+                        // Recalculate column widths so scroll header aligns with body
+                        setTimeout(function() { dt.columns().adjust(); }, 0);
+                    }
                 });
                 
                 // Set the flag
@@ -1021,7 +1008,7 @@ $(document).ready(function() {
                 placeholder: "Select Vehicle",
                 allowClear: true,
                 width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
+                dropdownParent: $('body')
             });
             $select.on('select2:close', function() {
                 const selectedText = $select.find('option:selected').text();
@@ -1047,7 +1034,7 @@ $(document).ready(function() {
                 placeholder: "Select Driver",
                 allowClear: true,
                 width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
+                dropdownParent: $('body')
             });
             $select.on('select2:close', function() {
                 const selectedText = $select.find('option:selected').text();
