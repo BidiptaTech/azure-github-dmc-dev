@@ -760,6 +760,38 @@
                                     @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     
+                                   
+
+                                    @if($tour->multi_enq_id)
+                                        <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
+                                    @endif
+                                    @if($tour->tour_type)
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type);
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
+                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
+                                        @endphp
+                                        <span class="d-inline-block px-2 py-1 rounded"
+                                              style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">
+                                            {{ $tour->tour_type }}
+                                        </span>
+                                    @endif
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
+                                            <br>
+                                            @if($tour->check_out_time)<span ><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
+                                        </small>
+                                    @else
+                                        <small class="text-muted">Check-in/out: Not specified</small>
+                                    @endif
                                     @php
                                         $mainGuest = $tour->mainguest;
                                         if (is_string($mainGuest)) {
@@ -786,39 +818,17 @@
                                     @endphp
 
                                     @if(!empty($leadGuestName))
-                                        <small class="text-secondary">
-                                            <i class="ri-user-line me-1"></i>{{ $leadGuestName }}
-                                        </small>
-                                    @endif
-
-                                    @if($tour->multi_enq_id)
-                                        <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
-                                    @endif
-                                    @if($tour->tour_type)
                                         @php
-                                            $tourTypeLower = strtolower($tour->tour_type);
+                                            $tourTypeLower = strtolower($tour->tour_type ?? '');
                                             $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
                                             $textColor = '#ffffff';
-                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
                                         @endphp
-                                        <span class="d-inline-block px-2 py-1 rounded"
-                                              style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">
-                                            {{ $tour->tour_type }}
-                                        </span>
-                                    @endif
-                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
-                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
-                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
-                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
-                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
-                                    </div>
-                                    @if($tour->check_in_time || $tour->check_out_time)
                                         <small>
-                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
-                                            @if($tour->check_out_time)<span class="ms-1"><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
+                                            <i class="ri-user-line me-1"></i>
+                                            <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.3px;">
+                                                {{ $leadGuestName }}
+                                            </span>
                                         </small>
-                                    @else
-                                        <small class="text-muted">Check-in/out: Not specified</small>
                                     @endif
                                 </div>
                             </td>
@@ -1307,26 +1317,35 @@
                                     @if($earliestDueDate)
                                         @php
                                             // Requirement (use TODAY to color by due date):
-                                            // Example due date = 20 and today = 17 => orange (due-3)
-                                            // - Blue: today < (due-3)
-                                            // - Orange: (due-3) .. (due-1)
+                                            // Example due date = 20 and today = 17 => orange (due-N)
+                                            // - Blue: today < (due-N)
+                                            // - Orange: (due-N) .. (due-1)
                                             // - Red: due date onwards (today >= due)
                                             $today = now()->startOfDay();
                                             $dueDay = $earliestDueDate->copy()->startOfDay();
-                                            $dueMinus3 = $dueDay->copy()->subDays(3);
+                                            
+                                            // If hotel services are NOT included, due date is 1 day earlier.
+                                            $hotelIncluded = isset($serviceData['hotel']) && is_array($serviceData['hotel']) && count($serviceData['hotel']) > 0;
+                                            if (!$hotelIncluded) {
+                                                $dueDay = $dueDay->copy()->subDay();
+                                            }
+
+                                            $dueOffsetDays = (int) ($tour->dmc_auto_cancel_day ?? 3);
+                                            $dueOffsetDays = max(1, min(30, $dueOffsetDays));
+                                            $dueMinusOffset = $dueDay->copy()->subDays($dueOffsetDays);
 
                                             $dueBadgeClass = 'due-blue';
                                             if ($today->gte($dueDay)) {
                                                 $dueBadgeClass = 'due-red';
-                                            } elseif ($today->gte($dueMinus3)) {
+                                            } elseif ($today->gte($dueMinusOffset)) {
                                                 $dueBadgeClass = 'due-orange';
                                             }
                                         @endphp
                                         <span class="badge due-date-badge {{ $dueBadgeClass }}" 
-                                            title="Earliest due date among all services: {{ $earliestDueDate->format('d-m-Y') }}">
-                                            <i class="ri-calendar-check-line me-1"></i>
+                                            title="Earliest due date among all services: {{ $dueDay->format('d-m-Y') }}">
+                                           
                                             <span style="white-space: normal; word-wrap: break-word; display: inline-block; max-width: 100%;">
-                                                Due: {{ $earliestDueDate->format('d-m-Y') }}
+                                                Due: {{ $dueDay->format('d-m-Y') }}
                                             </span>
                                         </span>
                                     @endif

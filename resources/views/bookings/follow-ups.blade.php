@@ -885,36 +885,7 @@
                                     @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
 
-                                    @php
-                                        $mainGuest = $tour->mainguest;
-                                        if (is_string($mainGuest)) {
-                                            $mainGuest = json_decode($mainGuest, true) ?: [];
-                                        }
-
-                                        $leadGuestName = null;
-                                        if (is_array($mainGuest)) {
-                                            $salutation = trim($mainGuest['salutation'] ?? '');
-                                            $fullName   = trim($mainGuest['full_name'] ?? '');
-                                            $firstName  = trim($mainGuest['first_name'] ?? '');
-                                            $lastName   = trim($mainGuest['last_name'] ?? '');
-
-                                            if (!empty($fullName)) {
-                                                $leadGuestName = trim($salutation . ' ' . $fullName);
-                                            } else {
-                                                $leadGuestName = trim($salutation . ' ' . $firstName . ' ' . $lastName);
-                                            }
-                                        }
-
-                                        if (empty($leadGuestName) && !empty($tour->customer_name)) {
-                                            $leadGuestName = $tour->customer_name;
-                                        }
-                                    @endphp
-
-                                    @if(!empty($leadGuestName))
-                                        <small class="text-secondary">
-                                            <i class="ri-user-line me-1"></i>{{ $leadGuestName }}
-                                        </small>
-                                    @endif
+                                   
 
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
@@ -947,6 +918,45 @@
                                         </small>
                                     @else
                                         <small class="text-muted">Check-in/out: Not specified</small>
+                                    @endif
+
+                                    @php
+                                        $mainGuest = $tour->mainguest;
+                                        if (is_string($mainGuest)) {
+                                            $mainGuest = json_decode($mainGuest, true) ?: [];
+                                        }
+
+                                        $leadGuestName = null;
+                                        if (is_array($mainGuest)) {
+                                            $salutation = trim($mainGuest['salutation'] ?? '');
+                                            $fullName   = trim($mainGuest['full_name'] ?? '');
+                                            $firstName  = trim($mainGuest['first_name'] ?? '');
+                                            $lastName   = trim($mainGuest['last_name'] ?? '');
+
+                                            if (!empty($fullName)) {
+                                                $leadGuestName = trim($salutation . ' ' . $fullName);
+                                            } else {
+                                                $leadGuestName = trim($salutation . ' ' . $firstName . ' ' . $lastName);
+                                            }
+                                        }
+
+                                        if (empty($leadGuestName) && !empty($tour->customer_name)) {
+                                            $leadGuestName = $tour->customer_name;
+                                        }
+                                    @endphp
+
+                                    @if(!empty($leadGuestName))
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type ?? '');
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
+                                        @endphp
+                                        <small>
+                                            <i class="ri-user-line me-1"></i>
+                                            <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.3px;">
+                                                {{ $leadGuestName }}
+                                            </span>
+                                        </small>
                                     @endif
                                 </div>
                             </td>
@@ -2499,7 +2509,13 @@
                                                                </div>
                                                                <div class="col-6">
                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Language</small>
-                                                                   <span class="badge bg-success" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                                   @php
+                                                                       $languageValue = $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A';
+                                                                       if (is_array($languageValue)) {
+                                                                           $languageValue = implode(', ', $languageValue);
+                                                                       }
+                                                                   @endphp
+                                                                   <span class="badge bg-success" style="font-size: 0.65rem;">{{ $languageValue }}</span>
                                                                </div>
                                                                @if(isset($booking['guide_options']['tourActivity']) || isset($booking['guide_options']['tour_activity']) || isset($booking['guide_options']['Activity']))
                                                                <div class="col-12">
@@ -3045,7 +3061,13 @@
                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}</div>
                                                        <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
                                                        <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
-                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                       @php
+                                                           $languageValue = $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A';
+                                                           if (is_array($languageValue)) {
+                                                               $languageValue = implode(', ', $languageValue);
+                                                           }
+                                                       @endphp
+                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $languageValue }}</span>
                                                    </div>
                                                </div>
                                                <div class="col-md-6">
@@ -3340,7 +3362,13 @@
                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}</div>
                                                        <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
                                                        <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
-                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                       @php
+                                                           $languageValue = $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A';
+                                                           if (is_array($languageValue)) {
+                                                               $languageValue = implode(', ', $languageValue);
+                                                           }
+                                                       @endphp
+                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $languageValue }}</span>
                                                    </div>
                                                </div>
                                                <div class="col-md-6">

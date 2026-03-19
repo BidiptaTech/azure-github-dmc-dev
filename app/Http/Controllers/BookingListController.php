@@ -2143,11 +2143,13 @@ class BookingListController extends Controller
             if ($checkIn && $checkOut) {
                 $nights = \Carbon\Carbon::parse($checkIn)->diffInDays(\Carbon\Carbon::parse($checkOut));
             }
+            $remarks = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? '';
             $hotels[] = [
                 'name' => $name,
                 'check_in' => $checkIn,
                 'check_out' => $checkOut,
                 'nights' => $nights,
+                'remarks' => $remarks,
             ];
         }
         usort($hotels, function ($a, $b) {
@@ -2262,7 +2264,19 @@ class BookingListController extends Controller
             $dropoff = $data['entrydropoff'] ?? $data['entry_dropoff'] ?? $data['dropoff'] ?? '';
             $description = 'Arrive at ' . $wrap($pickup) . ' and Proceed to ' . $wrap($dropoff);
             $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
-            if ($data['originFlightNumber'] ?? $data['arrivalFlightNumber'] ?? null) {
+            // Arrival transport type and flight number (e.g. arrival_transport_type: "flight", arrival_flight_no: "re45165")
+            $arrivalTransportType = $data['arrival_transport_type'] ?? null;
+            $arrivalFlightNo = $data['arrival_flight_no'] ?? $data['arrivalFlightNumber'] ?? $data['originFlightNumber'] ?? null;
+            $arrivalInfo = [];
+            if ($arrivalTransportType) {
+                $arrivalInfo[] = 'Arrival by ' . e(ucfirst(strtolower($arrivalTransportType)));
+            }
+            if ($arrivalFlightNo) {
+                $arrivalInfo[] = 'Flight No: ' . e($arrivalFlightNo);
+            }
+            if (!empty($arrivalInfo)) {
+                $note = implode(' - ', $arrivalInfo) . ($note ? '. ' . $note : '');
+            } elseif ($data['originFlightNumber'] ?? $data['arrivalFlightNumber'] ?? null) {
                 $note = ($data['originFlightNumber'] ?? '') . ' ' . ($data['arrivalFlightNumber'] ?? '') . ' ' . ($note ?? '');
             }
         } elseif ($type === 'exit port' || $type === 'exit_port') {
@@ -2270,6 +2284,19 @@ class BookingListController extends Controller
             $dropoff = $data['exitdropoff'] ?? $data['exit_dropoff'] ?? $data['dropoff'] ?? '';
             $description = 'Transfer from ' . $wrap($pickup) . ' to ' . $wrap($dropoff);
             $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+            // Departure transport type and flight number (e.g. departure_transport_type: "flight", departure_flight_no: "ef45433")
+            $departureTransportType = $data['departure_transport_type'] ?? null;
+            $departureFlightNo = $data['departure_flight_no'] ?? $data['departureFlightNumber'] ?? $data['destinationFlightNumber'] ?? null;
+            $departureInfo = [];
+            if ($departureTransportType) {
+                $departureInfo[] = 'Departure by ' . e(ucfirst(strtolower($departureTransportType)));
+            }
+            if ($departureFlightNo) {
+                $departureInfo[] = 'Flight No: ' . e($departureFlightNo);
+            }
+            if (!empty($departureInfo)) {
+                $note = implode(' - ', $departureInfo) . ($note ? '. ' . $note : '');
+            }
         } elseif ($type === 'hotel') {
             $name = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? 'Hotel';
             $stayType = $data['stay_type'] ?? '';
@@ -2280,6 +2307,7 @@ class BookingListController extends Controller
             if ($stayType === 'stay') {
                 $description = 'Stay at ' . $name;
             }
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         } elseif (strpos($type, 'travel') !== false || $type === 'travel_point' || $type === 'travel_hourly' || $type === 'point to point' || $type === 'hourly' || $type === 'local_transport') {
             $pickup = $data['entrypickup'] ?? $data['pickup'] ?? '';
             $dropoff = $data['entrydropoff'] ?? $data['dropoff'] ?? $data['dropoffLocation'] ?? '';
@@ -2295,10 +2323,11 @@ class BookingListController extends Controller
                 if (!empty($data['visitTime'])) {
                     $activity .= ' (' . $data['visitTime'] . ')';
                 }
-                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => null, 'activity' => $activity];
+                $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note, 'activity' => $activity];
             }
             $description = 'Visit ' . $name;
-            $note = $data['specialRequests'] ?? null;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         } elseif ($type === 'restaurant') {
             $name = $data['restaurantName'] ?? $data['name'] ?? 'Restaurant';
             $hasTransfer = isset($data['transfer_options']['transfer_required']) && $data['transfer_options']['transfer_required'];
@@ -2308,17 +2337,18 @@ class BookingListController extends Controller
                 $mealType = $data['mealType'] ?? $data['mealSpecificType'] ?? '';
                 $pax = ($data['adultCount'] ?? $data['adult_count'] ?? 0) + ($data['childCount'] ?? $data['child_count'] ?? 0);
                 $activity = ($mealType ? $mealType . ' for ' : 'Meal for ') . $pax . ' members';
-                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => null, 'activity' => $activity];
+                $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note, 'activity' => $activity];
             }
             $description = ($data['mealType'] ?? 'Meal') . ' at ' . $name;
-            $note = $data['specialRequests'] ?? null;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         } elseif ($type === 'guide') {
             $name = $data['guide_name'] ?? $data['guideName'] ?? $data['name'] ?? 'Guide';
             $description = 'Guide service - ' . $name;
-            $note = $data['remark'] ?? $data['specialRequests'] ?? null;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         } else {
             $description = $data['name'] ?? ucfirst($type);
-            $note = $data['remark'] ?? $data['specialRequests'] ?? null;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         }
 
         return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note];

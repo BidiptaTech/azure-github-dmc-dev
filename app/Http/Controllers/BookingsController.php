@@ -793,6 +793,7 @@ class BookingsController extends Controller
                 'agents.company_name as agent_company_name',
                 'created_by_user.name as created_by_name',
                 'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
@@ -858,6 +859,7 @@ class BookingsController extends Controller
                 'agents.company_name as agent_company_name',
                 'created_by_user.name as created_by_name',
                 'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
@@ -939,6 +941,7 @@ class BookingsController extends Controller
                 'agents.company_name as agent_company_name',
                 'created_by_user.name as created_by_name',
                 'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->where(function ($query) use ($today) {
@@ -1012,6 +1015,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
                 'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
@@ -1092,6 +1096,7 @@ class BookingsController extends Controller
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name',
                     'dmc_user.company_code as dmc_company_code',
+                    'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                     'created_by_user.user_code as created_by_user_code'
                 ])
                 ->orderBy('tours.created_at', 'desc')
@@ -1156,6 +1161,7 @@ class BookingsController extends Controller
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name',
                     'dmc_user.company_code as dmc_company_code',
+                    'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                     'created_by_user.user_code as created_by_user_code'
                 ])
                 ->orderBy('tours.created_at', 'desc')

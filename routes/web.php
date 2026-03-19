@@ -632,6 +632,7 @@ Route::get('/clear', function () {
         Route::get('/countries/get-active', [ReportController::class, 'getActiveCountries'])->name('countries.get-active');
         Route::get('/reports/get-filtered-data', [ReportController::class, 'getFilteredData'])->name('reports.get-filtered-data');
         Route::post('/countries/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle-status');
+        Route::post('/countries/update-remitance-exchange', [CountryController::class, 'updateRemitanceAndExchange'])->name('countries.update-remitance-exchange');
         Route::get('get-dmc-countries/{id}', [ReportController::class, 'getDmcCountries'])->name('get.dmc.countries');
         Route::get('get-master-dmc-countries/{id}', [ReportController::class, 'getMasterDmcCountries'])->name('get.master.dmc.countries');
         Route::get('/get-master-dmc', [ReportController::class, 'getMasterDmc'])->name('get.master.dmc');
@@ -1187,7 +1188,6 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/itinerary_settings/{id}/edit', [BookingListController::class, 'editItinerarySettings'])->name('itinerary_settings.edit');
         Route::match(['put', 'post'], '/itinerary_settings/{id}/update', [BookingListController::class, 'updateItinerarySettings'])->name('itinerary_settings.update_route');
         Route::delete('/itinerary_settings/{id}', [BookingListController::class, 'deleteItinerarySettings'])->name('itinerary_settings.delete');
-    
     });
 
     //authentication check for manager (route can access admin & manager)

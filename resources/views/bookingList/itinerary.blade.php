@@ -3448,6 +3448,14 @@
                                                                 </p>
                                                             @endif
                                                         </div>
+                                                        @php
+                                                            $hotelRemark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                                                        @endphp
+                                                        @if(!empty($hotelRemark))
+                                                            <div class="service-remark">
+                                                                <span class="service-detail-label">Remark:</span> {{ $hotelRemark }}
+                                                            </div>
+                                                        @endif
                                                     @elseif(strtolower($serviceType) == 'guide')
                                                         <p class="service-description">Professional tour guide service</p>
                                                         
@@ -3570,6 +3578,8 @@
                                                             $entryPickup = $entryPortData['entrypickup'] ?? $entryPortData['entry_pickup'] ?? $entryPortData['pickup'] ?? null;
                                                             $entryDropoff = $entryPortData['entrydropoff'] ?? $entryPortData['entry_dropoff'] ?? $entryPortData['dropoff'] ?? null;
                                                             $remark = $entryPortData['remark'] ?? $entryPortData['remarks'] ?? $entryPortData['specialRequests'] ?? null;
+                                                            $arrivalTransportType = $entryPortData['arrival_transport_type'] ?? null;
+                                                            $arrivalFlightNo = $entryPortData['arrival_flight_no'] ?? null;
                                                             $transferType = 'Shared';
                                                             if (isset($entryPortData['transfer_options']['type'])) {
                                                                 $transferType = $entryPortData['transfer_options']['type'];
@@ -3592,6 +3602,14 @@
                                                                 @if(!empty($entryDropoff))
                                                                     <span class="service-detail-label">To:</span> {{ $entryDropoff }}
                                                                 @endif
+                                                                @if(!empty($arrivalTransportType))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Arrival:</span> {{ ucfirst(strtolower($arrivalTransportType)) }}
+                                                                @endif
+                                                                @if(!empty($arrivalFlightNo))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Flight No:</span> {{ $arrivalFlightNo }}
+                                                                @endif
                                                             </p>
                                                         @endif
                                                         
@@ -3606,6 +3624,8 @@
                                                             $entryPickup = $exitPortData['exitpickup'] ?? $exitPortData['entry_pickup'] ?? $exitPortData['pickup'] ?? null;
                                                             $entryDropoff = $exitPortData['exitdropoff'] ?? $exitPortData['entry_dropoff'] ?? $exitPortData['dropoff'] ?? null;
                                                             $remark = $exitPortData['remark'] ?? $exitPortData['remarks'] ?? $exitPortData['specialRequests'] ?? null;
+                                                            $departureTransportType = $exitPortData['departure_transport_type'] ?? null;
+                                                            $departureFlightNo = $exitPortData['departure_flight_no'] ?? null;
                                                             $transferType = $exitPortData['type'] ?? null;
                                                             $vehicle = $exitPortData['vehicles_name'] ?? null;
 
@@ -3635,6 +3655,14 @@
                                                                     <span class="mx-1">•</span>
                                                                     <span class="service-detail-label">Travel Type:</span> {{ $transferType }}
                                                                 @endif
+                                                                @if(!empty($departureTransportType))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Departure:</span> {{ ucfirst(strtolower($departureTransportType)) }}
+                                                                @endif
+                                                                @if(!empty($departureFlightNo))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Flight No:</span> {{ $departureFlightNo }}
+                                                                @endif
                                                             </p>
                                                         @endif
                                                         
@@ -3655,7 +3683,7 @@
                                                                 $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
                                                                 $transferType = $transferOptions['type'] ?? 'Shared';
                                                                 $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
-                                                                $remark = $data['specialRequests'] ?? null;
+                                                                $remark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
                                                             }
                                                         @endphp
                                                         
@@ -3876,7 +3904,7 @@
                                                                 $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
                                                                 $transferType = $transferOptions['type'] ?? 'Shared';
                                                                 $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
-                                                                $remark = $data['specialRequests'] ?? null;
+                                                                $remark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
                                                             }
                                                         @endphp
                                                         
