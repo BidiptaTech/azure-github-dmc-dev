@@ -1329,12 +1329,26 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+            $refundTourIds = Order::withTrashed()
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->pluck('tour_id')
+                ->unique()
+                ->toArray();
+
             $tours = Tour::with([
                 'booking' => function ($query) {
-                    $query->where('bookingType', 'booking');
+                    $query->withTrashed()
+                          ->where('bookingType', 'booking')
+                          ->where('is_refund', 1);
                 }
             ])
-            ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
+            ->where(function ($query) use ($refundTourIds) {
+                $query->whereIn('tour_status', ['Refund - Pending', 'Refunded']);
+                if (!empty($refundTourIds)) {
+                    $query->orWhereIn('tours.tour_id', $refundTourIds);
+                }
+            })
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1391,12 +1405,27 @@ class BookingsController extends Controller
         }
 
         if($dmc_id){
+            $refundTourIds = Order::withTrashed()
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->where('tour_id', '>', 0)
+                ->pluck('tour_id')
+                ->unique()
+                ->toArray();
+
             $tours = Tour::with([
                 'booking' => function ($query) {
-                    $query->where('bookingType', 'booking');
+                    $query->withTrashed()
+                          ->where('bookingType', 'booking')
+                          ->where('is_refund', 1);
                 }
             ])
-            ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
+            ->where(function ($query) use ($refundTourIds) {
+                $query->whereIn('tour_status', ['Refund - Pending', 'Refunded']);
+                if (!empty($refundTourIds)) {
+                    $query->orWhereIn('tours.tour_id', $refundTourIds);
+                }
+            })
             ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
@@ -1502,6 +1531,111 @@ class BookingsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing the refund: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark refund-eligible orders as refunded for a specific tour
+     */
+    public function processOrderRefund(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid tour ID provided'
+                ], 422);
+            }
+
+            $tourId = (int) $request->tour_id;
+
+            $updated = Order::withTrashed()
+                ->where('tour_id', $tourId)
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->update([
+                    'refunded' => true,
+                    'updated_at' => now(),
+                ]);
+
+            if ($updated === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No refund-eligible services found for this tour.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Refunded status updated for refund-marked services.',
+                'tour_id' => $tourId,
+                'updated_orders' => $updated
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating refunded status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark a single refund-eligible order as refunded (by booking_id/id)
+     */
+    public function processOrderRefundByOrder(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id',
+                'order_id' => 'required|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid input provided'
+                ], 422);
+            }
+
+            $tourId = (int) $request->tour_id;
+            $orderId = (int) $request->order_id;
+
+            $order = Order::withTrashed()
+                ->where('tour_id', $tourId)
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->where(function ($q) use ($orderId) {
+                    $q->where('booking_id', $orderId)
+                      ->orWhere('id', $orderId);
+                })
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund order not found for this tour.'
+                ], 404);
+            }
+
+            $order->refunded = true;
+            $order->updated_at = now();
+            $order->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Selected service marked as refunded.',
+                'tour_id' => $tourId,
+                'order_id' => $orderId
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating refunded status: ' . $e->getMessage()
             ], 500);
         }
     }
