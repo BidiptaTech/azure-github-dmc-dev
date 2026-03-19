@@ -7,14 +7,298 @@ use App\Models\BankDetail;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Tour;
+use App\Models\Country;
+use App\Models\City;
+use App\Models\ItinerarySetting;
 use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class BookingListController extends Controller
 {
+    public function itinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $selectedCountry = (string) $request->get('country', '');
+            $selectedCity = (string) $request->get('city', '');
+
+            $currentSetting = null;
+            if ($selectedCountry !== '' && $selectedCity !== '') {
+                $currentSetting = ItinerarySetting::where('dmc_id', $dmcId)
+                    ->where('country', $selectedCountry)
+                    ->where('city', $selectedCity)
+                    ->first();
+            }
+
+            $allSettings = ItinerarySetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.itinerary_settings', [
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => $selectedCountry,
+                'selectedCity' => $selectedCity,
+                'itineraryInformationHtml' => $currentSetting ? (string) ($currentSetting->itinerary_information ?? '') : '',
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Itinerary settings index failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to load itinerary settings. Please try again. '.$e->getMessage());
+        }
+    }
+
+    public function saveItinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'itinerary_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+            $itineraryInformationHtml = $validated['itinerary_information'] ?? null;
+
+            DB::beginTransaction();
+            try {
+                $last = ItinerarySetting::withTrashed()->orderBy('itinerary_setting_id', 'desc')->first();
+                $lastId = (int) ($last->itinerary_setting_id ?? 0);
+                $newId = CommonHelper::createId($lastId);
+
+                $setting = new ItinerarySetting();
+                $setting->itinerary_setting_id = $newId;
+                $setting->dmc_id = $dmcId;
+                $setting->country = $country;
+                $setting->city = $city;
+                $setting->itinerary_information = $itineraryInformationHtml;
+
+                $setting->save();
+
+                DB::commit();
+                return redirect()
+                    ->route('itinerary_settings.pdf')
+                    ->with('success', 'Itinerary settings saved successfully.');
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('Save itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                return redirect()->back()->with('error', 'Failed to save itinerary settings. '.$e->getMessage())->withInput();
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Save itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to save itinerary settings. Please try again. '.$e->getMessage())->withInput();
+        }
+    }
+
+    public function fetchItinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+            ]);
+
+            $setting = ItinerarySetting::where('dmc_id', $dmcId)
+                ->where('country', $validated['country'])
+                ->where('city', $validated['city'])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'found' => (bool) $setting,
+                'data' => [
+                    'itinerary_information' => $setting ? (string) ($setting->itinerary_information ?? '') : '',
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Fetch itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Unable to load itinerary settings. '.$e->getMessage()], 500);
+        }
+    }
+
+    public function editItinerarySettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $allSettings = ItinerarySetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.itinerary_settings_edit', [
+                'setting' => $setting,
+                'encryptedId' => Crypt::encryptString((string) $setting->itinerary_setting_id),
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => (string) ($setting->country ?? ''),
+                'selectedCity' => (string) ($setting->city ?? ''),
+                'itineraryInformationHtml' => (string) ($setting->itinerary_information ?? ''),
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Edit itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('itinerary_settings.pdf')->with('error', 'Unable to load itinerary setting for editing. '.$e->getMessage());
+        }
+    }
+
+    public function updateItinerarySettings(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'itinerary_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+
+            $setting->country = $country;
+            $setting->city = $city;
+            $setting->itinerary_information = $validated['itinerary_information'] ?? null;
+            $setting->save();
+
+            return redirect()
+                ->route('itinerary_settings.pdf')
+                ->with('success', 'Itinerary settings updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Update itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to update itinerary settings. '.$e->getMessage())->withInput();
+        }
+    }
+
+    public function deleteItinerarySettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $setting->delete();
+
+            return redirect()
+                ->route('itinerary_settings.pdf')
+                ->with('success', 'Itinerary setting deleted successfully.');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Delete itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('itinerary_settings.pdf')->with('error', 'Unable to delete itinerary setting. '.$e->getMessage());
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -1124,6 +1408,21 @@ class BookingListController extends Controller
         });
         }])->where('tour_id', $tourId)->first();
 
+        // Preload itinerary settings HTML for this tour (by tour's dmc_id + destination/city).
+        // This ensures the modal textarea and generated PDF keep formatting on first load.
+        $defaultCountry = trim((string) ($tour->destination ?? ''));
+        $defaultCity = trim((string) ($tour->city ?? ''));
+        
+        $defaultItineraryInformationHtml = '';
+        $tourDmcId = (int) ($tour->dmc_id ?? $tour->dmc_id ?? 0);
+        if ($tourDmcId > 0 && $defaultCountry !== '' && $defaultCity !== '') {
+            $setting = ItinerarySetting::where('dmc_id', $tourDmcId)
+                ->where('country', $defaultCountry)
+                ->where('city', $defaultCity)
+                ->first();
+            $defaultItineraryInformationHtml = $setting ? (string) ($setting->itinerary_information ?? '') : '';
+        }
+
         // Initialize itineraryByDate as empty array
         $itineraryByDate = [];
         
@@ -1267,6 +1566,12 @@ class BookingListController extends Controller
             }
         }
         
+        $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+        $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+        $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+            return $group->pluck('name')->values();
+        })->toArray();
+
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
@@ -1274,7 +1579,10 @@ class BookingListController extends Controller
             'priceHide' => $priceHide,
             'user_dmc' => $user_dmc,
             'agent_info' => $agent_info,
-            'allPassengers' => $allPassengers
+            'allPassengers' => $allPassengers,
+            'countries' => $countries,
+            'citiesByCountry' => $citiesByCountry,
+            'defaultItineraryInformationHtml' => $defaultItineraryInformationHtml,
         ]);
     }
 
@@ -1298,6 +1606,7 @@ class BookingListController extends Controller
         $data['emergency_contact'] = $request->input('emergency_contact', '');
         $data['sic_timing'] = $request->input('sic_timing', '');
         $data['meeting_points'] = $request->input('meeting_points', '');
+        $data['itinerary_information'] = $request->input('itinerary_information', '');
 
         $pdf = Pdf::loadView('bookingList.itinerary-pdf', $data)
             ->setPaper('a4', 'portrait');

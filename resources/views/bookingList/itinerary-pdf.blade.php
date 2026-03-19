@@ -35,6 +35,12 @@
         .pdf-section { margin-top: 14px; page-break-inside: avoid; }
         .pdf-section-heading { font-size: 11px; font-weight: bold; color: #1e293b; margin-bottom: 6px; padding: 4px 0; border-bottom: 1px solid #cbd5e1; }
         .pdf-section-body { font-size: 9px; line-height: 1.45; color: #334155; white-space: pre-line; }
+        .pdf-rich { white-space: normal; }
+        .pdf-rich p { margin: 0 0 6px 0; }
+        .pdf-rich br { line-height: 1.6; }
+        .pdf-rich b, .pdf-rich strong { font-weight: bold; }
+        .pdf-rich ul, .pdf-rich ol { margin: 0 0 6px 16px; padding: 0; }
+        .pdf-rich li { margin: 0 0 4px 0; }
     </style>
 </head>
 <body>
@@ -163,6 +169,13 @@
         <div class="pdf-section">
             <div class="pdf-section-heading">MEETING POINTS:</div>
             <div class="pdf-section-body">{!! nl2br(e($meeting_points)) !!}</div>
+        </div>
+    @endif
+
+    @if(!empty($itinerary_information))
+        <div class="pdf-section">
+            
+            <div class="pdf-section-body pdf-rich">{!! $itinerary_information !!}</div>
         </div>
     @endif
 

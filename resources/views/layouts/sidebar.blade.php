@@ -2066,65 +2066,75 @@
                     <!-- Settings -->
                     @if(in_array(Auth::user()->role_id, [1]))
                     @if(hasPermission('settings') || hasPermission('edit settings') || hasPermission('view country'))
-                    <li class="menu-header mt-5">
-                        <span class="menu-header-text" data-i18n="Setting">Setting</span>
-                    </li>
-                    
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*')) open @endif">
-                        <a href="#" class="menu-link menu-toggle">
-                            <i class="menu-icon tf-icons ri-settings-3-line"></i>
-                            <div data-i18n="General Settings">General Settings</div>
-                        </a>
+                        <li class="menu-header mt-5">
+                            <span class="menu-header-text" data-i18n="Setting">Setting</span>
+                        </li>
+                        
+                        <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*')) open @endif">
+                            <a href="#" class="menu-link menu-toggle">
+                                <i class="menu-icon tf-icons ri-settings-3-line"></i>
+                                <div data-i18n="General Settings">General Settings</div>
+                            </a>
 
-                        <ul class="menu-sub">
-                            @if(hasPermission('settings') && hasPermission('edit settings'))
-                            <li class="menu-item @if(Request::is('master-setting')) active @endif">
-                                <a href="{{ route('master-setting') }}" class="menu-link">
-                                    <div data-i18n="Master Setting">Master Setting</div>
+                            <ul class="menu-sub">
+                                @if(hasPermission('settings') && hasPermission('edit settings'))
+                                <li class="menu-item @if(Request::is('master-setting')) active @endif">
+                                    <a href="{{ route('master-setting') }}" class="menu-link">
+                                        <div data-i18n="Master Setting">Master Setting</div>
+                                    </a>
+                                </li>
+                                @endif
+
+                            <!-- List City -->
+                            <li class="menu-item @if(Request::is('country')) active @endif">
+                                @if(hasPermission('view country'))
+                                <a href="{{ route('country.index') }}" class="menu-link">
+                                    <div data-i18n="City Charges">City Charges</div>
+                                </a>
+                                @endif
+                            </li>
+
+                            <!-- Cities -->
+                            <li class="menu-item @if(Request::is('cities*')) active @endif">
+                                <a href="{{ route('cities.index') }}" class="menu-link">
+                                    <div data-i18n="Cities">Cities</div>
                                 </a>
                             </li>
-                            @endif
 
-                        <!-- List City -->
-                        <li class="menu-item @if(Request::is('country')) active @endif">
-                            @if(hasPermission('view country'))
-                            <a href="{{ route('country.index') }}" class="menu-link">
-                                <div data-i18n="City Charges">City Charges</div>
-                            </a>
-                            @endif
+                            <!-- Countries -->
+                            <li class="menu-item @if(Request::is('countries')) active @endif">
+                                <a href="{{ route('countries.index') }}" class="menu-link">
+                                    <div data-i18n="Countries">Countries</div>
+                                </a>
+                            </li>
+
+                            <!-- Email Settings -->
+                            <li class="menu-item @if(Request::is('mail/settings')) active @endif">
+                                <a href="{{ route('mail.settings') }}" class="menu-link">
+                                    <div data-i18n="Email Settings">Email Settings</div>
+                                </a>
+                            </li>
+
+                            <!-- App Settings -->
+                            <li class="menu-item @if(Request::is('app-management')) active @endif">
+                                <a href="{{ route('app-management.index') }}" class="menu-link">
+                                    <div data-i18n="App Management Settings">App Management Settings</div>
+                                </a>
+                            </li>
+                        </ul>
                         </li>
-
-                        <!-- Cities -->
-                        <li class="menu-item @if(Request::is('cities*')) active @endif">
-                            <a href="{{ route('cities.index') }}" class="menu-link">
-                                <div data-i18n="Cities">Cities</div>
-                            </a>
+                    @endif
+                    @endif
+                    @if(in_array(Auth::user()->role_id, [11,33,34,35,37,38,64,65,66,67,68,128, 131, 132, 134, 135, 137, 138]))
+                        <li class="menu-header mt-5">
+                            <span class="menu-header-text" data-i18n="Booking List">Booking List</span>
                         </li>
-
-                        <!-- Countries -->
-                        <li class="menu-item @if(Request::is('countries')) active @endif">
-                            <a href="{{ route('countries.index') }}" class="menu-link">
-                                <div data-i18n="Countries">Countries</div>
-                            </a>
-                        </li>
-
-                        <!-- Email Settings -->
-                        <li class="menu-item @if(Request::is('mail/settings')) active @endif">
-                            <a href="{{ route('mail.settings') }}" class="menu-link">
-                                <div data-i18n="Email Settings">Email Settings</div>
-                            </a>
-                        </li>
-
-                        <!-- App Settings -->
-                        <li class="menu-item @if(Request::is('app-management')) active @endif">
-                            <a href="{{ route('app-management.index') }}" class="menu-link">
-                                <div data-i18n="App Management Settings">App Management Settings</div>
+                        <li class="menu-item @if(Request::is('itinerary_settings.pdf')) active @endif">
+                            <a href="{{ route('itinerary_settings.pdf') }}" class="menu-link">
+                                <div data-i18n="Itinerary Settings">Itinerary Settings</div>
                             </a>
                         </li>
-                    </ul>
-                </li>
-                @endif
-                @endif
+                    @endif
                 <!-- End Settings -->
 
                 {{-- <!-- Mail -->
