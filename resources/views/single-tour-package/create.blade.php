@@ -13747,7 +13747,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <!-- Is Supplement -->
                                     <div class="mt-2 form-check">
                                         <input class="form-check-input" type="checkbox" name="hotel_is_supplement_${index}" id="hotel_is_supplement_${index}" ${(hotel.supplement || hotel.is_supplement || ((hotel.selectedPersons || 1) * (hotel.numberOfRooms || 1)) < (parseInt(document.getElementById('adults')?.value || 1)) ? 'checked' : '')} onchange="if(typeof updateHotelDataField==='function') updateHotelDataField();">
-                                        <label class="form-check-label" style="color: #495057; font-size: 0.85rem;" for="hotel_is_supplement_${index}">Supplement (fewer adults than tour)</label>
+                                        <label class="form-check-label" style="color: #495057; font-size: 0.85rem;" for="hotel_is_supplement_${index}">Supplement </label>
                                     </div>
                                  </div>
                              </div>
@@ -14052,7 +14052,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                    <div class="col-md-12 mt-2">
                                                        <div class="form-check mb-2">
                                                            <input class="form-check-input" type="checkbox" name="day${day}_entry_0_is_supplement" id="day${day}_entry_0_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
-                                                           <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_entry_0_is_supplement">Supplement (fewer adults than tour)</label>
+                                                           <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_entry_0_is_supplement">Supplement </label>
                                                        </div>
                                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                            <i class="ri-chat-quote-line me-1"></i>Remarks
@@ -14371,7 +14371,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                    <div class="col-md-12 mt-2">
                                                        <div class="form-check mb-2">
                                                            <input class="form-check-input" type="checkbox" name="day${day}_exit_0_is_supplement" id="day${day}_exit_0_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
-                                                           <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_exit_0_is_supplement">Supplement (fewer adults than tour)</label>
+                                                           <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_exit_0_is_supplement">Supplement </label>
                                                        </div>
                                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                            <i class="ri-chat-quote-line me-1"></i>Remarks
@@ -14918,7 +14918,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <div class="col-12">
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" name="day${day}_attraction_1_is_supplement" id="day${day}_attraction_1_is_supplement" onchange="if(typeof updateAttractionDataField==='function') updateAttractionDataField();">
-                                                        <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_attraction_1_is_supplement">Supplement (fewer adults than tour)</label>
+                                                        <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_attraction_1_is_supplement">Supplement </label>
                                                     </div>
                                                 </div>
                                             </div>
@@ -15160,7 +15160,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <div class="col-12">
                                          <div class="form-check">
                                              <input class="form-check-input" type="checkbox" name="day${day}_guide_1_is_supplement" id="day${day}_guide_1_is_supplement" onchange="if(typeof updateGuideDataField==='function') updateGuideDataField();">
-                                             <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="day${day}_guide_1_is_supplement">Supplement (fewer adults than tour)</label>
+                                             <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="day${day}_guide_1_is_supplement">Supplement </label>
                                          </div>
                                      </div>
                                  </div>
@@ -15412,7 +15412,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                          <div class="col-12">
                                                              <div class="form-check">
                                                                  <input class="form-check-input" type="checkbox" name="day${day}_restaurant_1_is_supplement" id="day${day}_restaurant_1_is_supplement" onchange="if(typeof updateRestaurantDataField==='function') updateRestaurantDataField();">
-                                                                 <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_restaurant_1_is_supplement">Supplement (fewer adults than tour)</label>
+                                                                 <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_restaurant_1_is_supplement">Supplement </label>
                                                              </div>
                                                          </div>
                                                      </div>
@@ -15952,7 +15952,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <div class="col-12 mt-2">
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" name="day${day}_transport_1_is_supplement" id="day${day}_transport_1_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
-                                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_transport_1_is_supplement">Supplement (fewer adults than tour)</label>
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_transport_1_is_supplement">Supplement </label>
                                                 </div>
                                             </div>
                                             <!-- Remarks for this Other Transport service -->
@@ -17334,7 +17334,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="col-12">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" name="day${day}_attraction_${newIndex}_is_supplement" id="day${day}_attraction_${newIndex}_is_supplement" onchange="if(typeof updateAttractionDataField==='function') updateAttractionDataField();">
-                                            <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_attraction_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                            <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_attraction_${newIndex}_is_supplement">Supplement </label>
                                         </div>
                                     </div>
                                 </div>
@@ -18949,7 +18949,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-12">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="day${day}_restaurant_${newIndex}_is_supplement" id="day${day}_restaurant_${newIndex}_is_supplement" onchange="if(typeof updateRestaurantDataField==='function') updateRestaurantDataField();">
-                                <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_restaurant_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_restaurant_${newIndex}_is_supplement">Supplement </label>
                             </div>
                         </div>
                     </div>
@@ -19930,7 +19930,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-12">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="day${day}_guide_${newIndex}_is_supplement" id="day${day}_guide_${newIndex}_is_supplement" onchange="if(typeof updateGuideDataField==='function') updateGuideDataField();">
-                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="day${day}_guide_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="day${day}_guide_${newIndex}_is_supplement">Supplement </label>
                             </div>
                         </div>
                     </div>
@@ -20391,7 +20391,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <div class="col-12 mt-2">
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" name="day${day}_transport_${newIndex}_is_supplement" id="day${day}_transport_${newIndex}_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
-                                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_transport_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_transport_${newIndex}_is_supplement">Supplement </label>
                                                 </div>
                                             </div>
                                             <!-- Remarks for this additional Other Transport service -->
@@ -21116,7 +21116,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="mt-2 col-12">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="day${day}_entry_${newIndex}_is_supplement" id="day${day}_entry_${newIndex}_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
-                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_entry_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_entry_${newIndex}_is_supplement">Supplement </label>
                                 </div>
                             </div>
                             <!-- Remarks for additional Arrival Transport (full width under config) -->
@@ -21481,7 +21481,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="mt-2 col-12">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="day${day}_exit_${newIndex}_is_supplement" id="day${day}_exit_${newIndex}_is_supplement" onchange="if(typeof updateTransportDataField==='function') updateTransportDataField();">
-                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_exit_${newIndex}_is_supplement">Supplement (fewer adults than tour)</label>
+                                    <label class="form-check-label" style="color: #495057; font-size: 0.8rem;" for="day${day}_exit_${newIndex}_is_supplement">Supplement </label>
                                 </div>
                             </div>
                             <!-- Remarks for additional Departure Transport (full width under config) -->
