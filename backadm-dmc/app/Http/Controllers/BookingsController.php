@@ -300,9 +300,10 @@ class BookingsController extends Controller
                     ->withInput();
             }
 
-            $lastEnquiryId = Enquiry::latest('created_at')->value('enquiry_id') ?? 1;
+            // Include soft-deleted records: enquiry_id is unique, so soft-deleted rows still occupy their ID
+            $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
             $newEnquiryId = CommonHelper::createId($lastEnquiryId);
-            while (Enquiry::where('enquiry_id', $newEnquiryId)->exists()) {
+            while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
                 $newEnquiryId = CommonHelper::createId($newEnquiryId);
             }
 
