@@ -6610,32 +6610,35 @@
     }
     
    window.updateMainGuest = function(type, change) {
-        const element = document.getElementById('mainModal' + type.charAt(0).toUpperCase() + type.slice(1));
-        const currentValue = parseInt(element.textContent) || 0;
-        let newValue = Math.max(0, currentValue + change);
-        
-        // For adults, ensure at least 1 adult is selected in total
-        if ((type === 'male' || type === 'female') && change < 0) {
-            const maleEl = document.getElementById('mainModalMale');
-            const femaleEl = document.getElementById('mainModalFemale');
-            const maleCount = maleEl ? parseInt(maleEl.textContent) || 0 : 0;
-           const femaleCount = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
-           
-           const totalAdults = (type === 'male' ? newValue : maleCount) + (type === 'female' ? newValue : femaleCount);
-           
-           if (totalAdults < 1) {
-               return; // Don't allow reducing to 0 adults
-           }
-           
-           // Update total adults display if present
+       const elementId = 'mainModal' + type.charAt(0).toUpperCase() + type.slice(1);
+       const element = document.getElementById(elementId);
+       if (!element) return;
+
+       const currentValue = parseInt(element.textContent) || 0;
+       let newValue = Math.max(0, currentValue + change);
+
+       // Keep adults (male+female) consistent and never allow 0 adults total.
+       if (type === 'male' || type === 'female') {
+           const maleEl = document.getElementById('mainModalMale');
+           const femaleEl = document.getElementById('mainModalFemale');
            const adultsEl = document.getElementById('mainModalAdults');
-           if (adultsEl) {
-               adultsEl.textContent = totalAdults;
-           }
+
+           const maleCount = maleEl ? (parseInt(maleEl.textContent) || 0) : 0;
+           const femaleCount = femaleEl ? (parseInt(femaleEl.textContent) || 0) : 0;
+
+           const nextMale = (type === 'male') ? newValue : maleCount;
+           const nextFemale = (type === 'female') ? newValue : femaleCount;
+           const totalAdults = nextMale + nextFemale;
+
+           if (totalAdults < 1) return;
+
+           element.textContent = newValue;
+           if (adultsEl) adultsEl.textContent = totalAdults;
+           return;
        }
-       
+
        element.textContent = newValue;
-       
+
        // Handle child age dropdowns
        if (type === 'children') {
            updateChildAgeDropdowns(newValue);

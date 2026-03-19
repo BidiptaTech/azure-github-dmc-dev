@@ -300,9 +300,10 @@ class BookingsController extends Controller
                     ->withInput();
             }
 
-            $lastEnquiryId = Enquiry::latest('created_at')->value('enquiry_id') ?? 1;
+            // Include soft-deleted records: enquiry_id is unique, so soft-deleted rows still occupy their ID
+            $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
             $newEnquiryId = CommonHelper::createId($lastEnquiryId);
-            while (Enquiry::where('enquiry_id', $newEnquiryId)->exists()) {
+            while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
                 $newEnquiryId = CommonHelper::createId($newEnquiryId);
             }
 
@@ -793,6 +794,7 @@ class BookingsController extends Controller
                 'agents.company_name as agent_company_name',
                 'created_by_user.name as created_by_name',
                 'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
@@ -858,6 +860,7 @@ class BookingsController extends Controller
                 'agents.company_name as agent_company_name',
                 'created_by_user.name as created_by_name',
                 'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
@@ -939,6 +942,7 @@ class BookingsController extends Controller
                 'agents.company_name as agent_company_name',
                 'created_by_user.name as created_by_name',
                 'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->where(function ($query) use ($today) {
@@ -1012,6 +1016,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
                 'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
@@ -1092,6 +1097,7 @@ class BookingsController extends Controller
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name',
                     'dmc_user.company_code as dmc_company_code',
+                    'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                     'created_by_user.user_code as created_by_user_code'
                 ])
                 ->orderBy('tours.created_at', 'desc')
@@ -1156,6 +1162,7 @@ class BookingsController extends Controller
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name',
                     'dmc_user.company_code as dmc_company_code',
+                    'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                     'created_by_user.user_code as created_by_user_code'
                 ])
                 ->orderBy('tours.created_at', 'desc')
@@ -1524,6 +1531,111 @@ class BookingsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing the refund: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark refund-eligible orders as refunded for a specific tour
+     */
+    public function processOrderRefund(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid tour ID provided'
+                ], 422);
+            }
+
+            $tourId = (int) $request->tour_id;
+
+            $updated = Order::withTrashed()
+                ->where('tour_id', $tourId)
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->update([
+                    'refunded' => true,
+                    'updated_at' => now(),
+                ]);
+
+            if ($updated === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No refund-eligible services found for this tour.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Refunded status updated for refund-marked services.',
+                'tour_id' => $tourId,
+                'updated_orders' => $updated
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating refunded status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark a single refund-eligible order as refunded (by booking_id/id)
+     */
+    public function processOrderRefundByOrder(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id',
+                'order_id' => 'required|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid input provided'
+                ], 422);
+            }
+
+            $tourId = (int) $request->tour_id;
+            $orderId = (int) $request->order_id;
+
+            $order = Order::withTrashed()
+                ->where('tour_id', $tourId)
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->where(function ($q) use ($orderId) {
+                    $q->where('booking_id', $orderId)
+                      ->orWhere('id', $orderId);
+                })
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund order not found for this tour.'
+                ], 404);
+            }
+
+            $order->refunded = true;
+            $order->updated_at = now();
+            $order->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Selected service marked as refunded.',
+                'tour_id' => $tourId,
+                'order_id' => $orderId
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating refunded status: ' . $e->getMessage()
             ], 500);
         }
     }

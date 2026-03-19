@@ -46,7 +46,7 @@
                                 <label for="vehicle_type" class="form-label">Vehicle Type<span class="text-danger">*</span></label>
                                 <select class="form-select @error('vehicle_type') is-invalid @enderror" id="vehicle_type" name="vehicle_type" required>
                                     <option value="">-- Select Vehicle Type --</option>
-                                    <option value="Shraed" {{ old('vehicle_type') == 'Shraed' ? 'selected' : '' }}>Shraed</option>
+                                    <option value="Shared" {{ old('vehicle_type') == 'Shared' ? 'selected' : '' }}>Shared</option>
                                     <option value="Private" {{ old('vehicle_type') == 'Private' ? 'selected' : '' }}>Private</option>
                                     <option value="Both" {{ old('vehicle_type') == 'Both' ? 'selected' : '' }}>Both</option>
                                 </select>
