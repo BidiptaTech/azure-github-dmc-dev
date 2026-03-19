@@ -2509,7 +2509,13 @@
                                                                </div>
                                                                <div class="col-6">
                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Language</small>
-                                                                   <span class="badge bg-success" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                                   @php
+                                                                       $languageValue = $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A';
+                                                                       if (is_array($languageValue)) {
+                                                                           $languageValue = implode(', ', $languageValue);
+                                                                       }
+                                                                   @endphp
+                                                                   <span class="badge bg-success" style="font-size: 0.65rem;">{{ $languageValue }}</span>
                                                                </div>
                                                                @if(isset($booking['guide_options']['tourActivity']) || isset($booking['guide_options']['tour_activity']) || isset($booking['guide_options']['Activity']))
                                                                <div class="col-12">
@@ -3041,6 +3047,17 @@
                                            );
                                        @endphp
                                        @if($hasEntryGuide)
+                                       @php
+                                           $go = $booking['guide_options'] ?? [];
+                                           $entryGuideName = $go['guideName'] ?? $go['guide_name'] ?? $go['name'] ?? 'N/A';
+                                           $entryGuideName = is_array($entryGuideName) ? implode(', ', $entryGuideName) : (string)$entryGuideName;
+                                           $entryGuideService = $go['serviceType'] ?? $go['service_type'] ?? 'N/A';
+                                           $entryGuideService = is_array($entryGuideService) ? implode(', ', $entryGuideService) : (string)$entryGuideService;
+                                           $entryGuideLang = $go['language'] ?? $go['languages'] ?? 'N/A';
+                                           $entryGuideLang = is_array($entryGuideLang) ? implode(', ', $entryGuideLang) : (string)$entryGuideLang;
+                                           $entryGuideHours = $go['hours'] ?? $go['service_hours'] ?? 'N/A';
+                                           $entryGuideHours = is_array($entryGuideHours) ? implode(', ', $entryGuideHours) : (string)$entryGuideHours;
+                                       @endphp
                                        <div class="bg-light rounded p-2 mb-2">
                                            <div class="d-flex align-items-center mb-1">
                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
@@ -3052,16 +3069,16 @@
                                                <div class="col-md-6">
                                                    <div class="bg-white rounded p-1">
                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
-                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}</div>
+                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $entryGuideName }}</div>
                                                        <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
-                                                       <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
-                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                       <span class="badge bg-info" style="font-size: 0.65rem;">{{ $entryGuideService }}</span>
+                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $entryGuideLang }}</span>
                                                    </div>
                                                </div>
                                                <div class="col-md-6">
                                                    <div class="bg-white rounded p-1">
                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Hours / Activity</small>
-                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} H</div>
+                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $entryGuideHours }} H</div>
                                                        @php $arrivalGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
                                                        @if($arrivalGuideCost > 0)
                                                        <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">{{ $currency }} {{ number_format($arrivalGuideCost, 2) }}</div>
@@ -3336,6 +3353,17 @@
                                            );
                                        @endphp
                                        @if($hasExitGuide)
+                                       @php
+                                           $goExit = $booking['guide_options'] ?? [];
+                                           $exitGuideName = $goExit['guideName'] ?? $goExit['guide_name'] ?? $goExit['name'] ?? 'N/A';
+                                           $exitGuideName = is_array($exitGuideName) ? implode(', ', $exitGuideName) : (string)$exitGuideName;
+                                           $exitGuideService = $goExit['serviceType'] ?? $goExit['service_type'] ?? 'N/A';
+                                           $exitGuideService = is_array($exitGuideService) ? implode(', ', $exitGuideService) : (string)$exitGuideService;
+                                           $exitGuideLang = $goExit['language'] ?? $goExit['languages'] ?? 'N/A';
+                                           $exitGuideLang = is_array($exitGuideLang) ? implode(', ', $exitGuideLang) : (string)$exitGuideLang;
+                                           $exitGuideHours = $goExit['hours'] ?? $goExit['service_hours'] ?? 'N/A';
+                                           $exitGuideHours = is_array($exitGuideHours) ? implode(', ', $exitGuideHours) : (string)$exitGuideHours;
+                                       @endphp
                                        <div class="bg-light rounded p-2 mb-2">
                                            <div class="d-flex align-items-center mb-1">
                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
@@ -3347,16 +3375,16 @@
                                                <div class="col-md-6">
                                                    <div class="bg-white rounded p-1">
                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
-                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}</div>
+                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $exitGuideName }}</div>
                                                        <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
-                                                       <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
-                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                       <span class="badge bg-info" style="font-size: 0.65rem;">{{ $exitGuideService }}</span>
+                                                       <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $exitGuideLang }}</span>
                                                    </div>
                                                </div>
                                                <div class="col-md-6">
                                                    <div class="bg-white rounded p-1">
                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Hours / Activity</small>
-                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} H</div>
+                                                       <div class="fw-medium" style="font-size: 0.75rem;">{{ $exitGuideHours }} H</div>
                                                        @php $depGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
                                                        @if($depGuideCost > 0)
                                                        <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">{{ $currency }} {{ number_format($depGuideCost, 2) }}</div>
