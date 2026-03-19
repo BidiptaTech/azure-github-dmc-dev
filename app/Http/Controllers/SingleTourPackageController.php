@@ -601,45 +601,62 @@ class SingleTourPackageController extends Controller
     public function cancelOrder(Request $request, $id)
     {
         try {
-            $order = Order::where('booking_id', $id)->firstOrFail();
+            $requestTourId = (int) $request->input('tour_id', 0);
+
+            $orderQuery = Order::where('booking_id', $id);
+            if ($requestTourId > 0) {
+                $orderQuery->where('tour_id', $requestTourId);
+            }
+            $order = $orderQuery->firstOrFail();
+
             $tourId = (int) $order->tour_id;
             $tour = Tour::where('tour_id', $tourId)->first();
             $tourStatus = $tour ? $tour->tour_status : null;
+            $normalizedTourStatus = strtolower(trim((string) $tourStatus));
+            $isDefiniteOrActual = in_array($normalizedTourStatus, ['definite', 'actual'], true);
 
-            $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
-            $orderType = $order->type ?? '';
+            DB::transaction(function () use ($order, $tourId, $tourStatus, $isDefiniteOrActual) {
+                $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $orderType = $order->type ?? '';
 
-            $serviceType = $orderType;
-            $serviceId = null;
-            $serviceName = null;
+                $serviceType = $orderType;
+                $serviceId = null;
+                $serviceName = null;
 
-            if ($orderType === 'hotel') {
-                $serviceId = $payload['hotelDetails']['hotel_id'] ?? null;
-                $serviceName = $payload['hotelDetails']['hotel_name'] ?? null;
-            } elseif ($orderType === 'guide') {
-                $serviceId = $payload['guide_id'] ?? null;
-                $serviceName = $payload['guide_name'] ?? null;
-            } elseif ($orderType === 'restaurant') {
-                $serviceId = $payload['restaurant_id'] ?? null;
-                $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
-            } elseif ($orderType === 'attraction') {
-                $serviceId = $payload['attraction_id'] ?? null;
-                $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
-            } elseif (in_array($orderType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
-                $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
-                $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $orderType;
-            }
+                if ($orderType === 'hotel') {
+                    $serviceId = $payload['hotelDetails']['hotel_id'] ?? null;
+                    $serviceName = $payload['hotelDetails']['hotel_name'] ?? null;
+                } elseif ($orderType === 'guide') {
+                    $serviceId = $payload['guide_id'] ?? null;
+                    $serviceName = $payload['guide_name'] ?? null;
+                } elseif ($orderType === 'restaurant') {
+                    $serviceId = $payload['restaurant_id'] ?? null;
+                    $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
+                } elseif ($orderType === 'attraction') {
+                    $serviceId = $payload['attraction_id'] ?? null;
+                    $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
+                } elseif (in_array($orderType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+                    $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
+                    $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $orderType;
+                }
 
-            if ($tourStatus !== null) {
-                $currentUser = Auth::user();
-                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
-                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
-                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'deleted', $serviceType, $serviceId, $serviceName);
-            }
+                if ($tourStatus !== null) {
+                    $currentUser = Auth::user();
+                    $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                    $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                    CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'deleted', $serviceType, $serviceId, $serviceName);
+                }
 
-            $order->delete();
+                // For Definite/Actual tours, mark the linked order as refund-eligible before soft delete.
+                if ($isDefiniteOrActual) {
+                    $order->is_refund = 1;
+                    $order->save();
+                }
 
-            CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
+                $order->delete();
+
+                CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
+            });
 
             return response()->json([
                 'success' => true,
@@ -3034,62 +3051,16 @@ class SingleTourPackageController extends Controller
             ]);
                 
             // Format the response with vehicle details and pricing
+            
 
-            // Enforce dropoff zone vehicle_type against vehicles.sharable
-            // Zones.vehicle_type: Shared / Private / Both
-            // Vehicles.sharable: 1=Private, 2=Shared, 3=Both
-            $zoneVehicleType = null;
-            try {
-                $dropoffZoneId = null;
 
-                // Prefer resolved numeric zone id
-                if (is_numeric($actualToZoneId)) {
-                    $dropoffZoneId = (int) $actualToZoneId;
-                } elseif (!empty($toZoneType)) {
-                    // Resolve location id -> zone id (Hotel/Attraction/Restaurant/Port)
-                    $resolved = $this->getActualZoneId($toZoneId, $toZoneType, $dmcId);
-                    if (is_numeric($resolved)) {
-                        $dropoffZoneId = (int) $resolved;
-                    }
-                } elseif (is_numeric($toZoneId)) {
-                    $dropoffZoneId = (int) $toZoneId;
-                }
-
-                if ($dropoffZoneId) {
-                    $zoneVehicleType = DB::table('zones')
-                        ->where('zone_id', $dropoffZoneId)
-                        ->value('vehicle_type');
-                    $zoneVehicleType = is_string($zoneVehicleType) ? trim($zoneVehicleType) : $zoneVehicleType;
-
-                    if (in_array($zoneVehicleType, ['Shared', 'Private', 'Both'], true)) {
-                        $vehicles = collect($vehicles)->filter(function ($vehicle) use ($zoneVehicleType) {
-                            $sharable = isset($vehicle['sharable']) ? (int) $vehicle['sharable'] : null;
-
-                            if ($zoneVehicleType === 'Shared' && $sharable === 1) {
-                                return false;
-                            }
-                            if ($zoneVehicleType === 'Private' && $sharable === 2) {
-                                return false;
-                            }
-                            return true;
-                        })->values();
-                    }
-                }
-            } catch (\Throwable $e) {
-                \Log::warning('Failed to enforce dropoff zone vehicle_type vs sharable', [
-                    'to_zone_id' => $toZoneId ?? null,
-                    'actual_to_zone_id' => $actualToZoneId ?? null,
-                    'to_zone_type' => $toZoneType ?? null,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
+            
             // Debug logging for final response
             \Log::info('Final Vehicle Response', [
                 'from_zone_id' => $actualFromZoneId,
                 'to_zone_id' => $actualToZoneId,
                 'total_vehicles' => count($vehicles),
-                'vehicles_data' => collect($vehicles)->toArray()
+                'vehicles_data' => $vehicles->toArray()
             ]);
             
             return response()->json([
@@ -3099,8 +3070,7 @@ class SingleTourPackageController extends Controller
                 'from_zone_id' => $actualFromZoneId,
                 'to_zone_id' => $actualToZoneId,
                 'original_from_zone_id' => $fromZoneId,
-                'original_to_zone_id' => $toZoneId,
-                'zone_vehicle_type' => $zoneVehicleType,
+                'original_to_zone_id' => $toZoneId
             ]);
 
         } catch (\Exception $e) {
