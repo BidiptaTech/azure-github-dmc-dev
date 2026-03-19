@@ -1322,12 +1322,26 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+            $refundTourIds = Order::withTrashed()
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->pluck('tour_id')
+                ->unique()
+                ->toArray();
+
             $tours = Tour::with([
                 'booking' => function ($query) {
-                    $query->where('bookingType', 'booking');
+                    $query->withTrashed()
+                          ->where('bookingType', 'booking')
+                          ->where('is_refund', 1);
                 }
             ])
-            ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
+            ->where(function ($query) use ($refundTourIds) {
+                $query->whereIn('tour_status', ['Refund - Pending', 'Refunded']);
+                if (!empty($refundTourIds)) {
+                    $query->orWhereIn('tours.tour_id', $refundTourIds);
+                }
+            })
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1384,12 +1398,27 @@ class BookingsController extends Controller
         }
 
         if($dmc_id){
+            $refundTourIds = Order::withTrashed()
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->where('tour_id', '>', 0)
+                ->pluck('tour_id')
+                ->unique()
+                ->toArray();
+
             $tours = Tour::with([
                 'booking' => function ($query) {
-                    $query->where('bookingType', 'booking');
+                    $query->withTrashed()
+                          ->where('bookingType', 'booking')
+                          ->where('is_refund', 1);
                 }
             ])
-            ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
+            ->where(function ($query) use ($refundTourIds) {
+                $query->whereIn('tour_status', ['Refund - Pending', 'Refunded']);
+                if (!empty($refundTourIds)) {
+                    $query->orWhereIn('tours.tour_id', $refundTourIds);
+                }
+            })
             ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')

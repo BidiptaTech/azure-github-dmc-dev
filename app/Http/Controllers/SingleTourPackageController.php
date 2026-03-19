@@ -601,45 +601,62 @@ class SingleTourPackageController extends Controller
     public function cancelOrder(Request $request, $id)
     {
         try {
-            $order = Order::where('booking_id', $id)->firstOrFail();
+            $requestTourId = (int) $request->input('tour_id', 0);
+
+            $orderQuery = Order::where('booking_id', $id);
+            if ($requestTourId > 0) {
+                $orderQuery->where('tour_id', $requestTourId);
+            }
+            $order = $orderQuery->firstOrFail();
+
             $tourId = (int) $order->tour_id;
             $tour = Tour::where('tour_id', $tourId)->first();
             $tourStatus = $tour ? $tour->tour_status : null;
+            $normalizedTourStatus = strtolower(trim((string) $tourStatus));
+            $isDefiniteOrActual = in_array($normalizedTourStatus, ['definite', 'actual'], true);
 
-            $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
-            $orderType = $order->type ?? '';
+            DB::transaction(function () use ($order, $tourId, $tourStatus, $isDefiniteOrActual) {
+                $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $orderType = $order->type ?? '';
 
-            $serviceType = $orderType;
-            $serviceId = null;
-            $serviceName = null;
+                $serviceType = $orderType;
+                $serviceId = null;
+                $serviceName = null;
 
-            if ($orderType === 'hotel') {
-                $serviceId = $payload['hotelDetails']['hotel_id'] ?? null;
-                $serviceName = $payload['hotelDetails']['hotel_name'] ?? null;
-            } elseif ($orderType === 'guide') {
-                $serviceId = $payload['guide_id'] ?? null;
-                $serviceName = $payload['guide_name'] ?? null;
-            } elseif ($orderType === 'restaurant') {
-                $serviceId = $payload['restaurant_id'] ?? null;
-                $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
-            } elseif ($orderType === 'attraction') {
-                $serviceId = $payload['attraction_id'] ?? null;
-                $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
-            } elseif (in_array($orderType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
-                $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
-                $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $orderType;
-            }
+                if ($orderType === 'hotel') {
+                    $serviceId = $payload['hotelDetails']['hotel_id'] ?? null;
+                    $serviceName = $payload['hotelDetails']['hotel_name'] ?? null;
+                } elseif ($orderType === 'guide') {
+                    $serviceId = $payload['guide_id'] ?? null;
+                    $serviceName = $payload['guide_name'] ?? null;
+                } elseif ($orderType === 'restaurant') {
+                    $serviceId = $payload['restaurant_id'] ?? null;
+                    $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
+                } elseif ($orderType === 'attraction') {
+                    $serviceId = $payload['attraction_id'] ?? null;
+                    $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
+                } elseif (in_array($orderType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+                    $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
+                    $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $orderType;
+                }
 
-            if ($tourStatus !== null) {
-                $currentUser = Auth::user();
-                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
-                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
-                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'deleted', $serviceType, $serviceId, $serviceName);
-            }
+                if ($tourStatus !== null) {
+                    $currentUser = Auth::user();
+                    $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                    $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                    CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'deleted', $serviceType, $serviceId, $serviceName);
+                }
 
-            $order->delete();
+                // For Definite/Actual tours, mark the linked order as refund-eligible before soft delete.
+                if ($isDefiniteOrActual) {
+                    $order->is_refund = 1;
+                    $order->save();
+                }
 
-            CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
+                $order->delete();
+
+                CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
+            });
 
             return response()->json([
                 'success' => true,
