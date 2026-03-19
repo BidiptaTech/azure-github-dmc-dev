@@ -23814,8 +23814,6 @@
                 
                 entryPortData.push({
                     id: item.id || `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                    booking_id: item.bookingId || item.booking_id || null,
-                    bookingId: item.bookingId || item.booking_id || null,
                     bookingDate: bookingDate,
                     date: bookingDate,
                     dateTime: item.dateTime || "",
@@ -23978,8 +23976,6 @@
                 
                 exitPortData.push({
                     id: item.id || `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                    booking_id: item.bookingId || item.booking_id || null,
-                    bookingId: item.bookingId || item.booking_id || null,
                     fullName: customerInfo.fullName,
                     email: customerInfo.email,
                     phone: customerInfo.phone,
@@ -24246,8 +24242,6 @@
                 
                 // Booking identifiers
                 id: hotel.id || null,
-                booking_id: hotel.bookingId || hotel.booking_id || null,
-                bookingId: hotel.bookingId || hotel.booking_id || null,
                 bookingType: "enquiry",
                 bookingDate: [checkInDate, checkOutDate],
                 
@@ -24365,8 +24359,6 @@
                 zip: customerInfo.zip,
                 specialRequests: customerInfo.specialRequests,
                 id: tour.id || null,
-                booking_id: tour.bookingId || tour.booking_id || null,
-                bookingId: tour.bookingId || tour.booking_id || null,
                 bookingDate: normalizeDateToYYYYMMDD(tour.dateTime),
                 date: normalizeDateToYYYYMMDD(tour.dateTime),
                 dateTime: tour.dateTime || "",
@@ -24557,8 +24549,6 @@
                 zip: customerInfo.zip,
                 specialRequests: customerInfo.specialRequests,
                 id: meal.id || null,
-                booking_id: meal.bookingId || meal.booking_id || null,
-                bookingId: meal.bookingId || meal.booking_id || null,
                 bookingDate: normalizeDateToYYYYMMDD(meal.dateTime),
                 date: normalizeDateToYYYYMMDD(meal.dateTime),
                 dateTime: meal.dateTime || "",
@@ -24776,8 +24766,7 @@
                 language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
                 experience: guide.experience || 0,
                 price: parseFloat(guide.adultSell) || 0,
-                booking_id: guide.bookingId || guide.booking_id || null,
-                bookingId: guide.bookingId || guide.booking_id || null,
+                booking_id: guide.booking_id || 0,
                 supplement: guide.supplement || false
             };
         });
@@ -24884,8 +24873,6 @@
             
             const transferData = {
                 id: transfer.id || null,
-                booking_id: transfer.bookingId || transfer.booking_id || null,
-                bookingId: transfer.bookingId || transfer.booking_id || null,
                 bookingDate: bookingDate,
                 date: bookingDate,
                 dateTime: transfer.dateTime || "",
@@ -25013,8 +25000,6 @@
         
         return miscList.map(misc => ({
             id: misc.id || `misc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            booking_id: misc.bookingId || misc.booking_id || null,
-            bookingId: misc.bookingId || misc.booking_id || null,
             itemId: misc.itemId || '',
             destination: misc.destination || '',
             bookingDate: normalizeDateToYYYYMMDD(misc.dateTime),

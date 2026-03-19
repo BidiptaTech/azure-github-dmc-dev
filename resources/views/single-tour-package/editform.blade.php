@@ -6023,13 +6023,29 @@
                                 </h6>
                             </div>
                             <div class="card-body" style="padding: 1rem 0.875rem;">
+                                <!-- Adults Total -->
+                                <div class="guest-counter mb-3">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                        <i class="ri-user-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Adults
+                                    </label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn" onclick="updateTourAdults(-1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <span class="mx-3 fw-bold" id="tourModalAdults" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                        <button type="button" class="btn" onclick="updateTourAdults(1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <!-- Male -->
                                 <div class="guest-counter mb-3">
                                     <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
                                         <i class="ri-user-3-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Male
                                     </label>
                                     <div class="d-flex align-items-center justify-content-center">
-                                        <button type="button" class="btn" onclick="decrementTourCount('tour_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                        <button type="button" class="btn" onclick="updateTourGuest('male', -1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                             <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                         <input
@@ -6043,7 +6059,7 @@
                                             readonly
                                             style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
                                         >
-                                        <button type="button" class="btn" onclick="incrementTourCount('tour_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                        <button type="button" class="btn" onclick="updateTourGuest('male', 1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                             <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                     </div>
@@ -6055,7 +6071,7 @@
                                         <i class="ri-user-4-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Female
                                     </label>
                                     <div class="d-flex align-items-center justify-content-center">
-                                        <button type="button" class="btn" onclick="decrementTourCount('tour_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                        <button type="button" class="btn" onclick="updateTourFemale(-1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                             <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                         <input
@@ -6069,7 +6085,7 @@
                                             readonly
                                             style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
                                         >
-                                        <button type="button" class="btn" onclick="incrementTourCount('tour_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                        <button type="button" class="btn" onclick="updateTourFemale(1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                             <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                     </div>
@@ -6192,6 +6208,15 @@
                                     </h6>
                             </div>
                                 <div class="card-body" style="padding: 1rem 0.875rem;">
+                                    <!-- Adults Total (Male + Female) -->
+                                    <div class="guest-counter mb-3">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Adults (Total)
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <span class="mx-3 fw-bold" id="modalAdultsTotal" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                        </div>
+                                    </div>
                                     <!-- Male -->
                                     <div class="guest-counter mb-3">
                                         <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
@@ -6870,6 +6895,15 @@
                                     </h6>
                             </div>
                                 <div class="card-body" style="padding: 1rem 0.875rem;">
+                                    <!-- Adults Total (Male + Female) -->
+                                    <div class="guest-counter mb-3">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Adults (Total)
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <span class="mx-3 fw-bold" id="attractionModalAdultsTotal" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                        </div>
+                                    </div>
                                     <!-- Male -->
                                     <div class="guest-counter mb-3">
                                         <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
@@ -10784,6 +10818,35 @@
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
         }
+
+        // Extra rule: lock Service Type options based on dropoff zone vehicle_type (Shared/Private/Both).
+        // This must apply even when vehicle.sharable = 3 (Both).
+        try {
+            const zoneMap = window.zoneVehicleTypeByServiceTypeSelectId || {};
+            const zoneVehicleType = String(zoneMap[serviceTypeSelectId] || '').trim();
+            if (zoneVehicleType === 'Shared' || zoneVehicleType === 'Private') {
+                const privateOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Private');
+                const sharedOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Shared');
+                if (privateOpt) privateOpt.disabled = false;
+                if (sharedOpt) sharedOpt.disabled = false;
+
+                if (zoneVehicleType === 'Shared' && privateOpt) {
+                    privateOpt.disabled = true;
+                    if (sharedOpt) serviceTypeSelect.value = 'Shared';
+                } else if (zoneVehicleType === 'Private' && sharedOpt) {
+                    sharedOpt.disabled = true;
+                    if (privateOpt) serviceTypeSelect.value = 'Private';
+                }
+
+                // Trigger pricing update after auto-selection
+                serviceTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                if (serviceTypeSelectId === 'local_transfer_service_type') {
+                    setTimeout(() => updateLocalTransferPricing(), 100);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to apply zone vehicle type UI lock (edit form)', e);
+        }
         serviceTypeSelect.disabled = false;
         console.log('Service type options updated for local transfer');
     }
@@ -11805,6 +11868,7 @@
         const infantsElem = document.getElementById('attraction_modal_infants');
         const maleCountElem = document.getElementById('attraction_modal_male_count');
         const femaleCountElem = document.getElementById('attraction_modal_female_count');
+        const adultsTotalElem = document.getElementById('attractionModalAdultsTotal');
         
         const children = parseInt(childrenElem?.value || '0') || 0;
         const infants = parseInt(infantsElem?.value || '0') || 0;
@@ -11818,6 +11882,11 @@
         // Adults = male + female, Pax = adults + children
         const adults = maleCount + femaleCount;
         let pax = adults + children;
+        
+        // Update Adults (Total) display
+        if (adultsTotalElem) {
+            adultsTotalElem.textContent = String(adults);
+        }
         
         // Enforce tour pax limit
         if (tourMaxPax > 0 && pax > tourMaxPax) {
@@ -13417,6 +13486,14 @@
         })
         .then(data => {
             console.log('Zone-based vehicle search response:', data);
+
+            // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+            try {
+                window.zoneVehicleTypeByServiceTypeSelectId = window.zoneVehicleTypeByServiceTypeSelectId || {};
+                window.zoneVehicleTypeByServiceTypeSelectId['modal_transport_service_type'] = String(data.zone_vehicle_type || '').trim();
+            } catch (e) {
+                console.warn('Failed to store zone_vehicle_type for modal transport UI', e);
+            }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
                 // Show the vehicle results section
@@ -13725,9 +13802,41 @@
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
         }
+
+        // Extra rule: lock Service Type options based on dropoff zone vehicle_type (Shared/Private/Both).
+        // Applies even when sharable = 3 (Both).
+        try {
+            const zoneMap = window.zoneVehicleTypeByServiceTypeSelectId || {};
+            const zoneVehicleType = String(zoneMap['modal_transport_service_type'] || '').trim();
+            if (zoneVehicleType === 'Shared' || zoneVehicleType === 'Private') {
+                const privateOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Private');
+                const sharedOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Shared');
+
+                if (privateOpt) privateOpt.disabled = false;
+                if (sharedOpt) sharedOpt.disabled = false;
+
+                if (zoneVehicleType === 'Shared' && privateOpt) {
+                    privateOpt.disabled = true;
+                    if (sharedOpt) serviceTypeSelect.value = 'Shared';
+                } else if (zoneVehicleType === 'Private' && sharedOpt) {
+                    sharedOpt.disabled = true;
+                    if (privateOpt) serviceTypeSelect.value = 'Private';
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to apply zone vehicle type UI lock (transport modal)', e);
+        }
         
         serviceTypeSelect.disabled = false;
         console.log('Service type options updated for transport modal');
+
+        // If Select2 is used, force it to refresh disabled options + value
+        if (typeof jQuery !== 'undefined') {
+            const $el = jQuery(serviceTypeSelect);
+            if ($el.data('select2')) {
+                $el.trigger('change.select2');
+            }
+        }
     }
     
     function searchLocalTransferVehicles() {
@@ -13814,6 +13923,14 @@
             .then(response => response.json())
             .then(data => {
                 console.log('Vehicle search response (zone-based):', data);
+
+                // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+                try {
+                    window.zoneVehicleTypeByServiceTypeSelectId = window.zoneVehicleTypeByServiceTypeSelectId || {};
+                    window.zoneVehicleTypeByServiceTypeSelectId['local_transfer_service_type'] = String(data.zone_vehicle_type || '').trim();
+                } catch (e) {
+                    console.warn('Failed to store zone_vehicle_type for local transfer UI', e);
+                }
                 
                 const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
                 const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
@@ -14182,6 +14299,14 @@
         .then(response => response.json())
         .then(data => {
             console.log('Zone-based dropoff vehicle search response:', data);
+
+            // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+            try {
+                window.zoneVehicleTypeByServiceTypeSelectId = window.zoneVehicleTypeByServiceTypeSelectId || {};
+                window.zoneVehicleTypeByServiceTypeSelectId['modal_dropoff_transport_service_type'] = String(data.zone_vehicle_type || '').trim();
+            } catch (e) {
+                console.warn('Failed to store zone_vehicle_type for dropoff transport UI', e);
+            }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
                     // Show the vehicle results section
@@ -20044,6 +20169,9 @@
         document.getElementById('tour_female_count').value = femaleCount;
         document.getElementById('tour_children_count').value = children;
         document.getElementById('tour_infants_count').value = infants;
+
+        // Set total adults display (male + female)
+        updateTourAdultsDisplay();
         
         // Update child age selects
         updateChildAgeSelects(children, existingAges);
@@ -20054,6 +20182,98 @@
         // Open modal
         const modal = new bootstrap.Modal(document.getElementById('tourGuestSelectorModal'));
         modal.show();
+    }
+
+    function updateTourAdultsDisplay() {
+        const adultsEl = document.getElementById('tourModalAdults');
+        if (!adultsEl) return;
+        const male = parseInt(document.getElementById('tour_male_count')?.value) || 0;
+        const female = parseInt(document.getElementById('tour_female_count')?.value) || 0;
+        adultsEl.textContent = male + female;
+    }
+
+    // Update total adults; when adults increased, add to male by default
+    function updateTourAdults(change) {
+        const maleEl = document.getElementById('tour_male_count');
+        const femaleEl = document.getElementById('tour_female_count');
+        const adultsEl = document.getElementById('tourModalAdults');
+        if (!maleEl || !femaleEl || !adultsEl) return;
+
+        let male = parseInt(maleEl.value) || 0;
+        let female = parseInt(femaleEl.value) || 0;
+        const currentAdults = male + female;
+
+        // Keep at least 1 adult (same behavior as create)
+        let newAdults = Math.max(1, currentAdults + change);
+
+        if (newAdults > currentAdults) {
+            male += (newAdults - currentAdults);
+        } else if (newAdults < currentAdults) {
+            let toRemove = currentAdults - newAdults;
+            const removableFromMale = Math.min(male, toRemove);
+            male -= removableFromMale;
+            toRemove -= removableFromMale;
+            if (toRemove > 0) {
+                female = Math.max(0, female - toRemove);
+            }
+            newAdults = male + female;
+        }
+
+        maleEl.value = male;
+        femaleEl.value = female;
+        adultsEl.textContent = newAdults;
+        updateTourGuestSummary();
+    }
+
+    // Update male/female directly; don't allow total adults to drop below 1
+    function updateTourGuest(type, change) {
+        const fieldId = type === 'male' ? 'tour_male_count' : 'tour_female_count';
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+
+        const maleEl = document.getElementById('tour_male_count');
+        const femaleEl = document.getElementById('tour_female_count');
+        if (!maleEl || !femaleEl) return;
+
+        const currentValue = parseInt(field.value) || 0;
+        let newValue = Math.max(0, currentValue + change);
+
+        // Enforce at least 1 adult total when decrementing adults
+        if (change < 0) {
+            const male = parseInt(maleEl.value) || 0;
+            const female = parseInt(femaleEl.value) || 0;
+            const totalAdults = (type === 'male' ? newValue : male) + (type === 'female' ? newValue : female);
+            if (totalAdults < 1) return;
+        }
+
+        field.value = newValue;
+        updateTourAdultsDisplay();
+        updateTourGuestSummary();
+    }
+
+    // When clicking female +/-: move count between male and female, keeping adults total same
+    function updateTourFemale(change) {
+        const maleEl = document.getElementById('tour_male_count');
+        const femaleEl = document.getElementById('tour_female_count');
+        if (!maleEl || !femaleEl) return;
+
+        let male = parseInt(maleEl.value) || 0;
+        let female = parseInt(femaleEl.value) || 0;
+
+        if (change > 0) {
+            if (male <= 0) return;
+            male -= 1;
+            female += 1;
+        } else if (change < 0) {
+            if (female <= 0) return;
+            female -= 1;
+            male += 1;
+        }
+
+        maleEl.value = male;
+        femaleEl.value = female;
+        updateTourAdultsDisplay();
+        updateTourGuestSummary();
     }
     
     function incrementTourCount(fieldId) {
@@ -20093,69 +20313,112 @@
     function updateChildAgeSelects(childrenCount, existingAges = []) {
         const container = document.getElementById('tour_child_ages_container');
         const listContainer = document.getElementById('tour_child_ages_list');
-        
         if (!container || !listContainer) return;
-        
-        // If existingAges is not provided, try to get from current selects
+
+        // Capture existing selections (prevents flicker / lost focus when updating)
         if (existingAges.length === 0) {
-            const currentCount = parseInt(document.getElementById('tour_children_count').value) || 0;
-            for (let i = 1; i <= currentCount; i++) {
-                const ageSelect = document.getElementById(`tour_child_age_${i}`);
-                if (ageSelect && ageSelect.value) {
-                    existingAges.push(ageSelect.value);
-                } else {
-                    existingAges.push('');
+            const selects = listContainer.querySelectorAll('select[id^="tour_child_age_"]');
+            if (selects.length > 0) {
+                selects.forEach((sel) => existingAges.push(sel.value || ''));
+            } else {
+                const currentCount = parseInt(document.getElementById('tour_children_count')?.value) || 0;
+                for (let i = 1; i <= currentCount; i++) {
+                    const ageSelect = document.getElementById(`tour_child_age_${i}`);
+                    existingAges.push(ageSelect?.value || '');
                 }
             }
         }
-        
-        // Show/hide container based on children count
-        if (childrenCount > 0) {
-            container.style.display = 'block';
-            
-            // Clear existing selects
-            listContainer.innerHTML = '';
-            
-            // Create select boxes for each child
-            for (let i = 1; i <= childrenCount; i++) {
-                const selectWrapper = document.createElement('div');
-                selectWrapper.className = 'mb-2';
-                
-                const label = document.createElement('label');
-                label.className = 'form-label mb-1 small fw-semibold';
-                label.textContent = `Child ${i}:`;
-                label.setAttribute('for', `tour_child_age_${i}`);
-                
-                const select = document.createElement('select');
-                select.className = 'form-select form-select-sm';
-                select.id = `tour_child_age_${i}`;
-                select.name = `tour_child_age_${i}`;
-                
-                // Add default option
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = 'Select age';
-                select.appendChild(defaultOption);
-                
-                // Add age options (1-17)
-                for (let age = 1; age <= 17; age++) {
-                    const option = document.createElement('option');
-                    option.value = age;
-                    option.textContent = age;
-                    // Select existing age if available
-                    if (existingAges.length >= i && existingAges[i - 1] == age) {
-                        option.selected = true;
-                    }
-                    select.appendChild(option);
-                }
-                
-                selectWrapper.appendChild(label);
-                selectWrapper.appendChild(select);
-                listContainer.appendChild(selectWrapper);
-            }
-        } else {
+
+        if (childrenCount <= 0) {
             container.style.display = 'none';
-            listContainer.innerHTML = '';
+            // Remove nodes instead of innerHTML reset (less layout churn)
+            while (listContainer.firstChild) listContainer.removeChild(listContainer.firstChild);
+            return;
+        }
+
+        container.style.display = 'block';
+
+        const buildAgeOptions = (selectedValue) => {
+            const frag = document.createDocumentFragment();
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Select age';
+            frag.appendChild(defaultOption);
+
+            for (let age = 1; age <= 17; age++) {
+                const option = document.createElement('option');
+                option.value = String(age);
+                option.textContent = String(age);
+                if (String(selectedValue || '') === String(age)) option.selected = true;
+                frag.appendChild(option);
+            }
+            return frag;
+        };
+
+        const ensureRow = (i) => {
+            const existingSelect = document.getElementById(`tour_child_age_${i}`);
+            if (existingSelect) {
+                // Ensure Select2 (or other enhancers) don't attach to these dynamic selects
+                existingSelect.classList.add('child-age-select');
+                existingSelect.setAttribute('data-no-select2', 'true');
+                return;
+            }
+
+            const selectWrapper = document.createElement('div');
+            selectWrapper.className = 'mb-2';
+            selectWrapper.dataset.childIndex = String(i);
+
+            const label = document.createElement('label');
+            label.className = 'form-label mb-1 small fw-semibold';
+            label.textContent = `Child ${i}:`;
+            label.setAttribute('for', `tour_child_age_${i}`);
+
+            const select = document.createElement('select');
+            select.className = 'form-select form-select-sm child-age-select';
+            select.id = `tour_child_age_${i}`;
+            select.name = `tour_child_age_${i}`;
+            // Prevent Select2 from being initialized on these dynamic child age selects
+            select.setAttribute('data-no-select2', 'true');
+
+            selectWrapper.appendChild(label);
+            selectWrapper.appendChild(select);
+            listContainer.appendChild(selectWrapper);
+        };
+
+        // Add missing rows
+        for (let i = 1; i <= childrenCount; i++) {
+            ensureRow(i);
+        }
+
+        // Remove extra rows (from end)
+        let existingRows = listContainer.querySelectorAll('[data-child-index]');
+        while (existingRows.length > childrenCount) {
+            listContainer.removeChild(existingRows[existingRows.length - 1]);
+            existingRows = listContainer.querySelectorAll('[data-child-index]');
+        }
+
+        // Update labels/options without replacing the whole container
+        for (let i = 1; i <= childrenCount; i++) {
+            const row = listContainer.querySelector(`[data-child-index="${i}"]`);
+            const label = row?.querySelector('label');
+            const select = row?.querySelector('select');
+            if (!row || !label || !select) continue;
+
+            // Ensure Select2 (or other enhancers) don't attach to these dynamic selects
+            select.classList.add('child-age-select');
+            select.setAttribute('data-no-select2', 'true');
+
+            label.textContent = `Child ${i}:`;
+            label.setAttribute('for', `tour_child_age_${i}`);
+
+            // Preserve selection if possible
+            const desiredValue = existingAges[i - 1] ?? select.value ?? '';
+            const hadOptions = select.options && select.options.length > 0;
+            if (!hadOptions) {
+                select.appendChild(buildAgeOptions(desiredValue));
+            } else if (select.value !== desiredValue) {
+                select.value = desiredValue;
+            }
         }
     }
     
@@ -20361,6 +20624,7 @@
         const childrenElem = document.getElementById('modal_children');
         const maleCountElem = document.getElementById('modal_male_count');
         const femaleCountElem = document.getElementById('modal_female_count');
+        const adultsTotalElem = document.getElementById('modalAdultsTotal');
         
         const children = parseInt(childrenElem?.value || '0') || 0;
         const infants = parseInt(document.getElementById('modal_infants')?.value || '0') || 0;
@@ -20373,6 +20637,11 @@
         // Calculate pax as the sum of adults (male + female) + children
         const adults = maleCount + femaleCount;
         let pax = adults + children;
+        
+        // Update Adults (Total) display
+        if (adultsTotalElem) {
+            adultsTotalElem.textContent = String(adults);
+        }
         
         // Enforce tour pax limit
         if (tourMaxPax > 0 && pax > tourMaxPax) {
@@ -24084,6 +24353,14 @@
             });
             
             const data = await response.json();
+
+            // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+            try {
+                window.zoneVehicleTypeByBookingId = window.zoneVehicleTypeByBookingId || {};
+                window.zoneVehicleTypeByBookingId[bookingId] = String(data.zone_vehicle_type || '').trim();
+            } catch (e) {
+                console.warn('Failed to store zone_vehicle_type for departure booking', bookingId, e);
+            }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
                 // Populate vehicle dropdown
@@ -24178,6 +24455,34 @@
                 sharedOption.disabled = true;
                 sharedOption.style.display = 'none';
             }
+        }
+
+        // Extra rule: lock Service Type options based on dropoff zone vehicle_type (Shared/Private/Both)
+        // Applies even when sharable = 3 (Both).
+        try {
+            const zmap = window.zoneVehicleTypeByBookingId || {};
+            const zoneVehicleType = String(zmap[bookingId] || '').trim();
+            if (zoneVehicleType === 'Shared' || zoneVehicleType === 'Private') {
+                // Ensure both are visible before applying the lock, then disable the forbidden one.
+                if (privateOption) {
+                    privateOption.style.display = '';
+                    privateOption.disabled = false;
+                }
+                if (sharedOption) {
+                    sharedOption.style.display = '';
+                    sharedOption.disabled = false;
+                }
+
+                if (zoneVehicleType === 'Shared' && privateOption) {
+                    privateOption.disabled = true;
+                    if (sharedOption) serviceTypeSelect.value = 'Shared';
+                } else if (zoneVehicleType === 'Private' && sharedOption) {
+                    sharedOption.disabled = true;
+                    if (privateOption) serviceTypeSelect.value = 'Private';
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to apply zone vehicle type UI lock (departure)', bookingId, e);
         }
         
         // Set default value based on available options

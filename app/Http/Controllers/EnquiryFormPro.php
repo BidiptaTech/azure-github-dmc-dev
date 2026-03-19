@@ -2872,32 +2872,24 @@ class EnquiryFormPro extends Controller
                 'agent_id' => $request->agent_id
             ]);
             
-            // Handle orders marked for deletion - use SOFT delete (deleted_at)
+            // Handle orders marked for deletion (force-delete so no deleted_at lingers)
             if ($request->has('orders_to_delete') && !empty($request->orders_to_delete)) {
                 $ordersToDelete = json_decode($request->orders_to_delete, true);
                 if (is_array($ordersToDelete) && count($ordersToDelete) > 0) {
-                    \Log::info('Soft-deleting orders', ['booking_ids' => $ordersToDelete]);
-                    $softDeleted = Order::where('tour_id', $tour_id)
+                    \Log::info('Deleting orders', ['booking_ids' => $ordersToDelete]);
+                    Order::withTrashed()
+                        ->where('tour_id', $tour_id)
                         ->whereIn('booking_id', $ordersToDelete)
-                        ->delete();
-                    if ($softDeleted > 0) {
-                        CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                    }
+                        ->forceDelete();
                 }
             }
             
-            // Determine booking type:
-            // - If any service was removed (and tour in enquiry_comments): type = enquiry for all
-            // - If add-only (no removal): type = booking when tour_status in (confirmed, definite, actual), else enquiry
-            $hadServiceRemoval = false;
-            if ($request->has('orders_to_delete') && !empty($request->orders_to_delete)) {
-                $ordersToDelete = json_decode($request->orders_to_delete, true);
-                $hadServiceRemoval = is_array($ordersToDelete) && count($ordersToDelete) > 0;
-            }
-            $tour->refresh(); // Get latest tour_status (may have been reverted by maybeRevertTourStatusToNewEnquiry)
-            $currentTourStatus = $tour->tour_status ?? '';
-            $bookingStatuses = ['Confirmed', 'Definite', 'Actual'];
-            $bookingType = $hadServiceRemoval ? 'enquiry' : (in_array($currentTourStatus, $bookingStatuses, true) ? 'booking' : 'enquiry');
+            // Collect all existing booking_ids to track what we're updating
+            $existingBookingIds = Order::where('tour_id', $tour_id)->pluck('booking_id')->toArray();
+            \Log::info('Existing booking IDs before update', ['booking_ids' => $existingBookingIds]);
+            
+            // Determine booking type
+            $bookingType = 'enquiry';
             
             // Update or create orders for each service type
             // Note: We'll update existing orders by booking_id or create new ones
@@ -2905,15 +2897,25 @@ class EnquiryFormPro extends Controller
             $updatedOrders = [];
             $processedBookingIds = []; // Track processed booking IDs to prevent duplicates
             
-            // 1. Entry Port Orders (Arrival) - update/create/soft-delete
-            $entryPortBookingIds = [];
+            // 1. Entry Port Orders (Arrival)
+            // ALWAYS delete existing entry_port orders first, then recreate if there are new ones
+            $deletedEntryPorts = Order::withTrashed()->where('tour_id', $tour_id)
+                ->where('type', 'entry_port')
+                ->forceDelete();
+            \Log::info('Force-deleted existing entry_port orders', ['count' => $deletedEntryPorts, 'tour_id' => $tour_id]);
+            
             if ($request->has('entry_port') && !empty($request->entry_port)) {
                 $entryPorts = json_decode($request->entry_port, true);
                 if (!is_array($entryPorts)) {
                     $entryPorts = $entryPorts ? [$entryPorts] : [];
                 }
+                
+                // Use a set to track unique entries to prevent duplicates within the same request
                 $seenEntries = [];
+                
                 foreach ($entryPorts as $entryPort) {
+                    // Create a unique identifier using frontend-generated id as primary key
+                    // This ensures same port with different configurations are all saved
                     $uniqueKey = md5(json_encode([
                         'id' => $entryPort['id'] ?? '',
                         'port_id' => $entryPort['port_id'] ?? '',
@@ -2921,8 +2923,15 @@ class EnquiryFormPro extends Controller
                         'bookingDate' => $entryPort['bookingDate'] ?? '',
                         'type' => $entryPort['type'] ?? ''
                     ]));
-                    if (in_array($uniqueKey, $seenEntries)) continue;
+                    
+                    // Skip if we've already processed this exact entry
+                    if (in_array($uniqueKey, $seenEntries)) {
+                        \Log::info('Skipping duplicate entry_port within request', ['unique_key' => $uniqueKey, 'port' => $entryPort['port_name'] ?? '']);
+                        continue;
+                    }
                     $seenEntries[] = $uniqueKey;
+                    
+                    // Get vehicle details from database if vehicle_id exists
                     if (!empty($entryPort['vehicle_id'])) {
                         $vehicleDetails = $this->getVehicleDetails($entryPort['vehicle_id']);
                         if ($vehicleDetails) {
@@ -2935,28 +2944,16 @@ class EnquiryFormPro extends Controller
                             $entryPort['image'] = $vehicleDetails['image'];
                         }
                     }
+                    
+                    // Normalize transfer type
                     if (!empty($entryPort['type'])) {
                         $entryPort['type'] = $this->normalizeTransferType($entryPort['type']);
                     }
+                    
+                    // Add tour_id to the JSON data
                     $entryPort['tour_id'] = $tour_id;
-                    $existingBookingId = $entryPort['booking_id'] ?? $entryPort['bookingId'] ?? null;
-                    if ($existingBookingId) {
-                        $existingOrder = Order::where('tour_id', $tour_id)->where('booking_id', $existingBookingId)->where('type', 'entry_port')->first();
-                        if ($existingOrder) {
-                            $existingOrder->update([
-                                'data' => [$entryPort],
-                                'bookingType' => $bookingType,
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $entryPortBookingIds[] = $existingBookingId;
-                            $updatedOrders[] = ['type' => 'entry_port', 'booking_id' => $existingBookingId];
-                            continue;
-                        }
-                    }
+                    
+                    // Create new order (always create new since we deleted all existing ones)
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -2971,19 +2968,18 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    $entryPortBookingIds[] = $bookingId;
+                    
                     $createdOrders[] = ['type' => 'entry_port', 'booking_id' => $bookingId];
                 }
             }
-            $toSoftDelete = Order::where('tour_id', $tour_id)->where('type', 'entry_port')->whereNotIn('booking_id', $entryPortBookingIds)->get();
-            foreach ($toSoftDelete as $ord) {
-                $ord->delete();
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                $bookingType = 'enquiry';
-            }
             
-            // 2. Exit Port Orders (Departure) - update/create/soft-delete
-            $exitPortBookingIds = [];
+            // 2. Exit Port Orders (Departure)
+            // ALWAYS delete existing exit_port orders first, then recreate if there are new ones
+            $deletedExitPorts = Order::withTrashed()->where('tour_id', $tour_id)
+                ->where('type', 'exit_port')
+                ->forceDelete();
+            \Log::info('Force-deleted existing exit_port orders', ['count' => $deletedExitPorts, 'tour_id' => $tour_id]);
+            
             if ($request->has('exit_port') && !empty($request->exit_port)) {
                 $exitPorts = json_decode($request->exit_port, true);
                 if (!is_array($exitPorts)) {
@@ -3030,25 +3026,10 @@ class EnquiryFormPro extends Controller
                         $exitPort['type'] = $this->normalizeTransferType($exitPort['type']);
                     }
                     
+                    // Add tour_id to the JSON data
                     $exitPort['tour_id'] = $tour_id;
-                    $existingBookingId = $exitPort['booking_id'] ?? $exitPort['bookingId'] ?? null;
-                    if ($existingBookingId) {
-                        $existingOrder = Order::where('tour_id', $tour_id)->where('booking_id', $existingBookingId)->where('type', 'exit_port')->first();
-                        if ($existingOrder) {
-                            $existingOrder->update([
-                                'data' => [$exitPort],
-                                'bookingType' => $bookingType,
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $exitPortBookingIds[] = $existingBookingId;
-                            $updatedOrders[] = ['type' => 'exit_port', 'booking_id' => $existingBookingId];
-                            continue;
-                        }
-                    }
+                    
+                    // Create new order (always create new since we deleted all existing ones)
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -3063,19 +3044,17 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    $exitPortBookingIds[] = $bookingId;
+                    
                     $createdOrders[] = ['type' => 'exit_port', 'booking_id' => $bookingId];
                 }
             }
-            $toSoftDelete = Order::where('tour_id', $tour_id)->where('type', 'exit_port')->whereNotIn('booking_id', $exitPortBookingIds)->get();
-            foreach ($toSoftDelete as $ord) {
-                $ord->delete();
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                $bookingType = 'enquiry';
-            }
             
-            // 3. Accommodation Orders - update/create/soft-delete
-            $hotelBookingIds = [];
+            // 3. Accommodation Orders
+            // ALWAYS delete existing hotel orders first, then recreate if there are new ones
+            $deletedHotels = Order::withTrashed()->where('tour_id', $tour_id)
+                ->where('type', 'hotel')
+                ->forceDelete();
+            \Log::info('Force-deleted existing hotel orders', ['count' => $deletedHotels, 'tour_id' => $tour_id]);
             
             if ($request->has('accommodations') && !empty($request->accommodations)) {
                 $accommodations = json_decode($request->accommodations, true);
@@ -3093,27 +3072,16 @@ class EnquiryFormPro extends Controller
                         'bedType' => $accommodation['bedType'] ?? $accommodation['bed_type'] ?? ''
                     ]));
                     
-                    if (in_array($uniqueKey, $seenHotels)) continue;
-                    $seenHotels[] = $uniqueKey;
-                    $accommodation['tour_id'] = $tour_id;
-                    $existingBookingId = $accommodation['booking_id'] ?? $accommodation['bookingId'] ?? null;
-                    if ($existingBookingId) {
-                        $existingOrder = Order::where('tour_id', $tour_id)->where('booking_id', $existingBookingId)->where('type', 'hotel')->first();
-                        if ($existingOrder) {
-                            $existingOrder->update([
-                                'data' => [$accommodation],
-                                'bookingType' => $bookingType,
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $hotelBookingIds[] = $existingBookingId;
-                            $updatedOrders[] = ['type' => 'hotel', 'booking_id' => $existingBookingId];
-                            continue;
-                        }
+                    if (in_array($uniqueKey, $seenHotels)) {
+                        \Log::info('Skipping duplicate hotel within request', ['unique_key' => $uniqueKey, 'hotel' => $accommodation['hotelName'] ?? '']);
+                        continue;
                     }
+                    $seenHotels[] = $uniqueKey;
+                    
+                    // Add tour_id to the JSON data
+                    $accommodation['tour_id'] = $tour_id;
+                    
+                    // Create new order
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -3128,19 +3096,15 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    $hotelBookingIds[] = $bookingId;
+                    
                     $createdOrders[] = ['type' => 'hotel', 'booking_id' => $bookingId];
                 }
             }
-            $toSoftDelete = Order::where('tour_id', $tour_id)->where('type', 'hotel')->whereNotIn('booking_id', $hotelBookingIds)->get();
-            foreach ($toSoftDelete as $ord) {
-                $ord->delete();
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                $bookingType = 'enquiry';
-            }
             
-            // 4. Tour/Attraction Orders - update/create/soft-delete
-            $attractionBookingIds = [];
+            // 4. Tour/Attraction Orders
+            // ALWAYS delete existing attraction orders first, then recreate if there are new ones
+            $deletedAttractions = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'attraction')->forceDelete();
+            \Log::info('Deleted existing attraction orders', ['count' => $deletedAttractions, 'tour_id' => $tour_id]);
             
             if ($request->has('tours') && !empty($request->tours)) {
                 $tours = json_decode($request->tours, true);
@@ -3156,27 +3120,14 @@ class EnquiryFormPro extends Controller
                         'bookingDate' => $tourItem['bookingDate'] ?? ''
                     ]));
                     
-                    if (in_array($uniqueKey, $seenTours)) continue;
-                    $seenTours[] = $uniqueKey;
-                    $tourItem['tour_id'] = $tour_id;
-                    $existingBookingId = $tourItem['booking_id'] ?? $tourItem['bookingId'] ?? null;
-                    if ($existingBookingId) {
-                        $existingOrder = Order::where('tour_id', $tour_id)->where('booking_id', $existingBookingId)->where('type', 'attraction')->first();
-                        if ($existingOrder) {
-                            $existingOrder->update([
-                                'data' => [$tourItem],
-                                'bookingType' => $bookingType,
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $attractionBookingIds[] = $existingBookingId;
-                            $updatedOrders[] = ['type' => 'attraction', 'booking_id' => $existingBookingId];
-                            continue;
-                        }
+                    if (in_array($uniqueKey, $seenTours)) {
+                        \Log::info('Skipping duplicate attraction within request', ['unique_key' => $uniqueKey, 'attraction' => $tourItem['AttractionName'] ?? '']);
+                        continue;
                     }
+                    $seenTours[] = $uniqueKey;
+                    
+                    $tourItem['tour_id'] = $tour_id;
+                    
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -3191,23 +3142,24 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    $attractionBookingIds[] = $bookingId;
+                    
                     $createdOrders[] = ['type' => 'attraction', 'booking_id' => $bookingId];
                 }
             }
-            $toSoftDelete = Order::where('tour_id', $tour_id)->where('type', 'attraction')->whereNotIn('booking_id', $attractionBookingIds)->get();
-            foreach ($toSoftDelete as $ord) {
-                $ord->delete();
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                $bookingType = 'enquiry';
-            }
             
-            // 5. Meal/Restaurant Orders - update/create/soft-delete
-            $mealBookingIds = [];
+            // 5. Meal/Restaurant Orders
+            // ALWAYS delete existing restaurant orders first, then recreate if there are new ones
+            $deletedMeals = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'restaurant')->forceDelete();
+            \Log::info('Deleted existing restaurant orders', ['count' => $deletedMeals, 'tour_id' => $tour_id]);
+            
             if ($request->has('meals') && !empty($request->meals)) {
                 $meals = json_decode($request->meals, true);
                 $seenMeals = [];
+                
                 foreach ($meals as $meal) {
+                    // Use id (frontend generated unique ID) as primary unique identifier
+                    // This ensures meals with same restaurant name on same date but different meal types are kept
+                    // Fallback to combination of restaurant_id, name, date, and mealType
                     $uniqueKey = md5(json_encode([
                         'id' => $meal['id'] ?? '',
                         'restaurant_id' => $meal['restaurant_id'] ?? '',
@@ -3215,27 +3167,15 @@ class EnquiryFormPro extends Controller
                         'bookingDate' => $meal['bookingDate'] ?? '',
                         'mealType' => $meal['mealType'] ?? $meal['meal_type'] ?? ''
                     ]));
-                    if (in_array($uniqueKey, $seenMeals)) continue;
-                    $seenMeals[] = $uniqueKey;
-                    $meal['tour_id'] = $tour_id;
-                    $existingBookingId = $meal['booking_id'] ?? $meal['bookingId'] ?? null;
-                    if ($existingBookingId) {
-                        $existingOrder = Order::where('tour_id', $tour_id)->where('booking_id', $existingBookingId)->where('type', 'restaurant')->first();
-                        if ($existingOrder) {
-                            $existingOrder->update([
-                                'data' => [$meal],
-                                'bookingType' => $bookingType,
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $mealBookingIds[] = $existingBookingId;
-                            $updatedOrders[] = ['type' => 'restaurant', 'booking_id' => $existingBookingId];
-                            continue;
-                        }
+                    
+                    if (in_array($uniqueKey, $seenMeals)) {
+                        \Log::info('Skipping duplicate meal within request', ['unique_key' => $uniqueKey, 'meal' => $meal['restaurantName'] ?? '']);
+                        continue;
                     }
+                    $seenMeals[] = $uniqueKey;
+                    
+                    $meal['tour_id'] = $tour_id;
+                    
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -3250,19 +3190,15 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    $mealBookingIds[] = $bookingId;
+                    
                     $createdOrders[] = ['type' => 'restaurant', 'booking_id' => $bookingId];
                 }
             }
-            $toSoftDelete = Order::where('tour_id', $tour_id)->where('type', 'restaurant')->whereNotIn('booking_id', $mealBookingIds)->get();
-            foreach ($toSoftDelete as $ord) {
-                $ord->delete();
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                $bookingType = 'enquiry';
-            }
             
-            // 6. Transfer Orders (Local Transport) - update/create/soft-delete
-            $transferBookingIds = [];
+            // 6. Transfer Orders (Local Transport)
+            // ALWAYS delete existing local_transport orders first, then recreate if there are new ones
+            $deletedTransfers = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'local_transport')->forceDelete();
+            \Log::info('Deleted existing local_transport orders', ['count' => $deletedTransfers, 'tour_id' => $tour_id]);
             
             if ($request->has('transfers') && !empty($request->transfers)) {
                 $transfers = json_decode($request->transfers, true);
@@ -3332,24 +3268,7 @@ class EnquiryFormPro extends Controller
                     }
                     
                     $transfer['tour_id'] = $tour_id;
-                    $existingBookingId = $transfer['booking_id'] ?? $transfer['bookingId'] ?? null;
-                    if ($existingBookingId) {
-                        $existingOrder = Order::where('tour_id', $tour_id)->where('booking_id', $existingBookingId)->where('type', 'local_transport')->first();
-                        if ($existingOrder) {
-                            $existingOrder->update([
-                                'data' => [$transfer],
-                                'bookingType' => $bookingType,
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $transferBookingIds[] = $existingBookingId;
-                            $updatedOrders[] = ['type' => 'local_transport', 'booking_id' => $existingBookingId];
-                            continue;
-                        }
-                    }
+                    
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -3364,19 +3283,16 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    $transferBookingIds[] = $bookingId;
+                    
                     $createdOrders[] = ['type' => 'local_transport', 'booking_id' => $bookingId];
                 }
             }
-            $toSoftDelete = Order::where('tour_id', $tour_id)->where('type', 'local_transport')->whereNotIn('booking_id', $transferBookingIds)->get();
-            foreach ($toSoftDelete as $ord) {
-                $ord->delete();
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                $bookingType = 'enquiry';
-            }
             
-            // 7. Guide Orders - update/create/soft-delete
-            $guideBookingIds = [];
+            // 7. Guide Orders
+            // ALWAYS delete existing guide orders first, then recreate if there are new ones
+            $deletedGuides = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'guide')->forceDelete();
+            \Log::info('Deleted existing guide orders', ['count' => $deletedGuides, 'tour_id' => $tour_id]);
+            
             if ($request->has('guides') && !empty($request->guides)) {
                 $guides = json_decode($request->guides, true);
                 $seenGuides = [];
@@ -3387,27 +3303,12 @@ class EnquiryFormPro extends Controller
                         'guide_name' => $guide['guide_name'] ?? '',
                         'bookingDate' => $guide['bookingDate'] ?? ''
                     ]));
+                    
                     if (in_array($uniqueKey, $seenGuides)) continue;
                     $seenGuides[] = $uniqueKey;
+                    
                     $guide['tour_id'] = $tour_id;
-                    $existingBookingId = $guide['booking_id'] ?? $guide['bookingId'] ?? null;
-                    if ($existingBookingId) {
-                        $existingOrder = Order::where('tour_id', $tour_id)->where('booking_id', $existingBookingId)->where('type', 'guide')->first();
-                        if ($existingOrder) {
-                            $existingOrder->update([
-                                'data' => [$guide],
-                                'bookingType' => $bookingType,
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $guideBookingIds[] = $existingBookingId;
-                            $updatedOrders[] = ['type' => 'guide', 'booking_id' => $existingBookingId];
-                            continue;
-                        }
-                    }
+                    
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -3422,19 +3323,16 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    $guideBookingIds[] = $bookingId;
+                    
                     $createdOrders[] = ['type' => 'guide', 'booking_id' => $bookingId];
                 }
             }
-            $toSoftDelete = Order::where('tour_id', $tour_id)->where('type', 'guide')->whereNotIn('booking_id', $guideBookingIds)->get();
-            foreach ($toSoftDelete as $ord) {
-                $ord->delete();
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                $bookingType = 'enquiry';
-            }
             
-            // 8. Miscellaneous Orders - update/create/soft-delete
-            $miscBookingIds = [];
+            // 8. Miscellaneous Orders
+            // Hard-delete (forceDelete) existing miscellaneous orders first, then recreate.
+            // Using forceDelete instead of soft-delete so records never linger with deleted_at set.
+            $deletedMisc = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'miscellaneous')->forceDelete();
+            \Log::info('Force-deleted existing miscellaneous orders', ['count' => $deletedMisc, 'tour_id' => $tour_id]);
             
             if ($request->has('miscellaneous') && !empty($request->miscellaneous)) {
                 $miscItems = json_decode($request->miscellaneous, true);
@@ -3453,24 +3351,7 @@ class EnquiryFormPro extends Controller
                     $seenMisc[] = $uniqueKey;
                     
                     $miscItem['tour_id'] = $tour_id;
-                    $existingBookingId = $miscItem['booking_id'] ?? $miscItem['bookingId'] ?? null;
-                    if ($existingBookingId) {
-                        $existingOrder = Order::where('tour_id', $tour_id)->where('booking_id', $existingBookingId)->where('type', 'miscellaneous')->first();
-                        if ($existingOrder) {
-                            $existingOrder->update([
-                                'data' => [$miscItem],
-                                'bookingType' => $bookingType,
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $miscBookingIds[] = $existingBookingId;
-                            $updatedOrders[] = ['type' => 'miscellaneous', 'booking_id' => $existingBookingId];
-                            continue;
-                        }
-                    }
+                    
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -3485,20 +3366,26 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    $miscBookingIds[] = $bookingId;
+                    
                     $createdOrders[] = ['type' => 'miscellaneous', 'booking_id' => $bookingId];
                 }
-            }
-            $toSoftDelete = Order::where('tour_id', $tour_id)->where('type', 'miscellaneous')->whereNotIn('booking_id', $miscBookingIds)->get();
-            foreach ($toSoftDelete as $ord) {
-                $ord->delete();
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
-                $bookingType = 'enquiry';
             }
             
             DB::commit();
             
-            \Log::info('Enquiry update completed', [
+            // Permanently delete all soft-deleted records for this tour_id
+            // This cleans up records that have deleted_at filled (soft deleted)
+            $permanentlyDeleted = Order::withTrashed()
+                ->where('tour_id', $tour_id)
+                ->whereNotNull('deleted_at')
+                ->forceDelete();
+            
+            \Log::info('Permanently deleted soft-deleted orders', [
+                'tour_id' => $tour_id,
+                'count' => $permanentlyDeleted
+            ]);
+            
+            \Log::info('Orders recreated using delete-and-create approach', [
                 'tour_id' => $tour_id,
                 'total_created' => count($createdOrders)
             ]);

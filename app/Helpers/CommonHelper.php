@@ -2566,6 +2566,7 @@ class CommonHelper
                     'local_transport' => ['single' => 0, 'double' => 0],
                     'other' => ['single' => 0, 'double' => 0],
                 ],
+                'supplements' => [],
             ];
         }
         // Use the actual tour_id from the found tour for querying orders
@@ -2594,7 +2595,10 @@ class CommonHelper
             'local_transport' => ['single' => 0, 'double' => 0],
             'other' => ['single' => 0, 'double' => 0],
         ];
-        
+
+        // Supplements: services with "supplement": true (per-head prices, excluded from main total)
+        $supplements = [];
+
         // Counter for hotels to segregate individually
         $hotelCount = 0;
 
@@ -2615,6 +2619,8 @@ class CommonHelper
             $manualDoublePrice = null;
 
             foreach ($items as $item) {
+                $isSupplement = !empty($item['supplement']);
+
                 if ($type === 'hotel') {
                     $hotelCount++;
                     $babyCotPrice = 0;
@@ -3056,23 +3062,34 @@ class CommonHelper
                         $hotelSingleTotal = $manualSinglePrice;
                     }
 
-                    $totalSingleSharing += $hotelSingleTotal;
-                    $totalDoubleSharing += $hotelDoubleTotal;
-                    $totalTripleSharing += $hotelTripleTotal;
-                    
-                    // Add to segregated hotel prices
-                    $segregatedPrices['hotel']['single'] += $hotelSingleTotal;
-                    $segregatedPrices['hotel']['double'] += $hotelDoubleTotal;
-                    $segregatedPrices['hotel']['triple'] += $hotelTripleTotal;
-                    $segregatedPrices['hotel']['baby_cot'] += $babyCotPrice;
+                    if ($isSupplement) {
+                        $supplements[] = [
+                            'type'      => 'hotel',
+                            'name'      => $currentHotelKey,
+                            'single'    => $hotelSingleTotal,
+                            'double'    => $hotelDoubleTotal,
+                            'triple'    => $hotelTripleTotal,
+                            'baby_cot'  => $babyCotPrice,
+                        ];
+                    } else {
+                        $totalSingleSharing += $hotelSingleTotal;
+                        $totalDoubleSharing += $hotelDoubleTotal;
+                        $totalTripleSharing += $hotelTripleTotal;
 
-                    $totalBabyCot += $babyCotPrice;
+                        // Add to segregated hotel prices
+                        $segregatedPrices['hotel']['single'] += $hotelSingleTotal;
+                        $segregatedPrices['hotel']['double'] += $hotelDoubleTotal;
+                        $segregatedPrices['hotel']['triple'] += $hotelTripleTotal;
+                        $segregatedPrices['hotel']['baby_cot'] += $babyCotPrice;
 
-                    // Add to individual hotel prices
-                    $segregatedPrices[$currentHotelKey]['single'] += $hotelSingleTotal;
-                    $segregatedPrices[$currentHotelKey]['double'] += $hotelDoubleTotal;
-                    $segregatedPrices[$currentHotelKey]['triple'] += $hotelTripleTotal;
-                    $segregatedPrices[$currentHotelKey]['baby_cot'] += $babyCotPrice;
+                        $totalBabyCot += $babyCotPrice;
+
+                        // Add to individual hotel prices
+                        $segregatedPrices[$currentHotelKey]['single'] += $hotelSingleTotal;
+                        $segregatedPrices[$currentHotelKey]['double'] += $hotelDoubleTotal;
+                        $segregatedPrices[$currentHotelKey]['triple'] += $hotelTripleTotal;
+                        $segregatedPrices[$currentHotelKey]['baby_cot'] += $babyCotPrice;
+                    }
                 } else {
                     // Other services pricing calculation
                     $totalPrice = $item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? null;
@@ -3167,14 +3184,16 @@ class CommonHelper
                             $doubleSharing = $singleSharing;
 
                             // Child price: sum child unit prices only (e.g. attraction 20 + restaurant 12 = 32)
-                            if ($childUnitPrice > 0) {
+                            if (!$isSupplement && $childUnitPrice > 0) {
                                 $totalChildComponent += $childUnitPrice;
                             }
 
-                            // Add only adult part to segregated and main totals
-                            $serviceKey = $normalizedType === 'attraction' ? 'attraction' : 'restaurant';
-                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
-                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                            // Add only adult part to segregated and main totals (unless supplement)
+                            if (!$isSupplement) {
+                                $serviceKey = $normalizedType === 'attraction' ? 'attraction' : 'restaurant';
+                                $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                                $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                            }
                         }
                         // Handle entry_port and exit_port
                         elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
@@ -3190,11 +3209,12 @@ class CommonHelper
                             
                             // Double sharing: same as single (per-person price)
                             $doubleSharing = $singleSharing;
-                            
-                            // Add to segregated prices
-                            $serviceKey = $normalizedType === 'entry_port' ? 'entry_port' : 'exit_port';
-                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
-                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+
+                            if (!$isSupplement) {
+                                $serviceKey = $normalizedType === 'entry_port' ? 'entry_port' : 'exit_port';
+                                $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                                $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                            }
                         }
                         // Handle travel_point, travel_hourly, local_transport
                         elseif (in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport'])) {
@@ -3210,11 +3230,12 @@ class CommonHelper
                             
                             // Double sharing: same as single (per-person price)
                             $doubleSharing = $singleSharing;
-                            
-                            // Add to segregated prices
-                            $serviceKey = $normalizedType;
-                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
-                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+
+                            if (!$isSupplement) {
+                                $serviceKey = $normalizedType;
+                                $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                                $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                            }
                         }
                         // Handle guide: per adult price (totalPrice / Adults)
                         elseif ($normalizedType === 'guide') {
@@ -3227,9 +3248,11 @@ class CommonHelper
                             }
                             
                             $doubleSharing = $singleSharing;
-                            
-                            $segregatedPrices['guide']['single'] += $singleSharing;
-                            $segregatedPrices['guide']['double'] += $doubleSharing;
+
+                            if (!$isSupplement) {
+                                $segregatedPrices['guide']['single'] += $singleSharing;
+                                $segregatedPrices['guide']['double'] += $doubleSharing;
+                            }
                         }
                         // Default calculation for other service types
                         else {
@@ -3250,18 +3273,28 @@ class CommonHelper
                             $doubleSharing = $totalPriceFloat;
                             
                             // Add to segregated prices based on service type
-                            $serviceKey = 'other';
-                            if (isset($segregatedPrices[$normalizedType])) {
-                                $serviceKey = $normalizedType;
-                            } elseif (in_array($normalizedType, ['travel_hourly', 'travel_point', 'local_transport', 'guide'])) {
-                                $serviceKey = $normalizedType;
+                            if (!$isSupplement) {
+                                $serviceKey = 'other';
+                                if (isset($segregatedPrices[$normalizedType])) {
+                                    $serviceKey = $normalizedType;
+                                } elseif (in_array($normalizedType, ['travel_hourly', 'travel_point', 'local_transport', 'guide'])) {
+                                    $serviceKey = $normalizedType;
+                                }
+                                $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                                $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
                             }
-                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
-                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
                         }
 
-                        $totalSingleSharing += $singleSharing;
-                        $totalDoubleSharing += $doubleSharing;
+                        if ($isSupplement) {
+                            $supplements[] = [
+                                'type'   => $normalizedType ?? $type,
+                                'single' => $singleSharing,
+                                'double' => $doubleSharing,
+                            ];
+                        } else {
+                            $totalSingleSharing += $singleSharing;
+                            $totalDoubleSharing += $doubleSharing;
+                        }
                     }
                 }
             }
@@ -3283,6 +3316,26 @@ class CommonHelper
                 $segregatedPricesRounded[$serviceType]['baby_cot'] = ceil($prices['baby_cot']);
             }
         }
+
+        // Format supplements: per-head prices (ceil), excluded from main total
+        $supplementsFormatted = array_map(function ($s) {
+            $row = [
+                'type'   => $s['type'],
+                'single' => ceil($s['single'] ?? 0),
+                'double' => ceil($s['double'] ?? 0),
+            ];
+            if (isset($s['name'])) {
+                $row['name'] = $s['name'];
+            }
+            if (isset($s['triple'])) {
+                $row['triple'] = ceil($s['triple']);
+            }
+            if (isset($s['baby_cot'])) {
+                $row['baby_cot'] = ceil($s['baby_cot']);
+            }
+            return $row;
+        }, $supplements);
+
         // dd($totalSingleSharing, $totalDoubleSharing, $totalTripleSharing, $totalBabyCot, $childSharing, $segregatedPricesRounded);
         return [
             'single_sharing' => ceil($totalSingleSharing),
@@ -3292,6 +3345,7 @@ class CommonHelper
             // Average per-child price across attraction/restaurant services
             'child_sharing' => ceil($childSharing),
             'segregated' => $segregatedPricesRounded,
+            'supplements' => $supplementsFormatted,
         ];
     }
 
