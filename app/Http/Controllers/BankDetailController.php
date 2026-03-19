@@ -97,12 +97,22 @@ class BankDetailController extends Controller
             'account_name' => 'required|string|max:255',
             'account_number' => 'required|string|max:100',
             'bank_address' => 'required|string',
+            'bank_type' => 'nullable|string|max:100',
             'ifsc' => 'nullable|string|max:50',
             'swift_bic_iban' => 'nullable|string|max:100',
             'bank_code' => 'nullable|string|max:50',
             'branch_code' => 'nullable|string|max:50',
             'aba_routing' => 'nullable|string|max:50',
             'is_active' => 'boolean',
+            // India bank details (optional)
+            'india_gst_number' => 'nullable|string|max:100',
+            'india_pan_number' => 'nullable|string|max:100',
+            'india_account_name' => 'nullable|string|max:255',
+            'india_account_number' => 'nullable|string|max:100',
+            'india_bank_name' => 'nullable|string|max:255',
+            'india_bank_address' => 'nullable|string',
+            'india_ifsc' => 'nullable|string|max:50',
+            'india_bank_type' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -138,11 +148,28 @@ class BankDetailController extends Controller
                 });
             }
 
+            // Prepare India bank details JSON (optional second bank)
+            $indiaBank = [
+                'bank_type' => $request->india_bank_type ?: 'INR Accounts',
+                'gst_number' => $request->india_gst_number,
+                'pan_number' => $request->india_pan_number,
+                'account_name' => $request->india_account_name,
+                'account_number' => $request->india_account_number,
+                'bank_name' => $request->india_bank_name,
+                'bank_address' => $request->india_bank_address,
+                'ifsc' => $request->india_ifsc,
+            ];
+            $indiaBank = array_filter($indiaBank, function ($value) {
+                return !is_null($value) && $value !== '';
+            });
+
             $bankDetail = new BankDetail();
             $bankDetail->bank_detail_id = $bankDetailId;
             $bankDetail->dmc_id = $dmc_id;
             $bankDetail->terms_and_conditions = $request->terms_and_conditions;
             $bankDetail->payment_terms = !empty($paymentTerms) ? $paymentTerms : null;
+            $bankDetail->india_bank_details = !empty($indiaBank) ? $indiaBank : null;
+            $bankDetail->bank_type = $request->bank_type ?: 'SGD Accounts';
             $bankDetail->account_name = $request->account_name;
             $bankDetail->account_number = $request->account_number;
             $bankDetail->bank_address = $request->bank_address;
@@ -214,12 +241,22 @@ class BankDetailController extends Controller
             'account_name' => 'required|string|max:255',
             'account_number' => 'required|string|max:100',
             'bank_address' => 'required|string',
+            'bank_type' => 'nullable|string|max:100',
             'ifsc' => 'nullable|string|max:50',
             'swift_bic_iban' => 'nullable|string|max:100',
             'bank_code' => 'nullable|string|max:50',
             'branch_code' => 'nullable|string|max:50',
             'aba_routing' => 'nullable|string|max:50',
             'is_active' => 'boolean',
+            // India bank details (optional)
+            'india_gst_number' => 'nullable|string|max:100',
+            'india_pan_number' => 'nullable|string|max:100',
+            'india_account_name' => 'nullable|string|max:255',
+            'india_account_number' => 'nullable|string|max:100',
+            'india_bank_name' => 'nullable|string|max:255',
+            'india_bank_address' => 'nullable|string',
+            'india_ifsc' => 'nullable|string|max:50',
+            'india_bank_type' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -239,8 +276,25 @@ class BankDetailController extends Controller
                 });
             }
 
+            // Prepare India bank details JSON (optional second bank)
+            $indiaBank = [
+                'bank_type' => $request->india_bank_type ?: ($bankDetail->india_bank_details['bank_type'] ?? 'INR Accounts'),
+                'gst_number' => $request->india_gst_number,
+                'pan_number' => $request->india_pan_number,
+                'account_name' => $request->india_account_name,
+                'account_number' => $request->india_account_number,
+                'bank_name' => $request->india_bank_name,
+                'bank_address' => $request->india_bank_address,
+                'ifsc' => $request->india_ifsc,
+            ];
+            $indiaBank = array_filter($indiaBank, function ($value) {
+                return !is_null($value) && $value !== '';
+            });
+
             $bankDetail->terms_and_conditions = $request->terms_and_conditions;
             $bankDetail->payment_terms = !empty($paymentTerms) ? $paymentTerms : null;
+            $bankDetail->india_bank_details = !empty($indiaBank) ? $indiaBank : null;
+            $bankDetail->bank_type = $request->bank_type ?: ($bankDetail->bank_type ?? 'SGD Accounts');
             $bankDetail->account_name = $request->account_name;
             $bankDetail->account_number = $request->account_number;
             $bankDetail->bank_address = $request->bank_address;

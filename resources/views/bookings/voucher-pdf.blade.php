@@ -258,7 +258,7 @@
 
         @if($lowestDueDate)
         <tr>
-            <td class="label-cell">PAYMENT DATELINE</td>
+            <td class="label-cell">PAYMENT CUT-OFF DATE</td>
             <td class="value-cell-left" style="padding: 8px 12px;">
                 <div class="deadline-date">{{ $lowestDueDate->format('d/m/Y') }}</div>
                 <div class="deadline-note">
