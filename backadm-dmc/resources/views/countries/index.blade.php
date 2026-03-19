@@ -54,19 +54,23 @@
                         <tr>
                             <th>No</th>
                             <th>Country Name</th>
+                            @if(!$showRemitanceAndExchange)
                             <th>Country Code</th>
                             <th>Currency</th>
                             <th>Tax Percentage</th>
                             <th>Gateway Percentage</th>
                             <th>Commission Percentage</th>
+                            @endif
                             @if($showRemitanceAndExchange)
                                 <th>Remitance Charge</th>
                                 <th>Exchange Rate</th>
                             @endif
+                            @if(!$showRemitanceAndExchange)
                             <th>Status</th>
                             {{-- @if(hasPermission('edit country') || hasPermission('delete country')) --}}
                                 <th>Action</th>
                             {{-- @endif --}}
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -74,12 +78,13 @@
                             <tr>
                                 <td>{{ ++$key }}</td>
                                 <td class="country-name">{{ $country->name }}</td>
+                                @if(!$showRemitanceAndExchange)
                                 <td class="city-name">{{ $country->country_code }}</td>
                                 <td>{{ $country->currency }}</td>
                                 <td>{{ $country->tax_percentage }}</td>
-                                
                                 <td>{{ $country->gateway_percentage }}</td>
                                 <td>{{ $country->commission_percentage }}</td>
+                                @endif
                                 @if($showRemitanceAndExchange)
                                     @php
                                         $rowDmcId = (int) ($currentDmcId ?? 0);
@@ -115,6 +120,7 @@
                                         />
                                     </td>
                                 @endif
+                                @if(!$showRemitanceAndExchange)
                                 <td>
                                     <div class="form-check form-switch d-flex justify-content-center">
                                         <input class="form-check-input status-toggle" type="checkbox" role="switch" 
@@ -135,7 +141,7 @@
                                         </svg>
                                     </a>
                                     {{-- @endif --}}
-
+                                    @endif
                                     <!-- Delete Button -->
                                     {{-- @if(hasPermission('delete country')) --}}
                                     {{-- <button type="button" 
