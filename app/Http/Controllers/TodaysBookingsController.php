@@ -211,6 +211,23 @@ class TodaysBookingsController extends Controller
             }
 
             usort($transferLogs, fn($a, $b) => ($a['time'] ?? '') <=> ($b['time'] ?? ''));
+
+            $allLogs = [];
+            foreach ($transferLogs as $row) {
+                $allLogs[] = array_merge($row, ['log_type' => 'Transfer']);
+            }
+            foreach ($attractionLogs as $row) {
+                $allLogs[] = array_merge($row, ['log_type' => 'Attraction', 'icon' => 'ri-camera-line']);
+            }
+            foreach ($restaurantLogs as $row) {
+                $allLogs[] = array_merge($row, ['log_type' => 'Restaurant', 'icon' => 'ri-restaurant-2-line']);
+            }
+            foreach ($hotelLogs as $row) {
+                $allLogs[] = array_merge($row, ['log_type' => 'Hotel', 'icon' => 'ri-hotel-bed-line']);
+            }
+            usort($allLogs, fn($a, $b) => ($a['sort_at'] ?? '') <=> ($b['sort_at'] ?? ''));
+        } else {
+            $allLogs = [];
         }
 
         return view('bookings.todays', [
@@ -220,6 +237,7 @@ class TodaysBookingsController extends Controller
             'attractionLogs' => $attractionLogs,
             'restaurantLogs' => $restaurantLogs,
             'hotelLogs' => $hotelLogs,
+            'allLogs' => $allLogs ?? [],
         ]);
     }catch(\Exception $e){
         
@@ -331,6 +349,12 @@ class TodaysBookingsController extends Controller
             };
         }
 
+        $timeForSort = $time;
+        if ($timeForSort === '—' || !preg_match('/^\d{1,2}:\d{2}/', (string)$timeForSort)) {
+            $timeForSort = '00:00';
+        }
+        $sortAt = Carbon::parse($date)->format('Y-m-d') . ' ' . $timeForSort;
+
         return [
             'icon' => $icon,
             'date' => Carbon::parse($date)->format('d M \'y'),
@@ -344,6 +368,7 @@ class TodaysBookingsController extends Controller
             'adults' => $adults,
             'child' => $child,
             'driver' => $driverName,
+            'sort_at' => $sortAt,
         ];
     }
 
@@ -357,6 +382,8 @@ class TodaysBookingsController extends Controller
         $adults = (int)($item['adultCount'] ?? 0);
         $child = (int)($item['childCount'] ?? 0);
         $ref = $refBase;
+        $timeForSort = $time !== '—' && preg_match('/^\d{1,2}:\d{2}/', (string)$time) ? $time : '00:00';
+        $sortAt = Carbon::parse($date)->format('Y-m-d') . ' ' . $timeForSort;
         return [
             'date' => Carbon::parse($date)->format('d M \'y'),
             'time' => $time,
@@ -366,6 +393,7 @@ class TodaysBookingsController extends Controller
             'ticket_type' => $ticket,
             'adults' => $adults,
             'child' => $child,
+            'sort_at' => $sortAt,
         ];
     }
 
@@ -379,6 +407,8 @@ class TodaysBookingsController extends Controller
         $adults = (int)($item['adultCount'] ?? $item['adults'] ?? 0);
         $child = (int)($item['childCount'] ?? $item['children'] ?? 0);
         $ref = $refBase;
+        $timeForSort = $time !== '—' && preg_match('/^\d{1,2}:\d{2}/', (string)$time) ? $time : '00:00';
+        $sortAt = Carbon::parse($date)->format('Y-m-d') . ' ' . $timeForSort;
         return [
             'date' => Carbon::parse($date)->format('d M \'y'),
             'time' => $time,
@@ -388,6 +418,7 @@ class TodaysBookingsController extends Controller
             'meal_type' => $meal,
             'adults' => $adults,
             'child' => $child,
+            'sort_at' => $sortAt,
         ];
     }
 
@@ -400,14 +431,18 @@ class TodaysBookingsController extends Controller
         $checkOut = count($bookingDates) > 1 ? Carbon::parse(end($bookingDates))->format('d M \'y') : '—';
         $rooms = $item['No_of_rooms'] ?? count($item['rooms'] ?? []) ?: '—';
         $ref = $refBase;
+        $firstDate = !empty($bookingDates) ? $bookingDates[0] : $tripDate;
+        $sortAt = Carbon::parse($firstDate)->format('Y-m-d') . ' 00:00';
         return [
             'date' => $checkIn,
+            'time' => '—',
             'reference_no' => $ref,
             'guest' => $guestName,
             'name' => $name,
             'check_in' => $checkIn,
             'check_out' => $checkOut,
             'rooms' => $rooms,
+            'sort_at' => $sortAt,
         ];
     }
 }
