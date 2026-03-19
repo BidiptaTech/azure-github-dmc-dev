@@ -8065,6 +8065,72 @@
 </div>
 <!-- End of Dropoff Transport Selection Modal -->
 
+<!-- Global Payment Modal (used for ALL service adds) -->
+<div class="modal fade" id="globalPaymentModal" tabindex="-1" aria-labelledby="globalPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title" id="globalPaymentModalLabel">
+                    <i class="ri-secure-payment-line me-2"></i>Payment Required
+                </h5>
+                <button type="button" class="btn-close" aria-label="Close" id="globalPaymentModalCloseBtn"></button>
+            </div>
+            <form id="globalPaymentForm">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 px-3 mb-3 d-none" id="globalPaymentMandatoryBanner" style="font-size: 0.85rem;">
+                        <i class="ri-error-warning-line me-1"></i>
+                        This tour is <strong>Actual</strong>. Payment is mandatory before adding the service.
+                    </div>
+
+                    <input type="hidden" id="globalPaymentTourId" value="{{ $tour->tour_id ?? '' }}">
+                    <input type="hidden" id="globalPaymentCurrency" value="SGD">
+                    <input type="hidden" id="globalPaymentExchangeRate" value="1">
+                    <input type="hidden" id="globalPaymentAutoVerify" value="1">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                            <input type="number" step="0.01" min="0" class="form-control" id="globalPaymentAmount" name="payment_amount" readonly>
+                        </div>
+                        <small class="text-muted">Amount is auto-filled from the service price.</small>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Payment Date</label>
+                            <input type="date" class="form-control" id="globalPaymentDate" name="payment_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Payment Type</label>
+                            <select class="form-select" id="globalPaymentType" name="payment_type" required>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label fw-semibold">Remarks (optional)</label>
+                        <textarea class="form-control" id="globalPaymentRemarks" name="remarks" rows="2" placeholder="Optional payment notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="globalPaymentCancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-light" id="globalPaymentSkipBtn">Skip</button>
+                    <button type="submit" class="btn btn-success" id="globalPaymentPayBtn">
+                        <span class="spinner-border spinner-border-sm d-none" id="globalPaymentSpinner" aria-hidden="true"></span>
+                        <span class="ms-1">Submit Payment</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- End Global Payment Modal -->
+
 @endsection
 
 @section('scripts')
@@ -11094,6 +11160,200 @@
             }
         });
     }
+
+    // -------- Global Payment Gate (ALL service adds) --------
+    const __tourStatus = @json($tour->tour_status ?? '');
+    const __tourCurrencySymbol = @json($tour->currency ?? '$');
+    const __tourIdForPayment = @json($tour->tour_id ?? '');
+    const __tourAddPaymentUrl = @json(isset($tour) && isset($tour->tour_id) ? route('tour.add-payment', $tour->tour_id) : '');
+
+    function __formatDateYYYYMMDD(dateObj) {
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function __openGlobalPaymentModal({ amount, mandatory, onPaid, onSkip }) {
+        const modalEl = document.getElementById('globalPaymentModal');
+        if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            showNotification('Payment modal is unavailable on this page.', 'error');
+            return;
+        }
+
+        const amountInput = document.getElementById('globalPaymentAmount');
+        const dateInput = document.getElementById('globalPaymentDate');
+        const typeSelect = document.getElementById('globalPaymentType');
+        const remarksInput = document.getElementById('globalPaymentRemarks');
+        const skipBtn = document.getElementById('globalPaymentSkipBtn');
+        const cancelBtn = document.getElementById('globalPaymentCancelBtn');
+        const closeBtn = document.getElementById('globalPaymentModalCloseBtn');
+        const banner = document.getElementById('globalPaymentMandatoryBanner');
+
+        const spinner = document.getElementById('globalPaymentSpinner');
+        const payBtn = document.getElementById('globalPaymentPayBtn');
+
+        const safeAmount = Number.parseFloat(amount || 0) || 0;
+        if (amountInput) amountInput.value = safeAmount.toFixed(2);
+        if (dateInput) dateInput.value = __formatDateYYYYMMDD(new Date());
+        if (typeSelect && !typeSelect.value) typeSelect.value = 'Cash';
+        if (remarksInput) remarksInput.value = '';
+
+        if (banner) banner.classList.toggle('d-none', !mandatory);
+        if (skipBtn) skipBtn.classList.toggle('d-none', !!mandatory);
+        // Cancel should be available even for Actual tours: it closes the modal and cancels service-add.
+        if (cancelBtn) cancelBtn.classList.remove('d-none');
+
+        // Create (or reuse) instance configured for mandatory vs optional
+        const instance = bootstrap.Modal.getOrCreateInstance(modalEl, {
+            backdrop: mandatory ? 'static' : true,
+            keyboard: !mandatory
+        });
+
+        // Track whether this modal resulted in a decision (paid/skip/cancel).
+        // In non-mandatory mode, closing via X/backdrop should behave like "Skip".
+        let completed = false;
+
+        // One-shot handlers (avoid stacking)
+        const form = document.getElementById('globalPaymentForm');
+        if (!form) {
+            showNotification('Payment form is missing.', 'error');
+            return;
+        }
+
+        const cleanupHandlers = () => {
+            form.removeEventListener('submit', onSubmit);
+            if (skipBtn) skipBtn.removeEventListener('click', onSkipClick);
+            if (cancelBtn) cancelBtn.removeEventListener('click', onCancelClick);
+            if (closeBtn) closeBtn.removeEventListener('click', onCloseClick);
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+        };
+
+        const setBusy = (busy) => {
+            if (spinner) spinner.classList.toggle('d-none', !busy);
+            if (payBtn) payBtn.disabled = !!busy;
+            if (skipBtn) skipBtn.disabled = !!busy;
+            if (closeBtn) closeBtn.disabled = !!busy;
+        };
+
+        const onHidden = () => {
+            cleanupHandlers();
+            setBusy(false);
+            if (!mandatory && !completed && typeof onSkip === 'function') {
+                onSkip();
+            }
+        };
+
+        const onSkipClick = () => {
+            if (mandatory) return;
+            completed = true;
+            instance.hide();
+            if (typeof onSkip === 'function') onSkip();
+        };
+
+        const onCancelClick = () => {
+            if (mandatory) {
+                // Mandatory tour: allow closing, but do NOT proceed with adding the service.
+                completed = true;
+                instance.hide();
+                return;
+            }
+            completed = true;
+            instance.hide();
+            if (typeof onSkip === 'function') onSkip();
+        };
+
+        const onCloseClick = () => {
+            if (mandatory) {
+                // Mandatory tour: allow closing, but do NOT proceed with adding the service.
+                completed = true;
+                instance.hide();
+                return;
+            }
+            completed = true;
+            instance.hide();
+            if (typeof onSkip === 'function') onSkip();
+        };
+
+        const onSubmit = async (e) => {
+            e.preventDefault();
+            if (!__tourAddPaymentUrl || !__tourIdForPayment) {
+                showNotification('Payment endpoint is not configured for this tour.', 'error');
+                return;
+            }
+            if (safeAmount <= 0) {
+                showNotification('Payment amount must be greater than 0.', 'error');
+                return;
+            }
+
+            const paymentDate = (dateInput && dateInput.value) ? dateInput.value : __formatDateYYYYMMDD(new Date());
+            const paymentType = (typeSelect && typeSelect.value) ? typeSelect.value : 'Cash';
+            const remarks = remarksInput ? (remarksInput.value || '').trim() : '';
+
+            setBusy(true);
+            try {
+                const resp = await fetch(__tourAddPaymentUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': @json(csrf_token()),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        payment_amount: safeAmount,
+                        currency: 'SGD',
+                        exchange_rate: 1,
+                        payment_date: paymentDate,
+                        payment_type: paymentType,
+                        remarks: remarks,
+                        auto_verify: 1
+                    })
+                });
+
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data || data.success !== true) {
+                    const msg = (data && (data.message || (data.errors ? 'Validation failed' : null))) || 'Failed to submit payment.';
+                    showNotification(msg, 'error');
+                    setBusy(false);
+                    return;
+                }
+
+                showNotification(data.message || 'Payment submitted.', 'success');
+                completed = true;
+                instance.hide();
+                if (typeof onPaid === 'function') onPaid(data);
+            } catch (err) {
+                console.error('Payment submit error:', err);
+                showNotification('An error occurred while submitting payment.', 'error');
+                setBusy(false);
+            }
+        };
+
+        form.addEventListener('submit', onSubmit);
+        if (skipBtn) skipBtn.addEventListener('click', onSkipClick);
+        if (cancelBtn) cancelBtn.addEventListener('click', onCancelClick);
+        if (closeBtn) closeBtn.addEventListener('click', onCloseClick);
+        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+
+        instance.show();
+    }
+
+    function runServiceAddWithPayment(servicePrice, proceedFn) {
+        const amount = Number.parseFloat(servicePrice || 0) || 0;
+        const mandatory = String(__tourStatus || '').toLowerCase() === 'actual';
+
+        __openGlobalPaymentModal({
+            amount,
+            mandatory,
+            onPaid: () => {
+                if (typeof proceedFn === 'function') proceedFn();
+            },
+            onSkip: () => {
+                if (typeof proceedFn === 'function') proceedFn();
+            }
+        });
+    }
+    // -------- End Global Payment Gate --------
     
     // Service addition functions
     function addHotelService() {
@@ -14779,55 +15039,58 @@
         
         console.log('Dropoff Transport booking data:', transportData);
         
-        // Create a form to submit the transport data (exact same as pickup service)
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = "{{ route('orders.transport.select') }}";
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
-        
-        // Add the transport data as JSON
-        const transportDataInput = document.createElement('input');
-        transportDataInput.type = 'hidden';
-        transportDataInput.name = 'transport_data';
-        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
-        form.appendChild(transportDataInput);
-        
-        // Add basic form fields (same as pickup service)
-        const basicData = {
-            tour_id: tourId,
-            type: "exit_port",
-            agent_id: document.getElementById('agent_id').value,
-            pickup_zone_id: pickupZoneId,
-            dropoff_zone_id: dropoffZoneId,
-            pickup_time: pickupTime,
-            pickup_date: pickupDate,
-            vehicle_id: vehicleId,
-            service_type: serviceType,
-            passengers: passengers
-        };
-        
-        Object.keys(basicData).forEach(key => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = basicData[key];
-            form.appendChild(input);
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(parseFloat(totalPrice) || 0, () => {
+            // Create a form to submit the transport data (exact same as pickup service)
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('orders.transport.select') }}";
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
+            
+            // Add the transport data as JSON
+            const transportDataInput = document.createElement('input');
+            transportDataInput.type = 'hidden';
+            transportDataInput.name = 'transport_data';
+            transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+            form.appendChild(transportDataInput);
+            
+            // Add basic form fields (same as pickup service)
+            const basicData = {
+                tour_id: tourId,
+                type: "exit_port",
+                agent_id: document.getElementById('agent_id').value,
+                pickup_zone_id: pickupZoneId,
+                dropoff_zone_id: dropoffZoneId,
+                pickup_time: pickupTime,
+                pickup_date: pickupDate,
+                vehicle_id: vehicleId,
+                service_type: serviceType,
+                passengers: passengers
+            };
+            
+            Object.keys(basicData).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = basicData[key];
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            // Close modal safely
+            safeCloseModal('dropoffTransportSelectionModal');
+            
+            // Show success message
+            showNotification(`Dropoff transport service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
         });
-        
-        document.body.appendChild(form);
-        form.submit();
-        
-        // Close modal safely
-        safeCloseModal('dropoffTransportSelectionModal');
-        
-        // Show success message
-        showNotification(`Dropoff transport service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
     }
     
     function updatePricing() {
@@ -15365,60 +15628,63 @@
         }
         
         console.log('Transport booking data:', transportData);
-        
-        // Create a form to submit the transport data
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = "{{ route('orders.transport.select') }}";
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
-        
-        // Add the transport data as JSON
-        const transportDataInput = document.createElement('input');
-        transportDataInput.type = 'hidden';
-        transportDataInput.name = 'transport_data';
-        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
-        form.appendChild(transportDataInput);
-        
-        // Add basic form fields
-        const basicData = {
-            tour_id: tourId,
-            type: transportType,
-            agent_id: document.getElementById('agent_id').value,
-            pickup_zone_id: pickupZoneId,
-            dropoff_zone_id: dropoffZoneId,
-            pickup_time: pickupTime,
-            pickup_date: pickupDate,
-            vehicle_id: vehicleId,
-            service_type: serviceType,
-            passengers: passengers,
-            country: country,
-            city: city,
-            transport_type: serviceTypeLabel // Add transport type to differentiate between transport and local transfer
-        };
-        
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
-        
-        document.body.appendChild(form);
-        form.submit();
-        
-        // Close modal safely
-        safeCloseModal('transportSelectionModal');
-        
-        // Show success message
-        const serviceLabel = isLocalTransfer ? 'Local transfer' : 'Transport';
-        showNotification(`${serviceLabel} service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(parseFloat(transportData.totalPrice) || 0, () => {
+            // Create a form to submit the transport data
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('orders.transport.select') }}";
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
+            
+            // Add the transport data as JSON
+            const transportDataInput = document.createElement('input');
+            transportDataInput.type = 'hidden';
+            transportDataInput.name = 'transport_data';
+            transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+            form.appendChild(transportDataInput);
+            
+            // Add basic form fields
+            const basicData = {
+                tour_id: tourId,
+                type: transportType,
+                agent_id: document.getElementById('agent_id').value,
+                pickup_zone_id: pickupZoneId,
+                dropoff_zone_id: dropoffZoneId,
+                pickup_time: pickupTime,
+                pickup_date: pickupDate,
+                vehicle_id: vehicleId,
+                service_type: serviceType,
+                passengers: passengers,
+                country: country,
+                city: city,
+                transport_type: serviceTypeLabel // Add transport type to differentiate between transport and local transfer
+            };
+            
+            for (const [key, value] of Object.entries(basicData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            // Close modal safely
+            safeCloseModal('transportSelectionModal');
+            
+            // Show success message
+            const serviceLabel = isLocalTransfer ? 'Local transfer' : 'Transport';
+            showNotification(`${serviceLabel} service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+        });
     }
 
     // Confirmation function for Point-to-Point service
@@ -15639,36 +15905,42 @@
     
     // Common function to submit booking data
     function submitLocalTransferBooking(bookingData, successMessage, serviceType) {
-        // Send data to controller via AJAX
-        fetch("{{ route('orders.local-transfer.select') }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                booking_data: JSON.stringify(bookingData),
-                type: serviceType
+        const first = Array.isArray(bookingData) ? bookingData[0] : null;
+        const servicePrice = first ? (first.totalPrice ?? first.price ?? 0) : 0;
+
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(servicePrice, () => {
+            // Send data to controller via AJAX
+            fetch("{{ route('orders.local-transfer.select') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    booking_data: JSON.stringify(bookingData),
+                    type: serviceType
+                })
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Close modal safely
-                safeCloseModal('localTransferSelectionModal');
-                
-                // Show success message
-                showNotification(data.message || successMessage, 'success');
-                
-                // Refresh the page to show the new service in the listing
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showNotification(data.message || 'Booking failed. Please try again.', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error submitting booking:', error);
-            showNotification('An error occurred. Please try again.', 'error');
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal safely
+                    safeCloseModal('localTransferSelectionModal');
+                    
+                    // Show success message
+                    showNotification(data.message || successMessage, 'success');
+                    
+                    // Refresh the page to show the new service in the listing
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(data.message || 'Booking failed. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting booking:', error);
+                showNotification('An error occurred. Please try again.', 'error');
+            });
         });
     }
 
@@ -16100,76 +16372,79 @@
 
         console.log('Attraction booking data to be sent:', bookingData);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = attractionBaseUrl;
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        // If tour status is Actual, payment is mandatory and service will not be added without payment.
+        return runServiceAddWithPayment(totalPrice, () => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = attractionBaseUrl;
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
 
-        // Add the complex booking data as JSON
-        const bookingDataInput = document.createElement('input');
-        bookingDataInput.type = 'hidden';
-        bookingDataInput.name = 'booking_data';
-        bookingDataInput.value = JSON.stringify(bookingData);
-        form.appendChild(bookingDataInput);
+            // Add the complex booking data as JSON
+            const bookingDataInput = document.createElement('input');
+            bookingDataInput.type = 'hidden';
+            bookingDataInput.name = 'booking_data';
+            bookingDataInput.value = JSON.stringify(bookingData);
+            form.appendChild(bookingDataInput);
 
-        // Add basic form fields for backward compatibility
-        const basicData = {
-            agent_id: agentId,
-            tour_id: tourId,
-            attraction_id: attractionId,
-            time_slot: timeSlot,
-            ticket_id: ticketId,
-            visit_date: visitDate,
-            adults: guestData.adults,
-            children: guestData.children,
-            infants: guestData.infants,
-            male_count: guestData.male_count,
-            female_count: guestData.female_count,
-            child_ages: guestData.child_ages,
-            country: country,
-            // city parameter removed,
-            start_date: startDate,
-            end_date: endDate
-        };
+            // Add basic form fields for backward compatibility
+            const basicData = {
+                agent_id: agentId,
+                tour_id: tourId,
+                attraction_id: attractionId,
+                time_slot: timeSlot,
+                ticket_id: ticketId,
+                visit_date: visitDate,
+                adults: guestData.adults,
+                children: guestData.children,
+                infants: guestData.infants,
+                male_count: guestData.male_count,
+                female_count: guestData.female_count,
+                child_ages: guestData.child_ages,
+                country: country,
+                // city parameter removed,
+                start_date: startDate,
+                end_date: endDate
+            };
 
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
+            for (const [key, value] of Object.entries(basicData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        // Add customer_info fields for backward compatibility
-        for (const [key, value] of Object.entries(customer_info)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = `customer_info[${key}]`;
-            input.value = value;
-            form.appendChild(input);
-        }
+            // Add customer_info fields for backward compatibility
+            for (const [key, value] of Object.entries(customer_info)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = `customer_info[${key}]`;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        document.body.appendChild(form);
-        form.submit();
+            document.body.appendChild(form);
+            form.submit();
 
-        // Close modal safely
-        safeCloseModal('attractionSelectionModal');
-        
-        // Show success message
-        showNotification(`Attraction ${attractionData.name} selected successfully! Time: ${timeSlot}, Ticket: ${ticketData.name}`, 'success');
-        
-        // Here you can add logic to update the attraction fields in your form
-        console.log('Selected attraction:', {
-            id: attractionId,
-            name: attractionData.name,
-            timeSlot: timeSlot,
-            ticket: ticketData.name
+            // Close modal safely
+            safeCloseModal('attractionSelectionModal');
+            
+            // Show success message
+            showNotification(`Attraction ${attractionData.name} selected successfully! Time: ${timeSlot}, Ticket: ${ticketData.name}`, 'success');
+            
+            console.log('Selected attraction:', {
+                id: attractionId,
+                name: attractionData.name,
+                timeSlot: timeSlot,
+                ticket: ticketData.name
+            });
         });
     }
 
@@ -17968,9 +18243,12 @@
             form.appendChild(input);
         }
 
-        // Append and submit
-        document.body.appendChild(form);
-        form.submit();
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(totalPrice, () => {
+            // Append and submit
+            document.body.appendChild(form);
+            form.submit();
+        });
     }
     
     // Guide Selection Modal Functions
@@ -18465,74 +18743,75 @@
 
         console.log('Guide booking data to be sent:', bookingData);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = guideBaseUrl;
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(totalPrice, () => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = guideBaseUrl;
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
 
-        // Add the complex booking data as JSON
-        const bookingDataInput = document.createElement('input');
-        bookingDataInput.type = 'hidden';
-        bookingDataInput.name = 'booking_data';
-        bookingDataInput.value = JSON.stringify(bookingData);
-        form.appendChild(bookingDataInput);
+            // Add the complex booking data as JSON
+            const bookingDataInput = document.createElement('input');
+            bookingDataInput.type = 'hidden';
+            bookingDataInput.name = 'booking_data';
+            bookingDataInput.value = JSON.stringify(bookingData);
+            form.appendChild(bookingDataInput);
 
-        // Add basic form fields for backward compatibility
-        const basicData = {
-            agent_id: agentId,
-            tour_id: tourId,
-            guide_id: guideId,
-            duration: duration,
-            custom_hours: customHours,
-            pickup_time: pickupTime,
-            service_date: serviceDate,
-            adults: adults,
-            children: children,
-            country: country,
-            // city parameter removed,
-            start_date: startDate,
-            end_date: endDate
-        };
+            // Add basic form fields for backward compatibility
+            const basicData = {
+                agent_id: agentId,
+                tour_id: tourId,
+                guide_id: guideId,
+                duration: duration,
+                custom_hours: customHours,
+                pickup_time: pickupTime,
+                service_date: serviceDate,
+                adults: adults,
+                children: children,
+                country: country,
+                // city parameter removed,
+                start_date: startDate,
+                end_date: endDate
+            };
 
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
+            for (const [key, value] of Object.entries(basicData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        // Add customer_info fields for backward compatibility
-        for (const [key, value] of Object.entries(customer_info)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = `customer_info[${key}]`;
-            input.value = value;
-            form.appendChild(input);
-        }
+            // Add customer_info fields for backward compatibility
+            for (const [key, value] of Object.entries(customer_info)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = `customer_info[${key}]`;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        document.body.appendChild(form);
-        form.submit();
+            document.body.appendChild(form);
+            form.submit();
 
-        // Close modal safely
-        safeCloseModal('guideSelectionModal');
-        
-        // Show success message
-        showNotification(`Guide ${guideData.name} selected successfully! Duration: ${duration === 'custom' ? customHours + ' hours' : duration}, Pickup: ${pickupTime}`, 'success');
-        
-        // Here you can add logic to update the guide fields in your form
-        console.log('Selected guide:', {
-            id: guideId,
-            name: guideData.name,
-            duration: duration,
-            customHours: customHours,
-            pickupTime: pickupTime
+            // Close modal safely
+            safeCloseModal('guideSelectionModal');
+            
+            showNotification(`Guide ${guideData.name} selected successfully! Duration: ${duration === 'custom' ? customHours + ' hours' : duration}, Pickup: ${pickupTime}`, 'success');
+            
+            console.log('Selected guide:', {
+                id: guideId,
+                name: guideData.name,
+                duration: duration,
+                customHours: customHours,
+                pickupTime: pickupTime
+            });
         });
     }
     
@@ -21059,75 +21338,72 @@
             bookingData[0].transfer_options = { transfer_required: false };
         }
 
-        //console.log('Restaurant booking data to be sent:', bookingData);
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(totalPrice, () => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = restaurantBaseUrl;
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = restaurantBaseUrl;
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
+            // Add the complex booking data as JSON
+            const bookingDataInput = document.createElement('input');
+            bookingDataInput.type = 'hidden';
+            bookingDataInput.name = 'booking_data';
+            bookingDataInput.value = JSON.stringify(bookingData);
+            form.appendChild(bookingDataInput);
 
-        // Add the complex booking data as JSON
-        const bookingDataInput = document.createElement('input');
-        bookingDataInput.type = 'hidden';
-        bookingDataInput.name = 'booking_data';
-        bookingDataInput.value = JSON.stringify(bookingData);
-        form.appendChild(bookingDataInput);
+            // Add basic form fields for backward compatibility
+            const basicData = {
+                agent_id: agentId,
+                tour_id: tourId,
+                restaurant_id: restaurantId,
+                meal_type: mealType,
+                dish_id: dishId,
+                time_slot: timeSlot,
+                dining_date: diningDate,
+                adults: guestData.adults,
+                children: guestData.children,
+                infants: guestData.infants,
+                male_count: guestData.male_count,
+                female_count: guestData.female_count,
+                child_ages: guestData.child_ages,
+                country: country,
+                // city parameter removed,
+                start_date: startDate,
+                end_date: endDate
+            };
 
-        // Add basic form fields for backward compatibility
-        const basicData = {
-            agent_id: agentId,
-            tour_id: tourId,
-            restaurant_id: restaurantId,
-            meal_type: mealType,
-            dish_id: dishId,
-            time_slot: timeSlot,
-            dining_date: diningDate,
-            adults: guestData.adults,
-            children: guestData.children,
-            infants: guestData.infants,
-            male_count: guestData.male_count,
-            female_count: guestData.female_count,
-            child_ages: guestData.child_ages,
-            country: country,
-            // city parameter removed,
-            start_date: startDate,
-            end_date: endDate
-        };
+            for (const [key, value] of Object.entries(basicData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
+            // Add customer_info fields for backward compatibility
+            for (const [key, value] of Object.entries(customer_info)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = `customer_info[${key}]`;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        // Add customer_info fields for backward compatibility
-        for (const [key, value] of Object.entries(customer_info)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = `customer_info[${key}]`;
-            input.value = value;
-            form.appendChild(input);
-        }
+            document.body.appendChild(form);
+            form.submit();
 
-        document.body.appendChild(form);
-        form.submit();
-
-        // Close modal safely
-        safeCloseModal('restaurantSelectionModal');
-        
-        // Show success message
-        showNotification(`Restaurant ${restaurantData.name} selected successfully! Meal: ${mealData.meal_period == 1 ? 'Breakfast' : mealData.meal_period == 2 ? 'Lunch' : 'Dinner'} at ${timeSlot} for ${guestData.adults} adults, ${guestData.children} children`, 'success');
-        
-        // Here you can add logic to update the restaurant fields in your form
-        
+            // Close modal safely
+            safeCloseModal('restaurantSelectionModal');
+            
+            showNotification(`Restaurant ${restaurantData.name} selected successfully! Meal: ${mealData.meal_period == 1 ? 'Breakfast' : mealData.meal_period == 2 ? 'Lunch' : 'Dinner'} at ${timeSlot} for ${guestData.adults} adults, ${guestData.children} children`, 'success');
+        });
     }
     
     // Order management functions

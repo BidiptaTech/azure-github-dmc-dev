@@ -2509,7 +2509,13 @@
                                                                </div>
                                                                <div class="col-6">
                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Language</small>
-                                                                   <span class="badge bg-success" style="font-size: 0.65rem;">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
+                                                                   @php
+                                                                       $languageValue = $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A';
+                                                                       if (is_array($languageValue)) {
+                                                                           $languageValue = implode(', ', $languageValue);
+                                                                       }
+                                                                   @endphp
+                                                                   <span class="badge bg-success" style="font-size: 0.65rem;">{{ $languageValue }}</span>
                                                                </div>
                                                                @if(isset($booking['guide_options']['tourActivity']) || isset($booking['guide_options']['tour_activity']) || isset($booking['guide_options']['Activity']))
                                                                <div class="col-12">

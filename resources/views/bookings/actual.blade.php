@@ -1307,18 +1307,20 @@
                                         @if($earliestDueDate)
                                             @php
                                                 // Requirement (use TODAY to color by due date):
-                                                // Example due date = 20 and today = 17 => orange (due-3)
-                                                // - Blue: today < (due-3)
-                                                // - Orange: (due-3) .. (due-1)
+                                                // Example due date = 20 and today = 17 => orange (due-N)
+                                                // - Blue: today < (due-N)
+                                                // - Orange: (due-N) .. (due-1)
                                                 // - Red: due date onwards (today >= due)
                                                 $today = now()->startOfDay();
                                                 $dueDay = $earliestDueDate->copy()->startOfDay();
-                                                $dueMinus3 = $dueDay->copy()->subDays(3);
+                                                $dueOffsetDays = (int) ($tour->dmc_auto_cancel_day ?? 3);
+                                                $dueOffsetDays = max(1, min(30, $dueOffsetDays));
+                                                $dueMinusOffset = $dueDay->copy()->subDays($dueOffsetDays);
 
                                                 $dueBadgeClass = 'due-blue';
                                                 if ($today->gte($dueDay)) {
                                                     $dueBadgeClass = 'due-red';
-                                                } elseif ($today->gte($dueMinus3)) {
+                                                } elseif ($today->gte($dueMinusOffset)) {
                                                     $dueBadgeClass = 'due-orange';
                                                 }
                                             @endphp
@@ -1490,10 +1492,31 @@
                                         </a>
                                     @endif
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11|| auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <!-- <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-warning btn-sm rounded-pill">
-                                        <i class="ri-settings-3-line"></i> Add/Remove Services
-                                    </a> -->
+                                        @if($tour->is_pro == 1)
+                                            <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                               class="action-icon-badge"
+                                               style="--action-color: #047857;"
+                                               data-tooltip="Edit Tour"
+                                               onclick="event.stopPropagation();">
+                                                <i class="ri-pencil-line"></i>
+                                            </a>
+                                        @else
+                                            <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                               class="action-icon-badge"
+                                               style="--action-color: #047857;"
+                                               data-tooltip="Edit Tour"
+                                               onclick="event.stopPropagation();">
+                                                <i class="ri-pencil-line"></i>
+                                            </a>
+                                        @endif
+
+                                        <!-- <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}"
+                                           class="action-icon-badge"
+                                           style="--action-color: #f59e0b;"
+                                           data-tooltip="Edit Tour (Add/Remove Services)"
+                                           onclick="event.stopPropagation();">
+                                            <i class="ri-settings-3-line"></i>
+                                        </a> -->
                                     <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="action-icon-badge" 
                                        style="--action-color: #0dcaf0;"

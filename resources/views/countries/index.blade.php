@@ -3,6 +3,17 @@
 @extends('layouts.datatablecss')
 
 @section('content')
+@php
+    $countryRoleId = Auth::user()->role_id ?? null;
+    $showRemitanceAndExchange = in_array($countryRoleId, [11, 34, 124, 125, 36, 126, 127]);
+    $currentUser = Auth::user();
+    $currentDmcId = null;
+    if (in_array($countryRoleId, [11, 20])) {
+        $currentDmcId = $currentUser->userId ?? null;
+    } else {
+        $currentDmcId = $currentUser->created_by ?? null;
+    }
+@endphp
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -38,7 +49,7 @@
                 </div>
                 <x-alert />
                 
-                <table class="datatables-basic table table-bordered">
+                <table class="datatables-basic table table-bordered table-sm w-100">
                     <thead>
                         <tr>
                             <th>No</th>
@@ -48,6 +59,10 @@
                             <th>Tax Percentage</th>
                             <th>Gateway Percentage</th>
                             <th>Commission Percentage</th>
+                            @if($showRemitanceAndExchange)
+                                <th>Remitance Charge</th>
+                                <th>Exchange Rate</th>
+                            @endif
                             <th>Status</th>
                             {{-- @if(hasPermission('edit country') || hasPermission('delete country')) --}}
                                 <th>Action</th>
@@ -65,6 +80,41 @@
                                 
                                 <td>{{ $country->gateway_percentage }}</td>
                                 <td>{{ $country->commission_percentage }}</td>
+                                @if($showRemitanceAndExchange)
+                                    @php
+                                        $rowDmcId = (int) ($currentDmcId ?? 0);
+                                        $remData = is_array($country->remitance_charge) ? $country->remitance_charge : (json_decode($country->remitance_charge ?? '[]', true) ?: []);
+                                        $exData = is_array($country->exchange_rate) ? $country->exchange_rate : (json_decode($country->exchange_rate ?? '[]', true) ?: []);
+                                        $remValue = $remData[(string) $rowDmcId]['value'] ?? '';
+                                        $exValue = $exData[(string) $rowDmcId]['value'] ?? '';
+                                    @endphp
+                                    <td style="min-width: 160px;">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            class="form-control form-control-sm country-extra-field"
+                                            data-id="{{ $country->id }}"
+                                            data-dmc-id="{{ $currentDmcId }}"
+                                            data-field="remitance_charge"
+                                            value="{{ $remValue }}"
+                                            placeholder="Remitance Charge"
+                                        />
+                                    </td>
+                                    <td style="min-width: 160px;">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            class="form-control form-control-sm country-extra-field"
+                                            data-id="{{ $country->id }}"
+                                            data-dmc-id="{{ $currentDmcId }}"
+                                            data-field="exchange_rate"
+                                            value="{{ $exValue }}"
+                                            placeholder="Exchange Rate"
+                                        />
+                                    </td>
+                                @endif
                                 <td>
                                     <div class="form-check form-switch d-flex justify-content-center">
                                         <input class="form-check-input status-toggle" type="checkbox" role="switch" 
@@ -138,6 +188,43 @@
 @section('styles')
 <!-- Add Toastr CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+<style>
+    /* Compact countries listing table */
+    .card-datatable.table-responsive {
+        overflow-x: auto;
+    }
+
+    table.datatables-basic {
+        font-size: 12px;
+        line-height: 1.1;
+        white-space: nowrap;
+    }
+
+    table.datatables-basic thead th,
+    table.datatables-basic tbody td {
+        padding: 0.35rem 0.45rem !important;
+        vertical-align: middle;
+    }
+
+    table.datatables-basic thead th {
+        font-weight: 600;
+    }
+
+    table.datatables-basic .form-check-input.status-toggle {
+        transform: scale(0.9);
+    }
+
+    table.datatables-basic .country-extra-field {
+        height: 26px;
+        padding: 0.15rem 0.35rem;
+        font-size: 12px;
+    }
+
+    /* Slightly tighter action buttons */
+    table.datatables-basic .btn.btn-sm {
+        padding: 0.2rem 0.35rem;
+    }
+</style>
 @endsection
 
 @section('scripts')
@@ -230,6 +317,45 @@
                     toggleElement.prop('disabled', false);
                     toggleElement.prop('checked', !isActive);
                     toastr.error('An error occurred while updating status');
+                    console.error("Error details:", xhr.responseText);
+                }
+            });
+        });
+
+        // Remitance/Exchange save functionality
+        $(document).on('change', '.country-extra-field', function() {
+            const countryId = $(this).data('id');
+            const field = $(this).data('field');
+            const dmcId = $(this).data('dmc-id');
+            const valueRaw = $(this).val();
+            const value = valueRaw === '' ? null : parseInt(valueRaw, 10);
+            const inputEl = $(this);
+
+            inputEl.prop('disabled', true);
+
+            $.ajax({
+                url: "{{ route('countries.update-remitance-exchange') }}",
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    id: countryId,
+                    field: field,
+                    value: value,
+                    dmcId: dmcId,
+                    _token: "{{ csrf_token() }}"
+                },
+                success: function(response) {
+                    inputEl.prop('disabled', false);
+                    if (response.success) {
+                        toastr.success(field.replace('_', ' ') + ' saved');
+                    } else {
+                        toastr.error(response.message || 'Error saving');
+                    }
+                },
+                error: function(xhr) {
+                    inputEl.prop('disabled', false);
+                    const message = xhr?.responseJSON?.message || 'An error occurred while saving';
+                    toastr.error(message);
                     console.error("Error details:", xhr.responseText);
                 }
             });

@@ -7,6 +7,9 @@ use App\Models\Country;
 use Illuminate\Http\Request;
 use App\Helpers\CommonHelper;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use App\Models\User;
 class CountryController extends Controller
 {
     /**
@@ -336,6 +339,77 @@ class CountryController extends Controller
                 'message' => 'Error updating country status: ' . $e->getMessage()
             ]);
         }
+    }
+
+    public function updateRemitanceAndExchange(Request $request)
+    {
+        $allowedRoleIds = [11, 34, 124, 125, 36, 126, 127];
+        $user = Auth::user();
+        $userRoleId = $user->role_id ?? null;
+        if (!$userRoleId || !in_array($userRoleId, $allowedRoleIds)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:countries,id'],
+            'field' => ['required', 'string', Rule::in(['remitance_charge', 'exchange_rate'])],
+            'value' => ['nullable', 'integer', 'min:0'],
+            'dmcId' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $country = Country::findOrFail($validated['id']);
+        $resolvedDmcId = $this->resolveDmcIdForUser($user);
+        if (!$resolvedDmcId) {
+            return response()->json(['success' => false, 'message' => 'DMC ID not found'], 422);
+        }
+        if ((int) $validated['dmcId'] !== (int) $resolvedDmcId) {
+            return response()->json(['success' => false, 'message' => 'Invalid DMC ID'], 422);
+        }
+
+        $field = $validated['field'];
+        $dmcId = (int) $resolvedDmcId;
+
+        $existing = $country->{$field};
+        if (is_string($existing)) {
+            $existing = json_decode($existing, true) ?: [];
+        }
+        if (!is_array($existing)) {
+            $existing = [];
+        }
+
+        // Store per-country JSON keyed by dmcId:
+        // { "9999": { "value": 25 } }
+        $existing[(string) $dmcId] = [
+            'value' => $validated['value'],
+        ];
+
+        $country->{$field} = $existing;
+        $country->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Saved',
+            'id' => $country->id,
+            'field' => $field,
+            'dmcId' => $dmcId,
+            'value' => $validated['value'],
+        ]);
+    }
+
+    private function resolveDmcIdForUser($user)
+    {
+        // Direct DMC roles
+        if (($user->role_id ?? null) == 11 || ($user->role_id ?? null) == 20) {
+            return $user->userId ?? null;
+        }
+
+        // Operational + Finance team roles (and similar) are created under a DMC userId
+        if (in_array(($user->role_id ?? null), [34, 124, 125, 36, 126, 127])) {
+            return $user->created_by ?? null;
+        }
+
+        // Fallback: if this user is created under a DMC
+        return $user->created_by ?? null;
     }
 
 }

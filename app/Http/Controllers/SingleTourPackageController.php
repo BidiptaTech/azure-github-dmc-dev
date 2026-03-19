@@ -4073,6 +4073,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Fix room_ids in booking data
         $hotelId = $bookingData['hotelDetails']['hotel_id'] ?? $bookingData['hotel_id'] ?? null;
@@ -4097,6 +4100,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
         
         // Update tour destination with hotel location if location is provided
@@ -4154,6 +4158,9 @@ class SingleTourPackageController extends Controller
             $bookingType = 'enquiry';
         }
 
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
+
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
         while (Order::where('booking_id', $bookingId)->exists()) {
@@ -4170,6 +4177,7 @@ class SingleTourPackageController extends Controller
             'discount' => $commission,
             'markup_percentage' => $markup_percentage,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4222,6 +4230,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
        
         // Generate unique booking ID
         $max_book_id = Order::max('booking_id') ?? 0;
@@ -4240,6 +4251,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4282,6 +4294,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -4301,6 +4316,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4345,6 +4361,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -4385,6 +4404,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4432,6 +4452,9 @@ class SingleTourPackageController extends Controller
             $bookingType = 'enquiry';
         }
 
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
+
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
         while (Order::where('booking_id', $bookingId)->exists()) {
@@ -4456,6 +4479,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;

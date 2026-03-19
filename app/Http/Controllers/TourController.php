@@ -689,7 +689,8 @@ class TourController extends Controller
                 'payment_amount' => 'required|numeric|min:0.01',
                 'currency' => 'required|string',
                 'payment_date' => 'required|date',
-                'payment_type' => 'required|string'
+                'payment_type' => 'required|string',
+                'auto_verify' => 'nullable|boolean',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             if ($request->expectsJson() || $request->ajax()) {
@@ -734,7 +735,8 @@ class TourController extends Controller
             'date' => now()->format('Y-m-d H:i:s'),
             'payment_date' => $request->payment_date,
             'payment_type' => $request->payment_type,
-            'status' => 0,
+            // status: 0 = unverified, 1 = verified
+            'status' => $request->boolean('auto_verify') ? 1 : 0,
         ];
         
         // Get existing payment details or initialize empty array
@@ -742,6 +744,7 @@ class TourController extends Controller
         
         // Add new payment to the array
         $paymentDetails[] = $paymentData;
+        $paymentIndex = count($paymentDetails) - 1;
         
         // Update the payment_details column with the new array
         $tour->payment_details = json_encode($paymentDetails);
@@ -758,7 +761,9 @@ class TourController extends Controller
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => $successMessage
+                'message' => $successMessage,
+                'payment_index' => $paymentIndex,
+                'verified' => (bool) ($request->boolean('auto_verify')),
             ]);
         }
         
