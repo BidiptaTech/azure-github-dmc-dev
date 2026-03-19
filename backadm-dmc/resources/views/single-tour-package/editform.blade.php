@@ -11340,11 +11340,19 @@
 
     function runServiceAddWithPayment(servicePrice, proceedFn) {
         const amount = Number.parseFloat(servicePrice || 0) || 0;
-        const mandatory = String(__tourStatus || '').toLowerCase() === 'actual';
+        const normalizedStatus = String(__tourStatus || '').toLowerCase();
+        const bypassPaymentCheckStatuses = ['definite', 'actual'];
+        const shouldBypassPaymentCheck = bypassPaymentCheckStatuses.includes(normalizedStatus);
+
+        // For Definite/Actual tours, bypass service payment check and continue directly.
+        if (shouldBypassPaymentCheck) {
+            if (typeof proceedFn === 'function') proceedFn();
+            return;
+        }
 
         __openGlobalPaymentModal({
             amount,
-            mandatory,
+            mandatory: true,
             onPaid: () => {
                 if (typeof proceedFn === 'function') proceedFn();
             },
@@ -21475,13 +21483,20 @@
             }
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
+            const tourId = document.getElementById('tour_id')?.value || '';
+            const normalizedStatus = String(__tourStatus || '').toLowerCase();
+            const isDefiniteOrActual = ['definite', 'actual'].includes(normalizedStatus);
             
             fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken
-                }
+                },
+                body: JSON.stringify({
+                    tour_id: tourId,
+                    skip_service_payment_check: isDefiniteOrActual ? 1 : 0
+                })
             })
             .then(response => response.json())
             .then(data => {
