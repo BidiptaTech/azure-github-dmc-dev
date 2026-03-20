@@ -4727,7 +4727,13 @@ class CommonHelper
             }
 
             $currentStatus = $tour->tour_status ?? '';
-            $statusesToRevert = ['Prospect', 'Tentative', 'Confirmed', 'Definite', 'Actual'];
+            // Definite / Actual: service reject/remove must NOT revert to New Enquiry, clear payment_details,
+            // soft-delete enquiry_comments, or force orders back to enquiry bookingType.
+            if (in_array($currentStatus, ['Definite', 'Actual'], true)) {
+                return;
+            }
+
+            $statusesToRevert = ['Prospect', 'Tentative', 'Confirmed'];
 
             // Do nothing if already "New Enquiry"
             if ($currentStatus === 'New Enquiry') {
@@ -4735,7 +4741,7 @@ class CommonHelper
             }
 
             // Do nothing if status is not in the list that should trigger revert
-            if (!in_array($currentStatus, $statusesToRevert, true)) {
+            if (! in_array($currentStatus, $statusesToRevert, true)) {
                 return;
             }
 
