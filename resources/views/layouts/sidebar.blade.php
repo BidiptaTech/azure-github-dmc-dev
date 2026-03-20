@@ -2122,21 +2122,28 @@
                             </li>
                         @endif
 
-                            @if($sidebarIsAdmin)
-                        <!-- Email Settings -->
-                        <li class="menu-item @if(Request::is('mail/settings')) active @endif">
-                            <a href="{{ route('mail.settings') }}" class="menu-link">
-                                <div data-i18n="Email Settings">Email Settings</div>
-                            </a>
-                        </li>
+                        @if($sidebarIsAdmin)
+                            <!-- Email Settings -->
+                            <li class="menu-item @if(Request::is('mail/settings')) active @endif">
+                                <a href="{{ route('mail.settings') }}" class="menu-link">
+                                    <div data-i18n="Email Settings">Email Settings</div>
+                                </a>
+                            </li>
 
-                        <!-- App Settings -->
-                        <li class="menu-item @if(Request::is('app-management')) active @endif">
-                            <a href="{{ route('app-management.index') }}" class="menu-link">
-                                <div data-i18n="App Management Settings">App Management Settings</div>
-                            </a>
-                        </li>
-                            @endif
+                            <!-- App Settings -->
+                            <li class="menu-item @if(Request::is('app-management')) active @endif">
+                                <a href="{{ route('app-management.index') }}" class="menu-link">
+                                    <div data-i18n="App Management Settings">App Management Settings</div>
+                                </a>
+                            </li>
+                        @endif
+                        @if(in_array(auth()->user()->role_id, [11, 33,34,37,38, 77, 84, 128, 131, 132, 134, 135, 137, 138]))
+                            <li class="menu-item @if(Request::is('itinerary_settings.pdf')) active @endif">
+                                <a href="{{ route('itinerary_settings.pdf') }}" class="menu-link">
+                                    <div data-i18n="Itinerary Settings">Itinerary Settings</div>
+                                </a>
+                            </li>
+                        @endif
                     </ul>
                 </li>
                 @endif

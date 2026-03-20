@@ -930,6 +930,8 @@ Route::get('/clear', function () {
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
             Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
+            Route::post('/bookings/process-order-refund', [BookingsController::class, 'processOrderRefund'])->name('bookings.process-order-refund');
+            Route::post('/bookings/process-order-refund-by-order', [BookingsController::class, 'processOrderRefundByOrder'])->name('bookings.process-order-refund-by-order');
             Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
             Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
             Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');
@@ -1180,7 +1182,14 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/app-management', [App\Http\Controllers\AppManagementController::class, 'index'])->name('app-management.index');
         Route::put('/app-management/update', [App\Http\Controllers\AppManagementController::class, 'update'])->name('app-management.update');
         Route::get('/app-management/settings', [App\Http\Controllers\AppManagementController::class, 'appManagementSettings'])->name('app-management.settings');
-    
+
+        // Itinerary Settings routes
+        Route::get('/itinerary_settings.pdf', [BookingListController::class, 'itinerarySettings'])->name('itinerary_settings.pdf');
+        Route::post('/itinerary_settings.pdf', [BookingListController::class, 'saveItinerarySettings'])->name('itinerary_settings.save');
+        Route::get('/itinerary_settings/fetch', [BookingListController::class, 'fetchItinerarySettings'])->name('itinerary_settings.fetch');
+        Route::get('/itinerary_settings/{id}/edit', [BookingListController::class, 'editItinerarySettings'])->name('itinerary_settings.edit');
+        Route::match(['put', 'post'], '/itinerary_settings/{id}/update', [BookingListController::class, 'updateItinerarySettings'])->name('itinerary_settings.update_route');
+        Route::delete('/itinerary_settings/{id}', [BookingListController::class, 'deleteItinerarySettings'])->name('itinerary_settings.delete');
     });
 
     //authentication check for manager (route can access admin & manager)

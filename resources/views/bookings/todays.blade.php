@@ -83,7 +83,10 @@
 
     <ul class="nav nav-tabs trip-log-tabs" role="tablist">
         <li class="nav-item">
-            <a class="nav-link active" data-bs-toggle="tab" href="#transfer-logs" role="tab">Transfer Logs</a>
+            <a class="nav-link active" data-bs-toggle="tab" href="#all" role="tab">All</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#transfer-logs" role="tab">Transfer Logs</a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-bs-toggle="tab" href="#attractions" role="tab">Attractions</a>
@@ -97,8 +100,74 @@
     </ul>
 
     <div class="tab-content">
-        {{-- Transfer Logs --}}
-        <div class="tab-pane fade show active trip-log-tab-pane" id="transfer-logs" role="tabpanel">
+        {{-- All (single table, sorted by date/time) --}}
+        <div class="tab-pane fade show active trip-log-tab-pane" id="all" role="tabpanel">
+            <div class="card trip-log-card">
+                <div class="card-body p-0">
+                    @if(count($allLogs ?? []) > 0)
+                        <div class="table-responsive">
+                            <table class="table table-hover trip-log-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="trip-log-icon-cell"></th>
+                                        <th>Type</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Reference No</th>
+                                        <th>Guest</th>
+                                        <th>Details</th>
+                                        <th>Adults</th>
+                                        <th>Child</th>
+                                        <th>Other</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($allLogs ?? [] as $row)
+                                        <tr>
+                                            <td><span class="trip-log-icon"><i class="{{ $row['icon'] ?? 'ri-car-line' }}"></i></span></td>
+                                            <td>{{ $row['log_type'] ?? '—' }}</td>
+                                            <td>{{ $row['date'] ?? '—' }}</td>
+                                            <td>{{ $row['time'] ?? '—' }}</td>
+                                            <td>{{ $row['reference_no'] ?? '—' }}</td>
+                                            <td>{{ $row['guest'] ?? '—' }}</td>
+                                            <td>
+                                                @if(($row['log_type'] ?? '') === 'Transfer')
+                                                    {{ \Str::limit(($row['from'] ?? '—') . ' → ' . ($row['to'] ?? '—'), 40) }}
+                                                    @if(!empty($row['transfer_type'])) <span class="text-muted">({{ $row['transfer_type'] }})</span> @endif
+                                                @elseif(($row['log_type'] ?? '') === 'Attraction')
+                                                    {{ $row['name'] ?? '—' }} @if(!empty($row['ticket_type'])) <span class="text-muted">/ {{ $row['ticket_type'] }}</span> @endif
+                                                @elseif(($row['log_type'] ?? '') === 'Restaurant')
+                                                    {{ $row['name'] ?? '—' }} @if(!empty($row['meal_type'])) <span class="text-muted">/ {{ $row['meal_type'] }}</span> @endif
+                                                @else
+                                                    {{ $row['name'] ?? '—' }} — {{ $row['check_in'] ?? '—' }} to {{ $row['check_out'] ?? '—' }}
+                                                @endif
+                                            </td>
+                                            <td>{{ $row['adults'] ?? '—' }}</td>
+                                            <td>{{ $row['child'] ?? '—' }}</td>
+                                            <td>
+                                                @if(($row['log_type'] ?? '') === 'Transfer')
+                                                    {{ $row['driver'] ?? '—' }}
+                                                @elseif(($row['log_type'] ?? '') === 'Hotel')
+                                                    {{ $row['rooms'] ?? '—' }} room(s)
+                                                @else
+                                                    —
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="trip-log-footer">Number of records: {{ count($allLogs ?? []) }}</div>
+                    @else
+                        <div class="trip-log-empty">No bookings for the selected date range.</div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- Transfer Logs (single tab) --}}
+        <div class="tab-pane fade trip-log-tab-pane" id="transfer-logs" role="tabpanel">
             <div class="card trip-log-card">
                 <div class="card-body p-0">
                     @if(count($transferLogs) > 0)
