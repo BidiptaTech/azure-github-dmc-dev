@@ -113,7 +113,7 @@
     .dataTables_scrollHeadInner table th {
         padding: 6px 8px !important;
         font-size: 11px !important;
-        border: 1px solid #f2f2f2;
+        /*border: 1px solid #f2f2f2;*/
         border-bottom: 2px solid #efefef;
     }
     

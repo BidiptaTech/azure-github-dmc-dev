@@ -10,17 +10,17 @@
     /* Better Select2 styling */
     .select2-container--default .select2-selection--single {
         border-color: #e2e5ec;
-        height: 38px;
-        line-height: 38px;
+        height: 32px;
+        line-height: 32px;
     }
     
     .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 38px;
-        padding-left: 12px;
+        line-height: 32px;
+        padding-left: 10px;
     }
     
     .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px;
+        height: 30px;
     }
     
     /* Select2 in table cells */
@@ -87,18 +87,18 @@
 
     /* Assign Guide: view (read-only text + pen) vs edit (dropdown) */
     .assign-guide-cell {
-        min-width: 180px;
+        min-width: 170px;
     }
     .assign-guide-view {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
-        min-height: 38px;
+        gap: 6px;
+        min-height: 32px;
     }
     .assign-guide-text {
         flex: 1;
-        padding: 6px 0;
+        padding: 4px 0;
         color: #333;
     }
     .assign-guide-text.empty {
@@ -107,7 +107,7 @@
     }
     .assign-guide-edit-btn {
         flex-shrink: 0;
-        padding: 4px 8px;
+        padding: 3px 7px;
         color: #6777ef;
         border: 1px solid #e2e5ec;
         background: #fff;
@@ -124,6 +124,42 @@
     }
     .assign-guide-edit.is-active {
         display: block;
+    }
+
+    /* Compact table spacing */
+    #tourOrdersTable {
+        font-size: 0.85rem;
+    }
+    #tourOrdersTable th{
+        padding: 0.35rem 1.25rem !important;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #tourOrdersTable td {
+        padding: 0.35rem 0.25rem !important;
+        vertical-align: middle;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    /* Reduce Select2 height inside cells to match compact rows */
+    #tourOrdersTable .select2-container--default .select2-selection--single {
+        height: 30px;
+        line-height: 30px;
+    }
+    #tourOrdersTable .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 30px;
+        padding-left: 10px;
+    }
+    #tourOrdersTable .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 28px;
+    }
+
+    #tourOrdersTable .select2-search--dropdown .select2-search__field {
+        padding: 4px 10px;
     }
 </style>
 
@@ -162,12 +198,16 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover" id="tourOrdersTable">
+                    <table class="table table-bordered table-hover table-sm" id="tourOrdersTable">
                         <thead>
                             <tr>
                                 <th>Tour ID</th>
                                 <th>Order Type</th>
                                 <th>Pickup Time</th>
+                                <th>Guest Name</th>
+                                <th>Adult</th>
+                                <th>Child</th>
+                                <th>Infant</th>
                                 <th>Pickup Location</th>
                                 <th>Tour Type</th>
                                 <th>Guide</th>
@@ -212,7 +252,8 @@ var initialOrders = {!! json_encode($orders ?? []) !!};
 var initialGuides = {!! json_encode($guides ?? []) !!};
 var dataTableInitialized = false; // Track if DataTable is initialized
 
-
+console.log("initialGuides = ", initialGuides);
+console.log("initialOrders = ", initialOrders);
 
 $(document).ready(function() {
     let datePicker = null;
@@ -241,6 +282,44 @@ $(document).ready(function() {
             alertDiv.classList.remove('show');
             setTimeout(() => alertDiv.remove(), 300);
         }, 5000);
+    }
+
+    // Helpers for extracting guest info from the tour payload
+    function getGuestNameFromMainguest(mainguest) {
+        if (!mainguest) return 'N/A';
+        try {
+            if (typeof mainguest === 'object') {
+                return mainguest?.full_name || 'N/A';
+            }
+
+            // mainguest usually comes as an escaped JSON string:
+            // "{\"full_name\":\"zxy\",...}"
+            let str = String(mainguest).trim();
+
+            // Sometimes it may be double-quoted; remove outer quotes if present.
+            if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+                str = str.slice(1, -1);
+            }
+
+            try {
+                const parsed = JSON.parse(str);
+                return parsed?.full_name || 'N/A';
+            } catch (e) {
+                // Fallback for double-escaped payloads (best-effort unescape quotes).
+                const unescaped = str.replace(/\\"/g, '"');
+                const parsed = JSON.parse(unescaped);
+                return parsed?.full_name || 'N/A';
+            }
+        } catch (e) {
+            return 'N/A';
+        }
+    }
+
+    function normalizeCount(value) {
+        // Backend often returns null/undefined; show 0 in the grid/export.
+        if (value === null || typeof value === 'undefined' || value === '') return 0;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
     }
 
     // Initialize table with orders data from controller
@@ -273,6 +352,10 @@ $(document).ready(function() {
                         <td>${item.tour_id || 'N/A'}</td>
                         <td>${item.type || 'N/A'}</td>
                         <td>${dataItem.entrytime || 'N/A'}</td>
+                        <td>${getGuestNameFromMainguest(item.mainguest.full_name) || 'N/A'}</td>
+                        <td>${normalizeCount(item.tour?.adult)}</td>
+                        <td>${normalizeCount(item.tour?.child)}</td>
+                        <td>${normalizeCount(item.tour?.infant)}</td>
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
                         <td>${(function() {
@@ -337,7 +420,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -348,13 +431,13 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
 
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date) + '?type=guide', {
             method: 'GET',
@@ -395,6 +478,10 @@ $(document).ready(function() {
                                     <td>${item.tour_id || 'N/A'}</td>
                                     <td>${item.type || 'N/A'}</td>
                                     <td>${dataItem.entrytime || 'N/A'}</td>
+                                    <td>${getGuestNameFromMainguest(item.tour?.mainguest) || 'N/A'}</td>
+                                    <td>${normalizeCount(item.tour?.adult)}</td>
+                                    <td>${normalizeCount(item.tour?.child)}</td>
+                                    <td>${normalizeCount(item.tour?.infant)}</td>
                                     <td>${dataItem.entrypickup || 'N/A'}</td>
                                     <td>${dataItem.type || 'N/A'}</td>
                                     <td>${(function() {
@@ -459,14 +546,14 @@ $(document).ready(function() {
                         // Initialize DataTable
                         initializeDataTable();
                     } else {
-                        $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">No orders found for this date</td></tr>');
+                        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found for this date</td></tr>');
                         $('#exportOrdersBtn').hide();
                     }
                 } else {
                     const errorMessage = response.message || 'Error loading orders';
                     console.error('Error:', errorMessage);
                     showAlert('error', errorMessage);
-                    $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Error loading orders</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
         })
@@ -474,7 +561,7 @@ $(document).ready(function() {
             console.error('Error fetching orders by date:', error);
             const errorMessage = error.message || 'Error fetching orders';
             showAlert('error', errorMessage);
-            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Error loading orders</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
             $('#exportOrdersBtn').hide();
         });
     }
@@ -526,7 +613,7 @@ $(document).ready(function() {
                     info: true,
                     searching: true,
                     columnDefs: [
-                        { orderable: false, targets: [6] }  // Disable sorting on guide select column
+                        { orderable: false, targets: [10] } // Disable sorting on guide select column
                     ]
                 });
                 
@@ -710,7 +797,7 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 7) {
+            if (cells.length < 11) {
                 return; // Skip incomplete rows
             }
             
@@ -718,12 +805,16 @@ $(document).ready(function() {
             const tourId = $(cells[0]).text().trim();
             const orderType = $(cells[1]).text().trim();
             const pickupTime = $(cells[2]).text().trim();
-            const pickupLocation = $(cells[3]).text().trim();
-            const tourType = $(cells[4]).text().trim();
-            const guide = $(cells[5]).text().trim();
+            const guestName = $(cells[3]).text().trim();
+            const adult = $(cells[4]).text().trim();
+            const child = $(cells[5]).text().trim();
+            const infant = $(cells[6]).text().trim();
+            const pickupLocation = $(cells[7]).text().trim();
+            const tourType = $(cells[8]).text().trim();
+            const guide = $(cells[9]).text().trim();
             
             // Get selected guide from the dropdown
-            const guideSelect = $(cells[6]).find('.guide-select');
+            const guideSelect = $(cells[10]).find('.guide-select');
             const assignedGuide = guideSelect.find('option:selected').text().trim() || 'Not Assigned';
             
             // Add to excel data
@@ -731,6 +822,10 @@ $(document).ready(function() {
                 'Tour ID': tourId,
                 'Order Type': orderType,
                 'Pickup Time': pickupTime,
+                'Guest Name': guestName,
+                'Adult': adult,
+                'Child': child,
+                'Infant': infant,
                 'Pickup Location': pickupLocation,
                 'Tour Type': tourType,
                 'Guide': guide,
