@@ -2144,6 +2144,14 @@
                                 </a>
                             </li>
                         @endif
+
+                        @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))
+                            <li class="menu-item @if(Request::is('booking-list/daily-arrival')) active @endif">
+                                <a href="{{ route('booking-list.daily-arrival') }}" class="menu-link">
+                                    <div data-i18n="Daily Arrival">Daily Arrival</div>
+                                </a>
+                            </li>
+                        @endif
                     </ul>
                 </li>
                 @endif
