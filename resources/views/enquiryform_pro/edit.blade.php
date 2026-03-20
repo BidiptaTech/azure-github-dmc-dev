@@ -1,5 +1,5 @@
 @extends('layouts.layout')
-@section('title', isset($tour) ? 'Edit Tour Enquiry - ' . ($tour->display_id ?? '') : 'Enquiry Pro')
+@section('title', isset($tour) ? 'Edit Tour Enquiry - ' . ($tourReferenceFormatted ?? $tour->display_id ?? '') : 'Enquiry Pro')
 @extends('layouts.datatablecss')
 
 @php
@@ -83,6 +83,40 @@
     }
     
     /* Row 1 Fields - Customer fields on the right side */
+    /* Tour reference — 3D raised badge (header, next to status) */
+    .enquiry-tour-ref-3d {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 1px;
+        padding: 4px 10px 5px;
+        border-radius: 7px;
+        background: linear-gradient(165deg, #f0f5fc 0%, #dbe6f5 38%, #c9d8ee 100%);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        box-shadow:
+            0 2px 0 rgba(255, 255, 255, 0.85) inset,
+            0 -2px 4px rgba(30, 60, 120, 0.12) inset,
+            0 4px 8px rgba(20, 50, 100, 0.18),
+            0 2px 3px rgba(0, 0, 0, 0.12);
+        line-height: 1.15;
+    }
+    .enquiry-tour-ref-3d .enquiry-tour-ref-id {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        color: #153a75;
+        text-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.65),
+            0 -1px 1px rgba(0, 40, 100, 0.06);
+    }
+    .enquiry-tour-ref-3d .enquiry-tour-ref-sub {
+        font-size: 0.62rem;
+        font-weight: 700;
+        color: #516079;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+    
     .row-1-fields {
         flex: 0 0 auto;
         padding: 2px 4px;
@@ -945,7 +979,7 @@
 <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
 @php
     // DMC information for cost sheet print (same pattern as invoices/pdf/final.blade.php)
-    $dmcUser = isset($dmc_id) && $dmc_id ? \App\Models\User::find($dmc_id) : ($user ?? null);
+    $dmcUser = isset($dmc_id) && $dmc_id ? \App\Models\User::where('userId', $dmc_id)->first() : ($user ?? null);
     $dmcCompanyName = 'DMC';
     $dmcLogoSrc = '';
     $dmcContact = '';
@@ -1169,8 +1203,13 @@
                         <label class="form-check-label" for="costSheet">Cost Sheet</label>
                     </div>
                 </li>
-                <li class="nav-item ms-3">
-                    <span class="status-badge">STATUS: QUOTATION</span>
+                <li class="nav-item ms-3 d-flex align-items-center flex-wrap gap-2">
+                    @if($isEditMode && !empty($tourReferenceFormatted ?? null))
+                        <div class="enquiry-tour-ref-3d" role="status" title="Tour reference">
+                            <span class="enquiry-tour-ref-id">{{ $tourReferenceFormatted }}</span>
+                            <small class="enquiry-tour-ref-sub">Tour ID: #{{ $tour->tour_id }}</small>
+                        </div>
+                    @endif
                 </li>
             </ul>
             
@@ -24059,7 +24098,9 @@
                     vehicle_model: vehicleDetails.vehicle_model,
                     model_year: vehicleDetails.model_year,
                     seating_capacity: 0,
-                    supplement: item.supplement || false
+                    supplement: item.supplement || false,
+                    booking_id: item.bookingId || item.booking_id || null,
+                    bookingId: item.bookingId || item.booking_id || null
                 });
                 
                 // Add guide_options if departure has linked guide
@@ -24335,7 +24376,9 @@
                 hotelName: hotel.hotelName || "",
                 roomType: hotel.roomType || "",
                 bedType: cleanBedType,
-                destination: hotel.destination || hotel.location || ""
+                destination: hotel.destination || hotel.location || "",
+                booking_id: hotel.bookingId || hotel.booking_id || null,
+                bookingId: hotel.bookingId || hotel.booking_id || null
             };
             
             return hotelData;
@@ -24421,7 +24464,9 @@
                 dmc_id: dmcId,
                 supplement: tour.supplement || false,
                 transferId: tour.transferId || null,
-                guideId: tour.guideId || null
+                guideId: tour.guideId || null,
+                booking_id: tour.bookingId || tour.booking_id || null,
+                bookingId: tour.bookingId || tour.booking_id || null
             };
             
             // Add transfer_options if attraction has linked transfer
@@ -24593,7 +24638,9 @@
                 dmc_id: String(dmcId),
                 bookingType: "enquiry",
                 supplement: meal.supplement || false,
-                transferId: meal.transferId || null
+                transferId: meal.transferId || null,
+                booking_id: meal.bookingId || meal.booking_id || null,
+                bookingId: meal.bookingId || meal.booking_id || null
             };
             
             // Add transfer_options if meal has linked transfer
@@ -24766,7 +24813,8 @@
                 language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
                 experience: guide.experience || 0,
                 price: parseFloat(guide.adultSell) || 0,
-                booking_id: guide.booking_id || 0,
+                booking_id: guide.bookingId || guide.booking_id || null,
+                bookingId: guide.bookingId || guide.booking_id || null,
                 supplement: guide.supplement || false
             };
         });
@@ -24947,7 +24995,9 @@
                 supplement: transfer.supplement !== undefined ? transfer.supplement : false,
                 zonePrivatePrice: transfer.zonePrivatePrice || 0,
                 zoneSharedPrice: transfer.zoneSharedPrice || 0,
-                transportMode: "local"
+                transportMode: "local",
+                booking_id: transfer.bookingId || transfer.booking_id || null,
+                bookingId: transfer.bookingId || transfer.booking_id || null
             };
             
             // Add linked_to_hotel field if this is a hotel-linked transfer
@@ -25029,7 +25079,9 @@
             state: customerInfo.state,
             zip: customerInfo.zip,
             specialRequests: customerInfo.specialRequests,
-            bookingType: "enquiry"
+            bookingType: "enquiry",
+            booking_id: misc.bookingId || misc.booking_id || null,
+            bookingId: misc.bookingId || misc.booking_id || null
         }));
     }
     
@@ -25104,6 +25156,8 @@
         
         // Prepare data to send
         const formData = new FormData();
+        /** @type {boolean} Sync all service lists on edit so server can soft-delete only removed rows (never omit keys). */
+        const isEnquiryEditSave = {{ $isEditMode ? 'true' : 'false' }};
         formData.append('destination', destination);
         formData.append('start_date', startDate);
         formData.append('end_date', endDate);
@@ -25146,44 +25200,41 @@
         const transformedTransfers = await transformTransferData();
         const transformedMiscellaneous = transformMiscellaneousData();
         
-        // Add entry_port (Arrival)
-        if (entryPortData.length > 0) {
+        // Add service payloads (edit: always send each key, even [] — required for orphan soft-delete vs omit-key)
+        if (isEnquiryEditSave) {
             formData.append('entry_port', JSON.stringify(entryPortData));
-        }
-        
-        // Add exit_port (Departure)
-        if (exitPortData.length > 0) {
             formData.append('exit_port', JSON.stringify(exitPortData));
-        }
-        
-        // Add hotel (Accommodation)
-        if (transformedAccommodations.length > 0) {
             formData.append('accommodations', JSON.stringify(transformedAccommodations));
-        }
-        
-        // Add attraction (Tours)
-        if (transformedTours.length > 0) {
             formData.append('tours', JSON.stringify(transformedTours));
-        }
-        
-        // Add restaurant (Meals)
-        if (transformedMeals.length > 0) {
             formData.append('meals', JSON.stringify(transformedMeals));
-        }
-        
-        // Add guide
-        if (transformedGuides.length > 0) {
             formData.append('guides', JSON.stringify(transformedGuides));
-        }
-        
-        // Add local_transport (Transfers)
-        if (transformedTransfers.length > 0) {
             formData.append('transfers', JSON.stringify(transformedTransfers));
-        }
-        
-        // Add miscellaneous
-        if (transformedMiscellaneous.length > 0) {
             formData.append('miscellaneous', JSON.stringify(transformedMiscellaneous));
+        } else {
+            if (entryPortData.length > 0) {
+                formData.append('entry_port', JSON.stringify(entryPortData));
+            }
+            if (exitPortData.length > 0) {
+                formData.append('exit_port', JSON.stringify(exitPortData));
+            }
+            if (transformedAccommodations.length > 0) {
+                formData.append('accommodations', JSON.stringify(transformedAccommodations));
+            }
+            if (transformedTours.length > 0) {
+                formData.append('tours', JSON.stringify(transformedTours));
+            }
+            if (transformedMeals.length > 0) {
+                formData.append('meals', JSON.stringify(transformedMeals));
+            }
+            if (transformedGuides.length > 0) {
+                formData.append('guides', JSON.stringify(transformedGuides));
+            }
+            if (transformedTransfers.length > 0) {
+                formData.append('transfers', JSON.stringify(transformedTransfers));
+            }
+            if (transformedMiscellaneous.length > 0) {
+                formData.append('miscellaneous', JSON.stringify(transformedMiscellaneous));
+            }
         }
         
         // Show loading modal and disable form

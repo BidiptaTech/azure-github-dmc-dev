@@ -74,6 +74,27 @@ class EnquiryFormPro extends Controller
         }
         return ucfirst(strtolower($type));
     }
+
+    /**
+     * Slash-separated tour reference matching bookings list / definite template:
+     * (dmc user's company_code ?? creator user's company_code) / creator user_code / display_id without DMC- prefix.
+     */
+    private function formatTourReferenceSlashSeparated(?Tour $tour): ?string
+    {
+        if (!$tour || empty($tour->display_id)) {
+            return null;
+        }
+        $rest = preg_replace('/^DMC\-/i', '', (string) $tour->display_id);
+        $dmcUser = $tour->dmc_id ? User::where('userId', $tour->dmc_id)->first() : null;
+        $creatorUser = $tour->created_by ? User::where('userId', $tour->created_by)->first() : null;
+        $companyFromDmc = $dmcUser ? (string) ($dmcUser->company_code ?? '') : '';
+        $companyFromCreator = $creatorUser ? (string) ($creatorUser->company_code ?? '') : '';
+        $companyCode = $companyFromDmc !== '' ? $companyFromDmc : $companyFromCreator;
+        $userCode = $creatorUser ? (string) ($creatorUser->user_code ?? '') : '';
+        $prefixParts = array_filter([$companyCode, $userCode], 'strlen');
+
+        return $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+    }
     
     public function create(Request $request)
     {
@@ -1087,8 +1108,9 @@ class EnquiryFormPro extends Controller
             $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
             $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
             
-            // Generate tour ID
-            $max_tour_id = Tour::max('tour_id') ?? 0;
+            // Generate tour ID — must include soft-deleted tours so IDs are never reused
+            // (reusing tour_id orphans/mixes orders from the old soft-deleted tour with the new one)
+            $max_tour_id = (int) (Tour::withTrashed()->max('tour_id') ?? 0);
             $tourId = CommonHelper::createId($max_tour_id);
             $display_id = 'DMC-ORD' . $tourId;
             
@@ -2072,15 +2094,16 @@ class EnquiryFormPro extends Controller
     }
     
     /**
-     * Generate unique booking ID
+     * Generate unique booking ID (must include soft-deleted rows or IDs get reused → duplicate rows / unique violations).
      */
     private function generateBookingId()
     {
-        $max_book_id = Order::max('booking_id') ?? 0;
+        $max_book_id = (int) (Order::withTrashed()->max('booking_id') ?? 0);
         $bookingId = CommonHelper::createId($max_book_id);
-        while (Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId($bookingId);
+        while (Order::withTrashed()->where('booking_id', $bookingId)->exists()) {
+            $bookingId = CommonHelper::createId((int) $bookingId);
         }
+
         return $bookingId;
     }
     
@@ -2372,14 +2395,22 @@ class EnquiryFormPro extends Controller
             // If decryption fails, use tour_id as-is
         }
         
-        // Clean up any duplicate orders for this tour before loading edit page
-        $this->cleanupDuplicateOrders($tour_id);
-        
-        // Get the tour with agent relationship
-        $tour = Tour::with('agent')->where('tour_id', $tour_id)->firstOrFail();
-        
-        // Get all orders for this tour (excludes soft-deleted records automatically via SoftDeletes)
-        $orders = Order::where('tour_id', $tour_id)->get();
+        // Get the tour with agent relationship (prefer latest row if legacy duplicate tour_id exists)
+        $tour = Tour::with('agent')
+            ->where('tour_id', $tour_id)
+            ->orderByDesc('id')
+            ->firstOrFail();
+
+        // Only consider orders created for this tour row (not orphaned orders from a previous soft-deleted tour with same tour_id)
+        $tourCreatedAt = $tour->created_at;
+
+        // Clean up duplicates only within this tour's order set
+        $this->cleanupDuplicateOrders($tour_id, $tourCreatedAt);
+
+        // Get all orders for this tour (excludes soft-deleted order records via SoftDeletes)
+        $orders = Order::where('tour_id', $tour_id)
+            ->where('created_at', '>=', $tourCreatedAt)
+            ->get();
         
         // Debug: Log hotel orders count
         $hotelOrdersCount = $orders->where('type', 'hotel')->count();
@@ -2691,6 +2722,7 @@ class EnquiryFormPro extends Controller
         $isEditMode = true;
         $tourId = $tour_id;
         $existingOrders = $orders; // Rename for consistency with view
+        $tourReferenceFormatted = $this->formatTourReferenceSlashSeparated($tour);
         
         return view('enquiryform_pro.edit', compact(
             'tour',
@@ -2698,6 +2730,7 @@ class EnquiryFormPro extends Controller
             'existingOrders',
             'isEditMode',
             'tourId',
+            'tourReferenceFormatted',
             'hotels',
             'attractions',
             'restaurants',
@@ -2756,16 +2789,16 @@ class EnquiryFormPro extends Controller
                 'discount_type' => 'nullable|string|in:percentage,flat,',
             ]);
             
-            // Get markup and discount values
+            // Get markup and discount values (coerce — input() can return null when key exists)
             $markupValue = $request->input('markup_value', 0);
-            $markupType = $request->input('markup_type', 'percentage');
+            $markupType = (string) ($request->input('markup_type') ?? 'percentage');
             $discountValue = $request->input('discount_value', 0);
-            $discountType = $request->input('discount_type', '');
+            $discountType = (string) ($request->input('discount_type') ?? '');
             
             DB::beginTransaction();
             
-            // Get the tour
-            $tour = Tour::where('tour_id', $tour_id)->firstOrFail();
+            // Get the tour (latest row if legacy duplicate tour_id exists)
+            $tour = Tour::where('tour_id', $tour_id)->orderByDesc('id')->firstOrFail();
             
             // Update tour record
             $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
@@ -2872,522 +2905,510 @@ class EnquiryFormPro extends Controller
                 'agent_id' => $request->agent_id
             ]);
             
-            // Handle orders marked for deletion (force-delete so no deleted_at lingers)
+            // Explicit removals from edit form (soft delete)
             if ($request->has('orders_to_delete') && !empty($request->orders_to_delete)) {
                 $ordersToDelete = json_decode($request->orders_to_delete, true);
                 if (is_array($ordersToDelete) && count($ordersToDelete) > 0) {
-                    \Log::info('Deleting orders', ['booking_ids' => $ordersToDelete]);
-                    Order::withTrashed()
-                        ->where('tour_id', $tour_id)
+                    \Log::info('Soft-deleting orders requested by client', ['booking_ids' => $ordersToDelete]);
+                    $this->ordersForTourRow($tour, false)
                         ->whereIn('booking_id', $ordersToDelete)
-                        ->forceDelete();
+                        ->delete();
                 }
             }
-            
-            // Collect all existing booking_ids to track what we're updating
-            $existingBookingIds = Order::where('tour_id', $tour_id)->pluck('booking_id')->toArray();
-            \Log::info('Existing booking IDs before update', ['booking_ids' => $existingBookingIds]);
-            
-            // Determine booking type
+
             $bookingType = 'enquiry';
-            
-            // Update or create orders for each service type
-            // Note: We'll update existing orders by booking_id or create new ones
-            $createdOrders = [];
-            $updatedOrders = [];
-            $processedBookingIds = []; // Track processed booking IDs to prevent duplicates
-            
-            // 1. Entry Port Orders (Arrival)
-            // ALWAYS delete existing entry_port orders first, then recreate if there are new ones
-            $deletedEntryPorts = Order::withTrashed()->where('tour_id', $tour_id)
-                ->where('type', 'entry_port')
-                ->forceDelete();
-            \Log::info('Force-deleted existing entry_port orders', ['count' => $deletedEntryPorts, 'tour_id' => $tour_id]);
-            
-            if ($request->has('entry_port') && !empty($request->entry_port)) {
-                $entryPorts = json_decode($request->entry_port, true);
-                if (!is_array($entryPorts)) {
-                    $entryPorts = $entryPorts ? [$entryPorts] : [];
-                }
-                
-                // Use a set to track unique entries to prevent duplicates within the same request
-                $seenEntries = [];
-                
-                foreach ($entryPorts as $entryPort) {
-                    // Create a unique identifier using frontend-generated id as primary key
-                    // This ensures same port with different configurations are all saved
-                    $uniqueKey = md5(json_encode([
-                        'id' => $entryPort['id'] ?? '',
-                        'port_id' => $entryPort['port_id'] ?? '',
-                        'port_name' => $entryPort['port_name'] ?? '',
-                        'bookingDate' => $entryPort['bookingDate'] ?? '',
-                        'type' => $entryPort['type'] ?? ''
-                    ]));
-                    
-                    // Skip if we've already processed this exact entry
-                    if (in_array($uniqueKey, $seenEntries)) {
-                        \Log::info('Skipping duplicate entry_port within request', ['unique_key' => $uniqueKey, 'port' => $entryPort['port_name'] ?? '']);
-                        continue;
-                    }
-                    $seenEntries[] = $uniqueKey;
-                    
-                    // Get vehicle details from database if vehicle_id exists
-                    if (!empty($entryPort['vehicle_id'])) {
-                        $vehicleDetails = $this->getVehicleDetails($entryPort['vehicle_id']);
-                        if ($vehicleDetails) {
-                            $entryPort['vehicle_id'] = $vehicleDetails['vehicle_id'];
-                            $entryPort['vehicles_name'] = $vehicleDetails['vehicles_name'];
-                            $entryPort['vehicle_type'] = $vehicleDetails['vehicle_type'];
-                            $entryPort['vehicle_model'] = $vehicleDetails['vehicle_model'];
-                            $entryPort['model_year'] = $vehicleDetails['model_year'];
-                            $entryPort['seating_capacity'] = $vehicleDetails['seating_capacity'];
-                            $entryPort['image'] = $vehicleDetails['image'];
-                        }
-                    }
-                    
-                    // Normalize transfer type
-                    if (!empty($entryPort['type'])) {
-                        $entryPort['type'] = $this->normalizeTransferType($entryPort['type']);
-                    }
-                    
-                    // Add tour_id to the JSON data
-                    $entryPort['tour_id'] = $tour_id;
-                    
-                    // Create new order (always create new since we deleted all existing ones)
-                    $bookingId = $this->generateBookingId();
-                    Order::create([
-                        'booking_id' => $bookingId,
-                        'agent_id' => $request->agent_id,
-                        'tour_id' => $tour_id,
-                        'data' => [$entryPort],
-                        'type' => 'entry_port',
-                        'bookingType' => $bookingType,
-                        'discount' => $discountValue,
-                        'discount_type' => $discountType,
-                        'markup_percentage' => $markupValue,
-                        'markup_type' => $markupType,
-                        'status' => 1,
-                    ]);
-                    
-                    $createdOrders[] = ['type' => 'entry_port', 'booking_id' => $bookingId];
-                }
+            $syncedOrders = [];
+
+            // 1. Entry Port Orders (Arrival) — soft-delete removed only; restore+update existing/trashed; create truly new rows
+            $entryPorts = [];
+            if ($request->has('entry_port') && $request->entry_port !== '' && $request->entry_port !== null) {
+                $decoded = json_decode($request->entry_port, true);
+                $entryPorts = is_array($decoded) ? $decoded : ($decoded ? [$decoded] : []);
             }
-            
+            $this->softDeleteOrphanOrdersForType($tour, 'entry_port', $this->resolveKeepBookingIdsForType($tour, 'entry_port', $entryPorts));
+
+            $seenEntries = [];
+            foreach ($entryPorts as $entryPort) {
+                if (! is_array($entryPort)) {
+                    continue;
+                }
+                $uniqueKey = md5(json_encode([
+                    'id' => $entryPort['id'] ?? '',
+                    'port_id' => $entryPort['port_id'] ?? '',
+                    'port_name' => $entryPort['port_name'] ?? '',
+                    'bookingDate' => $entryPort['bookingDate'] ?? '',
+                    'type' => $entryPort['type'] ?? '',
+                ]));
+                if (in_array($uniqueKey, $seenEntries, true)) {
+                    continue;
+                }
+                $seenEntries[] = $uniqueKey;
+
+                if (! empty($entryPort['vehicle_id'])) {
+                    $vehicleDetails = $this->getVehicleDetails($entryPort['vehicle_id']);
+                    if ($vehicleDetails) {
+                        $entryPort['vehicle_id'] = $vehicleDetails['vehicle_id'];
+                        $entryPort['vehicles_name'] = $vehicleDetails['vehicles_name'];
+                        $entryPort['vehicle_type'] = $vehicleDetails['vehicle_type'];
+                        $entryPort['vehicle_model'] = $vehicleDetails['vehicle_model'];
+                        $entryPort['model_year'] = $vehicleDetails['model_year'];
+                        $entryPort['seating_capacity'] = $vehicleDetails['seating_capacity'];
+                        $entryPort['image'] = $vehicleDetails['image'];
+                    }
+                }
+                if (! empty($entryPort['type'])) {
+                    $entryPort['type'] = $this->normalizeTransferType($entryPort['type']);
+                }
+                $entryPort['tour_id'] = $tour_id;
+
+                $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'entry_port', $entryPort);
+                if ($existingOrder !== null) {
+                    $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$entryPort], 'entry_port', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+
+                    continue;
+                }
+
+                $bookingId = $this->generateBookingId();
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $request->agent_id,
+                    'tour_id' => $tour_id,
+                    'data' => [$entryPort],
+                    'type' => 'entry_port',
+                    'bookingType' => $bookingType,
+                    'discount' => $discountValue,
+                    'discount_type' => $discountType,
+                    'markup_percentage' => $markupValue,
+                    'markup_type' => $markupType,
+                    'status' => 1,
+                ]);
+                $syncedOrders[] = ['type' => 'entry_port', 'booking_id' => $bookingId, 'action' => 'created'];
+            }
+
             // 2. Exit Port Orders (Departure)
-            // ALWAYS delete existing exit_port orders first, then recreate if there are new ones
-            $deletedExitPorts = Order::withTrashed()->where('tour_id', $tour_id)
-                ->where('type', 'exit_port')
-                ->forceDelete();
-            \Log::info('Force-deleted existing exit_port orders', ['count' => $deletedExitPorts, 'tour_id' => $tour_id]);
-            
-            if ($request->has('exit_port') && !empty($request->exit_port)) {
-                $exitPorts = json_decode($request->exit_port, true);
-                if (!is_array($exitPorts)) {
-                    $exitPorts = $exitPorts ? [$exitPorts] : [];
-                }
-                
-                // Use a set to track unique entries to prevent duplicates within the same request
-                $seenExits = [];
-                
-                foreach ($exitPorts as $exitPort) {
-                    // Create a unique identifier using frontend-generated id as primary key
-                    // This ensures same port with different configurations are all saved
-                    $uniqueKey = md5(json_encode([
-                        'id' => $exitPort['id'] ?? '',
-                        'port_id' => $exitPort['port_id'] ?? '',
-                        'port_name' => $exitPort['port_name'] ?? '',
-                        'bookingDate' => $exitPort['bookingDate'] ?? '',
-                        'type' => $exitPort['type'] ?? ''
-                    ]));
-                    
-                    // Skip if we've already processed this exact exit
-                    if (in_array($uniqueKey, $seenExits)) {
-                        \Log::info('Skipping duplicate exit_port within request', ['unique_key' => $uniqueKey, 'port' => $exitPort['port_name'] ?? '']);
-                        continue;
-                    }
-                    $seenExits[] = $uniqueKey;
-                    
-                    // Get vehicle details from database if vehicle_id exists
-                    if (!empty($exitPort['vehicle_id'])) {
-                        $vehicleDetails = $this->getVehicleDetails($exitPort['vehicle_id']);
-                        if ($vehicleDetails) {
-                            $exitPort['vehicle_id'] = $vehicleDetails['vehicle_id'];
-                            $exitPort['vehicles_name'] = $vehicleDetails['vehicles_name'];
-                            $exitPort['vehicle_type'] = $vehicleDetails['vehicle_type'];
-                            $exitPort['vehicle_model'] = $vehicleDetails['vehicle_model'];
-                            $exitPort['model_year'] = $vehicleDetails['model_year'];
-                            $exitPort['seating_capacity'] = $vehicleDetails['seating_capacity'];
-                            $exitPort['image'] = $vehicleDetails['image'];
-                        }
-                    }
-                    
-                    // Normalize transfer type
-                    if (!empty($exitPort['type'])) {
-                        $exitPort['type'] = $this->normalizeTransferType($exitPort['type']);
-                    }
-                    
-                    // Add tour_id to the JSON data
-                    $exitPort['tour_id'] = $tour_id;
-                    
-                    // Create new order (always create new since we deleted all existing ones)
-                    $bookingId = $this->generateBookingId();
-                    Order::create([
-                        'booking_id' => $bookingId,
-                        'agent_id' => $request->agent_id,
-                        'tour_id' => $tour_id,
-                        'data' => [$exitPort],
-                        'type' => 'exit_port',
-                        'bookingType' => $bookingType,
-                        'discount' => $discountValue,
-                        'discount_type' => $discountType,
-                        'markup_percentage' => $markupValue,
-                        'markup_type' => $markupType,
-                        'status' => 1,
-                    ]);
-                    
-                    $createdOrders[] = ['type' => 'exit_port', 'booking_id' => $bookingId];
-                }
+            $exitPorts = [];
+            if ($request->has('exit_port') && $request->exit_port !== '' && $request->exit_port !== null) {
+                $decoded = json_decode($request->exit_port, true);
+                $exitPorts = is_array($decoded) ? $decoded : ($decoded ? [$decoded] : []);
             }
-            
+            $this->softDeleteOrphanOrdersForType($tour, 'exit_port', $this->resolveKeepBookingIdsForType($tour, 'exit_port', $exitPorts));
+
+            $seenExits = [];
+            foreach ($exitPorts as $exitPort) {
+                if (! is_array($exitPort)) {
+                    continue;
+                }
+                $uniqueKey = md5(json_encode([
+                    'id' => $exitPort['id'] ?? '',
+                    'port_id' => $exitPort['port_id'] ?? '',
+                    'port_name' => $exitPort['port_name'] ?? '',
+                    'bookingDate' => $exitPort['bookingDate'] ?? '',
+                    'type' => $exitPort['type'] ?? '',
+                ]));
+                if (in_array($uniqueKey, $seenExits, true)) {
+                    continue;
+                }
+                $seenExits[] = $uniqueKey;
+
+                if (! empty($exitPort['vehicle_id'])) {
+                    $vehicleDetails = $this->getVehicleDetails($exitPort['vehicle_id']);
+                    if ($vehicleDetails) {
+                        $exitPort['vehicle_id'] = $vehicleDetails['vehicle_id'];
+                        $exitPort['vehicles_name'] = $vehicleDetails['vehicles_name'];
+                        $exitPort['vehicle_type'] = $vehicleDetails['vehicle_type'];
+                        $exitPort['vehicle_model'] = $vehicleDetails['vehicle_model'];
+                        $exitPort['model_year'] = $vehicleDetails['model_year'];
+                        $exitPort['seating_capacity'] = $vehicleDetails['seating_capacity'];
+                        $exitPort['image'] = $vehicleDetails['image'];
+                    }
+                }
+                if (! empty($exitPort['type'])) {
+                    $exitPort['type'] = $this->normalizeTransferType($exitPort['type']);
+                }
+                $exitPort['tour_id'] = $tour_id;
+
+                $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'exit_port', $exitPort);
+                if ($existingOrder !== null) {
+                    $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$exitPort], 'exit_port', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+
+                    continue;
+                }
+
+                $bookingId = $this->generateBookingId();
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $request->agent_id,
+                    'tour_id' => $tour_id,
+                    'data' => [$exitPort],
+                    'type' => 'exit_port',
+                    'bookingType' => $bookingType,
+                    'discount' => $discountValue,
+                    'discount_type' => $discountType,
+                    'markup_percentage' => $markupValue,
+                    'markup_type' => $markupType,
+                    'status' => 1,
+                ]);
+                $syncedOrders[] = ['type' => 'exit_port', 'booking_id' => $bookingId, 'action' => 'created'];
+            }
+
             // 3. Accommodation Orders
-            // ALWAYS delete existing hotel orders first, then recreate if there are new ones
-            $deletedHotels = Order::withTrashed()->where('tour_id', $tour_id)
-                ->where('type', 'hotel')
-                ->forceDelete();
-            \Log::info('Force-deleted existing hotel orders', ['count' => $deletedHotels, 'tour_id' => $tour_id]);
-            
-            if ($request->has('accommodations') && !empty($request->accommodations)) {
-                $accommodations = json_decode($request->accommodations, true);
-                $seenHotels = [];
-                
-                foreach ($accommodations as $accommodation) {
-                    // Create unique identifier using frontend-generated id as primary key
-                    // This ensures same hotel with different room types/configurations are all saved
-                    $uniqueKey = md5(json_encode([
-                        'id' => $accommodation['id'] ?? '',
-                        'hotel_id' => $accommodation['hotel_unique_id'] ?? $accommodation['hotelDetails']['hotel_id'] ?? '',
-                        'checkIn' => $accommodation['checkIn'] ?? '',
-                        'checkOut' => $accommodation['checkOut'] ?? '',
-                        'roomType' => $accommodation['roomType'] ?? $accommodation['room_type'] ?? '',
-                        'bedType' => $accommodation['bedType'] ?? $accommodation['bed_type'] ?? ''
-                    ]));
-                    
-                    if (in_array($uniqueKey, $seenHotels)) {
-                        \Log::info('Skipping duplicate hotel within request', ['unique_key' => $uniqueKey, 'hotel' => $accommodation['hotelName'] ?? '']);
-                        continue;
-                    }
-                    $seenHotels[] = $uniqueKey;
-                    
-                    // Add tour_id to the JSON data
-                    $accommodation['tour_id'] = $tour_id;
-                    
-                    // Create new order
-                    $bookingId = $this->generateBookingId();
-                    Order::create([
-                        'booking_id' => $bookingId,
-                        'agent_id' => $request->agent_id,
-                        'tour_id' => $tour_id,
-                        'data' => [$accommodation],
-                        'type' => 'hotel',
-                        'bookingType' => $bookingType,
-                        'discount' => $discountValue,
-                        'discount_type' => $discountType,
-                        'markup_percentage' => $markupValue,
-                        'markup_type' => $markupType,
-                        'status' => 1,
-                    ]);
-                    
-                    $createdOrders[] = ['type' => 'hotel', 'booking_id' => $bookingId];
-                }
+            $accommodations = [];
+            if ($request->has('accommodations') && $request->accommodations !== '' && $request->accommodations !== null) {
+                $decoded = json_decode($request->accommodations, true);
+                $accommodations = is_array($decoded) ? $decoded : [];
             }
-            
+            $this->softDeleteOrphanOrdersForType($tour, 'hotel', $this->resolveKeepBookingIdsForType($tour, 'hotel', $accommodations));
+
+            $seenHotels = [];
+            foreach ($accommodations as $accommodation) {
+                if (! is_array($accommodation)) {
+                    continue;
+                }
+                $uniqueKey = md5(json_encode([
+                    'id' => $accommodation['id'] ?? '',
+                    'hotel_id' => $accommodation['hotel_unique_id'] ?? $accommodation['hotelDetails']['hotel_id'] ?? '',
+                    'checkIn' => $accommodation['checkIn'] ?? '',
+                    'checkOut' => $accommodation['checkOut'] ?? '',
+                    'roomType' => $accommodation['roomType'] ?? $accommodation['room_type'] ?? '',
+                    'bedType' => $accommodation['bedType'] ?? $accommodation['bed_type'] ?? '',
+                ]));
+                if (in_array($uniqueKey, $seenHotels, true)) {
+                    continue;
+                }
+                $seenHotels[] = $uniqueKey;
+
+                $accommodation['tour_id'] = $tour_id;
+
+                $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'hotel', $accommodation);
+                if ($existingOrder !== null) {
+                    $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$accommodation], 'hotel', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+
+                    continue;
+                }
+
+                $bookingId = $this->generateBookingId();
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $request->agent_id,
+                    'tour_id' => $tour_id,
+                    'data' => [$accommodation],
+                    'type' => 'hotel',
+                    'bookingType' => $bookingType,
+                    'discount' => $discountValue,
+                    'discount_type' => $discountType,
+                    'markup_percentage' => $markupValue,
+                    'markup_type' => $markupType,
+                    'status' => 1,
+                ]);
+                $syncedOrders[] = ['type' => 'hotel', 'booking_id' => $bookingId, 'action' => 'created'];
+            }
+
             // 4. Tour/Attraction Orders
-            // ALWAYS delete existing attraction orders first, then recreate if there are new ones
-            $deletedAttractions = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'attraction')->forceDelete();
-            \Log::info('Deleted existing attraction orders', ['count' => $deletedAttractions, 'tour_id' => $tour_id]);
-            
-            if ($request->has('tours') && !empty($request->tours)) {
-                $tours = json_decode($request->tours, true);
-                $seenTours = [];
-                
-                foreach ($tours as $tourItem) {
-                    // Use id (frontend generated unique ID) as primary unique identifier
-                    // This ensures same attraction on same date with different configurations are all saved
-                    $uniqueKey = md5(json_encode([
-                        'id' => $tourItem['id'] ?? '',
-                        'attraction_id' => $tourItem['attraction_id'] ?? '',
-                        'AttractionName' => $tourItem['AttractionName'] ?? '',
-                        'bookingDate' => $tourItem['bookingDate'] ?? ''
-                    ]));
-                    
-                    if (in_array($uniqueKey, $seenTours)) {
-                        \Log::info('Skipping duplicate attraction within request', ['unique_key' => $uniqueKey, 'attraction' => $tourItem['AttractionName'] ?? '']);
-                        continue;
-                    }
-                    $seenTours[] = $uniqueKey;
-                    
-                    $tourItem['tour_id'] = $tour_id;
-                    
-                    $bookingId = $this->generateBookingId();
-                    Order::create([
-                        'booking_id' => $bookingId,
-                        'agent_id' => $request->agent_id,
-                        'tour_id' => $tour_id,
-                        'data' => [$tourItem],
-                        'type' => 'attraction',
-                        'bookingType' => $bookingType,
-                        'discount' => $discountValue,
-                        'discount_type' => $discountType,
-                        'markup_percentage' => $markupValue,
-                        'markup_type' => $markupType,
-                        'status' => 1,
-                    ]);
-                    
-                    $createdOrders[] = ['type' => 'attraction', 'booking_id' => $bookingId];
-                }
+            $toursPayload = [];
+            if ($request->has('tours') && $request->tours !== '' && $request->tours !== null) {
+                $decoded = json_decode($request->tours, true);
+                $toursPayload = is_array($decoded) ? $decoded : [];
             }
-            
+            $this->softDeleteOrphanOrdersForType($tour, 'attraction', $this->resolveKeepBookingIdsForType($tour, 'attraction', $toursPayload));
+
+            $seenTours = [];
+            foreach ($toursPayload as $tourItem) {
+                if (! is_array($tourItem)) {
+                    continue;
+                }
+                $uniqueKey = md5(json_encode([
+                    'id' => $tourItem['id'] ?? '',
+                    'attraction_id' => $tourItem['attraction_id'] ?? '',
+                    'AttractionName' => $tourItem['AttractionName'] ?? '',
+                    'bookingDate' => $tourItem['bookingDate'] ?? '',
+                ]));
+                if (in_array($uniqueKey, $seenTours, true)) {
+                    continue;
+                }
+                $seenTours[] = $uniqueKey;
+
+                $tourItem['tour_id'] = $tour_id;
+
+                $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'attraction', $tourItem);
+                if ($existingOrder !== null) {
+                    $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$tourItem], 'attraction', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+
+                    continue;
+                }
+
+                $bookingId = $this->generateBookingId();
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $request->agent_id,
+                    'tour_id' => $tour_id,
+                    'data' => [$tourItem],
+                    'type' => 'attraction',
+                    'bookingType' => $bookingType,
+                    'discount' => $discountValue,
+                    'discount_type' => $discountType,
+                    'markup_percentage' => $markupValue,
+                    'markup_type' => $markupType,
+                    'status' => 1,
+                ]);
+                $syncedOrders[] = ['type' => 'attraction', 'booking_id' => $bookingId, 'action' => 'created'];
+            }
+
             // 5. Meal/Restaurant Orders
-            // ALWAYS delete existing restaurant orders first, then recreate if there are new ones
-            $deletedMeals = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'restaurant')->forceDelete();
-            \Log::info('Deleted existing restaurant orders', ['count' => $deletedMeals, 'tour_id' => $tour_id]);
-            
-            if ($request->has('meals') && !empty($request->meals)) {
-                $meals = json_decode($request->meals, true);
-                $seenMeals = [];
-                
-                foreach ($meals as $meal) {
-                    // Use id (frontend generated unique ID) as primary unique identifier
-                    // This ensures meals with same restaurant name on same date but different meal types are kept
-                    // Fallback to combination of restaurant_id, name, date, and mealType
-                    $uniqueKey = md5(json_encode([
-                        'id' => $meal['id'] ?? '',
-                        'restaurant_id' => $meal['restaurant_id'] ?? '',
-                        'restaurantName' => $meal['restaurantName'] ?? '',
-                        'bookingDate' => $meal['bookingDate'] ?? '',
-                        'mealType' => $meal['mealType'] ?? $meal['meal_type'] ?? ''
-                    ]));
-                    
-                    if (in_array($uniqueKey, $seenMeals)) {
-                        \Log::info('Skipping duplicate meal within request', ['unique_key' => $uniqueKey, 'meal' => $meal['restaurantName'] ?? '']);
-                        continue;
-                    }
-                    $seenMeals[] = $uniqueKey;
-                    
-                    $meal['tour_id'] = $tour_id;
-                    
-                    $bookingId = $this->generateBookingId();
-                    Order::create([
-                        'booking_id' => $bookingId,
-                        'agent_id' => $request->agent_id,
-                        'tour_id' => $tour_id,
-                        'data' => [$meal],
-                        'type' => 'restaurant',
-                        'bookingType' => $bookingType,
-                        'discount' => $discountValue,
-                        'discount_type' => $discountType,
-                        'markup_percentage' => $markupValue,
-                        'markup_type' => $markupType,
-                        'status' => 1,
-                    ]);
-                    
-                    $createdOrders[] = ['type' => 'restaurant', 'booking_id' => $bookingId];
-                }
+            $meals = [];
+            if ($request->has('meals') && $request->meals !== '' && $request->meals !== null) {
+                $decoded = json_decode($request->meals, true);
+                $meals = is_array($decoded) ? $decoded : [];
             }
-            
+            $this->softDeleteOrphanOrdersForType($tour, 'restaurant', $this->resolveKeepBookingIdsForType($tour, 'restaurant', $meals));
+
+            $seenMeals = [];
+            foreach ($meals as $meal) {
+                if (! is_array($meal)) {
+                    continue;
+                }
+                $uniqueKey = md5(json_encode([
+                    'id' => $meal['id'] ?? '',
+                    'restaurant_id' => $meal['restaurant_id'] ?? '',
+                    'restaurantName' => $meal['restaurantName'] ?? '',
+                    'bookingDate' => $meal['bookingDate'] ?? '',
+                    'mealType' => $meal['mealType'] ?? $meal['meal_type'] ?? '',
+                ]));
+                if (in_array($uniqueKey, $seenMeals, true)) {
+                    continue;
+                }
+                $seenMeals[] = $uniqueKey;
+
+                $meal['tour_id'] = $tour_id;
+
+                $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'restaurant', $meal);
+                if ($existingOrder !== null) {
+                    $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$meal], 'restaurant', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+
+                    continue;
+                }
+
+                $bookingId = $this->generateBookingId();
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $request->agent_id,
+                    'tour_id' => $tour_id,
+                    'data' => [$meal],
+                    'type' => 'restaurant',
+                    'bookingType' => $bookingType,
+                    'discount' => $discountValue,
+                    'discount_type' => $discountType,
+                    'markup_percentage' => $markupValue,
+                    'markup_type' => $markupType,
+                    'status' => 1,
+                ]);
+                $syncedOrders[] = ['type' => 'restaurant', 'booking_id' => $bookingId, 'action' => 'created'];
+            }
+
             // 6. Transfer Orders (Local Transport)
-            // ALWAYS delete existing local_transport orders first, then recreate if there are new ones
-            $deletedTransfers = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'local_transport')->forceDelete();
-            \Log::info('Deleted existing local_transport orders', ['count' => $deletedTransfers, 'tour_id' => $tour_id]);
-            
-            if ($request->has('transfers') && !empty($request->transfers)) {
-                $transfers = json_decode($request->transfers, true);
-                $seenTransfers = [];
-                
-                foreach ($transfers as $transfer) {
-                    $uniqueKey = md5(json_encode([
-                        'vehicle_id' => $transfer['vehicle_id'] ?? '',
-                        'entrypickup' => $transfer['entrypickup'] ?? ($transfer['pickup'] ?? ''),
-                        'entrydropoff' => $transfer['entrydropoff'] ?? ($transfer['dropoff'] ?? ''),
-                        'bookingDate' => $transfer['bookingDate'] ?? ($transfer['date'] ?? ''),
-                        'linked_to_hotel' => $transfer['linked_to_hotel'] ?? ($transfer['linkedToHotel'] ?? ''),
-                    ]));
-                    
-                    if (in_array($uniqueKey, $seenTransfers)) continue;
-                    $seenTransfers[] = $uniqueKey;
-                    
-                    // Get vehicle details from database if vehicle_id exists
-                    if (!empty($transfer['vehicle_id'])) {
-                        $vehicleDetails = $this->getVehicleDetails($transfer['vehicle_id']);
-                        if ($vehicleDetails) {
-                            $transfer['vehicle_id'] = $vehicleDetails['vehicle_id'];
-                            $transfer['vehicles_name'] = $vehicleDetails['vehicles_name'];
-                            $transfer['vehicle_type'] = $vehicleDetails['vehicle_type'];
-                            $transfer['vehicle_model'] = $vehicleDetails['vehicle_model'];
-                            $transfer['model_year'] = $vehicleDetails['model_year'];
-                            $transfer['seating_capacity'] = $vehicleDetails['seating_capacity'];
-                            $transfer['image'] = $vehicleDetails['image'];
-                        }
-                    }
-                    
-                    // Normalize transfer type
-                    if (!empty($transfer['type'])) {
-                        $transfer['type'] = $this->normalizeTransferType($transfer['type']);
-                    }
-                    
-                    // CRITICAL FIX: Validate and sanitize zone IDs - only use integer zone IDs, not Place IDs
-                    // Helper function to check if a value is a valid zone ID (integer) or a Place ID (contains dot)
-                    $isValidZoneId = function($value) {
-                        if (empty($value) || $value === '') return false;
-                        // If it contains a dot, it's likely a Google Place ID, not a zone ID
-                        if (strpos((string)$value, '.') !== false) return false;
-                        // Check if it's a valid integer
-                        return ctype_digit((string)$value) || (is_numeric($value) && (int)$value == $value);
-                    };
-                    
-                    // Sanitize from_zone_id - only keep if it's a valid integer zone ID
-                    if (isset($transfer['from_zone_id']) && !empty($transfer['from_zone_id'])) {
-                        if (!$isValidZoneId($transfer['from_zone_id'])) {
-                            // If it's a Place ID, clear from_zone_id but keep PickupPlaceid
-                            if (empty($transfer['PickupPlaceid'])) {
-                                $transfer['PickupPlaceid'] = $transfer['from_zone_id'];
-                            }
-                            $transfer['from_zone_id'] = '';
-                        }
-                    }
-                    
-                    // Sanitize to_zone_id - only keep if it's a valid integer zone ID
-                    if (isset($transfer['to_zone_id']) && !empty($transfer['to_zone_id'])) {
-                        if (!$isValidZoneId($transfer['to_zone_id'])) {
-                            // If it's a Place ID, clear to_zone_id but keep DropoffPlaceid
-                            if (empty($transfer['DropoffPlaceid'])) {
-                                $transfer['DropoffPlaceid'] = $transfer['to_zone_id'];
-                            }
-                            $transfer['to_zone_id'] = '';
-                        }
-                    }
-                    
-                    $transfer['tour_id'] = $tour_id;
-                    
-                    $bookingId = $this->generateBookingId();
-                    Order::create([
-                        'booking_id' => $bookingId,
-                        'agent_id' => $request->agent_id,
-                        'tour_id' => $tour_id,
-                        'data' => [$transfer],
-                        'type' => 'local_transport',
-                        'bookingType' => $bookingType,
-                        'discount' => $discountValue,
-                        'discount_type' => $discountType,
-                        'markup_percentage' => $markupValue,
-                        'markup_type' => $markupType,
-                        'status' => 1,
-                    ]);
-                    
-                    $createdOrders[] = ['type' => 'local_transport', 'booking_id' => $bookingId];
-                }
+            $transfers = [];
+            if ($request->has('transfers') && $request->transfers !== '' && $request->transfers !== null) {
+                $decoded = json_decode($request->transfers, true);
+                $transfers = is_array($decoded) ? $decoded : [];
             }
-            
+            $this->softDeleteOrphanOrdersForType($tour, 'local_transport', $this->resolveKeepBookingIdsForType($tour, 'local_transport', $transfers));
+
+            $seenTransfers = [];
+            foreach ($transfers as $transfer) {
+                if (! is_array($transfer)) {
+                    continue;
+                }
+                $uniqueKey = md5(json_encode([
+                    'id' => $transfer['id'] ?? '',
+                    'vehicle_id' => $transfer['vehicle_id'] ?? '',
+                    'entrypickup' => $transfer['entrypickup'] ?? ($transfer['pickup'] ?? ''),
+                    'entrydropoff' => $transfer['entrydropoff'] ?? ($transfer['dropoff'] ?? ''),
+                    'bookingDate' => $transfer['bookingDate'] ?? ($transfer['date'] ?? ''),
+                    'linked_to_hotel' => $transfer['linked_to_hotel'] ?? ($transfer['linkedToHotel'] ?? ''),
+                ]));
+                if (in_array($uniqueKey, $seenTransfers, true)) {
+                    continue;
+                }
+                $seenTransfers[] = $uniqueKey;
+
+                if (! empty($transfer['vehicle_id'])) {
+                    $vehicleDetails = $this->getVehicleDetails($transfer['vehicle_id']);
+                    if ($vehicleDetails) {
+                        $transfer['vehicle_id'] = $vehicleDetails['vehicle_id'];
+                        $transfer['vehicles_name'] = $vehicleDetails['vehicles_name'];
+                        $transfer['vehicle_type'] = $vehicleDetails['vehicle_type'];
+                        $transfer['vehicle_model'] = $vehicleDetails['vehicle_model'];
+                        $transfer['model_year'] = $vehicleDetails['model_year'];
+                        $transfer['seating_capacity'] = $vehicleDetails['seating_capacity'];
+                        $transfer['image'] = $vehicleDetails['image'];
+                    }
+                }
+                if (! empty($transfer['type'])) {
+                    $transfer['type'] = $this->normalizeTransferType($transfer['type']);
+                }
+
+                $isValidZoneId = function ($value) {
+                    if (empty($value) || $value === '') {
+                        return false;
+                    }
+                    if (strpos((string) $value, '.') !== false) {
+                        return false;
+                    }
+
+                    return ctype_digit((string) $value) || (is_numeric($value) && (int) $value == $value);
+                };
+
+                if (isset($transfer['from_zone_id']) && ! empty($transfer['from_zone_id'])) {
+                    if (! $isValidZoneId($transfer['from_zone_id'])) {
+                        if (empty($transfer['PickupPlaceid'])) {
+                            $transfer['PickupPlaceid'] = $transfer['from_zone_id'];
+                        }
+                        $transfer['from_zone_id'] = '';
+                    }
+                }
+
+                if (isset($transfer['to_zone_id']) && ! empty($transfer['to_zone_id'])) {
+                    if (! $isValidZoneId($transfer['to_zone_id'])) {
+                        if (empty($transfer['DropoffPlaceid'])) {
+                            $transfer['DropoffPlaceid'] = $transfer['to_zone_id'];
+                        }
+                        $transfer['to_zone_id'] = '';
+                    }
+                }
+
+                $transfer['tour_id'] = $tour_id;
+
+                $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'local_transport', $transfer);
+                if ($existingOrder !== null) {
+                    $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$transfer], 'local_transport', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+
+                    continue;
+                }
+
+                $bookingId = $this->generateBookingId();
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $request->agent_id,
+                    'tour_id' => $tour_id,
+                    'data' => [$transfer],
+                    'type' => 'local_transport',
+                    'bookingType' => $bookingType,
+                    'discount' => $discountValue,
+                    'discount_type' => $discountType,
+                    'markup_percentage' => $markupValue,
+                    'markup_type' => $markupType,
+                    'status' => 1,
+                ]);
+                $syncedOrders[] = ['type' => 'local_transport', 'booking_id' => $bookingId, 'action' => 'created'];
+            }
+
             // 7. Guide Orders
-            // ALWAYS delete existing guide orders first, then recreate if there are new ones
-            $deletedGuides = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'guide')->forceDelete();
-            \Log::info('Deleted existing guide orders', ['count' => $deletedGuides, 'tour_id' => $tour_id]);
-            
-            if ($request->has('guides') && !empty($request->guides)) {
-                $guides = json_decode($request->guides, true);
-                $seenGuides = [];
-                
-                foreach ($guides as $guide) {
-                    $uniqueKey = md5(json_encode([
-                        'guide_id' => $guide['guide_id'] ?? '',
-                        'guide_name' => $guide['guide_name'] ?? '',
-                        'bookingDate' => $guide['bookingDate'] ?? ''
-                    ]));
-                    
-                    if (in_array($uniqueKey, $seenGuides)) continue;
-                    $seenGuides[] = $uniqueKey;
-                    
-                    $guide['tour_id'] = $tour_id;
-                    
-                    $bookingId = $this->generateBookingId();
-                    Order::create([
-                        'booking_id' => $bookingId,
-                        'agent_id' => $request->agent_id,
-                        'tour_id' => $tour_id,
-                        'data' => [$guide],
-                        'type' => 'guide',
-                        'bookingType' => $bookingType,
-                        'discount' => $discountValue,
-                        'discount_type' => $discountType,
-                        'markup_percentage' => $markupValue,
-                        'markup_type' => $markupType,
-                        'status' => 1,
-                    ]);
-                    
-                    $createdOrders[] = ['type' => 'guide', 'booking_id' => $bookingId];
-                }
+            $guides = [];
+            if ($request->has('guides') && $request->guides !== '' && $request->guides !== null) {
+                $decoded = json_decode($request->guides, true);
+                $guides = is_array($decoded) ? $decoded : [];
             }
-            
+            $this->softDeleteOrphanOrdersForType($tour, 'guide', $this->resolveKeepBookingIdsForType($tour, 'guide', $guides));
+
+            $seenGuides = [];
+            foreach ($guides as $guide) {
+                if (! is_array($guide)) {
+                    continue;
+                }
+                $uniqueKey = md5(json_encode([
+                    'id' => $guide['id'] ?? '',
+                    'guide_id' => $guide['guide_id'] ?? '',
+                    'guide_name' => $guide['guide_name'] ?? '',
+                    'bookingDate' => $guide['bookingDate'] ?? '',
+                ]));
+                if (in_array($uniqueKey, $seenGuides, true)) {
+                    continue;
+                }
+                $seenGuides[] = $uniqueKey;
+
+                $guide['tour_id'] = $tour_id;
+
+                $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'guide', $guide);
+                if ($existingOrder !== null) {
+                    $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$guide], 'guide', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+
+                    continue;
+                }
+
+                $bookingId = $this->generateBookingId();
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $request->agent_id,
+                    'tour_id' => $tour_id,
+                    'data' => [$guide],
+                    'type' => 'guide',
+                    'bookingType' => $bookingType,
+                    'discount' => $discountValue,
+                    'discount_type' => $discountType,
+                    'markup_percentage' => $markupValue,
+                    'markup_type' => $markupType,
+                    'status' => 1,
+                ]);
+                $syncedOrders[] = ['type' => 'guide', 'booking_id' => $bookingId, 'action' => 'created'];
+            }
+
             // 8. Miscellaneous Orders
-            // Hard-delete (forceDelete) existing miscellaneous orders first, then recreate.
-            // Using forceDelete instead of soft-delete so records never linger with deleted_at set.
-            $deletedMisc = Order::withTrashed()->where('tour_id', $tour_id)->where('type', 'miscellaneous')->forceDelete();
-            \Log::info('Force-deleted existing miscellaneous orders', ['count' => $deletedMisc, 'tour_id' => $tour_id]);
-            
-            if ($request->has('miscellaneous') && !empty($request->miscellaneous)) {
-                $miscItems = json_decode($request->miscellaneous, true);
-                $seenMisc = [];
-                
-                foreach ($miscItems as $miscItem) {
-                    // Use frontend-generated unique id + itemName + bookingDate as dedup key
-                    // (frontend sends camelCase 'itemName' and 'id', not snake_case 'item_name'/'item_id')
-                    $uniqueKey = md5(json_encode([
-                        'id' => $miscItem['id'] ?? '',
-                        'itemName' => $miscItem['itemName'] ?? ($miscItem['item_name'] ?? ''),
-                        'bookingDate' => $miscItem['bookingDate'] ?? ''
-                    ]));
-                    
-                    if (in_array($uniqueKey, $seenMisc)) continue;
-                    $seenMisc[] = $uniqueKey;
-                    
-                    $miscItem['tour_id'] = $tour_id;
-                    
-                    $bookingId = $this->generateBookingId();
-                    Order::create([
-                        'booking_id' => $bookingId,
-                        'agent_id' => $request->agent_id,
-                        'tour_id' => $tour_id,
-                        'data' => [$miscItem],
-                        'type' => 'miscellaneous',
-                        'bookingType' => $bookingType,
-                        'discount' => $discountValue,
-                        'discount_type' => $discountType,
-                        'markup_percentage' => $markupValue,
-                        'markup_type' => $markupType,
-                        'status' => 1,
-                    ]);
-                    
-                    $createdOrders[] = ['type' => 'miscellaneous', 'booking_id' => $bookingId];
-                }
+            $miscItems = [];
+            if ($request->has('miscellaneous') && $request->miscellaneous !== '' && $request->miscellaneous !== null) {
+                $decoded = json_decode($request->miscellaneous, true);
+                $miscItems = is_array($decoded) ? $decoded : [];
             }
-            
+            $this->softDeleteOrphanOrdersForType($tour, 'miscellaneous', $this->resolveKeepBookingIdsForType($tour, 'miscellaneous', $miscItems));
+
+            $seenMisc = [];
+            foreach ($miscItems as $miscItem) {
+                if (! is_array($miscItem)) {
+                    continue;
+                }
+                $uniqueKey = md5(json_encode([
+                    'id' => $miscItem['id'] ?? '',
+                    'itemName' => $miscItem['itemName'] ?? ($miscItem['item_name'] ?? ''),
+                    'bookingDate' => $miscItem['bookingDate'] ?? '',
+                ]));
+                if (in_array($uniqueKey, $seenMisc, true)) {
+                    continue;
+                }
+                $seenMisc[] = $uniqueKey;
+
+                $miscItem['tour_id'] = $tour_id;
+
+                $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'miscellaneous', $miscItem);
+                if ($existingOrder !== null) {
+                    $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$miscItem], 'miscellaneous', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+
+                    continue;
+                }
+
+                $bookingId = $this->generateBookingId();
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $request->agent_id,
+                    'tour_id' => $tour_id,
+                    'data' => [$miscItem],
+                    'type' => 'miscellaneous',
+                    'bookingType' => $bookingType,
+                    'discount' => $discountValue,
+                    'discount_type' => $discountType,
+                    'markup_percentage' => $markupValue,
+                    'markup_type' => $markupType,
+                    'status' => 1,
+                ]);
+                $syncedOrders[] = ['type' => 'miscellaneous', 'booking_id' => $bookingId, 'action' => 'created'];
+            }
+
             DB::commit();
-            
-            // Permanently delete all soft-deleted records for this tour_id
-            // This cleans up records that have deleted_at filled (soft deleted)
-            $permanentlyDeleted = Order::withTrashed()
-                ->where('tour_id', $tour_id)
-                ->whereNotNull('deleted_at')
-                ->forceDelete();
-            
-            \Log::info('Permanently deleted soft-deleted orders', [
+
+            $createdCount = count(array_filter($syncedOrders, fn ($r) => ($r['action'] ?? '') === 'created'));
+            $updatedCount = count(array_filter($syncedOrders, fn ($r) => ($r['action'] ?? '') === 'updated'));
+            \Log::info('Enquiry orders synced (restore+update when matched; soft-delete orphans only)', [
                 'tour_id' => $tour_id,
-                'count' => $permanentlyDeleted
-            ]);
-            
-            \Log::info('Orders recreated using delete-and-create approach', [
-                'tour_id' => $tour_id,
-                'total_created' => count($createdOrders)
+                'created' => $createdCount,
+                'updated' => $updatedCount,
+                'total_touched' => count($syncedOrders),
             ]);
             
             return response()->json([
@@ -3395,7 +3416,9 @@ class EnquiryFormPro extends Controller
                 'message' => 'Tour enquiry updated successfully',
                 'display_id' => $tour->display_id,
                 'tour_id' => $tour_id,
-                'total_orders' => count($createdOrders)
+                'total_orders' => count($syncedOrders),
+                'orders_created' => $createdCount,
+                'orders_updated' => $updatedCount,
             ]);
             
         } catch (\Exception $e) {
@@ -3413,15 +3436,333 @@ class EnquiryFormPro extends Controller
             ], 500);
         }
     }
+
+    /**
+     * booking_id from enquiry payload (edit form sends booking_id or bookingId).
+     */
+    private function extractPayloadBookingId(array $item): ?string
+    {
+        $raw = $item['booking_id'] ?? $item['bookingId'] ?? null;
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        return is_scalar($raw) ? (string) $raw : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function collectKeepBookingIdsFromPayload(array $items): array
+    {
+        $ids = [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $bid = $this->extractPayloadBookingId($item);
+            if ($bid !== null && $bid !== '') {
+                $ids[] = $bid;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * Booking IDs to preserve for a type: explicit payload IDs plus any row matched by payload (including soft-deleted),
+     * so orphans are not soft-deleted before we can restore them.
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return list<string>
+     */
+    private function resolveKeepBookingIdsForType(Tour $tour, string $type, array $items): array
+    {
+        $keep = $this->collectKeepBookingIdsFromPayload($items);
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $order = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, $type, $item);
+            if ($order !== null) {
+                $bid = (string) $order->booking_id;
+                if (! in_array($bid, $keep, true)) {
+                    $keep[] = $bid;
+                }
+            }
+        }
+
+        return array_values(array_unique($keep));
+    }
+
+    /**
+     * Find order for this tour by booking_id only (any type). Prevents duplicate rows when type filter mismatched.
+     */
+    private function findOrderForTourByBookingIdIncludingTrashed(Tour $tour, ?string $bid): ?Order
+    {
+        if ($bid === null || $bid === '') {
+            return null;
+        }
+        $found = $this->ordersForTourRow($tour, true)->where('booking_id', $bid)->first();
+        if ($found !== null) {
+            return $found;
+        }
+        if (is_numeric($bid)) {
+            return $this->ordersForTourRow($tour, true)->where('booking_id', (int) $bid)->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Find order for sync: booking_id on this tour (any type), else JSON data[0].id with expected type.
+     * Includes soft-deleted rows.
+     */
+    private function findOrderForTourTypeIncludingTrashedByPayload(Tour $tour, string $type, array $item): ?Order
+    {
+        $bid = $this->extractPayloadBookingId($item);
+        $byBooking = $this->findOrderForTourByBookingIdIncludingTrashed($tour, $bid);
+        if ($byBooking !== null) {
+            return $byBooking;
+        }
+
+        $scoped = function () use ($tour, $type) {
+            return $this->ordersForTourRow($tour, true)->where('type', $type);
+        };
+
+        $frontId = $item['id'] ?? null;
+        if ($frontId === null || $frontId === '') {
+            return null;
+        }
+        if (! is_scalar($frontId)) {
+            return null;
+        }
+        $frontId = (string) $frontId;
+
+        $driver = $scoped()->getConnection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            return $scoped()->whereRaw('(data->0->>\'id\') = ?', [$frontId])->first();
+        }
+
+        $found = $scoped()->where('data->0->id', $frontId)->first();
+        if ($found !== null) {
+            return $found;
+        }
+        if (ctype_digit($frontId)) {
+            return $scoped()->where('data->0->id', (int) $frontId)->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function ksortDeep(array $data): array
+    {
+        ksort($data);
+        foreach ($data as $k => $v) {
+            if (is_array($v)) {
+                $data[$k] = $this->ksortDeep($v);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Whether incoming payload matches DB row (no meaningful change → touch-only).
+     */
+    /**
+     * Compare service JSON ignoring bookkeeping keys that may be added on save.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function normalizeRowForSnapshotCompare(array $row): array
+    {
+        unset($row['booking_id'], $row['bookingId']);
+        $row = $this->ksortDeep($row);
+
+        return $row;
+    }
+
+    private function enquiryOrderSnapshotMatches(
+        Order $order,
+        array $dataPayload,
+        string $type,
+        string $bookingType,
+        $discountValue,
+        string $discountType,
+        $markupValue,
+        string $markupType,
+        $agent_id,
+        $tour_id
+    ): bool {
+        $incoming0 = $dataPayload[0] ?? [];
+        if (! is_array($incoming0)) {
+            $incoming0 = [];
+        }
+        $stored = is_array($order->data) ? $order->data : [];
+        $stored0 = $stored[0] ?? [];
+        if (! is_array($stored0)) {
+            $stored0 = [];
+        }
+
+        $encIn = json_encode($this->normalizeRowForSnapshotCompare($incoming0));
+        $encSt = json_encode($this->normalizeRowForSnapshotCompare($stored0));
+        if ($encIn !== $encSt) {
+            return false;
+        }
+
+        return (string) $order->type === (string) $type
+            && (string) ($order->bookingType ?? '') === (string) $bookingType
+            && (int) ($order->agent_id ?? 0) === (int) $agent_id
+            && (int) ($order->tour_id ?? 0) === (int) $tour_id
+            && (string) $order->discount_type === (string) $discountType
+            && (string) $order->markup_type === (string) $markupType
+            && (float) $order->discount === (float) $discountValue
+            && (float) $order->markup_percentage === (float) $markupValue;
+    }
+
+    /**
+     * Existing row: restore if trashed. If nothing changed vs DB → only touch() (updated_at).
+     * Otherwise full update in place (never insert).
+     *
+     * @param  list<array<string, mixed>>  $dataPayload
+     */
+    private function restoreAndUpdateEnquiryOrder(
+        Order $order,
+        Request $request,
+        $tour_id,
+        array $dataPayload,
+        string $type,
+        string $bookingType,
+        $discountValue,
+        string $discountType,
+        $markupValue,
+        string $markupType,
+        array &$syncedOrders
+    ): void {
+        $wasTrashed = $order->trashed();
+        if ($wasTrashed) {
+            $order->restore();
+        }
+
+        $firstRow = $dataPayload[0] ?? null;
+        if (is_array($firstRow)) {
+            $firstRow['booking_id'] = $order->booking_id;
+            $firstRow['bookingId'] = $order->booking_id;
+            $dataPayload = [$firstRow];
+        }
+
+        // Already-present active row unchanged → only bump updated_at (no duplicate insert elsewhere)
+        if (
+            ! $wasTrashed
+            && $this->enquiryOrderSnapshotMatches(
+                $order,
+                $dataPayload,
+                $type,
+                $bookingType,
+                $discountValue,
+                $discountType,
+                $markupValue,
+                $markupType,
+                $request->agent_id,
+                $tour_id
+            )
+        ) {
+            $order->touch();
+            $syncedOrders[] = [
+                'type' => $type,
+                'booking_id' => $order->booking_id,
+                'action' => 'touched',
+            ];
+
+            return;
+        }
+
+        $order->agent_id = $request->agent_id;
+        $order->tour_id = $tour_id;
+        $order->data = $dataPayload;
+        $order->type = $type;
+        $order->bookingType = $bookingType;
+        $order->discount = $discountValue;
+        $order->discount_type = $discountType;
+        $order->markup_percentage = $markupValue;
+        $order->markup_type = $markupType;
+        if ($order->status === null) {
+            $order->status = 1;
+        }
+        $order->save();
+
+        $syncedOrders[] = [
+            'type' => $type,
+            'booking_id' => $order->booking_id,
+            'action' => 'updated',
+        ];
+    }
+
+    /**
+     * Soft-delete orders of this type for this tour row whose booking_id is not listed in the payload (removed in UI).
+     *
+     * @param  list<string>  $keepBookingIds
+     */
+    private function softDeleteOrphanOrdersForType(Tour $tour, string $type, array $keepBookingIds): int
+    {
+        $q = $this->ordersForTourRow($tour, false)->where('type', $type);
+        if (! empty($keepBookingIds)) {
+            $normalized = array_values(array_unique(array_filter(array_map(function ($id) {
+                if ($id === null || $id === '') {
+                    return null;
+                }
+
+                return is_numeric($id) ? (int) $id : $id;
+            }, $keepBookingIds), fn ($v) => $v !== null)));
+            $q->whereNotIn('booking_id', $normalized);
+        }
+
+        return (int) $q->delete();
+    }
+
+    /**
+     * Orders tied to this specific tours row only (not orphaned rows from another soft-deleted tour that reused the same tour_id).
+     */
+    private function ordersForTourRow(Tour $tour, bool $withTrashed = false)
+    {
+        $createdAt = $tour->created_at;
+        if ($createdAt === null) {
+            return $withTrashed
+                ? Order::withTrashed()->where('tour_id', $tour->tour_id)
+                : Order::where('tour_id', $tour->tour_id);
+        }
+        if ($withTrashed) {
+            return Order::withTrashed()
+                ->where('tour_id', $tour->tour_id)
+                ->where('created_at', '>=', $createdAt);
+        }
+
+        return Order::where('tour_id', $tour->tour_id)
+            ->where('created_at', '>=', $createdAt);
+    }
     
     /**
-     * Clean up duplicate orders for a tour
-     * Keeps only the first unique order of each type based on key data fields
+     * Clean up duplicate orders for a tour.
+     * Keeps only the first unique order of each type based on key data fields.
+     *
+     * @param  int|string  $tour_id  Business tour_id on orders table
+     * @param  \DateTimeInterface|string|null  $tourCreatedAt  Only orders on/after this belong to this tour (isolates from reused tour_id after soft-delete)
      */
-    private function cleanupDuplicateOrders($tour_id)
+    private function cleanupDuplicateOrders($tour_id, $tourCreatedAt = null)
     {
         try {
-            $orders = Order::where('tour_id', $tour_id)->get();
+            $q = Order::where('tour_id', $tour_id);
+            if ($tourCreatedAt !== null) {
+                $q->where('created_at', '>=', $tourCreatedAt);
+            }
+            $orders = $q->get();
             
             $seenOrders = [];
             $duplicateIds = [];

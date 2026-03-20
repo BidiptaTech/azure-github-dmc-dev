@@ -14,6 +14,7 @@
 <script>
     window.bookingCurrency = @json($currency ?? 'SGD');
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
+    window.rejectServicePageTourStatus = 'Actual';
 </script>
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -1067,9 +1068,13 @@
                                         <span class="service-icon-wrapper" data-tooltip="{{ e($additionalTooltipText) }}">
                                             <span class="service-icon-badge"
                                                   style="--service-color: #0d6efd; position: relative;"
-                                                  data-clickable="false"
-                                                  role="img"
-                                                  aria-label="{{ $additionalTooltipText }}">
+                                                  data-clickable="true"
+                                                  role="button"
+                                                  tabindex="0"
+                                                  aria-label="{{ $additionalTooltipText }}"
+                                                  data-bs-toggle="modal"
+                                                  data-bs-target="#additionalServicesDetailsModal{{ $tour->tour_id }}"
+                                                  onclick="event.stopPropagation();">
                                                 <i class="ri-add-circle-line"></i>
                                                 <span style="position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #0d6efd; color: #fff; font-size: 0.6rem; font-weight: 700; line-height: 16px; text-align: center;">
                                                     {{ $additionalServiceCount }}
@@ -4410,6 +4415,232 @@
             </div>
         </div>
     </div>
+    @endif
+@endforeach
+
+<!-- Additional Services Modals (per tour) -->
+@foreach($tours as $tour)
+    @php
+        $additionalOrders = \App\Models\Order::where('tour_id', $tour->tour_id)
+            ->where('bookingType', 'booking')
+            ->whereNull('deleted_at')
+            ->get()
+            ->filter(fn($o) => (int)($o->additional ?? 0) === 1)
+            ->values();
+        $additionalCount = $additionalOrders->count();
+    @endphp
+
+    @if($additionalCount > 0)
+        <div class="modal fade" id="additionalServicesDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="additionalServicesDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                    <div class="modal-header border-0 py-2 px-3" style="background: linear-gradient(135deg, #0d6efd 0%, #60a5fa 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
+                            <div class="text-white">
+                                <h6 class="mb-0 fw-bold" id="additionalServicesDetailsModalLabel{{ $tour->tour_id }}" style="font-size: 0.95rem;">
+                                    <i class="ri-add-circle-line me-2" style="font-size: 0.9rem;"></i>Additional Services - Tour #{{ $tour->tour_id }}
+                                </h6>
+                                <small class="text-white-75" style="font-size: 0.7rem;">{{ $additionalCount }} additional service(s)</small>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+                        </div>
+                    </div>
+
+                    <div class="modal-body p-2" style="background-color: #f8f9fa;">
+                        @php
+                            $serviceLabels = [
+                                'hotel' => 'Hotel',
+                                'attraction' => 'Attraction',
+                                'restaurant' => 'Restaurant',
+                                'guide' => 'Guide',
+                                'entry_port' => 'Arrival',
+                                'exit_port' => 'Departure',
+                                'travel_hourly' => 'Local-Tour Hourly',
+                                'travel_point' => 'Local-Tour Point to Point',
+                                'local_transport' => 'Local Transport',
+                                'miscellaneous' => 'Miscellaneous',
+                            ];
+                        @endphp
+
+                        @foreach($additionalOrders as $additionalIndex => $addOrder)
+                            @php
+                                $type = $addOrder->type ?? '';
+                                $decoded = is_string($addOrder->data) ? json_decode($addOrder->data, true) : $addOrder->data;
+                                $items = (is_array($decoded) && isset($decoded[0]) && is_array($decoded[0])) ? $decoded : (is_array($decoded) ? [$decoded] : []);
+
+                                $totalPrice = 0;
+                                foreach ($items as $it) {
+                                    if (!is_array($it)) continue;
+                                    $totalPrice += (float)($it['totalPrice'] ?? $it['total_price'] ?? $it['price'] ?? 0);
+                                }
+
+                                $first = $items[0] ?? [];
+                                $serviceName = null;
+                                if (is_array($first)) {
+                                    $serviceName =
+                                        ($type === 'hotel' ? ($first['hotelDetails']['hotel_name'] ?? $first['hotel_name'] ?? null) :
+                                        ($type === 'attraction' ? ($first['AttractionName'] ?? $first['attraction_name'] ?? null) :
+                                        ($type === 'restaurant' ? ($first['restaurantName'] ?? $first['restaurant_name'] ?? $first['restaurantDetails']['restaurant_name'] ?? null) :
+                                        ($type === 'guide' ? ($first['guide_name'] ?? $first['guideName'] ?? null) :
+                                        ($type === 'entry_port' || $type === 'exit_port' ? ($first['port_name'] ?? $first['portName'] ?? null) :
+                                        ($first['vehicles_name'] ?? $first['vehicle_name'] ?? $first['travel_type'] ?? null))))));
+                                }
+
+                                $serviceName = !empty($serviceName) ? $serviceName : ($serviceLabels[$type] ?? 'Additional Service');
+                                $label = $serviceLabels[$type] ?? ($type ?: 'Additional Service');
+                            @endphp
+
+                            <div class="card mb-2 shadow-sm border-0" style="border-radius: 10px; border-left: 4px solid #0d6efd !important;">
+                                <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, rgba(13,110,253,0.95) 0%, rgba(96,165,250,0.95) 100%);">
+                                    <div class="d-flex align-items-center justify-content-between gap-2">
+                                        <div class="text-white">
+                                            <h6 class="mb-0 fw-bold" style="font-size: 0.85rem;">
+                                                <i class="ri-file-list-3-line me-2"></i>{{ $label }}
+                                            </h6>
+                                            <small class="text-white-75" style="font-size: 0.7rem;">{{ $serviceName }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
+                                                {{ $currency ?? 'SGD' }} {{ number_format((float)$totalPrice, 2) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body p-2" style="background-color: #ffffff;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted" style="font-size: 0.7rem;">Price</small>
+                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">
+                                            {{ $currency ?? 'SGD' }} {{ number_format((float)$totalPrice, 2) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                        <div class="d-flex gap-2 w-100 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-close-line me-1"></i>Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+@endforeach
+
+<!-- Additional Services Modals (per tour) -->
+@foreach($tours as $tour)
+    @php
+        $additionalOrders = \App\Models\Order::where('tour_id', $tour->tour_id)
+            ->where('bookingType', 'booking')
+            ->whereNull('deleted_at')
+            ->get()
+            ->filter(fn($o) => (int)($o->additional ?? 0) === 1)
+            ->values();
+        $additionalCount = $additionalOrders->count();
+    @endphp
+
+    @if($additionalCount > 0)
+        <div class="modal fade" id="additionalServicesDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="additionalServicesDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                    <div class="modal-header border-0 py-2 px-3" style="background: linear-gradient(135deg, #0d6efd 0%, #60a5fa 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
+                            <div class="text-white">
+                                <h6 class="mb-0 fw-bold" id="additionalServicesDetailsModalLabel{{ $tour->tour_id }}" style="font-size: 0.95rem;">
+                                    <i class="ri-add-circle-line me-2" style="font-size: 0.9rem;"></i>Additional Services - Tour #{{ $tour->tour_id }}
+                                </h6>
+                                <small class="text-white-75" style="font-size: 0.7rem;">{{ $additionalCount }} additional service(s)</small>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+                        </div>
+                    </div>
+
+                    <div class="modal-body p-2" style="background-color: #f8f9fa;">
+                        @php
+                            $serviceLabels = [
+                                'hotel' => 'Hotel',
+                                'attraction' => 'Attraction',
+                                'restaurant' => 'Restaurant',
+                                'guide' => 'Guide',
+                                'entry_port' => 'Arrival',
+                                'exit_port' => 'Departure',
+                                'travel_hourly' => 'Local-Tour Hourly',
+                                'travel_point' => 'Local-Tour Point to Point',
+                                'local_transport' => 'Local Transport',
+                                'miscellaneous' => 'Miscellaneous',
+                            ];
+                        @endphp
+
+                        @foreach($additionalOrders as $additionalIndex => $addOrder)
+                            @php
+                                $type = $addOrder->type ?? '';
+                                $decoded = is_string($addOrder->data) ? json_decode($addOrder->data, true) : $addOrder->data;
+                                $items = (is_array($decoded) && isset($decoded[0]) && is_array($decoded[0])) ? $decoded : (is_array($decoded) ? [$decoded] : []);
+
+                                $totalPrice = 0;
+                                foreach ($items as $it) {
+                                    if (!is_array($it)) continue;
+                                    $totalPrice += (float)($it['totalPrice'] ?? $it['total_price'] ?? $it['price'] ?? 0);
+                                }
+
+                                $first = $items[0] ?? [];
+                                $serviceName = null;
+                                if (is_array($first)) {
+                                    $serviceName =
+                                        ($type === 'hotel' ? ($first['hotelDetails']['hotel_name'] ?? $first['hotel_name'] ?? null) :
+                                        ($type === 'attraction' ? ($first['AttractionName'] ?? $first['attraction_name'] ?? null) :
+                                        ($type === 'restaurant' ? ($first['restaurantName'] ?? $first['restaurant_name'] ?? $first['restaurantDetails']['restaurant_name'] ?? null) :
+                                        ($type === 'guide' ? ($first['guide_name'] ?? $first['guideName'] ?? null) :
+                                        ($type === 'entry_port' || $type === 'exit_port' ? ($first['port_name'] ?? $first['portName'] ?? null) :
+                                        ($first['vehicles_name'] ?? $first['vehicle_name'] ?? $first['travel_type'] ?? null))))));
+                                }
+
+                                $serviceName = !empty($serviceName) ? $serviceName : ($serviceLabels[$type] ?? 'Additional Service');
+                                $label = $serviceLabels[$type] ?? ($type ?: 'Additional Service');
+                            @endphp
+
+                            <div class="card mb-2 shadow-sm border-0" style="border-radius: 10px; border-left: 4px solid #0d6efd !important;">
+                                <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, rgba(13,110,253,0.95) 0%, rgba(96,165,250,0.95) 100%);">
+                                    <div class="d-flex align-items-center justify-content-between gap-2">
+                                        <div class="text-white">
+                                            <h6 class="mb-0 fw-bold" style="font-size: 0.85rem;">
+                                                <i class="ri-file-list-3-line me-2"></i>{{ $label }}
+                                            </h6>
+                                            <small class="text-white-75" style="font-size: 0.7rem;">{{ $serviceName }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
+                                                {{ $currency ?? 'SGD' }} {{ number_format((float)$totalPrice, 2) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body p-2" style="background-color: #ffffff;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted" style="font-size: 0.7rem;">Price</small>
+                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">
+                                            {{ $currency ?? 'SGD' }} {{ number_format((float)$totalPrice, 2) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                        <div class="d-flex gap-2 w-100 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-close-line me-1"></i>Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 @endforeach
 

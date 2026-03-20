@@ -1338,41 +1338,23 @@ use Illuminate\Support\Facades\Crypt;
 
                 <!-- Payment Terms and Bank Details -->
                 @php
-                    // Fetch bank details from database based on tour's dmc_id
                     $tour = $invoice->tour;
                     $dmcId = $tour->dmc_id ?? $invoice->dmc_id ?? null;
-                    $bankDetail = null;
+                    $bankDetails = collect();
                     $paymentTerms = [];
-                    $bankDetailsData = [];
-                    
                     if ($dmcId) {
-                        // Fetch active bank details for this DMC
-                        $bankDetail = \App\Models\BankDetail::where('dmc_id', $dmcId)
+                        $bankDetails = \App\Models\BankDetail::where('dmc_id', $dmcId)
                             ->where('is_active', 1)
                             ->whereNull('deleted_at')
-                            ->first();
+                            ->orderBy('id')
+                            ->get();
                     }
-                    
-                    // Use database bank details if found, otherwise fall back to invoice stored data
-                    if ($bankDetail) {
-                        $paymentTerms = $bankDetail->payment_terms ?? [];
-                        $bankDetailsData = [
-                            'account_name' => $bankDetail->account_name ?? '',
-                            'account_number' => $bankDetail->account_number ?? '',
-                            'bank_address' => $bankDetail->bank_address ?? '',
-                            'ifsc_code' => $bankDetail->ifsc ?? null,
-                            'swift_bic_iban' => $bankDetail->swift_bic_iban ?? null,
-                            'bank_code' => $bankDetail->bank_code ?? null,
-                            'branch_code' => $bankDetail->branch_code ?? null,
-                            'aba_routing_number' => $bankDetail->aba_routing ?? null,
-                        ];
-                    } else {
-                        // Fallback to invoice stored data
+                    if ($bankDetails->isNotEmpty()) {
+                        $paymentTerms = $bankDetails->first()->payment_terms ?? [];
+                    }
+                    if (empty($paymentTerms)) {
                         $paymentTerms = $invoice->payment_terms ?? [];
-                        $bankDetailsData = $invoice->bank_details ?? [];
                     }
-                    
-                    // If no payment terms found, use default
                     if (empty($paymentTerms)) {
                         $dmcCompanyName = $invoice->dmc->company_name ?? 'DMC';
                         $dmcEmail = $invoice->dmc->email ?? 'dmc email';
@@ -1402,14 +1384,42 @@ use Illuminate\Support\Facades\Crypt;
                 </div>
                 @endif
 
-                @if(!empty($bankDetailsData))
+                @if($bankDetails->isNotEmpty())
                 <div class="card mb-4" style="border-left: 4px solid #FFC0CB;">
                     <div class="card-header" style="background-color: #FFC0CB;">
                         <h5 class="mb-0"><strong>Bank Details:</strong></h5>
                     </div>
                     <div class="card-body" style="background-color: #FFC0CB;">
                         <div class="table-responsive">
-                            <table class="table table-bordered" style="background-color: white;">
+                            @foreach($bankDetails as $bankDetail)
+                            @php
+                                $bankDetailsData = [
+                                    'account_name' => $bankDetail->account_name ?? '',
+                                    'account_number' => $bankDetail->account_number ?? '',
+                                    'bank_address' => $bankDetail->bank_address ?? '',
+                                    'ifsc_code' => $bankDetail->ifsc ?? null,
+                                    'swift_bic_iban' => $bankDetail->swift_bic_iban ?? null,
+                                    'bank_code' => $bankDetail->bank_code ?? null,
+                                    'branch_code' => $bankDetail->branch_code ?? null,
+                                    'aba_routing_number' => $bankDetail->aba_routing ?? null,
+                                    'bank_type' => $bankDetail->bank_type ?? null,
+                                ];
+                                $indiaBankDetails = is_array($bankDetail->india_bank_details ?? null) ? $bankDetail->india_bank_details : [];
+                                $hasIndiaBankContent = !empty($indiaBankDetails) && (
+                                    !empty($indiaBankDetails['gst_number']) || !empty($indiaBankDetails['pan_number']) ||
+                                    !empty($indiaBankDetails['account_name']) || !empty($indiaBankDetails['account_number']) ||
+                                    !empty($indiaBankDetails['bank_name']) || !empty($indiaBankDetails['ifsc']) ||
+                                    !empty($indiaBankDetails['bank_address'])
+                                );
+                            @endphp
+                            @if(!empty($bankDetailsData['account_name']) || !empty($bankDetailsData['account_number']) || $hasIndiaBankContent)
+                            <div class="{{ $loop->last ? '' : 'mb-4' }}">
+                            @if(!empty($bankDetailsData['account_name']) || !empty($bankDetailsData['account_number']))
+                            @php
+                                $primaryLabel = $bankDetailsData['bank_type'] ?? 'SGD Accounts';
+                            @endphp
+                            <h6 class="mb-2"><strong>Bank Details ({{ $primaryLabel }})</strong></h6>
+                            <table class="table table-bordered mb-4" style="background-color: white;">
                                 <tbody>
                                     <tr>
                                         <td style="width: 40%; font-weight: 600;">Account Name</td>
@@ -1453,6 +1463,97 @@ use Illuminate\Support\Facades\Crypt;
                                         <td>{{ $bankDetailsData['aba_routing_number'] }}</td>
                                     </tr>
                                     @endif
+                                </tbody>
+                            </table>
+                            @endif
+
+                            @if($hasIndiaBankContent)
+                            <p style="color:#ff0000; font-weight:bold; margin:10px 0; text-align:center;">
+                                <strong style="color: black">Note:- </strong>
+                                If you pay in India then you can transfer your payment in our Indian collection agent account.
+                            </p>
+                            @php
+                                $indiaLabel = $indiaBankDetails['bank_type'] ?? 'INR Accounts';
+                            @endphp
+                            <h6 class="mb-2"><strong>Bank Details ({{ $indiaLabel }})</strong></h6>
+                            <table class="table table-bordered" style="background-color: white;">
+                                <tbody>
+                                    @if(!empty($indiaBankDetails['gst_number']))
+                                    <tr>
+                                        <td style="width: 40%; font-weight: 600;">GST Registration Number</td>
+                                        <td>{{ $indiaBankDetails['gst_number'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($indiaBankDetails['pan_number']))
+                                    <tr>
+                                        <td style="font-weight: 600;">PAN Number</td>
+                                        <td>{{ $indiaBankDetails['pan_number'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($indiaBankDetails['account_name']))
+                                    <tr>
+                                        <td style="font-weight: 600;">Account Name</td>
+                                        <td>{{ $indiaBankDetails['account_name'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($indiaBankDetails['account_number']))
+                                    <tr>
+                                        <td style="font-weight: 600;">Account Number</td>
+                                        <td>{{ $indiaBankDetails['account_number'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($indiaBankDetails['bank_name']))
+                                    <tr>
+                                        <td style="font-weight: 600;">Bank</td>
+                                        <td>{{ $indiaBankDetails['bank_name'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($indiaBankDetails['ifsc']))
+                                    <tr>
+                                        <td style="font-weight: 600;">IFSC Code</td>
+                                        <td>{{ $indiaBankDetails['ifsc'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($indiaBankDetails['bank_address']))
+                                    <tr>
+                                        <td style="font-weight: 600;">Bank Address</td>
+                                        <td>{{ $indiaBankDetails['bank_address'] }}</td>
+                                    </tr>
+                                    @endif
+                                </tbody>
+                            </table>
+                            @endif
+                            </div>
+                            @endif
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                @elseif(!empty($invoice->bank_details))
+                @php
+                    $bankDetailsData = $invoice->bank_details ?? [];
+                @endphp
+                <div class="card mb-4" style="border-left: 4px solid #FFC0CB;">
+                    <div class="card-header" style="background-color: #FFC0CB;">
+                        <h5 class="mb-0"><strong>Bank Details:</strong></h5>
+                    </div>
+                    <div class="card-body" style="background-color: #FFC0CB;">
+                        <div class="table-responsive">
+                            <h6 class="mb-2"><strong>Bank Details ({{ $bankDetailsData['bank_type'] ?? 'SGD Accounts' }})</strong></h6>
+                            <table class="table table-bordered" style="background-color: white;">
+                                <tbody>
+                                    <tr>
+                                        <td style="width: 40%; font-weight: 600;">Account Name</td>
+                                        <td>{{ $bankDetailsData['account_name'] ?? '' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600;">Account Number</td>
+                                        <td>{{ $bankDetailsData['account_number'] ?? '' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600;">Bank Address</td>
+                                        <td>{{ $bankDetailsData['bank_address'] ?? '' }}</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
