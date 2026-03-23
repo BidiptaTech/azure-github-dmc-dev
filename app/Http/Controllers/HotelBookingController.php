@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\CommonHelper;
+use App\Models\Tour;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,22 @@ use Carbon\Carbon;
 
 class HotelBookingController extends Controller
 {
+    /**
+     * When tour_status is Definite, flag the rejected order for refunds (`orders.is_refund = 1`).
+     *
+     * @param  array<string, mixed>  $updateData
+     * @return array<string, mixed>
+     */
+    private function withDefiniteTourIsRefundFlag(int $tourId, array $updateData): array
+    {
+        $status = Tour::where('tour_id', $tourId)->orderByDesc('id')->value('tour_status');
+        if (($status ?? '') === 'Definite') {
+            $updateData['is_refund'] = 1;
+        }
+
+        return $updateData;
+    }
+
     /**
      * Update hotel booking dates in the orders table
      * 
@@ -2743,11 +2760,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = $this->withDefiniteTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -2768,6 +2785,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3272,11 +3291,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = $this->withDefiniteTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(),
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3296,6 +3315,8 @@ class HotelBookingController extends Controller
                 'restaurant_order_id' => $restaurantOrder->id,
                 'cancel_reason' => $cancelReason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3393,11 +3414,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = $this->withDefiniteTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3418,6 +3439,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3651,11 +3674,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = $this->withDefiniteTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3676,6 +3699,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3916,11 +3941,11 @@ class HotelBookingController extends Controller
             // Soft delete the arrival booking
             $updated = DB::table('orders')
                 ->where('id', $arrivalOrder->id)
-                ->update([
+                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('🚗 ARRIVAL REJECT: Failed to reject arrival order', [
@@ -3936,6 +3961,8 @@ class HotelBookingController extends Controller
                 'order_id' => $arrivalOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4173,11 +4200,11 @@ class HotelBookingController extends Controller
             // Soft delete the departure booking
             $updated = DB::table('orders')
                 ->where('id', $departureOrder->id)
-                ->update([
+                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('✈️ DEPARTURE REJECT: Failed to reject departure order', [
@@ -4193,6 +4220,8 @@ class HotelBookingController extends Controller
                 'order_id' => $departureOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4429,11 +4458,11 @@ class HotelBookingController extends Controller
             // Soft delete the hourly booking
             $updated = DB::table('orders')
                 ->where('id', $hourlyOrder->id)
-                ->update([
+                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('⏰ HOURLY REJECT: Failed to reject hourly order', [
@@ -4449,6 +4478,8 @@ class HotelBookingController extends Controller
                 'order_id' => $hourlyOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4682,14 +4713,14 @@ class HotelBookingController extends Controller
                 ], 400);
             }
 
-            // Soft delete the hourly booking
+            // Soft delete the point-to-point booking
             $updated = DB::table('orders')
                 ->where('id', $pointToPointOrder->id)
-                ->update([
+                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('⏰ POINT TO POINT REJECT: Failed to reject point to point order', [
@@ -4705,6 +4736,8 @@ class HotelBookingController extends Controller
                 'order_id' => $pointToPointOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4933,11 +4966,11 @@ class HotelBookingController extends Controller
             // Soft delete the local transport booking
             $updated = DB::table('orders')
                 ->where('id', $localTransportOrder->id)
-                ->update([
+                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('🚌 LOCAL TRANSPORT REJECT: Failed to reject local transport order', [
@@ -4953,6 +4986,8 @@ class HotelBookingController extends Controller
                 'order_id' => $localTransportOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,

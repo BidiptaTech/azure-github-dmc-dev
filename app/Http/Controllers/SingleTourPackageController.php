@@ -601,43 +601,62 @@ class SingleTourPackageController extends Controller
     public function cancelOrder(Request $request, $id)
     {
         try {
-            $order = Order::where('booking_id', $id)->firstOrFail();
+            $requestTourId = (int) $request->input('tour_id', 0);
+
+            $orderQuery = Order::where('booking_id', $id);
+            if ($requestTourId > 0) {
+                $orderQuery->where('tour_id', $requestTourId);
+            }
+            $order = $orderQuery->firstOrFail();
+
             $tourId = (int) $order->tour_id;
             $tour = Tour::where('tour_id', $tourId)->first();
             $tourStatus = $tour ? $tour->tour_status : null;
+            $normalizedTourStatus = strtolower(trim((string) $tourStatus));
+            $isDefiniteOrActual = in_array($normalizedTourStatus, ['definite', 'actual'], true);
 
-            $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
-            $orderType = $order->type ?? '';
+            DB::transaction(function () use ($order, $tourId, $tourStatus, $isDefiniteOrActual) {
+                $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $orderType = $order->type ?? '';
 
-            $serviceType = $orderType;
-            $serviceId = null;
-            $serviceName = null;
+                $serviceType = $orderType;
+                $serviceId = null;
+                $serviceName = null;
 
-            if ($orderType === 'hotel') {
-                $serviceId = $payload['hotelDetails']['hotel_id'] ?? null;
-                $serviceName = $payload['hotelDetails']['hotel_name'] ?? null;
-            } elseif ($orderType === 'guide') {
-                $serviceId = $payload['guide_id'] ?? null;
-                $serviceName = $payload['guide_name'] ?? null;
-            } elseif ($orderType === 'restaurant') {
-                $serviceId = $payload['restaurant_id'] ?? null;
-                $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
-            } elseif ($orderType === 'attraction') {
-                $serviceId = $payload['attraction_id'] ?? null;
-                $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
-            } elseif (in_array($orderType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
-                $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
-                $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $orderType;
-            }
+                if ($orderType === 'hotel') {
+                    $serviceId = $payload['hotelDetails']['hotel_id'] ?? null;
+                    $serviceName = $payload['hotelDetails']['hotel_name'] ?? null;
+                } elseif ($orderType === 'guide') {
+                    $serviceId = $payload['guide_id'] ?? null;
+                    $serviceName = $payload['guide_name'] ?? null;
+                } elseif ($orderType === 'restaurant') {
+                    $serviceId = $payload['restaurant_id'] ?? null;
+                    $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
+                } elseif ($orderType === 'attraction') {
+                    $serviceId = $payload['attraction_id'] ?? null;
+                    $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
+                } elseif (in_array($orderType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+                    $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
+                    $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $orderType;
+                }
 
-            if ($tourStatus !== null) {
-                $currentUser = Auth::user();
-                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
-                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
-                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'deleted', $serviceType, $serviceId, $serviceName);
-            }
+                if ($tourStatus !== null) {
+                    $currentUser = Auth::user();
+                    $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                    $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                    CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'deleted', $serviceType, $serviceId, $serviceName);
+                }
 
-            $order->delete();
+                // For Definite/Actual tours, mark the linked order as refund-eligible before soft delete.
+                if ($isDefiniteOrActual) {
+                    $order->is_refund = 1;
+                    $order->save();
+                }
+
+                $order->delete();
+
+                CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
+            });
 
             return response()->json([
                 'success' => true,
@@ -3526,7 +3545,13 @@ class SingleTourPackageController extends Controller
                                         'child_without_bed' => $hotelBooking['child_without_bed'] ?? null,
                                         
                                         // Tour ID
-                                        'tour_id' => $tourId
+                                        'tour_id' => $tourId,
+                                        
+                                        // Remarks (from hotel_remarks textarea)
+                                        'remarks' => $hotelBooking['remarks'] ?? null,
+                                        
+                                        // supplement: true if supplement checkbox or service for fewer adults than tour (stored as supplement in DB)
+                                        'supplement' => $hotelBooking['supplement'] ?? $hotelBooking['is_supplement'] ?? false
                                     ];
                                     
                                     // Log transfer options for debugging
@@ -3553,6 +3578,7 @@ class SingleTourPackageController extends Controller
                                         'type' => $type,
                                         'status' => 1,
                                         'bookingType' => 'enquiry',
+                                        'remarks' => $hotelBooking['remarks'] ?? null,
                                     ]);
 
                                     \Log::info("Hotel order created successfully", [
@@ -3643,6 +3669,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $type,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
+                                    'remarks' => $attraction['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("Attraction order created successfully", [
@@ -3717,6 +3744,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $type,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
+                                    'remarks' => $restaurant['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("Restaurant order created successfully", [
@@ -3759,6 +3787,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $type,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
+                                    'remarks' => $guide['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("Guide order created successfully", [
@@ -3830,6 +3859,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
+                                    'remarks' => $transport['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("Transport order created successfully", [
@@ -3900,6 +3930,7 @@ class SingleTourPackageController extends Controller
                                     'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
+                                    'remarks' => $transport['remarks'] ?? null,
                                 ]);
 
                                 \Log::info("{$type} transport order created successfully", [
@@ -4075,6 +4106,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Fix room_ids in booking data
         $hotelId = $bookingData['hotelDetails']['hotel_id'] ?? $bookingData['hotel_id'] ?? null;
@@ -4099,6 +4133,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
         
         // Update tour destination with hotel location if location is provided
@@ -4156,6 +4191,9 @@ class SingleTourPackageController extends Controller
             $bookingType = 'enquiry';
         }
 
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
+
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
         while (Order::where('booking_id', $bookingId)->exists()) {
@@ -4172,6 +4210,7 @@ class SingleTourPackageController extends Controller
             'discount' => $commission,
             'markup_percentage' => $markup_percentage,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4224,6 +4263,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
        
         // Generate unique booking ID
         $max_book_id = Order::max('booking_id') ?? 0;
@@ -4242,6 +4284,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4284,6 +4327,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -4303,6 +4349,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4347,6 +4394,9 @@ class SingleTourPackageController extends Controller
         if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
             $bookingType = 'enquiry';
         }
+
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -4387,6 +4437,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;
@@ -4434,6 +4485,9 @@ class SingleTourPackageController extends Controller
             $bookingType = 'enquiry';
         }
 
+        // If adding service when tour is Actual, mark order as additional
+        $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
+
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
         while (Order::where('booking_id', $bookingId)->exists()) {
@@ -4458,6 +4512,7 @@ class SingleTourPackageController extends Controller
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
+            'additional' => $additionalFlag,
         ]);
 
         $tourStatus = $tour->tour_status;

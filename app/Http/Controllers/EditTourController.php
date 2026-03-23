@@ -737,6 +737,8 @@ class EditTourController extends Controller
             'total_price' => 'nullable|numeric|min:0',
             'child_with_bed' => 'nullable|string',
             'child_without_bed' => 'nullable|string',
+            'remarks' => 'nullable|string|max:1000',
+            'supplement' => 'nullable',
         ]);
 
         try {
@@ -933,6 +935,13 @@ class EditTourController extends Controller
             if (!array_key_exists('cancellation_charge', $currentPayload['hotelDetails'])) {
                 $currentPayload['hotelDetails']['cancellation_charge'] = $existingHotelDetails['cancellation_charge'] ?? null;
             }
+
+            if (array_key_exists('remarks', $validated)) {
+                $currentPayload['remarks'] = $validated['remarks'] ?? '';
+            } elseif ($request->has('remarks')) {
+                $currentPayload['remarks'] = $request->input('remarks', '');
+            }
+            $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
             // Step 6: Update bookingDate only if provided, otherwise preserve existing
             if (!empty($validated['check_in_date']) && !empty($validated['check_out_date'])) {
@@ -1242,6 +1251,9 @@ class EditTourController extends Controller
                 'state' => $currentPayload['state'] ?? '',
                 'zip' => $currentPayload['zip'] ?? '',
                 'specialRequests' => $currentPayload['specialRequests'] ?? '',
+                // Supplement + remarks
+                'supplement' => (bool) ($currentPayload['supplement'] ?? $currentPayload['is_supplement'] ?? false),
+                'remarks' => $currentPayload['remarks'] ?? null,
                 // Rooms array - ensure it's always an array
                 'rooms' => is_array($currentPayload['rooms'] ?? []) ? $currentPayload['rooms'] : [],
                 // Booking type and pricing (order: totalPrice, bookingType, priceMode, priceModeId)
@@ -1388,6 +1400,8 @@ class EditTourController extends Controller
             'senior_count' => 'nullable|integer|min:0',
             'total_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
+            'remarks' => 'nullable|string|max:1000',
+            'supplement' => 'nullable',
         ]);
 
         try {
@@ -1481,6 +1495,12 @@ class EditTourController extends Controller
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 // Process transfer_options if provided
                 if ($request->has('transfer_options')) {
@@ -1586,6 +1606,8 @@ class EditTourController extends Controller
             'pickup_time' => 'nullable|string|max:255',
             'guest_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000',
+            'remarks' => 'nullable|string|max:1000',
+            'supplement' => 'nullable',
         ]);
 
         try {
@@ -1651,6 +1673,12 @@ class EditTourController extends Controller
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 $order->data = [$currentPayload];
                 $successMessage = 'Guide booking updated successfully.';
@@ -1725,6 +1753,8 @@ class EditTourController extends Controller
             'child_count' => 'nullable|integer|min:0',
             'total_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
+            'remarks' => 'nullable|string|max:1000',
+            'supplement' => 'nullable',
             'meal_description_json' => 'nullable|string',
         ]);
 
@@ -1821,6 +1851,12 @@ class EditTourController extends Controller
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 if (!empty($validated['meal_description_json'])) {
                     $decodedMeals = json_decode($validated['meal_description_json'], true);
@@ -2018,6 +2054,10 @@ class EditTourController extends Controller
                     'vehicle_type' => 'nullable|string|max:50',
                     'passenger_count' => 'nullable|integer|min:1',
                     'notes' => 'nullable|string|max:1000',
+                    'remarks' => 'nullable|string|max:1000',
+                    'supplement' => 'nullable',
+                    'arrival_flight_no' => 'nullable|string|max:100',
+                    'departure_flight_no' => 'nullable|string|max:100',
                 ]);
 
                 $existingData = is_array($order->data) ? $order->data : json_decode($order->data, true);
@@ -2037,12 +2077,22 @@ class EditTourController extends Controller
                     $currentPayload['entrypickup'] = $validated['pickup_location'];
                     $currentPayload['entrydropoff'] = $validated['dropoff_location'];
                     $currentPayload['entrytime'] = $validated['pickup_time'];
+                    if (array_key_exists('arrival_flight_no', $validated)) {
+                        $currentPayload['arrival_flight_no'] = $validated['arrival_flight_no'] ?? '';
+                    } elseif ($request->has('arrival_flight_no')) {
+                        $currentPayload['arrival_flight_no'] = $request->input('arrival_flight_no', '');
+                    }
                 } else {
                     $currentPayload['exitpickup'] = $validated['pickup_location'];
                     $currentPayload['exitdropoff'] = $validated['dropoff_location'];
                     $currentPayload['entrytime'] = $validated['pickup_time'];
                     $currentPayload['exittime'] = $validated['pickup_time'];
                     $currentPayload['exitpickuptime'] = $validated['pickup_time'];
+                    if (array_key_exists('departure_flight_no', $validated)) {
+                        $currentPayload['departure_flight_no'] = $validated['departure_flight_no'] ?? '';
+                    } elseif ($request->has('departure_flight_no')) {
+                        $currentPayload['departure_flight_no'] = $request->input('departure_flight_no', '');
+                    }
                 }
 
                 if (!empty($validated['vehicle_name'])) {
@@ -2064,6 +2114,12 @@ class EditTourController extends Controller
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 $successMessage = 'Transport service updated successfully.';
             }
@@ -2080,6 +2136,8 @@ class EditTourController extends Controller
                     'adult_count' => 'nullable|integer|min:0',
                     'child_count' => 'nullable|integer|min:0',
                     'notes' => 'nullable|string|max:1000',
+                    'remarks' => 'nullable|string|max:1000',
+                    'supplement' => 'nullable',
                 ];
 
                 if ($type === 'travel_hourly') {
@@ -2154,6 +2212,12 @@ class EditTourController extends Controller
                 if (array_key_exists('notes', $validated)) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 $currentPayload['travel_type'] = $type;
 
@@ -2451,6 +2515,7 @@ class EditTourController extends Controller
                     // If no services left, soft delete the order (sets deleted_at timestamp), otherwise update it
                     if (empty($serviceData)) {
                         $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
+                        $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                         Log::info('Soft deleted entire order - all services outside date range', [
                             'order_id' => $orderId,
                             'deleted_at' => $order->deleted_at ? $order->deleted_at->toDateTimeString() : 'N/A',
@@ -2467,6 +2532,7 @@ class EditTourController extends Controller
                 } else {
                     // Single service, soft delete the entire order (sets deleted_at timestamp)
                     $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
+                    $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                     Log::info('Soft deleted order - single service outside date range', [
                         'order_id' => $orderId,
                         'service_type' => $services[0]['type'],
@@ -2480,6 +2546,10 @@ class EditTourController extends Controller
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        foreach (array_unique($tourIdsWithSoftDeletes) as $tourId) {
+            CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
         }
     }
 }

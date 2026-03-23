@@ -619,6 +619,8 @@ Route::get('/clear', function () {
         
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
         Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
+        Route::post('/tour/{tourId}/delete-payment', [TourController::class, 'deletePayment'])->name('tour.delete-payment');
+        Route::post('/tour/{tourId}/update-payment', [TourController::class, 'updatePayment'])->name('tour.update-payment');
         Route::get('/get-ports', [HotelController::class, 'getPorts'])->name('get.ports');
         Route::POST('/cancel-book', [BookingListController::class, 'cancelBooking'])->name('booking.cancel');
         Route::POST('/approve-book', [BookingListController::class, 'approveBooking'])->name('booking.approve');
@@ -630,6 +632,7 @@ Route::get('/clear', function () {
         Route::get('/countries/get-active', [ReportController::class, 'getActiveCountries'])->name('countries.get-active');
         Route::get('/reports/get-filtered-data', [ReportController::class, 'getFilteredData'])->name('reports.get-filtered-data');
         Route::post('/countries/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle-status');
+        Route::post('/countries/update-remitance-exchange', [CountryController::class, 'updateRemitanceAndExchange'])->name('countries.update-remitance-exchange');
         Route::get('get-dmc-countries/{id}', [ReportController::class, 'getDmcCountries'])->name('get.dmc.countries');
         Route::get('get-master-dmc-countries/{id}', [ReportController::class, 'getMasterDmcCountries'])->name('get.master.dmc.countries');
         Route::get('/get-master-dmc', [ReportController::class, 'getMasterDmc'])->name('get.master.dmc');
@@ -857,10 +860,15 @@ Route::get('/clear', function () {
         Route::resource('bookinglist', BookingListController::class);
         // Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
+        Route::match(['get', 'post'], 'tour-itinerary/{tourId}/pdf-formatted', [BookingListController::class, 'downloadItineraryFormattedPdf'])->name('bookinglist.itinerary.pdf');
+        Route::get('booking-list/handover-checklist/{tour_id}', [BookingListController::class, 'downloadHandoverChecklistPdf'])->name('bookinglist.handoverChecklist.pdf');
         Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
         Route::get('bookinglist/check-price-hide', [BookingListController::class, 'checkPriceHide'])->name('bookinglist.checkPriceHide');
 
+        // Finance reports
+        Route::get('/finance/daily-arrival', [BookingListController::class, 'financeDailyArrival'])->name('finance.daily-arrival');
         Route::resource('enquirylist', EnquiryListController::class);
+        Route::get('booking-list/daily-arrival', [BookingListController::class, 'financeDailyArrival'])->name('booking-list.daily-arrival');
 
         //Drivers Approval
         Route::get('driver/driver-approval', [DriverController::class, 'driverApproval'])->name('driver.approval');
@@ -926,6 +934,8 @@ Route::get('/clear', function () {
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
             Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
+            Route::post('/bookings/process-order-refund', [BookingsController::class, 'processOrderRefund'])->name('bookings.process-order-refund');
+            Route::post('/bookings/process-order-refund-by-order', [BookingsController::class, 'processOrderRefundByOrder'])->name('bookings.process-order-refund-by-order');
             Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
             Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
             Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');
@@ -1176,13 +1186,22 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/app-management', [App\Http\Controllers\AppManagementController::class, 'index'])->name('app-management.index');
         Route::put('/app-management/update', [App\Http\Controllers\AppManagementController::class, 'update'])->name('app-management.update');
         Route::get('/app-management/settings', [App\Http\Controllers\AppManagementController::class, 'appManagementSettings'])->name('app-management.settings');
-    
+
+        // Itinerary Settings routes
+        Route::get('/itinerary_settings.pdf', [BookingListController::class, 'itinerarySettings'])->name('itinerary_settings.pdf');
+        Route::post('/itinerary_settings.pdf', [BookingListController::class, 'saveItinerarySettings'])->name('itinerary_settings.save');
+        Route::get('/itinerary_settings/fetch', [BookingListController::class, 'fetchItinerarySettings'])->name('itinerary_settings.fetch');
+        Route::get('/itinerary_settings/{id}/edit', [BookingListController::class, 'editItinerarySettings'])->name('itinerary_settings.edit');
+        Route::match(['put', 'post'], '/itinerary_settings/{id}/update', [BookingListController::class, 'updateItinerarySettings'])->name('itinerary_settings.update_route');
+        Route::delete('/itinerary_settings/{id}', [BookingListController::class, 'deleteItinerarySettings'])->name('itinerary_settings.delete');
     });
 
     //authentication check for manager (route can access admin & manager)
     Route::group(['middleware' => ['manager']], function () {
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
         Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
+        Route::post('/tour/{tourId}/delete-payment', [TourController::class, 'deletePayment'])->name('tour.delete-payment');
+        Route::post('/tour/{tourId}/update-payment', [TourController::class, 'updatePayment'])->name('tour.update-payment');
     });
 
 });    

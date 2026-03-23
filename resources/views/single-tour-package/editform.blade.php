@@ -1,4 +1,8 @@
 @extends('layouts.layout')
+<!-- SweetAlert2 for remove service confirmation -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+@include('single-tour-package.partials.remove-service-alert-js')
 <!-- Toastr CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
 <!-- Select2 CSS -->
@@ -89,9 +93,11 @@
         } elseif ($currentUserRole == 125) { // AOM (Assistant Operation Manager)
             $createdBy = $currentUserId; // Operation Manager is the current user
         }
+        $hasNegotiationHistory = isset($tour) && $tour ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
     
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
@@ -992,6 +998,8 @@
                                     $transportPrice = $transferOptions['price'] ?? 0;
                                     $transportWay = $transferOptions['way'] ?? 'One Way';
                                     $transportReturn = ($transportWay === 'Two Way');
+                                    $hotelRemarks = $hotelInfo['remarks'] ?? '';
+                                    $hotelSupplement = ($hotelInfo['supplement'] ?? $hotelInfo['is_supplement'] ?? false);
                                 @endphp
                                 <div class="col-12 mb-4">
                                     <div class="border border-warning rounded-3 p-4 shadow-sm hotel-edit-form" data-update-url="{{ route('edit-tour.update-hotel', $hotelOrder->booking_id) }}">
@@ -2292,6 +2300,18 @@
                                             </div>
                                         </div>
                                         
+                                        <!-- Supplement & Remarks -->
+                                        <div class="row mt-3">
+                                            <div class="col-12">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="supplement" id="hotel_supplement_{{ $hotelOrder->booking_id }}" value="1" {{ $hotelSupplement ? 'checked' : '' }}>
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="hotel_supplement_{{ $hotelOrder->booking_id }}">Supplement </label>
+                                                </div>
+                                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                <textarea class="form-control" name="remarks" id="hotel_remarks_{{ $hotelOrder->booking_id }}" rows="2" placeholder="Optional notes for this hotel booking..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $hotelRemarks }}</textarea>
+                                            </div>
+                                        </div>
+                                        
                                         <!-- Price Breakdown Grid -->
                                         <div class="row mt-2">
                                             <div class="col-12">
@@ -2409,6 +2429,9 @@
                                         $vehicleType = $transportData['type'] ?? '';
                                         $passengers = $transportData['passengers'] ?? '';
                                         $availableVehicles = $vehicles ?? collect();
+                                        $transportRemarks = $transportData['remarks'] ?? '';
+                                        $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
+                                        $arrivalFlightNo = $transportData['arrival_flight_no'] ?? '';
                                     @endphp
                                     <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="entry_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                         @csrf
@@ -2422,6 +2445,10 @@
                                             </div>
                                         </div>
                                         <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-flight-land-line me-1 text-primary"></i>Arrival Flight/Train/Bus No.</label>
+                                                <input type="text" class="form-control border-2" style="height: 35px;" name="arrival_flight_no" id="arrival_flight_no_{{ $order->booking_id }}" value="{{ $arrivalFlightNo }}" placeholder="e.g. SQ 123">
+                                            </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
                                                 <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
@@ -2530,6 +2557,14 @@
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                 <input type="number" class="form-control border-2" id="arrival_total_price_{{ $order->booking_id }}" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
+                                            </div>
+                                            <div class="col-12 mt-2">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="supplement" id="arrival_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="arrival_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                </div>
+                                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                <textarea class="form-control" name="remarks" id="arrival_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this arrival transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -2721,6 +2756,8 @@
                                             $guideHours = $guideOptions['hours'] ?? 0;
                                             $guideSurcharge = $guideOptions['surcharge'] ?? 0;
                                             $guideTotalPrice = $guideOptions['total_price'] ?? 0;
+                                            $attractionRemarks = $payload['remarks'] ?? $attractionNotes ?? '';
+                                            $attractionSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
@@ -3207,6 +3244,16 @@
                                                 </div>
                                             </div>
                                         </div>
+                                            <div class="row mt-3">
+                                                <div class="col-12">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="supplement" id="attraction_supplement_{{ $order->booking_id }}" value="1" {{ $attractionSupplement ? 'checked' : '' }}>
+                                                        <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="attraction_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                    </div>
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                    <textarea class="form-control" name="remarks" id="attraction_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this attraction..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $attractionRemarks }}</textarea>
+                                                </div>
+                                            </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="attraction_feedback_{{ $order->booking_id }}"></div>
                                                 <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
@@ -3300,6 +3347,8 @@
                                                     }
                                                 }
                                             }
+                                            $guideRemarks = $payload['remarks'] ?? $guideNotes ?? '';
+                                            $guideSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
                                             @csrf
@@ -3413,6 +3462,16 @@
                                                     <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
                                             </div>
+                                            <div class="row mt-3">
+                                                <div class="col-12">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="supplement" id="guide_supplement_{{ $order->booking_id }}" value="1" {{ $guideSupplement ? 'checked' : '' }}>
+                                                        <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="guide_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                    </div>
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                    <textarea class="form-control" name="remarks" id="guide_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this guide..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $guideRemarks }}</textarea>
+                                                </div>
+                                            </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="guide_feedback_{{ $order->booking_id }}"></div>
                                                 <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
@@ -3516,6 +3575,8 @@
                                             $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
+                                            $restaurantRemarks = $payload['remarks'] ?? $restaurantNotes ?? '';
+                                            $restaurantSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
                                             @csrf
@@ -3781,6 +3842,16 @@
                                             </div>
                                                 
                                             </div>
+                                            <div class="row mt-3">
+                                                <div class="col-12">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="supplement" id="restaurant_supplement_{{ $order->booking_id }}" value="1" {{ $restaurantSupplement ? 'checked' : '' }}>
+                                                        <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="restaurant_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                    </div>
+                                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                    <textarea class="form-control" name="remarks" id="restaurant_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this restaurant..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $restaurantRemarks }}</textarea>
+                                                </div>
+                                            </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="restaurant_feedback_{{ $order->booking_id }}"></div>
                                                 <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
@@ -3862,6 +3933,8 @@
                                                     $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
                                                     $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
                                                     $availableVehicles = $vehicles ?? collect();
+                                                    $transportRemarks = $transportData['remarks'] ?? $notes;
+                                                    $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_hourly" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
@@ -3932,6 +4005,14 @@
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-hourglass-line me-1 text-info"></i>Hours</label>
                                                             <input type="number" class="form-control border-2" style="height: 42px;" name="selected_hours" min="1" value="{{ $selectedHours }}" placeholder="e.g. 4">
                                                         </div>
+                                                        <div class="col-12 mt-2">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox" name="supplement" id="hourly_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="hourly_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                            </div>
+                                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                            <textarea class="form-control" name="remarks" id="hourly_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_hourly"></div>
@@ -3978,6 +4059,8 @@
                                                     $pickupPlaceId = $transportData['pickup_place_id'] ?? '';
                                                     $dropoffPlaceId = $transportData['dropoff_place_id'] ?? '';
                                                     $availableVehicles = $vehicles ?? collect();
+                                                    $transportRemarks = $transportData['remarks'] ?? $notes;
+                                                    $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_point" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
@@ -4074,6 +4157,14 @@
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
                                                         </div>
+                                                        <div class="col-12 mt-2">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox" name="supplement" id="point_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="point_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                            </div>
+                                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                            <textarea class="form-control" name="remarks" id="point_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_point"></div>
@@ -4122,6 +4213,8 @@
                                                     $availableAttractions = $attractions ?? collect();
                                                     $availableRestaurants = $restaurants ?? collect();
                                                     $availableVehicles = $vehicles ?? collect();
+                                                    $transportRemarks = $transportData['remarks'] ?? $notes;
+                                                    $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                 @endphp
                                                 <form
                                                     class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form"
@@ -4317,6 +4410,14 @@
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
+                                                        <div class="col-12 mt-2">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox" name="supplement" id="local_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="local_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                            </div>
+                                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                            <textarea class="form-control" name="remarks" id="local_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_local_transport"></div>
@@ -4386,12 +4487,15 @@
                                                     $passengers = $transportData['passengers'] ?? '';
                                                     $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
                                                     $availableVehicles = $vehicles ?? collect();
+                                                    $transportRemarks = $transportData['remarks'] ?? '';
+                                                    $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
+                                                    $departureFlightNo = $transportData['departure_flight_no'] ?? '';
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="exit_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
                                                     <input type="hidden" name="type" value="exit_port">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <h6 class="mb-0 fw-bold text-danger"></i>Departure Transfer #{{ $index + 1 }}</h6>
+                                                        <h6 class="mb-0 fw-bold text-danger"><i class="ri-logout-circle-line me-2"></i>Departure Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -4399,6 +4503,10 @@
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-flight-takeoff-line me-1 text-primary"></i>Departure Flight/Train/Bus No.</label>
+                                                            <input type="text" class="form-control border-2" style="height: 35px;" name="departure_flight_no" id="departure_flight_no_{{ $order->booking_id }}" value="{{ $departureFlightNo }}" placeholder="e.g. SQ 123">
+                                                        </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
                                                             <select class="form-select border-2" style="height: 35px;" name="city">
@@ -4546,6 +4654,14 @@
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2 departure-total-price" style="height: 35px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                        </div>
+                                                        <div class="col-12 mt-2">
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox" name="supplement" id="exit_supplement_{{ $order->booking_id }}" value="1" {{ $transportSupplement ? 'checked' : '' }}>
+                                                                <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="exit_supplement_{{ $order->booking_id }}">Supplement </label>
+                                                            </div>
+                                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.875rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
+                                                            <textarea class="form-control" name="remarks" id="exit_remarks_{{ $order->booking_id }}" rows="2" placeholder="Optional notes for this departure transport..." style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.875rem;">{{ $transportRemarks }}</textarea>
                                                         </div>
                                                         <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
@@ -5167,6 +5283,26 @@
                             <input type="hidden" name="pickup_time" id="modal_guide_pickup_time">
                         </div>
 
+                        <!-- Supplement + Remarks -->
+                        <div class="col-12">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-4">
+                                    <div class="form-check" style="margin-top: 4px;">
+                                        <input class="form-check-input" type="checkbox" name="modal_guide_supplement" id="modal_guide_supplement" value="1">
+                                        <label class="form-check-label fw-semibold" for="modal_guide_supplement" style="color: #495057; font-size: 0.8rem;">
+                                            Supplement 
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <label for="modal_guide_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                        <i class="ri-sticky-note-line me-1" style="color: #fda085;"></i>Remarks
+                                    </label>
+                                    <input type="text" class="form-control modern-input" id="modal_guide_remarks" name="modal_guide_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Guide Details Display -->
                         <div class="col-12 mt-2" id="guide_details_container" style="display: none;">
                             <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
@@ -5496,6 +5632,29 @@
                             </div>
                         </div>
                     </div> -->
+                    
+                    <!-- Supplement + Remarks (saved into hotel data JSON) -->
+                    <div class="row g-1 mt-2">
+                        <div class="col-12">
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" name="modal_hotel_supplement" id="modal_hotel_supplement" value="1">
+                                <label class="form-check-label fw-semibold" for="modal_hotel_supplement" style="color: #495057; font-size: 0.8rem;">
+                                    Supplement 
+                                </label>
+                            </div>
+                            <label for="modal_hotel_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                <i class="ri-chat-quote-line me-1"></i>Remarks
+                            </label>
+                            <textarea
+                                class="form-control"
+                                id="modal_hotel_remarks"
+                                name="modal_hotel_remarks"
+                                rows="2"
+                                placeholder="Optional notes for this hotel booking..."
+                                style="border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem;"
+                            ></textarea>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer border-0" style="background: #f8f9fa; padding: 0.75rem 1rem;">
@@ -5633,6 +5792,26 @@
                             <select class="form-select modern-select" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Time Slot</option>
                             </select>
+                        </div>
+
+                        <!-- Supplement + Remarks -->
+                        <div class="col-12 mt-1">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-4">
+                                    <div class="form-check" style="margin-top: 4px;">
+                                        <input class="form-check-input" type="checkbox" name="modal_restaurant_supplement" id="modal_restaurant_supplement" value="1">
+                                        <label class="form-check-label fw-semibold" for="modal_restaurant_supplement" style="color: #495057; font-size: 0.8rem;">
+                                            Supplement 
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <label for="modal_restaurant_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                        <i class="ri-sticky-note-line me-1" style="color: #f5576c;"></i>Remarks
+                                    </label>
+                                    <input type="text" class="form-control modern-input" id="modal_restaurant_remarks" name="modal_restaurant_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Restaurant Details Display -->
@@ -5844,13 +6023,29 @@
                                 </h6>
                             </div>
                             <div class="card-body" style="padding: 1rem 0.875rem;">
+                                <!-- Adults Total -->
+                                <div class="guest-counter mb-3">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                        <i class="ri-user-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Adults
+                                    </label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn" onclick="updateTourAdults(-1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <span class="mx-3 fw-bold" id="tourModalAdults" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                        <button type="button" class="btn" onclick="updateTourAdults(1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <!-- Male -->
                                 <div class="guest-counter mb-3">
                                     <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
                                         <i class="ri-user-3-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Male
                                     </label>
                                     <div class="d-flex align-items-center justify-content-center">
-                                        <button type="button" class="btn" onclick="decrementTourCount('tour_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                        <button type="button" class="btn" onclick="updateTourGuest('male', -1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                             <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                         <input
@@ -5864,7 +6059,7 @@
                                             readonly
                                             style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
                                         >
-                                        <button type="button" class="btn" onclick="incrementTourCount('tour_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                        <button type="button" class="btn" onclick="updateTourGuest('male', 1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                             <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                     </div>
@@ -5876,7 +6071,7 @@
                                         <i class="ri-user-4-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Female
                                     </label>
                                     <div class="d-flex align-items-center justify-content-center">
-                                        <button type="button" class="btn" onclick="decrementTourCount('tour_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                        <button type="button" class="btn" onclick="updateTourFemale(-1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                             <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                         <input
@@ -5890,7 +6085,7 @@
                                             readonly
                                             style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
                                         >
-                                        <button type="button" class="btn" onclick="incrementTourCount('tour_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                        <button type="button" class="btn" onclick="updateTourFemale(1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                             <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                     </div>
@@ -6013,6 +6208,15 @@
                                     </h6>
                             </div>
                                 <div class="card-body" style="padding: 1rem 0.875rem;">
+                                    <!-- Adults Total (Male + Female) -->
+                                    <div class="guest-counter mb-3">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Adults (Total)
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <span class="mx-3 fw-bold" id="modalAdultsTotal" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                        </div>
+                                    </div>
                                     <!-- Male -->
                                     <div class="guest-counter mb-3">
                                         <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
@@ -6325,6 +6529,22 @@
                                 <option value="">Select Ticket</option>
                             </select>
                             <small id="modal_attraction_ticket_prices" class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;"></small>
+                        </div>
+
+                        <!-- Supplement -->
+                        <div class="col-12 mt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="modal_attraction_supplement" id="modal_attraction_supplement" value="1">
+                                <label class="form-check-label fw-semibold" for="modal_attraction_supplement" style="color: #495057; font-size: 0.8rem;">Supplement </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Remarks -->
+                        <div class="col-12 mt-2">
+                            <label for="modal_attraction_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                <i class="ri-sticky-note-line me-1" style="color: #fa709a;"></i>Remarks
+                            </label>
+                            <input type="text" class="form-control modern-input" id="modal_attraction_remarks" name="modal_attraction_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
                         </div>
 
                         <!-- Attraction Price Display -->
@@ -6675,6 +6895,15 @@
                                     </h6>
                             </div>
                                 <div class="card-body" style="padding: 1rem 0.875rem;">
+                                    <!-- Adults Total (Male + Female) -->
+                                    <div class="guest-counter mb-3">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Adults (Total)
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <span class="mx-3 fw-bold" id="attractionModalAdultsTotal" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
+                                        </div>
+                                    </div>
                                     <!-- Male -->
                                     <div class="guest-counter mb-3">
                                         <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
@@ -6864,6 +7093,28 @@
                     <input type="hidden" id="modal_transport_type" name="transport_type" value="entry_port">
                     
                     <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                        <div class="row g-2 mb-2">
+                            <div class="col-12 col-md-5 col-lg-4">
+                                <label class="form-label fw-semibold mb-1" id="modal_transport_flight_no_label" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-flight-land-line me-1" style="color: #667eea;"></i>Arrival Flight/Train/Bus No.
+                                </label>
+                                <input type="text" class="form-control modern-input" id="modal_transport_flight_no" name="modal_transport_flight_no" placeholder="e.g. SQ 123" style="height: 36px; font-size: 0.8rem;">
+                            </div>
+                            <div class="col-12 col-md-7 col-lg-8">
+                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-sticky-note-line me-1" style="color: #667eea;"></i>Remarks
+                                </label>
+                                <input type="text" class="form-control modern-input" id="modal_transport_remarks" name="modal_transport_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="modal_transport_supplement" id="modal_transport_supplement" value="1">
+                                    <label class="form-check-label fw-semibold" for="modal_transport_supplement" style="color: #495057; font-size: 0.8rem;">Supplement </label>
+                                </div>
+                            </div>
+                        </div>
                         <div class="row g-2">
                             <div class="col-md-6 col-lg-4">
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
@@ -7033,29 +7284,23 @@
                                             $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
                                         @endphp
                                         <!-- Adults / Children (visual); pax = adults + children for pricing/submit -->
-                                        <div class="col-md-4">
-                                            <div class="row g-3">
-                                                <div class="col-6 pe-2">
+                                        <div class="col-12 col-md-4">
+                                            <div class="row g-2">
+                                                <div class="col-6">
                                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Adults</label>
-                                                    <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
-                                                        <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; font-size: 0.8rem;">Adults</span>
-                                                        <input type="number" class="form-control" id="modal_transport_adults" min="0" max="{{ $tour->adult ?? 50 }}" value="1" placeholder="0"
-                                                            style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
-                                                            oninput="syncModalTransportPax(); updatePricing();"
-                                                            onchange="syncModalTransportPax(); updatePricing();"
-                                                            onwheel="this.blur();">
-                                                    </div>
+                                                    <input type="number" class="form-control" id="modal_transport_adults" min="0" max="{{ $tour->adult ?? 50 }}" value="1" placeholder="0"
+                                                        style="font-size: 0.8rem; border: 1px solid #e5e7eb; height: 36px;"
+                                                        oninput="syncModalTransportPax(); updatePricing();"
+                                                        onchange="syncModalTransportPax(); updatePricing();"
+                                                        onwheel="this.blur();">
                                                 </div>
-                                                <div class="col-6 ps-1">
+                                                <div class="col-6">
                                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Children</label>
-                                                    <div class="input-group input-group-sm flex-nowrap" style="height: 36px;">
-                                                            <span class="input-group-text d-flex align-items-center flex-shrink-0" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border: 1px solid #28a745; font-size: 0.8rem;">Children</span>
-                                                        <input type="number" class="form-control" id="modal_transport_children" min="0" max="{{ $tour->child ?? 50 }}" value="0" placeholder="0"
-                                                            style="font-size: 0.8rem; border: 1px solid #e5e7eb; min-width: 3.5rem; width: 3.5rem;"
-                                                            oninput="syncModalTransportPax(); updatePricing();"
-                                                            onchange="syncModalTransportPax(); updatePricing();"
-                                                            onwheel="this.blur();">
-                                                    </div>
+                                                    <input type="number" class="form-control" id="modal_transport_children" min="0" max="{{ $tour->child ?? 50 }}" value="0" placeholder="0"
+                                                        style="font-size: 0.8rem; border: 1px solid #e5e7eb; height: 36px;"
+                                                        oninput="syncModalTransportPax(); updatePricing();"
+                                                        onchange="syncModalTransportPax(); updatePricing();"
+                                                        onwheel="this.blur();">
                                                 </div>
                                             </div>
                                             <input type="hidden" id="modal_transport_passengers" name="passengers" value="1" data-tour-guests="{{ $tourMaxPassengers }}">
@@ -7457,6 +7702,24 @@
                                             </small>
                                         </div>
                                     </div>
+
+                                    <!-- Supplement + Remarks -->
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-12 col-md-4">
+                                            <div class="form-check" style="margin-top: 4px;">
+                                                <input class="form-check-input" type="checkbox" name="local_transfer_supplement" id="local_transfer_supplement" value="1">
+                                                <label class="form-check-label fw-semibold" for="local_transfer_supplement" style="color: #495057; font-size: 0.8rem;">
+                                                    Supplement 
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-md-8">
+                                            <label for="local_transfer_remarks" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                                <i class="ri-sticky-note-line me-1" style="color: #06b6d4;"></i>Remarks
+                                            </label>
+                                            <input type="text" class="form-control modern-input" id="local_transfer_remarks" name="local_transfer_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                                        </div>
+                                    </div>
                                     
                                     <!-- Price Display for Local Transfer -->
                                     <div class="col-12 mt-3">
@@ -7529,6 +7792,36 @@
                             </div>
                         </div>
                         <div class="card-body bg-white">
+                            <div class="row g-4 align-items-end mb-3">
+                                <div class="col-12 col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-flight-takeoff-line text-primary me-2"></i>Departure Flight/Train/Bus No.
+                                        </label>
+                                        <div class="position-relative">
+                                            <input type="text" class="form-control border-2" id="modal_dropoff_transport_flight_no" name="modal_dropoff_transport_flight_no" placeholder="e.g. SQ 123" style="height: 36px; font-size: 0.8rem;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-sticky-note-line text-primary me-2"></i>Remarks
+                                        </label>
+                                        <div class="position-relative">
+                                            <input type="text" class="form-control border-2" id="modal_dropoff_transport_remarks" name="modal_dropoff_transport_remarks" placeholder="Optional remarks..." style="height: 36px; font-size: 0.8rem;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-4 align-items-end mb-3">
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="modal_dropoff_transport_supplement" id="modal_dropoff_transport_supplement" value="1">
+                                        <label class="form-check-label fw-semibold" for="modal_dropoff_transport_supplement" style="color: #495057; font-size: 0.8rem;">Supplement </label>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="row g-4 align-items-end">
                                 <div class="col-md-3">
                                     <div class="form-group">
@@ -7771,6 +8064,72 @@
 </div>
 </div>
 <!-- End of Dropoff Transport Selection Modal -->
+
+<!-- Global Payment Modal (used for ALL service adds) -->
+<div class="modal fade" id="globalPaymentModal" tabindex="-1" aria-labelledby="globalPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title" id="globalPaymentModalLabel">
+                    <i class="ri-secure-payment-line me-2"></i>Payment Required
+                </h5>
+                <button type="button" class="btn-close" aria-label="Close" id="globalPaymentModalCloseBtn"></button>
+            </div>
+            <form id="globalPaymentForm">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 px-3 mb-3 d-none" id="globalPaymentMandatoryBanner" style="font-size: 0.85rem;">
+                        <i class="ri-error-warning-line me-1"></i>
+                        This tour is <strong>Actual</strong>. Payment is mandatory before adding the service.
+                    </div>
+
+                    <input type="hidden" id="globalPaymentTourId" value="{{ $tour->tour_id ?? '' }}">
+                    <input type="hidden" id="globalPaymentCurrency" value="SGD">
+                    <input type="hidden" id="globalPaymentExchangeRate" value="1">
+                    <input type="hidden" id="globalPaymentAutoVerify" value="1">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                            <input type="number" step="0.01" min="0" class="form-control" id="globalPaymentAmount" name="payment_amount" readonly>
+                        </div>
+                        <small class="text-muted">Amount is auto-filled from the service price.</small>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Payment Date</label>
+                            <input type="date" class="form-control" id="globalPaymentDate" name="payment_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Payment Type</label>
+                            <select class="form-select" id="globalPaymentType" name="payment_type" required>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label fw-semibold">Remarks (optional)</label>
+                        <textarea class="form-control" id="globalPaymentRemarks" name="remarks" rows="2" placeholder="Optional payment notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="globalPaymentCancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-light" id="globalPaymentSkipBtn">Skip</button>
+                    <button type="submit" class="btn btn-success" id="globalPaymentPayBtn">
+                        <span class="spinner-border spinner-border-sm d-none" id="globalPaymentSpinner" aria-hidden="true"></span>
+                        <span class="ms-1">Submit Payment</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- End Global Payment Modal -->
 
 @endsection
 
@@ -10525,6 +10884,35 @@
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
         }
+
+        // Extra rule: lock Service Type options based on dropoff zone vehicle_type (Shared/Private/Both).
+        // This must apply even when vehicle.sharable = 3 (Both).
+        try {
+            const zoneMap = window.zoneVehicleTypeByServiceTypeSelectId || {};
+            const zoneVehicleType = String(zoneMap[serviceTypeSelectId] || '').trim();
+            if (zoneVehicleType === 'Shared' || zoneVehicleType === 'Private') {
+                const privateOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Private');
+                const sharedOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Shared');
+                if (privateOpt) privateOpt.disabled = false;
+                if (sharedOpt) sharedOpt.disabled = false;
+
+                if (zoneVehicleType === 'Shared' && privateOpt) {
+                    privateOpt.disabled = true;
+                    if (sharedOpt) serviceTypeSelect.value = 'Shared';
+                } else if (zoneVehicleType === 'Private' && sharedOpt) {
+                    sharedOpt.disabled = true;
+                    if (privateOpt) serviceTypeSelect.value = 'Private';
+                }
+
+                // Trigger pricing update after auto-selection
+                serviceTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                if (serviceTypeSelectId === 'local_transfer_service_type') {
+                    setTimeout(() => updateLocalTransferPricing(), 100);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to apply zone vehicle type UI lock (edit form)', e);
+        }
         serviceTypeSelect.disabled = false;
         console.log('Service type options updated for local transfer');
     }
@@ -10772,6 +11160,208 @@
             }
         });
     }
+
+    // -------- Global Payment Gate (ALL service adds) --------
+    const __tourStatus = @json($tour->tour_status ?? '');
+    const __tourCurrencySymbol = @json($tour->currency ?? '$');
+    const __tourIdForPayment = @json($tour->tour_id ?? '');
+    const __tourAddPaymentUrl = @json(isset($tour) && isset($tour->tour_id) ? route('tour.add-payment', $tour->tour_id) : '');
+
+    function __formatDateYYYYMMDD(dateObj) {
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function __openGlobalPaymentModal({ amount, mandatory, onPaid, onSkip }) {
+        const modalEl = document.getElementById('globalPaymentModal');
+        if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            showNotification('Payment modal is unavailable on this page.', 'error');
+            return;
+        }
+
+        const amountInput = document.getElementById('globalPaymentAmount');
+        const dateInput = document.getElementById('globalPaymentDate');
+        const typeSelect = document.getElementById('globalPaymentType');
+        const remarksInput = document.getElementById('globalPaymentRemarks');
+        const skipBtn = document.getElementById('globalPaymentSkipBtn');
+        const cancelBtn = document.getElementById('globalPaymentCancelBtn');
+        const closeBtn = document.getElementById('globalPaymentModalCloseBtn');
+        const banner = document.getElementById('globalPaymentMandatoryBanner');
+
+        const spinner = document.getElementById('globalPaymentSpinner');
+        const payBtn = document.getElementById('globalPaymentPayBtn');
+
+        const safeAmount = Number.parseFloat(amount || 0) || 0;
+        if (amountInput) amountInput.value = safeAmount.toFixed(2);
+        if (dateInput) dateInput.value = __formatDateYYYYMMDD(new Date());
+        if (typeSelect && !typeSelect.value) typeSelect.value = 'Cash';
+        if (remarksInput) remarksInput.value = '';
+
+        if (banner) banner.classList.toggle('d-none', !mandatory);
+        if (skipBtn) skipBtn.classList.toggle('d-none', !!mandatory);
+        // Cancel should be available even for Actual tours: it closes the modal and cancels service-add.
+        if (cancelBtn) cancelBtn.classList.remove('d-none');
+
+        // Create (or reuse) instance configured for mandatory vs optional
+        const instance = bootstrap.Modal.getOrCreateInstance(modalEl, {
+            backdrop: mandatory ? 'static' : true,
+            keyboard: !mandatory
+        });
+
+        // Track whether this modal resulted in a decision (paid/skip/cancel).
+        // In non-mandatory mode, closing via X/backdrop should behave like "Skip".
+        let completed = false;
+
+        // One-shot handlers (avoid stacking)
+        const form = document.getElementById('globalPaymentForm');
+        if (!form) {
+            showNotification('Payment form is missing.', 'error');
+            return;
+        }
+
+        const cleanupHandlers = () => {
+            form.removeEventListener('submit', onSubmit);
+            if (skipBtn) skipBtn.removeEventListener('click', onSkipClick);
+            if (cancelBtn) cancelBtn.removeEventListener('click', onCancelClick);
+            if (closeBtn) closeBtn.removeEventListener('click', onCloseClick);
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+        };
+
+        const setBusy = (busy) => {
+            if (spinner) spinner.classList.toggle('d-none', !busy);
+            if (payBtn) payBtn.disabled = !!busy;
+            if (skipBtn) skipBtn.disabled = !!busy;
+            if (closeBtn) closeBtn.disabled = !!busy;
+        };
+
+        const onHidden = () => {
+            cleanupHandlers();
+            setBusy(false);
+            if (!mandatory && !completed && typeof onSkip === 'function') {
+                onSkip();
+            }
+        };
+
+        const onSkipClick = () => {
+            if (mandatory) return;
+            completed = true;
+            instance.hide();
+            if (typeof onSkip === 'function') onSkip();
+        };
+
+        const onCancelClick = () => {
+            if (mandatory) {
+                // Mandatory tour: allow closing, but do NOT proceed with adding the service.
+                completed = true;
+                instance.hide();
+                return;
+            }
+            completed = true;
+            instance.hide();
+            if (typeof onSkip === 'function') onSkip();
+        };
+
+        const onCloseClick = () => {
+            if (mandatory) {
+                // Mandatory tour: allow closing, but do NOT proceed with adding the service.
+                completed = true;
+                instance.hide();
+                return;
+            }
+            completed = true;
+            instance.hide();
+            if (typeof onSkip === 'function') onSkip();
+        };
+
+        const onSubmit = async (e) => {
+            e.preventDefault();
+            if (!__tourAddPaymentUrl || !__tourIdForPayment) {
+                showNotification('Payment endpoint is not configured for this tour.', 'error');
+                return;
+            }
+            if (safeAmount <= 0) {
+                showNotification('Payment amount must be greater than 0.', 'error');
+                return;
+            }
+
+            const paymentDate = (dateInput && dateInput.value) ? dateInput.value : __formatDateYYYYMMDD(new Date());
+            const paymentType = (typeSelect && typeSelect.value) ? typeSelect.value : 'Cash';
+            const remarks = remarksInput ? (remarksInput.value || '').trim() : '';
+
+            setBusy(true);
+            try {
+                const resp = await fetch(__tourAddPaymentUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': @json(csrf_token()),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        payment_amount: safeAmount,
+                        currency: 'SGD',
+                        exchange_rate: 1,
+                        payment_date: paymentDate,
+                        payment_type: paymentType,
+                        remarks: remarks,
+                        auto_verify: 1
+                    })
+                });
+
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data || data.success !== true) {
+                    const msg = (data && (data.message || (data.errors ? 'Validation failed' : null))) || 'Failed to submit payment.';
+                    showNotification(msg, 'error');
+                    setBusy(false);
+                    return;
+                }
+
+                showNotification(data.message || 'Payment submitted.', 'success');
+                completed = true;
+                instance.hide();
+                if (typeof onPaid === 'function') onPaid(data);
+            } catch (err) {
+                console.error('Payment submit error:', err);
+                showNotification('An error occurred while submitting payment.', 'error');
+                setBusy(false);
+            }
+        };
+
+        form.addEventListener('submit', onSubmit);
+        if (skipBtn) skipBtn.addEventListener('click', onSkipClick);
+        if (cancelBtn) cancelBtn.addEventListener('click', onCancelClick);
+        if (closeBtn) closeBtn.addEventListener('click', onCloseClick);
+        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+
+        instance.show();
+    }
+
+    function runServiceAddWithPayment(servicePrice, proceedFn) {
+        const amount = Number.parseFloat(servicePrice || 0) || 0;
+        const normalizedStatus = String(__tourStatus || '').toLowerCase();
+        const bypassPaymentCheckStatuses = ['definite', 'actual'];
+        const shouldBypassPaymentCheck = bypassPaymentCheckStatuses.includes(normalizedStatus);
+
+        // For Definite/Actual tours, bypass service payment check and continue directly.
+        if (shouldBypassPaymentCheck) {
+            if (typeof proceedFn === 'function') proceedFn();
+            return;
+        }
+
+        __openGlobalPaymentModal({
+            amount,
+            mandatory: true,
+            onPaid: () => {
+                if (typeof proceedFn === 'function') proceedFn();
+            },
+            onSkip: () => {
+                if (typeof proceedFn === 'function') proceedFn();
+            }
+        });
+    }
+    // -------- End Global Payment Gate --------
     
     // Service addition functions
     function addHotelService() {
@@ -10849,6 +11439,10 @@
         document.getElementById('modal_attraction_tour_dates').textContent = `${startDate} to ${endDate}`;
         document.getElementById('modal_attraction_destination').textContent = `${country}`;
         // City display removed
+        const attractionSupplementEl = document.getElementById('modal_attraction_supplement');
+        if (attractionSupplementEl) attractionSupplementEl.checked = false;
+        const attractionRemarksEl = document.getElementById('modal_attraction_remarks');
+        if (attractionRemarksEl) attractionRemarksEl.value = '';
         
         // Show modal
         const modalElement = document.getElementById('attractionSelectionModal');
@@ -11542,6 +12136,7 @@
         const infantsElem = document.getElementById('attraction_modal_infants');
         const maleCountElem = document.getElementById('attraction_modal_male_count');
         const femaleCountElem = document.getElementById('attraction_modal_female_count');
+        const adultsTotalElem = document.getElementById('attractionModalAdultsTotal');
         
         const children = parseInt(childrenElem?.value || '0') || 0;
         const infants = parseInt(infantsElem?.value || '0') || 0;
@@ -11555,6 +12150,11 @@
         // Adults = male + female, Pax = adults + children
         const adults = maleCount + femaleCount;
         let pax = adults + children;
+        
+        // Update Adults (Total) display
+        if (adultsTotalElem) {
+            adultsTotalElem.textContent = String(adults);
+        }
         
         // Enforce tour pax limit
         if (tourMaxPax > 0 && pax > tourMaxPax) {
@@ -11790,6 +12390,18 @@
         // Update modal title based on type
         const modalTitle = document.getElementById('transportSelectionModalLabel');
         const modalHeader = document.getElementById('transport_modal_header');
+        const flightNoLabel = document.getElementById('modal_transport_flight_no_label');
+        if (flightNoLabel) {
+            flightNoLabel.innerHTML = transportType === 'exit_port'
+                ? '<i class="ri-flight-takeoff-line me-1" style="color: #667eea;"></i>Departure Flight/Train/Bus No.'
+                : '<i class="ri-flight-land-line me-1" style="color: #667eea;"></i>Arrival Flight/Train/Bus No.';
+        }
+        const flightNoInput = document.getElementById('modal_transport_flight_no');
+        if (flightNoInput) flightNoInput.value = '';
+        const remarksInput = document.getElementById('modal_transport_remarks');
+        if (remarksInput) remarksInput.value = '';
+        const supplementCheck = document.getElementById('modal_transport_supplement');
+        if (supplementCheck) supplementCheck.checked = false;
         if (transportType === 'exit_port') {
             modalTitle.innerHTML = 'Departure Transport Service Selection';
             if (modalHeader) {
@@ -12030,6 +12642,11 @@
         // Initialize the modal
         const localTransferModal = new bootstrap.Modal(document.getElementById('localTransferSelectionModal'));
         localTransferModal.show();
+
+        const localTransferSupplementEl = document.getElementById('local_transfer_supplement');
+        if (localTransferSupplementEl) localTransferSupplementEl.checked = false;
+        const localTransferRemarksEl = document.getElementById('local_transfer_remarks');
+        if (localTransferRemarksEl) localTransferRemarksEl.value = '';
         
         // Set default modal title to "Point To Point Service Selection" if no serviceType is provided
         const modalTitle = document.getElementById('localTransferSelectionModalLabel');
@@ -12128,6 +12745,12 @@
         // Initialize the modal
         const dropoffTransportModal = new bootstrap.Modal(document.getElementById('dropoffTransportSelectionModal'));
         dropoffTransportModal.show();
+        const dropoffFlightNoInput = document.getElementById('modal_dropoff_transport_flight_no');
+        if (dropoffFlightNoInput) dropoffFlightNoInput.value = '';
+        const dropoffRemarksInput = document.getElementById('modal_dropoff_transport_remarks');
+        if (dropoffRemarksInput) dropoffRemarksInput.value = '';
+        const dropoffSupplementCheck = document.getElementById('modal_dropoff_transport_supplement');
+        if (dropoffSupplementCheck) dropoffSupplementCheck.checked = false;
         
         // Set hidden fields
         document.getElementById('modal_dropoff_transport_tour_id').value = tourId;
@@ -13131,6 +13754,14 @@
         })
         .then(data => {
             console.log('Zone-based vehicle search response:', data);
+
+            // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+            try {
+                window.zoneVehicleTypeByServiceTypeSelectId = window.zoneVehicleTypeByServiceTypeSelectId || {};
+                window.zoneVehicleTypeByServiceTypeSelectId['modal_transport_service_type'] = String(data.zone_vehicle_type || '').trim();
+            } catch (e) {
+                console.warn('Failed to store zone_vehicle_type for modal transport UI', e);
+            }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
                 // Show the vehicle results section
@@ -13439,9 +14070,41 @@
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
         }
+
+        // Extra rule: lock Service Type options based on dropoff zone vehicle_type (Shared/Private/Both).
+        // Applies even when sharable = 3 (Both).
+        try {
+            const zoneMap = window.zoneVehicleTypeByServiceTypeSelectId || {};
+            const zoneVehicleType = String(zoneMap['modal_transport_service_type'] || '').trim();
+            if (zoneVehicleType === 'Shared' || zoneVehicleType === 'Private') {
+                const privateOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Private');
+                const sharedOpt = Array.from(serviceTypeSelect.options).find(o => o.value === 'Shared');
+
+                if (privateOpt) privateOpt.disabled = false;
+                if (sharedOpt) sharedOpt.disabled = false;
+
+                if (zoneVehicleType === 'Shared' && privateOpt) {
+                    privateOpt.disabled = true;
+                    if (sharedOpt) serviceTypeSelect.value = 'Shared';
+                } else if (zoneVehicleType === 'Private' && sharedOpt) {
+                    sharedOpt.disabled = true;
+                    if (privateOpt) serviceTypeSelect.value = 'Private';
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to apply zone vehicle type UI lock (transport modal)', e);
+        }
         
         serviceTypeSelect.disabled = false;
         console.log('Service type options updated for transport modal');
+
+        // If Select2 is used, force it to refresh disabled options + value
+        if (typeof jQuery !== 'undefined') {
+            const $el = jQuery(serviceTypeSelect);
+            if ($el.data('select2')) {
+                $el.trigger('change.select2');
+            }
+        }
     }
     
     function searchLocalTransferVehicles() {
@@ -13528,6 +14191,14 @@
             .then(response => response.json())
             .then(data => {
                 console.log('Vehicle search response (zone-based):', data);
+
+                // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+                try {
+                    window.zoneVehicleTypeByServiceTypeSelectId = window.zoneVehicleTypeByServiceTypeSelectId || {};
+                    window.zoneVehicleTypeByServiceTypeSelectId['local_transfer_service_type'] = String(data.zone_vehicle_type || '').trim();
+                } catch (e) {
+                    console.warn('Failed to store zone_vehicle_type for local transfer UI', e);
+                }
                 
                 const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
                 const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
@@ -13896,6 +14567,14 @@
         .then(response => response.json())
         .then(data => {
             console.log('Zone-based dropoff vehicle search response:', data);
+
+            // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+            try {
+                window.zoneVehicleTypeByServiceTypeSelectId = window.zoneVehicleTypeByServiceTypeSelectId || {};
+                window.zoneVehicleTypeByServiceTypeSelectId['modal_dropoff_transport_service_type'] = String(data.zone_vehicle_type || '').trim();
+            } catch (e) {
+                console.warn('Failed to store zone_vehicle_type for dropoff transport UI', e);
+            }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
                     // Show the vehicle results section
@@ -14317,6 +14996,12 @@
         const actualDropoffPlaceId = dropoffValue || null;
 
         // Build the transport booking data (updated format)
+        const departureFlightNoInput = document.getElementById('modal_dropoff_transport_flight_no');
+        const departureFlightNo = departureFlightNoInput ? departureFlightNoInput.value.trim() : '';
+        const dropoffRemarksInput = document.getElementById('modal_dropoff_transport_remarks');
+        const dropoffRemarks = dropoffRemarksInput ? dropoffRemarksInput.value.trim() : '';
+        const dropoffSupplementCheck = document.getElementById('modal_dropoff_transport_supplement');
+        const dropoffSupplement = dropoffSupplementCheck ? dropoffSupplementCheck.checked : false;
         const transportData = {
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -14349,65 +15034,71 @@
             Night_End_Time: null,
             city: vehicleData.city || "Singapore",
             country: vehicleData.country || "Singapore",
-            id: `entry-${Date.now()}`,
+            id: `exit-${Date.now()}`,
             vehicle_type: vehicleData.vehicleType || "",
             vehicle_model: vehicleData.vehicleModel || "",
             model_year: vehicleData.modelYear || null,
             seating_capacity: vehicleData.seatingCapacity || 0,
-            booking_id: null
+            booking_id: null,
+            departure_flight_no: departureFlightNo,
+            remarks: dropoffRemarks,
+            supplement: dropoffSupplement
         };
         
         console.log('Dropoff Transport booking data:', transportData);
         
-        // Create a form to submit the transport data (exact same as pickup service)
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = "{{ route('orders.transport.select') }}";
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
-        
-        // Add the transport data as JSON
-        const transportDataInput = document.createElement('input');
-        transportDataInput.type = 'hidden';
-        transportDataInput.name = 'transport_data';
-        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
-        form.appendChild(transportDataInput);
-        
-        // Add basic form fields (same as pickup service)
-        const basicData = {
-            tour_id: tourId,
-            type: "exit_port",
-            agent_id: document.getElementById('agent_id').value,
-            pickup_zone_id: pickupZoneId,
-            dropoff_zone_id: dropoffZoneId,
-            pickup_time: pickupTime,
-            pickup_date: pickupDate,
-            vehicle_id: vehicleId,
-            service_type: serviceType,
-            passengers: passengers
-        };
-        
-        Object.keys(basicData).forEach(key => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = basicData[key];
-            form.appendChild(input);
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(parseFloat(totalPrice) || 0, () => {
+            // Create a form to submit the transport data (exact same as pickup service)
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('orders.transport.select') }}";
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
+            
+            // Add the transport data as JSON
+            const transportDataInput = document.createElement('input');
+            transportDataInput.type = 'hidden';
+            transportDataInput.name = 'transport_data';
+            transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+            form.appendChild(transportDataInput);
+            
+            // Add basic form fields (same as pickup service)
+            const basicData = {
+                tour_id: tourId,
+                type: "exit_port",
+                agent_id: document.getElementById('agent_id').value,
+                pickup_zone_id: pickupZoneId,
+                dropoff_zone_id: dropoffZoneId,
+                pickup_time: pickupTime,
+                pickup_date: pickupDate,
+                vehicle_id: vehicleId,
+                service_type: serviceType,
+                passengers: passengers
+            };
+            
+            Object.keys(basicData).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = basicData[key];
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            // Close modal safely
+            safeCloseModal('dropoffTransportSelectionModal');
+            
+            // Show success message
+            showNotification(`Dropoff transport service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
         });
-        
-        document.body.appendChild(form);
-        form.submit();
-        
-        // Close modal safely
-        safeCloseModal('dropoffTransportSelectionModal');
-        
-        // Show success message
-        showNotification(`Dropoff transport service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
     }
     
     function updatePricing() {
@@ -14923,73 +15614,85 @@
         };
         
         // Update transport data based on type (entry_port or exit_port)
+        const flightNoInput = document.getElementById('modal_transport_flight_no');
+        const flightNo = flightNoInput ? flightNoInput.value.trim() : '';
+        const transportRemarksInput = document.getElementById('modal_transport_remarks');
+        const transportRemarks = transportRemarksInput ? transportRemarksInput.value.trim() : '';
+        transportData.remarks = transportRemarks || '';
+        const transportSupplementCheck = document.getElementById('modal_transport_supplement');
+        transportData.supplement = transportSupplementCheck ? transportSupplementCheck.checked : false;
         if (transportType === 'exit_port') {
             transportData.exitpickup = pickupZoneName;
             transportData.exitdropoff = dropoffZoneName;
             transportData.exitpickupdate = pickupTime;
+            transportData.departure_flight_no = flightNo;
             transportData.id = `exit-${Date.now()}`;
         } else {
             transportData.entrypickup = pickupZoneName;
             transportData.entrydropoff = dropoffZoneName;
             transportData.entrytime = pickupTime;
+            transportData.arrival_flight_no = flightNo;
             transportData.id = `entry-${Date.now()}`;
         }
         
         console.log('Transport booking data:', transportData);
-        
-        // Create a form to submit the transport data
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = "{{ route('orders.transport.select') }}";
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
-        
-        // Add the transport data as JSON
-        const transportDataInput = document.createElement('input');
-        transportDataInput.type = 'hidden';
-        transportDataInput.name = 'transport_data';
-        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
-        form.appendChild(transportDataInput);
-        
-        // Add basic form fields
-        const basicData = {
-            tour_id: tourId,
-            type: transportType,
-            agent_id: document.getElementById('agent_id').value,
-            pickup_zone_id: pickupZoneId,
-            dropoff_zone_id: dropoffZoneId,
-            pickup_time: pickupTime,
-            pickup_date: pickupDate,
-            vehicle_id: vehicleId,
-            service_type: serviceType,
-            passengers: passengers,
-            country: country,
-            city: city,
-            transport_type: serviceTypeLabel // Add transport type to differentiate between transport and local transfer
-        };
-        
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
-        
-        document.body.appendChild(form);
-        form.submit();
-        
-        // Close modal safely
-        safeCloseModal('transportSelectionModal');
-        
-        // Show success message
-        const serviceLabel = isLocalTransfer ? 'Local transfer' : 'Transport';
-        showNotification(`${serviceLabel} service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(parseFloat(transportData.totalPrice) || 0, () => {
+            // Create a form to submit the transport data
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('orders.transport.select') }}";
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
+            
+            // Add the transport data as JSON
+            const transportDataInput = document.createElement('input');
+            transportDataInput.type = 'hidden';
+            transportDataInput.name = 'transport_data';
+            transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+            form.appendChild(transportDataInput);
+            
+            // Add basic form fields
+            const basicData = {
+                tour_id: tourId,
+                type: transportType,
+                agent_id: document.getElementById('agent_id').value,
+                pickup_zone_id: pickupZoneId,
+                dropoff_zone_id: dropoffZoneId,
+                pickup_time: pickupTime,
+                pickup_date: pickupDate,
+                vehicle_id: vehicleId,
+                service_type: serviceType,
+                passengers: passengers,
+                country: country,
+                city: city,
+                transport_type: serviceTypeLabel // Add transport type to differentiate between transport and local transfer
+            };
+            
+            for (const [key, value] of Object.entries(basicData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            // Close modal safely
+            safeCloseModal('transportSelectionModal');
+            
+            // Show success message
+            const serviceLabel = isLocalTransfer ? 'Local transfer' : 'Transport';
+            showNotification(`${serviceLabel} service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+        });
     }
 
     // Confirmation function for Point-to-Point service
@@ -15039,6 +15742,10 @@
         const dropoffLng = document.getElementById('local_transfer_point_dropoff_lng').value;
 
         const dmcUser = @json($UserDmc);
+        
+        // Remarks and supplement (same modal fields as local transfer)
+        const pointRemarks = document.getElementById('local_transfer_remarks') ? document.getElementById('local_transfer_remarks').value.trim() : '';
+        const pointSupplement = document.getElementById('local_transfer_supplement') ? document.getElementById('local_transfer_supplement').checked : false;
         
         // Build the booking data in required format
         const bookingData = [{
@@ -15090,7 +15797,9 @@
             },
             bookingType: 'booking',
             service_category: 'point_to_point',
-            tour_id: tourId
+            tour_id: tourId,
+            remarks: pointRemarks || '',
+            supplement: pointSupplement
         }];
         
         console.log('Point-to-Point booking data:', bookingData);
@@ -15143,6 +15852,9 @@
         const pickupLng = document.getElementById('local_transfer_hourly_pickup_lng').value;
 
         const dmcUser = @json($UserDmc);
+        // Remarks and supplement (same modal fields as local transfer)
+        const hourlyRemarks = document.getElementById('local_transfer_remarks') ? document.getElementById('local_transfer_remarks').value.trim() : '';
+        const hourlySupplement = document.getElementById('local_transfer_supplement') ? document.getElementById('local_transfer_supplement').checked : false;
         // Build the booking data in required format
         const bookingData = [{
             bookingDate: pickupDate,
@@ -15188,7 +15900,9 @@
             },
             bookingType: 'booking',
             service_category: 'hourly',
-            tour_id: tourId
+            tour_id: tourId,
+            remarks: hourlyRemarks || '',
+            supplement: hourlySupplement
         }];
         
         console.log('Hourly booking data:', bookingData);
@@ -15199,36 +15913,42 @@
     
     // Common function to submit booking data
     function submitLocalTransferBooking(bookingData, successMessage, serviceType) {
-        // Send data to controller via AJAX
-        fetch("{{ route('orders.local-transfer.select') }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                booking_data: JSON.stringify(bookingData),
-                type: serviceType
+        const first = Array.isArray(bookingData) ? bookingData[0] : null;
+        const servicePrice = first ? (first.totalPrice ?? first.price ?? 0) : 0;
+
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(servicePrice, () => {
+            // Send data to controller via AJAX
+            fetch("{{ route('orders.local-transfer.select') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    booking_data: JSON.stringify(bookingData),
+                    type: serviceType
+                })
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Close modal safely
-                safeCloseModal('localTransferSelectionModal');
-                
-                // Show success message
-                showNotification(data.message || successMessage, 'success');
-                
-                // Refresh the page to show the new service in the listing
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showNotification(data.message || 'Booking failed. Please try again.', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error submitting booking:', error);
-            showNotification('An error occurred. Please try again.', 'error');
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal safely
+                    safeCloseModal('localTransferSelectionModal');
+                    
+                    // Show success message
+                    showNotification(data.message || successMessage, 'success');
+                    
+                    // Refresh the page to show the new service in the listing
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(data.message || 'Booking failed. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting booking:', error);
+                showNotification('An error occurred. Please try again.', 'error');
+            });
         });
     }
 
@@ -15308,6 +16028,8 @@
         const dmcUser = @json($UserDmc);
         
         // Build the booking data in required format
+        const localTransferRemarks = document.getElementById('local_transfer_remarks') ? document.getElementById('local_transfer_remarks').value.trim() : '';
+        const localTransferSupplement = document.getElementById('local_transfer_supplement') ? document.getElementById('local_transfer_supplement').checked : false;
         const bookingData = [{
             bookingDate: pickupDate,
             vehicles_id: vehicleId,
@@ -15317,6 +16039,8 @@
             Mode: 'dmc',
             type: serviceType,
             entrypickup: pickupZoneName,
+            remarks: localTransferRemarks,
+            supplement: localTransferSupplement,
             PickupPlaceid: {
                 lat: '', // Zone-based transfers don't have specific coordinates
                 lng: ''
@@ -15450,6 +16174,8 @@
         }
         
         // Build the complex booking data structure in required format
+        const guideRemarks = document.getElementById('modal_guide_remarks') ? document.getElementById('modal_guide_remarks').value.trim() : '';
+        const guideSupplement = document.getElementById('modal_guide_supplement') ? document.getElementById('modal_guide_supplement').checked : false;
         const bookingData = [{
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -15484,7 +16210,9 @@
             bookingType: "enquiry",
             package_type: 0,
             package_attraction_id: attractionData.package_attraction_id || 0,
-            dmc_id: Array.isArray(attractionData.dmc_id) ? attractionData.dmc_id[0] : attractionData.dmc_id
+            dmc_id: Array.isArray(attractionData.dmc_id) ? attractionData.dmc_id[0] : attractionData.dmc_id,
+            supplement: document.getElementById('modal_attraction_supplement') ? document.getElementById('modal_attraction_supplement').checked : false,
+            remarks: document.getElementById('modal_attraction_remarks') ? document.getElementById('modal_attraction_remarks').value.trim() : ''
         }];
         
         // Collect transport data if transport is required
@@ -15652,76 +16380,79 @@
 
         console.log('Attraction booking data to be sent:', bookingData);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = attractionBaseUrl;
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        // If tour status is Actual, payment is mandatory and service will not be added without payment.
+        return runServiceAddWithPayment(totalPrice, () => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = attractionBaseUrl;
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
 
-        // Add the complex booking data as JSON
-        const bookingDataInput = document.createElement('input');
-        bookingDataInput.type = 'hidden';
-        bookingDataInput.name = 'booking_data';
-        bookingDataInput.value = JSON.stringify(bookingData);
-        form.appendChild(bookingDataInput);
+            // Add the complex booking data as JSON
+            const bookingDataInput = document.createElement('input');
+            bookingDataInput.type = 'hidden';
+            bookingDataInput.name = 'booking_data';
+            bookingDataInput.value = JSON.stringify(bookingData);
+            form.appendChild(bookingDataInput);
 
-        // Add basic form fields for backward compatibility
-        const basicData = {
-            agent_id: agentId,
-            tour_id: tourId,
-            attraction_id: attractionId,
-            time_slot: timeSlot,
-            ticket_id: ticketId,
-            visit_date: visitDate,
-            adults: guestData.adults,
-            children: guestData.children,
-            infants: guestData.infants,
-            male_count: guestData.male_count,
-            female_count: guestData.female_count,
-            child_ages: guestData.child_ages,
-            country: country,
-            // city parameter removed,
-            start_date: startDate,
-            end_date: endDate
-        };
+            // Add basic form fields for backward compatibility
+            const basicData = {
+                agent_id: agentId,
+                tour_id: tourId,
+                attraction_id: attractionId,
+                time_slot: timeSlot,
+                ticket_id: ticketId,
+                visit_date: visitDate,
+                adults: guestData.adults,
+                children: guestData.children,
+                infants: guestData.infants,
+                male_count: guestData.male_count,
+                female_count: guestData.female_count,
+                child_ages: guestData.child_ages,
+                country: country,
+                // city parameter removed,
+                start_date: startDate,
+                end_date: endDate
+            };
 
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
+            for (const [key, value] of Object.entries(basicData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        // Add customer_info fields for backward compatibility
-        for (const [key, value] of Object.entries(customer_info)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = `customer_info[${key}]`;
-            input.value = value;
-            form.appendChild(input);
-        }
+            // Add customer_info fields for backward compatibility
+            for (const [key, value] of Object.entries(customer_info)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = `customer_info[${key}]`;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        document.body.appendChild(form);
-        form.submit();
+            document.body.appendChild(form);
+            form.submit();
 
-        // Close modal safely
-        safeCloseModal('attractionSelectionModal');
-        
-        // Show success message
-        showNotification(`Attraction ${attractionData.name} selected successfully! Time: ${timeSlot}, Ticket: ${ticketData.name}`, 'success');
-        
-        // Here you can add logic to update the attraction fields in your form
-        console.log('Selected attraction:', {
-            id: attractionId,
-            name: attractionData.name,
-            timeSlot: timeSlot,
-            ticket: ticketData.name
+            // Close modal safely
+            safeCloseModal('attractionSelectionModal');
+            
+            // Show success message
+            showNotification(`Attraction ${attractionData.name} selected successfully! Time: ${timeSlot}, Ticket: ${ticketData.name}`, 'success');
+            
+            console.log('Selected attraction:', {
+                id: attractionId,
+                name: attractionData.name,
+                timeSlot: timeSlot,
+                ticket: ticketData.name
+            });
         });
     }
 
@@ -17382,6 +18113,14 @@
             bookingDate: [checkIn, checkOut],
             transfer_options: null
         };
+
+        // Supplement + Remarks (from hotel modal)
+        const modalRemarks = document.getElementById('modal_hotel_remarks')?.value || '';
+        const manualSupplement = document.getElementById('modal_hotel_supplement')?.checked || false;
+        const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+        const serviceAdults = (parseInt(document.getElementById('person_count_select')?.value || 1) || 1) * (parseInt(document.getElementById('number_of_rooms_modal')?.value || 1) || 1);
+        bookingData.supplement = (serviceAdults < tourAdults) || manualSupplement;
+        bookingData.remarks = modalRemarks;
         
         // Collect transport data if transport is required
         const needTransportYes = document.getElementById('modal_need_hotel_transport_yes');
@@ -17512,9 +18251,12 @@
             form.appendChild(input);
         }
 
-        // Append and submit
-        document.body.appendChild(form);
-        form.submit();
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(totalPrice, () => {
+            // Append and submit
+            document.body.appendChild(form);
+            form.submit();
+        });
     }
     
     // Guide Selection Modal Functions
@@ -17523,6 +18265,10 @@
         document.getElementById('modal_guide_tour_dates').textContent = `${startDate} to ${endDate}`;
         document.getElementById('modal_guide_destination').textContent = `${country}`;
         // City display removed
+        const guideSupplementEl = document.getElementById('modal_guide_supplement');
+        if (guideSupplementEl) guideSupplementEl.checked = false;
+        const guideRemarksEl = document.getElementById('modal_guide_remarks');
+        if (guideRemarksEl) guideRemarksEl.value = '';
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('guideSelectionModal'));
@@ -17952,6 +18698,10 @@
         // The time input already returns 24-hour format, so use it directly
         const entryTime = pickupTime || '12:00';
         
+        // Supplement + remarks from guide modal
+        const guideRemarks = document.getElementById('modal_guide_remarks') ? document.getElementById('modal_guide_remarks').value.trim() : '';
+        const guideSupplement = document.getElementById('modal_guide_supplement') ? document.getElementById('modal_guide_supplement').checked : false;
+        
         // Build the complex booking data structure in required format
         const bookingData = [{
             bookingDate: serviceDate,
@@ -17985,6 +18735,8 @@
             countryCode: customer_info.countryCode,
             bookingType: "enquiry",
             agent_id: agentId,
+            remarks: guideRemarks,
+            supplement: guideSupplement,
             userInfo: {
                 fullName: customer_info.fullName,
                 email: customer_info.email,
@@ -17999,74 +18751,75 @@
 
         console.log('Guide booking data to be sent:', bookingData);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = guideBaseUrl;
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(totalPrice, () => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = guideBaseUrl;
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
 
-        // Add the complex booking data as JSON
-        const bookingDataInput = document.createElement('input');
-        bookingDataInput.type = 'hidden';
-        bookingDataInput.name = 'booking_data';
-        bookingDataInput.value = JSON.stringify(bookingData);
-        form.appendChild(bookingDataInput);
+            // Add the complex booking data as JSON
+            const bookingDataInput = document.createElement('input');
+            bookingDataInput.type = 'hidden';
+            bookingDataInput.name = 'booking_data';
+            bookingDataInput.value = JSON.stringify(bookingData);
+            form.appendChild(bookingDataInput);
 
-        // Add basic form fields for backward compatibility
-        const basicData = {
-            agent_id: agentId,
-            tour_id: tourId,
-            guide_id: guideId,
-            duration: duration,
-            custom_hours: customHours,
-            pickup_time: pickupTime,
-            service_date: serviceDate,
-            adults: adults,
-            children: children,
-            country: country,
-            // city parameter removed,
-            start_date: startDate,
-            end_date: endDate
-        };
+            // Add basic form fields for backward compatibility
+            const basicData = {
+                agent_id: agentId,
+                tour_id: tourId,
+                guide_id: guideId,
+                duration: duration,
+                custom_hours: customHours,
+                pickup_time: pickupTime,
+                service_date: serviceDate,
+                adults: adults,
+                children: children,
+                country: country,
+                // city parameter removed,
+                start_date: startDate,
+                end_date: endDate
+            };
 
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
+            for (const [key, value] of Object.entries(basicData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        // Add customer_info fields for backward compatibility
-        for (const [key, value] of Object.entries(customer_info)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = `customer_info[${key}]`;
-            input.value = value;
-            form.appendChild(input);
-        }
+            // Add customer_info fields for backward compatibility
+            for (const [key, value] of Object.entries(customer_info)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = `customer_info[${key}]`;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        document.body.appendChild(form);
-        form.submit();
+            document.body.appendChild(form);
+            form.submit();
 
-        // Close modal safely
-        safeCloseModal('guideSelectionModal');
-        
-        // Show success message
-        showNotification(`Guide ${guideData.name} selected successfully! Duration: ${duration === 'custom' ? customHours + ' hours' : duration}, Pickup: ${pickupTime}`, 'success');
-        
-        // Here you can add logic to update the guide fields in your form
-        console.log('Selected guide:', {
-            id: guideId,
-            name: guideData.name,
-            duration: duration,
-            customHours: customHours,
-            pickupTime: pickupTime
+            // Close modal safely
+            safeCloseModal('guideSelectionModal');
+            
+            showNotification(`Guide ${guideData.name} selected successfully! Duration: ${duration === 'custom' ? customHours + ' hours' : duration}, Pickup: ${pickupTime}`, 'success');
+            
+            console.log('Selected guide:', {
+                id: guideId,
+                name: guideData.name,
+                duration: duration,
+                customHours: customHours,
+                pickupTime: pickupTime
+            });
         });
     }
     
@@ -18076,6 +18829,10 @@
         document.getElementById('modal_restaurant_tour_dates').textContent = `${startDate} to ${endDate}`;
         document.getElementById('modal_restaurant_destination').textContent = `${country}`;
         // City display removed
+        const restaurantSupplementEl = document.getElementById('modal_restaurant_supplement');
+        if (restaurantSupplementEl) restaurantSupplementEl.checked = false;
+        const restaurantRemarksEl = document.getElementById('modal_restaurant_remarks');
+        if (restaurantRemarksEl) restaurantRemarksEl.value = '';
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('restaurantSelectionModal'));
@@ -19699,6 +20456,9 @@
         document.getElementById('tour_female_count').value = femaleCount;
         document.getElementById('tour_children_count').value = children;
         document.getElementById('tour_infants_count').value = infants;
+
+        // Set total adults display (male + female)
+        updateTourAdultsDisplay();
         
         // Update child age selects
         updateChildAgeSelects(children, existingAges);
@@ -19709,6 +20469,98 @@
         // Open modal
         const modal = new bootstrap.Modal(document.getElementById('tourGuestSelectorModal'));
         modal.show();
+    }
+
+    function updateTourAdultsDisplay() {
+        const adultsEl = document.getElementById('tourModalAdults');
+        if (!adultsEl) return;
+        const male = parseInt(document.getElementById('tour_male_count')?.value) || 0;
+        const female = parseInt(document.getElementById('tour_female_count')?.value) || 0;
+        adultsEl.textContent = male + female;
+    }
+
+    // Update total adults; when adults increased, add to male by default
+    function updateTourAdults(change) {
+        const maleEl = document.getElementById('tour_male_count');
+        const femaleEl = document.getElementById('tour_female_count');
+        const adultsEl = document.getElementById('tourModalAdults');
+        if (!maleEl || !femaleEl || !adultsEl) return;
+
+        let male = parseInt(maleEl.value) || 0;
+        let female = parseInt(femaleEl.value) || 0;
+        const currentAdults = male + female;
+
+        // Keep at least 1 adult (same behavior as create)
+        let newAdults = Math.max(1, currentAdults + change);
+
+        if (newAdults > currentAdults) {
+            male += (newAdults - currentAdults);
+        } else if (newAdults < currentAdults) {
+            let toRemove = currentAdults - newAdults;
+            const removableFromMale = Math.min(male, toRemove);
+            male -= removableFromMale;
+            toRemove -= removableFromMale;
+            if (toRemove > 0) {
+                female = Math.max(0, female - toRemove);
+            }
+            newAdults = male + female;
+        }
+
+        maleEl.value = male;
+        femaleEl.value = female;
+        adultsEl.textContent = newAdults;
+        updateTourGuestSummary();
+    }
+
+    // Update male/female directly; don't allow total adults to drop below 1
+    function updateTourGuest(type, change) {
+        const fieldId = type === 'male' ? 'tour_male_count' : 'tour_female_count';
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+
+        const maleEl = document.getElementById('tour_male_count');
+        const femaleEl = document.getElementById('tour_female_count');
+        if (!maleEl || !femaleEl) return;
+
+        const currentValue = parseInt(field.value) || 0;
+        let newValue = Math.max(0, currentValue + change);
+
+        // Enforce at least 1 adult total when decrementing adults
+        if (change < 0) {
+            const male = parseInt(maleEl.value) || 0;
+            const female = parseInt(femaleEl.value) || 0;
+            const totalAdults = (type === 'male' ? newValue : male) + (type === 'female' ? newValue : female);
+            if (totalAdults < 1) return;
+        }
+
+        field.value = newValue;
+        updateTourAdultsDisplay();
+        updateTourGuestSummary();
+    }
+
+    // When clicking female +/-: move count between male and female, keeping adults total same
+    function updateTourFemale(change) {
+        const maleEl = document.getElementById('tour_male_count');
+        const femaleEl = document.getElementById('tour_female_count');
+        if (!maleEl || !femaleEl) return;
+
+        let male = parseInt(maleEl.value) || 0;
+        let female = parseInt(femaleEl.value) || 0;
+
+        if (change > 0) {
+            if (male <= 0) return;
+            male -= 1;
+            female += 1;
+        } else if (change < 0) {
+            if (female <= 0) return;
+            female -= 1;
+            male += 1;
+        }
+
+        maleEl.value = male;
+        femaleEl.value = female;
+        updateTourAdultsDisplay();
+        updateTourGuestSummary();
     }
     
     function incrementTourCount(fieldId) {
@@ -19748,69 +20600,112 @@
     function updateChildAgeSelects(childrenCount, existingAges = []) {
         const container = document.getElementById('tour_child_ages_container');
         const listContainer = document.getElementById('tour_child_ages_list');
-        
         if (!container || !listContainer) return;
-        
-        // If existingAges is not provided, try to get from current selects
+
+        // Capture existing selections (prevents flicker / lost focus when updating)
         if (existingAges.length === 0) {
-            const currentCount = parseInt(document.getElementById('tour_children_count').value) || 0;
-            for (let i = 1; i <= currentCount; i++) {
-                const ageSelect = document.getElementById(`tour_child_age_${i}`);
-                if (ageSelect && ageSelect.value) {
-                    existingAges.push(ageSelect.value);
-                } else {
-                    existingAges.push('');
+            const selects = listContainer.querySelectorAll('select[id^="tour_child_age_"]');
+            if (selects.length > 0) {
+                selects.forEach((sel) => existingAges.push(sel.value || ''));
+            } else {
+                const currentCount = parseInt(document.getElementById('tour_children_count')?.value) || 0;
+                for (let i = 1; i <= currentCount; i++) {
+                    const ageSelect = document.getElementById(`tour_child_age_${i}`);
+                    existingAges.push(ageSelect?.value || '');
                 }
             }
         }
-        
-        // Show/hide container based on children count
-        if (childrenCount > 0) {
-            container.style.display = 'block';
-            
-            // Clear existing selects
-            listContainer.innerHTML = '';
-            
-            // Create select boxes for each child
-            for (let i = 1; i <= childrenCount; i++) {
-                const selectWrapper = document.createElement('div');
-                selectWrapper.className = 'mb-2';
-                
-                const label = document.createElement('label');
-                label.className = 'form-label mb-1 small fw-semibold';
-                label.textContent = `Child ${i}:`;
-                label.setAttribute('for', `tour_child_age_${i}`);
-                
-                const select = document.createElement('select');
-                select.className = 'form-select form-select-sm';
-                select.id = `tour_child_age_${i}`;
-                select.name = `tour_child_age_${i}`;
-                
-                // Add default option
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = 'Select age';
-                select.appendChild(defaultOption);
-                
-                // Add age options (1-17)
-                for (let age = 1; age <= 17; age++) {
-                    const option = document.createElement('option');
-                    option.value = age;
-                    option.textContent = age;
-                    // Select existing age if available
-                    if (existingAges.length >= i && existingAges[i - 1] == age) {
-                        option.selected = true;
-                    }
-                    select.appendChild(option);
-                }
-                
-                selectWrapper.appendChild(label);
-                selectWrapper.appendChild(select);
-                listContainer.appendChild(selectWrapper);
-            }
-        } else {
+
+        if (childrenCount <= 0) {
             container.style.display = 'none';
-            listContainer.innerHTML = '';
+            // Remove nodes instead of innerHTML reset (less layout churn)
+            while (listContainer.firstChild) listContainer.removeChild(listContainer.firstChild);
+            return;
+        }
+
+        container.style.display = 'block';
+
+        const buildAgeOptions = (selectedValue) => {
+            const frag = document.createDocumentFragment();
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Select age';
+            frag.appendChild(defaultOption);
+
+            for (let age = 1; age <= 17; age++) {
+                const option = document.createElement('option');
+                option.value = String(age);
+                option.textContent = String(age);
+                if (String(selectedValue || '') === String(age)) option.selected = true;
+                frag.appendChild(option);
+            }
+            return frag;
+        };
+
+        const ensureRow = (i) => {
+            const existingSelect = document.getElementById(`tour_child_age_${i}`);
+            if (existingSelect) {
+                // Ensure Select2 (or other enhancers) don't attach to these dynamic selects
+                existingSelect.classList.add('child-age-select');
+                existingSelect.setAttribute('data-no-select2', 'true');
+                return;
+            }
+
+            const selectWrapper = document.createElement('div');
+            selectWrapper.className = 'mb-2';
+            selectWrapper.dataset.childIndex = String(i);
+
+            const label = document.createElement('label');
+            label.className = 'form-label mb-1 small fw-semibold';
+            label.textContent = `Child ${i}:`;
+            label.setAttribute('for', `tour_child_age_${i}`);
+
+            const select = document.createElement('select');
+            select.className = 'form-select form-select-sm child-age-select';
+            select.id = `tour_child_age_${i}`;
+            select.name = `tour_child_age_${i}`;
+            // Prevent Select2 from being initialized on these dynamic child age selects
+            select.setAttribute('data-no-select2', 'true');
+
+            selectWrapper.appendChild(label);
+            selectWrapper.appendChild(select);
+            listContainer.appendChild(selectWrapper);
+        };
+
+        // Add missing rows
+        for (let i = 1; i <= childrenCount; i++) {
+            ensureRow(i);
+        }
+
+        // Remove extra rows (from end)
+        let existingRows = listContainer.querySelectorAll('[data-child-index]');
+        while (existingRows.length > childrenCount) {
+            listContainer.removeChild(existingRows[existingRows.length - 1]);
+            existingRows = listContainer.querySelectorAll('[data-child-index]');
+        }
+
+        // Update labels/options without replacing the whole container
+        for (let i = 1; i <= childrenCount; i++) {
+            const row = listContainer.querySelector(`[data-child-index="${i}"]`);
+            const label = row?.querySelector('label');
+            const select = row?.querySelector('select');
+            if (!row || !label || !select) continue;
+
+            // Ensure Select2 (or other enhancers) don't attach to these dynamic selects
+            select.classList.add('child-age-select');
+            select.setAttribute('data-no-select2', 'true');
+
+            label.textContent = `Child ${i}:`;
+            label.setAttribute('for', `tour_child_age_${i}`);
+
+            // Preserve selection if possible
+            const desiredValue = existingAges[i - 1] ?? select.value ?? '';
+            const hadOptions = select.options && select.options.length > 0;
+            if (!hadOptions) {
+                select.appendChild(buildAgeOptions(desiredValue));
+            } else if (select.value !== desiredValue) {
+                select.value = desiredValue;
+            }
         }
     }
     
@@ -20016,6 +20911,7 @@
         const childrenElem = document.getElementById('modal_children');
         const maleCountElem = document.getElementById('modal_male_count');
         const femaleCountElem = document.getElementById('modal_female_count');
+        const adultsTotalElem = document.getElementById('modalAdultsTotal');
         
         const children = parseInt(childrenElem?.value || '0') || 0;
         const infants = parseInt(document.getElementById('modal_infants')?.value || '0') || 0;
@@ -20028,6 +20924,11 @@
         // Calculate pax as the sum of adults (male + female) + children
         const adults = maleCount + femaleCount;
         let pax = adults + children;
+        
+        // Update Adults (Total) display
+        if (adultsTotalElem) {
+            adultsTotalElem.textContent = String(adults);
+        }
         
         // Enforce tour pax limit
         if (tourMaxPax > 0 && pax > tourMaxPax) {
@@ -20349,6 +21250,9 @@
         const mealSpecificType = (mealData && mealData.type != null) ? (mealData.type == 1 ? 'Buffet' : mealData.type == 2 ? 'Set Menu' : mealData.type == 3 ? 'A-La-Carte' : '...') : (dishId === 'buffet' ? 'Buffet' : '...');
         const numericRestaurantId = isMultiRestaurant ? (restaurantData.id || String(restaurantId).replace('multi_restaurant_', '')) : parseInt(restaurantId);
         
+        const restaurantRemarks = document.getElementById('modal_restaurant_remarks') ? document.getElementById('modal_restaurant_remarks').value.trim() : '';
+        const restaurantSupplement = document.getElementById('modal_restaurant_supplement') ? document.getElementById('modal_restaurant_supplement').checked : false;
+        
         const bookingData = [{
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -20381,7 +21285,9 @@
             totalPrice: totalPrice,
             priceTypes: ["dmc"],
             dmc_id: dmcUser.userId || "",
-            bookingType: "enquiry"
+            bookingType: "enquiry",
+            remarks: restaurantRemarks,
+            supplement: restaurantSupplement
         }];
         
         if (isMultiRestaurant && bookingData[0]) {
@@ -20440,75 +21346,72 @@
             bookingData[0].transfer_options = { transfer_required: false };
         }
 
-        //console.log('Restaurant booking data to be sent:', bookingData);
+        // Global behavior: ALWAYS open payment modal before inserting service.
+        return runServiceAddWithPayment(totalPrice, () => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = restaurantBaseUrl;
+            
+            // Add CSRF token
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = "{{ csrf_token() }}";
+            form.appendChild(token);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = restaurantBaseUrl;
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
+            // Add the complex booking data as JSON
+            const bookingDataInput = document.createElement('input');
+            bookingDataInput.type = 'hidden';
+            bookingDataInput.name = 'booking_data';
+            bookingDataInput.value = JSON.stringify(bookingData);
+            form.appendChild(bookingDataInput);
 
-        // Add the complex booking data as JSON
-        const bookingDataInput = document.createElement('input');
-        bookingDataInput.type = 'hidden';
-        bookingDataInput.name = 'booking_data';
-        bookingDataInput.value = JSON.stringify(bookingData);
-        form.appendChild(bookingDataInput);
+            // Add basic form fields for backward compatibility
+            const basicData = {
+                agent_id: agentId,
+                tour_id: tourId,
+                restaurant_id: restaurantId,
+                meal_type: mealType,
+                dish_id: dishId,
+                time_slot: timeSlot,
+                dining_date: diningDate,
+                adults: guestData.adults,
+                children: guestData.children,
+                infants: guestData.infants,
+                male_count: guestData.male_count,
+                female_count: guestData.female_count,
+                child_ages: guestData.child_ages,
+                country: country,
+                // city parameter removed,
+                start_date: startDate,
+                end_date: endDate
+            };
 
-        // Add basic form fields for backward compatibility
-        const basicData = {
-            agent_id: agentId,
-            tour_id: tourId,
-            restaurant_id: restaurantId,
-            meal_type: mealType,
-            dish_id: dishId,
-            time_slot: timeSlot,
-            dining_date: diningDate,
-            adults: guestData.adults,
-            children: guestData.children,
-            infants: guestData.infants,
-            male_count: guestData.male_count,
-            female_count: guestData.female_count,
-            child_ages: guestData.child_ages,
-            country: country,
-            // city parameter removed,
-            start_date: startDate,
-            end_date: endDate
-        };
+            for (const [key, value] of Object.entries(basicData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
+            // Add customer_info fields for backward compatibility
+            for (const [key, value] of Object.entries(customer_info)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = `customer_info[${key}]`;
+                input.value = value;
+                form.appendChild(input);
+            }
 
-        // Add customer_info fields for backward compatibility
-        for (const [key, value] of Object.entries(customer_info)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = `customer_info[${key}]`;
-            input.value = value;
-            form.appendChild(input);
-        }
+            document.body.appendChild(form);
+            form.submit();
 
-        document.body.appendChild(form);
-        form.submit();
-
-        // Close modal safely
-        safeCloseModal('restaurantSelectionModal');
-        
-        // Show success message
-        showNotification(`Restaurant ${restaurantData.name} selected successfully! Meal: ${mealData.meal_period == 1 ? 'Breakfast' : mealData.meal_period == 2 ? 'Lunch' : 'Dinner'} at ${timeSlot} for ${guestData.adults} adults, ${guestData.children} children`, 'success');
-        
-        // Here you can add logic to update the restaurant fields in your form
-        
+            // Close modal safely
+            safeCloseModal('restaurantSelectionModal');
+            
+            showNotification(`Restaurant ${restaurantData.name} selected successfully! Meal: ${mealData.meal_period == 1 ? 'Breakfast' : mealData.meal_period == 2 ? 'Lunch' : 'Dinner'} at ${timeSlot} for ${guestData.adults} adults, ${guestData.children} children`, 'success');
+        });
     }
     
     // Order management functions
@@ -20569,35 +21472,34 @@
     function removeService(orderId, serviceType) {
         console.log(`removeService called with orderId: ${orderId}, serviceType: ${serviceType}`);
         
-        if (confirm(`Are you sure you want to remove this ${serviceType} service?`)) {
+        showRemoveServiceAlert(serviceType, () => {
             showNotification(`Removing ${serviceType} service...`, 'info');
             
-            // Get CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             if (!csrfToken) {
                 console.error('CSRF token not found');
                 showNotification('CSRF token not found. Please refresh the page.', 'error');
                 return;
             }
-            
-            console.log('CSRF Token:', csrfToken);
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
+            const tourId = document.getElementById('tour_id')?.value || '';
+            const normalizedStatus = String(__tourStatus || '').toLowerCase();
+            const isDefiniteOrActual = ['definite', 'actual'].includes(normalizedStatus);
             
             fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken
-                }
+                },
+                body: JSON.stringify({
+                    tour_id: tourId,
+                    skip_service_payment_check: isDefiniteOrActual ? 1 : 0
+                })
             })
-            .then(response => {
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('Response data:', data);
                 if (data.success) {
                     showNotification(`${serviceType} service removed successfully`, 'success');
                     setTimeout(() => location.reload(), 1500);
@@ -20609,7 +21511,7 @@
                 console.error(`Error removing ${serviceType} service:`, error);
                 showNotification(`Error removing ${serviceType} service: ${error.message}`, 'error');
             });
-        }
+        }, window.hasNegotiationHistory);
     }
     
     // Initialize page functionality
@@ -23742,6 +24644,14 @@
             });
             
             const data = await response.json();
+
+            // Store dropoff zone vehicle_type for UI restrictions (Shared/Private/Both)
+            try {
+                window.zoneVehicleTypeByBookingId = window.zoneVehicleTypeByBookingId || {};
+                window.zoneVehicleTypeByBookingId[bookingId] = String(data.zone_vehicle_type || '').trim();
+            } catch (e) {
+                console.warn('Failed to store zone_vehicle_type for departure booking', bookingId, e);
+            }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
                 // Populate vehicle dropdown
@@ -23836,6 +24746,34 @@
                 sharedOption.disabled = true;
                 sharedOption.style.display = 'none';
             }
+        }
+
+        // Extra rule: lock Service Type options based on dropoff zone vehicle_type (Shared/Private/Both)
+        // Applies even when sharable = 3 (Both).
+        try {
+            const zmap = window.zoneVehicleTypeByBookingId || {};
+            const zoneVehicleType = String(zmap[bookingId] || '').trim();
+            if (zoneVehicleType === 'Shared' || zoneVehicleType === 'Private') {
+                // Ensure both are visible before applying the lock, then disable the forbidden one.
+                if (privateOption) {
+                    privateOption.style.display = '';
+                    privateOption.disabled = false;
+                }
+                if (sharedOption) {
+                    sharedOption.style.display = '';
+                    sharedOption.disabled = false;
+                }
+
+                if (zoneVehicleType === 'Shared' && privateOption) {
+                    privateOption.disabled = true;
+                    if (sharedOption) serviceTypeSelect.value = 'Shared';
+                } else if (zoneVehicleType === 'Private' && sharedOption) {
+                    sharedOption.disabled = true;
+                    if (privateOption) serviceTypeSelect.value = 'Private';
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to apply zone vehicle type UI lock (departure)', bookingId, e);
         }
         
         // Set default value based on available options

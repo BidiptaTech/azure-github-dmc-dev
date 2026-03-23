@@ -521,6 +521,10 @@ class TourController extends Controller
                     // Effective per-child sharing price built from attraction/restaurant child_price where available
                     'child_sharing' => $prices['child_sharing'] ?? 0,
                     'supplement' => $prices['single_sharing'] - $prices['double_sharing'],
+                    // Per-service supplements list (items marked with `supplement: true`)
+                    'supplements' => $prices['supplements'] ?? [],
+                    // Backwards-compat alias (common misspelling in some frontends)
+                    'supplyments' => $prices['supplements'] ?? [],
                     // 'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
                     // 'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
                     // 'triple_sharing_formatted' => '₹' . number_format($prices['triple_sharing'] ?? 0, 2),
@@ -685,7 +689,8 @@ class TourController extends Controller
                 'payment_amount' => 'required|numeric|min:0.01',
                 'currency' => 'required|string',
                 'payment_date' => 'required|date',
-                'payment_type' => 'required|string'
+                'payment_type' => 'required|string',
+                'auto_verify' => 'nullable|boolean',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             if ($request->expectsJson() || $request->ajax()) {
@@ -730,7 +735,8 @@ class TourController extends Controller
             'date' => now()->format('Y-m-d H:i:s'),
             'payment_date' => $request->payment_date,
             'payment_type' => $request->payment_type,
-            'status' => 0,
+            // status: 0 = unverified, 1 = verified
+            'status' => $request->boolean('auto_verify') ? 1 : 0,
         ];
         
         // Get existing payment details or initialize empty array
@@ -738,6 +744,7 @@ class TourController extends Controller
         
         // Add new payment to the array
         $paymentDetails[] = $paymentData;
+        $paymentIndex = count($paymentDetails) - 1;
         
         // Update the payment_details column with the new array
         $tour->payment_details = json_encode($paymentDetails);
@@ -754,7 +761,9 @@ class TourController extends Controller
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => $successMessage
+                'message' => $successMessage,
+                'payment_index' => $paymentIndex,
+                'verified' => (bool) ($request->boolean('auto_verify')),
             ]);
         }
         
@@ -893,6 +902,79 @@ class TourController extends Controller
                 'success' => false,
                 'message' => 'Error declining payment: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function deletePayment(Request $request, $tourId)
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->firstOrFail();
+            $paymentIndex = (int) $request->input('payment_index');
+
+            $paymentDetails = json_decode($tour->payment_details, true) ?: [];
+            if (!isset($paymentDetails[$paymentIndex])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
+            }
+
+            array_splice($paymentDetails, $paymentIndex, 1);
+            $tour->payment_details = json_encode(array_values($paymentDetails));
+            $tour->save();
+
+            return response()->json(['success' => true, 'message' => 'Payment removed successfully']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Tour not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function updatePayment(Request $request, $tourId)
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->firstOrFail();
+            $paymentIndex = (int) $request->input('payment_index');
+
+            $request->validate([
+                'payment_amount' => 'required|numeric|min:0.01',
+                'currency' => 'required|string',
+                'payment_date' => 'required|date',
+                'payment_type' => 'required|string'
+            ]);
+
+            $selectedCurrency = $request->input('currency', 'SGD');
+            $exchangeRate = (float) $request->input('exchange_rate', 1);
+            $originalAmount = (float) $request->input('payment_amount');
+
+            $sgdAmount = $selectedCurrency === 'SGD' ? $originalAmount : $originalAmount / $exchangeRate;
+
+            $paymentDetails = json_decode($tour->payment_details, true) ?: [];
+            if (!isset($paymentDetails[$paymentIndex])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
+            }
+
+            $paymentDetails[$paymentIndex] = [
+                'amount' => $sgdAmount,
+                'original_amount' => $originalAmount,
+                'currency' => $selectedCurrency,
+                'exchange_rate' => $exchangeRate,
+                'transaction_id' => $request->input('transaction_id'),
+                'remarks' => $request->input('remarks'),
+                'date' => $paymentDetails[$paymentIndex]['date'] ?? now()->format('Y-m-d H:i:s'),
+                'payment_date' => $request->payment_date,
+                'payment_type' => $request->payment_type,
+                'status' => $paymentDetails[$paymentIndex]['status'] ?? 0,
+            ];
+
+            $tour->payment_details = json_encode($paymentDetails);
+            $tour->save();
+
+            return response()->json(['success' => true, 'message' => 'Payment updated successfully']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Tour not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 

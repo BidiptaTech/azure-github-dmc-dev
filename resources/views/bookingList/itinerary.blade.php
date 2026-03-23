@@ -2413,7 +2413,271 @@
                         <button id="downloadExcelFormat" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-file-excel"></i> Download Itinerary
                         </button>
-                        
+
+                        <button type="button" class="btn-modern btn-primary-modern" data-bs-toggle="modal" data-bs-target="#itineraryPdfModal">
+                            <i class="fas fa-file-pdf"></i> Download PDF (Formatted)
+                        </button>
+
+                        {{-- Modal: SIC Timing & Meeting Points before PDF download --}}
+                        <div class="modal fade" id="itineraryPdfModal" tabindex="-1" aria-labelledby="itineraryPdfModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="itineraryPdfModalLabel">PDF Options</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.css" rel="stylesheet">
+                                    <form action="{{ route('bookinglist.itinerary.pdf', ['tourId' => \Illuminate\Support\Facades\Crypt::encrypt($tourId)]) }}" method="POST" target="_blank">
+                                        @csrf
+                                        <div class="modal-body">
+                                            <p class="text-muted small mb-3">Optionally add the following to the PDF. Leave blank to omit.</p>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="pdf_country" class="form-label fw-semibold">Country<span class="text-danger">*</span></label>
+                                                    <select class="form-control" id="pdf_country" required>
+                                                        <option value="">Select Country</option>
+                                                        @foreach(($countries ?? []) as $c)
+                                                            <option value="{{ $c->name }}" @selected(($tourDetails->destination ?? '') === $c->name)>{{ $c->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="pdf_city" class="form-label fw-semibold">City<span class="text-danger">*</span></label>
+                                                    <select class="form-control" id="pdf_city" required>
+                                                        <option value="">Select City</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="mb-0">
+                                                <label for="pdf_itinerary_information" class="form-label fw-semibold">Itinerary Information</label>
+                                                <textarea class="form-control" id="pdf_itinerary_information" name="itinerary_information"></textarea>
+                                            </div>
+                                            <div class="small text-muted mt-2" id="pdf_settings_hint"></div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-primary" id="itineraryPdfDownloadBtn">
+                                                <i class="fas fa-file-pdf me-1"></i> Download PDF
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+                        <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.js"></script>
+                        <script>
+                            (function () {
+                            const citiesByCountry = @json($citiesByCountry ?? []);
+                            const fetchUrl = @json(route('itinerary_settings.fetch'));
+                            const defaultCountry = @json($tourDetails->destination ?? '');
+                            const defaultCity = @json($tourDetails->city ?? '');
+                            const defaultItineraryInformationHtml = @json($defaultItineraryInformationHtml ?? '');
+
+                                const countryEl = document.getElementById('pdf_country');
+                                const cityEl = document.getElementById('pdf_city');
+                                const hintEl = document.getElementById('pdf_settings_hint');
+
+                                const infoEl = document.getElementById('pdf_itinerary_information');
+                                let editorReady = false;
+                                let pendingHtml = '';
+                                let pendingText = '';
+
+                                // Close modal after starting download (form submits to new tab)
+                                const downloadBtn = document.getElementById('itineraryPdfDownloadBtn');
+                                if (downloadBtn) {
+                                    downloadBtn.addEventListener('click', function () {
+                                        setTimeout(function () {
+                                            try {
+                                                const modalEl = document.getElementById('itineraryPdfModal');
+                                                if (!modalEl) return;
+                                                const instance = window.bootstrap?.Modal?.getInstance(modalEl) || new window.bootstrap.Modal(modalEl);
+                                                instance.hide();
+
+                                                // Clear modal fields for next open
+                                                if (countryEl) countryEl.value = '';
+                                                if (cityEl) cityEl.innerHTML = '<option value="">Select City</option>';
+                                                if (hintEl) hintEl.textContent = '';
+                                                pendingHtml = '';
+                                                pendingText = '';
+                                                if (editorReady && window.jQuery && jQuery(infoEl).summernote) {
+                                                    jQuery(infoEl).summernote('code', '');
+                                                } else if (infoEl) {
+                                                    infoEl.value = '';
+                                                }
+                                            } catch (e) {
+                                                // ignore
+                                            }
+                                        }, 50);
+                                    });
+                                }
+
+                                function htmlToText(html) {
+                                    const div = document.createElement('div');
+                                    div.innerHTML = html || '';
+                                    return (div.textContent || div.innerText || '').replace(/\\n{3,}/g, '\\n\\n').trim();
+                                }
+
+                                function normalizeStr(v) {
+                                    return String(v ?? '').trim().toLowerCase();
+                                }
+
+                                function setCityOptions(countryName, selectCity) {
+                                    const cities = citiesByCountry[countryName] || [];
+                                    const target = normalizeStr(selectCity);
+                                    cityEl.innerHTML = '<option value=\"\">Select City</option>';
+                                    cities.forEach(function (name) {
+                                        const opt = document.createElement('option');
+                                        opt.value = name;
+                                        opt.textContent = name;
+                                        if (target && normalizeStr(name) === target) opt.selected = true;
+                                        cityEl.appendChild(opt);
+                                    });
+                                }
+
+                                function ensureEditor() {
+                                    if (editorReady) return;
+                                    if (!window.jQuery || !jQuery.fn) return;
+                                    if (!jQuery.fn.summernote) return;
+                                    jQuery(infoEl).summernote({
+                                        height: 260,
+                                        toolbar: [
+                                            ['style', ['style']],
+                                            ['font', ['bold', 'italic', 'underline', 'clear']],
+                                            ['para', ['ul', 'ol', 'paragraph']],
+                                            ['insert', ['link']],
+                                            ['view', ['codeview']]
+                                        ]
+                                    });
+                                    editorReady = true;
+                                    if (pendingHtml !== '') {
+                                        jQuery(infoEl).summernote('code', pendingHtml);
+                                    }
+                                }
+
+                                async function fetchSettings() {
+                                    const country = (countryEl.value || '').trim();
+                                    const city = (cityEl.value || '').trim();
+                                    hintEl.textContent = '';
+
+                                    if (!country || !city) {
+                                        return;
+                                    }
+
+                                    try {
+                                        ensureEditor();
+                                        const url = new URL(fetchUrl, window.location.origin);
+                                        url.searchParams.set('country', country);
+                                        url.searchParams.set('city', city);
+
+                                        const res = await fetch(url.toString(), {
+                                            method: 'GET',
+                                            headers: {
+                                                'X-Requested-With': 'XMLHttpRequest',
+                                                'Accept': 'application/json'
+                                            }
+                                        });
+
+                                        const json = await res.json();
+                                        if (!json || json.success !== true) {
+                                            hintEl.textContent = 'Could not load itinerary settings.';
+                                            return;
+                                        }
+
+                                        const html = json.data?.itinerary_information ?? '';
+                                        pendingHtml = html;
+                                        pendingText = htmlToText(html);
+                                        ensureEditor();
+                                        if (editorReady) {
+                                            jQuery(infoEl).summernote('code', html);
+                                        } else {
+                                            // Show parsed text to user until editor is ready.
+                                            infoEl.value = pendingText;
+                                        }
+
+                                        hintEl.textContent = json.found ? 'Settings loaded for selected country/city.' : 'No saved settings found for selected country/city.';
+                                    } catch (e) {
+                                        hintEl.textContent = 'Could not load itinerary settings.';
+                                    }
+                                }
+
+                                countryEl.addEventListener('change', function () {
+                                    setCityOptions(countryEl.value);
+                                    pendingHtml = '';
+                                    pendingText = '';
+                                    if (editorReady) {
+                                        jQuery(infoEl).summernote('code', '');
+                                    } else {
+                                        infoEl.value = '';
+                                    }
+                                    hintEl.textContent = '';
+                                });
+
+                                cityEl.addEventListener('change', function () {
+                                    fetchSettings();
+                                });
+
+                                // Initialize Summernote when modal opens so HTML is always shown formatted (bold, <p>, <br>).
+                                const modalEl = document.getElementById('itineraryPdfModal');
+                                const formEl = infoEl && infoEl.closest('form');
+                                if (modalEl) {
+                                    modalEl.addEventListener('shown.bs.modal', function () {
+                                        ensureEditor();
+                                    });
+                                }
+
+                                // On submit, sync Summernote HTML into the textarea so the form posts the same markup for the PDF.
+                                if (formEl && window.jQuery) {
+                                    formEl.addEventListener('submit', function () {
+                                        if (editorReady && jQuery(infoEl).summernote) {
+                                            var code = jQuery(infoEl).summernote('code');
+                                            if (code != null) infoEl.value = code;
+                                        } else if (pendingHtml) {
+                                            // If editor isn't available, still submit raw HTML so PDF keeps formatting.
+                                            infoEl.value = pendingHtml;
+                                        }
+                                    });
+                                }
+
+                                if (window.jQuery) {
+                                    jQuery(function () {
+                                        ensureEditor();
+                                        // Pre-populate modal from tour destination/city when itinerary loads
+                                        if (defaultCountry && countryEl) {
+                                            if (countryEl.value !== defaultCountry) countryEl.value = defaultCountry;
+                                            setCityOptions(defaultCountry, defaultCity);
+                                            if (defaultCity && cityEl) {
+                                                // If the tour city isn't in our list (or differs by case/spacing), inject it so it's selectable.
+                                                if (!cityEl.value) {
+                                                    const injected = document.createElement('option');
+                                                    injected.value = defaultCity;
+                                                    injected.textContent = defaultCity;
+                                                    injected.selected = true;
+                                                    cityEl.appendChild(injected);
+                                                }
+                                            }
+                                            if (countryEl.value && cityEl.value) {
+                                                if (defaultItineraryInformationHtml) {
+                                                    pendingHtml = defaultItineraryInformationHtml;
+                                                    pendingText = htmlToText(defaultItineraryInformationHtml);
+                                                    ensureEditor();
+                                                    if (editorReady) {
+                                                        jQuery(infoEl).summernote('code', defaultItineraryInformationHtml);
+                                                    } else {
+                                                        infoEl.value = pendingText;
+                                                    }
+                                                    if (hintEl) hintEl.textContent = 'Settings loaded for selected country/city.';
+                                                } else {
+                                                    fetchSettings();
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            })();
+                        </script>
+
                         {{-- <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
                         </button> --}}
@@ -3184,6 +3448,14 @@
                                                                 </p>
                                                             @endif
                                                         </div>
+                                                        @php
+                                                            $hotelRemark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                                                        @endphp
+                                                        @if(!empty($hotelRemark))
+                                                            <div class="service-remark">
+                                                                <span class="service-detail-label">Remark:</span> {{ $hotelRemark }}
+                                                            </div>
+                                                        @endif
                                                     @elseif(strtolower($serviceType) == 'guide')
                                                         <p class="service-description">Professional tour guide service</p>
                                                         
@@ -3306,6 +3578,8 @@
                                                             $entryPickup = $entryPortData['entrypickup'] ?? $entryPortData['entry_pickup'] ?? $entryPortData['pickup'] ?? null;
                                                             $entryDropoff = $entryPortData['entrydropoff'] ?? $entryPortData['entry_dropoff'] ?? $entryPortData['dropoff'] ?? null;
                                                             $remark = $entryPortData['remark'] ?? $entryPortData['remarks'] ?? $entryPortData['specialRequests'] ?? null;
+                                                            $arrivalTransportType = $entryPortData['arrival_transport_type'] ?? null;
+                                                            $arrivalFlightNo = $entryPortData['arrival_flight_no'] ?? null;
                                                             $transferType = 'Shared';
                                                             if (isset($entryPortData['transfer_options']['type'])) {
                                                                 $transferType = $entryPortData['transfer_options']['type'];
@@ -3328,6 +3602,14 @@
                                                                 @if(!empty($entryDropoff))
                                                                     <span class="service-detail-label">To:</span> {{ $entryDropoff }}
                                                                 @endif
+                                                                @if(!empty($arrivalTransportType))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Arrival:</span> {{ ucfirst(strtolower($arrivalTransportType)) }}
+                                                                @endif
+                                                                @if(!empty($arrivalFlightNo))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Flight No:</span> {{ $arrivalFlightNo }}
+                                                                @endif
                                                             </p>
                                                         @endif
                                                         
@@ -3342,6 +3624,8 @@
                                                             $entryPickup = $exitPortData['exitpickup'] ?? $exitPortData['entry_pickup'] ?? $exitPortData['pickup'] ?? null;
                                                             $entryDropoff = $exitPortData['exitdropoff'] ?? $exitPortData['entry_dropoff'] ?? $exitPortData['dropoff'] ?? null;
                                                             $remark = $exitPortData['remark'] ?? $exitPortData['remarks'] ?? $exitPortData['specialRequests'] ?? null;
+                                                            $departureTransportType = $exitPortData['departure_transport_type'] ?? null;
+                                                            $departureFlightNo = $exitPortData['departure_flight_no'] ?? null;
                                                             $transferType = $exitPortData['type'] ?? null;
                                                             $vehicle = $exitPortData['vehicles_name'] ?? null;
 
@@ -3371,6 +3655,14 @@
                                                                     <span class="mx-1">•</span>
                                                                     <span class="service-detail-label">Travel Type:</span> {{ $transferType }}
                                                                 @endif
+                                                                @if(!empty($departureTransportType))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Departure:</span> {{ ucfirst(strtolower($departureTransportType)) }}
+                                                                @endif
+                                                                @if(!empty($departureFlightNo))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Flight No:</span> {{ $departureFlightNo }}
+                                                                @endif
                                                             </p>
                                                         @endif
                                                         
@@ -3391,7 +3683,7 @@
                                                                 $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
                                                                 $transferType = $transferOptions['type'] ?? 'Shared';
                                                                 $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
-                                                                $remark = $data['specialRequests'] ?? null;
+                                                                $remark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
                                                             }
                                                         @endphp
                                                         
@@ -3612,7 +3904,7 @@
                                                                 $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
                                                                 $transferType = $transferOptions['type'] ?? 'Shared';
                                                                 $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
-                                                                $remark = $data['specialRequests'] ?? null;
+                                                                $remark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
                                                             }
                                                         @endphp
                                                         

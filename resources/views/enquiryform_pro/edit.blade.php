@@ -1,12 +1,12 @@
 @extends('layouts.layout')
-@section('title', isset($tour) ? 'Edit Tour Enquiry - ' . ($tour->display_id ?? '') : 'Enquiry Pro')
+@section('title', isset($tour) ? 'Edit Tour Enquiry - ' . ($tourReferenceFormatted ?? $tour->display_id ?? '') : 'Enquiry Pro')
 @extends('layouts.datatablecss')
 
 @php
-    // Determine if we're in edit mode
     $isEditMode = isset($tour) && $tour;
     $tourId = $isEditMode ? $tour->tour_id : null;
     $existingOrders = $isEditMode ? ($orders ?? []) : [];
+    $hasNegotiationHistory = $isEditMode ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
 @endphp
 
 @section('css')
@@ -83,6 +83,40 @@
     }
     
     /* Row 1 Fields - Customer fields on the right side */
+    /* Tour reference — 3D raised badge (header, next to status) */
+    .enquiry-tour-ref-3d {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 1px;
+        padding: 4px 10px 5px;
+        border-radius: 7px;
+        background: linear-gradient(165deg, #f0f5fc 0%, #dbe6f5 38%, #c9d8ee 100%);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        box-shadow:
+            0 2px 0 rgba(255, 255, 255, 0.85) inset,
+            0 -2px 4px rgba(30, 60, 120, 0.12) inset,
+            0 4px 8px rgba(20, 50, 100, 0.18),
+            0 2px 3px rgba(0, 0, 0, 0.12);
+        line-height: 1.15;
+    }
+    .enquiry-tour-ref-3d .enquiry-tour-ref-id {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        color: #153a75;
+        text-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.65),
+            0 -1px 1px rgba(0, 40, 100, 0.06);
+    }
+    .enquiry-tour-ref-3d .enquiry-tour-ref-sub {
+        font-size: 0.62rem;
+        font-weight: 700;
+        color: #516079;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+    
     .row-1-fields {
         flex: 0 0 auto;
         padding: 2px 4px;
@@ -938,9 +972,14 @@
 @endsection
 
 @section('content')
+<!-- SweetAlert2 for remove form selection confirmation -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+@include('enquiryform_pro.partials.remove-form-selection-alert-js')
+<script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
 @php
     // DMC information for cost sheet print (same pattern as invoices/pdf/final.blade.php)
-    $dmcUser = isset($dmc_id) && $dmc_id ? \App\Models\User::find($dmc_id) : ($user ?? null);
+    $dmcUser = isset($dmc_id) && $dmc_id ? \App\Models\User::where('userId', $dmc_id)->first() : ($user ?? null);
     $dmcCompanyName = 'DMC';
     $dmcLogoSrc = '';
     $dmcContact = '';
@@ -1164,8 +1203,13 @@
                         <label class="form-check-label" for="costSheet">Cost Sheet</label>
                     </div>
                 </li>
-                <li class="nav-item ms-3">
-                    <span class="status-badge">STATUS: QUOTATION</span>
+                <li class="nav-item ms-3 d-flex align-items-center flex-wrap gap-2">
+                    @if($isEditMode && !empty($tourReferenceFormatted ?? null))
+                        <div class="enquiry-tour-ref-3d" role="status" title="Tour reference">
+                            <span class="enquiry-tour-ref-id">{{ $tourReferenceFormatted }}</span>
+                            <small class="enquiry-tour-ref-sub">Tour ID: #{{ $tour->tour_id }}</small>
+                        </div>
+                    @endif
                 </li>
             </ul>
             
@@ -14106,36 +14150,40 @@
         }
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Also remove associated arrival/departure entries and their transfers
-        accommodationList.forEach(hotel => {
-            if (idsToRemove.includes(String(hotel.id))) {
-                // Remove arrival/departure entries
-                if (hotel.arrivalDepartureIds) {
-                    const linkedIds = new Set(hotel.arrivalDepartureIds.map(id => String(id)));
-                    // Remove transfers associated with these arrival/departure entries
-                    arrivalDepartureList.forEach(item => {
-                        if (linkedIds.has(String(item.id)) && item.transferId) {
-                            transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
-                        }
-                    });
-                    arrivalDepartureList = arrivalDepartureList.filter(item => !linkedIds.has(String(item.id)));
-                }
-                // Remove hotel transfers
-                if (hotel.transferIds && hotel.transferIds.length > 0) {
-                    hotel.transferIds.forEach(transferId => {
-                        transferList = transferList.filter(t => String(t.id) !== String(transferId));
-                    });
-                }
-            }
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = accommodationList.find(h => String(h.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
         });
-        
-        accommodationList = accommodationList.filter(hotel => !idsToRemove.includes(String(hotel.id)));
-        updateAccommodationTable();
-        updateArrivalDepartureTable();
-        updateTransferTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'accommodation' : 'accommodations';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            accommodationList.forEach(hotel => {
+                if (idsToRemove.includes(String(hotel.id))) {
+                    if (hotel.arrivalDepartureIds) {
+                        const linkedIds = new Set(hotel.arrivalDepartureIds.map(id => String(id)));
+                        arrivalDepartureList.forEach(item => {
+                            if (linkedIds.has(String(item.id)) && item.transferId) {
+                                transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
+                            }
+                        });
+                        arrivalDepartureList = arrivalDepartureList.filter(item => !linkedIds.has(String(item.id)));
+                    }
+                    if (hotel.transferIds && hotel.transferIds.length > 0) {
+                        hotel.transferIds.forEach(transferId => {
+                            transferList = transferList.filter(t => String(t.id) !== String(transferId));
+                        });
+                    }
+                }
+            });
+            
+            accommodationList = accommodationList.filter(hotel => !idsToRemove.includes(String(hotel.id)));
+            updateAccommodationTable();
+            updateArrivalDepartureTable();
+            updateTransferTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
 
     // Update Arrival/Departure table
@@ -14892,29 +14940,32 @@
         }
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Also remove associated transfers and guides
-        arrivalDepartureList.forEach(item => {
-            if (idsToRemove.includes(String(item.id))) {
-                // Remove linked transfer
-                if (item.transferId) {
-                    transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
-                    console.log('Removed linked transfer for arrival/departure:', item.transferId);
-                }
-                // Remove linked guide
-                if (item.guideId) {
-                    guideList = guideList.filter(g => String(g.id) !== String(item.guideId));
-                    console.log('Removed linked guide for arrival/departure:', item.guideId);
-                }
-            }
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = arrivalDepartureList.find(a => String(a.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
         });
-        
-        arrivalDepartureList = arrivalDepartureList.filter(item => !idsToRemove.includes(String(item.id)));
-        updateArrivalDepartureTable();
-        updateTransferTable();
-        updateGuideTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'arrival/departure entry' : 'arrival/departure entries';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            arrivalDepartureList.forEach(item => {
+                if (idsToRemove.includes(String(item.id))) {
+                    if (item.transferId) {
+                        transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
+                    }
+                    if (item.guideId) {
+                        guideList = guideList.filter(g => String(g.id) !== String(item.guideId));
+                    }
+                }
+            });
+            
+            arrivalDepartureList = arrivalDepartureList.filter(item => !idsToRemove.includes(String(item.id)));
+            updateArrivalDepartureTable();
+            updateTransferTable();
+            updateGuideTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
 
     // ==================== TOUR FUNCTIONS ====================
@@ -16630,33 +16681,36 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected tour(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Also remove associated transfers and guides
-        tourList.forEach(tour => {
-            if (idsToRemove.includes(String(tour.id))) {
-                if (tour.transferId) {
-                    transferList = transferList.filter(t => String(t.id) !== String(tour.transferId));
-                }
-                if (tour.guideId) {
-                    guideList = guideList.filter(g => String(g.id) !== String(tour.guideId));
-                }
-            }
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = tourList.find(t => String(t.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
         });
         
-        tourList = tourList.filter(tour => !idsToRemove.includes(String(tour.id)));
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'tour' : 'tours';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            tourList.forEach(tour => {
+                if (idsToRemove.includes(String(tour.id))) {
+                    if (tour.transferId) {
+                        transferList = transferList.filter(t => String(t.id) !== String(tour.transferId));
+                    }
+                    if (tour.guideId) {
+                        guideList = guideList.filter(g => String(g.id) !== String(tour.guideId));
+                    }
+                }
+            });
+            
+            tourList = tourList.filter(tour => !idsToRemove.includes(String(tour.id)));
         
-        updateTourTable();
-        updateTransferTable();
-        updateGuideTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+            updateTourTable();
+            updateTransferTable();
+            updateGuideTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
-    
+
     // ==================== GUIDE FUNCTIONS ====================
     
     // Open Guide Modal
@@ -17318,11 +17372,15 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected guide(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = guideList.find(g => String(g.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
+        
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'guide' : 'guides';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
         
         // CASCADE: Remove guide links from parent services
         idsToRemove.forEach(guideIdToRemove => {
@@ -17389,18 +17447,19 @@
             });
         });
         
-        // Remove guides from guideList
-        guideList = guideList.filter(guide => !idsToRemove.includes(String(guide.id)));
-        
-        // Update all affected tables
-        updateGuideTable();
-        updateTourTable();
-        updateTransferTable();
-        updateAccommodationTable();
-        updateMealTable();
-        updateArrivalDepartureTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+            // Remove guides from guideList
+            guideList = guideList.filter(guide => !idsToRemove.includes(String(guide.id)));
+            
+            // Update all affected tables
+            updateGuideTable();
+            updateTourTable();
+            updateTransferTable();
+            updateAccommodationTable();
+            updateMealTable();
+            updateArrivalDepartureTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
     
     // Update guide field
@@ -17915,18 +17974,23 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected item(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        miscList = miscList.filter(item => !idsToRemove.includes(String(item.id)));
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = miscList.find(m => String(m.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         
-        updateMiscTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'item' : 'items';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            miscList = miscList.filter(item => !idsToRemove.includes(String(item.id)));
+            
+            updateMiscTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
-    
+
     // Toggle select all miscellaneous items (main table)
     function toggleSelectAllMiscMain() {
         const selectAll = document.getElementById('selectAllMiscMain');
@@ -20585,31 +20649,34 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected meal(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
-        
-        // Also remove associated transfers and guides
-        mealList.forEach(meal => {
-            if (idsToRemove.includes(String(meal.id))) {
-                if (meal.transferId) {
-                    transferList = transferList.filter(t => String(t.id) !== String(meal.transferId));
-                }
-                if (meal.guideId) {
-                    guideList = guideList.filter(g => String(g.id) !== String(meal.guideId));
-                }
-            }
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = mealList.find(m => String(m.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
         });
         
-        mealList = mealList.filter(meal => !idsToRemove.includes(String(meal.id)));
-        
-        updateMealTable();
-        updateTransferTable();
-        updateGuideTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'meal' : 'meals';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            mealList.forEach(meal => {
+                if (idsToRemove.includes(String(meal.id))) {
+                    if (meal.transferId) {
+                        transferList = transferList.filter(t => String(t.id) !== String(meal.transferId));
+                    }
+                    if (meal.guideId) {
+                        guideList = guideList.filter(g => String(g.id) !== String(meal.guideId));
+                    }
+                }
+            });
+            
+            mealList = mealList.filter(meal => !idsToRemove.includes(String(meal.id)));
+            
+            updateMealTable();
+            updateTransferTable();
+            updateGuideTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
 
     // ==================== TRANSFER FUNCTIONS ====================
@@ -22559,17 +22626,19 @@
             return;
         }
         
-        if (!confirm(`Remove ${checkboxes.length} selected transfer(s)?`)) {
-            return;
-        }
-        
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const hasExistingItems = idsToRemove.some(id => {
+            const item = transferList.find(t => String(t.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         
-        // Collect linked guide IDs to remove (guides linked to local transfers being deleted)
-        const guideIdsToRemove = [];
-        
-        // CASCADE: Remove transfer links from parent services
-        idsToRemove.forEach(transferIdToRemove => {
+        const count = checkboxes.length;
+        const itemLabel = count === 1 ? 'transfer' : 'transfers';
+        showRemoveFormSelectionAlert(count, itemLabel, () => {
+            
+            const guideIdsToRemove = [];
+            
+            idsToRemove.forEach(transferIdToRemove => {
             // Find the transfer being removed to check for linked guide
             const transferToRemove = transferList.find(t => String(t.id) === String(transferIdToRemove));
             if (transferToRemove && transferToRemove.guideId) {
@@ -22637,26 +22706,25 @@
                     console.log('Unchecked transfer checkbox for arrival/departure (guide remains if checked):', item);
                 }
             });
-        });
-        
-        // Remove transfers from transferList
-        transferList = transferList.filter(transfer => !idsToRemove.includes(String(transfer.id)));
-        
-        // Remove linked guides from guideList
-        if (guideIdsToRemove.length > 0) {
-            guideList = guideList.filter(guide => !guideIdsToRemove.includes(String(guide.id)));
-            console.log('Removed linked guides:', guideIdsToRemove);
-        }
-        
-        // Update all affected tables
-        updateTransferTable();
-        updateTourTable();
-        updateAccommodationTable();
-        updateMealTable();
-        updateArrivalDepartureTable();
-        updateGuideTable();
-        recalculateHeaderDatesFromServices();
-        recalculateTotals();
+            });
+            
+            transferList = transferList.filter(transfer => !idsToRemove.includes(String(transfer.id)));
+            
+            // Remove linked guides from guideList
+            if (guideIdsToRemove.length > 0) {
+                guideList = guideList.filter(guide => !guideIdsToRemove.includes(String(guide.id)));
+            }
+            
+            // Update all affected tables
+            updateTransferTable();
+            updateTourTable();
+            updateAccommodationTable();
+            updateMealTable();
+            updateArrivalDepartureTable();
+            updateGuideTable();
+            recalculateHeaderDatesFromServices();
+            recalculateTotals();
+        }, window.hasNegotiationHistory, hasExistingItems);
     }
 
     // Helper: normalize local transfer pricing with type and way
@@ -24030,7 +24098,9 @@
                     vehicle_model: vehicleDetails.vehicle_model,
                     model_year: vehicleDetails.model_year,
                     seating_capacity: 0,
-                    supplement: item.supplement || false
+                    supplement: item.supplement || false,
+                    booking_id: item.bookingId || item.booking_id || null,
+                    bookingId: item.bookingId || item.booking_id || null
                 });
                 
                 // Add guide_options if departure has linked guide
@@ -24306,7 +24376,9 @@
                 hotelName: hotel.hotelName || "",
                 roomType: hotel.roomType || "",
                 bedType: cleanBedType,
-                destination: hotel.destination || hotel.location || ""
+                destination: hotel.destination || hotel.location || "",
+                booking_id: hotel.bookingId || hotel.booking_id || null,
+                bookingId: hotel.bookingId || hotel.booking_id || null
             };
             
             return hotelData;
@@ -24392,7 +24464,9 @@
                 dmc_id: dmcId,
                 supplement: tour.supplement || false,
                 transferId: tour.transferId || null,
-                guideId: tour.guideId || null
+                guideId: tour.guideId || null,
+                booking_id: tour.bookingId || tour.booking_id || null,
+                bookingId: tour.bookingId || tour.booking_id || null
             };
             
             // Add transfer_options if attraction has linked transfer
@@ -24564,7 +24638,9 @@
                 dmc_id: String(dmcId),
                 bookingType: "enquiry",
                 supplement: meal.supplement || false,
-                transferId: meal.transferId || null
+                transferId: meal.transferId || null,
+                booking_id: meal.bookingId || meal.booking_id || null,
+                bookingId: meal.bookingId || meal.booking_id || null
             };
             
             // Add transfer_options if meal has linked transfer
@@ -24737,7 +24813,8 @@
                 language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
                 experience: guide.experience || 0,
                 price: parseFloat(guide.adultSell) || 0,
-                booking_id: guide.booking_id || 0,
+                booking_id: guide.bookingId || guide.booking_id || null,
+                bookingId: guide.bookingId || guide.booking_id || null,
                 supplement: guide.supplement || false
             };
         });
@@ -24918,7 +24995,9 @@
                 supplement: transfer.supplement !== undefined ? transfer.supplement : false,
                 zonePrivatePrice: transfer.zonePrivatePrice || 0,
                 zoneSharedPrice: transfer.zoneSharedPrice || 0,
-                transportMode: "local"
+                transportMode: "local",
+                booking_id: transfer.bookingId || transfer.booking_id || null,
+                bookingId: transfer.bookingId || transfer.booking_id || null
             };
             
             // Add linked_to_hotel field if this is a hotel-linked transfer
@@ -25000,7 +25079,9 @@
             state: customerInfo.state,
             zip: customerInfo.zip,
             specialRequests: customerInfo.specialRequests,
-            bookingType: "enquiry"
+            bookingType: "enquiry",
+            booking_id: misc.bookingId || misc.booking_id || null,
+            bookingId: misc.bookingId || misc.booking_id || null
         }));
     }
     
@@ -25075,6 +25156,8 @@
         
         // Prepare data to send
         const formData = new FormData();
+        /** @type {boolean} Sync all service lists on edit so server can soft-delete only removed rows (never omit keys). */
+        const isEnquiryEditSave = {{ $isEditMode ? 'true' : 'false' }};
         formData.append('destination', destination);
         formData.append('start_date', startDate);
         formData.append('end_date', endDate);
@@ -25117,44 +25200,41 @@
         const transformedTransfers = await transformTransferData();
         const transformedMiscellaneous = transformMiscellaneousData();
         
-        // Add entry_port (Arrival)
-        if (entryPortData.length > 0) {
+        // Add service payloads (edit: always send each key, even [] — required for orphan soft-delete vs omit-key)
+        if (isEnquiryEditSave) {
             formData.append('entry_port', JSON.stringify(entryPortData));
-        }
-        
-        // Add exit_port (Departure)
-        if (exitPortData.length > 0) {
             formData.append('exit_port', JSON.stringify(exitPortData));
-        }
-        
-        // Add hotel (Accommodation)
-        if (transformedAccommodations.length > 0) {
             formData.append('accommodations', JSON.stringify(transformedAccommodations));
-        }
-        
-        // Add attraction (Tours)
-        if (transformedTours.length > 0) {
             formData.append('tours', JSON.stringify(transformedTours));
-        }
-        
-        // Add restaurant (Meals)
-        if (transformedMeals.length > 0) {
             formData.append('meals', JSON.stringify(transformedMeals));
-        }
-        
-        // Add guide
-        if (transformedGuides.length > 0) {
             formData.append('guides', JSON.stringify(transformedGuides));
-        }
-        
-        // Add local_transport (Transfers)
-        if (transformedTransfers.length > 0) {
             formData.append('transfers', JSON.stringify(transformedTransfers));
-        }
-        
-        // Add miscellaneous
-        if (transformedMiscellaneous.length > 0) {
             formData.append('miscellaneous', JSON.stringify(transformedMiscellaneous));
+        } else {
+            if (entryPortData.length > 0) {
+                formData.append('entry_port', JSON.stringify(entryPortData));
+            }
+            if (exitPortData.length > 0) {
+                formData.append('exit_port', JSON.stringify(exitPortData));
+            }
+            if (transformedAccommodations.length > 0) {
+                formData.append('accommodations', JSON.stringify(transformedAccommodations));
+            }
+            if (transformedTours.length > 0) {
+                formData.append('tours', JSON.stringify(transformedTours));
+            }
+            if (transformedMeals.length > 0) {
+                formData.append('meals', JSON.stringify(transformedMeals));
+            }
+            if (transformedGuides.length > 0) {
+                formData.append('guides', JSON.stringify(transformedGuides));
+            }
+            if (transformedTransfers.length > 0) {
+                formData.append('transfers', JSON.stringify(transformedTransfers));
+            }
+            if (transformedMiscellaneous.length > 0) {
+                formData.append('miscellaneous', JSON.stringify(transformedMiscellaneous));
+            }
         }
         
         // Show loading modal and disable form
@@ -27327,6 +27407,7 @@
         
         const arrival = {
             id: order.order_id || generateId('arrival'),
+            orderId: order.id || order.order_id,
             type: 'Arrival',
             dateTime: data.bookingDate || data.dateTime || '',
             portId: data.port_id || data.portId || '',
@@ -27369,6 +27450,7 @@
             const transferId = generateId('transfer');
             const transferEntry = {
                 id: transferId,
+                orderId: order.id || order.order_id,
                 transportMode: 'local',
                 dateTime: arrival.dateTime,
                 pickup: arrival.portName,
@@ -27414,6 +27496,7 @@
                 
                 const guideEntry = {
                     id: data.guideId || order.order_id || generateId('guide'),
+                    orderId: order.id || order.order_id,
                     dateTime: arrival.dateTime,
                     tourActivity: data.guide_options.tourActivity || data.guide_options.tour_activity || `Arrival: ${arrival.portName} → ${arrival.transferDestinationName || 'Destination'} (Guide)`,
                     tourName: data.guide_options.tourActivity || data.guide_options.tour_activity || `Arrival: ${arrival.portName} → ${arrival.transferDestinationName || 'Destination'} (Guide)`,
@@ -27465,6 +27548,7 @@
         
         const departure = {
             id: order.order_id || generateId('departure'),
+            orderId: order.id || order.order_id,
             type: 'Departure',
             dateTime: data.bookingDate || data.dateTime || '',
             portId: data.port_id || data.portId || '',
@@ -27507,6 +27591,7 @@
             const transferId = generateId('transfer');
             const transferEntry = {
                 id: transferId,
+                orderId: order.id || order.order_id,
                 transportMode: 'local',
                 dateTime: departure.dateTime,
                 pickup: departure.transferDestinationName,
@@ -27552,6 +27637,7 @@
                 
                 const guideEntry = {
                     id: data.guideId || order.order_id || generateId('guide'),
+                    orderId: order.id || order.order_id,
                     dateTime: departure.dateTime,
                     tourActivity: data.guide_options.tourActivity || data.guide_options.tour_activity || `Departure: ${departure.transferDestinationName || 'Destination'} → ${departure.portName} (Guide)`,
                     tourName: data.guide_options.tourActivity || data.guide_options.tour_activity || `Departure: ${departure.transferDestinationName || 'Destination'} → ${departure.portName} (Guide)`,
@@ -27652,6 +27738,7 @@
         
         const hotel = {
             id: originalFrontendId || order.order_id || generateId('hotel'),
+            orderId: order.id || order.order_id,
             bookingId: order.booking_id || order.bookingId || null, // Store booking_id for matching linked transfers
             hotelId: hotelId,
             hotel_unique_id: hotel_unique_id, // Store unique ID separately for matching
@@ -27718,6 +27805,7 @@
         
         const tour = {
             id: order.order_id || generateId('tour'),
+            orderId: order.id || order.order_id,
             dateTime: data.date || data.dateTime || data.bookingDate || '',
             attractionId: data.attraction_id || data.attractionId || '',
             attractionName: data.attraction_name || data.attractionName || '',
@@ -27874,6 +27962,7 @@
                     
                     const transferEntry = {
                         id: transferId,
+                        orderId: order.id || order.order_id,
                         transportMode: 'local',
                         dateTime: tour.dateTime,
                         pickup: pickupName,
@@ -27991,6 +28080,7 @@
                     
                     const guideEntry = {
                         id: guideEntryId,
+                        orderId: order.id || order.order_id,
                         dateTime: data.dateTime || data.date || data.bookingDate || tour.dateTime,
                         tourActivity: tourActivityText,
                         tourName: tourActivityText,
@@ -28061,6 +28151,7 @@
         
         const meal = {
             id: order.order_id || generateId('meal'),
+            orderId: order.id || order.order_id,
             dateTime: data.date || data.dateTime || data.bookingDate || '',
             restaurantId: data.restaurant_id || data.restaurantId || '',
             restaurantName: data.restaurant_name || data.restaurantName || '',
@@ -28223,6 +28314,7 @@
                     
                     const transferEntry = {
                         id: transferId,
+                        orderId: order.id || order.order_id,
                         transportMode: 'local',
                         dateTime: meal.dateTime,
                         pickup: pickupName,
@@ -28344,6 +28436,7 @@
                     
                     const guideEntry = {
                         id: guideEntryId,
+                        orderId: order.id || order.order_id,
                         dateTime: data.dateTime || data.date || data.bookingDate || meal.dateTime,
                         tourActivity: tourActivityText,
                         tourName: tourActivityText,
@@ -28591,6 +28684,7 @@
         
         const transfer = {
             id: order.order_id || generateId('transfer'),
+            orderId: order.id || order.order_id,
             transportMode: transportMode,
             dateTime: dateTimeValue,
             pickup: pickup,
@@ -28662,6 +28756,7 @@
             
             const guideEntry = {
                 id: data.guideId || order.order_id || generateId('guide'),
+                orderId: order.id || order.order_id,
                 dateTime: transfer.dateTime || data.dateTime || data.date,
                 tourActivity: data.guide_options.tourActivity || data.guide_options.tour_activity || `${transfer.pickupName || transfer.pickup} → ${transfer.dropName || transfer.dropoff} (Local Transfer Guide)`,
                 tourName: data.guide_options.tourActivity || data.guide_options.tour_activity || `${transfer.pickupName || transfer.pickup} → ${transfer.dropName || transfer.dropoff} (Local Transfer Guide)`,
@@ -28772,6 +28867,7 @@
         
         const guide = {
             id: order.order_id || data.id || generateId('guide'),
+            orderId: order.id || order.order_id,
             dateTime: dateTimeValue,
             tourActivity: data.tour_activity || data.tourActivity || '',
             tourName: data.tour_activity || data.tourActivity || '',
@@ -28823,6 +28919,7 @@
         
         const misc = {
             id: order.order_id || generateId('misc'),
+            orderId: order.id || order.order_id,
             dateTime: data.date || data.dateTime || data.bookingDate || '',
             itemName: itemName,
             itemId: data.itemId || data.item_id || data.mis_id || '',

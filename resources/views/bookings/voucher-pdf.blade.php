@@ -7,34 +7,34 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 11px;
+            font-size: 12px;
             color: #333;
             padding: 15px 25px;
         }
         table { width: 100%; border-collapse: collapse; }
-        .header-table { margin-bottom: 5px; }
+        .header-table { margin-bottom: 8px; }
         .header-table td { border: none; vertical-align: middle; padding: 5px 0; }
-        .header-left { width: 18%; text-align: center; }
-        .header-left img { max-width: 75px; max-height: 75px; }
-        .header-center { width: 64%; text-align: center; }
-        .header-center h2 { font-size: 15px; margin-bottom: 2px; color: #222; font-weight: bold; }
-        .header-center p { font-size: 8.5px; color: #555; margin: 1px 0; }
-        .header-right { width: 18%; }
+        .header-left { width: 22%; text-align: left; vertical-align: middle; }
+        .header-left img { max-width: 165px; max-height: 165px; }
+        .header-center { width: 56%; text-align: center; }
+        .header-center h2 { font-size: 20px; margin-bottom: 4px; color: #222; font-weight: bold; }
+        .header-center p { font-size: 11px; color: #333; margin: 2px 0; font-weight: bold; }
+        .header-right { width: 22%; }
 
         .voucher-title {
             text-align: center;
-            font-size: 13px;
+            font-size: 16px;
             font-weight: bold;
             text-decoration: underline;
-            margin: 6px 0 8px 0;
+            margin: 8px 0 10px 0;
             color: #000;
         }
 
         .info-table { border: 1px solid #000; }
         .info-table td {
             border: 1px solid #000;
-            padding: 4px 8px;
-            font-size: 10px;
+            padding: 6px 10px;
+            font-size: 11px;
             vertical-align: top;
         }
         .info-table .label-cell {
@@ -42,16 +42,18 @@
             font-weight: bold;
             text-align: center;
             vertical-align: middle;
-            font-size: 9.5px;
+            font-size: 11px;
         }
         .info-table .value-cell {
             width: 72%;
             text-align: center;
+            font-weight: bold;
         }
         .info-table .value-cell-left {
             width: 72%;
             text-align: left;
             padding: 6px 10px;
+            font-weight: bold;
         }
 
         .na-highlight {
@@ -63,8 +65,7 @@
         .deadline-date {
             color: #cc0000;
             font-weight: bold;
-            font-size: 12px;
-            /* text-decoration: line-through; */
+            font-size: 14px;
             display: block;
             margin-bottom: 6px;
             padding-bottom: 4px;
@@ -72,20 +73,20 @@
             line-height: 1.6;
         }
         .deadline-note {
-            font-size: 8px;
+            font-size: 10px;
             color: #cc0000;
             line-height: 1.5;
             display: block;
             word-wrap: break-word;
-            text-align: center;
+            text-align: left;
             padding-top: 2px;
         }
         .deadline-note strong {
-            font-size: 8.5px;
+            font-size: 10px;
         }
         .inclusion-item {
             font-weight: bold;
-            font-size: 10px;
+            font-size: 11px;
             margin-bottom: 10px;
             padding-bottom: 4px;
             display: block;
@@ -144,11 +145,15 @@
             </td>
             <td class="header-center">
                 <h2>{{ $displayCompanyName }}</h2>
-                @if($rootDmc && !empty($rootDmc->company_reg_no) && is_string($rootDmc->company_reg_no))
-                    <p><strong>Company Reg No: {{ $rootDmc->company_reg_no }}</strong></p>
+                @php
+                    $companyRegNo = optional($rootDmc)->company_reg_no ?: optional($dmcUser)->company_reg_no;
+                    $licenceNo = optional($rootDmc)->ta_licence_no ?: optional($rootDmc)->licence_no ?: optional($dmcUser)->ta_licence_no ?: optional($dmcUser)->licence_no;
+                @endphp
+                @if(!empty($companyRegNo) && is_string($companyRegNo))
+                    <p><strong>Company Reg No: {{ $companyRegNo }}</strong></p>
                 @endif
-                @if($rootDmc && !empty($rootDmc->ta_licence_no) && is_string($rootDmc->ta_licence_no))
-                    <p><strong>TA Licence No: {{ $rootDmc->ta_licence_no }}</strong></p>
+                @if(!empty($licenceNo) && is_string($licenceNo))
+                    <p><strong>TA Licence No: {{ $licenceNo }}</strong></p>
                 @endif
             </td>
             <td class="header-right"></td>
@@ -182,9 +187,9 @@
                         <span style="color: #cc0000; font-weight: bold;"> ({{ $hotel['due_date'] }})</span>
                     @endif
                     @if($hotel['check_in'] && $hotel['check_out'])
-                        <br><small>{{ \Carbon\Carbon::parse($hotel['check_in'])->format('d M Y') }} - {{ \Carbon\Carbon::parse($hotel['check_out'])->format('d M Y') }}</small>
+                        <br><small>{{ \Carbon\Carbon::parse($hotel['check_in'])->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($hotel['check_out'])->format('d/m/Y') }}</small>
                     @endif
-                    @if($i < count($hotels) - 1)<br>@endif
+                    @if($i < count($hotels) - 1)<br><br>@endif
                 @endforeach
             </td>
         </tr>
@@ -192,8 +197,13 @@
 
         <tr>
             <td class="label-cell">NO OF ROOMS</td>
-            <td class="value-cell">
-                @if($totalRooms === 'na')
+            <td class="value-cell-left">
+                @if(count($hotels) > 0)
+                    @foreach($hotels as $i => $hotel)
+                        <strong>{{ $hotel['name'] }}:</strong> {{ $hotel['rooms'] }}
+                        @if($i < count($hotels) - 1)<br>@endif
+                    @endforeach
+                @elseif($totalRooms === 'na')
                     <span class="na-highlight">na</span>
                 @else
                     {{ $totalRooms }}
@@ -202,8 +212,13 @@
         </tr>
         <tr>
             <td class="label-cell">CONFIRMATION NO.</td>
-            <td class="value-cell">
-                @if($confirmationNo === 'na')
+            <td class="value-cell-left">
+                @if(count($hotels) > 0)
+                    @foreach($hotels as $i => $hotel)
+                        <strong>{{ $hotel['name'] }}:</strong> {{ !empty($hotel['confirmation_no']) ? $hotel['confirmation_no'] : 'na' }}
+                        @if($i < count($hotels) - 1)<br>@endif
+                    @endforeach
+                @elseif($confirmationNo === 'na')
                     <span class="na-highlight">na</span>
                 @else
                     {{ $confirmationNo }}
@@ -216,7 +231,16 @@
         </tr>
         <tr>
             <td class="label-cell">MEAL PLAN AND PREFRENCE</td>
-            <td class="value-cell">{{ $mealPlanSummary }}</td>
+            <td class="value-cell-left">
+                @if(count($hotels) > 0)
+                    @foreach($hotels as $i => $hotel)
+                        <strong>{{ $hotel['name'] }}:</strong> {{ !empty($hotel['meal_plan']) ? $hotel['meal_plan'] : '-' }}
+                        @if($i < count($hotels) - 1)<br>@endif
+                    @endforeach
+                @else
+                    {{ $mealPlanSummary }}
+                @endif
+            </td>
         </tr>
 
         @if(count($inclusions) > 0)
@@ -234,9 +258,9 @@
 
         @if($lowestDueDate)
         <tr>
-            <td class="label-cell">PAYMENT DATELINE</td>
-            <td class="value-cell" style="padding: 8px 12px;">
-                <div class="deadline-date">{{ strtoupper($lowestDueDate->format('d-M-Y')) }}</div>
+            <td class="label-cell">PAYMENT CUT-OFF DATE</td>
+            <td class="value-cell-left" style="padding: 8px 12px;">
+                <div class="deadline-date">{{ $lowestDueDate->format('d/m/Y') }}</div>
                 <div class="deadline-note">
                     <strong>Note:</strong> Dateline mentioned above is strictly given by hotels, if you failed to reconfirm booking by the above date, auto-cancellation and re-booking will be done subject to availability at the time of booking, category and rate may change.
                 </div>
@@ -280,7 +304,7 @@
     @endphp
 
     @if(!empty($footerLine1) || !empty($footerLine2))
-    <div style="margin-top: 20px; text-align: center; border-top: 1px solid #000; padding-top: 6px; font-size: 8.5px; color: #000;">
+    <div style="margin-top: 20px; text-align: center; border-top: 1px solid #000; padding-top: 6px; font-size: 11px; color: #000;">
         @if(!empty($footerLine1))
             <div style="font-weight: bold;">{{ $footerLine1 }}</div>
         @endif
