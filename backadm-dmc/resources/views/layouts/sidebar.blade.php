@@ -880,7 +880,7 @@
             <span class="menu-header-text" data-i18n="Bookings">Bookings</span>
         </li>
         
-        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative') || Request::is('predefined-package-booking-list') || Request::is('enquirylist')) open active @endif">
+        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative') || Request::is('predefined-package-booking-list') || Request::is('enquirylist') || Request::is('custom-packages/*')) open active @endif">
             <a href="#" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
                 <div data-i18n="Bookings">Bookings</div>
@@ -893,15 +893,27 @@
                         </a>
                     </li>
                 
-                    <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
-                        <a href="{{ route('bookings.new-enquiries') }}" class="menu-link" >
-                            <div class="d-flex justify-content-between align-items-center">
+                    <li class="menu-item @if(Request::is('bookings/new-enquiries') || Request::is('custom-packages/create')) open active @endif">
+                        <a href="#" class="menu-link menu-toggle">
+                            <div class="d-flex justify-content-between align-items-center w-100">
                                 <span data-i18n="Enquiries">Enquiries</span>
                                 @if(isset($bookingCounts) && $bookingCounts['new_enquiries'] > 0)
                                     <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['new_enquiries'] }}</span>
                                 @endif
                             </div>
                         </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
+                                <a href="{{ route('bookings.new-enquiries') }}" class="menu-link">
+                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
+                                </a>
+                            </li>
+                            <!-- <li class="menu-item @if(Request::is('custom-packages/create')) active @endif">
+                                <a href="{{ route('custom-packages.create') }}" class="menu-link">
+                                    <div data-i18n="Custom Itinerary">Custom Itinerary</div>
+                                </a>
+                            </li> -->
+                        </ul>
                     </li>
                     <!-- Show Booking -->
                     <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
