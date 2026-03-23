@@ -300,9 +300,17 @@ use Illuminate\Support\Facades\Crypt;
                            class="btn btn-primary btn-sm">
                             <i class="ri-file-text-line me-1"></i> Preview & Download (with Services)
                         </a>
+                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'full', 'format' => 'alternate']) }}" 
+                           class="btn btn-outline-warning btn-sm" title="Travel-agent table layout">
+                            <i class="ri-layout-line me-1"></i> Travel agent (full)
+                        </a>
                         <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'price-only']) }}" 
                            class="btn btn-info btn-sm">
                             <i class="ri-file-download-line me-1"></i> Preview & Download (Price Breakup)
+                        </a>
+                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'price-only', 'format' => 'alternate']) }}" 
+                           class="btn btn-outline-warning btn-sm" title="SI / Particulars / Amount layout with currency conversion">
+                            <i class="ri-layout-line me-1"></i> Travel agent layout
                         </a>
                         <!-- @if($invoice->isEditable())
                         <a href="{{ route('invoices.edit', Crypt::encrypt($invoice->invoice_id)) }}" 
@@ -394,9 +402,38 @@ use Illuminate\Support\Facades\Crypt;
                             </div>
                             @endif
                             @if($invoice->dmc)
+                            @php
+                                $dmcUserShow = $invoice->dmc;
+                                $rootDmcShow = $dmcUserShow;
+                                $visitedShow = [];
+                                while ($rootDmcShow && $rootDmcShow->role_id != 11 && $rootDmcShow->created_by && !in_array($rootDmcShow->created_by, $visitedShow)) {
+                                    $visitedShow[] = $rootDmcShow->created_by;
+                                    $rootDmcShow = \App\Models\User::where('userId', $rootDmcShow->created_by)->first();
+                                }
+                                if (!$rootDmcShow) {
+                                    $rootDmcShow = $dmcUserShow;
+                                }
+                                $dmcNameShow = $rootDmcShow->company_name ?? $dmcUserShow->company_name ?? 'N/A';
+                                $regShow = trim((string) ($rootDmcShow->company_reg_no ?? ''));
+                                if ($regShow === '') {
+                                    $regShow = trim((string) ($dmcUserShow->company_reg_no ?? ''));
+                                }
+                                $regShow = $regShow !== '' ? $regShow : null;
+                                $licShow = $rootDmcShow->ta_licence_no ?? $rootDmcShow->licence_no ?? $dmcUserShow->ta_licence_no ?? $dmcUserShow->licence_no ?? null;
+                                $licShow = ($licShow !== null && trim((string) $licShow) !== '') ? trim((string) $licShow) : null;
+                            @endphp
                             <div class="info-row">
                                 <span class="info-label">DMC:</span>
-                                <span class="info-value">{{ $invoice->dmc->company_name ?? 'N/A' }}</span>
+                                <span class="info-value">
+                                    {{ $dmcNameShow }}
+                                    @if($regShow || $licShow)
+                                        <br><small class="text-muted d-block mt-1">
+                                            @if($regShow)<span>UEN/Co. Reg No.: {{ $regShow }}</span>@endif
+                                            @if($regShow && $licShow)<span class="mx-1">·</span>@endif
+                                            @if($licShow)<span>TA Licence No.: {{ $licShow }}</span>@endif
+                                        </small>
+                                    @endif
+                                </span>
                             </div>
                             @endif
                         </div>
