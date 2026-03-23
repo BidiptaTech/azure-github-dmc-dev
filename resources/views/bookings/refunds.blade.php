@@ -1260,7 +1260,7 @@ function showConfirmationModal(title, message, type, confirmCallback) {
                                 <i class="ri-check-line me-2"></i>Process Refund
                             </button>
                             @if(
-                                in_array(auth()->user()->role_id, [36, 126, 127]) && is_verify === 2
+                                in_array(auth()->user()->role_id, [36, 126, 127])
                             )
                             <button type="button" class="btn btn-primary px-4 py-2" id="declineButton">
                                     <i class="ri-check-line me-2"></i>Decline

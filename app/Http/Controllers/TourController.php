@@ -510,7 +510,6 @@ class TourController extends Controller
                     }
                 }
             }
-            
             return response()->json([
                 'success' => true,
                 'tour_id' => $tourId,

@@ -17,6 +17,7 @@
 <script>
     window.bookingCurrency = @json($pageCurrency);
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
+    window.rejectServicePageTourStatus = 'Definite';
 </script>
 
 <style>

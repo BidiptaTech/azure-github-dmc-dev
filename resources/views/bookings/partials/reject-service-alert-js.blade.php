@@ -56,6 +56,15 @@
     margin-top: 0.125rem;
     flex-shrink: 0;
 }
+/* Refunds-style note (Definite/Actual): status & payment stay unchanged */
+.swal2-reject-modal .swal2-html-container .reject-info-note.reject-info-note--refunds {
+    background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #3730a3;
+}
+.swal2-reject-modal .swal2-html-container .reject-info-note.reject-info-note--refunds i {
+    color: #4f46e5;
+}
 .swal2-reject-modal .swal2-actions {
     padding: 1rem 1.5rem 1.5rem;
     gap: 0.75rem;
@@ -122,6 +131,8 @@ function showRejectServiceAlert(serviceType, callback, tourId) {
         'point_to_point': 'Point-to-Point Transport', 'local_transport': 'Local Transport'
     };
     const serviceLabel = labels[serviceType] || serviceType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const pageTourStatus = (window.rejectServicePageTourStatus || '').trim();
+    const isDefiniteOrActualPage = pageTourStatus === 'Definite' || pageTourStatus === 'Actual';
     const hasNegotiation = tourId && (window.tourNegotiationHistory || {})[tourId] === true;
 
     const iconHtml = `<div class="reject-modal-icon"><i class="ri-error-warning-line"></i></div>`;
@@ -131,10 +142,23 @@ function showRejectServiceAlert(serviceType, callback, tourId) {
         <div class="reject-info-note"><i class="ri-information-line"></i><span>Tour status may revert to <strong>New Enquiry</strong> and payment details will be cleared. <strong>Cannot be undone.</strong></span></div>`;
     const msgNoNegotiation = `${iconHtml}${titleHtml}
         <p class="mb-0">Permanently reject this <strong>${serviceLabel}</strong> service? <strong>This cannot be undone.</strong></p>`;
+    /* Same idea as refunds: only this service is rejected; tour & payment stay as-is */
+    const msgRefundsStyle = `${iconHtml}${titleHtml}
+        <p class="mb-0">Reject this <strong>${serviceLabel}</strong> service for refund / credit processing?</p>
+        <div class="reject-info-note reject-info-note--refunds"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is rejected (refunds workflow). <strong>This cannot be undone.</strong></span></div>`;
+
+    let html;
+    if (isDefiniteOrActualPage) {
+        html = msgRefundsStyle;
+    } else if (hasNegotiation) {
+        html = msgWithNegotiation;
+    } else {
+        html = msgNoNegotiation;
+    }
 
     Swal.fire({
         title: '',
-        html: hasNegotiation ? msgWithNegotiation : msgNoNegotiation,
+        html: html,
         icon: null,
         showCancelButton: true,
         confirmButtonColor: '#dc2626',

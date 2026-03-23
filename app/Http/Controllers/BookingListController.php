@@ -7,14 +7,299 @@ use App\Models\BankDetail;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Tour;
+use App\Models\Country;
+use App\Models\City;
+use App\Models\ItinerarySetting;
 use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\CurrencyService;
 
 class BookingListController extends Controller
 {
+    public function itinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $selectedCountry = (string) $request->get('country', '');
+            $selectedCity = (string) $request->get('city', '');
+
+            $currentSetting = null;
+            if ($selectedCountry !== '' && $selectedCity !== '') {
+                $currentSetting = ItinerarySetting::where('dmc_id', $dmcId)
+                    ->where('country', $selectedCountry)
+                    ->where('city', $selectedCity)
+                    ->first();
+            }
+
+            $allSettings = ItinerarySetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.itinerary_settings', [
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => $selectedCountry,
+                'selectedCity' => $selectedCity,
+                'itineraryInformationHtml' => $currentSetting ? (string) ($currentSetting->itinerary_information ?? '') : '',
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Itinerary settings index failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to load itinerary settings. Please try again. '.$e->getMessage());
+        }
+    }
+
+    public function saveItinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'itinerary_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+            $itineraryInformationHtml = $validated['itinerary_information'] ?? null;
+
+            DB::beginTransaction();
+            try {
+                $last = ItinerarySetting::withTrashed()->orderBy('itinerary_setting_id', 'desc')->first();
+                $lastId = (int) ($last->itinerary_setting_id ?? 0);
+                $newId = CommonHelper::createId($lastId);
+
+                $setting = new ItinerarySetting();
+                $setting->itinerary_setting_id = $newId;
+                $setting->dmc_id = $dmcId;
+                $setting->country = $country;
+                $setting->city = $city;
+                $setting->itinerary_information = $itineraryInformationHtml;
+
+                $setting->save();
+
+                DB::commit();
+                return redirect()
+                    ->route('itinerary_settings.pdf')
+                    ->with('success', 'Itinerary settings saved successfully.');
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('Save itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                return redirect()->back()->with('error', 'Failed to save itinerary settings. '.$e->getMessage())->withInput();
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Save itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to save itinerary settings. Please try again. '.$e->getMessage())->withInput();
+        }
+    }
+
+    public function fetchItinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+            ]);
+
+            $setting = ItinerarySetting::where('dmc_id', $dmcId)
+                ->where('country', $validated['country'])
+                ->where('city', $validated['city'])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'found' => (bool) $setting,
+                'data' => [
+                    'itinerary_information' => $setting ? (string) ($setting->itinerary_information ?? '') : '',
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Fetch itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Unable to load itinerary settings. '.$e->getMessage()], 500);
+        }
+    }
+
+    public function editItinerarySettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $allSettings = ItinerarySetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.itinerary_settings_edit', [
+                'setting' => $setting,
+                'encryptedId' => Crypt::encryptString((string) $setting->itinerary_setting_id),
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => (string) ($setting->country ?? ''),
+                'selectedCity' => (string) ($setting->city ?? ''),
+                'itineraryInformationHtml' => (string) ($setting->itinerary_information ?? ''),
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Edit itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('itinerary_settings.pdf')->with('error', 'Unable to load itinerary setting for editing. '.$e->getMessage());
+        }
+    }
+
+    public function updateItinerarySettings(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'itinerary_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+
+            $setting->country = $country;
+            $setting->city = $city;
+            $setting->itinerary_information = $validated['itinerary_information'] ?? null;
+            $setting->save();
+
+            return redirect()
+                ->route('itinerary_settings.pdf')
+                ->with('success', 'Itinerary settings updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Update itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to update itinerary settings. '.$e->getMessage())->withInput();
+        }
+    }
+
+    public function deleteItinerarySettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $setting->delete();
+
+            return redirect()
+                ->route('itinerary_settings.pdf')
+                ->with('success', 'Itinerary setting deleted successfully.');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Delete itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('itinerary_settings.pdf')->with('error', 'Unable to delete itinerary setting. '.$e->getMessage());
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -1124,6 +1409,21 @@ class BookingListController extends Controller
         });
         }])->where('tour_id', $tourId)->first();
 
+        // Preload itinerary settings HTML for this tour (by tour's dmc_id + destination/city).
+        // This ensures the modal textarea and generated PDF keep formatting on first load.
+        $defaultCountry = trim((string) ($tour->destination ?? ''));
+        $defaultCity = trim((string) ($tour->city ?? ''));
+        
+        $defaultItineraryInformationHtml = '';
+        $tourDmcId = (int) ($tour->dmc_id ?? $tour->dmc_id ?? 0);
+        if ($tourDmcId > 0 && $defaultCountry !== '' && $defaultCity !== '') {
+            $setting = ItinerarySetting::where('dmc_id', $tourDmcId)
+                ->where('country', $defaultCountry)
+                ->where('city', $defaultCity)
+                ->first();
+            $defaultItineraryInformationHtml = $setting ? (string) ($setting->itinerary_information ?? '') : '';
+        }
+
         // Initialize itineraryByDate as empty array
         $itineraryByDate = [];
         
@@ -1267,6 +1567,12 @@ class BookingListController extends Controller
             }
         }
         
+        $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+        $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+        $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+            return $group->pluck('name')->values();
+        })->toArray();
+
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
@@ -1274,7 +1580,10 @@ class BookingListController extends Controller
             'priceHide' => $priceHide,
             'user_dmc' => $user_dmc,
             'agent_info' => $agent_info,
-            'allPassengers' => $allPassengers
+            'allPassengers' => $allPassengers,
+            'countries' => $countries,
+            'citiesByCountry' => $citiesByCountry,
+            'defaultItineraryInformationHtml' => $defaultItineraryInformationHtml,
         ]);
     }
 
@@ -1298,6 +1607,7 @@ class BookingListController extends Controller
         $data['emergency_contact'] = $request->input('emergency_contact', '');
         $data['sic_timing'] = $request->input('sic_timing', '');
         $data['meeting_points'] = $request->input('meeting_points', '');
+        $data['itinerary_information'] = $request->input('itinerary_information', '');
 
         $pdf = Pdf::loadView('bookingList.itinerary-pdf', $data)
             ->setPaper('a4', 'portrait');
@@ -1834,11 +2144,13 @@ class BookingListController extends Controller
             if ($checkIn && $checkOut) {
                 $nights = \Carbon\Carbon::parse($checkIn)->diffInDays(\Carbon\Carbon::parse($checkOut));
             }
+            $remarks = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? '';
             $hotels[] = [
                 'name' => $name,
                 'check_in' => $checkIn,
                 'check_out' => $checkOut,
                 'nights' => $nights,
+                'remarks' => $remarks,
             ];
         }
         usort($hotels, function ($a, $b) {
@@ -1953,7 +2265,19 @@ class BookingListController extends Controller
             $dropoff = $data['entrydropoff'] ?? $data['entry_dropoff'] ?? $data['dropoff'] ?? '';
             $description = 'Arrive at ' . $wrap($pickup) . ' and Proceed to ' . $wrap($dropoff);
             $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
-            if ($data['originFlightNumber'] ?? $data['arrivalFlightNumber'] ?? null) {
+            // Arrival transport type and flight number (e.g. arrival_transport_type: "flight", arrival_flight_no: "re45165")
+            $arrivalTransportType = $data['arrival_transport_type'] ?? null;
+            $arrivalFlightNo = $data['arrival_flight_no'] ?? $data['arrivalFlightNumber'] ?? $data['originFlightNumber'] ?? null;
+            $arrivalInfo = [];
+            if ($arrivalTransportType) {
+                $arrivalInfo[] = 'Arrival by ' . e(ucfirst(strtolower($arrivalTransportType)));
+            }
+            if ($arrivalFlightNo) {
+                $arrivalInfo[] = 'Flight No: ' . e($arrivalFlightNo);
+            }
+            if (!empty($arrivalInfo)) {
+                $note = implode(' - ', $arrivalInfo) . ($note ? '. ' . $note : '');
+            } elseif ($data['originFlightNumber'] ?? $data['arrivalFlightNumber'] ?? null) {
                 $note = ($data['originFlightNumber'] ?? '') . ' ' . ($data['arrivalFlightNumber'] ?? '') . ' ' . ($note ?? '');
             }
         } elseif ($type === 'exit port' || $type === 'exit_port') {
@@ -1961,6 +2285,19 @@ class BookingListController extends Controller
             $dropoff = $data['exitdropoff'] ?? $data['exit_dropoff'] ?? $data['dropoff'] ?? '';
             $description = 'Transfer from ' . $wrap($pickup) . ' to ' . $wrap($dropoff);
             $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+            // Departure transport type and flight number (e.g. departure_transport_type: "flight", departure_flight_no: "ef45433")
+            $departureTransportType = $data['departure_transport_type'] ?? null;
+            $departureFlightNo = $data['departure_flight_no'] ?? $data['departureFlightNumber'] ?? $data['destinationFlightNumber'] ?? null;
+            $departureInfo = [];
+            if ($departureTransportType) {
+                $departureInfo[] = 'Departure by ' . e(ucfirst(strtolower($departureTransportType)));
+            }
+            if ($departureFlightNo) {
+                $departureInfo[] = 'Flight No: ' . e($departureFlightNo);
+            }
+            if (!empty($departureInfo)) {
+                $note = implode(' - ', $departureInfo) . ($note ? '. ' . $note : '');
+            }
         } elseif ($type === 'hotel') {
             $name = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? 'Hotel';
             $stayType = $data['stay_type'] ?? '';
@@ -1971,6 +2308,7 @@ class BookingListController extends Controller
             if ($stayType === 'stay') {
                 $description = 'Stay at ' . $name;
             }
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         } elseif (strpos($type, 'travel') !== false || $type === 'travel_point' || $type === 'travel_hourly' || $type === 'point to point' || $type === 'hourly' || $type === 'local_transport') {
             $pickup = $data['entrypickup'] ?? $data['pickup'] ?? '';
             $dropoff = $data['entrydropoff'] ?? $data['dropoff'] ?? $data['dropoffLocation'] ?? '';
@@ -1986,10 +2324,11 @@ class BookingListController extends Controller
                 if (!empty($data['visitTime'])) {
                     $activity .= ' (' . $data['visitTime'] . ')';
                 }
-                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => null, 'activity' => $activity];
+                $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note, 'activity' => $activity];
             }
             $description = 'Visit ' . $name;
-            $note = $data['specialRequests'] ?? null;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         } elseif ($type === 'restaurant') {
             $name = $data['restaurantName'] ?? $data['name'] ?? 'Restaurant';
             $hasTransfer = isset($data['transfer_options']['transfer_required']) && $data['transfer_options']['transfer_required'];
@@ -1999,17 +2338,18 @@ class BookingListController extends Controller
                 $mealType = $data['mealType'] ?? $data['mealSpecificType'] ?? '';
                 $pax = ($data['adultCount'] ?? $data['adult_count'] ?? 0) + ($data['childCount'] ?? $data['child_count'] ?? 0);
                 $activity = ($mealType ? $mealType . ' for ' : 'Meal for ') . $pax . ' members';
-                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => null, 'activity' => $activity];
+                $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note, 'activity' => $activity];
             }
             $description = ($data['mealType'] ?? 'Meal') . ' at ' . $name;
-            $note = $data['specialRequests'] ?? null;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         } elseif ($type === 'guide') {
             $name = $data['guide_name'] ?? $data['guideName'] ?? $data['name'] ?? 'Guide';
             $description = 'Guide service - ' . $name;
-            $note = $data['remark'] ?? $data['specialRequests'] ?? null;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         } else {
             $description = $data['name'] ?? ucfirst($type);
-            $note = $data['remark'] ?? $data['specialRequests'] ?? null;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
         }
 
         return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note];
@@ -2445,6 +2785,435 @@ class BookingListController extends Controller
             'driverName' => $driverName,
             'driverPhone' => $driverPhone
         ];
+    }
+
+    /**
+     * Finance report: one month hotel bookings (daily arrival style).
+     * Columns: ARR DATE, DEP DATE, GUEST NAME, HOTEL, AGENT NAME, QUERY NO, ADULTS, RATES SGD/PP
+     */
+    public function financeDailyArrival(Request $request)
+    {
+        $user = auth()->user();
+        
+        $roleId = $user?->role_id;
+        
+        if (!$user || !in_array((int)$roleId, [11, 36, 126, 127], true)) {
+            abort(403);
+        }
+        
+        // Accept either `month=YYYY-MM` OR `start_date` + `end_date`.
+        $monthParam = $request->get('month');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+
+        if (empty($startDate) || empty($endDate)) {
+            try {
+                if (!empty($monthParam) && preg_match('/^\d{4}-\d{2}$/', (string) $monthParam)) {
+                    $startDate = \Carbon\Carbon::parse($monthParam . '-01')->toDateString();
+                } else {
+                    $startDate = now()->startOfMonth()->toDateString();
+                }
+                $endDate = \Carbon\Carbon::parse($startDate)->endOfMonth()->toDateString();
+            } catch (\Exception $e) {
+                return redirect()->back()->with('error', 'Invalid month/date range.');
+            }
+        } else {
+            try {
+                $startDate = \Carbon\Carbon::parse($startDate)->toDateString();
+                $endDate = \Carbon\Carbon::parse($endDate)->toDateString();
+            } catch (\Exception $e) {
+                return redirect()->back()->with('error', 'Invalid date range.');
+            }
+        }
+
+        $monthValue = '';
+        try {
+            $monthValue = \Carbon\Carbon::parse($startDate)->format('Y-m');
+        } catch (\Exception $e) {
+            $monthValue = now()->format('Y-m');
+        }
+
+        // Exchange rate used for the "ROE" column (SGD -> INR). Fallback to 1 if API/config is unavailable.
+        $roe = 1.0;
+        try {
+            $roeValue = app(CurrencyService::class)->getExchangeRate('SGD', 'INR');
+            $roe = (float) ($roeValue ?? 1.0);
+        } catch (\Exception $e) {
+            $roe = 1.0;
+        }
+        $roe = round($roe, 2);
+
+        // Pull tours arriving within the month.
+        $tours = Tour::query()
+            ->select([
+                'tour_id',
+                'display_id',
+                'adult',
+                'infant',
+                'mainguest',
+                'agent_id',
+                'check_in_time',
+                'payment_details',
+                'created_by',
+            ])
+            ->whereDate('check_in_time', '>=', $startDate)
+            ->whereDate('check_in_time', '<=', $endDate)
+            ->orderBy('check_in_time')
+            ->get();
+
+        $agentIds = $tours->pluck('agent_id')->filter()->unique()->values()->all();
+        $agentsById = Agent::whereIn('agent_id', $agentIds)
+            ->get(['agent_id', 'name'])
+            ->keyBy('agent_id');
+
+        $rowsAcc = [];
+
+        // Cache user->dmc/company/user code lookups to avoid repeated DB hits.
+        $userByIdCache = [];
+        $dmcIdByUserIdCache = [];
+        $dmcUserByIdCache = [];
+
+        foreach ($tours as $tour) {
+            // Payment details (JSON) for PART PAYMENT columns.
+            // Each tour can have multiple payments; we show up to first 10.
+            $partPaymentAmounts = [];
+            $partPaymentDates = [];
+            for ($i = 1; $i <= 10; $i++) {
+                $partPaymentAmounts[$i] = null;
+                $partPaymentDates[$i] = null;
+            }
+
+            $decodedPayments = [];
+            try {
+                $paymentDetailsRaw = $tour->payment_details ?? null;
+                if (is_string($paymentDetailsRaw)) {
+                    $decodedPayments = json_decode($paymentDetailsRaw, true) ?? [];
+                } elseif (is_array($paymentDetailsRaw)) {
+                    $decodedPayments = $paymentDetailsRaw;
+                }
+            } catch (\Exception $e) {
+                $decodedPayments = [];
+            }
+
+            if (is_array($decodedPayments)) {
+                $pIdx = 1;
+                foreach ($decodedPayments as $payment) {
+                    if ($pIdx > 10) break;
+                    if (!is_array($payment)) continue;
+
+                    // Optional filter: show only active payments.
+                    $status = $payment['status'] ?? 1;
+                    if (!empty($status) && (int) $status !== 1) {
+                        continue;
+                    }
+
+                    $amountRaw = $payment['amount'] ?? $payment['original_amount'] ?? null;
+                    $partPaymentAmounts[$pIdx] = is_numeric($amountRaw) ? (float) $amountRaw : null;
+
+                    $dateRaw = $payment['payment_date'] ?? $payment['date'] ?? null;
+                    if (!empty($dateRaw)) {
+                        try {
+                            // Keep consistent with other table date formatting.
+                            $partPaymentDates[$pIdx] = \Carbon\Carbon::parse($dateRaw)->format('d-m-Y');
+                        } catch (\Exception $e) {
+                            $partPaymentDates[$pIdx] = (string) $dateRaw;
+                        }
+                    }
+
+                    $pIdx++;
+                }
+            }
+
+            // Guest name
+            $guestName = '—';
+            try {
+                $mainguest = $tour->mainguest;
+                if (is_string($mainguest)) {
+                    $mainguest = json_decode($mainguest, true);
+                }
+                if (is_array($mainguest)) {
+                    $guestName = $mainguest['full_name'] ?? $mainguest['name'] ?? '—';
+                }
+            } catch (\Exception $e) {
+                // ignore
+            }
+
+            $adults = (int) ($tour->adult ?? 0);
+
+            // Query number format:
+            //   company_code/user_code/ORD3421
+            // where original display_id is like: DMC-ORD3421 and created_by holds the userId.
+            $rawDisplayId = (string) ($tour->display_id ?? $tour->tour_id ?? '');
+            $ordPart = preg_replace('/^DMC-/', '', $rawDisplayId);
+
+            $queryNo = $ordPart; // fallback if any piece is missing
+
+            $createdByUserId = $tour->created_by ?? null;
+            if (!empty($createdByUserId) && is_scalar($createdByUserId)) {
+                $createdByUserId = (int) $createdByUserId;
+
+                if (!isset($userByIdCache[$createdByUserId])) {
+                    $userByIdCache[$createdByUserId] = User::where('userId', $createdByUserId)->first();
+                }
+                $createdByUser = $userByIdCache[$createdByUserId];
+
+                $userCode = $createdByUser?->user_code ?? null;
+
+                if (!array_key_exists($createdByUserId, $dmcIdByUserIdCache)) {
+                    $dmcIdByUserIdCache[$createdByUserId] = CommonHelper::getDmcId($createdByUser);
+                }
+                $dmcId = $dmcIdByUserIdCache[$createdByUserId];
+
+                $companyCode = null;
+                if (!empty($dmcId)) {
+                    if (!isset($dmcUserByIdCache[$dmcId])) {
+                        $dmcUserByIdCache[$dmcId] = User::where('userId', $dmcId)->first();
+                    }
+                    $dmcUser = $dmcUserByIdCache[$dmcId];
+                    $companyCode = $dmcUser?->company_code ?? null;
+                }
+
+                if (!empty($ordPart)) {
+                    $prefixParts = [];
+                    if (!empty($companyCode)) {
+                        $prefixParts[] = $companyCode;
+                    }
+                    if (!empty($userCode)) {
+                        $prefixParts[] = $userCode;
+                    }
+
+                    // Cases:
+                    // - only company_code -> company_code/ORD
+                    // - only user_code -> user_code/ORD
+                    // - both -> company_code/user_code/ORD
+                    if (!empty($prefixParts)) {
+                        $queryNo = implode('/', $prefixParts) . '/' . $ordPart;
+                    }
+                }
+            }
+
+            $tourAgentId = $tour->agent_id;
+            $tourAgentName = $agentsById[$tourAgentId]->name ?? '—';
+
+            $hotelOrders = Order::query()
+                ->where('tour_id', $tour->tour_id)
+                ->where('bookingType', 'booking')
+                ->where('type', 'hotel')
+                ->where('status', 1)
+                ->get(['data', 'agent_id']);
+
+            foreach ($hotelOrders as $order) {
+                $orderAgentId = $order->agent_id ?? $tourAgentId;
+                $agentName = $agentsById[$orderAgentId]->name ?? $tourAgentName;
+
+                $decoded = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                if (!is_array($decoded)) {
+                    continue;
+                }
+
+                // Normalize to "array of items"
+                $items = (isset($decoded[0]) && is_array($decoded[0])) ? $decoded : [$decoded];
+
+                foreach ($items as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+
+                    $bookingDates = $item['bookingDate'] ?? null;
+                    $checkInRaw = null;
+                    $checkOutRaw = null;
+
+                    if (is_array($bookingDates)) {
+                        $checkInRaw = $bookingDates[0] ?? null;
+                        $checkOutRaw = $bookingDates[1] ?? end($bookingDates) ?: null;
+                    } elseif (!empty($bookingDates)) {
+                        $checkInRaw = $bookingDates;
+                        $checkOutRaw = $bookingDates;
+                    }
+
+                    // Fallback keys used elsewhere in the app
+                    $checkInRaw = $checkInRaw ?? ($item['checkIn'] ?? $item['check_in_date'] ?? null);
+                    $checkOutRaw = $checkOutRaw ?? ($item['checkOut'] ?? $item['check_out_date'] ?? null);
+
+                    if (empty($checkInRaw)) {
+                        continue;
+                    }
+
+                    try {
+                        $arrDate = \Carbon\Carbon::parse($checkInRaw)->toDateString();
+                        if ($arrDate < $startDate || $arrDate > $endDate) {
+                            continue;
+                        }
+
+                        $depDate = !empty($checkOutRaw) ? \Carbon\Carbon::parse($checkOutRaw)->toDateString() : $arrDate;
+                    } catch (\Exception $e) {
+                        continue;
+                    }
+
+                    $hotelName = $item['hotelDetails']['hotel_name']
+                        ?? ($item['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? '—');
+
+                    $totalPrice = 0.0;
+                    if (isset($item['totalPrice'])) {
+                        $totalPrice = (float) $item['totalPrice'];
+                    } elseif (isset($item['display_price'])) {
+                        $totalPrice = (float) $item['display_price'];
+                    } elseif (isset($item['total_price'])) {
+                        $totalPrice = (float) $item['total_price'];
+                    }
+
+                    // Adults per row: default to tour adults, fallback to item adults if present.
+                    $itemAdults = $adults;
+                    if (isset($item['adultCount'])) {
+                        $itemAdults = (int) $item['adultCount'];
+                    } elseif (isset($item['adults'])) {
+                        $itemAdults = (int) $item['adults'];
+                    }
+
+                    // Hotel child pricing breakdown (used for extra columns).
+                    $cbwChildren = (int) ($item['child_with_bed']['children'] ?? 0);
+                    $cbwRate = (float) ($item['child_with_bed']['price'] ?? 0);
+                    $cbwTotal = (float) ($item['child_with_bed']['total_cost'] ?? ($cbwChildren * $cbwRate));
+
+                    $cnbChildren = (int) ($item['child_without_bed']['children'] ?? 0);
+                    $cnbRate = (float) ($item['child_without_bed']['price'] ?? 0);
+                    $cnbTotal = (float) ($item['child_without_bed']['total_cost'] ?? ($cnbChildren * $cnbRate));
+
+                    // "OTHER" in the screenshot: treat it as baby cot/infant.
+                    // The hotel service JSON usually stores baby cot qty under `baby_cot` and price under `babyCotPrice` or bed-level `baby_cot_price`.
+                    $otherQty = (int) (
+                        $item['baby_cot'] ??
+                        $item['babyCotQty'] ??
+                        $item['infantQty'] ??
+                        $tour->infant ??
+                        0
+                    );
+
+                    $otherRate = (float) (
+                        $item['babyCotPrice'] ??
+                        $item['baby_cot_price'] ??
+                        ($item['rooms'][0]['beds'][0]['baby_cot_price'] ?? 0) ??
+                        0
+                    );
+                    $otherTotal = (float) ($otherQty * $otherRate);
+
+                    // Heuristic adult portion (everything except explicit CWB/CNWB totals).
+                    $adultTotal = max(0.0, (float) $totalPrice - $cbwTotal - $cnbTotal - $otherTotal);
+
+                    // Group duplicates across room combinations by the same tour+hotel+dates.
+                    $key = implode('|', [
+                        (string) $tour->tour_id,
+                        (string) $hotelName,
+                        (string) $arrDate,
+                        (string) $depDate,
+                        (string) $queryNo,
+                        (string) $agentName,
+                    ]);
+                    if (!isset($rowsAcc[$key])) {
+                        $rowsAcc[$key] = [
+                            'arr_date_sort' => $arrDate,
+                            'arr_date' => \Carbon\Carbon::parse($arrDate)->format('d-m-Y'),
+                            'dep_date' => \Carbon\Carbon::parse($depDate)->format('d-m-Y'),
+                            'guest_name' => $guestName,
+                            'hotel' => $hotelName,
+                            'agent_name' => $agentName,
+                            'query_no' => $queryNo,
+                            'adult_qty' => (int) $itemAdults,
+                            'cbw_qty' => (int) $cbwChildren,
+                            'cnb_qty' => (int) $cnbChildren,
+                            'other_qty' => (int) $otherQty,
+                            'adult_total' => 0.0,
+                            'cbw_total' => 0.0,
+                            'cnb_total' => 0.0,
+                            'other_total' => 0.0,
+                        ];
+
+                        // Attach per-tour payment data to this grouped row.
+                        for ($i = 1; $i <= 10; $i++) {
+                            $rowsAcc[$key]['part_payment_' . $i] = $partPaymentAmounts[$i] ?? null;
+                            $rowsAcc[$key]['part_payment_date_' . $i] = $partPaymentDates[$i] ?? null;
+                        }
+                    }
+
+                    // Qty should not multiply when multiple room combos exist; keep the max.
+                    $rowsAcc[$key]['adult_qty'] = max((int) $rowsAcc[$key]['adult_qty'], (int) $itemAdults);
+                    $rowsAcc[$key]['cbw_qty'] = max((int) $rowsAcc[$key]['cbw_qty'], (int) $cbwChildren);
+                    $rowsAcc[$key]['cnb_qty'] = max((int) $rowsAcc[$key]['cnb_qty'], (int) $cnbChildren);
+                    $rowsAcc[$key]['other_qty'] = max((int) $rowsAcc[$key]['other_qty'], (int) $otherQty);
+
+                    $rowsAcc[$key]['adult_total'] += (float) $adultTotal;
+                    $rowsAcc[$key]['cbw_total'] += (float) $cbwTotal;
+                    $rowsAcc[$key]['cnb_total'] += (float) $cnbTotal;
+                    $rowsAcc[$key]['other_total'] += (float) $otherTotal;
+                   
+                }
+            }
+        }
+
+        $rows = [];
+        foreach ($rowsAcc as $row) {
+            $adultQtyRow = (int) ($row['adult_qty'] ?? 0);
+            $cbwQtyRow = (int) ($row['cbw_qty'] ?? 0);
+            $cnbQtyRow = (int) ($row['cnb_qty'] ?? 0);
+            $otherQtyRow = (int) ($row['other_qty'] ?? 0);
+
+            $adultTotal = (float) ($row['adult_total'] ?? 0);
+            $cbwTotal = (float) ($row['cbw_total'] ?? 0);
+            $cnbTotal = (float) ($row['cnb_total'] ?? 0);
+            $otherTotal = (float) ($row['other_total'] ?? 0);
+
+            $amountSgd = $adultTotal + $cbwTotal + $cnbTotal + $otherTotal;
+            $totalPax = $adultQtyRow + $cbwQtyRow + $cnbQtyRow + $otherQtyRow;
+
+            $adultRate = $adultQtyRow > 0 ? ($adultTotal / $adultQtyRow) : 0.0;
+            $cbwRate = $cbwQtyRow > 0 ? ($cbwTotal / $cbwQtyRow) : 0.0;
+            $cnbRate = $cnbQtyRow > 0 ? ($cnbTotal / $cnbQtyRow) : 0.0;
+            $otherRate = $otherQtyRow > 0 ? ($otherTotal / $otherQtyRow) : 0.0;
+            $rateTotal = $totalPax > 0 ? ($amountSgd / $totalPax) : 0.0;
+
+            $out = [
+                'arr_date_sort' => $row['arr_date_sort'] ?? null,
+                'arr_date' => $row['arr_date'] ?? '—',
+                'dep_date' => $row['dep_date'] ?? '—',
+                'guest_name' => $row['guest_name'] ?? '—',
+                'hotel' => $row['hotel'] ?? '—',
+                'agent_name' => $row['agent_name'] ?? '—',
+                'query_no' => $row['query_no'] ?? '—',
+                'adults' => $adultQtyRow,
+                'adult_rate_sgd_pp' => $adultRate,
+                'rate_sgd_pp' => $adultRate,
+                'cbw_qty' => $cbwQtyRow,
+                'cbw_rate_sgd_pp' => $cbwRate,
+                'cnb_qty' => $cnbQtyRow,
+                'cnb_rate_sgd_pp' => $cnbRate,
+                'other_qty' => $otherQtyRow,
+                'other_rate_sgd_pp' => $otherRate,
+                'rate_total_sgd_pp' => $rateTotal,
+                'amount_sgd' => $amountSgd,
+                'roe' => $roe,
+            ];
+
+            for ($i = 1; $i <= 10; $i++) {
+                $out['part_payment_' . $i] = $row['part_payment_' . $i] ?? null;
+                $out['part_payment_date_' . $i] = $row['part_payment_date_' . $i] ?? null;
+            }
+
+            $rows[] = $out;
+        }
+
+        // Sort by ARR DATE (YYYY-mm-dd).
+        usort($rows, function ($a, $b) {
+            $da = (string) ($a['arr_date_sort'] ?? '1900-01-01');
+            $db = (string) ($b['arr_date_sort'] ?? '1900-01-01');
+            return strcmp($da, $db);
+        });
+
+        return view('bookingList.daily-arrival', [
+            'rows' => $rows,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'monthValue' => $monthValue,
+        ]);
     }
 
     /**
