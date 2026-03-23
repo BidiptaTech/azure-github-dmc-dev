@@ -1062,21 +1062,7 @@
                                     ];
                                 @endphp
                                 <div class="services-icons-wrap">
-                                    @if($additionalServiceCount > 0)
-                                        @php $additionalTooltipText = 'Additional Services: ' . $additionalServiceCount; @endphp
-                                        <span class="service-icon-wrapper" data-tooltip="{{ e($additionalTooltipText) }}">
-                                            <span class="service-icon-badge"
-                                                  style="--service-color: #0d6efd; position: relative;"
-                                                  data-clickable="false"
-                                                  role="img"
-                                                  aria-label="{{ $additionalTooltipText }}">
-                                                <i class="ri-add-circle-line"></i>
-                                                <span style="position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #0d6efd; color: #fff; font-size: 0.6rem; font-weight: 700; line-height: 16px; text-align: center;">
-                                                    {{ $additionalServiceCount }}
-                                                </span>
-                                            </span>
-                                        </span>
-                                    @endif
+                                    
                                     @foreach($svc as $key => $count)
                                         @if(intval($count) > 0)
                                             @php $bgColor = $serviceColors[$key] ?? '#6c757d'; @endphp
@@ -1305,6 +1291,21 @@
                                     @endforeach
                                     @if(array_sum(array_map('intval', $svc)) === 0)
                                         <span class="text-muted" style="font-size:0.78rem;">No services</span>
+                                    @endif
+                                    @if($additionalServiceCount > 0)
+                                        @php $additionalTooltipText = 'Additional Services: ' . $additionalServiceCount; @endphp
+                                        <span class="service-icon-wrapper" data-tooltip="{{ e($additionalTooltipText) }}">
+                                            <span class="service-icon-badge"
+                                                  style="--service-color: #0d6efd; position: relative;"
+                                                  data-clickable="false"
+                                                  role="img"
+                                                  aria-label="{{ $additionalTooltipText }}">
+                                                <i class="ri-add-circle-line"></i>
+                                                <span style="position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #0d6efd; color: #fff; font-size: 0.6rem; font-weight: 700; line-height: 16px; text-align: center;">
+                                                    {{ $additionalServiceCount }}
+                                                </span>
+                                            </span>
+                                        </span>
                                     @endif
                                 </div>
                             </td>
