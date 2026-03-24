@@ -781,7 +781,129 @@
     .menu-item[style*="position: relative"] {
         position: relative !important;
     }
-</style>
+
+    /* Submenu items modal (floating panel on the right) */
+    #submenuModal .modal-dialog {
+        position: fixed;
+        margin: 0px;
+        max-width: 280px;
+        width: 280px;
+        transform: none;
+    }
+
+    #submenuModal .modal-content {
+        border-radius: 5px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+        border: solid 1px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    #submenuModal .submenu-modal-body {
+        padding: 10px 0;
+        background: linear-gradient(135deg,rgba(240, 219, 255, 0.9));
+        font-weight: 500;
+    }
+
+    #submenuModal .submenu-modal-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item {
+        margin: 6px 8px;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link {
+        padding: 0.65rem 1.05rem;
+        border-radius: 12px;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.open > .menu-link {
+        color: inherit !important;
+    }
+
+    /* Modal colors to match sidebar (indigo/purple gradient) */
+     #submenuModal .modal-header {
+        background: linear-gradient(135deg,rgba(207, 219, 252, 0.96)); 
+        color:rgb(194, 191, 191);
+    } 
+
+    #submenuModal .modal-header .btn-close {
+        filter: invert(1) grayscale(1) brightness(2);
+        opacity: 0.95;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link {
+        color: #0f172a;
+    }
+
+    /* Keep toggle icon at the far-right in modal and avoid text overlap. */
+    #submenuModal .submenu-modal-list .menu-link {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.55rem;
+        width: 100%;
+    }
+
+    #submenuModal .submenu-modal-list .submenu-modal-item-icon {
+        color: #64748b;
+        font-size: 1.05rem;
+        flex: 0 0 auto;
+    }
+
+    /* For submenu toggles, force the existing theme arrow (`::after`) to the far right. */
+    #submenuModal .submenu-modal-list .menu-link.menu-toggle {
+        padding-right: 0.75rem;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link.menu-toggle::after {
+        position: static !important;
+        margin-left: auto !important;
+        transform: rotate(0deg) !important;
+        color: #64748b !important;
+        flex: 0 0 auto;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.open > .menu-link.menu-toggle::after {
+        transform: rotate(0deg) !important;
+    }
+
+    #submenuModal .submenu-modal-list .submenu-modal-back-link {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item:hover .menu-link {
+        background-color: rgba(132, 134, 255, 0.97);
+        transform: translateX(4px);
+        color: #fff;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.active {
+        background:  rgba(94, 96, 247, 0.84);
+        box-shadow: 0 2px 10px rgba(114, 117, 255, 0.92);
+    }
+    #submenuModal .submenu-modal-list .submenu-modal-item-icon {
+        font-size: 1.05rem;
+        flex: 0 0 auto;
+    }
+    #submenuModal .submenu-modal-list .menu-item.active > .menu-link .submenu-modal-item-icon {
+        color: #fff;
+    }
+    #submenuModal .submenu-modal-list .menu-item:hover > .menu-link .submenu-modal-item-icon {
+        color: #fff;
+    }
+
+    /* Always hide inline nested submenus (2nd-level) in the sidebar.
+       Nested options will be shown via `#submenuModal` only. */
+    #layout-menu ul.menu-sub ul.menu-sub {
+        display: none !important;
+    }
+    </style>
         <body>
             <div class="layout-wrapper layout-content-navbar  ">
     <div class="layout-container">
@@ -917,7 +1039,7 @@
                     </li>
                     <!-- Show Booking -->
                     <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
-                        <a href="{{ route('bookings.follow-ups') }}" class="menu-link" title="Follow Ups">
+                        <a href="#" class="menu-link menu-toggle">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Follow Ups">Follow Ups</span>
                                 @if(isset($bookingCounts) && $bookingCounts['follow_ups'] > 0)
@@ -925,11 +1047,18 @@
                                 @endif
                             </div>
                         </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
+                                <a href="{{ route('bookings.follow-ups') }}" class="menu-link">
+                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 @endif
                 @if(in_array(auth()->user()->role_id, [1,2,11,12,26,33,34,36,37,38,49,50,51,52,53,64,65,66,67,68,69,70,71,72,73,80,81,87,89,90,96,98,99,105,107,108,114,116,117,123,124,125,126,127,128,129,131,132,133,134,135,136,137,138]))
                     <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
-                        <a href="{{ route('bookings.confirmed') }}" class="menu-link" title="Confirmed Bookings">
+                        <a href="#" class="menu-link menu-toggle">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Confirmed">Confirmed</span>
                                 @if(isset($bookingCounts) && $bookingCounts['confirmed'] > 0) 
@@ -937,10 +1066,17 @@
                                 @endif
                             </div>
                         </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
+                                <a href="{{ route('bookings.confirmed') }}" class="menu-link">
+                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 
                     <li class="menu-item @if(Request::is('bookings/definite')) active @endif">
-                        <a href="{{ route('bookings.definite') }}" class="menu-link" title="Definite Bookings">
+                        <a href="#" class="menu-link menu-toggle">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Definite">Definite</span>
                                 @if(isset($bookingCounts) && $bookingCounts['definite'] > 0)
@@ -948,10 +1084,17 @@
                                 @endif
                             </div>
                         </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item @if(Request::is('bookings/definite')) active @endif">
+                                <a href="{{ route('bookings.definite') }}" class="menu-link">
+                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     
                     <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
-                        <a href="{{ route('bookings.actual') }}" class="menu-link" title="Actual Bookings">
+                        <a href="#" class="menu-link menu-toggle">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Actual">Actual</span>
                                 @if(isset($bookingCounts) && $bookingCounts['actual'] > 0)
@@ -959,6 +1102,13 @@
                                 @endif
                             </div>
                         </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
+                                <a href="{{ route('bookings.actual') }}" class="menu-link">
+                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     {{-- <li class="menu-item @if(Request::is('bookings/cancelled') || Request::is('bookings/refunds')) open active @endif">
                         <a href="#" class="menu-link menu-toggle">
@@ -972,7 +1122,7 @@
                         </a>
                         <ul class="menu-sub"> --}}
                             <li class="menu-item @if(Request::is('bookings/cancelled')) active @endif">
-                                <a href="{{ route('bookings.cancelled') }}" class="menu-link" title="Cancelled Bookings">
+                                <a href="#" class="menu-link menu-toggle">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Cancelled">Cancelled</span>
                                         @if(isset($bookingCounts) && $bookingCounts['cancelled'] > 0)
@@ -980,9 +1130,16 @@
                                         @endif
                                     </div>
                                 </a>
+                                <ul class="menu-sub">
+                                    <li class="menu-item @if(Request::is('bookings/cancelled')) active @endif">
+                                        <a href="{{ route('bookings.cancelled') }}" class="menu-link">
+                                            <div data-i18n="Custom Itenerary">Custom Itenerary</div>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                             <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
-                                <a href="{{ route('bookings.refunds') }}" class="menu-link" title="Refunds">
+                                <a href="#" class="menu-link menu-toggle">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Refunds">Refunds</span>
                                         @if(isset($bookingCounts) && $bookingCounts['refunds'] > 0)
@@ -990,6 +1147,13 @@
                                         @endif
                                     </div>
                                 </a>
+                                <ul class="menu-sub">
+                                    <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
+                                        <a href="{{ route('bookings.refunds') }}" class="menu-link">
+                                            <div data-i18n="Custom Itenerary">Custom Itenerary</div>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         {{-- </ul>
                     </li> --}}
@@ -1591,63 +1755,53 @@
                                     </a>
                                 </li>
                             @endif
-                            <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet')) open @endif">
+                            <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
                                 <a href="javascript:void(0);" class="menu-link menu-toggle">
-                                {{-- <i class="menu-icon tf-icons ri-file-list-3-line"></i> --}}
-        
-                                <div data-i18n="Jobsheets">Jobsheets</div>
+                                    <div data-i18n="Jobs">Jobs</div>
                                 </a>
                                 <ul class="menu-sub">
-                            {{-- <li class="menu-item @if(Request::is('jobsheet/view')) active @endif">
-                                <a href="{{ route('jobsheet.view') }}" class="menu-link">
-                                    <div data-i18n="View Jobsheets">View Jobsheets</div>
-                                </a>
-                            </li> --}}
-                            <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet')) active @endif">
-                                <a href="{{ route('jobsheet.create.guide') }}" class="menu-link">
-                                    <div data-i18n="Assign Guide">Assign Guide</div>
-                                </a>
-                            </li>
-                            <li class="menu-item @if(Request::is('jobsheet/create-driver-jobsheet')) active @endif">
-                                <a href="{{ route('jobsheet.create.driver') }}" class="menu-link">
-                                    <div data-i18n="Assign Driver">Assign Driver</div>
-                                </a>
-                            </li>
-                            
-                            </ul>
-                            </li>
-                            @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
-                    {{-- <li class="menu-header mt-5">
-                        <span class="menu-header-text" data-i18n="Assigned Job">Assigned Job</span>
-                    </li> --}}
+                                    <li class="menu-item @if(Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
+                                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                            <div data-i18n="Assign Jobs">Assign Jobs</div>
+                                        </a>
+                                        <ul class="menu-sub">
+                                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97,8,15,106, 10, 11, 26, 51,107, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
+                                            <li class="menu-item @if(Request::is('jobsheet/drivers')) active @endif">
+                                                <a href="{{ route('jobsheet.drivers') }}" class="menu-link">
+                                                    <div data-i18n="Drivers">Drivers</div>
+                                                </a>
+                                            </li>
+                                            @endif
 
-                    <li class="menu-item @if(Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
-                        <a href="javascript:void(0);" class="menu-link menu-toggle">
-                            {{-- <i class="menu-icon tf-icons ri-task-line"></i> --}}
-                            <div data-i18n="Assigned Jobs">Assigned Jobs</div>
-                        </a>
-                        <ul class="menu-sub">
-                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97,8,15,106, 10, 11, 26, 51,107, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
-                            <!-- Driver Jobs -->
-                            <li class="menu-item @if(Request::is('jobsheet/drivers')) active @endif">
-                                <a href="{{ route('jobsheet.drivers') }}" class="menu-link">
-                                    <div data-i18n="Driver Jobs">Driver Jobs</div>
-                                </a>
-                            </li>
-                            @endif
+                                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97, 10, 11, 26, 50, 98, 34, 65, 99, 128, 131, 132, 134, 135, 137, 138]))
+                                            <li class="menu-item @if(Request::is('jobsheet/guides')) active @endif">
+                                                <a href="{{ route('jobsheet.guides') }}" class="menu-link">
+                                                    <div data-i18n="Guides">Guides</div>
+                                                </a>
+                                            </li>
+                                            @endif
+                                        </ul>
+                                    </li>
 
-                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97, 10, 11, 26, 50, 98, 34, 65, 99, 128, 131, 132, 134, 135, 137, 138]))
-                            <!-- Guide Jobs -->
-                            <li class="menu-item @if(Request::is('jobsheet/guides')) active @endif">
-                                <a href="{{ route('jobsheet.guides') }}" class="menu-link">
-                                    <div data-i18n="Guide Jobs">Guide Jobs</div>
-                                </a>
+                                    <li class="menu-item @if(Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/create-guide-jobsheet')) open @endif">
+                                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                            <div data-i18n="Job Sheets">Job Sheets</div>
+                                        </a>
+                                        <ul class="menu-sub">
+                                            <li class="menu-item @if(Request::is('jobsheet/create-driver-jobsheet')) active @endif">
+                                                <a href="{{ route('jobsheet.create.driver') }}" class="menu-link">
+                                                    <div data-i18n="Driver Jobsheet">Driver Jobsheet</div>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet')) active @endif">
+                                                <a href="{{ route('jobsheet.create.guide') }}" class="menu-link">
+                                                    <div data-i18n="Guide Jobsheet">Guide Jobsheet</div>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
                             </li>
-
-                            @endif
-                        </ul>
-                    </li>
-                @endif
                         </ul>
                     </li>
                 @endif
@@ -2307,6 +2461,17 @@
            
         </aside>
 
+        <!-- Submenu Modal (for ul.menu-sub items) -->
+        <div class="modal fade" id="submenuModal" tabindex="-1" aria-label="Submenu options" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-body submenu-modal-body" id="submenuModalBody">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Enhanced tooltip functionality
@@ -2367,9 +2532,225 @@
                     adjustTooltipPosition();
                 }
             });
+
+            // Open sidebar submenus in a floating modal instead of expanding inline.
+            const submenuModalEl = document.getElementById('submenuModal');
+            const submenuModalTitleEl = document.getElementById('submenuModalLabel'); // Optional: header may be removed
+            const submenuModalBodyEl = document.getElementById('submenuModalBody');
+
+            if (submenuModalEl && window.bootstrap && window.bootstrap.Modal) {
+                const submenuModal = new window.bootstrap.Modal(submenuModalEl, {
+                    backdrop: false,
+                    focus: false
+                });
+                let currentModalTrigger = null;
+                let hoverSuppressedTrigger = null;
+
+                const isSubmenuModalOpen = () =>
+                    submenuModalEl.classList.contains('show') ||
+                    submenuModalEl.style.display === 'block' ||
+                    submenuModalEl.getAttribute('aria-hidden') === 'false';
+                let modalSubmenuStack = [];
+
+                const closeSubmenuModal = () => {
+                    if (!isSubmenuModalOpen()) return;
+                    hoverSuppressedTrigger = currentModalTrigger;
+                    currentModalTrigger = null;
+                    modalSubmenuStack = [];
+                    submenuModal.hide();
+                };
+
+                const renderSubmenuInModal = (submenu, title) => {
+                    if (!submenu || !submenuModalBodyEl) return;
+
+                    submenuModalBodyEl.innerHTML = '';
+                    const list = document.createElement('ul');
+                    list.className = 'submenu-modal-list';
+
+                    if (modalSubmenuStack.length > 1) {
+                        const backLi = document.createElement('li');
+                        backLi.className = 'menu-item submenu-modal-back';
+                        backLi.innerHTML = '<a href="#" class="menu-link submenu-modal-back-link" data-submenu-back="1"><div class="d-flex align-items-center"><i class="ri-arrow-left-line me-2"></i><div data-i18n="Back">Back</div></div></a>';
+                        list.appendChild(backLi);
+                    }
+
+                    const directLis = Array.from(submenu.children).filter(el => el && el.matches && el.matches('li.menu-item'));
+                    (directLis.length ? directLis : Array.from(submenu.querySelectorAll('li.menu-item'))).forEach(li => {
+                        const liClone = li.cloneNode(true);
+
+                        // Add a left-side arrow icon before every nested submenu label inside the modal.
+                        const modalAnchor = liClone.querySelector('a.menu-link');
+                        if (modalAnchor && !modalAnchor.querySelector('.submenu-modal-item-icon')) {
+                            // Avoid adding if the original item already has some icon/graphic.
+                            if (!modalAnchor.querySelector('i') && !modalAnchor.querySelector('svg')) {
+                                const labelNode = modalAnchor.querySelector('[data-i18n]') || modalAnchor.querySelector('div') || modalAnchor.querySelector('span');
+                                const iconEl = document.createElement('i');
+                                iconEl.className = 'ri-arrow-right-double-fill submenu-modal-item-icon';
+                                iconEl.setAttribute('aria-hidden', 'true');
+                                if (labelNode && labelNode.parentElement === modalAnchor) {
+                                    modalAnchor.insertBefore(iconEl, labelNode);
+                                } else {
+                                    modalAnchor.prepend(iconEl);
+                                }
+                            }
+                        }
+
+                        // Keep nested submenu DOM so a second-level modal can be opened from modal items.
+                        liClone.querySelectorAll('ul.menu-sub').forEach(nested => {
+                            nested.style.display = 'none';
+                        });
+                        list.appendChild(liClone);
+                    });
+
+                    submenuModalBodyEl.appendChild(list);
+                    if (submenuModalTitleEl) submenuModalTitleEl.textContent = (title || 'Options').trim();
+                };
+
+                const layoutMenuEl = document.getElementById('layout-menu');
+                if (layoutMenuEl) {
+                    // Use event delegation so submenu triggers inside any `menu-header` group open reliably.
+                    layoutMenuEl.addEventListener('click', function(e) {
+                        const trigger = e.target.closest('a.menu-toggle');
+                        if (!trigger || !layoutMenuEl.contains(trigger)) return;
+
+                        const parentItem = trigger.closest('.menu-item');
+                        const submenu = parentItem ? parentItem.querySelector('ul.menu-sub') : null;
+                        if (!submenu) return;
+
+                        // Requirement: only nested submenu should open in modal.
+                        // If this menu-toggle is NOT inside another submenu container, keep the default inline behavior.
+                        // (Example: "Restaurant" should stay inline; "Enquiries" inside "Bookings" should open modal.)
+                        const isNestedSubmenuTrigger = !!trigger.closest('ul.menu-sub');
+                        if (!isNestedSubmenuTrigger) return;
+
+                        // Prevent theme inline submenu toggle; we render it inside modal instead.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Some sidebar themes also bind their own click handlers on the same element.
+                        // This prevents inline submenu expansion from happening right after our modal opens.
+                        e.stopImmediatePropagation();
+
+                        // Modal title from the trigger's i18n label/text.
+                        const i18nNode = trigger.querySelector('[data-i18n]');
+                        const title = i18nNode ? i18nNode.textContent.trim() : (trigger.textContent || 'Options');
+                        if (submenuModalTitleEl) submenuModalTitleEl.textContent = title.trim() || 'Options';
+
+                        currentModalTrigger = trigger;
+                        // Clicking a nested submenu should re-enable hover reopening for other triggers.
+                        hoverSuppressedTrigger = null;
+                        modalSubmenuStack = [];
+
+                        modalSubmenuStack.push({
+                            submenu,
+                            title
+                        });
+                        renderSubmenuInModal(submenu, title);
+
+                        // Close any expanded inline state if theme added it already.
+                        parentItem.classList.remove('open');
+                        // Hide nested inline submenu levels under the clicked trigger.
+                        // This ensures only the modal shows nested options.
+                        parentItem.querySelectorAll('ul.menu-sub').forEach(u => {
+                            u.style.display = 'none';
+                        });
+
+                        // Position modal next to the clicked menu item (responsive fallback for small screens).
+                        const rect = trigger.getBoundingClientRect();
+                        const dialog = submenuModalEl.querySelector('.modal-dialog');
+                        if (window.innerWidth < 768) {
+                            dialog.style.left = '40%';
+                            dialog.style.top = '50%';
+                            dialog.style.transform = 'translate(-50%, -50%)';
+                            dialog.style.width = '90vw';
+                            dialog.style.maxWidth = '540px';
+                        } else {
+                            dialog.style.transform = 'none';
+                            dialog.style.width = '280px';
+                            dialog.style.maxWidth = '280px';
+                            dialog.style.left = `${rect.right + 14}px`;
+                            dialog.style.top = `${Math.max(10, rect.top)}px`;
+                        }
+
+                        submenuModal.show();
+
+                        // If modal overflows the viewport horizontally, clamp it.
+                        requestAnimationFrame(() => {
+                            const dRect = dialog.getBoundingClientRect();
+                            if (window.innerWidth >= 768) {
+                                if (dRect.right > window.innerWidth - 8) {
+                                    const newLeft = Math.max(8, window.innerWidth - dRect.width - 8);
+                                    dialog.style.left = `${newLeft}px`;
+                                }
+                                if (dRect.bottom > window.innerHeight - 8) {
+                                    const newTop = Math.max(8, window.innerHeight - dRect.height - 8);
+                                    dialog.style.top = `${newTop}px`;
+                                }
+                            }
+                        });
+                    }, true);
+                }
+
+                // Hide modal after user clicks a link inside it (navigation will happen anyway).
+                submenuModalBodyEl.addEventListener('click', function(e) {
+                    const backLink = e.target.closest('[data-submenu-back="1"]');
+                    if (backLink) {
+                        e.preventDefault();
+                        if (modalSubmenuStack.length > 1) {
+                            modalSubmenuStack.pop();
+                            const prev = modalSubmenuStack[modalSubmenuStack.length - 1];
+                            renderSubmenuInModal(prev.submenu, prev.title);
+                        }
+                        return;
+                    }
+
+                    const toggleLink = e.target.closest('a.menu-toggle');
+                    if (toggleLink) {
+                        const li = toggleLink.closest('li.menu-item');
+                        const nested = li ? li.querySelector(':scope > ul.menu-sub') : null;
+                        if (nested) {
+                            e.preventDefault();
+                            const i18nNode = toggleLink.querySelector('[data-i18n]');
+                            const nestedTitle = i18nNode ? i18nNode.textContent.trim() : (toggleLink.textContent || 'Options');
+                            modalSubmenuStack.push({
+                                submenu: nested,
+                                title: nestedTitle
+                            });
+                            renderSubmenuInModal(nested, nestedTitle);
+                            return;
+                        }
+                    }
+
+                    const link = e.target.closest('a');
+                    if (link) {
+                        // Close modal after selection; keep it closed even if the cursor stays hovered on the trigger.
+                        closeSubmenuModal();
+                    }
+                });
+
+                // Reliable close when user clicks the modal wrapper (outside `.modal-content`).
+                submenuModalEl.addEventListener('click', function(e) {
+                    if (e.target === submenuModalEl) {
+                        closeSubmenuModal();
+                    }
+                }, true);
+
+                // Close modal when clicking/tapping outside (reliable: use pointerdown).
+                document.addEventListener('pointerdown', function(e) {
+                    if (!isSubmenuModalOpen()) return;
+
+                    // IMPORTANT: `.modal` wrapper covers the whole screen, so we must only treat clicks
+                    // inside `.modal-content` as "inside". Everything else should close the modal.
+                    const modalContent = submenuModalEl.querySelector('.modal-content');
+                    if (modalContent && modalContent.contains(e.target)) return;
+
+                    closeSubmenuModal();
+                }, true);
+
+            }
             
             // Enhanced menu interactions
-            const menuItems = document.querySelectorAll('.menu-item');
+            // Scope hover animation to the real sidebar only; modal items are cloned `.menu-item`s too.
+            const menuItems = document.querySelectorAll('#layout-menu .menu-item');
             menuItems.forEach(item => {
                 item.addEventListener('mouseenter', function() {
                     if (!this.classList.contains('active')) {
