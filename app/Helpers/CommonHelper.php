@@ -2127,7 +2127,8 @@ class CommonHelper
         
         try {
             // Configure DomPDF options to work without GD if possible
-            $pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
+            //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
+            $pdf = Pdf::loadView('single-tour-package.quotation', [
                 'tour' => $tour,
                 'servicesByDate' => $servicesByDate,
                 'servicesByType' => $servicesByType,
@@ -2168,7 +2169,8 @@ class CommonHelper
                 ]);
                 
                 // Retry without logo
-                $pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
+                //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
+                $pdf = Pdf::loadView('single-tour-package.quotation', [
                     'tour' => $tour,
                     'servicesByDate' => $servicesByDate,
                     'servicesByType' => $servicesByType,
@@ -3286,11 +3288,52 @@ class CommonHelper
                         }
 
                         if ($isSupplement) {
-                            $supplements[] = [
+                            // Keep supplement row as a standalone payload.
+                            // Some downstream code expects extra keys for attraction/restaurant.
+                            $supplementRow = [
                                 'type'   => $normalizedType ?? $type,
                                 'single' => $singleSharing,
                                 'double' => $doubleSharing,
                             ];
+
+                            if (($normalizedType ?? '') === 'attraction') {
+                                $supplementRow['AttractionId'] = $item['AttractionId']
+                                    ?? $item['attractionId']
+                                    ?? $item['attraction_id']
+                                    ?? null;
+                                $supplementRow['ticketName'] = $item['ticketName']
+                                    ?? $item['ticket_name']
+                                    ?? $item['ticket']
+                                    ?? null;
+                                $supplementRow['transfer_options'] = $item['transfer_options']
+                                    ?? $item['transferOptions']
+                                    ?? [];
+                                $supplementRow['guide_options'] = $item['guide_options']
+                                    ?? $item['guideOptions']
+                                    ?? [];
+                                // Optional name fields (used by some UIs)
+                                $supplementRow['AttractionName'] = $item['AttractionName']
+                                    ?? $item['attractionName']
+                                    ?? $item['name']
+                                    ?? null;
+                            } elseif (($normalizedType ?? '') === 'restaurant') {
+                                $supplementRow['restaurant_id'] = $item['restaurant_id']
+                                    ?? $item['restaurantId']
+                                    ?? null;
+                                $supplementRow['mealType'] = $item['mealType']
+                                    ?? $item['meal_type']
+                                    ?? null;
+                                $supplementRow['MealDescription'] = $item['MealDescription']
+                                    ?? $item['mealDescription']
+                                    ?? ($item['MealDescription'] ?? [])
+                                    ?? [];
+                                $supplementRow['restaurantName'] = $item['restaurantName']
+                                    ?? $item['restaurant_name']
+                                    ?? $item['name']
+                                    ?? null;
+                            }
+
+                            $supplements[] = $supplementRow;
                         } else {
                             $totalSingleSharing += $singleSharing;
                             $totalDoubleSharing += $doubleSharing;
@@ -3326,6 +3369,26 @@ class CommonHelper
             ];
             if (isset($s['name'])) {
                 $row['name'] = $s['name'];
+            }
+            if(($s['type'] ?? null) == 'attraction') {
+                $row['name'] = $s['AttractionName'] ?? 'AttractionName';
+                $row['attraction_id'] = $s['AttractionId'] ?? null;
+                $row['ticket'] = $s['ticketName'] ?? null;
+                $row['transfer_required'] = $s['transfer_options']['transfer_required'] ?? null;
+                $row['guide_required'] = $s['guide_options']['guide_required'] ?? null;
+
+            } elseif(($s['type'] ?? null) == 'restaurant') {
+                $row['name'] = $s['restaurantName'] ?? 'restaurantName';
+                $row['restaurant_id'] = $s['restaurant_id'] ?? null;
+                $row['mealType'] = $s['mealType'] ?? null;
+                $firstMeal = $s['MealDescription'][0] ?? [];
+                $row['quantity'] = $firstMeal['quantity'] ?? null;
+            } elseif($s['type'] == 'entry_port') {
+                $row['name'] = 'name';
+                $row['entry_port_id'] = $s['entry_port_id'];
+            } elseif($s['type'] == 'exit_port') {
+                $row['name'] = 'name';
+                $row['exit_port_id'] = $s['exit_port_id'];
             }
             if (isset($s['triple'])) {
                 $row['triple'] = ceil($s['triple']);
@@ -4581,9 +4644,13 @@ class CommonHelper
      * @param string|null           $serviceType   hotel|attraction|restaurant|guide|vehicle
      * @param string|int|null       $serviceId
      * @param string|null           $serviceName
+     * @param float|int|string|null $sgdAmount
+     * @param string|null           $selectedCurrency
+     * @param \Carbon\Carbon|string|null $paymentDate
+     * @param string|null           $paymentType
      * @return void
      */
-    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null): void
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
     {
         try {
             $changedAt = $changedAt ?? now();
@@ -4620,6 +4687,20 @@ class CommonHelper
             }
             if ($serviceName !== null && $serviceName !== '') {
                 $entryExtra['service_name'] = (string) $serviceName;
+            }
+            if ($sgdAmount !== null && $sgdAmount !== '') {
+                $entryExtra['sgd_amount'] = is_numeric($sgdAmount) ? (float) $sgdAmount : $sgdAmount;
+            }
+            if ($selectedCurrency !== null && $selectedCurrency !== '') {
+                $entryExtra['selected_currency'] = (string) $selectedCurrency;
+            }
+            if ($paymentDate !== null && $paymentDate !== '') {
+                $entryExtra['payment_date'] = $paymentDate instanceof \Carbon\Carbon
+                    ? $paymentDate->format('Y-m-d H:i:s')
+                    : (string) $paymentDate;
+            }
+            if ($paymentType !== null && $paymentType !== '') {
+                $entryExtra['payment_type'] = (string) $paymentType;
             }
 
             if ($fromIsNull) {
@@ -4690,9 +4771,13 @@ class CommonHelper
      * @param string|null           $serviceType   hotel|attraction|restaurant|guide|vehicle
      * @param string|int|null       $serviceId
      * @param string|null           $serviceName
+     * @param float|int|string|null $sgdAmount
+     * @param string|null           $selectedCurrency
+     * @param \Carbon\Carbon|string|null $paymentDate
+     * @param string|null           $paymentType
      * @return void
      */
-    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null): void
+    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
     {
         $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
 
@@ -4705,7 +4790,7 @@ class CommonHelper
             return;
         }
 
-        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName, $sgdAmount, $selectedCurrency, $paymentDate, $paymentType);
     }
 
     /**

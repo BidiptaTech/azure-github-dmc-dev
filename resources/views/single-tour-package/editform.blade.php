@@ -11343,16 +11343,29 @@
 
     function runServiceAddWithPayment(servicePrice, proceedFn) {
         const amount = Number.parseFloat(servicePrice || 0) || 0;
-        const normalizedStatus = String(__tourStatus || '').toLowerCase();
-        const bypassPaymentCheckStatuses = ['definite', 'actual'];
-        const shouldBypassPaymentCheck = bypassPaymentCheckStatuses.includes(normalizedStatus);
+        const normalizedStatus = String(__tourStatus || '').trim().toLowerCase();
+        const isActualTour = normalizedStatus.includes('actual');
+        const isDefiniteTour = normalizedStatus.includes('definite');
+        const isConfirmTour = normalizedStatus.includes('confirm');
 
-        // For Definite/Actual tours, bypass service payment check and continue directly.
-        if (shouldBypassPaymentCheck) {
+        // Definite / Confirm: proceed without showing payment modal.
+        if (isDefiniteTour) {
             if (typeof proceedFn === 'function') proceedFn();
             return;
         }
 
+        if (isConfirmTour) {
+            if (typeof proceedFn === 'function') proceedFn();
+            return;
+        }
+
+        // Only `Actual` tours open the payment modal.
+        if (!isActualTour) {
+            if (typeof proceedFn === 'function') proceedFn();
+            return;
+        }
+
+        // Actual: payment is mandatory before service add.
         __openGlobalPaymentModal({
             amount,
             mandatory: true,
@@ -16581,9 +16594,8 @@
         if (hotelSelect) {
             hotelSelect.addEventListener('change', onHotelSelection);
         }
-        if (proceedBtn) {
-            proceedBtn.addEventListener('click', proceedToHotelSelection);
-        }
+        // `#proceed_hotel_btn` already has inline `onclick="proceedToHotelSelection()"`.
+        // Attaching another click listener here causes the booking submit to happen twice.
     }
     
     // Hotel Modal Functions - Chain-dependent dropdowns like create.blade.php

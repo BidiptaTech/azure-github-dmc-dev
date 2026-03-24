@@ -510,7 +510,6 @@ class TourController extends Controller
                     }
                 }
             }
-            
             return response()->json([
                 'success' => true,
                 'tour_id' => $tourId,
@@ -673,6 +672,7 @@ class TourController extends Controller
     {
         try {
             $tour = Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour->tour_status;
             
             if (!$tour) {
                 if ($request->expectsJson() || $request->ajax()) {
@@ -738,7 +738,25 @@ class TourController extends Controller
             // status: 0 = unverified, 1 = verified
             'status' => $request->boolean('auto_verify') ? 1 : 0,
         ];
-        
+        CommonHelper::appendTourStatusTrackById(
+            (int) $tour->tour_id,
+            $tourStatus,
+            $tourStatus,
+            null,
+            null,
+            null,
+            null,
+            auth()->user() ? auth()->user()->name : null,
+            auth()->user() ? auth()->user()->id : null,
+            'Added Payment',
+            'null',
+            'null',
+            'null',
+            $sgdAmount,
+            $selectedCurrency,
+            $request->payment_date,
+            $request->payment_type,
+        );
         // Get existing payment details or initialize empty array
         $paymentDetails = json_decode($tour->payment_details, true) ?: [];
         
@@ -787,10 +805,25 @@ class TourController extends Controller
         }
         $tour->is_approve = 1;
         $tour->save();
+        $prevTourStatus = $tour->tour_status;
         if($tour->tour_status == "Definite"){
             $tour = Tour::where('tour_id', $tourId)->update([
                 'tour_status' => "Actual",
             ]);
+            $tour = Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour->tour_status;
+            CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tourStatus,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                'Approved Booking'
+            );
         }
         return redirect()->back()->with('success', 'Tour has been approved successfully!');
     }
@@ -800,7 +833,7 @@ class TourController extends Controller
         try {
             // Find the tour by tour_id or return a 404 response if not found
             $tour = Tour::where('tour_id', $tourId)->firstOrFail();
-            
+            $prevTourStatus = $tour->tour_status;
             // Get payment index from request
             $paymentIndex = $request->input('payment_index');
             
@@ -825,17 +858,7 @@ class TourController extends Controller
             // Do NOT change status if tour is already in Actual or Definite status
             if ($tour->tour_status === "Confirmed") {
                 // Track status change Confirmed -> Definite in track_details JSON
-                \App\Helpers\CommonHelper::appendTourStatusTrackById(
-                    (int) $tour->tour_id,
-                    "Confirmed",
-                    "Definite",
-                    null,
-                    null,
-                    "Payment Verified",
-                    null,
-                    auth()->user() ? auth()->user()->name : null,
-                    auth()->user() ? auth()->user()->id : null
-                );
+                
 
                 // Update in‑memory status; will be persisted with the save below
                 $tour->tour_status = "Definite";
@@ -843,6 +866,25 @@ class TourController extends Controller
 
             // Save updated payment details (and possibly updated status)
             $tour->save();
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tour->tour_status,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                "Payment Verified",
+                null,
+                null,
+                null,
+                $paymentDetails[$paymentIndex]['amount'],
+                $paymentDetails[$paymentIndex]['currency'],
+                $paymentDetails[$paymentIndex]['payment_date'],
+                $paymentDetails[$paymentIndex]['payment_type']
+            );
 
             return response()->json([
                 'success' => true,
@@ -866,7 +908,7 @@ class TourController extends Controller
         try {
             // Find the tour by tour_id or return a 404 response if not found
             $tour = Tour::where('tour_id', $tourId)->firstOrFail();
-            
+            $prevTourStatus = $tour->tour_status;
             // Get payment index from request
             $paymentIndex = $request->input('payment_index');
             
@@ -887,7 +929,25 @@ class TourController extends Controller
             // Save updated payment details
             $tour->payment_details = json_encode($paymentDetails);
             $tour->save();
-            
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tour->tour_status,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                "Payment Declined",
+                null,
+                null,
+                null,
+                $paymentDetails[$paymentIndex]['amount'],
+                $paymentDetails[$paymentIndex]['currency'],
+                $paymentDetails[$paymentIndex]['payment_date'],
+                $paymentDetails[$paymentIndex]['payment_type']
+            );
             return response()->json([
                 'success' => true,
                 'message' => 'Payment declined successfully'
@@ -909,6 +969,7 @@ class TourController extends Controller
     {
         try {
             $tour = Tour::where('tour_id', $tourId)->firstOrFail();
+            $prevTourStatus = $tour->tour_status;
             $paymentIndex = (int) $request->input('payment_index');
 
             $paymentDetails = json_decode($tour->payment_details, true) ?: [];
@@ -916,9 +977,29 @@ class TourController extends Controller
                 return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
             }
 
+            $deletedPayment = $paymentDetails[$paymentIndex];
             array_splice($paymentDetails, $paymentIndex, 1);
             $tour->payment_details = json_encode(array_values($paymentDetails));
             $tour->save();
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tour->tour_status,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                "Payment Deleted",
+                null,
+                null,
+                null,
+                $deletedPayment['amount'] ?? null,
+                $deletedPayment['currency'] ?? null,
+                $deletedPayment['payment_date'] ?? null,
+                $deletedPayment['payment_type'] ?? null
+            );
 
             return response()->json(['success' => true, 'message' => 'Payment removed successfully']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -932,6 +1013,7 @@ class TourController extends Controller
     {
         try {
             $tour = Tour::where('tour_id', $tourId)->firstOrFail();
+            $prevTourStatus = $tour->tour_status;
             $paymentIndex = (int) $request->input('payment_index');
 
             $request->validate([
@@ -968,6 +1050,25 @@ class TourController extends Controller
             $tour->payment_details = json_encode($paymentDetails);
             $tour->save();
 
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tour->tour_status,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                "Updated Payment",
+                null,
+                null,
+                null,
+                $sgdAmount,
+                $selectedCurrency,
+                $request->payment_date,
+                $request->payment_type
+            );
             return response()->json(['success' => true, 'message' => 'Payment updated successfully']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);

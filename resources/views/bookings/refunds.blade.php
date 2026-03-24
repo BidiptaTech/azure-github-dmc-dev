@@ -519,25 +519,32 @@
                                             $refundType = $refundOrder->type ?? null;
                                             $serviceMeta = $refundServiceIcons[$refundType] ?? ['icon' => 'ri-service-line', 'label' => ucfirst(str_replace('_', ' ', (string)$refundType))];
                                             $isRefundCompleteForOrder = (bool)($refundOrder->refunded ?? false);
+                                            $isOnHoldForFinance = (int)($refundOrder->is_verify ?? 0) === 2;
+                                            $currentRoleId = (int)(auth()->user()->role_id ?? 0);
+                                            $holdRoleIds = [33, 12, 37, 38];
+                                            $isHoldLockedForRole33 = in_array($currentRoleId, $holdRoleIds, true) && $isOnHoldForFinance;
+                                            // Always use primary key for action endpoints to avoid
+                                            // mismatching records that share booking_id.
+                                            $orderActionId = $refundOrder->id ?? null;
                                             $orderIdentifier = $refundOrder->booking_id ?? $refundOrder->id ?? null;
                                             $serviceTooltip = $serviceMeta['label']
                                                 . ' ('
-                                                . ($isRefundCompleteForOrder ? 'Refunded' : 'Pending')
+                                                . ($isRefundCompleteForOrder ? 'Refunded' : ($isOnHoldForFinance ? 'On Hold Payment' : 'Pending'))
                                                 . ')'
                                                 . ($orderIdentifier ? (' · Order: ' . $orderIdentifier) : '');
                                         @endphp
                                         <button type="button"
                                                 class="action-icon-badge"
-                                                style="--action-color: {{ $isRefundCompleteForOrder ? '#dc2626' : '#7c3aed' }}; {{ $isRefundCompleteForOrder ? 'background:#fee2e2;border-color:#fecaca;' : '' }}"
+                                                style="--action-color: {{ $isRefundCompleteForOrder ? '#dc2626' : ($isOnHoldForFinance ? '#f59e0b' : '#7c3aed') }}; {{ $isRefundCompleteForOrder ? 'background:#fee2e2;border-color:#fecaca;' : ($isOnHoldForFinance ? 'background:#fff7ed;border-color:#fed7aa;' : '') }}"
                                                 data-tooltip="{{ $serviceTooltip }}"
                                                 data-tour-id="{{ $tour->tour_id }}"
                                                 data-service-type="{{ $refundType }}"
-                                                data-order-id="{{ $orderIdentifier }}"
-                                                @if($isRefundCompleteForOrder)
+                                                data-order-id="{{ $orderActionId }}"
+                                                @if($isRefundCompleteForOrder || $isHoldLockedForRole33)
                                                     disabled
                                                     aria-disabled="true"
                                                 @else
-                                                    onclick="processSingleOrderRefund({{ $tour->tour_id }}, {{ (int)($orderIdentifier ?? 0) }}, event)"
+                                                    onclick="processSingleOrderRefund({{ $tour->tour_id }}, {{ (int)($orderActionId ?? 0) }}, event)"
                                                 @endif>
                                             <i class="{{ $serviceMeta['icon'] }}"></i>
                                         </button>
@@ -560,7 +567,7 @@
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    {{-- @if($tour->tour_status === 'Refund - Pending')
+                                    @if($tour->tour_status === 'Refund - Pending')
                                         <button type="button"
                                                 class="action-icon-badge" style="--action-color: #047857;"
                                                 onclick="processRefund({{ $tour->tour_id }})"
@@ -568,8 +575,8 @@
                                             <i class="ri-money-dollar-circle-line"></i>
                                         </button>
                                     @else
-                                        <span class="badge bg-success" title="Already Refunded">✓ Refunded</span>
-                                    @endif --}}
+                                        <!-- <span class="badge bg-success" title="Already Refunded">✓ Refunded</span> -->
+                                    @endif
                                 </div>
                             </td>
                             <td class="col-created align-top">
@@ -1233,9 +1240,7 @@ function showConfirmationModal(title, message, type, confirmCallback) {
                         
                         <!-- Refund Process Message -->
                         <div class="refund-message mb-4">
-                            <p class="text-dark mb-3 fs-6">
-                                <strong>Tour ID:</strong> <span class="text-primary">#${getTourIdFromButton()}</span>
-                            </p>
+                            
                             <p class="text-muted mb-3">
                                 You are about to process a refund for this tour booking. 
                                 This will update the tour status and initiate the refund process.
@@ -1254,6 +1259,13 @@ function showConfirmationModal(title, message, type, confirmCallback) {
                             <button type="button" class="btn btn-primary px-4 py-2" id="confirmButton">
                                 <i class="ri-check-line me-2"></i>Process Refund
                             </button>
+                            @if(
+                                in_array(auth()->user()->role_id, [36, 126, 127])
+                            )
+                            <button type="button" class="btn btn-primary px-4 py-2" id="declineButton">
+                                    <i class="ri-check-line me-2"></i>Decline
+                                </button>
+                            @endif
                         </div>
                     </div>
                 </div>
