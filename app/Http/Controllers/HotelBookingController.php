@@ -17,22 +17,6 @@ use Carbon\Carbon;
 class HotelBookingController extends Controller
 {
     /**
-     * When tour_status is Definite, flag the rejected order for refunds (`orders.is_refund = 1`).
-     *
-     * @param  array<string, mixed>  $updateData
-     * @return array<string, mixed>
-     */
-    private function withDefiniteTourIsRefundFlag(int $tourId, array $updateData): array
-    {
-        $status = Tour::where('tour_id', $tourId)->orderByDesc('id')->value('tour_status');
-        if (($status ?? '') === 'Definite') {
-            $updateData['is_refund'] = 1;
-        }
-
-        return $updateData;
-    }
-
-    /**
      * Update hotel booking dates in the orders table
      * 
      * This method updates only the bookingDate array in the JSON data column
@@ -2760,7 +2744,7 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = $this->withDefiniteTourIsRefundFlag((int) $tourId, [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
                 'updated_at' => now(),
@@ -3291,7 +3275,7 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = $this->withDefiniteTourIsRefundFlag((int) $tourId, [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(),
                 'updated_at' => now(),
@@ -3414,7 +3398,7 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = $this->withDefiniteTourIsRefundFlag((int) $tourId, [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
                 'updated_at' => now(),
@@ -3674,7 +3658,7 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = $this->withDefiniteTourIsRefundFlag((int) $tourId, [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
                 'updated_at' => now(),
@@ -3941,7 +3925,7 @@ class HotelBookingController extends Controller
             // Soft delete the arrival booking
             $updated = DB::table('orders')
                 ->where('id', $arrivalOrder->id)
-                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
@@ -4200,7 +4184,7 @@ class HotelBookingController extends Controller
             // Soft delete the departure booking
             $updated = DB::table('orders')
                 ->where('id', $departureOrder->id)
-                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
@@ -4458,7 +4442,7 @@ class HotelBookingController extends Controller
             // Soft delete the hourly booking
             $updated = DB::table('orders')
                 ->where('id', $hourlyOrder->id)
-                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
@@ -4716,7 +4700,7 @@ class HotelBookingController extends Controller
             // Soft delete the point-to-point booking
             $updated = DB::table('orders')
                 ->where('id', $pointToPointOrder->id)
-                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
@@ -4966,7 +4950,7 @@ class HotelBookingController extends Controller
             // Soft delete the local transport booking
             $updated = DB::table('orders')
                 ->where('id', $localTransportOrder->id)
-                ->update($this->withDefiniteTourIsRefundFlag((int) $tourId, [
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),

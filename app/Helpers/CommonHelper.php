@@ -4794,6 +4794,22 @@ class CommonHelper
     }
 
     /**
+     * Merge refund flag into order update payloads when tour_status is Definite or Actual (same as booking reject flow).
+     *
+     * @param  array<string, mixed>  $updateData
+     * @return array<string, mixed>
+     */
+    public static function withDefiniteOrActualTourIsRefundFlag(int $tourId, array $updateData): array
+    {
+        $status = Tour::where('tour_id', $tourId)->value('tour_status');
+        if (in_array($status ?? '', ['Definite', 'Actual'], true)) {
+            $updateData['is_refund'] = 1;
+        }
+
+        return $updateData;
+    }
+
+    /**
      * When a service is removed (soft deleted) from a tour, revert tour_status to "New Enquiry"
      * only if the tour went through negotiation (has records in enquiry_comments).
      * If the tour was directly confirmed without any enquiry_comments, do not change tour_status.
