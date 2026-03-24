@@ -612,10 +612,8 @@ class SingleTourPackageController extends Controller
             $tourId = (int) $order->tour_id;
             $tour = Tour::where('tour_id', $tourId)->first();
             $tourStatus = $tour ? $tour->tour_status : null;
-            $normalizedTourStatus = strtolower(trim((string) $tourStatus));
-            $isDefiniteOrActual = in_array($normalizedTourStatus, ['definite', 'actual'], true);
 
-            DB::transaction(function () use ($order, $tourId, $tourStatus, $isDefiniteOrActual) {
+            DB::transaction(function () use ($order, $tourId, $tourStatus) {
                 $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
                 $orderType = $order->type ?? '';
 
@@ -647,9 +645,10 @@ class SingleTourPackageController extends Controller
                     CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, 'deleted', $serviceType, $serviceId, $serviceName);
                 }
 
-                // For Definite/Actual tours, mark the linked order as refund-eligible before soft delete.
-                if ($isDefiniteOrActual) {
-                    $order->is_refund = 1;
+                // Definite/Actual: flag order for refund workflow before soft delete (same as booking reject).
+                $refundPayload = CommonHelper::withDefiniteOrActualTourIsRefundFlag($tourId, []);
+                if (isset($refundPayload['is_refund'])) {
+                    $order->is_refund = $refundPayload['is_refund'];
                     $order->save();
                 }
 
