@@ -672,6 +672,7 @@ class TourController extends Controller
     {
         try {
             $tour = Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour->tour_status;
             
             if (!$tour) {
                 if ($request->expectsJson() || $request->ajax()) {
@@ -737,7 +738,25 @@ class TourController extends Controller
             // status: 0 = unverified, 1 = verified
             'status' => $request->boolean('auto_verify') ? 1 : 0,
         ];
-        
+        CommonHelper::appendTourStatusTrackById(
+            (int) $tour->tour_id,
+            $tourStatus,
+            $tourStatus,
+            null,
+            null,
+            null,
+            null,
+            auth()->user() ? auth()->user()->name : null,
+            auth()->user() ? auth()->user()->id : null,
+            'Added Payment',
+            'null',
+            'null',
+            'null',
+            $sgdAmount,
+            $selectedCurrency,
+            $request->payment_date,
+            $request->payment_type,
+        );
         // Get existing payment details or initialize empty array
         $paymentDetails = json_decode($tour->payment_details, true) ?: [];
         
@@ -786,10 +805,25 @@ class TourController extends Controller
         }
         $tour->is_approve = 1;
         $tour->save();
+        $prevTourStatus = $tour->tour_status;
         if($tour->tour_status == "Definite"){
             $tour = Tour::where('tour_id', $tourId)->update([
                 'tour_status' => "Actual",
             ]);
+            $tour = Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour->tour_status;
+            CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tourStatus,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                'Approved Booking'
+            );
         }
         return redirect()->back()->with('success', 'Tour has been approved successfully!');
     }
