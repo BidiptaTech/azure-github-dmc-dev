@@ -560,7 +560,7 @@
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    @if($tour->tour_status === 'Refund - Pending')
+                                    {{-- @if($tour->tour_status === 'Refund - Pending')
                                         <button type="button"
                                                 class="action-icon-badge" style="--action-color: #047857;"
                                                 onclick="processRefund({{ $tour->tour_id }})"
@@ -569,7 +569,7 @@
                                         </button>
                                     @else
                                         <span class="badge bg-success" title="Already Refunded">✓ Refunded</span>
-                                    @endif
+                                    @endif --}}
                                 </div>
                             </td>
                             <td class="col-created align-top">
