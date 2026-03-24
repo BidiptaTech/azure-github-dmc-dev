@@ -97,7 +97,10 @@
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
+    <script>
+        window.hasNegotiationHistory = @json($hasNegotiationHistory);
+        window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
+    </script>
     
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
@@ -21496,7 +21499,7 @@
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             const tourId = document.getElementById('tour_id')?.value || '';
-            const normalizedStatus = String(__tourStatus || '').toLowerCase();
+            const normalizedStatus = String(window.removeServicePageTourStatus || __tourStatus || '').toLowerCase();
             const isDefiniteOrActual = ['definite', 'actual'].includes(normalizedStatus);
             
             fetch(url, {
