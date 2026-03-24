@@ -2087,18 +2087,25 @@
                             <div data-i18n="Tax Management">Tax Management</div>
                         </a>
                         <ul class="menu-sub">
-                            <!-- Tax Settings -->
-                            <li class="menu-item @if(Request::is('tax/settings')) active @endif">
-                                <a href="{{ route('tax.settings') }}" class="menu-link">
-                                    <div data-i18n="Tax Settings">Tax Settings</div>
+                            <li class="menu-item @if(Request::is('tax') || Request::is('tax/settings')) open active @endif">
+                                <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                    <div data-i18n="Settings">Settings</div>
                                 </a>
-                            </li>
+                                <ul class="menu-sub">
+                                    <!-- Add Tax -->
+                                    <li class="menu-item @if(Request::is('tax')) active @endif">
+                                        <a href="{{ route('tax.index') }}" class="menu-link">
+                                            <div data-i18n="Add Tax">Add Tax</div>
+                                        </a>
+                                    </li>
 
-                            <!-- Tax List -->
-                            <li class="menu-item @if(Request::is('tax')) active @endif">
-                                <a href="{{ route('tax.index') }}" class="menu-link">
-                                    <div data-i18n="All Taxes">All Taxes</div>
-                                </a>
+                                    <!-- Tax Settings -->
+                                    <li class="menu-item @if(Request::is('tax/settings')) active @endif">
+                                        <a href="{{ route('tax.settings') }}" class="menu-link">
+                                            <div data-i18n="Tax Settings">Tax Settings</div>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         </ul>
                     </li>
