@@ -10,6 +10,73 @@
             max-height: calc(100vh - 240px);
             scrollbar-gutter: stable both-edges;
             position: relative;
+            /* Hide native scrollbar while preserving scroll behavior */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .finance-daily-arrival-wrap::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+        }
+
+        .finance-daily-arrival-shell {
+            position: relative;
+            padding-bottom: 18px; /* space for custom scrollbar */
+        }
+
+        .finance-xscrollbar {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            padding: 0 2px;
+            z-index: 12;
+            background: linear-gradient(to top, rgba(248, 249, 250, 0.98), rgba(248, 249, 250, 0.85));
+        }
+
+        .finance-xscrollbar-track {
+            position: relative;
+            width: 100%;
+            height: 8px;
+            border-radius: 999px;
+            background: #e5e7eb;
+            overflow: hidden;
+        }
+
+        .finance-xscrollbar-thumb {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 80px;
+            border-radius: 999px;
+            background: #9ca3af;
+            transform: translateX(0);
+            cursor: grab;
+            touch-action: none;
+            transition: background-color 0.12s ease;
+        }
+
+        .finance-xscrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        .finance-xscrollbar-thumb.is-dragging {
+            cursor: grabbing;
+            background: #4b5563;
+        }
+
+        .finance-xscrollbar.is-disabled .finance-xscrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .finance-xscrollbar.is-disabled .finance-xscrollbar-thumb {
+            opacity: 0.45;
+            cursor: default;
         }
 
         .finance-daily-arrival-table {
@@ -141,12 +208,20 @@
             </div>
         </div>
 
-        <form method="get" action="{{ route('finance.daily-arrival') }}" class="d-flex align-items-end gap-2">
+        <form method="get" action="{{ route('finance.daily-arrival') }}" id="daily-arrival-filter-form" class="d-flex align-items-end gap-2 flex-wrap">
             <div>
                 <label class="form-label mb-1" style="font-size: 0.8rem;">Month</label>
-                <input type="month" name="month" class="form-control" value="{{ $monthValue ?? '' }}" style="min-width: 170px;">
+                <input type="month" name="month" id="filter-month" class="form-control" value="{{ $monthValue ?? '' }}" style="min-width: 170px;">
             </div>
-            <button type="submit" class="btn btn-primary btn-sm">Load</button>
+            <div>
+                <label class="form-label mb-1" style="font-size: 0.8rem;">Start Date</label>
+                <input type="date" name="start_date" id="filter-start-date" class="form-control" value="{{ $startDate ?? '' }}" style="min-width: 150px;">
+            </div>
+            <div>
+                <label class="form-label mb-1" style="font-size: 0.8rem;">End Date</label>
+                <input type="date" name="end_date" id="filter-end-date" class="form-control" value="{{ $endDate ?? '' }}" style="min-width: 150px;">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
         </form>
     </div>
 
@@ -155,8 +230,9 @@
             No bookings found for the selected month.
         </div>
     @else
-        <div class="finance-daily-arrival-wrap">
-            <table class="table table-striped align-middle finance-daily-arrival-table" style="font-size: 12px;">
+        <div class="finance-daily-arrival-shell" data-xscroll-shell>
+            <div class="finance-daily-arrival-wrap" data-xscroll-content>
+                <table class="table table-striped align-middle finance-daily-arrival-table" style="font-size: 12px;">
                 <colgroup>
                     <col style="width: 40px;">
                     <col style="width: 100px;">
@@ -194,7 +270,7 @@
                         </th>
 
                         <th class="text-end">ADULTS</th>
-                        <th class="text-end">RATES<br><span class="text-muted">SGD/Adult</span></th>
+                        <th class="text-end">RATES<br><span class="text-muted">SGD</span></th>
 
                         <th class="text-end">CBW</th>
                         <th class="text-end">RATES<br><span class="text-muted">CBW</span></th>
@@ -273,7 +349,48 @@
                         </tr>
                     @endforeach
                 </tbody>
-            </table>
+                </table>
+            </div>
+            <div class="finance-xscrollbar" data-xscrollbar>
+                <div class="finance-xscrollbar-track" data-xscrollbar-track>
+                    <div class="finance-xscrollbar-thumb" data-xscrollbar-thumb role="scrollbar" aria-label="Horizontal scroll"></div>
+                </div>
+            </div>
+            <script>
+                (function () {
+                    const filterForm = document.getElementById('daily-arrival-filter-form');
+                    const monthInput = document.getElementById('filter-month');
+                    const startInput = document.getElementById('filter-start-date');
+                    const endInput = document.getElementById('filter-end-date');
+
+                    if (filterForm && monthInput && startInput && endInput) {
+                        monthInput.addEventListener('change', function () {
+                            if (monthInput.value) {
+                                startInput.value = '';
+                                endInput.value = '';
+                            }
+                        });
+
+                        const clearMonthIfDateUsed = function () {
+                            if (startInput.value || endInput.value) {
+                                monthInput.value = '';
+                            }
+                        };
+                        startInput.addEventListener('change', clearMonthIfDateUsed);
+                        endInput.addEventListener('change', clearMonthIfDateUsed);
+
+                        filterForm.addEventListener('submit', function () {
+                            // Final cleanup before request to prevent stale values.
+                            if (startInput.value || endInput.value) {
+                                monthInput.value = '';
+                            } else if (monthInput.value) {
+                                startInput.value = '';
+                                endInput.value = '';
+                            }
+                        });
+                    }
+                })();
+            </script>
             <script>
                 (function () {
                     const table = document.querySelector('.finance-daily-arrival-table');
@@ -399,6 +516,148 @@
                             recalcForRow(e.target);
                         }
                     });
+                })();
+            </script>
+            <script>
+                (function () {
+                    const MIN_THUMB_WIDTH = 40;
+
+                    function initCustomXScroll(shell) {
+                        const content = shell.querySelector('[data-xscroll-content]');
+                        const bar = shell.querySelector('[data-xscrollbar]');
+                        const track = shell.querySelector('[data-xscrollbar-track]');
+                        const thumb = shell.querySelector('[data-xscrollbar-thumb]');
+                        if (!content || !bar || !track || !thumb) return;
+
+                        let dragState = null;
+                        let rafId = null;
+
+                        function getMetrics() {
+                            const viewportWidth = content.clientWidth || 0;
+                            const fullWidth = content.scrollWidth || 0;
+                            const maxScrollLeft = Math.max(0, fullWidth - viewportWidth);
+                            const trackWidth = track.clientWidth || 0;
+
+                            if (!trackWidth || !fullWidth || viewportWidth <= 0) {
+                                return {
+                                    viewportWidth,
+                                    fullWidth,
+                                    maxScrollLeft,
+                                    trackWidth,
+                                    thumbWidth: trackWidth,
+                                    maxThumbLeft: 0,
+                                };
+                            }
+
+                            const ratio = viewportWidth / fullWidth;
+                            const thumbWidth = Math.min(
+                                trackWidth,
+                                Math.max(MIN_THUMB_WIDTH, Math.round(trackWidth * ratio))
+                            );
+                            const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
+
+                            return {
+                                viewportWidth,
+                                fullWidth,
+                                maxScrollLeft,
+                                trackWidth,
+                                thumbWidth,
+                                maxThumbLeft,
+                            };
+                        }
+
+                        function render() {
+                            rafId = null;
+                            const m = getMetrics();
+
+                            thumb.style.width = m.thumbWidth + 'px';
+
+                            const hasOverflow = m.maxScrollLeft > 0;
+                            bar.classList.toggle('is-disabled', !hasOverflow);
+
+                            if (!hasOverflow) {
+                                thumb.style.transform = 'translateX(0px)';
+                                return;
+                            }
+
+                            const ratio = content.scrollLeft / m.maxScrollLeft;
+                            const left = Math.max(0, Math.min(m.maxThumbLeft, ratio * m.maxThumbLeft));
+                            thumb.style.transform = 'translateX(' + left + 'px)';
+                        }
+
+                        function scheduleRender() {
+                            if (rafId !== null) return;
+                            rafId = requestAnimationFrame(render);
+                        }
+
+                        function scrollByThumbDelta(deltaX) {
+                            const m = getMetrics();
+                            if (m.maxScrollLeft <= 0 || m.maxThumbLeft <= 0) return;
+                            const scrollRatio = m.maxScrollLeft / m.maxThumbLeft;
+                            content.scrollLeft = dragState.startScrollLeft + (deltaX * scrollRatio);
+                        }
+
+                        content.addEventListener('scroll', scheduleRender, { passive: true });
+                        window.addEventListener('resize', scheduleRender);
+
+                        if (window.ResizeObserver) {
+                            const ro = new ResizeObserver(scheduleRender);
+                            ro.observe(content);
+                            const table = content.querySelector('table');
+                            if (table) ro.observe(table);
+                        }
+
+                        track.addEventListener('pointerdown', function (e) {
+                            if (e.target === thumb) return;
+                            const m = getMetrics();
+                            if (m.maxScrollLeft <= 0) return;
+
+                            const rect = track.getBoundingClientRect();
+                            const clickX = e.clientX - rect.left;
+                            const targetLeft = Math.max(0, Math.min(m.maxThumbLeft, clickX - (m.thumbWidth / 2)));
+                            const ratio = m.maxThumbLeft > 0 ? (targetLeft / m.maxThumbLeft) : 0;
+                            content.scrollLeft = ratio * m.maxScrollLeft;
+                            scheduleRender();
+                        });
+
+                        thumb.addEventListener('pointerdown', function (e) {
+                            const m = getMetrics();
+                            if (m.maxScrollLeft <= 0) return;
+
+                            e.preventDefault();
+                            thumb.classList.add('is-dragging');
+                            dragState = {
+                                pointerId: e.pointerId,
+                                startX: e.clientX,
+                                startScrollLeft: content.scrollLeft,
+                            };
+                            thumb.setPointerCapture(e.pointerId);
+                        });
+
+                        thumb.addEventListener('pointermove', function (e) {
+                            if (!dragState || e.pointerId !== dragState.pointerId) return;
+                            const deltaX = e.clientX - dragState.startX;
+                            scrollByThumbDelta(deltaX);
+                            scheduleRender();
+                        });
+
+                        function stopDrag(e) {
+                            if (!dragState || e.pointerId !== dragState.pointerId) return;
+                            thumb.classList.remove('is-dragging');
+                            dragState = null;
+                        }
+
+                        thumb.addEventListener('pointerup', stopDrag);
+                        thumb.addEventListener('pointercancel', stopDrag);
+                        thumb.addEventListener('lostpointercapture', function () {
+                            thumb.classList.remove('is-dragging');
+                            dragState = null;
+                        });
+
+                        scheduleRender();
+                    }
+
+                    document.querySelectorAll('[data-xscroll-shell]').forEach(initCustomXScroll);
                 })();
             </script>
         </div>

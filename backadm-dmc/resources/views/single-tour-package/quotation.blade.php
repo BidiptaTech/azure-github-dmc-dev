@@ -31,11 +31,6 @@
             font-weight: bold;
         }
 
-        .pax {
-            display: inline-block;
-            min-width: 80px;
-        }
-
         .quotation-main-table {
             width: 100%;
             border-collapse: collapse;
@@ -497,7 +492,7 @@
                 <td style="width: 30%; vertical-align: top; padding-left: 2px;">
                     <div class="top-lines">
                         <div class="top-line"><span class="bold">LEAD GUEST NAME:</span> {{ $leadGuestName }}</div>
-                        <div class="top-line"><span class="bold">No. of Pax:</span> <span class="pax">{{ $paxText }}</span></div>
+                        <div class="top-line"><span class="bold">No. of Pax:</span> {{ $paxText }}</div>
                         <div class="top-line"><span class="bold">Travelling Date:</span> {{ $travellingDate }}</div>
                         <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
                     </div>
@@ -603,7 +598,7 @@
 
         @if(!empty($supplements) && is_array($supplements))
             <div style="margin-top: 10px;">
-                <div class="panel-title">Supplements (Booked separately)</div>
+                <div class="panel-title">Supplements</div>
                 <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
                     <thead>
                         <tr>
