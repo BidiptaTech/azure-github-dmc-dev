@@ -36,9 +36,10 @@
     .trip-log-page .trip-log-card .table { font-size: 10px !important; background: #fff; margin: 0; table-layout: auto; }
     .trip-log-page .trip-log-table thead th,
     .trip-log-page .trip-log-card .table thead th {
-        background: #f1f5f9 !important;
+        background:rgb(6, 132, 216) !important;
+        color: #fff !important;
         font-size: 14px !important;
-        font-weight: 600;
+        font-weight: 500 !important;
         text-transform: uppercase;
         letter-spacing: 0.02em;
         color: #475569;
@@ -69,39 +70,52 @@
 @section('content')
 <div class="container-xxl flex-grow-1 trip-log-page">
 <x-alert />
+    @php
+        $currentTab = $activeTab ?? request('tab', 'all');
+    @endphp
     <div class="trip-log-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         
         <span class="trip-log-title">Bookings / Trip Log</span>
+        <div class="d-flex align-items-center gap-2">
         <form method="get" action="{{ route('bookings.today') }}" class="d-flex align-items-center">
             <label class="form-label">Trip Date</label>
             <input type="date" name="date" value="{{ $tripDate }}" class="form-control">
             <span class="text-danger mx-1">to</span>
             <input type="date" name="end_date" value="{{ $end_date??$tripDate }}" class="form-control">
+            <input type="hidden" name="tab" id="filter-active-tab" value="{{ $currentTab }}">
             <button type="submit" class="btn btn-primary ms-1">Apply</button>
         </form>
+        <form method="get" action="{{ route('bookings.today') }}" class="d-flex align-items-center">
+            <input type="hidden" name="date" value="{{ $tripDate }}">
+            <input type="hidden" name="end_date" value="{{ $end_date??$tripDate }}">
+            <input type="hidden" name="tab" id="export-active-tab" value="{{ $currentTab }}">
+            <input type="hidden" name="export" value="excel">
+            <button type="submit" class="btn btn-success">Export Excel</button>
+        </form>
+        </div>
     </div>
 
     <ul class="nav nav-tabs trip-log-tabs" role="tablist">
         <li class="nav-item">
-            <a class="nav-link active" data-bs-toggle="tab" href="#all" role="tab">All</a>
+            <a class="nav-link {{ $currentTab === 'all' ? 'active' : '' }}" data-bs-toggle="tab" href="#all" role="tab" data-tab-key="all">All</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#transfer-logs" role="tab">Transfer Logs</a>
+            <a class="nav-link {{ $currentTab === 'transfer-logs' ? 'active' : '' }}" data-bs-toggle="tab" href="#transfer-logs" role="tab" data-tab-key="transfer-logs">Transfer Logs</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#attractions" role="tab">Attractions</a>
+            <a class="nav-link {{ $currentTab === 'attractions' ? 'active' : '' }}" data-bs-toggle="tab" href="#attractions" role="tab" data-tab-key="attractions">Attractions</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#restaurants" role="tab">Restaurants</a>
+            <a class="nav-link {{ $currentTab === 'restaurants' ? 'active' : '' }}" data-bs-toggle="tab" href="#restaurants" role="tab" data-tab-key="restaurants">Restaurants</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#hotels" role="tab">Hotels</a>
+            <a class="nav-link {{ $currentTab === 'hotels' ? 'active' : '' }}" data-bs-toggle="tab" href="#hotels" role="tab" data-tab-key="hotels">Hotels</a>
         </li>
     </ul>
 
     <div class="tab-content">
         {{-- All (single table, sorted by date/time) --}}
-        <div class="tab-pane fade show active trip-log-tab-pane" id="all" role="tabpanel">
+        <div class="tab-pane fade {{ $currentTab === 'all' ? 'show active' : '' }} trip-log-tab-pane" id="all" role="tabpanel">
             <div class="card trip-log-card">
                 <div class="card-body p-0">
                     @if(count($allLogs ?? []) > 0)
@@ -167,7 +181,7 @@
         </div>
 
         {{-- Transfer Logs (single tab) --}}
-        <div class="tab-pane fade trip-log-tab-pane" id="transfer-logs" role="tabpanel">
+        <div class="tab-pane fade {{ $currentTab === 'transfer-logs' ? 'show active' : '' }} trip-log-tab-pane" id="transfer-logs" role="tabpanel">
             <div class="card trip-log-card">
                 <div class="card-body p-0">
                     @if(count($transferLogs) > 0)
@@ -218,7 +232,7 @@
         </div>
 
         {{-- Attractions --}}
-        <div class="tab-pane fade trip-log-tab-pane" id="attractions" role="tabpanel">
+        <div class="tab-pane fade {{ $currentTab === 'attractions' ? 'show active' : '' }} trip-log-tab-pane" id="attractions" role="tabpanel">
             <div class="card trip-log-card">
                 <div class="card-body p-0">
                     @if(count($attractionLogs) > 0)
@@ -263,7 +277,7 @@
         </div>
 
         {{-- Restaurants --}}
-        <div class="tab-pane fade trip-log-tab-pane" id="restaurants" role="tabpanel">
+        <div class="tab-pane fade {{ $currentTab === 'restaurants' ? 'show active' : '' }} trip-log-tab-pane" id="restaurants" role="tabpanel">
             <div class="card trip-log-card">
                 <div class="card-body p-0">
                     @if(count($restaurantLogs) > 0)
@@ -308,7 +322,7 @@
         </div>
 
         {{-- Hotels --}}
-        <div class="tab-pane fade trip-log-tab-pane" id="hotels" role="tabpanel">
+        <div class="tab-pane fade {{ $currentTab === 'hotels' ? 'show active' : '' }} trip-log-tab-pane" id="hotels" role="tabpanel">
             <div class="card trip-log-card">
                 <div class="card-body p-0">
                     @if(count($hotelLogs) > 0)
@@ -349,4 +363,23 @@
         </div>
     </div>
 </div>
+<script>
+    (function () {
+        const filterInput = document.getElementById('filter-active-tab');
+        const exportInput = document.getElementById('export-active-tab');
+        const tabLinks = document.querySelectorAll('.trip-log-tabs [data-tab-key]');
+
+        function setTab(tabKey) {
+            if (filterInput) filterInput.value = tabKey;
+            if (exportInput) exportInput.value = tabKey;
+        }
+
+        tabLinks.forEach((link) => {
+            link.addEventListener('shown.bs.tab', function (e) {
+                const tabKey = e.target.getAttribute('data-tab-key') || 'all';
+                setTab(tabKey);
+            });
+        });
+    })();
+</script>
 @endsection

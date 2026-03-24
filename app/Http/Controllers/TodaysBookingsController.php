@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\TripLogExport;
 use App\Helpers\CommonHelper;
 use App\Models\Tour;
 use App\Models\Driver;
@@ -12,6 +13,7 @@ use App\Models\JobSheet;
 use App\Models\Vehicle;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TodaysBookingsController extends Controller
 {
@@ -230,6 +232,21 @@ class TodaysBookingsController extends Controller
             $allLogs = [];
         }
 
+        if ($request->get('export') === 'excel') {
+            $activeTab = strtolower((string) $request->get('tab', 'all'));
+            [$headings, $rows] = $this->buildTripLogExportPayload(
+                $activeTab,
+                $allLogs ?? [],
+                $transferLogs,
+                $attractionLogs,
+                $restaurantLogs,
+                $hotelLogs
+            );
+
+            $filename = 'trip-log-' . $activeTab . '-' . $tripDate . '-to-' . $end_date . '.xlsx';
+            return Excel::download(new TripLogExport($headings, $rows), $filename, \Maatwebsite\Excel\Excel::XLSX);
+        }
+
         return view('bookings.todays', [
             'tripDate' => $tripDate,
             'end_date' => $end_date,
@@ -238,6 +255,7 @@ class TodaysBookingsController extends Controller
             'restaurantLogs' => $restaurantLogs,
             'hotelLogs' => $hotelLogs,
             'allLogs' => $allLogs ?? [],
+            'activeTab' => strtolower((string) $request->get('tab', 'all')),
         ]);
     }catch(\Exception $e){
         
@@ -444,5 +462,120 @@ class TodaysBookingsController extends Controller
             'rooms' => $rooms,
             'sort_at' => $sortAt,
         ];
+    }
+
+    /**
+     * @return array{0: array<int, string>, 1: array<int, array<int, mixed>>}
+     */
+    protected function buildTripLogExportPayload(
+        string $activeTab,
+        array $allLogs,
+        array $transferLogs,
+        array $attractionLogs,
+        array $restaurantLogs,
+        array $hotelLogs
+    ): array {
+        switch ($activeTab) {
+            case 'transfer-logs':
+                $headings = ['Date', 'Time', 'Reference No', 'Guest', 'Transfer Type', 'From', 'To', 'Type', 'Adults', 'Child', 'Driver'];
+                $rows = array_map(fn ($row) => [
+                    $row['date'] ?? '—',
+                    $row['time'] ?? '—',
+                    $row['reference_no'] ?? '—',
+                    $row['guest'] ?? '—',
+                    $row['transfer_type'] ?? '—',
+                    $row['from'] ?? '—',
+                    $row['to'] ?? '—',
+                    $row['type'] ?? '—',
+                    $row['adults'] ?? 0,
+                    $row['child'] ?? 0,
+                    $row['driver'] ?? '—',
+                ], $transferLogs);
+                return [$headings, $rows];
+
+            case 'attractions':
+                $headings = ['Date', 'Time', 'Reference No', 'Guest', 'Attraction Name', 'Ticket / Type', 'Adults', 'Child'];
+                $rows = array_map(fn ($row) => [
+                    $row['date'] ?? '—',
+                    $row['time'] ?? '—',
+                    $row['reference_no'] ?? '—',
+                    $row['guest'] ?? '—',
+                    $row['name'] ?? '—',
+                    $row['ticket_type'] ?? '—',
+                    $row['adults'] ?? 0,
+                    $row['child'] ?? 0,
+                ], $attractionLogs);
+                return [$headings, $rows];
+
+            case 'restaurants':
+                $headings = ['Date', 'Time', 'Reference No', 'Guest', 'Restaurant Name', 'Meal Type', 'Adults', 'Child'];
+                $rows = array_map(fn ($row) => [
+                    $row['date'] ?? '—',
+                    $row['time'] ?? '—',
+                    $row['reference_no'] ?? '—',
+                    $row['guest'] ?? '—',
+                    $row['name'] ?? '—',
+                    $row['meal_type'] ?? '—',
+                    $row['adults'] ?? 0,
+                    $row['child'] ?? 0,
+                ], $restaurantLogs);
+                return [$headings, $rows];
+
+            case 'hotels':
+                $headings = ['Reference No', 'Guest', 'Hotel Name', 'Check-in', 'Check-out', 'Rooms'];
+                $rows = array_map(fn ($row) => [
+                    $row['reference_no'] ?? '—',
+                    $row['guest'] ?? '—',
+                    $row['name'] ?? '—',
+                    $row['check_in'] ?? '—',
+                    $row['check_out'] ?? '—',
+                    $row['rooms'] ?? '—',
+                ], $hotelLogs);
+                return [$headings, $rows];
+
+            case 'all':
+            default:
+                $headings = ['Type', 'Date', 'Time', 'Reference No', 'Guest', 'Details', 'Adults', 'Child', 'Other'];
+                $rows = array_map(function ($row) {
+                    $type = $row['log_type'] ?? '—';
+                    $details = '—';
+                    $other = '—';
+
+                    if ($type === 'Transfer') {
+                        $details = ($row['from'] ?? '—') . ' -> ' . ($row['to'] ?? '—');
+                        if (!empty($row['transfer_type'])) {
+                            $details .= ' (' . $row['transfer_type'] . ')';
+                        }
+                        $other = $row['driver'] ?? '—';
+                    } elseif ($type === 'Attraction') {
+                        $details = $row['name'] ?? '—';
+                        if (!empty($row['ticket_type'])) {
+                            $details .= ' / ' . $row['ticket_type'];
+                        }
+                    } elseif ($type === 'Restaurant') {
+                        $details = $row['name'] ?? '—';
+                        if (!empty($row['meal_type'])) {
+                            $details .= ' / ' . $row['meal_type'];
+                        }
+                    } elseif ($type === 'Hotel') {
+                        $details = ($row['name'] ?? '—') . ' — ' . ($row['check_in'] ?? '—') . ' to ' . ($row['check_out'] ?? '—');
+                        $other = ($row['rooms'] ?? '—') . ' room(s)';
+                    }
+
+                    return [
+                        $type,
+                        $row['date'] ?? '—',
+                        $row['time'] ?? '—',
+                        $row['reference_no'] ?? '—',
+                        $row['guest'] ?? '—',
+                        $details,
+                        $row['adults'] ?? '—',
+                        $row['child'] ?? '—',
+                        $other,
+                    ];
+                }, $allLogs);
+
+                return [$headings, $rows];
+        }
     }
 }
