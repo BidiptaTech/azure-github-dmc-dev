@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Tour;
+use App\Models\Order;
 use App\Models\User;
 
 class BookingCountServiceProvider extends ServiceProvider
@@ -62,7 +63,8 @@ class BookingCountServiceProvider extends ServiceProvider
                 'definite' => $this->getTourCountWithDmcFilter('Definite', $currentMonthStart, $currentMonthEnd, $dmc_id),
                 'actual' => $this->getTourCountWithDmcFilter('Actual', $currentMonthStart, $currentMonthEnd, $dmc_id),
                 'cancelled' => $this->getCancelledTourCount($currentMonthStart, $currentMonthEnd, $dmc_id),
-                'refunds' => $this->getTourCountWithDmcFilter(['Refund - Pending', 'Refunded'], $currentMonthStart, $currentMonthEnd, $dmc_id),
+                // Refunds badge: distinct tours that have refund-marked removed services in current month.
+                'refunds' => $this->getRefundTourCount($currentMonthStart, $currentMonthEnd, $dmc_id),
             ];
 
             $view->with('bookingCounts', $bookingCounts);
@@ -110,5 +112,31 @@ class BookingCountServiceProvider extends ServiceProvider
         }
 
         return $query->count();
+    }
+
+    /**
+     * Refunds count for sidebar:
+     * distinct tour_id from orders where removed/refund service rows are marked is_refund = 1
+     * within current month (based on deleted_at, fallback updated_at), optionally filtered by dmc_id.
+     */
+    private function getRefundTourCount($startDate, $endDate, $dmc_id): int
+    {
+        $query = Order::withTrashed()
+            ->join('tours', 'orders.tour_id', '=', 'tours.tour_id')
+            ->where('orders.bookingType', 'booking')
+            ->where('orders.is_refund', 1)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('orders.deleted_at', [$startDate, $endDate])
+                  ->orWhere(function ($inner) use ($startDate, $endDate) {
+                      $inner->whereNull('orders.deleted_at')
+                            ->whereBetween('orders.updated_at', [$startDate, $endDate]);
+                  });
+            });
+
+        if ($dmc_id) {
+            $query->where('tours.dmc_id', $dmc_id);
+        }
+
+        return (int) $query->select('orders.tour_id')->distinct()->count('orders.tour_id');
     }
 }

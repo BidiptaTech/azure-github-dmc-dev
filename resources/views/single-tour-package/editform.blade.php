@@ -97,7 +97,10 @@
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
+    <script>
+        window.hasNegotiationHistory = @json($hasNegotiationHistory);
+        window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
+    </script>
     
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
@@ -11340,16 +11343,29 @@
 
     function runServiceAddWithPayment(servicePrice, proceedFn) {
         const amount = Number.parseFloat(servicePrice || 0) || 0;
-        const normalizedStatus = String(__tourStatus || '').toLowerCase();
-        const bypassPaymentCheckStatuses = ['definite', 'actual'];
-        const shouldBypassPaymentCheck = bypassPaymentCheckStatuses.includes(normalizedStatus);
+        const normalizedStatus = String(__tourStatus || '').trim().toLowerCase();
+        const isActualTour = normalizedStatus.includes('actual');
+        const isDefiniteTour = normalizedStatus.includes('definite');
+        const isConfirmTour = normalizedStatus.includes('confirm');
 
-        // For Definite/Actual tours, bypass service payment check and continue directly.
-        if (shouldBypassPaymentCheck) {
+        // Definite / Confirm: proceed without showing payment modal.
+        if (isDefiniteTour) {
             if (typeof proceedFn === 'function') proceedFn();
             return;
         }
 
+        if (isConfirmTour) {
+            if (typeof proceedFn === 'function') proceedFn();
+            return;
+        }
+
+        // Only `Actual` tours open the payment modal.
+        if (!isActualTour) {
+            if (typeof proceedFn === 'function') proceedFn();
+            return;
+        }
+
+        // Actual: payment is mandatory before service add.
         __openGlobalPaymentModal({
             amount,
             mandatory: true,
@@ -16578,9 +16594,8 @@
         if (hotelSelect) {
             hotelSelect.addEventListener('change', onHotelSelection);
         }
-        if (proceedBtn) {
-            proceedBtn.addEventListener('click', proceedToHotelSelection);
-        }
+        // `#proceed_hotel_btn` already has inline `onclick="proceedToHotelSelection()"`.
+        // Attaching another click listener here causes the booking submit to happen twice.
     }
     
     // Hotel Modal Functions - Chain-dependent dropdowns like create.blade.php
@@ -21484,7 +21499,7 @@
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             const tourId = document.getElementById('tour_id')?.value || '';
-            const normalizedStatus = String(__tourStatus || '').toLowerCase();
+            const normalizedStatus = String(window.removeServicePageTourStatus || __tourStatus || '').toLowerCase();
             const isDefiniteOrActual = ['definite', 'actual'].includes(normalizedStatus);
             
             fetch(url, {

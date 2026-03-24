@@ -753,6 +753,10 @@
                                     $actualAmount = $item['actual_amount'] ?? null;
                                     $changedByName = $item['changed_by_name'] ?? null;
                                     $action = $item['action'] ?? null;
+                                    $Amount=$item['sgd_amount'] ?? null;
+                                    $selectedCurrency=$item['selected_currency'] ?? null;
+                                    $paymentDate=$item['payment_date'] ?? null;
+                                    $paymentType=$item['payment_type'] ?? null;
                                     $serviceType = $item['service_type'] ?? (!empty($item['hotel_name']) || !empty($item['hotel_id']) ? 'hotel' : null);
                                     $serviceId = $item['service_id'] ?? $item['hotel_id'] ?? null;
                                     $serviceName = $item['service_name'] ?? $item['hotel_name'] ?? null;
@@ -818,7 +822,7 @@
                                                 @endif
                                             </div>
                                             @endif
-                                            @if(!empty($serviceType) || !empty($serviceName) || !empty($action))
+                                            @if((!empty($serviceType) || !empty($serviceName) || !empty($action)) && empty($Amount))
                                             <p class="mb-1 text-muted small">
                                                 @if(!empty($serviceType) || !empty($serviceName))
                                                     <i class="ri-service-line me-1"></i>
@@ -835,6 +839,24 @@
                                                 @endif
                                             </p>
                                             @endif
+                                            @if(!empty($Amount) || !empty($selectedCurrency) || !empty($paymentDate) || !empty($paymentType) || !empty($action))
+                                            @if(!empty($action))
+                                                    <span class="badge bg-label-secondary ms-1">{{ $action }}</span>
+                                            @endif
+                                                @if(!empty($Amount) || !empty($selectedCurrency) || !empty($paymentDate) || !empty($paymentType))
+                                            <p class="mb-1 text-muted small">
+                                                <i class="ri-money-dollar-circle-line me-1"></i>
+                                                Amount: <span class="fw-semibold">{{ $Amount }}</span>
+                                                <span class="badge bg-label-secondary ms-1">{{ $selectedCurrency }}</span>
+                                            </p>
+                                            <p class="mb-1 text-muted small">
+                                                <i class="ri-calendar-event-line me-1"></i>
+                                                Payment Date: <span class="fw-semibold">{{ $paymentDate }}</span>
+                                                Payment Type: <span class="badge bg-label-secondary ms-1">{{ $paymentType }}</span>
+                                            </p>
+                                            @endif
+                                            @endif
+                                            
                                             @if(!empty($changedByName))
                                             <p class="mb-0 text-muted small">
                                                 Updated By <span class="fw-medium">{{ $changedByName }}</span>
