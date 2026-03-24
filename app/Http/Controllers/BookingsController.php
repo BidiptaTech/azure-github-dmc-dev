@@ -1553,29 +1553,67 @@ class BookingsController extends Controller
             }
 
             $tourId = (int) $request->tour_id;
+            $roleId = (int) (Auth::user()->role_id ?? 0);
+            $holdRoles = [33, 12, 37, 38];
+            $financeRoles = [36, 126, 127];
 
-            $updated = Order::withTrashed()
-                ->where('tour_id', $tourId)
-                ->where('bookingType', 'booking')
-                ->where('is_refund', 1)
-                ->update([
-                    'refunded' => true,
-                    'updated_at' => now(),
-                ]);
+            if (in_array($roleId, $holdRoles, true)) {
+                $updated = Order::withTrashed()
+                    ->where('tour_id', $tourId)
+                    ->where('bookingType', 'booking')
+                    ->where('is_refund', 1)
+                    ->update([
+                        'is_verify' => 2, // hold
+                        'updated_at' => now(),
+                    ]);
 
-            if ($updated === 0) {
+                if ($updated === 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No refund-eligible services found for this tour.'
+                    ], 404);
+                }
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'No refund-eligible services found for this tour.'
-                ], 404);
+                    'success' => true,
+                    'message' => 'Services moved to hold for finance verification.',
+                    'tour_id' => $tourId,
+                    'updated_orders' => $updated,
+                    'is_verify' => 2
+                ]);
+            }
+
+            if (in_array($roleId, $financeRoles, true)) {
+                $updated = Order::withTrashed()
+                    ->where('tour_id', $tourId)
+                    ->where('bookingType', 'booking')
+                    ->where('is_refund', 1)
+                    ->update([
+                        'is_verify' => 1, // accepted
+                        'refunded' => true,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($updated === 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No refund services found for finance verification.'
+                    ], 404);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Finance verification completed and services marked refunded.',
+                    'tour_id' => $tourId,
+                    'updated_orders' => $updated,
+                    'is_verify' => 1
+                ]);
             }
 
             return response()->json([
-                'success' => true,
-                'message' => 'Refunded status updated for refund-marked services.',
-                'tour_id' => $tourId,
-                'updated_orders' => $updated
-            ]);
+                'success' => false,
+                'message' => 'You are not authorized to perform this action.'
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1604,6 +1642,9 @@ class BookingsController extends Controller
 
             $tourId = (int) $request->tour_id;
             $orderId = (int) $request->order_id;
+            $roleId = (int) (Auth::user()->role_id ?? 0);
+            $holdRoles = [33, 12, 37, 38];
+            $financeRoles = [36, 126, 127];
 
             $order = Order::withTrashed()
                 ->where('tour_id', $tourId)
@@ -1622,16 +1663,39 @@ class BookingsController extends Controller
                 ], 404);
             }
 
-            $order->refunded = true;
-            $order->updated_at = now();
-            $order->save();
+            if (in_array($roleId, $holdRoles, true)) {
+                $order->is_verify = 2; // hold
+                $order->updated_at = now();
+                $order->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Selected service moved to hold for finance verification.',
+                    'tour_id' => $tourId,
+                    'order_id' => $orderId,
+                    'is_verify' => 2
+                ]);
+            }
+
+            if (in_array($roleId, $financeRoles, true)) {
+                $order->is_verify = 1; // accepted
+                $order->refunded = true;
+                $order->updated_at = now();
+                $order->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Finance verification completed and selected service marked refunded.',
+                    'tour_id' => $tourId,
+                    'order_id' => $orderId,
+                    'is_verify' => 1
+                ]);
+            }
 
             return response()->json([
-                'success' => true,
-                'message' => 'Selected service marked as refunded.',
-                'tour_id' => $tourId,
-                'order_id' => $orderId
-            ]);
+                'success' => false,
+                'message' => 'You are not authorized to perform this action.'
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

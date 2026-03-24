@@ -56,13 +56,13 @@
             padding: 5px;
         }
         .header-left {
-            width: 25%;
+            width: 28%;
             vertical-align: middle;
             text-align: center;
-            padding: 15px;
+            padding: 10px 12px;
         }
         .header-center {
-            width: 45%;
+            width: 42%;
             text-align: center;
             padding-top: 15px;
         }
@@ -82,8 +82,18 @@
             font-size: 18px;
             font-weight: bold;
             margin-top: 15px;
-            margin-bottom: 0;
+            margin-bottom: 4px;
             color: #333;
+        }
+        .header .dmc-meta {
+            font-size: 9px;
+            color: #555;
+            line-height: 1.45;
+            margin-top: 4px;
+            font-weight: normal;
+        }
+        .header .dmc-meta div {
+            margin-top: 2px;
         }
         .invoice-number-badge {
             background-color: #20B2AA;
@@ -137,6 +147,7 @@
         }
         .info-box-container-table {
             width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             border-spacing: 0;
         }
@@ -150,6 +161,38 @@
         }
         .info-box-right {
             padding-left: 10px;
+        }
+        .info-box-container .info-section {
+            margin-bottom: 0;
+        }
+        .info-box-container .info-label {
+            min-width: 95px;
+        }
+        .info-fields-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0;
+            table-layout: fixed;
+        }
+        .info-fields-table td {
+            border: none !important;
+            padding: 3px 0 5px 0 !important;
+            vertical-align: top;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .info-fields-table .info-label-cell {
+            font-weight: bold;
+            color: #555;
+            padding-right: 8px !important;
+        }
+        .info-fields-table .info-label-cell.info-label-pair {
+            padding-left: 6px !important;
+        }
+        .info-fields-table .info-value-cell {
+            color: #333;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         .currency-conversion-section {
             page-break-inside: avoid;
@@ -213,7 +256,8 @@
         }
         .dmc-logo-wrapper {
             width: 100%;
-            height: 100px;
+            min-height: 160px;
+            height: 160px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -274,6 +318,8 @@
         $logoType = $logoType ?? 'dmc';
         $displayLogoSrc = null;
         $displayCompanyName = 'DMC Name';
+        $displayCompanyRegNo = null;
+        $displayLicenceNo = null;
 
         if ($logoType === 'agency' && $invoice->agent && $invoice->agent->agency) {
             $agency = $invoice->agent->agency;
@@ -314,6 +360,13 @@
             }
             $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
             $displayCompanyName = $rootDmc->company_name ?? $dmcUser->company_name ?? 'DMC Name';
+            $reg = trim((string) ($rootDmc->company_reg_no ?? ''));
+            if ($reg === '') {
+                $reg = trim((string) ($dmcUser->company_reg_no ?? ''));
+            }
+            $displayCompanyRegNo = $reg !== '' ? $reg : null;
+            $lic = $rootDmc->ta_licence_no ?? $rootDmc->licence_no ?? $dmcUser->ta_licence_no ?? $dmcUser->licence_no ?? null;
+            $displayLicenceNo = ($lic !== null && trim((string) $lic) !== '') ? trim((string) $lic) : null;
             if ($dmcLogo) {
                 try {
                     if (preg_match('/^data:image\\//i', $dmcLogo)) {
@@ -349,8 +402,18 @@
                 <td class="header-center">
                     <h1>PROFORMA INVOICE</h1>
                     <div class="dmc-name">{{ $displayCompanyName }}</div>
+                    @if(!empty($displayCompanyRegNo) || !empty($displayLicenceNo))
+                    <div class="dmc-meta">
+                        @if(!empty($displayCompanyRegNo))
+                        <div>UEN/Co. Reg No.: {{ $displayCompanyRegNo }}</div>
+                        @endif
+                        @if(!empty($displayLicenceNo))
+                        <div>TA Licence No.: {{ $displayLicenceNo }}</div>
+                        @endif
+                    </div>
+                    @endif
                 </td>
-                <td class="header-right">
+                <td class="header-right" style="width: 20%; justify-content: center;">>
                     <div class="invoice-number-badge">
                         <strong>Proforma Number:</strong>
                         {{ $invoice->proforma_number ?? 'DRAFT' }}
@@ -365,84 +428,109 @@
         $travelCompany = $invoice->travel_company_details ?? [];
     @endphp
 
-    <!-- Client/Guest Information -->
-    <div class="info-section">
-        <div class="info-section-title">Client/Guest Information</div>
-        <div class="info-row">
-            <span class="info-label">Address:</span>
-            <span class="info-value">{{ $clientDetails['address'] ?? '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">State:</span>
-            <span class="info-value">{{ $clientDetails['city'] ?? '' }}</span>
-            <span class="info-label" style="margin-left: 30px;">Postal Code:</span>
-            <span class="info-value">{{ $clientDetails['postal_code'] ?? '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Email:</span>
-            <span class="info-value">{{ $clientDetails['email'] ?? '' }}</span>
-            <span class="info-label" style="margin-left: 30px;">Phone:</span>
-            <span class="info-value">{{ $clientDetails['phone'] ?? '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Booking ID:</span>
-            <span class="info-value">{{ $clientDetails['booking_id'] ?? '' }}</span>
-            <span class="info-label" style="margin-left: 30px;">Lead Guest:</span>
-            <span class="info-value">{{ $clientDetails['lead_guest_name'] ?? '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">No. of Adults:</span>
-            <span class="info-value">{{ $invoice->no_of_adults ?? 0 }}</span>
-            <span class="info-label" style="margin-left: 30px;">No. of Children:</span>
-            <span class="info-value">{{ $invoice->no_of_children ?? 0 }}</span>
-            <span class="info-label" style="margin-left: 30px;">No. of Infants:</span>
-            <span class="info-value">{{ $invoice->no_of_infants ?? 0 }}</span>
-        </div>
-    </div>
-
-    <!-- Travel Company / Agent -->
-    <div class="info-section">
-        <div class="info-section-title">Travel Company / Agent</div>
-        @if(!empty($travelCompany['company_name']))
-        <div class="info-row">
-            <span class="info-label">Travel Agency:</span>
-            <span class="info-value">{{ $travelCompany['company_name'] ?? '' }}</span>
-        </div>
-        @endif
-        @if(!empty($travelCompany))
-        <div class="info-row">
-            <span class="info-label">Travel Agent:</span>
-            <span class="info-value">{{ $travelCompany['name'] ?? '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Address:</span>
-            <span class="info-value">{{ $travelCompany['address'] ?? '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Contact Person:</span>
-            <span class="info-value">{{ $travelCompany['contact_person'] ?? '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Phone:</span>
-            <span class="info-value">{{ $travelCompany['phone'] ?? '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Email:</span>
-            <span class="info-value">{{ $travelCompany['email'] ?? '' }}</span>
-        </div>
-        @endif
-        <div class="info-row">
-            <span class="info-label">Proposal Date:</span>
-            <span class="info-value">{{ $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('jS M Y') : '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Proposal Validity:</span>
-            <span class="info-value">{{ $invoice->validity_date ? \Carbon\Carbon::parse($invoice->validity_date)->format('jS M Y') : '' }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Proposal Sent By:</span>
-            <span class="info-value">{{ $invoice->sent_by ?? '' }}</span>
-        </div>
+    <div class="info-box-container">
+        <table class="info-box-container-table">
+            <tr>
+                <td class="info-box-left">
+                    <!-- Client/Guest Information -->
+                    <div class="info-section">
+                        <div class="info-section-title">Client/Guest Information</div>
+                        <table class="info-fields-table">
+                            <colgroup>
+                                <col style="width: 22%;">
+                                <col style="width: 28%;">
+                                <col style="width: 22%;">
+                                <col style="width: 28%;">
+                            </colgroup>
+                            <tr>
+                                <td class="info-label-cell">Address:</td>
+                                <td class="info-value-cell" colspan="3">{{ $clientDetails['address'] ?? '' }}</td>
+                            </tr>
+                            {{-- <tr>
+                                <td class="info-label-cell">State:</td>
+                                <td class="info-value-cell">{{ $clientDetails['city'] ?? '' }}</td>
+                                <td class="info-label-cell info-label-pair">Postal Code:</td>
+                                <td class="info-value-cell">{{ $clientDetails['postal_code'] ?? '' }}</td>
+                            </tr> --}}
+                            <tr>
+                                <td class="info-label-cell">Email:</td>
+                                <td class="info-value-cell" colspan="3">{{ $clientDetails['email'] ?? '' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="info-label-cell">Phone:</td>
+                                <td class="info-value-cell" colspan="3">{{ $clientDetails['phone'] ?? '' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="info-label-cell">Booking ID:</td>
+                                <td class="info-value-cell" colspan="3">{{ $clientDetails['booking_id'] ?? '' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="info-label-cell">Lead Guest:</td>
+                                <td class="info-value-cell" colspan="3">{{ $clientDetails['lead_guest_name'] ?? '' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="info-label-cell">No. of Adults:</td>
+                                <td class="info-value-cell" colspan="3">{{ $invoice->no_of_adults ?? 0 }}</td>
+                            </tr>
+                            <tr>
+                                <td class="info-label-cell">No. of Children:</td>
+                                <td class="info-value-cell" colspan="3">{{ $invoice->no_of_children ?? 0 }}</td>
+                            </tr>
+                            <tr>
+                                <td class="info-label-cell">No. of Infants:</td>
+                                <td class="info-value-cell" colspan="3">{{ $invoice->no_of_infants ?? 0 }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+                <td class="info-box-right">
+                    <!-- Travel Company / Agent -->
+                    <div class="info-section">
+                        <div class="info-section-title">Travel Company / Agent</div>
+                        @if(!empty($travelCompany['company_name']))
+                        <div class="info-row">
+                            <span class="info-label">Travel Agency:</span>
+                            <span class="info-value">{{ $travelCompany['company_name'] ?? '' }}</span>
+                        </div>
+                        @endif
+                        @if(!empty($travelCompany))
+                        <div class="info-row">
+                            <span class="info-label">Travel Agent:</span>
+                            <span class="info-value">{{ $travelCompany['name'] ?? '' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Address:</span>
+                            <span class="info-value">{{ $travelCompany['address'] ?? '' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Contact Person:</span>
+                            <span class="info-value">{{ $travelCompany['contact_person'] ?? '' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Phone:</span>
+                            <span class="info-value">{{ $travelCompany['phone'] ?? '' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Email:</span>
+                            <span class="info-value">{{ $travelCompany['email'] ?? '' }}</span>
+                        </div>
+                        @endif
+                        <div class="info-row">
+                            <span class="info-label">Proposal Date:</span>
+                            <span class="info-value">{{ $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('jS M Y') : '' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Proposal Validity:</span>
+                            <span class="info-value">{{ $invoice->validity_date ? \Carbon\Carbon::parse($invoice->validity_date)->format('jS M Y') : '' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Proposal Sent By:</span>
+                            <span class="info-value">{{ $invoice->sent_by ?? '' }}</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <!-- Travel Summary -->

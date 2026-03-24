@@ -17,17 +17,31 @@
     
     /* Logo area styling */
     .app-brand {
-        padding: 1.25rem 1.5rem;
-        height: 70px;
+        padding: 0.95rem 1rem;
+        min-height: 74px;
+        height: auto;
         background: linear-gradient(135deg, #6366f1, #8b5cf6); 
         margin-bottom: 1rem;
         box-shadow: 0 4px 12px rgba(107, 114, 241, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .app-brand-link {
+        display: flex;
+        align-items: center;
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: calc(100% - 56px);
+        gap: 0.55rem;
     }
     
     .app-brand-text {
         color: white !important;
         font-weight: 700 !important;
         text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        min-width: 0;
     }
     
     /* Menu header styling */
@@ -428,8 +442,8 @@
     }
 
     .rounded-logo {
-        width: 55px;
-        height: 55px;
+        width: 46px;
+        height: 46px;
         object-fit: cover;
         border-radius: 50%; /* Makes it a perfect circle */
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2),
@@ -445,49 +459,21 @@
                     inset 0 0 12px rgba(255, 255, 255, 0.3);
         }
 
-    /* Improved Animated Ellipsis */
-    .animated-ellipsis {
-        display: inline-flex;
-        margin-left: 2px;
-        position: relative;
-        top: -1px;
-    }
-
-    .animated-ellipsis span {
-        animation: waveEffect 1.8s infinite;
-        animation-fill-mode: both;
-        font-weight: bold;
-        color: white;
-        font-size: 16px;
-        margin-left: 1px;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    }
-
-    .animated-ellipsis span:nth-child(2) {
-        animation-delay: 0.2s;
-    }
-
-    .animated-ellipsis span:nth-child(3) {
-        animation-delay: 0.4s;
-    }
-
-    @keyframes waveEffect {
-        0%, 100% {
-            transform: translateY(0);
-        }
-        25% {
-            transform: translateY(-4px);
-        }
-        50% {
-            transform: translateY(0);
-        }
-        75% {
-            transform: translateY(4px);
-        }
-    }
     .small-brand-text {
-        font-size: 1.1rem;
-        letter-spacing: 0.5px;
+        display: inline-block;
+        max-width: 122px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.1px;
+        line-height: 1.1;
+        vertical-align: middle;
+    }
+    .layout-menu-toggle {
+        flex: 0 0 auto;
+        margin-left: 0.35rem;
     }
 
     .ri-gift-line {
@@ -913,32 +899,50 @@
                 <a href="{{ route('dashboard') }}" class="app-brand-link">
                     <span class="app-brand-logo demo">
                         @php
-                        $logoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
-                        $fileStorage = \App\Helpers\CommonHelper::masterSettingsName('file_storage')['master_value']
-                        ?? 'local'; // Default to local if not set
+                        $currentUser = Auth::user();
+                        $brandUser = $currentUser;
+
+                        // Resolve DMC branding for hierarchical roles (sales/finance/product/ops etc.).
+                        if ($currentUser) {
+                            $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                            if (!empty($dmcId)) {
+                                $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                                if ($dmcUser) {
+                                    $brandUser = $dmcUser;
+                                }
+                            }
+                        }
+
+                        $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
+                        $masterName = \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] ?? 'Dashboard';
+
+                        $brandName = trim((string) ($brandUser->company_name ?? ''));
+                        if ($brandName === '') {
+                            $brandName = $masterName;
+                        }
+
+                        $brandLogo = trim((string) ($brandUser->logo ?? ''));
+                        if ($brandLogo === '') {
+                            $brandLogo = $masterLogo;
+                        }
+
+                        if ($brandLogo !== '' && !preg_match('/^(https?:\/\/|data:image\/)/i', $brandLogo)) {
+                            $brandLogo = asset(ltrim($brandLogo, '/'));
+                        }
                         @endphp
                         <div class="logo-icon">
-                            <img src="{{ $logoSetting['master_value'] }}" class="logo-img rounded-logo" alt="Logo">
+                            <img src="{{ $brandLogo }}" class="logo-img rounded-logo" alt="Logo">
                         </div>
                         {{-- <div class="logo-name flex-grow-1">
                             <h5 class="mb-0 text-white">
                                 {{ \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] }}</h5>
                         </div> --}}
                     </span>
-                    </span>
                     <span class="app-brand-text demo menu-text fw-semibold ms-2">
-                        @php
-                            $name = \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'];
-                            $limit = 10;
-                            $displayName = strlen($name) > $limit ? substr($name, 0, $limit) : $name;
-                        @endphp
-                        <span class="small-brand-text" title="{{ $name }}">{{ $displayName }}</span>
-                        @if(strlen($name) > $limit)
-                            <span class="animated-ellipsis"><span>.</span><span>.</span><span>.</span></span>
-                        @endif
+                        <span class="small-brand-text" title="{{ $brandName }}">{{ $brandName }}</span>
                     </span>
                 </a>
-                <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
+                <a href="javascript:void(0);" class="layout-menu-toggle menu-link7 text-large ms-auto" style="right: -25px;">
                     <i class="menu-icon tf-icons ri-menu-fold-line" style="margin-left: 10px"></i>
                 </a>
             </div>

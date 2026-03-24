@@ -102,6 +102,29 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Resolve Blade view for invoice PDF (standard layout vs travel-agent / alternate layout).
+     *
+     * @param  string  $invoiceType  proforma|final
+     * @param  string  $mode  full|price-only
+     * @param  string|null  $format  standard|alternate
+     */
+    protected function resolveInvoicePdfViewName(string $invoiceType, string $mode, ?string $format): string
+    {
+        $format = $format ?? 'standard';
+        if ($format === 'alternate') {
+            return 'invoices.pdf.alternate';
+        }
+        if (!in_array($mode, ['full', 'price-only'], true)) {
+            $mode = 'full';
+        }
+        if ($mode === 'price-only') {
+            return $invoiceType === 'proforma' ? 'invoices.pdf.proforma-price-only' : 'invoices.pdf.final-price-only';
+        }
+
+        return $invoiceType === 'proforma' ? 'invoices.pdf.proforma' : 'invoices.pdf.final';
+    }
+
+    /**
      * Display listing of invoices
      */
     public function index(Request $request)
@@ -291,16 +314,21 @@ class InvoiceController extends Controller
         $selectedCurrency = $this->getSelectedCurrency($request);
         $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
         $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+        $format = $request->query('format');
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
 
-        $viewName = $invoice->invoice_type === 'proforma' 
-            ? 'invoices.pdf.proforma' 
-            : 'invoices.pdf.final';
+        $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'full', $format);
 
         $pdf = Pdf::loadView($viewName, [
             'invoice' => $invoice,
             'selectedCurrency' => $selectedCurrency,
             'currencyConversion' => $currencyConversion,
             'exchangeRate' => $exchangeRate,
+            'logoType' => $logoType,
+            'mode' => 'full',
         ])->setPaper('a4', 'portrait');
 
         $filename = $invoice->invoice_type === 'proforma'
@@ -333,16 +361,21 @@ class InvoiceController extends Controller
         $selectedCurrency = $this->getSelectedCurrency($request);
         $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
         $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+        $format = $request->query('format');
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
 
-        $viewName = $invoice->invoice_type === 'proforma' 
-            ? 'invoices.pdf.proforma-price-only' 
-            : 'invoices.pdf.final-price-only';
+        $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'price-only', $format);
 
         $pdf = Pdf::loadView($viewName, [
             'invoice' => $invoice,
             'selectedCurrency' => $selectedCurrency,
             'currencyConversion' => $currencyConversion,
             'exchangeRate' => $exchangeRate,
+            'logoType' => $logoType,
+            'mode' => 'price-only',
         ])->setPaper('a4', 'portrait');
 
         $filename = $invoice->invoice_type === 'proforma'
@@ -381,6 +414,10 @@ class InvoiceController extends Controller
         if (!in_array($logoType, ['dmc', 'agency'], true)) {
             $logoType = 'dmc';
         }
+        $format = $request->query('format', 'standard');
+        if (!in_array($format, ['standard', 'alternate'], true)) {
+            $format = 'standard';
+        }
         $hasAgency = $invoice->agent && $invoice->agent->agency;
 
         return view('invoices.invoice-preview', [
@@ -391,6 +428,7 @@ class InvoiceController extends Controller
             'mode' => $mode,
             'logoType' => $logoType,
             'hasAgency' => $hasAgency,
+            'format' => $format,
         ]);
     }
 
@@ -425,10 +463,9 @@ class InvoiceController extends Controller
         if (!in_array($logoType, ['dmc', 'agency'], true)) {
             $logoType = 'dmc';
         }
+        $format = $request->query('format');
 
-        $viewName = $mode === 'price-only'
-            ? ($invoice->invoice_type === 'proforma' ? 'invoices.pdf.proforma-price-only' : 'invoices.pdf.final-price-only')
-            : ($invoice->invoice_type === 'proforma' ? 'invoices.pdf.proforma' : 'invoices.pdf.final');
+        $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, $mode, $format);
 
         $pdf = Pdf::loadView($viewName, [
             'invoice' => $invoice,
@@ -436,6 +473,7 @@ class InvoiceController extends Controller
             'currencyConversion' => $currencyConversion,
             'exchangeRate' => $exchangeRate,
             'logoType' => $logoType,
+            'mode' => $mode,
         ])->setPaper('a4', 'portrait');
 
         if ($preview) {
@@ -468,16 +506,21 @@ class InvoiceController extends Controller
         $selectedCurrency = $this->getSelectedCurrency($request);
         $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
         $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+        $format = $request->query('format');
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
 
-        $viewName = $invoice->invoice_type === 'proforma' 
-            ? 'invoices.pdf.proforma' 
-            : 'invoices.pdf.final';
+        $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'full', $format);
 
         $pdf = Pdf::loadView($viewName, [
             'invoice' => $invoice,
             'selectedCurrency' => $selectedCurrency,
             'currencyConversion' => $currencyConversion,
             'exchangeRate' => $exchangeRate,
+            'logoType' => $logoType,
+            'mode' => 'full',
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream();
