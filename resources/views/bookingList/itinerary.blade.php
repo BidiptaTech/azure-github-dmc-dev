@@ -39,6 +39,12 @@
         --day-5-color: #feca57;
         --day-6-color: #ff9ff3;
         --day-7-color: #54a0ff;
+        /* Keep sticky blocks below the app's fixed top navbar */
+        --itinerary-sticky-top: 63px;
+        --itinerary-header-height: 90px;
+        --itinerary-sidebar-gap: 18px;
+        --itinerary-services-panel-offset: 90px;
+        --itinerary-sidebar-top: calc(var(--itinerary-sticky-top) + var(--itinerary-header-height) + var(--itinerary-sidebar-gap));
     }
     
     .itinerary-container {
@@ -67,8 +73,10 @@
         border-radius: 6px;
         box-shadow: var(--shadow-sm);
         border: 1px solid var(--border-color);
-        position: relative;
-        overflow: hidden;
+        position: sticky;
+        top: var(--itinerary-sticky-top);
+        z-index: 300;
+        overflow: visible;
     }
     
     .itinerary-header::before {
@@ -79,6 +87,7 @@
         right: 0;
         height: 4px;
         background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--success-color));
+        z-index: 1;
     }
     
     .header-content {
@@ -86,6 +95,8 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 24px;
+        position: relative;
+        z-index: 2;
     }
     
     .header-info h4 {
@@ -110,6 +121,8 @@
         display: flex;
         gap: 12px;
         flex-shrink: 0;
+        position: relative;
+        z-index: 2;
     }
     
     .btn-modern {
@@ -153,11 +166,309 @@
         text-decoration: none;
         transform: translateY(-1px);
     }
+
+    /* Keep PDF modal above sticky/header/sidebar layers */
+    #itineraryPdfModal {
+        z-index: 20050 !important;
+    }
+
+    .modal-backdrop.show {
+        z-index: 20040 !important;
+    }
     
     .timeline-container {
         padding: 0 16px 16px 16px;
         position: relative;
         overflow: visible !important;
+    }
+
+    .itinerary-view-switcher {
+        display: flex;
+        gap: 8px;
+        padding: 0 16px 10px 16px;
+        justify-content: flex-end;
+    }
+
+    .itinerary-view-btn {
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 10px;
+        cursor: pointer;
+    }
+
+    .itinerary-view-btn.active {
+        background: #334155;
+        color: #ffffff;
+        border-color: #334155;
+    }
+
+    .itinerary-daywise-layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 12px;
+        align-items: start;
+        min-height: calc(100vh - var(--itinerary-sidebar-top) - 8px);
+    }
+
+    .itinerary-daywise-sidebar {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 8px;
+        position: sticky;
+        top: var(--itinerary-sidebar-top);
+        z-index: 290;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .itinerary-daywise-sidebar-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #3f3f46;
+        margin-bottom: 6px;
+    }
+
+    .itinerary-day-btn {
+        width: 100%;
+        border: none;
+        background: transparent;
+        text-align: left;
+        padding: 6px 8px;
+        border-radius: 999px;
+        font-size: 13px;
+        line-height: 1.2;
+        color: #52525b;
+        margin-bottom: 1px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+    }
+
+    .itinerary-day-btn::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #a1a1aa;
+        flex-shrink: 0;
+    }
+
+    .itinerary-day-btn:hover {
+        background: #f4f4f5;
+        color: #27272a;
+    }
+
+    .itinerary-day-btn.active {
+        background: #3f3f46;
+        color: #ffffff;
+        font-weight: 700;
+    }
+
+    .itinerary-day-btn.active::before {
+        background: #ffffff;
+    }
+
+    .itinerary-day-btn.drag-over-day {
+        outline: 2px dashed #2563eb;
+        outline-offset: 2px;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .itinerary-daywise-content .date-container {
+        display: none;
+        margin-bottom: 0;
+    }
+
+    .itinerary-daywise-content {
+        height: calc(100vh - var(--itinerary-sidebar-top) - var(--itinerary-services-panel-offset));
+        max-height: calc(100vh - var(--itinerary-sidebar-top) - var(--itinerary-services-panel-offset));
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        padding-right: 6px;
+    }
+
+    .itinerary-daywise-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .itinerary-daywise-content::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 999px;
+    }
+
+    .itinerary-daywise-content::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+        border-radius: 999px;
+    }
+
+    .itinerary-daywise-content::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+
+    .itinerary-daywise-content .date-container.active {
+        display: block;
+    }
+
+    .list-day-heading {
+        display: none;
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+        margin: 2px 0 8px 0;
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+
+    .itinerary-container.view-list .itinerary-daywise-content .date-container {
+        display: block !important;
+        margin-bottom: 14px;
+    }
+
+    .itinerary-container.view-list .itinerary-daywise-content .list-day-heading {
+        display: block;
+    }
+
+    .itinerary-daywise-content .date-container .timeline-line {
+        display: none;
+    }
+
+    .itinerary-daywise-content .date-container .day-indicator {
+        display: none;
+    }
+
+    .itinerary-daywise-content .date-container .services-list {
+        margin-left: 0;
+        padding-left: 0;
+        margin-top: 0;
+    }
+
+    .itinerary-daywise-content .services-list::before {
+        display: none;
+    }
+
+    /* Grid view: show all cards without day-wise navigation/date emphasis */
+    .itinerary-container.view-grid .itinerary-daywise-layout {
+        grid-template-columns: 1fr;
+        min-height: auto;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-sidebar {
+        display: none;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .date-container {
+        display: block !important;
+        margin-bottom: 0;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .timeline-line,
+    .itinerary-container.view-grid .itinerary-daywise-content .day-indicator,
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list::before {
+        display: none !important;
+    }
+
+    .grid-day-heading {
+        display: none;
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+        margin: 6px 0 8px 0;
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+
+    .itinerary-container.view-grid .grid-day-heading {
+        display: block;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list {
+        margin-left: 0;
+        padding-left: 0;
+        margin-bottom: 12px;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    /* Override default list-mode rule that forces all cards into column 1 */
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list > .service-item {
+        grid-column: span 1 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Drop indicators are useful for list drag/drop but should not occupy grid tracks */
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list > .drop-zone-indicator {
+        display: none !important;
+    }
+
+    .itinerary-container.view-grid .drop-zone-indicator {
+        display: none !important;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list > .service-item {
+        grid-column: auto !important;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list > .drop-zone-indicator {
+        display: none !important;
+    }
+
+    .itinerary-container.view-grid .date-container .no-service {
+        display: none;
+    }
+
+    @media (max-width: 992px) {
+        .itinerary-daywise-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .itinerary-daywise-sidebar {
+            position: static;
+            max-height: none;
+            overflow: visible;
+        }
+
+        .itinerary-header {
+            position: static;
+        }
+
+        .itinerary-daywise-content .date-container.active {
+            max-height: none;
+            overflow: visible;
+            padding-right: 0;
+        }
+
+        .itinerary-daywise-content {
+            max-height: none;
+            overflow: visible;
+            padding-right: 0;
+        }
+
+        .itinerary-container.view-grid .itinerary-daywise-content .services-list {
+            grid-template-columns: 1fr !important;
+        }
     }
     
     .day-indicator {
@@ -329,7 +640,7 @@
         position: relative;
         overflow: visible !important;
         display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
+        grid-template-columns: 1fr !important;
         grid-auto-flow: row !important; /* Normal flow: left to right, top to bottom */
         gap: 8px 12px !important;
         align-items: start !important;
@@ -348,24 +659,19 @@
         z-index: 1 !important;
     }
     
-    /* Force grid items to alternate columns - pattern: drop-zone (child 1,3,5...), service-item (child 2,4,6...) */
-    /* So service-items at positions 2,6,10... (4n-2) go to column 1, and 4,8,12... (4n) go to column 2 */
-    .services-list > .service-item:nth-child(4n-2) {
+    /* Single card per row */
+    .services-list > .service-item {
         grid-column: 1 !important;
-    }
-    
-    .services-list > .service-item:nth-child(4n) {
-        grid-column: 2 !important;
     }
     
     .service-item {
         background: #ffffff;
-        border: none;
-        border-left: 2px solid #e2e8f0;
-        border-radius: 0;
+        border: 1px solid #cbd5e1;
+        border-left: 3px solid #111827;
+        border-radius: 12px;
         margin-bottom: 0;
         padding: 0;
-        box-shadow: none;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
         transition: all 0.2s ease;
         position: relative;
         overflow: visible !important;
@@ -377,13 +683,13 @@
     }
     
     .service-type-heading {
-        font-size: 9px;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 700;
         text-transform: uppercase;
-        color: #64748b;
-        margin-bottom: 3px;
-        letter-spacing: 0.5px;
-        padding: 1px 0;
+        color: #374151;
+        margin-bottom: 0;
+        letter-spacing: 0.4px;
+        padding: 0;
         line-height: 1.2;
     }
     
@@ -477,8 +783,10 @@
 
     
     .service-item:hover {
-        border-left-color: var(--primary-color);
-        background: #f8f9fa;
+        border-left-color: #2563eb;
+        border-color: #94a3b8;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+        background: #ffffff;
     }
     
     .service-item:last-child {
@@ -488,10 +796,48 @@
     .service-item-content {
         display: flex;
         align-items: flex-start;
-        padding: 8px 12px;
-        gap: 0;
+        padding: 9px 11px;
+        gap: 14px;
         position: relative;
         min-width: 0 !important; /* Allow flex items to shrink */
+    }
+
+    .service-media-panel {
+        width: 164px;
+        flex-shrink: 0;
+    }
+
+    .service-media-thumb {
+        width: 100%;
+        height: 84px;
+        border-radius: 14px;
+        border: 1px solid #d1d5db;
+        overflow: hidden;
+        background: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .service-media-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        -webkit-user-drag: none;
+        user-select: none;
+    }
+
+    .service-media-icon {
+        font-size: 32px;
+        color: #6b7280;
+    }
+
+    .service-media-note {
+        margin-top: 6px;
+        font-size: 11px;
+        color: #6b7280;
+        line-height: 1.3;
     }
     
     .service-right-details {
@@ -559,7 +905,7 @@
     }
     
     .service-item.locked {
-        opacity: 0.9;
+        opacity: 1;
         position: relative;
     }
     
@@ -632,7 +978,7 @@
     }
     
     .service-header {
-        margin-bottom: 3px;
+        margin-bottom: 4px;
         line-height: 1.2;
     }
     
@@ -645,13 +991,76 @@
     }
     
     .service-title {
-        font-size: 12px;
-        font-weight: 600;
+        font-size: 15px;
+        font-weight: 700;
         color: var(--text-primary);
-        margin: 0;
+        margin: 0 0 4px 0;
         line-height: 1.2;
         letter-spacing: -0.01em;
-        display: inline;
+        display: block;
+    }
+
+    /* Keep grid cards at current size; only list view should be compacted */
+    .itinerary-container.view-grid .service-item-content {
+        padding: 11px 13px;
+    }
+    .itinerary-container.view-grid .service-media-panel {
+        width: 180px;
+    }
+    .itinerary-container.view-grid .service-media-thumb {
+        height: 94px;
+    }
+    .itinerary-container.view-grid .service-title {
+        font-size: 16px;
+    }
+
+    .service-topline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        color: #4b5563;
+    }
+
+    .service-topline-icon {
+        color: #4b5563;
+        font-size: 13px;
+        width: 16px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    .service-topline-dot {
+        color: #9ca3af;
+        font-size: 11px;
+        line-height: 1;
+    }
+
+    .service-topline-subtitle {
+        font-size: 12px;
+        color: #334155;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 45%;
+    }
+
+    .service-topline-chevron {
+        margin-left: auto;
+        color: #6b7280;
+        font-size: 10px;
+    }
+
+    .service-item .service-actions,
+    .service-item .service-action-links {
+        display: none !important;
+    }
+
+    @media (max-width: 900px) {
+        .service-media-panel {
+            display: none;
+        }
     }
     
     .service-details-row {
@@ -670,7 +1079,7 @@
     }
     
     .service-description {
-        color: var(--text-secondary);
+        color: #334155;
         font-size: 12px;
         line-height: 1.4;
         margin: 2px 0 0 0;
@@ -681,7 +1090,7 @@
         margin: 2px 0;
         font-size: 12px;
         line-height: 1.4;
-        color: var(--text-secondary);
+        color: #334155;
     }
     
     .service-detail-line.compact-line {
@@ -698,6 +1107,9 @@
     .guide-details-compact .service-detail-line {
         margin: 0;
         padding: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
     
     .hotel-details-compact .badge,
@@ -904,7 +1316,16 @@
             box-shadow: none !important;
             border: 1px solid #ddd !important;
             margin: 0 0 20px 0 !important;
+            position: static !important;
+            top: auto !important;
             page-break-inside: avoid;
+        }
+
+        .itinerary-daywise-sidebar {
+            position: static !important;
+            top: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
         }
         
         .header-actions {
@@ -1274,6 +1695,11 @@
         border: none !important;
         display: inline-flex;
         align-items: center;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.25;
     }
     
     .meal-badge i {
@@ -2320,55 +2746,7 @@
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="itinerary-container">
-            <!-- Print-only header with company logo -->
-            <div class="print-header print-only">
-                <div class="print-company-info">
-                    <!-- <img src="{{ asset('assets/img/logo.png') }}" alt="Company Logo" class="company-logo-print"> -->
-                    <!-- <h4>{{ config('app.name', 'Coactive Tours & Travel') }}</h4> -->
-                </div>
-                <div>
-                    <h5>
-                        Tour #{{ $tourId }} 
-                        @if(isset($tourDetails->display_id))
-                            ({{ $tourDetails->display_id }})
-                        @endif
-                    </h5>
-                    <p>
-                        @if(isset($tourDetails->destination))
-                            <span class="me-3"><i class="fas fa-map-marker-alt me-1"></i>{{ $tourDetails->destination }}</span>
-                        @endif
-                        
-                        @if(isset($tourDetails->check_in_time) && isset($tourDetails->check_out_time))
-                            <span><i class="fas fa-calendar-alt me-1"></i>
-                            {{ \Carbon\Carbon::parse($tourDetails->check_in_time)->format('d M Y') }} - 
-                            {{ \Carbon\Carbon::parse($tourDetails->check_out_time)->format('d M Y') }}
-                            </span>
-                        @endif
-                    </p>
-                    
-                    @if(isset($customerInfo))
-                        <div class="customer-print-info border-top pt-2 mt-2">
-                            <p class="mb-1">
-                                @if(isset($customerInfo['fullName']))
-                                    <strong>{{ $customerInfo['fullName'] }}</strong>
-                                @endif
-                                
-                                @if(isset($customerInfo['email']))
-                                    <span class="mx-2">|</span>{{ $customerInfo['email'] }}
-                                @endif
-                                
-                                @if(isset($customerInfo['phone']))
-                                    <span class="mx-2">|</span>{{ $customerInfo['phone'] }}
-                                @endif
-                            </p>
-                        </div>
-                    @endif
-                    
-                    <p class="text-muted small mt-2">Generated on {{ now()->format('d M Y') }}</p>
-                </div>
-            </div>
-            
-            <!-- Itinerary Header -->
+         <!-- Itinerary Header -->
             <div class="itinerary-header">
                 <div class="header-content">
                     <div class="header-info">
@@ -2418,57 +2796,11 @@
                             <i class="fas fa-file-pdf"></i> Download PDF (Formatted)
                         </button>
 
-                        {{-- Modal: SIC Timing & Meeting Points before PDF download --}}
-                        <div class="modal fade" id="itineraryPdfModal" tabindex="-1" aria-labelledby="itineraryPdfModalLabel" aria-hidden="true">
-                            <div class="modal-dialog modal-lg">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="itineraryPdfModalLabel">PDF Options</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.css" rel="stylesheet">
-                                    <form action="{{ route('bookinglist.itinerary.pdf', ['tourId' => \Illuminate\Support\Facades\Crypt::encrypt($tourId)]) }}" method="POST" target="_blank">
-                                        @csrf
-                                        <div class="modal-body">
-                                            <p class="text-muted small mb-3">Optionally add the following to the PDF. Leave blank to omit.</p>
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <label for="pdf_country" class="form-label fw-semibold">Country<span class="text-danger">*</span></label>
-                                                    <select class="form-control" id="pdf_country" required>
-                                                        <option value="">Select Country</option>
-                                                        @foreach(($countries ?? []) as $c)
-                                                            <option value="{{ $c->name }}" @selected(($tourDetails->destination ?? '') === $c->name)>{{ $c->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <label for="pdf_city" class="form-label fw-semibold">City<span class="text-danger">*</span></label>
-                                                    <select class="form-control" id="pdf_city" required>
-                                                        <option value="">Select City</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="mb-0">
-                                                <label for="pdf_itinerary_information" class="form-label fw-semibold">Itinerary Information</label>
-                                                <textarea class="form-control" id="pdf_itinerary_information" name="itinerary_information"></textarea>
-                                            </div>
-                                            <div class="small text-muted mt-2" id="pdf_settings_hint"></div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="submit" class="btn btn-primary" id="itineraryPdfDownloadBtn">
-                                                <i class="fas fa-file-pdf me-1"></i> Download PDF
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-
                         <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
                         <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.js"></script>
                         <script>
                             (function () {
+                            setTimeout(function () {
                             const citiesByCountry = @json($citiesByCountry ?? []);
                             const fetchUrl = @json(route('itinerary_settings.fetch'));
                             const defaultCountry = @json($tourDetails->destination ?? '');
@@ -2675,12 +3007,65 @@
                                         }
                                     });
                                 }
+                            }, 0);
                             })();
                         </script>
 
                         {{-- <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
                         </button> --}}
+                    </div>
+                </div>
+            </div>
+
+            <div class="itinerary-view-switcher">
+                <button type="button" class="itinerary-view-btn active" data-view="list">List View</button>
+                <button type="button" class="itinerary-view-btn" data-view="grid">Grid View</button>
+            </div>
+
+            {{-- Modal: SIC Timing & Meeting Points before PDF download --}}
+            <div class="modal fade" id="itineraryPdfModal" tabindex="-1" aria-labelledby="itineraryPdfModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="itineraryPdfModalLabel">PDF Options</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote-lite.min.css" rel="stylesheet">
+                        <form action="{{ route('bookinglist.itinerary.pdf', ['tourId' => \Illuminate\Support\Facades\Crypt::encrypt($tourId)]) }}" method="POST" target="_blank">
+                            @csrf
+                            <div class="modal-body">
+                                <p class="text-muted small mb-3">Optionally add the following to the PDF. Leave blank to omit.</p>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="pdf_country" class="form-label fw-semibold">Country<span class="text-danger">*</span></label>
+                                        <select class="form-control" id="pdf_country" required>
+                                            <option value="">Select Country</option>
+                                            @foreach(($countries ?? []) as $c)
+                                                <option value="{{ $c->name }}" @selected(($tourDetails->destination ?? '') === $c->name)>{{ $c->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="pdf_city" class="form-label fw-semibold">City<span class="text-danger">*</span></label>
+                                        <select class="form-control" id="pdf_city" required>
+                                            <option value="">Select City</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-0">
+                                    <label for="pdf_itinerary_information" class="form-label fw-semibold">Itinerary Information</label>
+                                    <textarea class="form-control" id="pdf_itinerary_information" name="itinerary_information"></textarea>
+                                </div>
+                                <div class="small text-muted mt-2" id="pdf_settings_hint"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="itineraryPdfDownloadBtn">
+                                    <i class="fas fa-file-pdf me-1"></i> Download PDF
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -2983,9 +3368,26 @@
                 @endphp
                     
                 @if(count($allDates) > 0)
+                    <div class="itinerary-daywise-layout">
+                        <div class="itinerary-daywise-sidebar">
+                            <div class="itinerary-daywise-sidebar-title">Day Plan</div>
+                            @foreach($allDates as $sidebarDate => $sidebarBookings)
+                                @php
+                                    $sidebarDayCount = $loop->iteration;
+                                @endphp
+                                <button
+                                    type="button"
+                                    class="itinerary-day-btn {{ $loop->first ? 'active' : '' }}"
+                                    data-day-index="{{ $sidebarDayCount }}">
+                                    {{ \Carbon\Carbon::parse($sidebarDate)->format('d M, D') }}
+                                </button>
+                            @endforeach
+                        </div>
+
+                        <div class="itinerary-daywise-content">
                     @foreach($allDates as $date => $dayBookings)
                         <!-- Date Container -->
-                        <div class="date-container drop-zone day-{{ $dayCount > 7 ? (($dayCount - 1) % 7) + 1 : $dayCount }}" data-date="{{ $date }}">
+                        <div class="date-container drop-zone day-{{ $dayCount > 7 ? (($dayCount - 1) % 7) + 1 : $dayCount }} {{ $dayCount === 1 ? 'active' : '' }}" data-date="{{ $date }}" data-day-index="{{ $dayCount }}">
                             <div class="timeline-line"></div>
                             
                             <!-- Day Indicator -->
@@ -2999,6 +3401,15 @@
                                     </div>
                                     <span class="day-chevron">▼</span>
                                 </div>
+                            </div>
+
+                            <div class="grid-day-heading">
+                                Day {{ $dayCount }} contains these services
+                                <span class="text-muted">({{ \Carbon\Carbon::parse($date)->format('d M Y') }})</span>
+                            </div>
+
+                            <div class="list-day-heading">
+                                Day {{ $dayCount }} - {{ \Carbon\Carbon::parse($date)->format('d M Y') }}
                             </div>
                             
                             <!-- Services List -->
@@ -3331,11 +3742,43 @@
                                         @endif
                                         
                                         <div class="service-item-content">
+                                            @php
+                                                $serviceImage = $data['image'] ?? $data['service_image'] ?? $data['vehicle_image'] ?? $data['thumbnail'] ?? null;
+                                                if (empty($serviceImage) && isset($data['hotelDetails']) && is_array($data['hotelDetails'])) {
+                                                    $serviceImage = $data['hotelDetails']['image'] ?? $data['hotelDetails']['hotel_image'] ?? null;
+                                                }
+                                                $isTransferService = strpos(strtolower($serviceType), 'transport') !== false || strpos(strtolower($serviceType), 'travel') !== false || strpos(strtolower($serviceType), 'transfer') !== false;
+                                            @endphp
+
+                                            <div class="service-media-panel">
+                                                <div class="service-media-thumb">
+                                                    @if(!empty($serviceImage))
+                                                        <img src="{{ $serviceImage }}" alt="{{ $serviceName }}" draggable="false">
+                                                    @else
+                                                        <span class="service-media-icon">
+                                                            @if($isTransferService)
+                                                                <i class="fas fa-car-side"></i>
+                                                            @elseif(strtolower($serviceType) == 'hotel')
+                                                                <i class="fas fa-hotel"></i>
+                                                            @elseif(strtolower($serviceType) == 'attraction')
+                                                                <i class="fas fa-camera"></i>
+                                                            @else
+                                                                <i class="fas fa-concierge-bell"></i>
+                                                            @endif
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                @if($isTransferService)
+                                                    <div class="service-media-note">*Within same city pickup &amp; drop will be provided</div>
+                                                @endif
+                                            </div>
+
                                             <!-- Main Content -->
                                             <div class="service-main-content">
                                                 @php
                                                     // Determine service type label
                                                     $serviceTypeLabel = '';
+                                                    $serviceTypeKey = strtolower($serviceType);
                                                     if (strtolower($serviceType) == 'hotel') {
                                                         $serviceTypeLabel = 'Hotel';
                                                     } elseif (strpos(strtolower($serviceType), 'entry') !== false || strtolower($serviceType) == 'arrival') {
@@ -3353,9 +3796,66 @@
                                                     } else {
                                                         $serviceTypeLabel = ucfirst($serviceType);
                                                     }
+
+                                                    // Topline icon by service type
+                                                    $serviceTypeIcon = 'fa-concierge-bell';
+                                                    if ($serviceTypeKey == 'hotel') {
+                                                        $serviceTypeIcon = 'fa-hotel';
+                                                    } elseif (strpos($serviceTypeKey, 'entry') !== false || $serviceTypeKey == 'arrival') {
+                                                        $serviceTypeIcon = 'fa-plane-arrival';
+                                                    } elseif (strpos($serviceTypeKey, 'exit') !== false || $serviceTypeKey == 'departure') {
+                                                        $serviceTypeIcon = 'fa-plane-departure';
+                                                    } elseif (strpos($serviceTypeKey, 'transfer') !== false || strpos($serviceTypeKey, 'travel') !== false || strpos($serviceTypeKey, 'transport') !== false) {
+                                                        $serviceTypeIcon = 'fa-car-side';
+                                                    } elseif ($serviceTypeKey == 'attraction') {
+                                                        $serviceTypeIcon = 'fa-map-marked-alt';
+                                                    } elseif ($serviceTypeKey == 'restaurant') {
+                                                        $serviceTypeIcon = 'fa-utensils';
+                                                    } elseif ($serviceTypeKey == 'guide') {
+                                                        $serviceTypeIcon = 'fa-user-tie';
+                                                    }
                                                 @endphp
                                                 
-                                                <div class="service-type-heading">{{ $serviceTypeLabel }}</div>
+                                                @php
+                                                    // Keep the topline minimal and clean (single short detail only).
+                                                    $serviceSubtitle = '';
+                                                    if ($serviceTypeKey == 'hotel') {
+                                                        $totalNightsMeta = (int)($data['total_nights'] ?? 0);
+                                                        if ($totalNightsMeta > 0) {
+                                                            $serviceSubtitle = $totalNightsMeta . ' ' . ($totalNightsMeta > 1 ? 'nights stay' : 'night stay');
+                                                        }
+                                                    } elseif (strpos($serviceTypeKey, 'transport') !== false || strpos($serviceTypeKey, 'travel') !== false || strpos($serviceTypeKey, 'transfer') !== false) {
+                                                        $metaDropoff = $data['entrydropoff'] ?? $data['dropoffLocation'] ?? $data['dropoff_location'] ?? $data['dropoff'] ?? $data['exitdropoff'] ?? null;
+                                                        $metaPickup = $data['entrypickup'] ?? $data['entry_pickup'] ?? $data['pickup'] ?? $data['exitpickup'] ?? null;
+                                                        if (!empty($metaDropoff)) {
+                                                            $serviceSubtitle = 'Drop to ' . $metaDropoff;
+                                                        } elseif (!empty($metaPickup)) {
+                                                            $serviceSubtitle = 'Pickup from ' . $metaPickup;
+                                                        }
+                                                    } elseif ($serviceTypeKey == 'attraction') {
+                                                        $durationMeta = $data['duration'] ?? $data['hours'] ?? $data['package_hours'] ?? null;
+                                                        if (!empty($durationMeta)) {
+                                                            $serviceSubtitle = $durationMeta . ' hrs';
+                                                        }
+                                                    } elseif ($serviceTypeKey == 'restaurant') {
+                                                        $mealTypeMeta = $data['mealType'] ?? $data['meal_type'] ?? null;
+                                                        if (!empty($mealTypeMeta)) {
+                                                            $serviceSubtitle = ucfirst(strtolower($mealTypeMeta));
+                                                        }
+                                                    } elseif (!empty($pax)) {
+                                                        $serviceSubtitle = $pax . ' Pax';
+                                                    }
+                                                @endphp
+
+                                                <div class="service-topline">
+                                                    <span class="service-topline-icon"><i class="fas {{ $serviceTypeIcon }}"></i></span>
+                                                    <div class="service-type-heading">{{ $serviceTypeLabel }}</div>
+                                                    @if(!empty($serviceSubtitle))
+                                                        <span class="service-topline-dot">•</span>
+                                                        <div class="service-topline-subtitle">{{ $serviceSubtitle }}</div>
+                                                    @endif
+                                                    <span class="service-topline-chevron"><i class="fas fa-chevron-up"></i></span>
+                                                </div>
                                                 
                                                 <div class="service-header">
                                                     @php
@@ -4144,6 +4644,8 @@
                         
                         @php $dayCount++; @endphp
                     @endforeach
+                        </div>
+                    </div>
                 @else
                     <div class="no-service">
                         No itinerary available for this tour.
@@ -4170,6 +4672,115 @@
                 id: item.id
             });
         });
+
+        // Keep service cards read-only in UI: hide/remove inline Change/Remove links if rendered.
+        document.querySelectorAll('.service-item a').forEach((link) => {
+            const label = (link.textContent || '').trim().toUpperCase();
+            if (label === 'CHANGE' || label === 'REMOVE') {
+                link.remove();
+            }
+        });
+
+        // Day-wise itinerary navigation (left list -> right day services).
+        const dayNavButtons = document.querySelectorAll('.itinerary-day-btn[data-day-index]');
+        const dayContainers = document.querySelectorAll('.itinerary-daywise-content .date-container[data-day-index]');
+
+        // Keep sticky offsets in sync with actual header height so sidebar never overlaps header.
+        function syncStickyOffsets() {
+            const root = document.documentElement;
+            const headerEl = document.querySelector('.itinerary-header');
+            if (!root || !headerEl) return;
+            const headerHeight = Math.ceil(headerEl.getBoundingClientRect().height || 0);
+            if (headerHeight > 0) {
+                root.style.setProperty('--itinerary-header-height', `${headerHeight}px`);
+            }
+        }
+        syncStickyOffsets();
+        window.addEventListener('resize', syncStickyOffsets);
+
+        let activateDay = null;
+        const getDateByDayIndex = (dayIndex) => {
+            const container = document.querySelector(`.itinerary-daywise-content .date-container[data-day-index="${dayIndex}"]`);
+            return container ? container.dataset.date : null;
+        };
+        if (dayNavButtons.length > 0 && dayContainers.length > 0) {
+            activateDay = (dayIndex) => {
+                dayNavButtons.forEach((btn) => {
+                    btn.classList.toggle('active', btn.dataset.dayIndex === dayIndex);
+                });
+                dayContainers.forEach((container) => {
+                    container.classList.toggle('active', container.dataset.dayIndex === dayIndex);
+                });
+            };
+
+            dayNavButtons.forEach((btn) => {
+                btn.addEventListener('click', function () {
+                    const dayIndex = this.dataset.dayIndex;
+                    if (itineraryRoot && itineraryRoot.classList.contains('view-list')) {
+                        const target = document.querySelector(`.itinerary-daywise-content .date-container[data-day-index="${dayIndex}"]`);
+                        const scrollHost = document.querySelector('.itinerary-daywise-content');
+                        if (target && scrollHost) {
+                            scrollHost.scrollTo({
+                                top: target.offsetTop - 6,
+                                behavior: 'smooth'
+                            });
+                        }
+                        dayNavButtons.forEach((b) => b.classList.toggle('active', b.dataset.dayIndex === dayIndex));
+                    } else {
+                        activateDay(dayIndex);
+                    }
+                });
+            });
+
+            // Ensure first day remains visible even if markup/state changes dynamically.
+            activateDay(dayNavButtons[0].dataset.dayIndex);
+        }
+
+        // List/Grid view switcher
+        const itineraryRoot = document.querySelector('.itinerary-container');
+        const viewButtons = document.querySelectorAll('.itinerary-view-btn[data-view]');
+        if (itineraryRoot && viewButtons.length > 0) {
+            const applyView = (viewType) => {
+                const isGrid = viewType === 'grid';
+                itineraryRoot.classList.toggle('view-grid', isGrid);
+                itineraryRoot.classList.toggle('view-list', !isGrid);
+                viewButtons.forEach((btn) => {
+                    btn.classList.toggle('active', btn.dataset.view === viewType);
+                });
+                if (!isGrid && dayNavButtons.length > 0) {
+                    dayNavButtons.forEach((b, i) => b.classList.toggle('active', i === 0));
+                }
+            };
+
+            viewButtons.forEach((btn) => {
+                btn.addEventListener('click', function () {
+                    applyView(this.dataset.view);
+                });
+            });
+
+            applyView('list');
+        }
+
+        // In list view, auto-update day selection while scrolling through sequential day sections.
+        const dayScrollHost = document.querySelector('.itinerary-daywise-content');
+        if (dayScrollHost && dayContainers.length > 0 && dayNavButtons.length > 0) {
+            dayScrollHost.addEventListener('scroll', function () {
+                if (!itineraryRoot || !itineraryRoot.classList.contains('view-list')) return;
+                const hostTop = dayScrollHost.getBoundingClientRect().top;
+                let activeIdx = dayContainers[0]?.dataset.dayIndex;
+                dayContainers.forEach((container) => {
+                    const topDiff = container.getBoundingClientRect().top - hostTop;
+                    if (topDiff <= 20) {
+                        activeIdx = container.dataset.dayIndex;
+                    }
+                });
+                if (activeIdx) {
+                    dayNavButtons.forEach((btn) => {
+                        btn.classList.toggle('active', btn.dataset.dayIndex === activeIdx);
+                    });
+                }
+            });
+        }
         
         // Download Text Itinerary functionality
         // Extract customer info and hotel info from bookings BEFORE the function
@@ -7671,6 +8282,42 @@
             zone.addEventListener('dragleave', handleDragLeave);
             zone.addEventListener('drop', handleDrop);
         });
+
+        // In day-wise mode, hidden date containers cannot receive drops.
+        // Allow dropping directly on left day buttons to move service to that date.
+        if (dayNavButtons.length > 0) {
+            dayNavButtons.forEach(btn => {
+                btn.addEventListener('dragover', handleDragOver);
+                btn.addEventListener('dragenter', function (e) {
+                    if (activateDay) {
+                        activateDay(this.dataset.dayIndex);
+                    }
+                    this.classList.add('drag-over-day');
+                });
+                btn.addEventListener('dragleave', function (e) {
+                    if (!this.contains(e.relatedTarget)) {
+                        this.classList.remove('drag-over-day');
+                    }
+                });
+                btn.addEventListener('drop', function (e) {
+                    if (e.stopPropagation) {
+                        e.stopPropagation();
+                    }
+
+                    this.classList.remove('drag-over-day');
+
+                    if (draggedElement && draggedData) {
+                        const newDate = getDateByDayIndex(this.dataset.dayIndex);
+                        const currentDate = draggedData.currentDate;
+                        if (newDate && newDate !== currentDate) {
+                            updateBookingDate(draggedData.bookingId, newDate, currentDate);
+                        }
+                    }
+
+                    return false;
+                });
+            });
+        }
         
         // Add event listeners to services lists for intra-day reordering
         const servicesLists = document.querySelectorAll('.services-list');
@@ -7713,6 +8360,9 @@
             // Remove drag-over class from all drop zones
             document.querySelectorAll('.date-container').forEach(zone => {
                 zone.classList.remove('drag-over');
+            });
+            document.querySelectorAll('.itinerary-day-btn').forEach(btn => {
+                btn.classList.remove('drag-over-day');
             });
         }
         
@@ -7986,7 +8636,26 @@
                 if (!response.ok) {
                     throw new Error('Network response was not ok: ' + response.status);
                 }
-                return response.json();
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                return response.text().then(raw => {
+                    const body = (raw || '').trim();
+                    if (!body) {
+                        // Some environments/extensions can return empty responses intermittently.
+                        return null;
+                    }
+
+                    if (!contentType.includes('application/json')) {
+                        // Avoid JSON parse errors when backend/proxy returns HTML or plain text.
+                        return null;
+                    }
+
+                    try {
+                        return JSON.parse(body);
+                    } catch (e) {
+                        console.warn('Invalid JSON in checkPriceHide response:', e);
+                        return null;
+                    }
+                });
             })
             .then(data => {
                 isChecking = false;
@@ -8015,7 +8684,10 @@
                         }, 100);
                     }
                 } else {
-                    console.warn('Invalid response data:', data);
+                    // Ignore empty/non-JSON responses to keep polling stable.
+                    if (data !== null) {
+                        console.warn('Invalid response data:', data);
+                    }
                 }
             })
             .catch(error => {

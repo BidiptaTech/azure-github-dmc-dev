@@ -1,14 +1,897 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
 </head>
-<body>
-    <div class="layout-wrapper layout-content-navbar  ">
+<style>
+    /* Modern Sidebar Styling */
+    .layout-menu {
+        background: #ffffff;
+        border-right: 1px solid rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    }
+    
+    /* Logo area styling */
+    .app-brand {
+        padding: 0.95rem 1rem;
+        min-height: 74px;
+        height: auto;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6); 
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 12px rgba(107, 114, 241, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .app-brand-link {
+        display: flex;
+        align-items: center;
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: calc(100% - 56px);
+        gap: 0.55rem;
+    }
+    
+    .app-brand-text {
+        color: white !important;
+        font-weight: 700 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        min-width: 0;
+    }
+    
+    /* Menu header styling */
+    .menu-header {
+        margin-top: 1.5rem !important;
+        padding: 0.5rem 1.5rem !important;
+    }
+    
+    .menu-header-text {
+        color: #6366f1 !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    /* Menu item styling */
+    .menu-item {
+        margin: 6px 8px;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .menu-item.active {
+        background: linear-gradient(118deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.12);
+    }
+    
+    .menu-link {
+        padding: 0.8rem 1.5rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .menu-link:hover {
+        background-color: rgba(99, 102, 241, 0.04);
+        transform: translateX(4px);
+    }
+    
+    .menu-item.active .menu-link {
+        box-shadow: none;
+        color: #ffffff !important;
+    }
+    
+    .menu-item.active .menu-link div {
+        color: #ffffff !important;
+        font-weight: 600;
+    }
+    
+    /* Colorful Icon styling */
+    .menu-icon {
+        margin-right: 0.75rem;
+        font-size: 1.25rem !important;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        border-radius: 10px;
+        background: #f9fafb;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    /* Individual icon colors */
+    .ri-dashboard-3-line {
+        color: #f97316 !important; /* Orange */
+        background: rgba(249, 115, 22, 0.1);
+    }
+    
+    .ri-ship-line {
+        color: #0ea5e9 !important; /* Sky blue */
+        background: rgba(14, 165, 233, 0.1);
+    }
+    
+    .ri-map-pin-user-line {
+        color: #ec4899 !important; /* Pink */
+        background: rgba(236, 72, 153, 0.1);
+    }
+    
+    .ri-route-line {
+        color: #14b8a6 !important; /* Teal */
+        background: rgba(20, 184, 166, 0.1);
+    }
+    
+    .ri-bookmark-3-line {
+        color: #8b5cf6 !important; /* Purple */
+        background: rgba(139, 92, 246, 0.1);
+    }
+    
+    .ri-questionnaire-line {
+        color: #f43f5e !important; /* Rose */
+        background: rgba(244, 63, 94, 0.1);
+    }
+    
+    .ri-hotel-bed-line {
+        color: #10b981 !important; /* Emerald */
+        background: rgba(16, 185, 129, 0.1);
+    }
+    
+    .ri-shield-check-line {
+        color: #6366f1 !important; /* Indigo */
+        background: rgba(99, 102, 241, 0.1);
+    }
+    
+    .ri-function-line {
+        color: #0284c7 !important; /* Blue */
+        background: rgba(2, 132, 199, 0.1);
+    }
+    
+    .ri-hotel-line {
+        color: #0d9488 !important; /* Teal */
+        background: rgba(13, 148, 136, 0.1);
+    }
+    
+    .ri-camera-3-line {
+        color: #8b5cf6 !important; /* Purple */
+        background: rgba(139, 92, 246, 0.1);
+    }
+    
+    .ri-stack-line {
+        color: #10b981 !important; /* Emerald */
+        background: rgba(16, 185, 129, 0.1);
+    }
+    
+    .ri-restaurant-2-line {
+        color: #ea580c !important; /* Orange */
+        background: rgba(234, 88, 12, 0.1);
+    }
+    
+    .ri-compass-3-line {
+        color: #0369a1 !important; /* Blue */
+        background: rgba(3, 105, 161, 0.1);
+    }
+    
+    .ri-steering-2-line {
+        color: #4f46e5 !important; /* Indigo */
+        background: rgba(79, 70, 229, 0.1);
+    }
+    
+    .ri-task-line {
+        color: #be123c !important; /* Rose */
+        background: rgba(190, 18, 60, 0.1);
+    }
+    
+    .ri-user-line {
+        color: #7c3aed !important; /* Violet */
+        background: rgba(124, 58, 237, 0.1);
+    }
+    
+    .ri-settings-3-line {
+        color: #3b82f6 !important; /* Blue */
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .ri-mail-send-line {
+        color: #39c262 !important; /* Blue */
+        background: rgba(59, 130, 246, 0.1);
+    }
+    
+    .ri-earth-line {
+        color: #059669 !important; /* Emerald */
+        background: rgba(5, 150, 105, 0.1);
+    }
+    
+    .ri-bar-chart-box-line {
+        color: #7c2d12 !important; 
+        background: rgba(124, 45, 18, 0.1);
+    }
+
+    .ri-file-list-3-line {
+        color: #2c54a0 !important; /* Amber */
+        background: rgba(124, 45, 18, 0.1);
+    }
+    
+    .ri-hand-heart-line {
+        color: #e11d48 !important; /* Rose */
+        background: rgba(225, 29, 72, 0.1);
+    }
+    
+    /* Active icon state with shine effect */
+    .menu-item.active .menu-icon {
+        color: white !important;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        box-shadow: 0 3px 10px rgba(99, 102, 241, 0.3);
+        transform: translateY(-2px);
+    }
+
+    /* Pro Badge - Top Right Corner Like Verified Badge */
+    .pro-badge {
+        position: absolute !important;
+        top: 8px;
+        right: 12px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+        z-index: 10;
+        animation: pulse-star 2s ease-in-out infinite;
+    }
+    
+    .menu-item.active .pro-badge {
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 12px rgba(255, 215, 0, 0.6);
+    }
+    
+    .menu-item:hover .pro-badge {
+        transform: scale(1.05);
+        box-shadow: 0 3px 15px rgba(255, 215, 0, 0.7);
+    }
+    
+    @keyframes pulse-star {
+        0%, 100% {
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+        }
+        50% {
+            box-shadow: 0 2px 15px rgba(255, 215, 0, 0.8);
+        }
+    }
+    
+    /* Submenu styling */
+    .menu-sub {
+        padding-left: 3.35rem !important;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .menu-sub .menu-link {
+        padding: 0.6rem 1.5rem;
+        color: #000;
+        font-size: 0.92rem;
+    }
+    
+    .menu-sub .menu-link:hover {
+        color: #6366f1;
+    }
+    
+    /* Menu toggle icon animation */
+    .menu-toggle:after {
+        transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        color: #94a3b8;
+    }
+    
+    .menu-item.open > .menu-toggle:after {
+        transform: rotate(90deg);
+        color: #6366f1;
+    }
+    
+    /* Menu section hover effect */
+    .menu-item.open {
+        background-color: rgba(99, 102, 241, 0.04);
+        border-radius: 12px;
+    }
+    
+    /* Custom scrollbar */
+    .menu-inner::-webkit-scrollbar {
+        width: 5px;
+    }
+    
+    .menu-inner::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .menu-inner::-webkit-scrollbar-thumb {
+        background-color: rgba(99, 102, 241, 0.2);
+        border-radius: 10px;
+    }
+    
+    .menu-inner::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(99, 102, 241, 0.4);
+    }
+    
+    /* Smooth hover transitions */
+    .menu-link, .menu-icon {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Reset parent menu color */
+    .menu-item.open > .menu-link {
+        color: #6366f1 !important; /* Keep parent menu normal color */
+    }
+    
+    .menu-item.open > .menu-link div {
+        color: #6366f1 !important;
+    }
+    
+    /* Only make the specific active item white */
+    .menu-item.active:not(.open) > .menu-link {
+        color: #ffffff !important;
+    }
+    
+    .menu-item.active:not(.open) > .menu-link div {
+        color: #ffffff !important;
+    }
+    
+    /* For submenu items that are active */
+    .menu-sub .menu-item.active .menu-link {
+        color: #ffffff !important;
+        /* background: linear-gradient(118deg, #4bbca5, #725aab); */
+        background: linear-gradient(25deg, #c851ec, #566ee4);
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+    }
+    
+    .menu-sub .menu-item.active .menu-link div {
+        color: #ffffff !important;
+    }
+    
+    /* Ensure other submenu items are not white */
+    .menu-sub .menu-item:not(.active) .menu-link {
+        color: #000 !important;
+    }
+    
+    .menu-sub .menu-item:not(.active) .menu-link div {
+        color: #000 !important;
+    }
+
+    .menu-vertical .menu-item .menu-link{
+        font-weight: bold;
+    }
+
+    /* Ensure menu items show full text without truncation */
+    .menu-vertical .menu-item .menu-link > div:not(.badge) {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+        line-height: 1.467;
+        hyphens: auto;
+    }
+
+    /* Additional override for menu text in tooltips */
+    .menu-tooltip div[data-i18n] {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+    }
+
+    /* Override any ellipsis display in menu items */
+    .menu-item .menu-link div,
+    .menu-item .menu-link span.menu-text-with-tooltip {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+        text-overflow: initial !important;
+    }
+
+    #template-customizer .template-customizer-open-btn{
+        display: none !important;
+    }
+
+    /* 3D Menu Toggle Icon Styling */
+    .layout-menu-toggle {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+    }
+
+    .layout-menu-toggle .menu-icon {
+        padding: 10px;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #ffffff, #f0f0f0);
+        box-shadow: 4px 4px 8px rgba(0,0,0,0.1), 
+                    -4px -4px 8px rgba(255,255,255,0.9);
+        color: #6366f1 !important;
+        font-size: 1.4rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .layout-menu-toggle:hover .menu-icon {
+        transform: translateY(-3px) rotate(180deg);
+        box-shadow: 6px 6px 10px rgba(0,0,0,0.15), 
+                    -6px -6px 10px rgba(255,255,255,0.95);
+        background: linear-gradient(145deg, #6366f1, #8b5cf6);
+        color: white !important;
+    }
+
+    .layout-menu-toggle:active .menu-icon {
+        transform: translateY(1px);
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1), 
+                    -2px -2px 5px rgba(255,255,255,0.8);
+    }
+
+    .rounded-logo {
+        width: 46px;
+        height: 46px;
+        object-fit: cover;
+        border-radius: 50%; /* Makes it a perfect circle */
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2),
+                    inset 0 0 10px rgba(255, 255, 255, 0.2); /* 3D inner & outer */
+        border: 3px solid #ffffff;
+        background-color: #f9f9f9;
+        transition: transform 0.3s ease;
+        }
+
+        .rounded-logo:hover {
+        transform: scale(1.05) rotate(1deg);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25),
+                    inset 0 0 12px rgba(255, 255, 255, 0.3);
+        }
+
+    .small-brand-text {
+        display: inline-block;
+        max-width: 122px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.1px;
+        line-height: 1.1;
+        vertical-align: middle;
+    }
+    .layout-menu-toggle {
+        flex: 0 0 auto;
+        margin-left: 0.35rem;
+    }
+
+    .ri-gift-line {
+        color: #f59e0b !important; /* Amber */
+        background: rgba(245, 158, 11, 0.1);
+    }
+    
+    .ri-service-line {
+        color: #06b6d4 !important; /* Cyan */
+        background: rgba(6, 182, 212, 0.1);
+    }
+    
+    .ri-building-line {
+        color: #7c3aed !important; /* Violet */
+        background: rgba(124, 58, 237, 0.1);
+    }
+    
+    .ri-car-line {
+        color: #dc2626 !important; /* Red */
+        background: rgba(220, 38, 38, 0.1);
+    }
+    
+    .ri-percent-line {
+        color: #16a34a !important; /* Green */
+        background: rgba(22, 163, 74, 0.1);
+    }
+    
+    .roadmap-icon:hover {
+  color: #2ecc71;
+  transform: scale(1.1);
+  transition: 0.3s;
+ }
+
+    /* Menu Text with Full Display */
+    .menu-text-with-tooltip {
+        white-space: wrap;
+        overflow: visible;
+        text-overflow: inherit;
+        max-width: 100%;
+        position: relative;
+        word-wrap: break-word;
+        line-height: 1.3;
+    }
+
+    /* Tooltip Container */
+    .menu-tooltip {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+
+    /* Tooltip Text */
+    .menu-tooltip .tooltip-text {
+        visibility: hidden;
+        opacity: 0;
+        background: linear-gradient(135deg, #1f2937, #374151);
+        color: white;
+        text-align: left;
+        border-radius: 8px;
+        padding: 10px 15px;
+        position: fixed;
+        z-index: 999999;
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        min-width: max-content;
+        max-width: 350px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        transform: scale(0.8);
+        pointer-events: none;
+        left: 280px;
+        top: 100px;
+    }
+
+    /* Tooltip Arrow */
+    .menu-tooltip .tooltip-text::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: -8px;
+        transform: translateY(-50%);
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 8px solid #1f2937;
+        filter: drop-shadow(-2px 0 4px rgba(0, 0, 0, 0.1));
+    }
+
+    /* Show Tooltip on Hover */
+    .menu-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    /* Prevent tooltip from interfering with menu functionality */
+    .menu-tooltip .tooltip-text {
+        user-select: none;
+    }
+
+    /* Force tooltip visibility on hover - CSS fallback */
+    .menu-tooltip:hover .tooltip-text {
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: scale(1) !important;
+        display: block !important;
+    }
+
+    /* Responsive tooltip positioning */
+    @media (max-width: 768px) {
+        .menu-tooltip .tooltip-text {
+            font-size: 12px;
+            padding: 6px 10px;
+            margin-left: 10px;
+        }
+    }
+
+    /* Better tooltip positioning for smaller screens */
+    @media (max-width: 1200px) {
+        .menu-tooltip .tooltip-text {
+            left: 100%;
+            margin-left: 10px;
+        }
+    }
+
+    /* Special styling for truncated text */
+    .truncated-text {
+        position: relative;
+    }
+
+    .truncated-text:hover {
+        cursor: help;
+    }
+
+    /* Debug styles - add red border to see tooltip areas */
+    .menu-tooltip {
+        position: relative;
+    }
+    
+    /* Ensure proper z-index stacking */
+    .layout-menu .menu-tooltip .tooltip-text {
+        z-index: 99999 !important;
+    }
+
+    /* Booking Count Badge Styling */
+    .menu-link .badge {
+        font-size: 0.65rem !important;
+        padding: 0.25rem 0.5rem !important;
+        font-weight: 600 !important;
+        min-width: 1.5rem;
+        height: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1 !important;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        animation: pulseCount 2s infinite;
+    }
+
+    @keyframes pulseCount {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+    }
+
+    /* Active menu item badge styling */
+    .menu-item.active .menu-link .badge {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        color: #dc3545 !important;
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Submenu badge styling */
+    .menu-sub .menu-link .badge {
+        font-size: 0.6rem !important;
+        padding: 0.2rem 0.4rem !important;
+        min-width: 1.2rem;
+        height: 1.2rem;
+    }
+
+    /* Prevent badge from interfering with hover effects */
+    .menu-link .badge {
+        pointer-events: none;
+        flex-shrink: 0;
+    }
+
+    /* Ensure proper spacing in menu items with badges */
+    .menu-link .d-flex {
+        width: 100%;
+        min-height: 1.5rem;
+        align-items: center;
+    }
+
+    /* PRO badge (yellow/orange) - Refined Design */
+    .badge-pro {
+        position: absolute !important;
+        right: 10px;
+        top: 6px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(255, 215, 0, 0.4), 
+                    0 1px 2px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        min-width: 28px;
+        text-align: center;
+        line-height: 1.2;
+    }
+    
+    .menu-item.active .badge-pro {
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5),
+                    0 0 6px rgba(255, 215, 0, 0.3);
+    }
+    
+    .menu-item:hover .badge-pro {
+        transform: scale(1.05);
+        box-shadow: 0 2px 10px rgba(255, 215, 0, 0.5),
+                    0 0 8px rgba(255, 215, 0, 0.35);
+    }
+
+    /* LITE badge (blue) - Refined Design */
+    .badge-lite {
+        position: absolute !important;
+        right: 10px;
+        top: 6px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #5b6cff, #4c63d2) !important;
+        color: #ffffff !important;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(91, 108, 255, 0.35),
+                    0 1px 2px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        min-width: 28px;
+        text-align: center;
+        line-height: 1.2;
+    }
+    
+    .menu-item.active .badge-lite {
+        background: linear-gradient(135deg, #5b6cff, #4c63d2) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(91, 108, 255, 0.5),
+                    0 0 6px rgba(91, 108, 255, 0.3);
+    }
+    
+    .menu-item:hover .badge-lite {
+        transform: scale(1.05);
+        box-shadow: 0 2px 10px rgba(91, 108, 255, 0.5),
+                    0 0 8px rgba(91, 108, 255, 0.35);
+    }
+
+    .menu-link div {
+        letter-spacing: 0.4px;
+        word-spacing: 1px;
+    }
+    
+    /* Ensure menu items with badges have proper positioning */
+    .menu-item:has(.badge-pro),
+    .menu-item:has(.badge-lite) {
+        position: relative;
+    }
+    
+    /* Alternative for browsers that don't support :has() */
+    .menu-item[style*="position: relative"] {
+        position: relative !important;
+    }
+
+    /* Submenu items modal (floating panel on the right) */
+    #submenuModal .modal-dialog {
+        position: fixed;
+        margin: 0px;
+        max-width: 280px;
+        width: 280px;
+        transform: none;
+    }
+
+    #submenuModal .modal-content {
+        border-radius: 5px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+        border: solid 1px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    #submenuModal .submenu-modal-body {
+        padding: 10px 0;
+        background: linear-gradient(135deg,rgba(240, 219, 255, 0.9));
+        font-weight: 500;
+    }
+
+    #submenuModal .submenu-modal-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item {
+        margin: 6px 8px;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link {
+        padding: 0.65rem 1.05rem;
+        border-radius: 12px;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.open > .menu-link {
+        color: inherit !important;
+    }
+
+    /* Modal colors to match sidebar (indigo/purple gradient) */
+     #submenuModal .modal-header {
+        background: linear-gradient(135deg,rgba(207, 219, 252, 0.96)); 
+        color:rgb(194, 191, 191);
+    } 
+
+    #submenuModal .modal-header .btn-close {
+        filter: invert(1) grayscale(1) brightness(2);
+        opacity: 0.95;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link {
+        color: #0f172a;
+    }
+
+    /* Keep toggle icon at the far-right in modal and avoid text overlap. */
+    #submenuModal .submenu-modal-list .menu-link {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.55rem;
+        width: 100%;
+    }
+
+    #submenuModal .submenu-modal-list .submenu-modal-item-icon {
+        color: #64748b;
+        font-size: 1.05rem;
+        flex: 0 0 auto;
+    }
+
+    /* For submenu toggles, force the existing theme arrow (`::after`) to the far right. */
+    #submenuModal .submenu-modal-list .menu-link.menu-toggle {
+        padding-right: 0.75rem;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link.menu-toggle::after {
+        position: static !important;
+        margin-left: auto !important;
+        transform: rotate(0deg) !important;
+        color: #64748b !important;
+        flex: 0 0 auto;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.open > .menu-link.menu-toggle::after {
+        transform: rotate(0deg) !important;
+    }
+
+    #submenuModal .submenu-modal-list .submenu-modal-back-link {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item:hover .menu-link {
+        background-color: rgba(132, 134, 255, 0.97);
+        transform: translateX(4px);
+        color: #fff;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.active {
+        background:  rgba(94, 96, 247, 0.84);
+        box-shadow: 0 2px 10px rgba(114, 117, 255, 0.92);
+    }
+    #submenuModal .submenu-modal-list .submenu-modal-item-icon {
+        font-size: 1.05rem;
+        flex: 0 0 auto;
+    }
+    #submenuModal .submenu-modal-list .menu-item.active > .menu-link .submenu-modal-item-icon {
+        color: #fff;
+    }
+    #submenuModal .submenu-modal-list .menu-item:hover > .menu-link .submenu-modal-item-icon {
+        color: #fff;
+    }
+
+    /* Always hide inline nested submenus (2nd-level) in the sidebar.
+       Nested options will be shown via `#submenuModal` only. */
+    #layout-menu ul.menu-sub ul.menu-sub {
+        display: none !important;
+    }
+    </style>
+        <body>
+            <div class="layout-wrapper layout-content-navbar  ">
     <div class="layout-container">
         <!-- Menu -->
         <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
@@ -1599,6 +2482,302 @@
                 </div>
             </div>
         </div>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Enhanced tooltip functionality
+            const tooltips = document.querySelectorAll('.menu-tooltip');
+            
+            tooltips.forEach((tooltip, index) => {
+                const tooltipText = tooltip.querySelector('.tooltip-text');
+                const menuText = tooltip.querySelector('.menu-text-with-tooltip');
+                
+                if (tooltipText && menuText) {
+                    // Always show tooltip on hover
+                    tooltipText.style.display = 'block';
+                    
+                    // Add hover events for dynamic positioning
+                    tooltip.addEventListener('mouseenter', function(e) {
+                        // Get the position of the hovered menu item
+                        const rect = this.getBoundingClientRect();
+                        
+                        // Position tooltip to the right of the menu item
+                        tooltipText.style.left = (rect.right + 10) + 'px';
+                        tooltipText.style.top = (rect.top + (rect.height / 2) - 20) + 'px';
+                        
+                        // Show tooltip
+                        tooltipText.style.visibility = 'visible';
+                        tooltipText.style.opacity = '1';
+                        tooltipText.style.transform = 'scale(1)';
+                        tooltipText.style.display = 'block';
+                    });
+                    
+                    tooltip.addEventListener('mouseleave', function() {
+                        tooltipText.style.visibility = 'hidden';
+                        tooltipText.style.opacity = '0';
+                        tooltipText.style.transform = 'scale(0.8)';
+                    });
+                    
+                    // Ensure tooltip positioning works on different screen sizes
+                    function adjustTooltipPosition() {
+                        const rect = tooltip.getBoundingClientRect();
+                        const tooltipRect = tooltipText.getBoundingClientRect();
+                        
+                        // If tooltip would go off screen, position it to the left
+                        if (rect.right + tooltipRect.width + 20 > window.innerWidth) {
+                            tooltipText.style.left = 'auto';
+                            tooltipText.style.right = '100%';
+                            tooltipText.style.marginLeft = '0';
+                            tooltipText.style.marginRight = '15px';
+                            
+                            // Update arrow direction
+                            const arrow = tooltipText.querySelector('::before');
+                            if (arrow) {
+                                tooltipText.style.setProperty('--arrow-direction', 'right');
+                            }
+                        }
+                    }
+                    
+                    // Adjust position on window resize
+                    window.addEventListener('resize', adjustTooltipPosition);
+                    adjustTooltipPosition();
+                }
+            });
+
+            // Open sidebar submenus in a floating modal instead of expanding inline.
+            const submenuModalEl = document.getElementById('submenuModal');
+            const submenuModalTitleEl = document.getElementById('submenuModalLabel'); // Optional: header may be removed
+            const submenuModalBodyEl = document.getElementById('submenuModalBody');
+
+            if (submenuModalEl && window.bootstrap && window.bootstrap.Modal) {
+                const submenuModal = new window.bootstrap.Modal(submenuModalEl, {
+                    backdrop: false,
+                    focus: false
+                });
+                let currentModalTrigger = null;
+                let hoverSuppressedTrigger = null;
+
+                const isSubmenuModalOpen = () =>
+                    submenuModalEl.classList.contains('show') ||
+                    submenuModalEl.style.display === 'block' ||
+                    submenuModalEl.getAttribute('aria-hidden') === 'false';
+                let modalSubmenuStack = [];
+
+                const closeSubmenuModal = () => {
+                    if (!isSubmenuModalOpen()) return;
+                    hoverSuppressedTrigger = currentModalTrigger;
+                    currentModalTrigger = null;
+                    modalSubmenuStack = [];
+                    submenuModal.hide();
+                };
+
+                const renderSubmenuInModal = (submenu, title) => {
+                    if (!submenu || !submenuModalBodyEl) return;
+
+                    submenuModalBodyEl.innerHTML = '';
+                    const list = document.createElement('ul');
+                    list.className = 'submenu-modal-list';
+
+                    if (modalSubmenuStack.length > 1) {
+                        const backLi = document.createElement('li');
+                        backLi.className = 'menu-item submenu-modal-back';
+                        backLi.innerHTML = '<a href="#" class="menu-link submenu-modal-back-link" data-submenu-back="1"><div class="d-flex align-items-center"><i class="ri-arrow-left-line me-2"></i><div data-i18n="Back">Back</div></div></a>';
+                        list.appendChild(backLi);
+                    }
+
+                    const directLis = Array.from(submenu.children).filter(el => el && el.matches && el.matches('li.menu-item'));
+                    (directLis.length ? directLis : Array.from(submenu.querySelectorAll('li.menu-item'))).forEach(li => {
+                        const liClone = li.cloneNode(true);
+
+                        // Add a left-side arrow icon before every nested submenu label inside the modal.
+                        const modalAnchor = liClone.querySelector('a.menu-link');
+                        if (modalAnchor && !modalAnchor.querySelector('.submenu-modal-item-icon')) {
+                            // Avoid adding if the original item already has some icon/graphic.
+                            if (!modalAnchor.querySelector('i') && !modalAnchor.querySelector('svg')) {
+                                const labelNode = modalAnchor.querySelector('[data-i18n]') || modalAnchor.querySelector('div') || modalAnchor.querySelector('span');
+                                const iconEl = document.createElement('i');
+                                iconEl.className = 'ri-arrow-right-double-fill submenu-modal-item-icon';
+                                iconEl.setAttribute('aria-hidden', 'true');
+                                if (labelNode && labelNode.parentElement === modalAnchor) {
+                                    modalAnchor.insertBefore(iconEl, labelNode);
+                                } else {
+                                    modalAnchor.prepend(iconEl);
+                                }
+                            }
+                        }
+
+                        // Keep nested submenu DOM so a second-level modal can be opened from modal items.
+                        liClone.querySelectorAll('ul.menu-sub').forEach(nested => {
+                            nested.style.display = 'none';
+                        });
+                        list.appendChild(liClone);
+                    });
+
+                    submenuModalBodyEl.appendChild(list);
+                    if (submenuModalTitleEl) submenuModalTitleEl.textContent = (title || 'Options').trim();
+                };
+
+                const layoutMenuEl = document.getElementById('layout-menu');
+                if (layoutMenuEl) {
+                    // Use event delegation so submenu triggers inside any `menu-header` group open reliably.
+                    layoutMenuEl.addEventListener('click', function(e) {
+                        const trigger = e.target.closest('a.menu-toggle');
+                        if (!trigger || !layoutMenuEl.contains(trigger)) return;
+
+                        const parentItem = trigger.closest('.menu-item');
+                        const submenu = parentItem ? parentItem.querySelector('ul.menu-sub') : null;
+                        if (!submenu) return;
+
+                        // Requirement: only nested submenu should open in modal.
+                        // If this menu-toggle is NOT inside another submenu container, keep the default inline behavior.
+                        // (Example: "Restaurant" should stay inline; "Enquiries" inside "Bookings" should open modal.)
+                        const isNestedSubmenuTrigger = !!trigger.closest('ul.menu-sub');
+                        if (!isNestedSubmenuTrigger) return;
+
+                        // Prevent theme inline submenu toggle; we render it inside modal instead.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Some sidebar themes also bind their own click handlers on the same element.
+                        // This prevents inline submenu expansion from happening right after our modal opens.
+                        e.stopImmediatePropagation();
+
+                        // Modal title from the trigger's i18n label/text.
+                        const i18nNode = trigger.querySelector('[data-i18n]');
+                        const title = i18nNode ? i18nNode.textContent.trim() : (trigger.textContent || 'Options');
+                        if (submenuModalTitleEl) submenuModalTitleEl.textContent = title.trim() || 'Options';
+
+                        currentModalTrigger = trigger;
+                        // Clicking a nested submenu should re-enable hover reopening for other triggers.
+                        hoverSuppressedTrigger = null;
+                        modalSubmenuStack = [];
+
+                        modalSubmenuStack.push({
+                            submenu,
+                            title
+                        });
+                        renderSubmenuInModal(submenu, title);
+
+                        // Close any expanded inline state if theme added it already.
+                        parentItem.classList.remove('open');
+                        // Hide nested inline submenu levels under the clicked trigger.
+                        // This ensures only the modal shows nested options.
+                        parentItem.querySelectorAll('ul.menu-sub').forEach(u => {
+                            u.style.display = 'none';
+                        });
+
+                        // Position modal next to the clicked menu item (responsive fallback for small screens).
+                        const rect = trigger.getBoundingClientRect();
+                        const dialog = submenuModalEl.querySelector('.modal-dialog');
+                        if (window.innerWidth < 768) {
+                            dialog.style.left = '40%';
+                            dialog.style.top = '50%';
+                            dialog.style.transform = 'translate(-50%, -50%)';
+                            dialog.style.width = '90vw';
+                            dialog.style.maxWidth = '540px';
+                        } else {
+                            dialog.style.transform = 'none';
+                            dialog.style.width = '280px';
+                            dialog.style.maxWidth = '280px';
+                            dialog.style.left = `${rect.right + 14}px`;
+                            dialog.style.top = `${Math.max(10, rect.top)}px`;
+                        }
+
+                        submenuModal.show();
+
+                        // If modal overflows the viewport horizontally, clamp it.
+                        requestAnimationFrame(() => {
+                            const dRect = dialog.getBoundingClientRect();
+                            if (window.innerWidth >= 768) {
+                                if (dRect.right > window.innerWidth - 8) {
+                                    const newLeft = Math.max(8, window.innerWidth - dRect.width - 8);
+                                    dialog.style.left = `${newLeft}px`;
+                                }
+                                if (dRect.bottom > window.innerHeight - 8) {
+                                    const newTop = Math.max(8, window.innerHeight - dRect.height - 8);
+                                    dialog.style.top = `${newTop}px`;
+                                }
+                            }
+                        });
+                    }, true);
+                }
+
+                // Hide modal after user clicks a link inside it (navigation will happen anyway).
+                submenuModalBodyEl.addEventListener('click', function(e) {
+                    const backLink = e.target.closest('[data-submenu-back="1"]');
+                    if (backLink) {
+                        e.preventDefault();
+                        if (modalSubmenuStack.length > 1) {
+                            modalSubmenuStack.pop();
+                            const prev = modalSubmenuStack[modalSubmenuStack.length - 1];
+                            renderSubmenuInModal(prev.submenu, prev.title);
+                        }
+                        return;
+                    }
+
+                    const toggleLink = e.target.closest('a.menu-toggle');
+                    if (toggleLink) {
+                        const li = toggleLink.closest('li.menu-item');
+                        const nested = li ? li.querySelector(':scope > ul.menu-sub') : null;
+                        if (nested) {
+                            e.preventDefault();
+                            const i18nNode = toggleLink.querySelector('[data-i18n]');
+                            const nestedTitle = i18nNode ? i18nNode.textContent.trim() : (toggleLink.textContent || 'Options');
+                            modalSubmenuStack.push({
+                                submenu: nested,
+                                title: nestedTitle
+                            });
+                            renderSubmenuInModal(nested, nestedTitle);
+                            return;
+                        }
+                    }
+
+                    const link = e.target.closest('a');
+                    if (link) {
+                        // Close modal after selection; keep it closed even if the cursor stays hovered on the trigger.
+                        closeSubmenuModal();
+                    }
+                });
+
+                // Reliable close when user clicks the modal wrapper (outside `.modal-content`).
+                submenuModalEl.addEventListener('click', function(e) {
+                    if (e.target === submenuModalEl) {
+                        closeSubmenuModal();
+                    }
+                }, true);
+
+                // Close modal when clicking/tapping outside (reliable: use pointerdown).
+                document.addEventListener('pointerdown', function(e) {
+                    if (!isSubmenuModalOpen()) return;
+
+                    // IMPORTANT: `.modal` wrapper covers the whole screen, so we must only treat clicks
+                    // inside `.modal-content` as "inside". Everything else should close the modal.
+                    const modalContent = submenuModalEl.querySelector('.modal-content');
+                    if (modalContent && modalContent.contains(e.target)) return;
+
+                    closeSubmenuModal();
+                }, true);
+
+            }
+            
+            // Enhanced menu interactions
+            // Scope hover animation to the real sidebar only; modal items are cloned `.menu-item`s too.
+            const menuItems = document.querySelectorAll('#layout-menu .menu-item');
+            menuItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'translateX(2px)';
+                    }
+                });
+                
+                item.addEventListener('mouseleave', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'translateX(0)';
+                    }
+                });
+            });
+        });
+        </script>        
+
 <!-- Modal for Create Single Tour Pro Initial Information -->
 <div class="modal fade" id="createTourProModal" tabindex="-1" aria-labelledby="createTourProModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 800px;">
@@ -1755,805 +2934,510 @@
         </div>
     </div>
 </div>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Enhanced tooltip functionality
-        const tooltips = document.querySelectorAll('.menu-tooltip');
-        
-        tooltips.forEach((tooltip, index) => {
-            const tooltipText = tooltip.querySelector('.tooltip-text');
-            const menuText = tooltip.querySelector('.menu-text-with-tooltip');
-            
-            if (tooltipText && menuText) {
-                // Always show tooltip on hover
-                tooltipText.style.display = 'block';
-                
-                // Add hover events for dynamic positioning
-                tooltip.addEventListener('mouseenter', function(e) {
-                    // Get the position of the hovered menu item
-                    const rect = this.getBoundingClientRect();
-                    
-                    // Position tooltip to the right of the menu item
-                    tooltipText.style.left = (rect.right + 10) + 'px';
-                    tooltipText.style.top = (rect.top + (rect.height / 2) - 20) + 'px';
-                    
-                    // Show tooltip
-                    tooltipText.style.visibility = 'visible';
-                    tooltipText.style.opacity = '1';
-                    tooltipText.style.transform = 'scale(1)';
-                    tooltipText.style.display = 'block';
-                });
-                
-                tooltip.addEventListener('mouseleave', function() {
-                    tooltipText.style.visibility = 'hidden';
-                    tooltipText.style.opacity = '0';
-                    tooltipText.style.transform = 'scale(0.8)';
-                });
-                
-                // Ensure tooltip positioning works on different screen sizes
-                function adjustTooltipPosition() {
-                    const rect = tooltip.getBoundingClientRect();
-                    const tooltipRect = tooltipText.getBoundingClientRect();
-                    
-                    // If tooltip would go off screen, position it to the left
-                    if (rect.right + tooltipRect.width + 20 > window.innerWidth) {
-                        tooltipText.style.left = 'auto';
-                        tooltipText.style.right = '100%';
-                        tooltipText.style.marginLeft = '0';
-                        tooltipText.style.marginRight = '15px';
-                        
-                        // Update arrow direction
-                        const arrow = tooltipText.querySelector('::before');
-                        if (arrow) {
-                            tooltipText.style.setProperty('--arrow-direction', 'right');
-                        }
-                    }
-                }
-                
-                // Adjust position on window resize
-                window.addEventListener('resize', adjustTooltipPosition);
-                adjustTooltipPosition();
-            }
+document.addEventListener('DOMContentLoaded', function() {
+    // Open modal when Create Single Tour Pro is clicked
+    const createTourBtn = document.getElementById('createSingleTourProBtn');
+    if (createTourBtn) {
+        createTourBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('createTourProModal'));
+            modal.show();
+            loadDestinations();
         });
+    }
 
-        // Open sidebar submenus in a floating modal instead of expanding inline.
-        // Disabled to keep all nested arrows working inside sidebar.
-        const enableFloatingSubmenuModal = false;
-        const submenuModalEl = document.getElementById('submenuModal');
-        const submenuModalTitleEl = document.getElementById('submenuModalLabel'); // Optional: header may be removed
-        const submenuModalBodyEl = document.getElementById('submenuModalBody');
-
-        if (enableFloatingSubmenuModal && submenuModalEl && window.bootstrap && window.bootstrap.Modal) {
-            const submenuModal = new window.bootstrap.Modal(submenuModalEl, {
-                backdrop: false,
-                focus: false
-            });
-            let currentModalTrigger = null;
-            let hoverSuppressedTrigger = null;
-
-            const isSubmenuModalOpen = () =>
-                submenuModalEl.classList.contains('show') ||
-                submenuModalEl.style.display === 'block' ||
-                submenuModalEl.getAttribute('aria-hidden') === 'false';
-            let modalSubmenuStack = [];
-
-            const closeSubmenuModal = () => {
-                if (!isSubmenuModalOpen()) return;
-                hoverSuppressedTrigger = currentModalTrigger;
-                currentModalTrigger = null;
-                modalSubmenuStack = [];
-                submenuModal.hide();
-            };
-
-            const renderSubmenuInModal = (submenu, title) => {
-                if (!submenu || !submenuModalBodyEl) return;
-
-                submenuModalBodyEl.innerHTML = '';
-                const list = document.createElement('ul');
-                list.className = 'submenu-modal-list';
-
-                if (modalSubmenuStack.length > 1) {
-                    const backLi = document.createElement('li');
-                    backLi.className = 'menu-item submenu-modal-back';
-                    backLi.innerHTML = '<a href="#" class="menu-link submenu-modal-back-link" data-submenu-back="1"><div class="d-flex align-items-center"><i class="ri-arrow-left-line me-2"></i><div data-i18n="Back">Back</div></div></a>';
-                    list.appendChild(backLi);
-                }
-
-                const directLis = Array.from(submenu.children).filter(el => el && el.matches && el.matches('li.menu-item'));
-                (directLis.length ? directLis : Array.from(submenu.querySelectorAll('li.menu-item'))).forEach(li => {
-                    const liClone = li.cloneNode(true);
-
-                    // Add a left-side arrow icon before every nested submenu label inside the modal.
-                    const modalAnchor = liClone.querySelector('a.menu-link');
-                    if (modalAnchor && !modalAnchor.querySelector('.submenu-modal-item-icon')) {
-                        // Avoid adding if the original item already has some icon/graphic.
-                        if (!modalAnchor.querySelector('i') && !modalAnchor.querySelector('svg')) {
-                            const labelNode = modalAnchor.querySelector('[data-i18n]') || modalAnchor.querySelector('div') || modalAnchor.querySelector('span');
-                            const iconEl = document.createElement('i');
-                            iconEl.className = 'ri-arrow-right-double-fill submenu-modal-item-icon';
-                            iconEl.setAttribute('aria-hidden', 'true');
-                            if (labelNode && labelNode.parentElement === modalAnchor) {
-                                modalAnchor.insertBefore(iconEl, labelNode);
-                            } else {
-                                modalAnchor.prepend(iconEl);
-                            }
-                        }
-                    }
-
-                    // Keep nested submenu DOM so a second-level modal can be opened from modal items.
-                    liClone.querySelectorAll('ul.menu-sub').forEach(nested => {
-                        nested.style.display = 'none';
-                    });
-                    list.appendChild(liClone);
-                });
-
-                submenuModalBodyEl.appendChild(list);
-                if (submenuModalTitleEl) submenuModalTitleEl.textContent = (title || 'Options').trim();
-            };
-
-            const layoutMenuEl = document.getElementById('layout-menu');
-            if (layoutMenuEl) {
-                // Use event delegation so submenu triggers inside any `menu-header` group open reliably.
-                layoutMenuEl.addEventListener('click', function(e) {
-                    const trigger = e.target.closest('a.menu-toggle');
-                    if (!trigger || !layoutMenuEl.contains(trigger)) return;
-
-                    const parentItem = trigger.closest('.menu-item');
-                    const submenu = parentItem ? parentItem.querySelector('ul.menu-sub') : null;
-                    if (!submenu) return;
-
-                    // Requirement: only nested submenu should open in modal.
-                    // If this menu-toggle is NOT inside another submenu container, keep the default inline behavior.
-                    // (Example: "Restaurant" should stay inline; "Enquiries" inside "Bookings" should open modal.)
-                    const isNestedSubmenuTrigger = !!trigger.closest('ul.menu-sub');
-                    if (!isNestedSubmenuTrigger) return;
-
-                    // Prevent theme inline submenu toggle; we render it inside modal instead.
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Some sidebar themes also bind their own click handlers on the same element.
-                    // This prevents inline submenu expansion from happening right after our modal opens.
-                    e.stopImmediatePropagation();
-
-                    // Modal title from the trigger's i18n label/text.
-                    const i18nNode = trigger.querySelector('[data-i18n]');
-                    const title = i18nNode ? i18nNode.textContent.trim() : (trigger.textContent || 'Options');
-                    if (submenuModalTitleEl) submenuModalTitleEl.textContent = title.trim() || 'Options';
-
-                    currentModalTrigger = trigger;
-                    // Clicking a nested submenu should re-enable hover reopening for other triggers.
-                    hoverSuppressedTrigger = null;
-                    modalSubmenuStack = [];
-
-                    modalSubmenuStack.push({
-                        submenu,
-                        title
-                    });
-                    renderSubmenuInModal(submenu, title);
-
-                    // Close any expanded inline state if theme added it already.
-                    parentItem.classList.remove('open');
-                    // Hide nested inline submenu levels under the clicked trigger.
-                    // This ensures only the modal shows nested options.
-                    parentItem.querySelectorAll('ul.menu-sub').forEach(u => {
-                        u.style.display = 'none';
-                    });
-
-                    // Position modal next to the clicked menu item (responsive fallback for small screens).
-                    const rect = trigger.getBoundingClientRect();
-                    const dialog = submenuModalEl.querySelector('.modal-dialog');
-                    if (window.innerWidth < 768) {
-                        dialog.style.left = '40%';
-                        dialog.style.top = '50%';
-                        dialog.style.transform = 'translate(-50%, -50%)';
-                        dialog.style.width = '90vw';
-                        dialog.style.maxWidth = '540px';
-                    } else {
-                        dialog.style.transform = 'none';
-                        dialog.style.width = '280px';
-                        dialog.style.maxWidth = '280px';
-                        dialog.style.left = `${rect.right + 14}px`;
-                        dialog.style.top = `${Math.max(10, rect.top)}px`;
-                    }
-
-                    submenuModal.show();
-
-                    // If modal overflows the viewport horizontally, clamp it.
-                    requestAnimationFrame(() => {
-                        const dRect = dialog.getBoundingClientRect();
-                        if (window.innerWidth >= 768) {
-                            if (dRect.right > window.innerWidth - 8) {
-                                const newLeft = Math.max(8, window.innerWidth - dRect.width - 8);
-                                dialog.style.left = `${newLeft}px`;
-                            }
-                            if (dRect.bottom > window.innerHeight - 8) {
-                                const newTop = Math.max(8, window.innerHeight - dRect.height - 8);
-                                dialog.style.top = `${newTop}px`;
-                            }
-                        }
-                    });
-                }, true);
-            }
-
-            // Hide modal after user clicks a link inside it (navigation will happen anyway).
-            submenuModalBodyEl.addEventListener('click', function(e) {
-                const backLink = e.target.closest('[data-submenu-back="1"]');
-                if (backLink) {
-                    e.preventDefault();
-                    if (modalSubmenuStack.length > 1) {
-                        modalSubmenuStack.pop();
-                        const prev = modalSubmenuStack[modalSubmenuStack.length - 1];
-                        renderSubmenuInModal(prev.submenu, prev.title);
-                    }
-                    return;
-                }
-
-                const toggleLink = e.target.closest('a.menu-toggle');
-                if (toggleLink) {
-                    const li = toggleLink.closest('li.menu-item');
-                    const nested = li ? li.querySelector(':scope > ul.menu-sub') : null;
-                    if (nested) {
-                        e.preventDefault();
-                        const i18nNode = toggleLink.querySelector('[data-i18n]');
-                        const nestedTitle = i18nNode ? i18nNode.textContent.trim() : (toggleLink.textContent || 'Options');
-                        modalSubmenuStack.push({
-                            submenu: nested,
-                            title: nestedTitle
-                        });
-                        renderSubmenuInModal(nested, nestedTitle);
-                        return;
-                    }
-                }
-
-                const link = e.target.closest('a');
-                if (link) {
-                    // Close modal after selection; keep it closed even if the cursor stays hovered on the trigger.
-                    closeSubmenuModal();
-                }
-            });
-
-            // Reliable close when user clicks the modal wrapper (outside `.modal-content`).
-            submenuModalEl.addEventListener('click', function(e) {
-                if (e.target === submenuModalEl) {
-                    closeSubmenuModal();
-                }
-            }, true);
-
-            // Close modal when clicking/tapping outside (reliable: use pointerdown).
-            document.addEventListener('pointerdown', function(e) {
-                if (!isSubmenuModalOpen()) return;
-
-                // IMPORTANT: `.modal` wrapper covers the whole screen, so we must only treat clicks
-                // inside `.modal-content` as "inside". Everything else should close the modal.
-                const modalContent = submenuModalEl.querySelector('.modal-content');
-                if (modalContent && modalContent.contains(e.target)) return;
-
-                closeSubmenuModal();
-            }, true);
-
-        }
-        
-        // Enhanced menu interactions
-        // Scope hover animation to the real sidebar only; modal items are cloned `.menu-item`s too.
-        const menuItems = document.querySelectorAll('#layout-menu .menu-item');
-        menuItems.forEach(item => {
-            item.addEventListener('mouseenter', function() {
-                if (!this.classList.contains('active')) {
-                    this.style.transform = 'translateX(2px)';
-                }
-            });
-            
-            item.addEventListener('mouseleave', function() {
-                if (!this.classList.contains('active')) {
-                    this.style.transform = 'translateX(0)';
-                }
-            });
-        });
-    });
-</script> 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Open modal when Create Single Tour Pro is clicked
-        const createTourBtn = document.getElementById('createSingleTourProBtn');
-        if (createTourBtn) {
-            createTourBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const modal = new bootstrap.Modal(document.getElementById('createTourProModal'));
-                modal.show();
-                loadDestinations();
-            });
-        }
-
-        // Store agencies list globally for autocomplete
-        let availableAgencies = [];
-        
-        // Load Agencies by single destination
-        function loadAgenciesByDestination(destination) {
-            const agencyInput = document.getElementById('agencySelectModal');
-            agencyInput.value = 'Loading agencies...';
-            agencyInput.disabled = true;
-            
-            // Reset agency and agent
-            document.getElementById('agencyIdValue').value = '';
-            const agentInput = document.getElementById('agentSelectModal');
-            agentInput.value = '';
-            agentInput.placeholder = 'Select agency first...';
-            agentInput.disabled = true;
-            document.getElementById('agentIdValue').value = '';
-            
-            fetch('{{ route("enquiry-form-pro.get-agencies") }}?destination=' + encodeURIComponent(destination))
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Agencies loaded for destination:', destination, 'DMC ID:', data.dmc_id, 'Count:', data.count);
-                    if (data.success && data.agencies.length > 0) {
-                        availableAgencies = data.agencies;
-                        agencyInput.value = '';
-                        agencyInput.placeholder = 'Type to search agency...';
-                        agencyInput.disabled = false;
-                    } else {
-                        availableAgencies = [];
-                        agencyInput.value = '';
-                        agencyInput.placeholder = 'No agencies available (filtered by destination & DMC)';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading agencies:', error);
-                    availableAgencies = [];
-                    agencyInput.value = '';
-                    agencyInput.placeholder = 'Error loading agencies';
-                });
-        }
-
-        // Load Agencies by multiple destinations
-        function loadAgenciesByDestinations() {
-            if (selectedDestinations.length === 0) return;
-            
-            const agencyInput = document.getElementById('agencySelectModal');
-            agencyInput.value = 'Loading agencies...';
-            agencyInput.disabled = true;
-            
-            // Reset agency and agent
-            document.getElementById('agencyIdValue').value = '';
-            const agentInput = document.getElementById('agentSelectModal');
-            agentInput.value = '';
-            agentInput.placeholder = 'Select agency first...';
-            agentInput.disabled = true;
-            document.getElementById('agentIdValue').value = '';
-            
-            const destinations = selectedDestinations.join(',');
-            
-            fetch('{{ route("enquiry-form-pro.get-agencies") }}?destinations=' + encodeURIComponent(destinations))
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Agencies loaded for destinations:', destinations, 'DMC ID:', data.dmc_id, 'Count:', data.count);
-                    if (data.success && data.agencies.length > 0) {
-                        availableAgencies = data.agencies;
-                        agencyInput.value = '';
-                        agencyInput.placeholder = 'Type to search agency...';
-                        agencyInput.disabled = false;
-                    } else {
-                        availableAgencies = [];
-                        agencyInput.value = '';
-                        agencyInput.placeholder = 'No agencies available (filtered by destinations & DMC)';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading agencies:', error);
-                    availableAgencies = [];
-                    agencyInput.value = '';
-                    agencyInput.placeholder = 'Error loading agencies';
-                });
-        }
-
-        // Agency autocomplete
+    // Store agencies list globally for autocomplete
+    let availableAgencies = [];
+    
+    // Load Agencies by single destination
+    function loadAgenciesByDestination(destination) {
         const agencyInput = document.getElementById('agencySelectModal');
-        const agencySuggestions = document.getElementById('agencySuggestions');
-        const agencyIdValue = document.getElementById('agencyIdValue');
+        agencyInput.value = 'Loading agencies...';
+        agencyInput.disabled = true;
+        
+        // Reset agency and agent
+        document.getElementById('agencyIdValue').value = '';
+        const agentInput = document.getElementById('agentSelectModal');
+        agentInput.value = '';
+        agentInput.placeholder = 'Select agency first...';
+        agentInput.disabled = true;
+        document.getElementById('agentIdValue').value = '';
+        
+        fetch('{{ route("enquiry-form-pro.get-agencies") }}?destination=' + encodeURIComponent(destination))
+            .then(response => response.json())
+            .then(data => {
+                console.log('Agencies loaded for destination:', destination, 'DMC ID:', data.dmc_id, 'Count:', data.count);
+                if (data.success && data.agencies.length > 0) {
+                    availableAgencies = data.agencies;
+                    agencyInput.value = '';
+                    agencyInput.placeholder = 'Type to search agency...';
+                    agencyInput.disabled = false;
+                } else {
+                    availableAgencies = [];
+                    agencyInput.value = '';
+                    agencyInput.placeholder = 'No agencies available (filtered by destination & DMC)';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading agencies:', error);
+                availableAgencies = [];
+                agencyInput.value = '';
+                agencyInput.placeholder = 'Error loading agencies';
+            });
+    }
 
-        agencyInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            
-            if (query.length < 1) {
-                agencySuggestions.style.display = 'none';
-                return;
-            }
+    // Load Agencies by multiple destinations
+    function loadAgenciesByDestinations() {
+        if (selectedDestinations.length === 0) return;
+        
+        const agencyInput = document.getElementById('agencySelectModal');
+        agencyInput.value = 'Loading agencies...';
+        agencyInput.disabled = true;
+        
+        // Reset agency and agent
+        document.getElementById('agencyIdValue').value = '';
+        const agentInput = document.getElementById('agentSelectModal');
+        agentInput.value = '';
+        agentInput.placeholder = 'Select agency first...';
+        agentInput.disabled = true;
+        document.getElementById('agentIdValue').value = '';
+        
+        const destinations = selectedDestinations.join(',');
+        
+        fetch('{{ route("enquiry-form-pro.get-agencies") }}?destinations=' + encodeURIComponent(destinations))
+            .then(response => response.json())
+            .then(data => {
+                console.log('Agencies loaded for destinations:', destinations, 'DMC ID:', data.dmc_id, 'Count:', data.count);
+                if (data.success && data.agencies.length > 0) {
+                    availableAgencies = data.agencies;
+                    agencyInput.value = '';
+                    agencyInput.placeholder = 'Type to search agency...';
+                    agencyInput.disabled = false;
+                } else {
+                    availableAgencies = [];
+                    agencyInput.value = '';
+                    agencyInput.placeholder = 'No agencies available (filtered by destinations & DMC)';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading agencies:', error);
+                availableAgencies = [];
+                agencyInput.value = '';
+                agencyInput.placeholder = 'Error loading agencies';
+            });
+    }
 
-            const filtered = availableAgencies.filter(agency => 
-                agency.agency_name.toLowerCase().includes(query)
-            );
+    // Agency autocomplete
+    const agencyInput = document.getElementById('agencySelectModal');
+    const agencySuggestions = document.getElementById('agencySuggestions');
+    const agencyIdValue = document.getElementById('agencyIdValue');
 
-            if (filtered.length > 0) {
-                agencySuggestions.innerHTML = '';
-                filtered.forEach(agency => {
-                    const item = document.createElement('a');
-                    item.href = 'javascript:void(0);';
-                    item.className = 'list-group-item list-group-item-action';
-                    item.style.padding = '6px 10px';
-                    item.style.fontSize = '10px';
-                    item.style.cursor = 'pointer';
-                    item.textContent = agency.agency_name;
-                    item.addEventListener('click', function() {
-                        agencyInput.value = agency.agency_name;
-                        agencyIdValue.value = agency.agency_id;
-                        agencySuggestions.style.display = 'none';
-                        // Load agents for this agency
-                        loadAgentsByAgency(agency.agency_id);
-                    });
-                    agencySuggestions.appendChild(item);
+    agencyInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            agencySuggestions.style.display = 'none';
+            return;
+        }
+
+        const filtered = availableAgencies.filter(agency => 
+            agency.agency_name.toLowerCase().includes(query)
+        );
+
+        if (filtered.length > 0) {
+            agencySuggestions.innerHTML = '';
+            filtered.forEach(agency => {
+                const item = document.createElement('a');
+                item.href = 'javascript:void(0);';
+                item.className = 'list-group-item list-group-item-action';
+                item.style.padding = '6px 10px';
+                item.style.fontSize = '10px';
+                item.style.cursor = 'pointer';
+                item.textContent = agency.agency_name;
+                item.addEventListener('click', function() {
+                    agencyInput.value = agency.agency_name;
+                    agencyIdValue.value = agency.agency_id;
+                    agencySuggestions.style.display = 'none';
+                    // Load agents for this agency
+                    loadAgentsByAgency(agency.agency_id);
                 });
-                agencySuggestions.style.display = 'block';
-            } else {
-                agencySuggestions.style.display = 'none';
-            }
-        });
+                agencySuggestions.appendChild(item);
+            });
+            agencySuggestions.style.display = 'block';
+        } else {
+            agencySuggestions.style.display = 'none';
+        }
+    });
 
-        // Store agents list globally for autocomplete
-        let availableAgents = [];
+    // Store agents list globally for autocomplete
+    let availableAgents = [];
 
-        // Load agents by agency
-        function loadAgentsByAgency(agencyId) {
-            const agentInput = document.getElementById('agentSelectModal');
-            agentInput.value = 'Loading agents...';
-            agentInput.disabled = true;
-            document.getElementById('agentIdValue').value = '';
+    // Load agents by agency
+    function loadAgentsByAgency(agencyId) {
+        const agentInput = document.getElementById('agentSelectModal');
+        agentInput.value = 'Loading agents...';
+        agentInput.disabled = true;
+        document.getElementById('agentIdValue').value = '';
 
-            fetch('{{ route("enquiry-form-pro.get-agents") }}?agency_id=' + agencyId)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.agents.length > 0) {
-                        availableAgents = data.agents;
-                        agentInput.value = '';
-                        agentInput.placeholder = 'Type to search agent...';
-                        agentInput.disabled = false;
-                    } else {
-                        availableAgents = [];
-                        agentInput.value = '';
-                        agentInput.placeholder = 'No agents available';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading agents:', error);
+        fetch('{{ route("enquiry-form-pro.get-agents") }}?agency_id=' + agencyId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.agents.length > 0) {
+                    availableAgents = data.agents;
+                    agentInput.value = '';
+                    agentInput.placeholder = 'Type to search agent...';
+                    agentInput.disabled = false;
+                } else {
                     availableAgents = [];
                     agentInput.value = '';
-                    agentInput.placeholder = 'Error loading agents';
-                });
+                    agentInput.placeholder = 'No agents available';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading agents:', error);
+                availableAgents = [];
+                agentInput.value = '';
+                agentInput.placeholder = 'Error loading agents';
+            });
+    }
+
+    // Agent autocomplete
+    const agentInput = document.getElementById('agentSelectModal');
+    const agentSuggestions = document.getElementById('agentSuggestions');
+    const agentIdValue = document.getElementById('agentIdValue');
+
+    agentInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            agentSuggestions.style.display = 'none';
+            return;
         }
 
-        // Agent autocomplete
-        const agentInput = document.getElementById('agentSelectModal');
-        const agentSuggestions = document.getElementById('agentSuggestions');
-        const agentIdValue = document.getElementById('agentIdValue');
+        const filtered = availableAgents.filter(agent => 
+            agent.name.toLowerCase().includes(query)
+        );
 
-        agentInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            
-            if (query.length < 1) {
-                agentSuggestions.style.display = 'none';
-                return;
-            }
-
-            const filtered = availableAgents.filter(agent => 
-                agent.name.toLowerCase().includes(query)
-            );
-
-            if (filtered.length > 0) {
-                agentSuggestions.innerHTML = '';
-                filtered.forEach(agent => {
-                    const item = document.createElement('a');
-                    item.href = 'javascript:void(0);';
-                    item.className = 'list-group-item list-group-item-action';
-                    item.style.padding = '6px 10px';
-                    item.style.fontSize = '10px';
-                    item.style.cursor = 'pointer';
-                    item.textContent = agent.name;
-                    item.addEventListener('click', function() {
-                        agentInput.value = agent.name;
-                        agentIdValue.value = agent.agent_id;
-                        agentSuggestions.style.display = 'none';
-                    });
-                    agentSuggestions.appendChild(item);
+        if (filtered.length > 0) {
+            agentSuggestions.innerHTML = '';
+            filtered.forEach(agent => {
+                const item = document.createElement('a');
+                item.href = 'javascript:void(0);';
+                item.className = 'list-group-item list-group-item-action';
+                item.style.padding = '6px 10px';
+                item.style.fontSize = '10px';
+                item.style.cursor = 'pointer';
+                item.textContent = agent.name;
+                item.addEventListener('click', function() {
+                    agentInput.value = agent.name;
+                    agentIdValue.value = agent.agent_id;
+                    agentSuggestions.style.display = 'none';
                 });
-                agentSuggestions.style.display = 'block';
-            } else {
-                agentSuggestions.style.display = 'none';
-            }
-        });
+                agentSuggestions.appendChild(item);
+            });
+            agentSuggestions.style.display = 'block';
+        } else {
+            agentSuggestions.style.display = 'none';
+        }
+    });
 
-        // Multiple destination checkbox toggle
-        const multipleDestCheckbox = document.getElementById('multipleDestination');
-        const singleDestDiv = document.getElementById('singleDestinationDiv');
-        const multipleDestDiv = document.getElementById('multipleDestinationDiv');
-        const destinationSingle = document.getElementById('destinationSingle');
-        const destinationMultiple = document.getElementById('destinationMultiple');
+    // Multiple destination checkbox toggle
+    const multipleDestCheckbox = document.getElementById('multipleDestination');
+    const singleDestDiv = document.getElementById('singleDestinationDiv');
+    const multipleDestDiv = document.getElementById('multipleDestinationDiv');
+    const destinationSingle = document.getElementById('destinationSingle');
+    const destinationMultiple = document.getElementById('destinationMultiple');
 
-        multipleDestCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                // Switch to multiple mode
-                singleDestDiv.style.display = 'none';
-                multipleDestDiv.style.display = 'block';
-                // Clear single destination
-                destinationSingleInput.value = '';
-                destinationSingleValue.value = '';
-            } else {
-                // Switch to single mode
-                singleDestDiv.style.display = 'block';
-                multipleDestDiv.style.display = 'none';
-                // Clear multiple destinations
-                destinationInput.value = '';
-                selectedDestinations = [];
-                updateSelectedDestinations();
-            }
-            
-            // Reset agency and agent when switching modes
+    multipleDestCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            // Switch to multiple mode
+            singleDestDiv.style.display = 'none';
+            multipleDestDiv.style.display = 'block';
+            // Clear single destination
+            destinationSingleInput.value = '';
+            destinationSingleValue.value = '';
+        } else {
+            // Switch to single mode
+            singleDestDiv.style.display = 'block';
+            multipleDestDiv.style.display = 'none';
+            // Clear multiple destinations
+            destinationInput.value = '';
+            selectedDestinations = [];
+            updateSelectedDestinations();
+        }
+        
+        // Reset agency and agent when switching modes
+        const agencyInputReset = document.getElementById('agencySelectModal');
+        agencyInputReset.value = '';
+        agencyInputReset.placeholder = 'Select destination first...';
+        agencyInputReset.disabled = true;
+        document.getElementById('agencyIdValue').value = '';
+        availableAgencies = [];
+        
+        const agentInputReset = document.getElementById('agentSelectModal');
+        agentInputReset.value = '';
+        agentInputReset.placeholder = 'Select agency first...';
+        agentInputReset.disabled = true;
+        document.getElementById('agentIdValue').value = '';
+        availableAgents = [];
+    });
+
+    // Load destinations
+    let allDestinations = [];
+    function loadDestinations() {
+        fetch('{{ route("enquiry-form-pro.get-destinations") }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.destinations.length > 0) {
+                    allDestinations = data.destinations;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading destinations:', error);
+            });
+    }
+
+    // Single destination autocomplete
+    const destinationSingleInput = document.getElementById('destinationSingle');
+    const suggestionBoxSingle = document.getElementById('destinationSuggestionsSingle');
+    const destinationSingleValue = document.getElementById('destinationSingleValue');
+
+    destinationSingleInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            suggestionBoxSingle.style.display = 'none';
+            return;
+        }
+
+        const filtered = allDestinations.filter(dest => 
+            dest.name.toLowerCase().includes(query)
+        );
+
+        if (filtered.length > 0) {
+            suggestionBoxSingle.innerHTML = '';
+            filtered.forEach(dest => {
+                const item = document.createElement('a');
+                item.href = 'javascript:void(0);';
+                item.className = 'list-group-item list-group-item-action';
+                item.style.padding = '6px 10px';
+                item.style.fontSize = '10px';
+                item.style.cursor = 'pointer';
+                item.textContent = dest.name;
+                item.addEventListener('click', function() {
+                    destinationSingleInput.value = dest.name;
+                    destinationSingleValue.value = dest.name;
+                    suggestionBoxSingle.style.display = 'none';
+                    // Load agencies for this destination
+                    loadAgenciesByDestination(dest.name);
+                });
+                suggestionBoxSingle.appendChild(item);
+            });
+            suggestionBoxSingle.style.display = 'block';
+        } else {
+            suggestionBoxSingle.style.display = 'none';
+        }
+    });
+
+    // Multiple destination autocomplete
+    const destinationInput = document.getElementById('destinationMultiple');
+    const suggestionBox = document.getElementById('destinationSuggestions');
+    const selectedDestinationsDiv = document.getElementById('selectedDestinations');
+    let selectedDestinations = [];
+
+    destinationInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            suggestionBox.style.display = 'none';
+            return;
+        }
+
+        const filtered = allDestinations.filter(dest => 
+            dest.name.toLowerCase().includes(query) && 
+            !selectedDestinations.includes(dest.name)
+        );
+
+        if (filtered.length > 0) {
+            suggestionBox.innerHTML = '';
+            filtered.forEach(dest => {
+                const item = document.createElement('a');
+                item.href = 'javascript:void(0);';
+                item.className = 'list-group-item list-group-item-action';
+                item.style.padding = '6px 10px';
+                item.style.fontSize = '10px';
+                item.style.cursor = 'pointer';
+                item.textContent = dest.name;
+                item.addEventListener('click', function() {
+                    addDestination(dest.name);
+                    destinationInput.value = '';
+                    suggestionBox.style.display = 'none';
+                });
+                suggestionBox.appendChild(item);
+            });
+            suggestionBox.style.display = 'block';
+        } else {
+            suggestionBox.style.display = 'none';
+        }
+    });
+
+    function addDestination(name) {
+        if (!selectedDestinations.includes(name)) {
+            selectedDestinations.push(name);
+            updateSelectedDestinations();
+            // Load agencies for selected destinations
+            loadAgenciesByDestinations();
+        }
+    }
+
+    function removeDestination(name) {
+        selectedDestinations = selectedDestinations.filter(d => d !== name);
+        updateSelectedDestinations();
+        // Reload agencies based on remaining destinations
+        if (selectedDestinations.length > 0) {
+            loadAgenciesByDestinations();
+        } else {
+            // Reset agency if no destinations selected
             const agencyInputReset = document.getElementById('agencySelectModal');
             agencyInputReset.value = '';
             agencyInputReset.placeholder = 'Select destination first...';
             agencyInputReset.disabled = true;
             document.getElementById('agencyIdValue').value = '';
             availableAgencies = [];
-            
+            // Also reset agent
             const agentInputReset = document.getElementById('agentSelectModal');
             agentInputReset.value = '';
             agentInputReset.placeholder = 'Select agency first...';
             agentInputReset.disabled = true;
             document.getElementById('agentIdValue').value = '';
             availableAgents = [];
-        });
-
-        // Load destinations
-        let allDestinations = [];
-        function loadDestinations() {
-            fetch('{{ route("enquiry-form-pro.get-destinations") }}')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.destinations.length > 0) {
-                        allDestinations = data.destinations;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading destinations:', error);
-                });
         }
+    }
 
-        // Single destination autocomplete
-        const destinationSingleInput = document.getElementById('destinationSingle');
-        const suggestionBoxSingle = document.getElementById('destinationSuggestionsSingle');
-        const destinationSingleValue = document.getElementById('destinationSingleValue');
-
-        destinationSingleInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            
-            if (query.length < 1) {
-                suggestionBoxSingle.style.display = 'none';
-                return;
-            }
-
-            const filtered = allDestinations.filter(dest => 
-                dest.name.toLowerCase().includes(query)
-            );
-
-            if (filtered.length > 0) {
-                suggestionBoxSingle.innerHTML = '';
-                filtered.forEach(dest => {
-                    const item = document.createElement('a');
-                    item.href = 'javascript:void(0);';
-                    item.className = 'list-group-item list-group-item-action';
-                    item.style.padding = '6px 10px';
-                    item.style.fontSize = '10px';
-                    item.style.cursor = 'pointer';
-                    item.textContent = dest.name;
-                    item.addEventListener('click', function() {
-                        destinationSingleInput.value = dest.name;
-                        destinationSingleValue.value = dest.name;
-                        suggestionBoxSingle.style.display = 'none';
-                        // Load agencies for this destination
-                        loadAgenciesByDestination(dest.name);
-                    });
-                    suggestionBoxSingle.appendChild(item);
-                });
-                suggestionBoxSingle.style.display = 'block';
-            } else {
-                suggestionBoxSingle.style.display = 'none';
-            }
-        });
-
-        // Multiple destination autocomplete
-        const destinationInput = document.getElementById('destinationMultiple');
-        const suggestionBox = document.getElementById('destinationSuggestions');
-        const selectedDestinationsDiv = document.getElementById('selectedDestinations');
-        let selectedDestinations = [];
-
-        destinationInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            
-            if (query.length < 1) {
-                suggestionBox.style.display = 'none';
-                return;
-            }
-
-            const filtered = allDestinations.filter(dest => 
-                dest.name.toLowerCase().includes(query) && 
-                !selectedDestinations.includes(dest.name)
-            );
-
-            if (filtered.length > 0) {
-                suggestionBox.innerHTML = '';
-                filtered.forEach(dest => {
-                    const item = document.createElement('a');
-                    item.href = 'javascript:void(0);';
-                    item.className = 'list-group-item list-group-item-action';
-                    item.style.padding = '6px 10px';
-                    item.style.fontSize = '10px';
-                    item.style.cursor = 'pointer';
-                    item.textContent = dest.name;
-                    item.addEventListener('click', function() {
-                        addDestination(dest.name);
-                        destinationInput.value = '';
-                        suggestionBox.style.display = 'none';
-                    });
-                    suggestionBox.appendChild(item);
-                });
-                suggestionBox.style.display = 'block';
-            } else {
-                suggestionBox.style.display = 'none';
-            }
-        });
-
-        function addDestination(name) {
-            if (!selectedDestinations.includes(name)) {
-                selectedDestinations.push(name);
-                updateSelectedDestinations();
-                // Load agencies for selected destinations
-                loadAgenciesByDestinations();
-            }
-        }
-
-        function removeDestination(name) {
-            selectedDestinations = selectedDestinations.filter(d => d !== name);
-            updateSelectedDestinations();
-            // Reload agencies based on remaining destinations
-            if (selectedDestinations.length > 0) {
-                loadAgenciesByDestinations();
-            } else {
-                // Reset agency if no destinations selected
-                const agencyInputReset = document.getElementById('agencySelectModal');
-                agencyInputReset.value = '';
-                agencyInputReset.placeholder = 'Select destination first...';
-                agencyInputReset.disabled = true;
-                document.getElementById('agencyIdValue').value = '';
-                availableAgencies = [];
-                // Also reset agent
-                const agentInputReset = document.getElementById('agentSelectModal');
-                agentInputReset.value = '';
-                agentInputReset.placeholder = 'Select agency first...';
-                agentInputReset.disabled = true;
-                document.getElementById('agentIdValue').value = '';
-                availableAgents = [];
-            }
-        }
-
-        function updateSelectedDestinations() {
-            selectedDestinationsDiv.innerHTML = '';
-            selectedDestinations.forEach(dest => {
-                const badge = document.createElement('span');
-                badge.className = 'badge bg-info me-1 mb-1 d-inline-flex align-items-center';
-                badge.style.fontSize = '11px';
-                badge.style.padding = '4px 8px';
-                badge.innerHTML = `${dest} <i class="ri-close-line ms-1" style="cursor: pointer; font-size: 14px;"></i>`;
-                badge.querySelector('i').addEventListener('click', function() {
-                    removeDestination(dest);
-                });
-                selectedDestinationsDiv.appendChild(badge);
+    function updateSelectedDestinations() {
+        selectedDestinationsDiv.innerHTML = '';
+        selectedDestinations.forEach(dest => {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-info me-1 mb-1 d-inline-flex align-items-center';
+            badge.style.fontSize = '11px';
+            badge.style.padding = '4px 8px';
+            badge.innerHTML = `${dest} <i class="ri-close-line ms-1" style="cursor: pointer; font-size: 14px;"></i>`;
+            badge.querySelector('i').addEventListener('click', function() {
+                removeDestination(dest);
             });
+            selectedDestinationsDiv.appendChild(badge);
+        });
 
-            // Update hidden input
-            document.getElementById('destinationsArray').value = JSON.stringify(selectedDestinations);
-        }
+        // Update hidden input
+        document.getElementById('destinationsArray').value = JSON.stringify(selectedDestinations);
+    }
 
-        // Set min date for start date (today)
-        const tourStartDateInput = document.getElementById('tourStartDate');
-        const tourEndDateInput = document.getElementById('tourEndDate');
+    // Set min date for start date (today)
+    const tourStartDateInput = document.getElementById('tourStartDate');
+    const tourEndDateInput = document.getElementById('tourEndDate');
+    
+    if (tourStartDateInput && tourEndDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        tourStartDateInput.setAttribute('min', today);
+        tourStartDateInput.value = today;
         
-        if (tourStartDateInput && tourEndDateInput) {
-            const today = new Date().toISOString().split('T')[0];
-            tourStartDateInput.setAttribute('min', today);
-            tourStartDateInput.value = today;
-            
-            // Set end date to tomorrow by default and set min
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = tomorrow.toISOString().split('T')[0];
-            tourEndDateInput.value = tomorrowStr;
-            tourEndDateInput.setAttribute('min', tomorrowStr);
-            
-            // Update end date min when start date changes
-            tourStartDateInput.addEventListener('change', function() {
-                const startDate = new Date(this.value);
-                const minEndDate = new Date(startDate);
-                minEndDate.setDate(minEndDate.getDate() + 1);
-                const minEndDateStr = minEndDate.toISOString().split('T')[0];
-                tourEndDateInput.setAttribute('min', minEndDateStr);
-                
-                // If end date is less than start date + 1, update it
-                if (new Date(tourEndDateInput.value) <= startDate) {
-                    tourEndDateInput.value = minEndDateStr;
-                }
-            });
-        }
+        // Set end date to tomorrow by default and set min
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        tourEndDateInput.value = tomorrowStr;
+        tourEndDateInput.setAttribute('min', tomorrowStr);
         
-        // Form validation
-        document.getElementById('createTourProForm').addEventListener('submit', function(e) {
-            const multipleDestChecked = document.getElementById('multipleDestination').checked;
-            
-            // Validate destination based on mode
-            if (multipleDestChecked) {
-                if (selectedDestinations.length === 0) {
-                    e.preventDefault();
-                    alert('Please select at least one destination');
-                    return false;
-                }
-            } else {
-                const singleDest = document.getElementById('destinationSingleValue').value;
-                if (!singleDest || singleDest.trim() === '') {
-                    e.preventDefault();
-                    alert('Please select a destination');
-                    return false;
-                }
-            }
-
-            // Validate dates
-            const startDate = new Date(document.getElementById('tourStartDate').value);
-            const endDate = new Date(document.getElementById('tourEndDate').value);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            if (startDate < today) {
-                e.preventDefault();
-                alert('Start date cannot be in the past');
-                return false;
-            }
-            
+        // Update end date min when start date changes
+        tourStartDateInput.addEventListener('change', function() {
+            const startDate = new Date(this.value);
             const minEndDate = new Date(startDate);
             minEndDate.setDate(minEndDate.getDate() + 1);
+            const minEndDateStr = minEndDate.toISOString().split('T')[0];
+            tourEndDateInput.setAttribute('min', minEndDateStr);
             
-            if (endDate < minEndDate) {
-                e.preventDefault();
-                alert('End date must be at least 1 day after start date');
-                return false;
-            }
-
-            // Check at least one person
-            const adults = parseInt(document.getElementById('adultCount').value) || 0;
-            const children = parseInt(document.getElementById('childCount').value) || 0;
-            const infants = parseInt(document.getElementById('infantCount').value) || 0;
-            
-            if (adults + children + infants === 0) {
-                e.preventDefault();
-                alert('Please specify at least one passenger (Adult, Child, or Infant)');
-                return false;
+            // If end date is less than start date + 1, update it
+            if (new Date(tourEndDateInput.value) <= startDate) {
+                tourEndDateInput.value = minEndDateStr;
             }
         });
+    }
+    
+    // Form validation
+    document.getElementById('createTourProForm').addEventListener('submit', function(e) {
+        const multipleDestChecked = document.getElementById('multipleDestination').checked;
+        
+        // Validate destination based on mode
+        if (multipleDestChecked) {
+            if (selectedDestinations.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one destination');
+                return false;
+            }
+        } else {
+            const singleDest = document.getElementById('destinationSingleValue').value;
+            if (!singleDest || singleDest.trim() === '') {
+                e.preventDefault();
+                alert('Please select a destination');
+                return false;
+            }
+        }
 
-        // Close suggestions when clicking outside
-        document.addEventListener('click', function(e) {
-            // Close multiple destinations suggestions
-            if (!destinationInput.contains(e.target) && !suggestionBox.contains(e.target)) {
-                suggestionBox.style.display = 'none';
-            }
-            // Close single destination suggestions
-            if (!destinationSingleInput.contains(e.target) && !suggestionBoxSingle.contains(e.target)) {
-                suggestionBoxSingle.style.display = 'none';
-            }
-            // Close agency suggestions
-            if (!agencyInput.contains(e.target) && !agencySuggestions.contains(e.target)) {
-                agencySuggestions.style.display = 'none';
-            }
-            // Close agent suggestions
-            if (!agentInput.contains(e.target) && !agentSuggestions.contains(e.target)) {
-                agentSuggestions.style.display = 'none';
-            }
-        });
+        // Validate dates
+        const startDate = new Date(document.getElementById('tourStartDate').value);
+        const endDate = new Date(document.getElementById('tourEndDate').value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (startDate < today) {
+            e.preventDefault();
+            alert('Start date cannot be in the past');
+            return false;
+        }
+        
+        const minEndDate = new Date(startDate);
+        minEndDate.setDate(minEndDate.getDate() + 1);
+        
+        if (endDate < minEndDate) {
+            e.preventDefault();
+            alert('End date must be at least 1 day after start date');
+            return false;
+        }
+
+        // Check at least one person
+        const adults = parseInt(document.getElementById('adultCount').value) || 0;
+        const children = parseInt(document.getElementById('childCount').value) || 0;
+        const infants = parseInt(document.getElementById('infantCount').value) || 0;
+        
+        if (adults + children + infants === 0) {
+            e.preventDefault();
+            alert('Please specify at least one passenger (Adult, Child, or Infant)');
+            return false;
+        }
     });
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        // Close multiple destinations suggestions
+        if (!destinationInput.contains(e.target) && !suggestionBox.contains(e.target)) {
+            suggestionBox.style.display = 'none';
+        }
+        // Close single destination suggestions
+        if (!destinationSingleInput.contains(e.target) && !suggestionBoxSingle.contains(e.target)) {
+            suggestionBoxSingle.style.display = 'none';
+        }
+        // Close agency suggestions
+        if (!agencyInput.contains(e.target) && !agencySuggestions.contains(e.target)) {
+            agencySuggestions.style.display = 'none';
+        }
+        // Close agent suggestions
+        if (!agentInput.contains(e.target) && !agentSuggestions.contains(e.target)) {
+            agentSuggestions.style.display = 'none';
+        }
+    });
+});
 </script>
 
 
