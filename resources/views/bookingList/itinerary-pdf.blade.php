@@ -6,12 +6,15 @@
     <style>
         body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; color: #333; margin: 0; padding: 12px; }
         .header { display: table; width: 100%; margin-bottom: 10px; }
-        .header-left { display: table-cell; width: 65%; vertical-align: top; }
-        .header-right { display: table-cell; width: 35%; text-align: right; vertical-align: top; }
+        .header-left { display: table-cell; width: 25%; vertical-align: top; }
+        .header-center { display: table-cell; width: 50%; text-align: center; vertical-align: top; }
+        .header-right { display: table-cell; width: 25%; vertical-align: top; }
         .company-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
         .company-details { font-size: 11px; color: #444; line-height: 1.4; }
+        .header-center .company-name,
+        .header-center .company-details { text-align: center; }
         .logo-img { max-height: 140px; max-width: 140px; display: block;
-            margin-left: auto; margin-top: -50px; }
+            margin-left: 0; margin-top: -50px; }
         .title-row { text-align: center; margin: 8px 0 6px; }
         .title-itinerary { font-size: 18px; font-weight: bold; color: #2563eb; }
         .title-ref { font-size: 16px; font-weight: bold; color: #2563eb; margin-left: 10px; }
@@ -49,34 +52,50 @@
 
     <div class="header">
         <div class="header-left">
+            @if($user_dmc && !empty($user_dmc->logo))
+                <img src="{{ $user_dmc->logo }}" alt="Logo" class="logo-img">
+            @endif
+        </div>
+        <div class="header-center">
             <div class="company-name">{{ $user_dmc->company_name ?? $user_dmc->name ?? config('app.name') }}</div>
             <div class="company-details">
-                @if($user_dmc && (!empty($user_dmc->ta_license) || !empty($user_dmc->company_reg)))
-                    @if(!empty($user_dmc->ta_license)) TA License No: {{ $user_dmc->ta_license }} @endif
-                    @if(!empty($user_dmc->company_reg)) / Company Reg No: {{ $user_dmc->company_reg }} @endif
+                @if($user_dmc && (!empty($user_dmc->licence_no) || !empty($user_dmc->company_reg_no)))
+                    @if(!empty($user_dmc->licence_no)) License No: {{ $user_dmc->licence_no }} @endif
+                    @if(!empty($user_dmc->licence_no) && !empty($user_dmc->company_reg_no)) @endif
+                    @if(!empty($user_dmc->company_reg_no))
+                        @if(!empty($user_dmc->licence_no)) / @endif
+                        Company Reg No: {{ $user_dmc->company_reg_no }}
+                    @endif
                     <br>
                 @endif
+
                 @if($user_dmc && !empty($user_dmc->address))
                     Address: {{ $user_dmc->address }}<br>
                 @endif
-                @if($user_dmc && (!empty($user_dmc->phone) || !empty($user_dmc->tel)))
-                    Contact: Tel: {{ $user_dmc->phone ?? $user_dmc->tel ?? '' }}
-                    @if(!empty($user_dmc->fax)) , Fax: {{ $user_dmc->fax }} @endif
+
+                @php
+                    $hasPhone = $user_dmc && (!empty($user_dmc->phone) || !empty($user_dmc->tel));
+                    $hasEmail = $user_dmc && !empty($user_dmc->email);
+                @endphp
+                @if($user_dmc && ($hasPhone || $hasEmail))
+                    @if($hasPhone)
+                        Contact: Tel: {{ $user_dmc->phone ?? $user_dmc->tel ?? '' }}
+                        @if(!empty($user_dmc->fax)) , Fax: {{ $user_dmc->fax }} @endif
+                    @endif
+
+                    @if($hasEmail)
+                        @if($hasPhone) &nbsp;|&nbsp; @endif
+                        Email: {{ $user_dmc->email }}
+                    @endif
                     <br>
                 @endif
-                @if($user_dmc && !empty($user_dmc->email))
-                    Email: {{ $user_dmc->email }}<br>
-                @endif
+
                 @if($user_dmc && !empty($user_dmc->website))
                     Website: {{ $user_dmc->website }}
                 @endif
             </div>
         </div>
-        <div class="header-right">
-            @if($user_dmc && !empty($user_dmc->logo))
-                <img src="{{ $user_dmc->logo }}" alt="Logo" class="logo-img">
-            @endif
-        </div>
+        <div class="header-right"></div>
     </div>
 
     <div class="title-row">
