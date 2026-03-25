@@ -18,7 +18,12 @@
         }
         .header-left {
             display: table-cell;
-            width: 65%;
+            width: 25%;
+            vertical-align: top;
+        }
+        .header-center {
+            display: table-cell;
+            width: 75%;
             vertical-align: top;
         }
         .header-right {
@@ -123,6 +128,29 @@
 
     <div class="header">
         <div class="header-left">
+            @if(!empty($dmc->logo))
+                <img src="{{ $dmc->logo }}" alt="Logo" class="logo-img">
+            @endif
+        </div>
+        <div class="header-center">
+            @php
+                $dmcUser = null;
+                try {
+                    $currentUser = \Illuminate\Support\Facades\Auth::user();
+                    if ($currentUser) {
+                        $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                        if (!empty($dmcId)) {
+                            $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $dmcUser = null;
+                }
+
+                $companyRegNo = $dmcUser->company_reg_no ?? ($dmc->company_reg_no ?? null);
+                $licenceNo = $dmcUser->licence_no ?? ($dmc->licence_no ?? null);
+            @endphp
+
             <div class="company-name">
                 {{ $dmc->company_name ?? $dmc->name ?? config('app.name') }}
             </div>
@@ -130,25 +158,36 @@
                 @if(!empty($dmc->address))
                     {{ $dmc->address }}<br>
                 @endif
-                @if(!empty($dmc->phone) || !empty($dmc->tel))
-                    Tel: {{ $dmc->phone ?? $dmc->tel }}
-                    @if(!empty($dmc->fax))
-                        &nbsp;|&nbsp; Fax: {{ $dmc->fax }}
+                @if((!empty($dmc->phone) || !empty($dmc->tel)) || !empty($dmc->email))
+                    @if(!empty($dmc->phone) || !empty($dmc->tel))
+                        Tel: {{ $dmc->phone ?? $dmc->tel }}
+                        @if(!empty($dmc->fax))
+                            &nbsp;|&nbsp; Fax: {{ $dmc->fax }}
+                        @endif
+                    @endif
+                    @if((!empty($dmc->phone) || !empty($dmc->tel)) && !empty($dmc->email))
+                        &nbsp;|&nbsp;
+                    @endif
+                    @if(!empty($dmc->email))
+                        Email: {{ $dmc->email }}
                     @endif
                     <br>
                 @endif
-                @if(!empty($dmc->email))
-                    Email: {{ $dmc->email }}<br>
-                @endif
                 @if(!empty($dmc->website))
-                    Website: {{ $dmc->website }}
+                    Website: {{ $dmc->website }}<br>
+                @endif
+                @if(!empty($companyRegNo) || !empty($licenceNo))
+                    @if(!empty($companyRegNo))
+                        Company Reg No: {{ $companyRegNo }}
+                    @endif
+                    @if(!empty($companyRegNo) && !empty($licenceNo))
+                        &nbsp;|&nbsp;
+                    @endif
+                    @if(!empty($licenceNo))
+                        Licence No: {{ $licenceNo }}
+                    @endif
                 @endif
             </div>
-        </div>
-        <div class="header-right">
-            @if(!empty($dmc->logo))
-                <img src="{{ $dmc->logo }}" alt="Logo" class="logo-img">
-            @endif
         </div>
     </div>
 

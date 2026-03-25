@@ -1,0 +1,1002 @@
+    /* Modern Sidebar Styling */
+    .layout-menu {
+        background: #ffffff;
+        border-right: 1px solid rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    }
+    
+    /* Logo area styling */
+    .app-brand {
+        padding: 0.95rem 1rem;
+        min-height: 74px;
+        height: auto;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6); 
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 12px rgba(107, 114, 241, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .app-brand-link {
+        display: flex;
+        align-items: center;
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: calc(100% - 56px);
+        gap: 0.55rem;
+    }
+    
+    .app-brand-text {
+        color: white !important;
+        font-weight: 700 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        min-width: 0;
+    }
+    
+    /* Menu header styling */
+    .menu-header {
+        margin-top: 1.5rem !important;
+        padding: 0.5rem 1.5rem !important;
+    }
+    
+    .menu-header-text {
+        color: #6366f1 !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    /* Menu item styling */
+    .menu-item {
+        margin: 6px 8px;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .menu-item.active {
+        background: linear-gradient(118deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.12);
+    }
+    
+    .menu-link {
+        padding: 0.8rem 1.5rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .menu-link:hover {
+        background-color: rgba(99, 102, 241, 0.04);
+        transform: translateX(4px);
+    }
+    
+    .menu-item.active .menu-link {
+        box-shadow: none;
+        color: #ffffff !important;
+    }
+    
+    .menu-item.active .menu-link div {
+        color: #ffffff !important;
+        font-weight: 600;
+    }
+    
+    /* Colorful Icon styling */
+    .menu-icon {
+        margin-right: 0.75rem;
+        font-size: 1.25rem !important;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        border-radius: 10px;
+        background: #f9fafb;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    /* Individual icon colors */
+    .ri-dashboard-3-line {
+        color: #f97316 !important; /* Orange */
+        background: rgba(249, 115, 22, 0.1);
+    }
+    
+    .ri-ship-line {
+        color: #0ea5e9 !important; /* Sky blue */
+        background: rgba(14, 165, 233, 0.1);
+    }
+    
+    .ri-map-pin-user-line {
+        color: #ec4899 !important; /* Pink */
+        background: rgba(236, 72, 153, 0.1);
+    }
+    
+    .ri-route-line {
+        color: #14b8a6 !important; /* Teal */
+        background: rgba(20, 184, 166, 0.1);
+    }
+    
+    .ri-bookmark-3-line {
+        color: #8b5cf6 !important; /* Purple */
+        background: rgba(139, 92, 246, 0.1);
+    }
+    
+    .ri-questionnaire-line {
+        color: #f43f5e !important; /* Rose */
+        background: rgba(244, 63, 94, 0.1);
+    }
+    
+    .ri-hotel-bed-line {
+        color: #10b981 !important; /* Emerald */
+        background: rgba(16, 185, 129, 0.1);
+    }
+    
+    .ri-shield-check-line {
+        color: #6366f1 !important; /* Indigo */
+        background: rgba(99, 102, 241, 0.1);
+    }
+    
+    .ri-function-line {
+        color: #0284c7 !important; /* Blue */
+        background: rgba(2, 132, 199, 0.1);
+    }
+    
+    .ri-hotel-line {
+        color: #0d9488 !important; /* Teal */
+        background: rgba(13, 148, 136, 0.1);
+    }
+    
+    .ri-camera-3-line {
+        color: #8b5cf6 !important; /* Purple */
+        background: rgba(139, 92, 246, 0.1);
+    }
+    
+    .ri-stack-line {
+        color: #10b981 !important; /* Emerald */
+        background: rgba(16, 185, 129, 0.1);
+    }
+    
+    .ri-restaurant-2-line {
+        color: #ea580c !important; /* Orange */
+        background: rgba(234, 88, 12, 0.1);
+    }
+    
+    .ri-compass-3-line {
+        color: #0369a1 !important; /* Blue */
+        background: rgba(3, 105, 161, 0.1);
+    }
+    
+    .ri-steering-2-line {
+        color: #4f46e5 !important; /* Indigo */
+        background: rgba(79, 70, 229, 0.1);
+    }
+    
+    .ri-task-line {
+        color: #be123c !important; /* Rose */
+        background: rgba(190, 18, 60, 0.1);
+    }
+    
+    .ri-user-line {
+        color: #7c3aed !important; /* Violet */
+        background: rgba(124, 58, 237, 0.1);
+    }
+    
+    .ri-settings-3-line {
+        color: #3b82f6 !important; /* Blue */
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .ri-mail-send-line {
+        color: #39c262 !important; /* Blue */
+        background: rgba(59, 130, 246, 0.1);
+    }
+    
+    .ri-earth-line {
+        color: #059669 !important; /* Emerald */
+        background: rgba(5, 150, 105, 0.1);
+    }
+    
+    .ri-bar-chart-box-line {
+        color: #7c2d12 !important; 
+        background: rgba(124, 45, 18, 0.1);
+    }
+
+    .ri-file-list-3-line {
+        color: #2c54a0 !important; /* Amber */
+        background: rgba(124, 45, 18, 0.1);
+    }
+    
+    .ri-hand-heart-line {
+        color: #e11d48 !important; /* Rose */
+        background: rgba(225, 29, 72, 0.1);
+    }
+    
+    /* Active icon state with shine effect */
+    .menu-item.active .menu-icon {
+        color: white !important;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        box-shadow: 0 3px 10px rgba(99, 102, 241, 0.3);
+        transform: translateY(-2px);
+    }
+
+    /* Pro Badge - Top Right Corner Like Verified Badge */
+    .pro-badge {
+        position: absolute !important;
+        top: 8px;
+        right: 12px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+        z-index: 10;
+        animation: pulse-star 2s ease-in-out infinite;
+    }
+    
+    .menu-item.active .pro-badge {
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 12px rgba(255, 215, 0, 0.6);
+    }
+    
+    .menu-item:hover .pro-badge {
+        transform: scale(1.05);
+        box-shadow: 0 3px 15px rgba(255, 215, 0, 0.7);
+    }
+    
+    @keyframes pulse-star {
+        0%, 100% {
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+        }
+        50% {
+            box-shadow: 0 2px 15px rgba(255, 215, 0, 0.8);
+        }
+    }
+    
+    /* Submenu styling */
+    .menu-sub {
+        padding-left: 3.35rem !important;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .menu-sub .menu-link {
+        padding: 0.6rem 1.5rem;
+        color: #000;
+        font-size: 0.92rem;
+    }
+    
+    .menu-sub .menu-link:hover {
+        color: #6366f1;
+    }
+    
+    /* Menu toggle icon animation */
+    .menu-toggle:after {
+        transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        color: #94a3b8;
+    }
+    
+    .menu-item.open > .menu-toggle:after {
+        transform: rotate(90deg);
+        color: #6366f1;
+    }
+    
+    /* Menu section hover effect */
+    .menu-item.open {
+        background-color: rgba(99, 102, 241, 0.04);
+        border-radius: 12px;
+    }
+    
+    /* Custom scrollbar */
+    .menu-inner::-webkit-scrollbar {
+        width: 5px;
+    }
+    
+    .menu-inner::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .menu-inner::-webkit-scrollbar-thumb {
+        background-color: rgba(99, 102, 241, 0.2);
+        border-radius: 10px;
+    }
+    
+    .menu-inner::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(99, 102, 241, 0.4);
+    }
+    
+    /* Smooth hover transitions */
+    .menu-link, .menu-icon {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Reset parent menu color */
+    .menu-item.open > .menu-link {
+        color: #6366f1 !important; /* Keep parent menu normal color */
+    }
+    
+    .menu-item.open > .menu-link div {
+        color: #6366f1 !important;
+    }
+    
+    /* Only make the specific active item white */
+    .menu-item.active:not(.open) > .menu-link {
+        color: #ffffff !important;
+    }
+    
+    .menu-item.active:not(.open) > .menu-link div {
+        color: #ffffff !important;
+    }
+    
+    /* For submenu items that are active */
+    .menu-sub .menu-item.active .menu-link {
+        color: #ffffff !important;
+        /* background: linear-gradient(118deg, #4bbca5, #725aab); */
+        background: linear-gradient(25deg, #c851ec, #566ee4);
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+    }
+    
+    .menu-sub .menu-item.active .menu-link div {
+        color: #ffffff !important;
+    }
+    
+    /* Ensure other submenu items are not white */
+    .menu-sub .menu-item:not(.active) .menu-link {
+        color: #000 !important;
+    }
+    
+    .menu-sub .menu-item:not(.active) .menu-link div {
+        color: #000 !important;
+    }
+
+    .menu-vertical .menu-item .menu-link{
+        font-weight: bold;
+    }
+
+    /* Ensure menu items show full text without truncation */
+    .menu-vertical .menu-item .menu-link > div:not(.badge) {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+        line-height: 1.467;
+        hyphens: auto;
+    }
+
+    /* Additional override for menu text in tooltips */
+    .menu-tooltip div[data-i18n] {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+    }
+
+    /* Override any ellipsis display in menu items */
+    .menu-item .menu-link div,
+    .menu-item .menu-link span.menu-text-with-tooltip {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+        text-overflow: initial !important;
+    }
+
+    #template-customizer .template-customizer-open-btn{
+        display: none !important;
+    }
+
+    /* 3D Menu Toggle Icon Styling */
+    .layout-menu-toggle {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+    }
+
+    .layout-menu-toggle .menu-icon {
+        padding: 10px;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #ffffff, #f0f0f0);
+        box-shadow: 4px 4px 8px rgba(0,0,0,0.1), 
+                    -4px -4px 8px rgba(255,255,255,0.9);
+        color: #6366f1 !important;
+        font-size: 1.4rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .layout-menu-toggle:hover .menu-icon {
+        transform: translateY(-3px) rotate(180deg);
+        box-shadow: 6px 6px 10px rgba(0,0,0,0.15), 
+                    -6px -6px 10px rgba(255,255,255,0.95);
+        background: linear-gradient(145deg, #6366f1, #8b5cf6);
+        color: white !important;
+    }
+
+    .layout-menu-toggle:active .menu-icon {
+        transform: translateY(1px);
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1), 
+                    -2px -2px 5px rgba(255,255,255,0.8);
+    }
+
+    .rounded-logo {
+        width: 46px;
+        height: 46px;
+        object-fit: cover;
+        border-radius: 50%; /* Makes it a perfect circle */
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2),
+                    inset 0 0 10px rgba(255, 255, 255, 0.2); /* 3D inner & outer */
+        border: 3px solid #ffffff;
+        background-color: #f9f9f9;
+        transition: transform 0.3s ease;
+        }
+
+        .rounded-logo:hover {
+        transform: scale(1.05) rotate(1deg);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25),
+                    inset 0 0 12px rgba(255, 255, 255, 0.3);
+        }
+
+    .small-brand-text {
+        display: inline-block;
+        max-width: 122px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.1px;
+        line-height: 1.1;
+        vertical-align: middle;
+    }
+    .layout-menu-toggle {
+        flex: 0 0 auto;
+        margin-left: 0.35rem;
+    }
+
+    .ri-gift-line {
+        color: #f59e0b !important; /* Amber */
+        background: rgba(245, 158, 11, 0.1);
+    }
+    
+    .ri-service-line {
+        color: #06b6d4 !important; /* Cyan */
+        background: rgba(6, 182, 212, 0.1);
+    }
+    
+    .ri-building-line {
+        color: #7c3aed !important; /* Violet */
+        background: rgba(124, 58, 237, 0.1);
+    }
+    
+    .ri-car-line {
+        color: #dc2626 !important; /* Red */
+        background: rgba(220, 38, 38, 0.1);
+    }
+    
+    .ri-percent-line {
+        color: #16a34a !important; /* Green */
+        background: rgba(22, 163, 74, 0.1);
+    }
+    
+    .roadmap-icon:hover {
+  color: #2ecc71;
+  transform: scale(1.1);
+  transition: 0.3s;
+ }
+
+    /* Menu Text with Full Display */
+    .menu-text-with-tooltip {
+        white-space: wrap;
+        overflow: visible;
+        text-overflow: inherit;
+        max-width: 100%;
+        position: relative;
+        word-wrap: break-word;
+        line-height: 1.3;
+    }
+
+    /* Tooltip Container */
+    .menu-tooltip {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+
+    /* Tooltip Text */
+    .menu-tooltip .tooltip-text {
+        visibility: hidden;
+        opacity: 0;
+        background: linear-gradient(135deg, #1f2937, #374151);
+        color: white;
+        text-align: left;
+        border-radius: 8px;
+        padding: 10px 15px;
+        position: fixed;
+        z-index: 999999;
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        min-width: max-content;
+        max-width: 350px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        transform: scale(0.8);
+        pointer-events: none;
+        left: 280px;
+        top: 100px;
+    }
+
+    /* Tooltip Arrow */
+    .menu-tooltip .tooltip-text::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: -8px;
+        transform: translateY(-50%);
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 8px solid #1f2937;
+        filter: drop-shadow(-2px 0 4px rgba(0, 0, 0, 0.1));
+    }
+
+    /* Show Tooltip on Hover */
+    .menu-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    /* Prevent tooltip from interfering with menu functionality */
+    .menu-tooltip .tooltip-text {
+        user-select: none;
+    }
+
+    /* Force tooltip visibility on hover - CSS fallback */
+    .menu-tooltip:hover .tooltip-text {
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: scale(1) !important;
+        display: block !important;
+    }
+
+    /* Responsive tooltip positioning */
+    @media (max-width: 768px) {
+        .menu-tooltip .tooltip-text {
+            font-size: 12px;
+            padding: 6px 10px;
+            margin-left: 10px;
+        }
+    }
+
+    /* Better tooltip positioning for smaller screens */
+    @media (max-width: 1200px) {
+        .menu-tooltip .tooltip-text {
+            left: 100%;
+            margin-left: 10px;
+        }
+    }
+
+    /* Special styling for truncated text */
+    .truncated-text {
+        position: relative;
+    }
+
+    .truncated-text:hover {
+        cursor: help;
+    }
+
+    /* Debug styles - add red border to see tooltip areas */
+    .menu-tooltip {
+        position: relative;
+    }
+    
+    /* Ensure proper z-index stacking */
+    .layout-menu .menu-tooltip .tooltip-text {
+        z-index: 99999 !important;
+    }
+
+    /* Booking Count Badge Styling */
+    .menu-link .badge {
+        font-size: 0.65rem !important;
+        padding: 0.25rem 0.5rem !important;
+        font-weight: 600 !important;
+        min-width: 1.5rem;
+        height: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1 !important;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        animation: pulseCount 2s infinite;
+    }
+
+    @keyframes pulseCount {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+    }
+
+    /* Active menu item badge styling */
+    .menu-item.active .menu-link .badge {
+        margin-right: 20px !important;
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        color: #dc3545 !important;
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Submenu badge styling */
+    .menu-sub .menu-link .badge {
+        margin-right: 20px !important;
+        font-size: 0.6rem !important;
+        padding: 0.2rem 0.4rem !important;
+        min-width: 1.2rem;
+        height: 1.2rem;
+    }
+
+    /* Prevent badge from interfering with hover effects */
+    .menu-link .badge {
+        pointer-events: none;
+        flex-shrink: 0;
+    }
+
+    /* Ensure proper spacing in menu items with badges */
+    .menu-link .d-flex {
+        width: 100%;
+        min-height: 1.5rem;
+        align-items: center;
+    }
+
+    /* PRO badge (yellow/orange) - Refined Design */
+    .badge-pro {
+        position: absolute !important;
+        right: 10px;
+        top: 6px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(255, 215, 0, 0.4), 
+                    0 1px 2px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        min-width: 28px;
+        text-align: center;
+        line-height: 1.2;
+    }
+    
+    .menu-item.active .badge-pro {
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5),
+                    0 0 6px rgba(255, 215, 0, 0.3);
+    }
+    
+    .menu-item:hover .badge-pro {
+        transform: scale(1.05);
+        box-shadow: 0 2px 10px rgba(255, 215, 0, 0.5),
+                    0 0 8px rgba(255, 215, 0, 0.35);
+    }
+
+    /* LITE badge (blue) - Refined Design */
+    .badge-lite {
+        position: absolute !important;
+        right: 10px;
+        top: 6px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #5b6cff, #4c63d2) !important;
+        color: #ffffff !important;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(91, 108, 255, 0.35),
+                    0 1px 2px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        min-width: 28px;
+        text-align: center;
+        line-height: 1.2;
+    }
+    
+    .menu-item.active .badge-lite {
+        background: linear-gradient(135deg, #5b6cff, #4c63d2) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(91, 108, 255, 0.5),
+                    0 0 6px rgba(91, 108, 255, 0.3);
+    }
+    
+    .menu-item:hover .badge-lite {
+        transform: scale(1.05);
+        box-shadow: 0 2px 10px rgba(91, 108, 255, 0.5),
+                    0 0 8px rgba(91, 108, 255, 0.35);
+    }
+
+    .menu-link div {
+        letter-spacing: 0.4px;
+        word-spacing: 1px;
+    }
+    
+    /* Ensure menu items with badges have proper positioning */
+    .menu-item:has(.badge-pro),
+    .menu-item:has(.badge-lite) {
+        position: relative;
+    }
+    
+    /* Alternative for browsers that don't support :has() */
+    .menu-item[style*="position: relative"] {
+        position: relative !important;
+    }
+
+    /* Keep submenu navigation inside sidebar (disable floating modal panel) */
+    #submenuModal {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    #submenuModal .modal-content {
+        border-radius: 5px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+        border: solid 1px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    #submenuModal .submenu-modal-body {
+        padding: 10px 0;
+        background: linear-gradient(135deg,rgba(240, 219, 255, 0.9));
+        font-weight: 500;
+    }
+
+    #submenuModal .submenu-modal-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item {
+        margin: 6px 8px;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link {
+        padding: 0.65rem 1.05rem;
+        border-radius: 12px;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.open > .menu-link {
+        color: inherit !important;
+    }
+
+    /* Modal colors to match sidebar (indigo/purple gradient) */
+     #submenuModal .modal-header {
+        background: linear-gradient(135deg,rgba(207, 219, 252, 0.96)); 
+        color:rgb(194, 191, 191);
+    } 
+
+    #submenuModal .modal-header .btn-close {
+        filter: invert(1) grayscale(1) brightness(2);
+        opacity: 0.95;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link {
+        color: #0f172a;
+    }
+
+    /* Keep toggle icon at the far-right in modal and avoid text overlap. */
+    #submenuModal .submenu-modal-list .menu-link {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.55rem;
+        width: 100%;
+    }
+
+    #submenuModal .submenu-modal-list .submenu-modal-item-icon {
+        color: #64748b;
+        font-size: 1.05rem;
+        flex: 0 0 auto;
+    }
+
+    /* For submenu toggles, force the existing theme arrow (`::after`) to the far right. */
+    #submenuModal .submenu-modal-list .menu-link.menu-toggle {
+        padding-right: 0.75rem;
+    }
+
+    #submenuModal .submenu-modal-list .menu-link.menu-toggle::after {
+        position: static !important;
+        margin-left: auto !important;
+        transform: rotate(0deg) !important;
+        color: #64748b !important;
+        flex: 0 0 auto;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.open > .menu-link.menu-toggle::after {
+        transform: rotate(0deg) !important;
+    }
+
+    #submenuModal .submenu-modal-list .submenu-modal-back-link {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item:hover .menu-link {
+        background-color: rgba(132, 134, 255, 0.97);
+        transform: translateX(4px);
+        color: #fff;
+    }
+
+    #submenuModal .submenu-modal-list .menu-item.active {
+        background:  rgba(94, 96, 247, 0.84);
+        box-shadow: 0 2px 10px rgba(114, 117, 255, 0.92);
+    }
+    #submenuModal .submenu-modal-list .submenu-modal-item-icon {
+        font-size: 1.05rem;
+        flex: 0 0 auto;
+    }
+    #submenuModal .submenu-modal-list .menu-item.active > .menu-link .submenu-modal-item-icon {
+        color: #fff;
+    }
+    #submenuModal .submenu-modal-list .menu-item:hover > .menu-link .submenu-modal-item-icon {
+        color: #fff;
+    }
+
+    /* Render nested submenus inside sidebar (no overlap/outside floating) */
+    #layout-menu .menu-inner {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    #layout-menu .menu-sub {
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    #layout-menu ul.menu-sub ul.menu-sub {
+        display: none;
+    }
+
+    #layout-menu .menu-item.open > .menu-sub {
+        display: block !important;
+    }
+
+    /* ----------------------------------------------------------
+       Sidebar multi-level layout fix (no deep indentation)
+       ---------------------------------------------------------- */
+    #layout-menu,
+    #layout-menu *,
+    #layout-menu *::before,
+    #layout-menu *::after {
+        box-sizing: border-box;
+    }
+
+    #layout-menu {
+        width: 260px !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
+        overflow-x: hidden !important;
+    }
+
+    #layout-menu .menu-inner {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden !important;
+        overflow-y: auto;
+    }
+
+    /* Keep every nested level aligned in same width */
+    #layout-menu .menu-sub,
+    #layout-menu .menu-sub .menu-sub,
+    #layout-menu .menu-sub .menu-sub .menu-sub {
+        margin: 6px 0 !important;
+        padding: 6px 6px !important;
+        width: 100%;
+        max-width: 100%;
+        border-left: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    /* Flat submenu containers (no box background/shadow) */
+    #layout-menu .menu-sub {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    #layout-menu .menu-sub .menu-sub {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    #layout-menu .menu-sub .menu-sub .menu-sub {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    #layout-menu .menu-sub .menu-item.open {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    #layout-menu .menu-sub .menu-item {
+        margin: 4px 2px;
+        overflow: hidden;
+        border-radius: 10px;
+    }
+
+    #layout-menu .menu-sub .menu-link {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        min-height: 36px;
+        padding: 0.5rem 0.75rem 0.5rem 1.1rem !important;
+        border-radius: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Small dot indicator for nested items */
+    #layout-menu .menu-sub .menu-link::before {
+        content: '';
+        position: absolute;
+        left: 0.45rem;
+        top: 50%;
+        width: 6px;
+        height: 6px;
+        transform: translateY(-50%);
+        border-radius: 50%;
+        background: rgba(107, 114, 128, 0.55);
+    }
+
+    #layout-menu .menu-sub .menu-item.active > .menu-link::before {
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    /* Prevent label text from pushing layout horizontally */
+    #layout-menu .menu-link > div,
+    #layout-menu .menu-link span.menu-text-with-tooltip,
+    #layout-menu .menu-tooltip div[data-i18n] {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        word-break: normal !important;
+    }

@@ -4644,9 +4644,13 @@ class CommonHelper
      * @param string|null           $serviceType   hotel|attraction|restaurant|guide|vehicle
      * @param string|int|null       $serviceId
      * @param string|null           $serviceName
+     * @param float|int|string|null $sgdAmount
+     * @param string|null           $selectedCurrency
+     * @param \Carbon\Carbon|string|null $paymentDate
+     * @param string|null           $paymentType
      * @return void
      */
-    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null): void
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
     {
         try {
             $changedAt = $changedAt ?? now();
@@ -4683,6 +4687,20 @@ class CommonHelper
             }
             if ($serviceName !== null && $serviceName !== '') {
                 $entryExtra['service_name'] = (string) $serviceName;
+            }
+            if ($sgdAmount !== null && $sgdAmount !== '') {
+                $entryExtra['sgd_amount'] = is_numeric($sgdAmount) ? (float) $sgdAmount : $sgdAmount;
+            }
+            if ($selectedCurrency !== null && $selectedCurrency !== '') {
+                $entryExtra['selected_currency'] = (string) $selectedCurrency;
+            }
+            if ($paymentDate !== null && $paymentDate !== '') {
+                $entryExtra['payment_date'] = $paymentDate instanceof \Carbon\Carbon
+                    ? $paymentDate->format('Y-m-d H:i:s')
+                    : (string) $paymentDate;
+            }
+            if ($paymentType !== null && $paymentType !== '') {
+                $entryExtra['payment_type'] = (string) $paymentType;
             }
 
             if ($fromIsNull) {
@@ -4753,9 +4771,13 @@ class CommonHelper
      * @param string|null           $serviceType   hotel|attraction|restaurant|guide|vehicle
      * @param string|int|null       $serviceId
      * @param string|null           $serviceName
+     * @param float|int|string|null $sgdAmount
+     * @param string|null           $selectedCurrency
+     * @param \Carbon\Carbon|string|null $paymentDate
+     * @param string|null           $paymentType
      * @return void
      */
-    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null): void
+    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
     {
         $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
 
@@ -4768,7 +4790,23 @@ class CommonHelper
             return;
         }
 
-        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName, $sgdAmount, $selectedCurrency, $paymentDate, $paymentType);
+    }
+
+    /**
+     * Merge refund flag into order update payloads when tour_status is Definite or Actual (same as booking reject flow).
+     *
+     * @param  array<string, mixed>  $updateData
+     * @return array<string, mixed>
+     */
+    public static function withDefiniteOrActualTourIsRefundFlag(int $tourId, array $updateData): array
+    {
+        $status = Tour::where('tour_id', $tourId)->value('tour_status');
+        if (in_array($status ?? '', ['Definite', 'Actual'], true)) {
+            $updateData['is_refund'] = 1;
+        }
+
+        return $updateData;
     }
 
     /**
