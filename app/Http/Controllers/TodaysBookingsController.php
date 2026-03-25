@@ -14,6 +14,7 @@ use App\Models\Vehicle;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\User;
 
 class TodaysBookingsController extends Controller
 {
@@ -25,6 +26,13 @@ class TodaysBookingsController extends Controller
         'local_transport' => 'Point to Point',
     ];
 
+    protected static $driverStatusMap = [
+        1 => 'started',
+        2 => 'arrived',
+        3 => 'picked',
+        4 => 'completed',
+    ];
+
     /**
      * Display Trip Log (today's bookings) for operation-level users.
      * Date defaults to today; optional ?date=Y-m-d to filter.
@@ -32,109 +40,174 @@ class TodaysBookingsController extends Controller
     public function index(Request $request)
     {
         try{
-        $user = Auth::user();
-        $operationRoleIds = [34, 128, 131, 132, 134, 135, 137, 138];
+            $user = Auth::user();
+            $operationRoleIds = [34, 128, 131, 132, 134, 135, 137, 138];
 
-        if (!$user || !in_array($user->role_id, $operationRoleIds)) {
-            abort(403);
-        }
-
-        $dmcId = CommonHelper::getDmcId($user);
-        $dateInput = $request->get('date', now()->toDateString());
-        $tripDate = Carbon::parse($dateInput)->toDateString();
-        $end_date = $request->get('end_date', now()->toDateString());
-        $transferLogs = [];
-        $attractionLogs = [];
-        $restaurantLogs = [];
-        $hotelLogs = [];
-        if($tripDate > $end_date){
-            return redirect()->back()->with('error', 'Start Date must be before End Date')->withInput();
-        }
-
-        if ($dmcId) {
-            $tours = Tour::with(['booking' => function ($q) {
-                $q->whereNull('deleted_at');
-            }, 'agent'])
-                ->where('dmc_id', $dmcId)
-                ->whereDate('check_in_time', '<=', $end_date)
-                ->whereDate('check_out_time', '>=', $tripDate)
-                ->orderBy('check_in_time')
-                ->get();
-
-            $driverIds = $tours->pluck('assign_driver_id')->filter()->unique()->values()->all();
-            
-            $drivers = collect();
-            if (!empty($driverIds)) {
-                foreach (Driver::with('user')->whereIn('driver_id', $driverIds)->orWhereIn('id', $driverIds)->get() as $d) {
-                    $drivers[$d->driver_id] = $d;
-                    if (isset($d->id)) $drivers[$d->id] = $d;
-                }
+            if (!$user || !in_array($user->role_id, $operationRoleIds)) {
+                abort(403);
             }
 
-            foreach ($tours as $tour) {
-                $guestName = $this->getTourGuestName($tour);
-                $referenceBase = $tour->display_id ?? $tour->tour_id;
-                $driverName = '—';
-                if ($tour->assign_driver_id && isset($drivers[$tour->assign_driver_id])) {
-                    $driver = $drivers[$tour->assign_driver_id];
-                    $driverName = $driver->user ? ($driver->user->name ?? '—') : '—';
+            $dmcId = CommonHelper::getDmcId($user);
+            $dmcUser = User::select('company_code')->where('userId', $dmcId)->first();
+            $dmcCompanyCode = $dmcUser ? $dmcUser->company_code : '';
+            $dateInput = $request->get('date', now()->toDateString());
+            $tripDate = Carbon::parse($dateInput)->toDateString();
+            $end_date = $request->get('end_date', now()->toDateString());
+            $transferLogs = [];
+            $attractionLogs = [];
+            $restaurantLogs = [];
+            $hotelLogs = [];
+            if($tripDate > $end_date){
+                return redirect()->back()->with('error', 'Start Date must be before End Date')->withInput();
+            }
+
+            if ($dmcId) {
+                $tours = Tour::with(['booking' => function ($q) {
+                    $q->whereNull('deleted_at');
+                }, 'agent'])
+                    ->where('dmc_id', $dmcId)
+                    ->whereDate('check_in_time', '<=', $end_date)
+                    ->whereDate('check_out_time', '>=', $tripDate)
+                    ->orderBy('check_in_time')
+                    ->get();
+
+                $driverIds = $tours->pluck('assign_driver_id')->filter()->unique()->values()->all();
+                
+                $drivers = collect();
+                if (!empty($driverIds)) {
+                    foreach (Driver::with('user')->whereIn('driver_id', $driverIds)->orWhereIn('id', $driverIds)->get() as $d) {
+                        $drivers[$d->driver_id] = $d;
+                        if (isset($d->id)) $drivers[$d->id] = $d;
+                    }
                 }
 
-                foreach ($tour->booking as $order) {
-                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
-                    $items = is_array($orderData) && isset($orderData[0]) && is_array($orderData[0])
-                        ? $orderData
-                        : (is_array($orderData) ? [$orderData] : []);
-                        if (isset(self::$transferTypes[$order->type])) {
+                foreach ($tours as $tour) {
+                    $guestName = $this->getTourGuestName($tour);
+                    $rawDisplayId = (string) ($tour->display_id ?? $tour->tour_id ?? '');
+                    $ordPart = trim((string) preg_replace('/^DMC-/', '', $rawDisplayId));
+                    if ($ordPart === '') {
+                        $ordPart = trim($rawDisplayId);
+                    }
+                    
+                    $createdById = $tour->created_by;
+                    $createdByUser = User::select('user_code')->where('userId', $createdById)->first();
+                    $createdByCode = $createdByUser ? trim((string) $createdByUser->user_code) : '';
 
-                            // 🔹 Default driver
-                            $driverName = '—';
-                        
-                            // 🔹 Get driver from JobSheet first
-                            $jobsheet = JobSheet::where('order_id', $order->booking_id)->first();
-                        
-                            if ($jobsheet && $jobsheet->driver_id) {
-                                $driver = Driver::where('driver_id', $jobsheet->driver_id)->first();
-                            } else {
-                        
-                                $vehicleId = $orderData[0]['vehicles_id'] ?? null;
-                                if ($vehicleId !== null && $vehicleId !== '') {
-                                    $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
-                                    $driver = $vehicle
-                                        ? Driver::where('driver_id', $vehicle->driver_id)->first()
-                                        : null;
+                    $dmcCompanyCodeTrimmed = trim((string) $dmcCompanyCode);
+                    $prefixParts = [];
+                    if (!empty($dmcCompanyCodeTrimmed)) {
+                        $prefixParts[] = $dmcCompanyCodeTrimmed;
+                    }
+                    if (!empty($createdByCode)) {
+                        $prefixParts[] = $createdByCode;
+                    }
+
+                    $referenceBase = !empty($prefixParts)
+                        ? (implode('/', $prefixParts) . '/' . $ordPart)
+                        : $ordPart;
+                    $driverName = '—';
+                    if ($tour->assign_driver_id && isset($drivers[$tour->assign_driver_id])) {
+                        $driver = $drivers[$tour->assign_driver_id];
+                        $driverName = $driver->user ? ($driver->user->name ?? '—') : '—';
+                    }
+
+                    foreach ($tour->booking as $order) {
+                        $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                        $items = is_array($orderData) && isset($orderData[0]) && is_array($orderData[0])
+                            ? $orderData
+                            : (is_array($orderData) ? [$orderData] : []);
+
+                        // Fetch job status for this booking (orders.booking_id -> jobsheets.order_id).
+                        $jobsheetForStatus = JobSheet::where('order_id', $order->booking_id)->first();
+                        $jobStatusLabel = self::$driverStatusMap[$jobsheetForStatus->current_status ?? null] ?? '—';
+
+                            if (isset(self::$transferTypes[$order->type])) {
+
+                                // 🔹 Default driver
+                                $driverName = '—';
+                            
+                                // 🔹 Get driver from JobSheet first
+                                $jobsheet = $jobsheetForStatus;
+                            
+                                if ($jobsheet && $jobsheet->driver_id) {
+                                    $driver = Driver::where('driver_id', $jobsheet->driver_id)->first();
                                 } else {
-                                    $driver = null;
+                            
+                                    $vehicleId = $orderData[0]['vehicles_id'] ?? null;
+                                    if ($vehicleId !== null && $vehicleId !== '') {
+                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                        $driver = $vehicle
+                                            ? Driver::where('driver_id', $vehicle->driver_id)->first()
+                                            : null;
+                                    } else {
+                                        $driver = null;
+                                    }
                                 }
-                            }
-                        
-                            if (!empty($driver)) {
-                                $driverName = $driver->name . '-' . $driver->license_no;
-                            }
-                        
-                            // 🔹 Now build rows
+                            
+                                if (!empty($driver)) {
+                                    $driverName = $driver->name . '-' . $driver->license_no;
+                                }
+                            
+                                // 🔹 Now build rows
+                                foreach ($items as $item) {
+                                    if (!is_array($item)) continue;
+                                    if (!$this->itemMatchesDate($item, $order->type, $tripDate, $end_date)) continue;
+                            
+                                    $row = $this->buildTransferRow(
+                                        $order->type,
+                                        $item,
+                                        $tour,
+                                        $referenceBase,
+                                        $guestName,
+                                        $driverName,
+                                        $tripDate
+                                    );
+                            
+                                    if ($row) {
+                                        $row['status'] = $jobStatusLabel;
+                                        $transferLogs[] = $row;
+                                    }
+                                }
+                            } elseif ($order->type === 'attraction') {
+                                
+                                if(isset($items[0]['transfer_options']['transfer_required']) && $items[0]['transfer_options']['transfer_required'] == true){
+                                    
+                                    $vehicleId = $items[0]['transfer_options']['vehicle_id'] ?? null;
+                                    $driverName = '—';
+                                    if ($vehicleId !== null && $vehicleId !== '') {
+                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                        if ($vehicle && $vehicle->driver_id) {
+                                            $driver = Driver::where('driver_id', $vehicle->driver_id)->first();
+                                            $driverName = $driver ? $driver->name.'-'.$driver->license_no : '—';
+                                        }
+                                    }
+
+                                    foreach ($items as $item) {
+                                        if (!is_array($item)) continue;
+                                        if (!$this->itemMatchesDate($item, 'attraction', $tripDate, $end_date)) continue;
+                                        $row = $this->buildTransferRow(
+                                            $order->type,
+                                            $item,
+                                            $tour,
+                                            $referenceBase,
+                                            $guestName,
+                                            $driverName,
+                                            $tripDate
+                                        );
+                                        if ($row) {
+                                            $row['status'] = $jobStatusLabel;
+                                            $transferLogs[] = $row;
+                                        }
+                                    }
+                                }
+                            
                             foreach ($items as $item) {
                                 if (!is_array($item)) continue;
-                                if (!$this->itemMatchesDate($item, $order->type, $tripDate, $end_date)) continue;
-                        
-                                $row = $this->buildTransferRow(
-                                    $order->type,
-                                    $item,
-                                    $tour,
-                                    $referenceBase,
-                                    $guestName,
-                                    $driverName,
-                                    $tripDate
-                                );
-                        
-                                if ($row) {
-                                    $transferLogs[] = $row;
-                                }
+                                if (!$this->itemMatchesDate($item, 'attraction', $tripDate, $end_date)) continue;
+                                $attractionLogs[] = $this->buildAttractionRow($item, $tour, $referenceBase, $guestName, $tripDate);
                             }
-                        } elseif ($order->type === 'attraction') {
-                            
+                        } elseif ($order->type === 'restaurant') {
                             if(isset($items[0]['transfer_options']['transfer_required']) && $items[0]['transfer_options']['transfer_required'] == true){
-                                
                                 $vehicleId = $items[0]['transfer_options']['vehicle_id'] ?? null;
                                 $driverName = '—';
                                 if ($vehicleId !== null && $vehicleId !== '') {
@@ -147,7 +220,7 @@ class TodaysBookingsController extends Controller
 
                                 foreach ($items as $item) {
                                     if (!is_array($item)) continue;
-                                    if (!$this->itemMatchesDate($item, 'attraction', $tripDate, $end_date)) continue;
+                                    if (!$this->itemMatchesDate($item, 'restaurant', $tripDate, $end_date)) continue;
                                     $row = $this->buildTransferRow(
                                         $order->type,
                                         $item,
@@ -158,109 +231,116 @@ class TodaysBookingsController extends Controller
                                         $tripDate
                                     );
                                     if ($row) {
+                                        $row['status'] = $jobStatusLabel;
                                         $transferLogs[] = $row;
                                     }
                                 }
                             }
-                        
-                        foreach ($items as $item) {
-                            if (!is_array($item)) continue;
-                            if (!$this->itemMatchesDate($item, 'attraction', $tripDate, $end_date)) continue;
-                            $attractionLogs[] = $this->buildAttractionRow($item, $tour, $referenceBase, $guestName, $tripDate);
-                        }
-                    } elseif ($order->type === 'restaurant') {
-                        if(isset($items[0]['transfer_options']['transfer_required']) && $items[0]['transfer_options']['transfer_required'] == true){
-                            $vehicleId = $items[0]['transfer_options']['vehicle_id'] ?? null;
-                            $driverName = '—';
-                            if ($vehicleId !== null && $vehicleId !== '') {
-                                $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
-                                if ($vehicle && $vehicle->driver_id) {
-                                    $driver = Driver::where('driver_id', $vehicle->driver_id)->first();
-                                    $driverName = $driver ? $driver->name.'-'.$driver->license_no : '—';
-                                }
-                            }
-
                             foreach ($items as $item) {
                                 if (!is_array($item)) continue;
                                 if (!$this->itemMatchesDate($item, 'restaurant', $tripDate, $end_date)) continue;
-                                $row = $this->buildTransferRow(
-                                    $order->type,
-                                    $item,
-                                    $tour,
-                                    $referenceBase,
-                                    $guestName,
-                                    $driverName,
-                                    $tripDate
-                                );
-                                if ($row) {
-                                    $transferLogs[] = $row;
-                                }
+                                $restaurantLogs[] = $this->buildRestaurantRow($item, $tour, $referenceBase, $guestName, $tripDate);
                             }
-                        }
-                        foreach ($items as $item) {
-                            if (!is_array($item)) continue;
-                            if (!$this->itemMatchesDate($item, 'restaurant', $tripDate, $end_date)) continue;
-                            $restaurantLogs[] = $this->buildRestaurantRow($item, $tour, $referenceBase, $guestName, $tripDate);
-                        }
-                    } elseif ($order->type === 'hotel') {
-                        foreach ($items as $item) {
-                            if (!is_array($item)) continue;
-                            if (!$this->itemMatchesDate($item, 'hotel', $tripDate, $end_date)) continue;
-                            $hotelLogs[] = $this->buildHotelRow($item, $tour, $referenceBase, $guestName, $tripDate);
+                        } elseif ($order->type === 'hotel') {
+                            foreach ($items as $item) {
+                                if (!is_array($item)) continue;
+                                if (!$this->itemMatchesDate($item, 'hotel', $tripDate, $end_date)) continue;
+                                $hotelLogs[] = $this->buildHotelRow($item, $tour, $referenceBase, $guestName, $tripDate);
+                            }
                         }
                     }
                 }
+
+                usort($transferLogs, fn($a, $b) => ($a['time'] ?? '') <=> ($b['time'] ?? ''));
+
+                $allLogs = [];
+                foreach ($transferLogs as $row) {
+                    $allLogs[] = array_merge($row, ['log_type' => 'Transfer']);
+                }
+                foreach ($attractionLogs as $row) {
+                    $allLogs[] = array_merge($row, ['log_type' => 'Attraction', 'icon' => 'ri-camera-line']);
+                }
+                foreach ($restaurantLogs as $row) {
+                    $allLogs[] = array_merge($row, ['log_type' => 'Restaurant', 'icon' => 'ri-restaurant-2-line']);
+                }
+                foreach ($hotelLogs as $row) {
+                    $allLogs[] = array_merge($row, ['log_type' => 'Hotel', 'icon' => 'ri-hotel-bed-line']);
+                }
+                usort($allLogs, fn($a, $b) => ($a['sort_at'] ?? '') <=> ($b['sort_at'] ?? ''));
+            } else {
+                $allLogs = [];
             }
 
-            usort($transferLogs, fn($a, $b) => ($a['time'] ?? '') <=> ($b['time'] ?? ''));
+            // Pagination (max 20 records per request/page).
+            $perPage = 20;
+            $page = max(1, (int) $request->get('page', 1));
 
-            $allLogs = [];
-            foreach ($transferLogs as $row) {
-                $allLogs[] = array_merge($row, ['log_type' => 'Transfer']);
+            if ($request->get('export') === 'excel') {
+                $activeTab = strtolower((string) $request->get('tab', 'all'));
+                [$headings, $rows] = $this->buildTripLogExportPayload(
+                    $activeTab,
+                    $allLogs ?? [],
+                    $transferLogs,
+                    $attractionLogs,
+                    $restaurantLogs,
+                    $hotelLogs
+                );
+
+                $filename = 'trip-log-' . $activeTab . '-' . $tripDate . '-to-' . $end_date . '.xlsx';
+                return Excel::download(new TripLogExport($headings, $rows), $filename, \Maatwebsite\Excel\Excel::XLSX);
             }
-            foreach ($attractionLogs as $row) {
-                $allLogs[] = array_merge($row, ['log_type' => 'Attraction', 'icon' => 'ri-camera-line']);
-            }
-            foreach ($restaurantLogs as $row) {
-                $allLogs[] = array_merge($row, ['log_type' => 'Restaurant', 'icon' => 'ri-restaurant-2-line']);
-            }
-            foreach ($hotelLogs as $row) {
-                $allLogs[] = array_merge($row, ['log_type' => 'Hotel', 'icon' => 'ri-hotel-bed-line']);
-            }
-            usort($allLogs, fn($a, $b) => ($a['sort_at'] ?? '') <=> ($b['sort_at'] ?? ''));
-        } else {
-            $allLogs = [];
+
+            // Paginate for UI only (do not paginate Excel export).
+            $paginationByTab = [
+                'all' => $this->paginateArray($allLogs ?? [], $page, $perPage),
+                'transfer-logs' => $this->paginateArray($transferLogs, $page, $perPage),
+                'attractions' => $this->paginateArray($attractionLogs, $page, $perPage),
+                'restaurants' => $this->paginateArray($restaurantLogs, $page, $perPage),
+                'hotels' => $this->paginateArray($hotelLogs, $page, $perPage),
+            ];
+
+            $allLogs = $paginationByTab['all']['data'];
+            $transferLogs = $paginationByTab['transfer-logs']['data'];
+            $attractionLogs = $paginationByTab['attractions']['data'];
+            $restaurantLogs = $paginationByTab['restaurants']['data'];
+            $hotelLogs = $paginationByTab['hotels']['data'];
+
+            return view('bookings.todays', [
+                'tripDate' => $tripDate,
+                'end_date' => $end_date,
+                'transferLogs' => $transferLogs,
+                'attractionLogs' => $attractionLogs,
+                'restaurantLogs' => $restaurantLogs,
+                'hotelLogs' => $hotelLogs,
+                'allLogs' => $allLogs ?? [],
+                'activeTab' => strtolower((string) $request->get('tab', 'all')),
+                'paginationByTab' => $paginationByTab,
+            ]);
+        }catch(\Exception $e){
+            
+            return redirect()->back()->with('error', $e->getMessage())->withInput();
         }
-
-        if ($request->get('export') === 'excel') {
-            $activeTab = strtolower((string) $request->get('tab', 'all'));
-            [$headings, $rows] = $this->buildTripLogExportPayload(
-                $activeTab,
-                $allLogs ?? [],
-                $transferLogs,
-                $attractionLogs,
-                $restaurantLogs,
-                $hotelLogs
-            );
-
-            $filename = 'trip-log-' . $activeTab . '-' . $tripDate . '-to-' . $end_date . '.xlsx';
-            return Excel::download(new TripLogExport($headings, $rows), $filename, \Maatwebsite\Excel\Excel::XLSX);
-        }
-
-        return view('bookings.todays', [
-            'tripDate' => $tripDate,
-            'end_date' => $end_date,
-            'transferLogs' => $transferLogs,
-            'attractionLogs' => $attractionLogs,
-            'restaurantLogs' => $restaurantLogs,
-            'hotelLogs' => $hotelLogs,
-            'allLogs' => $allLogs ?? [],
-            'activeTab' => strtolower((string) $request->get('tab', 'all')),
-        ]);
-    }catch(\Exception $e){
-        
-        return redirect()->back()->with('error', $e->getMessage())->withInput();
     }
+
+    /**
+     * @return array{data: array<int, mixed>, page: int, perPage: int, total: int, totalPages: int}
+     */
+    protected function paginateArray(array $items, int $page, int $perPage): array
+    {
+        $total = count($items);
+        $totalPages = (int) max(1, (int) ceil($total / max(1, $perPage)));
+        $page = min(max(1, $page), $totalPages);
+
+        $offset = ($page - 1) * $perPage;
+        $data = array_slice($items, $offset, $perPage);
+
+        return [
+            'data' => $data,
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'totalPages' => $totalPages,
+        ];
     }
 
     /** Return true if the booking item falls on the given trip date. */
@@ -477,7 +557,7 @@ class TodaysBookingsController extends Controller
     ): array {
         switch ($activeTab) {
             case 'transfer-logs':
-                $headings = ['Date', 'Time', 'Reference No', 'Guest', 'Transfer Type', 'From', 'To', 'Type', 'Adults', 'Child', 'Driver'];
+                $headings = ['Date', 'Time', 'Reference No', 'Guest', 'Transfer Type', 'From', 'To', 'Type', 'Adults', 'Child', 'Driver', 'Status'];
                 $rows = array_map(fn ($row) => [
                     $row['date'] ?? '—',
                     $row['time'] ?? '—',
@@ -490,6 +570,7 @@ class TodaysBookingsController extends Controller
                     $row['adults'] ?? 0,
                     $row['child'] ?? 0,
                     $row['driver'] ?? '—',
+                    $row['status'] ?? '—',
                 ], $transferLogs);
                 return [$headings, $rows];
 
