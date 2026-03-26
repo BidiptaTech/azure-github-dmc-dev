@@ -14,6 +14,88 @@
         $currentDmcId = $currentUser->created_by ?? null;
     }
 @endphp
+
+<!-- Add Toastr CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+<!-- Select2 CSS (same as create-attraction) -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Compact countries listing table */
+    /* .card-datatable.table-responsive {
+        overflow-x: auto;
+    }
+
+    table.datatables-basic {
+        font-size: 12px;
+        line-height: 1.1;
+        white-space: nowrap;
+    }
+
+    table.datatables-basic thead th,
+    table.datatables-basic tbody td {
+        padding: 0.35rem 0.45rem !important;
+        vertical-align: middle;
+    }
+
+    table.datatables-basic thead th {
+        font-weight: 600;
+    }
+
+    table.datatables-basic .form-check-input.status-toggle {
+        transform: scale(0.9);
+    } */
+
+    /* Slightly tighter action buttons */
+    /* table.datatables-basic .btn.btn-sm {
+        padding: 0.2rem 0.35rem;
+    } */
+
+    /* Select2 styling to match Bootstrap inputs (like create-attraction) */
+    .select2-container .select2-selection--single {
+        height: 40px !important;
+        padding: 2px 6px !important;
+        font-size: 0.875rem !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 0.25rem !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 31px !important;
+    }
+    .select2-container {
+        width: 100% !important;
+    }
+    /* Ensure Select2 results never show bullets (some global CSS adds them) */
+    .select2-container .select2-results__options,
+    .select2-container .select2-results__option {
+        list-style: none !important;
+        list-style-type: none !important;
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+    }
+    .select2-container .select2-results__option::marker {
+        content: "" !important;
+    }
+    /* Keep dropdown above DataTables */
+    .select2-dropdown {
+        z-index: 1060;
+    }
+
+    /* Toastr text sometimes becomes invisible due to theme CSS overrides */
+    #toast-container > .toast {
+        opacity: 1 !important;
+    }
+    #toast-container .toast-message,
+    #toast-container .toast-title {
+        color: #fff !important;
+        opacity: 1 !important;
+        font-size: 0.9rem !important;
+    }
+    #toast-container > .toast-success { background-color: #198754 !important; }
+    #toast-container > .toast-error { background-color: #dc3545 !important; }
+    #toast-container > .toast-warning { background-color: #ffc107 !important; color: #212529 !important; }
+</style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -26,9 +108,11 @@
                     <div class="d-flex justify-content-between gap-3">
                         <!-- Add New Country Button -->
                         {{-- @if(hasPermission('create country')) --}}
+                        @if(auth()->user()->role_id == 1)
                             <a href="{{ route('countries.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
                                 <i class="fas fa-plus"></i> Add New Country
                             </a>
+                        @endif
                         {{-- @endif --}}
 
                         <!-- Export Dropdown Button -->
@@ -205,44 +289,14 @@
 @endsection
 
 @section('styles')
-<!-- Add Toastr CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-<style>
-    /* Compact countries listing table */
-    .card-datatable.table-responsive {
-        overflow-x: auto;
-    }
 
-    table.datatables-basic {
-        font-size: 12px;
-        line-height: 1.1;
-        white-space: nowrap;
-    }
-
-    table.datatables-basic thead th,
-    table.datatables-basic tbody td {
-        padding: 0.35rem 0.45rem !important;
-        vertical-align: middle;
-    }
-
-    table.datatables-basic thead th {
-        font-weight: 600;
-    }
-
-    table.datatables-basic .form-check-input.status-toggle {
-        transform: scale(0.9);
-    }
-
-    /* Slightly tighter action buttons */
-    table.datatables-basic .btn.btn-sm {
-        padding: 0.2rem 0.35rem;
-    }
-</style>
 @endsection
 
 @section('scripts')
 <!-- Add Toastr JS before your other scripts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<!-- Select2 JS (same as create-attraction) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 
 <!-- Configure Toastr -->
 <script>
@@ -311,6 +365,21 @@
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
+        // Country searchable select (like create-attraction)
+        @if($showRemitanceAndExchange && $currentDmcId)
+        try {
+            if ($.fn.select2) {
+                $('#dmcCountryPicker').select2({
+                    placeholder: "Search and Select Country",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+        } catch (e) {
+            console.error('Select2 init failed:', e);
+        }
+        @endif
+
         // Initialize DataTable with export buttons (guarded)
         let countriesTable = null;
         try {
