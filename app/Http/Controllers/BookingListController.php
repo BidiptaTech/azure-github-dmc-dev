@@ -2794,44 +2794,46 @@ class BookingListController extends Controller
     public function financeDailyArrival(Request $request)
     {
         $user = auth()->user();
-        
+        $dmc_id = CommonHelper::getDmcId($user);
         $roleId = $user?->role_id;
         
         if (!$user || !in_array((int)$roleId, [11, 36, 126, 127], true)) {
             abort(403);
         }
         
-        // Accept either `month=YYYY-MM` OR `start_date` + `end_date`.
-        $monthParam = $request->get('month');
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
+        // Filter priority:
+        // 1) start_date + end_date (strict date range)
+        // 2) month (full selected month)
+        // 3) current month (default)
+        $monthParam = trim((string) $request->get('month', ''));
+        $startDateInput = trim((string) $request->get('start_date', ''));
+        $endDateInput = trim((string) $request->get('end_date', ''));
 
-        if (empty($startDate) || empty($endDate)) {
-            try {
-                if (!empty($monthParam) && preg_match('/^\d{4}-\d{2}$/', (string) $monthParam)) {
-                    $startDate = \Carbon\Carbon::parse($monthParam . '-01')->toDateString();
-                } else {
-                    $startDate = now()->startOfMonth()->toDateString();
-                }
-                $endDate = \Carbon\Carbon::parse($startDate)->endOfMonth()->toDateString();
-            } catch (\Exception $e) {
-                return redirect()->back()->with('error', 'Invalid month/date range.');
-            }
-        } else {
-            try {
-                $startDate = \Carbon\Carbon::parse($startDate)->toDateString();
-                $endDate = \Carbon\Carbon::parse($endDate)->toDateString();
-            } catch (\Exception $e) {
-                return redirect()->back()->with('error', 'Invalid date range.');
-            }
-        }
+        $hasStart = $startDateInput !== '';
+        $hasEnd = $endDateInput !== '';
+        $usingDateRange = false;
 
-        $monthValue = '';
         try {
-            $monthValue = \Carbon\Carbon::parse($startDate)->format('Y-m');
+            if ($hasStart && $hasEnd) {
+                $startDate = \Carbon\Carbon::parse($startDateInput)->toDateString();
+                $endDate = \Carbon\Carbon::parse($endDateInput)->toDateString();
+                $usingDateRange = true;
+            } else {
+                // If only one date is provided, ignore partial date filter gracefully.
+                $resolvedMonth = preg_match('/^\d{4}-\d{2}$/', $monthParam) ? $monthParam : now()->format('Y-m');
+                $startDate = \Carbon\Carbon::parse($resolvedMonth . '-01')->toDateString();
+                $endDate = \Carbon\Carbon::parse($startDate)->endOfMonth()->toDateString();
+            }
         } catch (\Exception $e) {
-            $monthValue = now()->format('Y-m');
+            return redirect()->back()->with('error', 'Invalid date/month filter.');
         }
+
+        if ($startDate > $endDate) {
+            return redirect()->back()->with('error', 'Start date cannot be after end date.');
+        }
+
+        // Keep month empty when date range is active; otherwise set resolved month.
+        $monthValue = $usingDateRange ? '' : \Carbon\Carbon::parse($startDate)->format('Y-m');
 
         // Exchange rate used for the "ROE" column (SGD -> INR). Fallback to 1 if API/config is unavailable.
         $roe = 1.0;
@@ -2856,6 +2858,7 @@ class BookingListController extends Controller
                 'payment_details',
                 'created_by',
             ])
+            ->where('dmc_id', $dmc_id)
             ->whereDate('check_in_time', '>=', $startDate)
             ->whereDate('check_in_time', '<=', $endDate)
             ->orderBy('check_in_time')
@@ -2872,7 +2875,9 @@ class BookingListController extends Controller
         $userByIdCache = [];
         $dmcIdByUserIdCache = [];
         $dmcUserByIdCache = [];
-
+        $dmcUser = User::where('userId', $dmc_id)->first();
+        $companyCode = $dmcUser->company_code ?? null;
+        
         foreach ($tours as $tour) {
             // Payment details (JSON) for PART PAYMENT columns.
             // Each tour can have multiple payments; we show up to first 10.
@@ -2944,10 +2949,14 @@ class BookingListController extends Controller
             //   company_code/user_code/ORD3421
             // where original display_id is like: DMC-ORD3421 and created_by holds the userId.
             $rawDisplayId = (string) ($tour->display_id ?? $tour->tour_id ?? '');
-            $ordPart = preg_replace('/^DMC-/', '', $rawDisplayId);
+            $ordPart = trim((string) preg_replace('/^DMC-/', '', $rawDisplayId));
+            if ($ordPart === '') {
+                $ordPart = trim($rawDisplayId);
+            }
 
-            $queryNo = $ordPart; // fallback if any piece is missing
-
+            $queryNo = $ordPart; // base fallback
+            $prefixParts = [];
+            $userCode = null;
             $createdByUserId = $tour->created_by ?? null;
             if (!empty($createdByUserId) && is_scalar($createdByUserId)) {
                 $createdByUserId = (int) $createdByUserId;
@@ -2957,63 +2966,87 @@ class BookingListController extends Controller
                 }
                 $createdByUser = $userByIdCache[$createdByUserId];
 
-                $userCode = $createdByUser?->user_code ?? null;
-
-                if (!array_key_exists($createdByUserId, $dmcIdByUserIdCache)) {
-                    $dmcIdByUserIdCache[$createdByUserId] = CommonHelper::getDmcId($createdByUser);
-                }
-                $dmcId = $dmcIdByUserIdCache[$createdByUserId];
-
-                $companyCode = null;
-                if (!empty($dmcId)) {
-                    if (!isset($dmcUserByIdCache[$dmcId])) {
-                        $dmcUserByIdCache[$dmcId] = User::where('userId', $dmcId)->first();
-                    }
-                    $dmcUser = $dmcUserByIdCache[$dmcId];
-                    $companyCode = $dmcUser?->company_code ?? null;
-                }
-
-                if (!empty($ordPart)) {
-                    $prefixParts = [];
-                    if (!empty($companyCode)) {
-                        $prefixParts[] = $companyCode;
-                    }
-                    if (!empty($userCode)) {
-                        $prefixParts[] = $userCode;
-                    }
-
-                    // Cases:
-                    // - only company_code -> company_code/ORD
-                    // - only user_code -> user_code/ORD
-                    // - both -> company_code/user_code/ORD
-                    if (!empty($prefixParts)) {
-                        $queryNo = implode('/', $prefixParts) . '/' . $ordPart;
-                    }
-                }
+                $userCode = trim((string) ($createdByUser?->user_code ?? ''));
+                $userCode = $userCode !== '' ? $userCode : null;
+                
             }
-
+            
+                
+            if (!empty($companyCode)) {
+                $prefixParts[] = $companyCode;
+                
+            }
+            if (!empty($userCode)) {
+                $prefixParts[] = $userCode;
+            }
+            
+            
+            // Cases:
+            // - only user_code      => user_code/ORD3421
+            // - only company_code   => company_code/ORD3421
+            // - both                => company_code/user_code/ORD3421
+            if (!empty($prefixParts) && !empty($ordPart)) {
+                //dd($prefixParts);
+                $queryNo = implode('/', $prefixParts) . '/' . $ordPart;
+            }
             $tourAgentId = $tour->agent_id;
             $tourAgentName = $agentsById[$tourAgentId]->name ?? '—';
 
-            $hotelOrders = Order::query()
+            $allBookingOrders = Order::query()
                 ->where('tour_id', $tour->tour_id)
                 ->where('bookingType', 'booking')
-                ->where('type', 'hotel')
                 ->where('status', 1)
-                ->get(['data', 'agent_id']);
+                ->get(['data', 'agent_id', 'type']);
+
+            // Full tour amount (all booking services), not only hotel lines.
+            $tourTotalAmountSgd = 0.0;
+            foreach ($allBookingOrders as $orderForTotal) {
+                $decodedForTotal = is_string($orderForTotal->data) ? json_decode($orderForTotal->data, true) : $orderForTotal->data;
+                if (!is_array($decodedForTotal)) {
+                    continue;
+                }
+                $itemsForTotal = (isset($decodedForTotal[0]) && is_array($decodedForTotal[0])) ? $decodedForTotal : [$decodedForTotal];
+                foreach ($itemsForTotal as $itemForTotal) {
+                    if (!is_array($itemForTotal)) {
+                        continue;
+                    }
+                    $tourTotalAmountSgd += $this->extractOrderItemTotalSgd($itemForTotal);
+                }
+            }
+
+            $hotelOrders = $allBookingOrders->where('type', 'hotel')->values();
+            $tourKey = (string) $tour->tour_id . '|' . (string) $queryNo;
+            $tourRowAcc = [
+                'arr_date_sort' => null,
+                'dep_date_sort' => null,
+                'guest_name' => $guestName,
+                'hotel_names' => [],
+                'agent_name' => $tourAgentName,
+                'query_no' => $queryNo,
+                'adult_qty' => (int) $adults,
+                'cbw_qty' => 0,
+                'cnb_qty' => 0,
+                'other_qty' => 0,
+                'adult_total' => 0.0,
+                'cbw_total' => 0.0,
+                'cnb_total' => 0.0,
+                'other_total' => 0.0,
+                'tour_total_amount_sgd' => (float) $tourTotalAmountSgd,
+            ];
 
             foreach ($hotelOrders as $order) {
                 $orderAgentId = $order->agent_id ?? $tourAgentId;
                 $agentName = $agentsById[$orderAgentId]->name ?? $tourAgentName;
+                if ($tourRowAcc['agent_name'] === '—' && $agentName !== '—') {
+                    $tourRowAcc['agent_name'] = $agentName;
+                }
 
                 $decoded = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                 if (!is_array($decoded)) {
                     continue;
                 }
 
-                // Normalize to "array of items"
                 $items = (isset($decoded[0]) && is_array($decoded[0])) ? $decoded : [$decoded];
-
                 foreach ($items as $item) {
                     if (!is_array($item)) {
                         continue;
@@ -3031,10 +3064,8 @@ class BookingListController extends Controller
                         $checkOutRaw = $bookingDates;
                     }
 
-                    // Fallback keys used elsewhere in the app
                     $checkInRaw = $checkInRaw ?? ($item['checkIn'] ?? $item['check_in_date'] ?? null);
                     $checkOutRaw = $checkOutRaw ?? ($item['checkOut'] ?? $item['check_out_date'] ?? null);
-
                     if (empty($checkInRaw)) {
                         continue;
                     }
@@ -3044,14 +3075,25 @@ class BookingListController extends Controller
                         if ($arrDate < $startDate || $arrDate > $endDate) {
                             continue;
                         }
-
                         $depDate = !empty($checkOutRaw) ? \Carbon\Carbon::parse($checkOutRaw)->toDateString() : $arrDate;
                     } catch (\Exception $e) {
                         continue;
                     }
 
-                    $hotelName = $item['hotelDetails']['hotel_name']
-                        ?? ($item['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? '—');
+                    $hotelName = trim((string) (
+                        $item['hotelDetails']['hotel_name']
+                        ?? ($item['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? '—')
+                    ));
+                    if ($hotelName !== '' && !in_array($hotelName, $tourRowAcc['hotel_names'], true)) {
+                        $tourRowAcc['hotel_names'][] = $hotelName;
+                    }
+
+                    if (empty($tourRowAcc['arr_date_sort']) || $arrDate < $tourRowAcc['arr_date_sort']) {
+                        $tourRowAcc['arr_date_sort'] = $arrDate;
+                    }
+                    if (empty($tourRowAcc['dep_date_sort']) || $depDate > $tourRowAcc['dep_date_sort']) {
+                        $tourRowAcc['dep_date_sort'] = $depDate;
+                    }
 
                     $totalPrice = 0.0;
                     if (isset($item['totalPrice'])) {
@@ -3062,7 +3104,6 @@ class BookingListController extends Controller
                         $totalPrice = (float) $item['total_price'];
                     }
 
-                    // Adults per row: default to tour adults, fallback to item adults if present.
                     $itemAdults = $adults;
                     if (isset($item['adultCount'])) {
                         $itemAdults = (int) $item['adultCount'];
@@ -3070,7 +3111,6 @@ class BookingListController extends Controller
                         $itemAdults = (int) $item['adults'];
                     }
 
-                    // Hotel child pricing breakdown (used for extra columns).
                     $cbwChildren = (int) ($item['child_with_bed']['children'] ?? 0);
                     $cbwRate = (float) ($item['child_with_bed']['price'] ?? 0);
                     $cbwTotal = (float) ($item['child_with_bed']['total_cost'] ?? ($cbwChildren * $cbwRate));
@@ -3079,8 +3119,6 @@ class BookingListController extends Controller
                     $cnbRate = (float) ($item['child_without_bed']['price'] ?? 0);
                     $cnbTotal = (float) ($item['child_without_bed']['total_cost'] ?? ($cnbChildren * $cnbRate));
 
-                    // "OTHER" in the screenshot: treat it as baby cot/infant.
-                    // The hotel service JSON usually stores baby cot qty under `baby_cot` and price under `babyCotPrice` or bed-level `baby_cot_price`.
                     $otherQty = (int) (
                         $item['baby_cot'] ??
                         $item['babyCotQty'] ??
@@ -3088,7 +3126,6 @@ class BookingListController extends Controller
                         $tour->infant ??
                         0
                     );
-
                     $otherRate = (float) (
                         $item['babyCotPrice'] ??
                         $item['baby_cot_price'] ??
@@ -3096,56 +3133,46 @@ class BookingListController extends Controller
                         0
                     );
                     $otherTotal = (float) ($otherQty * $otherRate);
-
-                    // Heuristic adult portion (everything except explicit CWB/CNWB totals).
                     $adultTotal = max(0.0, (float) $totalPrice - $cbwTotal - $cnbTotal - $otherTotal);
 
-                    // Group duplicates across room combinations by the same tour+hotel+dates.
-                    $key = implode('|', [
-                        (string) $tour->tour_id,
-                        (string) $hotelName,
-                        (string) $arrDate,
-                        (string) $depDate,
-                        (string) $queryNo,
-                        (string) $agentName,
-                    ]);
-                    if (!isset($rowsAcc[$key])) {
-                        $rowsAcc[$key] = [
-                            'arr_date_sort' => $arrDate,
-                            'arr_date' => \Carbon\Carbon::parse($arrDate)->format('d-m-Y'),
-                            'dep_date' => \Carbon\Carbon::parse($depDate)->format('d-m-Y'),
-                            'guest_name' => $guestName,
-                            'hotel' => $hotelName,
-                            'agent_name' => $agentName,
-                            'query_no' => $queryNo,
-                            'adult_qty' => (int) $itemAdults,
-                            'cbw_qty' => (int) $cbwChildren,
-                            'cnb_qty' => (int) $cnbChildren,
-                            'other_qty' => (int) $otherQty,
-                            'adult_total' => 0.0,
-                            'cbw_total' => 0.0,
-                            'cnb_total' => 0.0,
-                            'other_total' => 0.0,
-                        ];
+                    $tourRowAcc['adult_qty'] = max((int) $tourRowAcc['adult_qty'], (int) $itemAdults);
+                    $tourRowAcc['cbw_qty'] = max((int) $tourRowAcc['cbw_qty'], (int) $cbwChildren);
+                    $tourRowAcc['cnb_qty'] = max((int) $tourRowAcc['cnb_qty'], (int) $cnbChildren);
+                    $tourRowAcc['other_qty'] = max((int) $tourRowAcc['other_qty'], (int) $otherQty);
 
-                        // Attach per-tour payment data to this grouped row.
-                        for ($i = 1; $i <= 10; $i++) {
-                            $rowsAcc[$key]['part_payment_' . $i] = $partPaymentAmounts[$i] ?? null;
-                            $rowsAcc[$key]['part_payment_date_' . $i] = $partPaymentDates[$i] ?? null;
-                        }
-                    }
+                    $tourRowAcc['adult_total'] += (float) $adultTotal;
+                    $tourRowAcc['cbw_total'] += (float) $cbwTotal;
+                    $tourRowAcc['cnb_total'] += (float) $cnbTotal;
+                    $tourRowAcc['other_total'] += (float) $otherTotal;
+                }
+            }
 
-                    // Qty should not multiply when multiple room combos exist; keep the max.
-                    $rowsAcc[$key]['adult_qty'] = max((int) $rowsAcc[$key]['adult_qty'], (int) $itemAdults);
-                    $rowsAcc[$key]['cbw_qty'] = max((int) $rowsAcc[$key]['cbw_qty'], (int) $cbwChildren);
-                    $rowsAcc[$key]['cnb_qty'] = max((int) $rowsAcc[$key]['cnb_qty'], (int) $cnbChildren);
-                    $rowsAcc[$key]['other_qty'] = max((int) $rowsAcc[$key]['other_qty'], (int) $otherQty);
+            // Keep one row per query/tour only when at least one hotel is present.
+            if (!empty($tourRowAcc['hotel_names']) && !empty($tourRowAcc['arr_date_sort'])) {
+                $rowsAcc[$tourKey] = [
+                    'arr_date_sort' => $tourRowAcc['arr_date_sort'],
+                    'arr_date' => \Carbon\Carbon::parse($tourRowAcc['arr_date_sort'])->format('d-m-Y'),
+                    'dep_date' => !empty($tourRowAcc['dep_date_sort'])
+                        ? \Carbon\Carbon::parse($tourRowAcc['dep_date_sort'])->format('d-m-Y')
+                        : \Carbon\Carbon::parse($tourRowAcc['arr_date_sort'])->format('d-m-Y'),
+                    'guest_name' => $tourRowAcc['guest_name'],
+                    'hotel' => implode(', ', $tourRowAcc['hotel_names']),
+                    'agent_name' => $tourRowAcc['agent_name'],
+                    'query_no' => $tourRowAcc['query_no'],
+                    'adult_qty' => (int) $tourRowAcc['adult_qty'],
+                    'cbw_qty' => (int) $tourRowAcc['cbw_qty'],
+                    'cnb_qty' => (int) $tourRowAcc['cnb_qty'],
+                    'other_qty' => (int) $tourRowAcc['other_qty'],
+                    'adult_total' => (float) $tourRowAcc['adult_total'],
+                    'cbw_total' => (float) $tourRowAcc['cbw_total'],
+                    'cnb_total' => (float) $tourRowAcc['cnb_total'],
+                    'other_total' => (float) $tourRowAcc['other_total'],
+                    'tour_total_amount_sgd' => (float) $tourRowAcc['tour_total_amount_sgd'],
+                ];
 
-                    $rowsAcc[$key]['adult_total'] += (float) $adultTotal;
-                    $rowsAcc[$key]['cbw_total'] += (float) $cbwTotal;
-                    $rowsAcc[$key]['cnb_total'] += (float) $cnbTotal;
-                    $rowsAcc[$key]['other_total'] += (float) $otherTotal;
-                   
+                for ($i = 1; $i <= 10; $i++) {
+                    $rowsAcc[$tourKey]['part_payment_' . $i] = $partPaymentAmounts[$i] ?? null;
+                    $rowsAcc[$tourKey]['part_payment_date_' . $i] = $partPaymentDates[$i] ?? null;
                 }
             }
         }
@@ -3162,7 +3189,11 @@ class BookingListController extends Controller
             $cnbTotal = (float) ($row['cnb_total'] ?? 0);
             $otherTotal = (float) ($row['other_total'] ?? 0);
 
-            $amountSgd = $adultTotal + $cbwTotal + $cnbTotal + $otherTotal;
+            $hotelOnlyAmountSgd = $adultTotal + $cbwTotal + $cnbTotal + $otherTotal;
+            $amountSgd = (float) ($row['tour_total_amount_sgd'] ?? 0);
+            if ($amountSgd <= 0) {
+                $amountSgd = $hotelOnlyAmountSgd;
+            }
             $totalPax = $adultQtyRow + $cbwQtyRow + $cnbQtyRow + $otherQtyRow;
 
             $adultRate = $adultQtyRow > 0 ? ($adultTotal / $adultQtyRow) : 0.0;
@@ -3214,6 +3245,78 @@ class BookingListController extends Controller
             'endDate' => $endDate,
             'monthValue' => $monthValue,
         ]);
+    }
+
+    /**
+     * Extract service total from a booking item JSON block.
+     * Prefer explicit total keys and avoid summing child parts twice.
+     */
+    private function extractOrderItemTotalSgd(array $item): float
+    {
+        $baseTotal = null;
+        $preferredKeys = ['totalPrice', 'display_price', 'total_price', 'total'];
+        foreach ($preferredKeys as $key) {
+            if (array_key_exists($key, $item) && is_numeric($item[$key])) {
+                $baseTotal = (float) $item[$key];
+                break;
+            }
+        }
+
+        if ($baseTotal === null) {
+            // Fallback keys commonly used as total-like values.
+            $fallbackKeys = ['service_total', 'net_total', 'grand_total', 'final_total', 'amount', 'price'];
+            foreach ($fallbackKeys as $key) {
+                if (array_key_exists($key, $item) && is_numeric($item[$key])) {
+                    $baseTotal = (float) $item[$key];
+                    break;
+                }
+            }
+        }
+
+        if ($baseTotal === null) {
+            $baseTotal = 0.0;
+        }
+
+        $extras = 0.0;
+
+        // Attraction/restaurant/hotel transfer add-on.
+        if (
+            isset($item['transfer_options']) &&
+            is_array($item['transfer_options']) &&
+            !empty($item['transfer_options']['transfer_required']) &&
+            is_numeric($item['transfer_options']['cost'] ?? null)
+        ) {
+            $extras += (float) $item['transfer_options']['cost'];
+        }
+
+        // Attraction guide add-on.
+        if (
+            isset($item['guide_options']) &&
+            is_array($item['guide_options']) &&
+            !empty($item['guide_options']['guide_required']) &&
+            is_numeric($item['guide_options']['total_price'] ?? null)
+        ) {
+            $extras += (float) $item['guide_options']['total_price'];
+        }
+
+        // Hotel child pricing often comes separately from room/base total.
+        if (
+            isset($item['child_with_bed']) &&
+            is_array($item['child_with_bed']) &&
+            is_numeric($item['child_with_bed']['total_cost'] ?? null)
+        ) {
+            $extras += (float) $item['child_with_bed']['total_cost'];
+        }
+
+        if (
+            isset($item['child_without_bed']) &&
+            is_array($item['child_without_bed']) &&
+            is_numeric($item['child_without_bed']['total_cost'] ?? null)
+        ) {
+            $extras += (float) $item['child_without_bed']['total_cost'];
+        }
+
+        return $baseTotal + $extras;
     }
 
     /**

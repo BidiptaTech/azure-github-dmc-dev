@@ -84,6 +84,15 @@ class TicketController extends Controller
             'child_price' => 'nullable|numeric|min:0',
             'adult_price' => 'required|numeric|min:0',
             'senior_adult_price' => 'nullable|numeric|min:0',
+            'child_cost_price' => 'nullable|numeric|min:0',
+            'adult_cost_price' => 'nullable|numeric|min:0',
+            'senior_adult_cost_price' => 'nullable|numeric|min:0',
+            'child_price_nri' => 'nullable|numeric|min:0',
+            'adult_price_nri' => 'nullable|numeric|min:0',
+            'senior_adult_price_nri' => 'nullable|numeric|min:0',
+            'child_cost_price_nri' => 'nullable|numeric|min:0',
+            'adult_cost_price_nri' => 'nullable|numeric|min:0',
+            'senior_adult_cost_price_nri' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:0,1',
         ]);
 
@@ -138,11 +147,17 @@ class TicketController extends Controller
             $ticket->remarks = $request->remarks;
             $ticket->terms_conditions = $request->terms_conditions;
             $ticket->child_price = $request->child_price;
+            $ticket->child_cost_price = $request->child_cost_price;
             $ticket->adult_price = $request->adult_price;
+            $ticket->adult_cost_price = $request->adult_cost_price;
             $ticket->senior_adult_price = $request->senior_adult_price;
+            $ticket->senior_adult_cost_price = $request->senior_adult_cost_price;
             $ticket->child_price_nri = $request->child_price_nri;
+            $ticket->child_cost_price_nri = $request->child_cost_price_nri;
             $ticket->adult_price_nri = $request->adult_price_nri;
+            $ticket->adult_cost_price_nri = $request->adult_cost_price_nri;
             $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
+            $ticket->senior_adult_cost_price_nri = $request->senior_adult_cost_price_nri;
             $ticket->status = $request->status ? 1 : 0;
             $ticket->created_by = Auth::user()->userId ?? null;
             $ticket->dmc_id = $dmc_id;
@@ -272,6 +287,15 @@ class TicketController extends Controller
             'child_price' => 'nullable|numeric|min:0',
             'adult_price' => 'required|numeric|min:0',
             'senior_adult_price' => 'nullable|numeric|min:0',
+            'child_cost_price' => 'nullable|numeric|min:0',
+            'adult_cost_price' => 'nullable|numeric|min:0',
+            'senior_adult_cost_price' => 'nullable|numeric|min:0',
+            'child_price_nri' => 'nullable|numeric|min:0',
+            'adult_price_nri' => 'nullable|numeric|min:0',
+            'senior_adult_price_nri' => 'nullable|numeric|min:0',
+            'child_cost_price_nri' => 'nullable|numeric|min:0',
+            'adult_cost_price_nri' => 'nullable|numeric|min:0',
+            'senior_adult_cost_price_nri' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:0,1',
         ]);
         $ticket_id = Crypt::decrypt($ticket_id);
@@ -286,11 +310,17 @@ class TicketController extends Controller
         $ticket->remarks = $request->remarks;
         $ticket->terms_conditions = $request->terms_conditions;
         $ticket->child_price = $request->child_price;
+        $ticket->child_cost_price = $request->child_cost_price;
         $ticket->adult_price = $request->adult_price;
+        $ticket->adult_cost_price = $request->adult_cost_price;
         $ticket->senior_adult_price = $request->senior_adult_price;
+        $ticket->senior_adult_cost_price = $request->senior_adult_cost_price;
         $ticket->child_price_nri = $request->child_price_nri;
+        $ticket->child_cost_price_nri = $request->child_cost_price_nri;
         $ticket->adult_price_nri = $request->adult_price_nri;
+        $ticket->adult_cost_price_nri = $request->adult_cost_price_nri;
         $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
+        $ticket->senior_adult_cost_price_nri = $request->senior_adult_cost_price_nri;
         $ticket->status = $request->has('status') ? 1 : 0;
         $ticket->updated_by = Auth::user()->userId ?? null;
         
