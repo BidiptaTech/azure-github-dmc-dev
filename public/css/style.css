@@ -59,6 +59,12 @@
         border-radius: 12px;
         transition: all 0.3s ease;
         overflow: hidden;
+        list-style: none !important;
+    }
+
+    /* Allow deeper (nested) submenus to be visible when the parent is open */
+    .layout-menu .menu-item.open {
+        overflow: visible;
     }
     
     .menu-item.active {
@@ -783,7 +789,7 @@
     }
 
     #submenuModal .submenu-modal-list {
-        list-style: none;
+        list-style: none !important;
         margin: 0;
         padding: 0;
     }
@@ -877,43 +883,40 @@
     }
 
     /* Render nested submenus inside sidebar (no overlap/outside floating) */
-    #layout-menu .menu-inner {
+    .layout-menu .menu-inner {
         overflow-y: auto;
         overflow-x: hidden;
     }
 
-    #layout-menu .menu-sub {
+    .layout-menu .menu-sub {
         position: static !important;
         width: 100% !important;
         max-width: 100% !important;
     }
 
-    #layout-menu ul.menu-sub ul.menu-sub {
-        display: none;
-    }
-
-    #layout-menu .menu-item.open > .menu-sub {
+    html:not(.layout-menu-collapsed) .layout-menu .menu-item.open > .menu-sub {
         display: block !important;
     }
-
     /* ----------------------------------------------------------
        Sidebar multi-level layout fix (no deep indentation)
        ---------------------------------------------------------- */
-    #layout-menu,
-    #layout-menu *,
-    #layout-menu *::before,
-    #layout-menu *::after {
+    .layout-menu,
+    .layout-menu *,
+    .layout-menu *::before,
+    .layout-menu *::after {
         box-sizing: border-box;
     }
+    
 
-    #layout-menu {
+    /* When expanded, keep your preferred width. When collapsed, let template CSS win. */
+    html:not(.layout-menu-collapsed) #layout-menu {
         width: 260px !important;
         min-width: 260px !important;
         max-width: 260px !important;
         overflow-x: hidden !important;
     }
 
-    #layout-menu .menu-inner {
+    .layout-menu .menu-inner {
         width: 100%;
         max-width: 100%;
         overflow-x: hidden !important;
@@ -921,9 +924,9 @@
     }
 
     /* Keep every nested level aligned in same width */
-    #layout-menu .menu-sub,
-    #layout-menu .menu-sub .menu-sub,
-    #layout-menu .menu-sub .menu-sub .menu-sub {
+    .layout-menu .menu-sub,
+    .layout-menu .menu-sub .menu-sub,
+    .layout-menu .menu-sub .menu-sub .menu-sub {
         margin: 6px 0 !important;
         padding: 6px 6px !important;
         width: 100%;
@@ -933,33 +936,42 @@
     }
 
     /* Flat submenu containers (no box background/shadow) */
-    #layout-menu .menu-sub {
+    .layout-menu .menu-sub {
+        background: transparent !important;
+        box-shadow: none !important;
+        list-style: none !important; /* Remove browser bullets */
+        margin-left: 0 !important; /* Prevent default ul indentation */
+    }
+    .layout-menu .menu-sub .menu-item ul {
+        list-style: none !important;
+    }
+
+    .layout-menu .menu-sub .menu-sub {
+        background: transparent !important;
+        box-shadow: none !important;
+        list-style: none !important;
+        margin-left: 0 !important;
+    }
+
+    .layout-menu .menu-sub .menu-sub .menu-sub {
+        background: transparent !important;
+        box-shadow: none !important;
+        list-style: none !important;
+        margin-left: 0 !important;
+    }
+
+    .layout-menu .menu-sub .menu-item.open {
         background: transparent !important;
         box-shadow: none !important;
     }
 
-    #layout-menu .menu-sub .menu-sub {
-        background: transparent !important;
-        box-shadow: none !important;
-    }
-
-    #layout-menu .menu-sub .menu-sub .menu-sub {
-        background: transparent !important;
-        box-shadow: none !important;
-    }
-
-    #layout-menu .menu-sub .menu-item.open {
-        background: transparent !important;
-        box-shadow: none !important;
-    }
-
-    #layout-menu .menu-sub .menu-item {
+    .layout-menu .menu-sub .menu-item {
         margin: 4px 2px;
         overflow: hidden;
         border-radius: 10px;
     }
 
-    #layout-menu .menu-sub .menu-link {
+    .layout-menu .menu-sub .menu-link {
         position: relative;
         width: 100%;
         max-width: 100%;
@@ -971,27 +983,12 @@
         white-space: nowrap;
     }
 
-    /* Small dot indicator for nested items */
-    #layout-menu .menu-sub .menu-link::before {
-        content: '';
-        position: absolute;
-        left: 0.45rem;
-        top: 50%;
-        width: 6px;
-        height: 6px;
-        transform: translateY(-50%);
-        border-radius: 50%;
-        background: rgba(107, 114, 128, 0.55);
-    }
-
-    #layout-menu .menu-sub .menu-item.active > .menu-link::before {
-        background: rgba(255, 255, 255, 0.95);
-    }
+    /* (Removed) Small dot indicator - creates "bullet" artifacts */
 
     /* Prevent label text from pushing layout horizontally */
-    #layout-menu .menu-link > div,
-    #layout-menu .menu-link span.menu-text-with-tooltip,
-    #layout-menu .menu-tooltip div[data-i18n] {
+    .layout-menu .menu-link > div,
+    .layout-menu .menu-link span.menu-text-with-tooltip,
+    .layout-menu .menu-tooltip div[data-i18n] {
         display: block;
         width: 100%;
         max-width: 100%;
@@ -999,4 +996,15 @@
         text-overflow: ellipsis !important;
         white-space: nowrap !important;
         word-break: normal !important;
+    }
+
+    /* Remove template "bullet/dot" markers injected via core.css `::before` */
+    .layout-wrapper:not(.layout-horizontal) .menu-vertical .menu-inner > .menu-item > .menu-link::before,
+    .layout-wrapper:not(.layout-horizontal) .menu-vertical .menu-inner > .menu-item .menu-link::before {
+        content: none !important;
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
     }
