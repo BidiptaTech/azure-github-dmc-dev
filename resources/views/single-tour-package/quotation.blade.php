@@ -116,14 +116,14 @@
         }
 
         .quotation-logo-cell {
-            width: 150px;
+            width: 180px;
         }
 
         .quotation-logo {
-            width: 105px;
-            height: 105px;
+            width: 130px;
+            height: 130px;
             object-fit: contain;
-            margin-top: -40px;
+            margin-top: -52px;
         }
 
         .quotation-title {
@@ -470,6 +470,44 @@
             }
         @endphp
 
+        @php
+            // Format tour display id as:
+            // - company_code/user_code/ORD1234 (both found)
+            // - company_code/ORD1234 (only company code found)
+            // - user_code/ORD1234 (only user code found)
+            // Always remove "DMC-" prefix from tour->display_id before composing.
+            $tourRawDisplayId = (string)($tour->display_id ?? $tour->tour_id ?? '');
+            $ordPart = trim((string) preg_replace('/^DMC-/', '', $tourRawDisplayId));
+            if ($ordPart === '') {
+                $ordPart = trim($tourRawDisplayId);
+            }
+
+            $tourDmcUser = null;
+            if (!empty($tour->dmc_id)) {
+                $tourDmcUser = \App\Models\User::where('userId', $tour->dmc_id)->first();
+            }
+            $tourDmcCompanyCode = $tourDmcUser->company_code ?? null;
+            $tourDmcCompanyCode = is_string($tourDmcCompanyCode) ? trim($tourDmcCompanyCode) : '';
+            $tourDmcCompanyCode = $tourDmcCompanyCode !== '' ? $tourDmcCompanyCode : null;
+
+            $createByUser = null;
+            if (!empty($tour->created_by)) {
+                $createByUser = \App\Models\User::where('userId', $tour->created_by)->first();
+            }
+            $createByUserCode = $createByUser->user_code ?? null;
+            $createByUserCode = is_string($createByUserCode) ? trim($createByUserCode) : '';
+            $createByUserCode = $createByUserCode !== '' ? $createByUserCode : null;
+
+            $formattedDisplayId = $ordPart !== '' ? $ordPart : '—';
+            if ($tourDmcCompanyCode && $createByUserCode) {
+                $formattedDisplayId = $tourDmcCompanyCode . '/' . $createByUserCode . '/' . $ordPart;
+            } elseif ($tourDmcCompanyCode) {
+                $formattedDisplayId = $tourDmcCompanyCode . '/' . $ordPart;
+            } elseif ($createByUserCode) {
+                $formattedDisplayId = $createByUserCode . '/' . $ordPart;
+            }
+        @endphp
+
         <table class="quotation-header-table">
             <tr>
                 <td class="quotation-logo-cell">
@@ -491,10 +529,12 @@
                 </td>
                 <td style="width: 30%; vertical-align: top; padding-left: 2px;">
                     <div class="top-lines">
+                        <div class="top-line"><span class="bold">Reference No:</span> {{ $formattedDisplayId }}</div>
                         <div class="top-line"><span class="bold">LEAD GUEST NAME:</span> {{ $leadGuestName }}</div>
                         <div class="top-line"><span class="bold">No. of Pax:</span> {{ $paxText }}</div>
                         <div class="top-line"><span class="bold">Travelling Date:</span> {{ $travellingDate }}</div>
                         <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
+                        
                     </div>
                 </td>
             </tr>
