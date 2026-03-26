@@ -8,8 +8,8 @@ use Illuminate\Http\Request;
 use App\Helpers\CommonHelper;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 use App\Models\User;
+
 class CountryController extends Controller
 {
     /**
@@ -17,9 +17,27 @@ class CountryController extends Controller
      */
     public function index()
     {
-        $countries = [];
-        $countries = Country::orderBy('name', 'asc')->get();
-        return view('countries.index', compact('countries'));
+        $countriesAll = Country::orderBy('name', 'asc')->get();
+
+        $user = Auth::user();
+        $roleId = (int) ($user->role_id ?? 0);
+        $showRemitanceAndExchange = in_array($roleId, Country::DMC_REMITTANCE_EXCHANGE_ROLE_IDS, true);
+        $currentDmcId = $showRemitanceAndExchange ? (int) $this->resolveDmcIdForUser($user) : 0;
+
+        // For DMC view: show only countries that already have a value for this DMC
+        // (still allow setting new values via the top picker which uses $countriesAll).
+        if ($showRemitanceAndExchange && $currentDmcId > 0) {
+            $countries = $countriesAll->filter(function (Country $c) use ($currentDmcId) {
+                $hasRem = $c->remittanceChargeDisplayForDmc($currentDmcId) !== '';
+                $hasEx = $c->exchangeRateDisplayForDmc($currentDmcId) !== '';
+
+                return $hasRem || $hasEx;
+            })->values();
+        } else {
+            $countries = $countriesAll;
+        }
+
+        return view('countries.index', compact('countries', 'countriesAll'));
     }
 
     /**
@@ -343,68 +361,189 @@ class CountryController extends Controller
 
     public function updateRemitanceAndExchange(Request $request)
     {
-        $allowedRoleIds = [11, 34, 124, 125, 36, 126, 127];
         $user = Auth::user();
-        $userRoleId = $user->role_id ?? null;
-        if (!$userRoleId || !in_array($userRoleId, $allowedRoleIds)) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        $userRoleId = (int) ($user->role_id ?? 0);
+        if (! $user || ! in_array($userRoleId, Country::DMC_REMITTANCE_EXCHANGE_ROLE_IDS, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to save remittance charge or exchange rate. If this is a mistake, ask an administrator to check your account role.',
+            ], 403);
         }
 
-        $validated = $request->validate([
-            'id' => ['required', 'integer', 'exists:countries,id'],
-            'field' => ['required', 'string', Rule::in(['remitance_charge', 'exchange_rate'])],
-            'value' => ['nullable', 'integer', 'min:0'],
-            'dmcId' => ['required', 'integer', 'min:1'],
+        $resolvedDmcId = (int) $this->resolveDmcIdForUser($user);
+        if ($resolvedDmcId < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your user profile has no linked DMC account. Remittance and exchange values can only be saved for a DMC-linked user.',
+            ], 422);
+        }
+
+        $payload = $request->all();
+        if (! array_key_exists('remitance_charge', $payload) || ! array_key_exists('exchange_rate', $payload)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please submit both remittance charge and exchange rate fields (leave empty to clear a value).',
+            ], 422);
+        }
+
+        $normalizeInt = static function ($v): ?int {
+            if ($v === null || $v === '') {
+                return null;
+            }
+
+            return (int) $v;
+        };
+
+        $request->merge([
+            'remitance_charge' => $normalizeInt($payload['remitance_charge']),
+            'exchange_rate' => $normalizeInt($payload['exchange_rate']),
         ]);
 
+        try {
+            $validated = $request->validate([
+                'id' => ['required', 'integer', 'exists:countries,id'],
+                'remitance_charge' => ['nullable', 'integer', 'min:0'],
+                'exchange_rate' => ['nullable', 'integer', 'min:0'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $first = $e->errors();
+            $flat = [];
+            foreach ($first as $msgs) {
+                foreach ($msgs as $m) {
+                    $flat[] = $m;
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $flat[0] ?? 'Please check the values you entered (whole numbers ≥ 0, or leave blank to clear).',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
         $country = Country::findOrFail($validated['id']);
-        $resolvedDmcId = $this->resolveDmcIdForUser($user);
-        if (!$resolvedDmcId) {
-            return response()->json(['success' => false, 'message' => 'DMC ID not found'], 422);
-        }
-        if ((int) $validated['dmcId'] !== (int) $resolvedDmcId) {
-            return response()->json(['success' => false, 'message' => 'Invalid DMC ID'], 422);
-        }
 
-        $field = $validated['field'];
-        $dmcId = (int) $resolvedDmcId;
+        $remVal = $validated['remitance_charge'];
+        $exVal = $validated['exchange_rate'];
 
-        $existing = $country->{$field};
-        if (is_string($existing)) {
-            $existing = json_decode($existing, true) ?: [];
-        }
-        if (!is_array($existing)) {
-            $existing = [];
-        }
+        $remExisting = $this->normalizeCountryJsonColumn($country->remitance_charge);
+        $exExisting = $this->normalizeCountryJsonColumn($country->exchange_rate);
 
-        // Store per-country JSON keyed by dmcId:
-        // { "9999": { "value": 25 } }
-        $existing[(string) $dmcId] = [
-            'value' => $validated['value'],
-        ];
+        $remExisting = $this->mergeDmcCountryJsonEntry($remExisting, $resolvedDmcId, 'remitance_charge', $remVal);
+        $exExisting = $this->mergeDmcCountryJsonEntry($exExisting, $resolvedDmcId, 'exchange_rate', $exVal);
 
-        $country->{$field} = $existing;
+        $country->remitance_charge = $remExisting;
+        $country->exchange_rate = $exExisting;
         $country->save();
+
+        $parts = [];
+        if ($remVal !== null) {
+            $parts[] = 'remittance charge '.$remVal;
+        } else {
+            $parts[] = 'remittance charge cleared';
+        }
+        if ($exVal !== null) {
+            $parts[] = 'exchange rate '.$exVal;
+        } else {
+            $parts[] = 'exchange rate cleared';
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Saved',
+            'message' => 'Saved for '.$country->name.': '.implode(', ', $parts).'.',
             'id' => $country->id,
-            'field' => $field,
-            'dmcId' => $dmcId,
-            'value' => $validated['value'],
+            'dmcId' => $resolvedDmcId,
+            'remitance_charge' => $remVal,
+            'exchange_rate' => $exVal,
         ]);
+    }
+
+    /**
+     * @param  mixed  $raw
+     * @return array<string, array<string, mixed>>
+     */
+    private function normalizeCountryJsonColumn($raw): array
+    {
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true) ?: [];
+        }
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        return $raw;
+    }
+
+    /**
+     * Per-DMC JSON slice stored as a list (no keyed object):
+     * [ {"dmc_id": 4, "remitance_charge": 12}, ... ] or [ {"dmc_id": 4, "exchange_rate": 10}, ... ].
+     * Null $value removes this DMC's entry for that column.
+     *
+     * @param  array<int, mixed>  $existing
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeDmcCountryJsonEntry(array $existing, int $dmcId, string $payloadKey, ?int $value): array
+    {
+        // If legacy keyed format exists, convert it to list first.
+        if (! array_is_list($existing)) {
+            $asList = [];
+            foreach ($existing as $k => $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $rowDmc = (int) ($row['dmc_id'] ?? $k ?? 0);
+                if ($rowDmc < 1) {
+                    continue;
+                }
+                $asList[] = ['dmc_id' => $rowDmc] + $row;
+            }
+            $existing = $asList;
+        }
+
+        $out = [];
+        $found = false;
+        foreach ($existing as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $rowDmc = (int) ($row['dmc_id'] ?? 0);
+            if ($rowDmc !== $dmcId) {
+                $out[] = $row;
+                continue;
+            }
+
+            $found = true;
+            if ($value === null) {
+                // remove entry
+                continue;
+            }
+            $out[] = [
+                'dmc_id' => $dmcId,
+                $payloadKey => $value,
+            ];
+        }
+
+        if (! $found && $value !== null) {
+            $out[] = [
+                'dmc_id' => $dmcId,
+                $payloadKey => $value,
+            ];
+        }
+
+        return array_values($out);
     }
 
     private function resolveDmcIdForUser($user)
     {
+        $roleId = (int) ($user->role_id ?? 0);
+
         // Direct DMC roles
-        if (($user->role_id ?? null) == 11 || ($user->role_id ?? null) == 20) {
+        if ($roleId === 11 || $roleId === 20) {
             return $user->userId ?? null;
         }
 
         // Operational + Finance team roles (and similar) are created under a DMC userId
-        if (in_array(($user->role_id ?? null), [34, 124, 125, 36, 126, 127])) {
+        if (in_array($roleId, [34, 124, 125, 36, 126, 127], true)) {
             return $user->created_by ?? null;
         }
 

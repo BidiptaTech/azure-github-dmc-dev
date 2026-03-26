@@ -4,11 +4,11 @@
 
 @section('content')
 @php
-    $countryRoleId = Auth::user()->role_id ?? null;
-    $showRemitanceAndExchange = in_array($countryRoleId, [11, 34, 124, 125, 36, 126, 127]);
+    $countryRoleId = (int) (Auth::user()->role_id ?? 0);
+    $showRemitanceAndExchange = in_array($countryRoleId, \App\Models\Country::DMC_REMITTANCE_EXCHANGE_ROLE_IDS, true);
     $currentUser = Auth::user();
     $currentDmcId = null;
-    if (in_array($countryRoleId, [11, 20])) {
+    if (in_array($countryRoleId, [11, 20], true)) {
         $currentDmcId = $currentUser->userId ?? null;
     } else {
         $currentDmcId = $currentUser->created_by ?? null;
@@ -48,6 +48,46 @@
                     </div>
                 </div>
                 <x-alert />
+
+                <div class="mx-3 mt-2" id="countriesDmcInlineAlertWrap" style="display:none;">
+                    <div class="alert alert-dismissible fade show py-2 mb-2" role="alert" id="countriesDmcInlineAlert">
+                        <span id="countriesDmcInlineAlertMsg"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </div>
+
+                @if($showRemitanceAndExchange && $currentDmcId)
+                    <div class="card-body border-bottom py-3 mx-3 mt-2 mb-0 rounded-0 px-0 pt-0">
+                        <h6 class="mb-2 small text-uppercase text-muted">DMC — set values by country</h6>
+                        <p class="small text-muted mb-3">Choose a country, enter remittance charge and exchange rate, then save.</p>
+                        <div class="row g-2 align-items-end flex-wrap">
+                            <div class="col-12 col-md-4 col-lg-4">
+                                <label for="dmcCountryPicker" class="form-label small mb-1">Country</label>
+                                <select id="dmcCountryPicker" class="form-select form-select-sm">
+                                    <option value="">— Select country —</option>
+                                    @foreach(($countriesAll ?? $countries) as $c)
+                                        @php
+                                            $remOpt = $c->remittanceChargeDisplayForDmc((int) $currentDmcId);
+                                            $exOpt = $c->exchangeRateDisplayForDmc((int) $currentDmcId);
+                                        @endphp
+                                        <option value="{{ $c->id }}" data-rem="{{ $remOpt }}" data-ex="{{ $exOpt }}">{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <label for="dmcRemittanceInput" class="form-label small mb-1">Remitance charge</label>
+                                <input type="number" min="0" step="1" class="form-control form-control-sm" id="dmcRemittanceInput" placeholder="e.g. 12" autocomplete="off">
+                            </div>
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <label for="dmcExchangeInput" class="form-label small mb-1">Exchange rate</label>
+                                <input type="number" min="0" step="1" class="form-control form-control-sm" id="dmcExchangeInput" placeholder="e.g. 10" autocomplete="off">
+                            </div>
+                            <div class="col-12 col-md-2 col-lg-2">
+                                <button type="button" class="btn btn-primary btn-sm w-100 mt-3 mt-md-0" id="dmcCountrySaveBtn">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                @endif
                 
                 <table class="datatables-basic table table-bordered table-sm w-100">
                     <thead>
@@ -75,7 +115,7 @@
                     </thead>
                     <tbody>
                         @foreach($countries as $key => $country)
-                            <tr>
+                            <tr data-country-id="{{ $country->id }}">
                                 <td>{{ ++$key }}</td>
                                 <td class="country-name">{{ $country->name }}</td>
                                 @if(!$showRemitanceAndExchange)
@@ -87,38 +127,11 @@
                                 @endif
                                 @if($showRemitanceAndExchange)
                                     @php
-                                        $rowDmcId = (int) ($currentDmcId ?? 0);
-                                        $remData = is_array($country->remitance_charge) ? $country->remitance_charge : (json_decode($country->remitance_charge ?? '[]', true) ?: []);
-                                        $exData = is_array($country->exchange_rate) ? $country->exchange_rate : (json_decode($country->exchange_rate ?? '[]', true) ?: []);
-                                        $remValue = $remData[(string) $rowDmcId]['value'] ?? '';
-                                        $exValue = $exData[(string) $rowDmcId]['value'] ?? '';
+                                        $remValue = $country->remittanceChargeDisplayForDmc((int) ($currentDmcId ?? 0));
+                                        $exValue = $country->exchangeRateDisplayForDmc((int) ($currentDmcId ?? 0));
                                     @endphp
-                                    <td style="min-width: 160px;">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            class="form-control form-control-sm country-extra-field"
-                                            data-id="{{ $country->id }}"
-                                            data-dmc-id="{{ $currentDmcId }}"
-                                            data-field="remitance_charge"
-                                            value="{{ $remValue }}"
-                                            placeholder="Remitance Charge"
-                                        />
-                                    </td>
-                                    <td style="min-width: 160px;">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            class="form-control form-control-sm country-extra-field"
-                                            data-id="{{ $country->id }}"
-                                            data-dmc-id="{{ $currentDmcId }}"
-                                            data-field="exchange_rate"
-                                            value="{{ $exValue }}"
-                                            placeholder="Exchange Rate"
-                                        />
-                                    </td>
+                                    <td style="min-width: 120px;" class="text-muted small" id="country-rem-{{ $country->id }}">{{ $remValue !== '' ? $remValue : '—' }}</td>
+                                    <td style="min-width: 120px;" class="text-muted small" id="country-ex-{{ $country->id }}">{{ $exValue !== '' ? $exValue : '—' }}</td>
                                 @endif
                                 @if(!$showRemitanceAndExchange)
                                 <td>
@@ -141,7 +154,6 @@
                                         </svg>
                                     </a>
                                     {{-- @endif --}}
-                                    @endif
                                     <!-- Delete Button -->
                                     {{-- @if(hasPermission('delete country')) --}}
                                     {{-- <button type="button" 
@@ -156,6 +168,7 @@
                                     </button> --}}
                                     {{-- @endif --}}
                                 </td>
+                                @endif
                                 {{-- @endif --}}
                             </tr>
                         @endforeach
@@ -220,12 +233,6 @@
         transform: scale(0.9);
     }
 
-    table.datatables-basic .country-extra-field {
-        height: 26px;
-        padding: 0.15rem 0.35rem;
-        font-size: 12px;
-    }
-
     /* Slightly tighter action buttons */
     table.datatables-basic .btn.btn-sm {
         padding: 0.2rem 0.35rem;
@@ -239,14 +246,64 @@
 
 <!-- Configure Toastr -->
 <script>
-    toastr.options = {
-        "closeButton": true,
-        "progressBar": true,
-        "positionClass": "toast-top-right",
-        "showDuration": "300",
-        "hideDuration": "1000",
-        "timeOut": "3000"
-    };
+    // Toastr can be blocked by CSP / network; use safe wrapper everywhere.
+    function countriesNotify(type, message) {
+        const msg = message || (type === 'success' ? 'Saved.' : 'Something went wrong.');
+
+        // Inline fallback (always works)
+        const wrap = document.getElementById('countriesDmcInlineAlertWrap');
+        const box = document.getElementById('countriesDmcInlineAlert');
+        const span = document.getElementById('countriesDmcInlineAlertMsg');
+        if (wrap && box && span) {
+            wrap.style.display = 'block';
+            box.classList.remove('alert-success', 'alert-danger', 'alert-warning', 'alert-info');
+            box.classList.add(type === 'success' ? 'alert-success' : (type === 'warning' ? 'alert-warning' : 'alert-danger'));
+            span.textContent = msg;
+            window.clearTimeout(window.__countriesInlineAlertTimer);
+            window.__countriesInlineAlertTimer = window.setTimeout(function() {
+                wrap.style.display = 'none';
+            }, 3500);
+        }
+
+        // Toastr (if available)
+        if (typeof window.toastr !== 'undefined') {
+            try {
+                window.toastr.clear();
+                window.toastr[type === 'warning' ? 'warning' : (type === 'success' ? 'success' : 'error')](msg);
+            } catch (e) {
+                // ignore
+            }
+        }
+    }
+
+    if (typeof window.toastr !== 'undefined') {
+        window.toastr.options = {
+            closeButton: true,
+            progressBar: true,
+            positionClass: "toast-top-right",
+            showDuration: "300",
+            hideDuration: "1000",
+            timeOut: "3000"
+        };
+    }
+
+    // Show persisted messages ASAP (even if DataTables fails to init)
+    (function() {
+        try {
+            const msg = sessionStorage.getItem('countries_dmc_flash_success');
+            if (msg) {
+                sessionStorage.removeItem('countries_dmc_flash_success');
+                countriesNotify('success', msg);
+            }
+            const err = sessionStorage.getItem('countries_dmc_flash_error');
+            if (err) {
+                sessionStorage.removeItem('countries_dmc_flash_error');
+                countriesNotify('error', err);
+            }
+        } catch (e) {
+            // ignore
+        }
+    })();
 </script>
 
 <!-- DataTable JS -->
@@ -254,42 +311,47 @@
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
-        // Initialize DataTable with export buttons
-        $('.datatables-basic').DataTable({
-            responsive: true,
-            buttons: [
-                'copy',
-                'csv',
-                'excel',
-                'pdf',
-                'print' // Enable copy, CSV, Excel, PDF, and Print buttons
-            ],
-            language: {
-                search: "_INPUT_",
-                searchPlaceholder: "Search...",
-            },
-            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
-        });
+        // Initialize DataTable with export buttons (guarded)
+        let countriesTable = null;
+        try {
+            countriesTable = $('.datatables-basic').DataTable({
+                responsive: true,
+                buttons: [
+                    'copy',
+                    'csv',
+                    'excel',
+                    'pdf',
+                    'print' // Enable copy, CSV, Excel, PDF, and Print buttons
+                ],
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search...",
+                },
+                lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            });
+        } catch (e) {
+            console.error('DataTable init failed:', e);
+        }
 
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-copy').trigger();
+            if (countriesTable) countriesTable.button('.buttons-copy').trigger();
         });
 
         $('#exportCSV').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-csv').trigger();
+            if (countriesTable) countriesTable.button('.buttons-csv').trigger();
         });
 
         $('#exportExcel').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-excel').trigger();
+            if (countriesTable) countriesTable.button('.buttons-excel').trigger();
         });
 
         $('#exportPDF').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-pdf').trigger();
+            if (countriesTable) countriesTable.button('.buttons-pdf').trigger();
         });
 
         $('#exportPrint').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-print').trigger();
+            if (countriesTable) countriesTable.button('.buttons-print').trigger();
         });
 
         // Status toggle functionality
@@ -313,59 +375,152 @@
                 success: function(response) {
                     toggleElement.prop('disabled', false);
                     if (response.success) {
-                        toastr.success('Status updated successfully!');
+                        countriesNotify('success', 'Status updated successfully!');
                     } else {
                         toggleElement.prop('checked', !isActive);
-                        toastr.error(response.message || 'Error updating status');
+                        countriesNotify('error', response.message || 'Error updating status');
                     }
                 },
                 error: function(xhr, status, error) {
                     toggleElement.prop('disabled', false);
                     toggleElement.prop('checked', !isActive);
-                    toastr.error('An error occurred while updating status');
+                    countriesNotify('error', 'An error occurred while updating status');
                     console.error("Error details:", xhr.responseText);
                 }
             });
         });
 
-        // Remitance/Exchange save functionality
-        $(document).on('change', '.country-extra-field', function() {
-            const countryId = $(this).data('id');
-            const field = $(this).data('field');
-            const dmcId = $(this).data('dmc-id');
-            const valueRaw = $(this).val();
-            const value = valueRaw === '' ? null : parseInt(valueRaw, 10);
-            const inputEl = $(this);
+        @if($showRemitanceAndExchange && $currentDmcId)
+        (function() {
+            function dmcFormatCell(val) {
+                return (val === null || val === undefined || val === '' || String(val) === 'NaN') ? '—' : String(val);
+            }
 
-            inputEl.prop('disabled', true);
-
-            $.ajax({
-                url: "{{ route('countries.update-remitance-exchange') }}",
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    id: countryId,
-                    field: field,
-                    value: value,
-                    dmcId: dmcId,
-                    _token: "{{ csrf_token() }}"
-                },
-                success: function(response) {
-                    inputEl.prop('disabled', false);
-                    if (response.success) {
-                        toastr.success(field.replace('_', ' ') + ' saved');
-                    } else {
-                        toastr.error(response.message || 'Error saving');
+            function readDmcSaveErrorMessage(xhr) {
+                var j = xhr.responseJSON;
+                if (!j) {
+                    if (xhr.status === 419) {
+                        return 'Your session expired. Refresh the page and try again.';
                     }
-                },
-                error: function(xhr) {
-                    inputEl.prop('disabled', false);
-                    const message = xhr?.responseJSON?.message || 'An error occurred while saving';
-                    toastr.error(message);
-                    console.error("Error details:", xhr.responseText);
+                    if (xhr.status === 403) {
+                        return 'You do not have permission to perform this action.';
+                    }
+                    return 'Unable to save. Please try again or contact support.';
                 }
+                if (j.errors && typeof j.errors === 'object') {
+                    var parts = [];
+                    Object.keys(j.errors).forEach(function(k) {
+                        (j.errors[k] || []).forEach(function(m) {
+                            parts.push(m);
+                        });
+                    });
+                    if (parts.length) {
+                        return parts.join(' ');
+                    }
+                }
+                return j.message || 'Unable to save. Please check your values and try again.';
+            }
+
+            $('#dmcCountryPicker').on('change', function() {
+                const opt = $(this).find('option:selected');
+                $('#dmcRemittanceInput').val(opt.attr('data-rem') || '');
+                $('#dmcExchangeInput').val(opt.attr('data-ex') || '');
             });
-        });
+
+            $('#dmcCountrySaveBtn').on('click', function() {
+                const countryId = $('#dmcCountryPicker').val();
+                if (!countryId) {
+                    countriesNotify('warning', 'Please select a country.');
+                    return;
+                }
+                const remRaw = $('#dmcRemittanceInput').val();
+                const exRaw = $('#dmcExchangeInput').val();
+                const btn = $(this);
+                if (remRaw !== '') {
+                    const r = parseInt(remRaw, 10);
+                    if (isNaN(r) || r < 0) {
+                        countriesNotify('error', 'Remitance charge must be a whole number ≥ 0.');
+                        return;
+                    }
+                }
+                if (exRaw !== '') {
+                    const e = parseInt(exRaw, 10);
+                    if (isNaN(e) || e < 0) {
+                        countriesNotify('error', 'Exchange rate must be a whole number ≥ 0.');
+                        return;
+                    }
+                }
+                btn.prop('disabled', true);
+
+                $.ajax({
+                    url: "{{ route('countries.update-remitance-exchange') }}",
+                    type: 'POST',
+                    dataType: 'json',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    data: {
+                        id: countryId,
+                        remitance_charge: remRaw === '' ? '' : parseInt(remRaw, 10),
+                        exchange_rate: exRaw === '' ? '' : parseInt(exRaw, 10),
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        btn.prop('disabled', false);
+                        if (response.success) {
+                            const remDisp = dmcFormatCell(response.remitance_charge);
+                            const exDisp = dmcFormatCell(response.exchange_rate);
+                            $('#country-rem-' + countryId).text(remDisp);
+                            $('#country-ex-' + countryId).text(exDisp);
+                            const sel = $('#dmcCountryPicker option[value="' + countryId + '"]');
+                            const remAttr = (response.remitance_charge === null || response.remitance_charge === undefined) ? '' : String(response.remitance_charge);
+                            const exAttr = (response.exchange_rate === null || response.exchange_rate === undefined) ? '' : String(response.exchange_rate);
+                            sel.attr('data-rem', remAttr);
+                            sel.attr('data-ex', exAttr);
+
+                            // Ensure row exists in table (DMC view only shows countries with values)
+                            const rowSelector = 'tr[data-country-id="' + countryId + '"]';
+                            const rowEl = $(rowSelector);
+                            if (!rowEl.length && countriesTable) {
+                                const countryName = sel.text();
+                                const nextIndex = countriesTable.rows().count() + 1;
+                                countriesTable.row.add([
+                                    nextIndex,
+                                    '<span class="country-name">' + $('<div>').text(countryName).html() + '</span>',
+                                    '<span class="text-muted small" id="country-rem-' + countryId + '">' + $('<div>').text(remDisp).html() + '</span>',
+                                    '<span class="text-muted small" id="country-ex-' + countryId + '">' + $('<div>').text(exDisp).html() + '</span>',
+                                ]).draw(false);
+                            } else if (countriesTable) {
+                                // If already present, just redraw to keep numbering stable
+                                countriesTable.draw(false);
+                            }
+
+                            const okMsg = response.message || 'Saved successfully.';
+                        countriesNotify('success', okMsg);
+                            try { sessionStorage.setItem('countries_dmc_flash_success', okMsg); } catch (e) {}
+
+                            // User requested: refresh page after save (message persists via sessionStorage).
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 1200);
+                        } else {
+                            const errMsg = response.message || 'Could not save your changes.';
+                        countriesNotify('error', errMsg);
+                            try { sessionStorage.setItem('countries_dmc_flash_error', errMsg); } catch (e) {}
+                        }
+                    },
+                    error: function(xhr) {
+                        btn.prop('disabled', false);
+                        const errMsg = readDmcSaveErrorMessage(xhr);
+                    countriesNotify('error', errMsg);
+                        try { sessionStorage.setItem('countries_dmc_flash_error', errMsg); } catch (e) {}
+                        console.error('Country save error:', xhr.status, xhr.responseText);
+                    }
+                });
+            });
+        })();
+        @endif
     });
 </script>
 <!-- End DataTable JS -->

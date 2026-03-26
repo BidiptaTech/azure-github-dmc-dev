@@ -119,8 +119,11 @@ class MealController extends Controller
         $meal->type = $request->input('meal_type');
         $meal->meal_period = $request->input('meal_period');
         $meal->price = $request->input('price');
+        $meal->item_cost_price = $request->input('item_cost_price');
         $meal->adult_price = $request->input('adult_price');
+        $meal->adult_cost_price = $request->input('adult_cost_price');
         $meal->child_price = $request->input('child_price');
+        $meal->child_cost_price = $request->input('child_cost_price');
         $meal->category = $request->input('meal_category');
         $meal->files = $image;
         $meal->item_type = $request->input('item_type');
@@ -202,8 +205,11 @@ class MealController extends Controller
         $meal->name = $request->input('name');
         $meal->type = $request->input('meal_type');
         $meal->price = $request->input('price');
+        $meal->item_cost_price = $request->input('item_cost_price');
         $meal->adult_price = $request->input('adult_price');
+        $meal->adult_cost_price = $request->input('adult_cost_price');
         $meal->child_price = $request->input('child_price');
+        $meal->child_cost_price = $request->input('child_cost_price');
         $meal->category = $request->input('category');
         $meal->item_type = $request->input('item_type');
         $meal->files = $image;
