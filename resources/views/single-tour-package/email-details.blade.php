@@ -5,128 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tour Quotation - Email Template</title>
-    <style>
-        /* Copy Button Styles */
-        .copy-button-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-        .copy-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #ffffff;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .copy-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
-        }
-        .copy-button:active {
-            transform: translateY(0);
-        }
-        .copy-button.copied {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        }
-        .copy-button-icon {
-            font-size: 16px;
-        }
-        .copy-success-message {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background: #10b981;
-            color: #ffffff;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-            z-index: 1001;
-            display: none;
-            animation: slideInRight 0.3s ease;
-        }
-        .copy-success-message.show {
-            display: block;
-        }
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        .help-link {
-            position: fixed;
-            top: 20px;
-            right: 200px;
-            background: #17a2b8;
-            color: #ffffff;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            z-index: 1000;
-            text-decoration: none;
-            box-shadow: 0 2px 6px rgba(23, 162, 184, 0.3);
-        }
-        .help-link:hover {
-            background: #138496;
-        }
-    </style>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 11px;
-            color: #212529;
-            padding: 10px;
-            background: #ffffff;
-        }
-        #emailContent {
-            white-space: pre-wrap;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
-            color: #333;
-            padding: 20px;
-            background: #f9f9f9;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-    </style>
 </head>
-<body>
+<body style="margin:0; padding:0; font-family: Arial, sans-serif; background:#ffffff; color:#111827;">
     <!-- Copy Button Container -->
-    <div class="copy-button-container">
-        <a href="#" class="help-link" onclick="document.getElementById('instructionsBox').style.display=document.getElementById('instructionsBox').style.display==='none'?'block':'none'; return false;" title="How to paste in Gmail">❓ Help</a>
-        <button class="copy-button" id="copyEmailButton" onclick="copyEmailContent()">
-            <span class="copy-button-icon">📋</span>
-            <span id="copyButtonText">Copy Email Content</span>
+    <div style="position:fixed; top:20px; right:20px; z-index:1000;">
+        <a href="#"
+           onclick="document.getElementById('instructionsBox').style.display=document.getElementById('instructionsBox').style.display==='none'?'block':'none'; return false;"
+           title="How to paste in Gmail"
+           style="position:fixed; top:20px; right:200px; background:#17a2b8; color:#ffffff; padding:8px 12px; border-radius:6px; font-size:12px; cursor:pointer; z-index:1000; text-decoration:none; box-shadow:0 2px 6px rgba(23,162,184,0.3);">
+            ❓ Help
+        </a>
+        <button id="copyEmailButton"
+                onclick="copyEmailContent()"
+                style="background:#4f46e5; color:#ffffff; border:none; padding:12px 18px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 8px 20px rgba(79,70,229,0.25);">
+            <span style="font-size:16px; vertical-align:middle;">📋</span>
+            <span id="copyButtonText" style="vertical-align:middle; margin-left:8px;">Copy Email Content</span>
         </button>
     </div>
     
     <!-- Success Message -->
-    <div class="copy-success-message" id="copySuccessMessage">
+    <div id="copySuccessMessage" style="position:fixed; top:80px; right:20px; background:#10b981; color:#ffffff; padding:12px 16px; border-radius:10px; font-size:13px; font-weight:700; box-shadow:0 8px 20px rgba(16,185,129,0.25); z-index:1001; display:none;">
         ✓ Content copied! Paste into Gmail compose (Ctrl+V or Cmd+V)
     </div>
     
@@ -148,7 +46,7 @@
     </div>
 
     <!-- Email Content Container (for copying) - Plain Text Email Format -->
-    <div id="emailContent" style="white-space: pre-wrap; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; padding: 20px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; max-width: 800px; margin: 0 auto;">
+    <div id="emailContent" style="margin:0 auto; max-width:760px;">
 @php
     $checkIn = $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->format('d M Y') : '-';
     $checkOut = $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->format('d M Y') : '-';
@@ -214,43 +112,202 @@
     if (isset($tourPrices['segregated']['hotel']['baby_cot']) && is_numeric($tourPrices['segregated']['hotel']['baby_cot'])) {
         $infantPrice = floatval($tourPrices['segregated']['hotel']['baby_cot']);
     }
+
+    // Logo (optional)
+    $defaultLogoUrl = 'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1754462794_QsnlIj.png';
+    $logoSrc = null;
+    if (!empty($dmcLogo)) {
+        $logoSrc = (string)$dmcLogo;
+    } elseif (!empty($dmcDetails) && is_array($dmcDetails)) {
+        $logoSrc = $dmcDetails['logo'] ?? ($dmcDetails['company_logo'] ?? ($dmcDetails['logo_url'] ?? null));
+        $logoSrc = !empty($logoSrc) ? (string)$logoSrc : null;
+    }
+    if (empty($logoSrc) && !empty($defaultLogoUrl)) {
+        $logoSrc = $defaultLogoUrl;
+    }
+
+    // Make logo URL absolute for Gmail/Outlook rendering
+    $logoSrcAbs = null;
+    if (!empty($logoSrc)) {
+        // If it's already a data URI, keep as-is (do NOT run through asset()/url())
+        // Note: data URIs won't reliably render in all email clients, but should preview correctly.
+        $trimmedLogo = trim((string)$logoSrc);
+        if (stripos($trimmedLogo, 'data:') === 0) {
+            $logoSrcAbs = $trimmedLogo;
+        } else {
+        $isAbsolute = false;
+        try {
+            $isAbsolute = filter_var($logoSrc, FILTER_VALIDATE_URL) !== false;
+        } catch (\Throwable $e) {
+            $isAbsolute = false;
+        }
+
+        if ($isAbsolute) {
+            $logoSrcAbs = $logoSrc;
+        } else {
+            // Try common Laravel path patterns: "/...", "storage/...", "public/..."
+            $path = $logoSrc;
+            try {
+                if (strpos($path, '/') === 0) {
+                    $logoSrcAbs = url($path);
+                } else {
+                    // Prefer Storage::url when it's a storage path
+                    if (strpos($path, 'storage/') === 0) {
+                        $logoSrcAbs = asset($path);
+                    } else {
+                        $logoSrcAbs = asset($path);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $logoSrcAbs = $logoSrc; // fallback (may still not render if relative)
+            }
+        }
+        }
+    }
+
+    // Render URLs:
+    // - Preview can use data: URIs (some apps show them), but
+    // - Sent emails should NOT use data: URIs (Gmail typically strips them on send).
+    $logoSrcPreview = $logoSrcAbs ?: $logoSrc;
+    $logoSrcEmail = null;
+    if (!empty($logoSrcAbs) && stripos(trim((string)$logoSrcAbs), 'data:') !== 0) {
+        $logoSrcEmail = $logoSrcAbs;
+    } else {
+        // Prefer the public CDN/blob URL for actual email delivery
+        $logoSrcEmail = !empty($defaultLogoUrl) ? $defaultLogoUrl : null;
+    }
 @endphp
-QUOTATION & CONFIRMATION VOUCHER
+<!-- Email background wrapper -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F5F7FB; margin:0; padding:0; width:100%;">
+    <tr>
+        <td align="center" style="padding:24px 12px;">
+            <!-- Container -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="760" style="width:760px; max-width:760px; background:#F5F7FB;">
+                <tr>
+                    <td style="padding:0 0 14px 0;">
+                        <!-- Header -->
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:12px; width:100%;">
+                            <tr>
+                                <td style="padding:18px 18px 12px 18px;">
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+                                        <tr>
+                                            <!-- Row 1: Logo (left) + Company details (right) -->
+                                            <td valign="top" align="left" width="30%" style="font-family:Arial, sans-serif; vertical-align:top; padding-top:0; line-height:0;">
+                                                @if(!empty($logoSrcEmail))
+                                                    <img src="{{ $logoSrcEmail }}"
+                                                         alt="{{ $companyName }} Logo"
+                                                         width="150"
+                                                         style="display:block; width:130px; max-width:150px; height:auto; border:0; outline:none; text-decoration:none; margin:-50px 20px; line-height:0;" />
+                                                @endif
+                                            </td>
+                                            <td valign="top" align="right" width="70%" style="font-family:Arial, sans-serif; color:#111827; vertical-align:top;">
+                                                <div style="font-size:14px; font-weight:800; line-height:1.3; margin:0; padding:0;">{{ $companyName }}</div>
+                                                <div style="font-size:12px; color:#6B7280; line-height:1.5; margin-top:6px;">
+                                                    {{ $companyAddress }}<br/>
+                                                    Tel: {{ $companyTel }}<br/>
+                                                    Email: {{ $companyEmail }}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <!-- Row 2: Title (left) + Booking ID (right) -->
+                                            <td colspan="2" style="padding-top:12px; border-top:1px solid #E5E7EB; font-family:Arial, sans-serif; vertical-align:top;">
+                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+                                                    <tr>
+                                                        <td valign="top" align="left" style="padding:0; font-family:Arial, sans-serif;">
+                                                            <div style="font-size:13px; font-weight:900; color:#111827; line-height:1.3;">
+                                                                Quotation &amp; Confirmation Voucher
+                                                            </div>
+                                                        </td>
+                                                        <td valign="top" align="right" style="padding:0; font-family:Arial, sans-serif;">
+                                                            <div style="font-size:12px; color:#6B7280; line-height:1.5;">Booking ID</div>
+                                                            <div style="font-size:16px; font-weight:900; color:#111827; line-height:1.3;">{{ $bookingId }}</div>
+                                                            <div style="margin-top:8px;">
+                                                                <span style="display:inline-block; padding:6px 10px; background:#DCFCE7; color:#166534; border:1px solid #BBF7D0; border-radius:999px; font-size:12px; font-weight:900; line-height:1;">
+                                                                    Confirmed
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:0 18px 18px 18px;">
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; color:#6B7280; line-height:1.6;">
+                                        Proposal Date: <span style="color:#111827; font-weight:700;">{{ $proposalDate }}</span> &nbsp;&nbsp;•&nbsp;&nbsp;
+                                        Validity: <span style="color:#111827; font-weight:700;">{{ $proposalValidity }}</span> &nbsp;&nbsp;•&nbsp;&nbsp;
+                                        Sent By: <span style="color:#111827; font-weight:700;">{{ $proposalSentBy }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                        <!-- /Header -->
+                    </td>
+                </tr>
 
-{{ $companyName }}
-{{ $companyAddress }}
-Tel: {{ $companyTel }}
-Email: {{ $companyEmail }}
+                <!-- Booking Summary -->
+                <tr>
+                    <td style="padding:0 0 14px 0;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:12px; width:100%;">
+                            <tr>
+                                <td style="padding:16px 18px;">
+                                    <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:900; letter-spacing:0.2px; color:#111827; margin:0 0 10px 0;">Booking Summary</div>
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+                                        <tr>
+                                            <td width="50%" valign="top" style="padding-right:10px;">
+                                                <div style="font-family:Arial, sans-serif; font-size:11px; color:#6B7280; margin:0 0 4px 0;">Destination</div>
+                                                <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:800; color:#111827; margin:0 0 10px 0;">{{ $destination }}</div>
 
-BOOKING & PROPOSAL DETAILS
-Booking ID: {{ $bookingId }}
-Lead Guest: {{ $leadGuestName ?: 'N/A' }}
-Adults: {{ $noOfAdults }}
-Children: {{ $noOfChildren }}
-Infants: {{ $noOfInfants }}
+                                                <div style="font-family:Arial, sans-serif; font-size:11px; color:#6B7280; margin:0 0 4px 0;">Travel Dates</div>
+                                                <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:800; color:#111827; margin:0;">{{ $travelDateFromFormatted }} – {{ $travelDateToFormatted }}</div>
+                                            </td>
+                                            <td width="50%" valign="top" style="padding-left:10px;">
+                                                <div style="font-family:Arial, sans-serif; font-size:11px; color:#6B7280; margin:0 0 4px 0;">Guests</div>
+                                                <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:800; color:#111827; margin:0 0 10px 0;">
+                                                    Adults: {{ $noOfAdults }} &nbsp;&nbsp; Children: {{ $noOfChildren }} &nbsp;&nbsp; Infants: {{ $noOfInfants }}
+                                                </div>
 
-Proposal Date: {{ $proposalDate }}
-Proposal Validity: {{ $proposalValidity }}
-Proposal Sent By: {{ $proposalSentBy }}
+                                                <div style="font-family:Arial, sans-serif; font-size:11px; color:#6B7280; margin:0 0 4px 0;">Duration</div>
+                                                <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:800; color:#111827; margin:0;">{{ $duration }}</div>
+                                            </td>
+                                        </tr>
+                                    </table>
 
-TRAVEL COMPANY / AGENT
-@if($agentName){{ $agentName }}
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; margin-top:14px;">
+                                        <tr>
+                                            <td style="border-top:1px solid #E5E7EB; padding-top:12px;">
+                                                <div style="font-family:Arial, sans-serif; font-size:11px; color:#6B7280; margin:0 0 6px 0;">Travel Company / Agent</div>
+                                                <div style="font-family:Arial, sans-serif; font-size:12px; color:#111827; line-height:1.6;">
+                                                    @if($agentName)<strong style="color:#111827;">{{ $agentName }}</strong><br/>@endif
+                                                    @if($agentAddress){{ $agentAddress }}<br/>@endif
+                                                    @if($contactPerson)Contact Person: {{ $contactPerson }}<br/>@endif
+                                                    @if($agentPhone)Tel: {{ $agentPhone }}<br/>@endif
+                                                    @if($agentEmail)Email: {{ $agentEmail }}@endif
+                                                    @if(!$agentName && !$agentAddress && !$contactPerson && !$agentPhone && !$agentEmail)
+                                                        —
 @endif
-@if($agentAddress){{ $agentAddress }}
-@endif
-@if($contactPerson)Contact Person: {{ $contactPerson }}
-@endif
-@if($agentPhone)Tel: {{ $agentPhone }}
-@endif
-@if($agentEmail)Email: {{ $agentEmail }}
-@endif
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
 
-TRAVEL SUMMARY
-Destination: {{ $destination }}
-Travel Dates: {{ $travelDateFromFormatted }} – {{ $travelDateToFormatted }}
-Duration: {{ $duration }}
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
 
-PASSENGER DETAILS
+                <!-- Passenger Details -->
+                <tr>
+                    <td style="padding:0 0 14px 0;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:12px; width:100%;">
+                            <tr>
+                                <td style="padding:16px 18px;">
+                                    <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:900; color:#111827; margin:0 0 10px 0;">Passenger Details</div>
 @php
     $passengers = $bookingDetails['passengers'] ?? [];
     if (empty($passengers) && !empty($leadGuestName)) {
@@ -264,30 +321,63 @@ PASSENGER DETAILS
         ]];
     }
 @endphp
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border:1px solid #E5E7EB; border-radius:10px;">
+                                        <tr>
+                                            <td style="background:#F9FAFB; padding:10px 10px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:800; border-bottom:1px solid #E5E7EB;">Name</td>
+                                            <td style="background:#F9FAFB; padding:10px 10px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:800; border-bottom:1px solid #E5E7EB;">Type</td>
+                                            <td style="background:#F9FAFB; padding:10px 10px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:800; border-bottom:1px solid #E5E7EB;">Phone</td>
+                                            <td style="background:#F9FAFB; padding:10px 10px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:800; border-bottom:1px solid #E5E7EB;">Email</td>
+                                        </tr>
 @if(!empty($passengers) && is_array($passengers))
     @foreach($passengers as $passenger)
-Salutation: {{ $passenger['salutation'] ?? 'Mr' }}
-Name: {{ $passenger['first_name'] ?? '—' }}
-Passenger Type: {{ $passenger['passenger_type'] ?? 'Adult' }}
-Gender: {{ $passenger['gender'] ?? 'M' }}
-Mobile Phone: {{ $passenger['mobile_phone'] ?? ($passenger['phone'] ?? '—') }}
-Email: {{ $passenger['email'] ?? '—' }}
-
+                                        <tr>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                <strong>{{ ($passenger['salutation'] ?? 'Mr') . ' ' . ($passenger['first_name'] ?? '—') }}</strong>
+                                            </td>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                {{ $passenger['passenger_type'] ?? 'Adult' }}
+                                            </td>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                {{ $passenger['mobile_phone'] ?? ($passenger['phone'] ?? '—') }}
+                                            </td>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                {{ $passenger['email'] ?? '—' }}
+                                            </td>
+                                        </tr>
     @endforeach
 @else
-Salutation: {{ $bookingDetails['salutation'] ?? 'Mr' }}
-Name: {{ $leadGuestName ?? '—' }}
-Passenger Type: {{ $bookingDetails['passenger_type'] ?? 'Adult' }}
-Gender: {{ $bookingDetails['gender'] ?? 'M' }}
-Mobile Phone: {{ $bookingDetails['phone'] ?? '—' }}
-Email: {{ $bookingDetails['email'] ?? '—' }}
-
+                                        <tr>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827;">
+                                                <strong>{{ ($bookingDetails['salutation'] ?? 'Mr') . ' ' . ($leadGuestName ?? '—') }}</strong>
+                                            </td>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827;">
+                                                {{ $bookingDetails['passenger_type'] ?? 'Adult' }}
+                                            </td>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827;">
+                                                {{ $bookingDetails['phone'] ?? '—' }}
+                                            </td>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827;">
+                                                {{ $bookingDetails['email'] ?? '—' }}
+                                            </td>
+                                        </tr>
 @endif
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
 
-HOTEL OPTIONS
-OPTION 1
+                <!-- Hotel Options -->
+                <tr>
+                    <td style="padding:0 0 14px 0;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:12px; width:100%;">
+                            <tr>
+                                <td style="padding:16px 18px;">
+                                    <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:900; color:#111827; margin:0 0 10px 0;">Hotel</div>
+                                    <div style="font-family:Arial, sans-serif; font-size:11px; color:#6B7280; margin:0 0 10px 0;">Option 1</div>
 @if(empty($hotelOptions) || count($hotelOptions) == 0)
-No hotel services booked for this tour.
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; color:#111827;">No hotel services booked for this tour.</div>
 @elseif(!empty($hotelOptions) && count($hotelOptions) > 0)
     @php
         $allHotels = $hotelOptions;
@@ -303,28 +393,85 @@ No hotel services booked for this tour.
                              (int)($firstHotel['no_of_rooms']['triple'] ?? 0);
             }
         @endphp
-Hotel Name: {{ $firstHotel['hotel_name'] ?? 'N/A' }} ({{ $totalRooms }} {{ $totalRooms == 1 ? 'room' : 'rooms' }})
-Hotel Category: {{ $firstHotel['hotel_category'] ?? 'N/A' }}
-
-Room Pricing:
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border:1px solid #E5E7EB; border-radius:10px;">
+                                        <tr>
+                                            <td style="padding:12px 12px; font-family:Arial, sans-serif; font-size:12px; color:#111827;">
+                                                <div style="font-size:13px; font-weight:900; margin:0 0 4px 0;">{{ $firstHotel['hotel_name'] ?? 'N/A' }} <span style="font-weight:700; color:#6B7280;">({{ $totalRooms }} {{ $totalRooms == 1 ? 'room' : 'rooms' }})</span></div>
+                                                <div style="font-size:12px; color:#6B7280; margin:0;">Category: <span style="color:#111827; font-weight:800;">{{ $firstHotel['hotel_category'] ?? 'N/A' }}</span></div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:0 12px 12px 12px;">
+                                                <div style="font-family:Arial, sans-serif; font-size:11px; font-weight:900; color:#111827; margin:0 0 8px 0;">Room Pricing</div>
+                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border:1px solid #E5E7EB; border-radius:10px;">
+                                                    <tr>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Room</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Single</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Double</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Triple</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Child</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Infant</td>
+                                                    </tr>
         @foreach($firstHotel['room_categories'] as $roomCategory)
-{{ !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A' }}:
-  Single: {{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '100.00' }}
-  Double: {{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '150.00' }}
-  Triple: {{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}
-  Child: {{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}
-  Infant: {{ number_format($infantPrice, 2) }}
-
+                                                    <tr>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB; font-weight:800;">
+                                                            {{ !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A' }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                            {{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '100.00' }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                            {{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '150.00' }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                            {{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                            {{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                            {{ number_format($infantPrice, 2) }}
+                                                        </td>
+                                                    </tr>
         @endforeach
-Total:
-  Single: {{ number_format(floatval($firstHotel['first_total']['single'] ?? 0), 2) }}
-  Double: {{ number_format(floatval($firstHotel['first_total']['double'] ?? 0), 2) }}
-  Triple: {{ (floatval($firstHotel['first_total']['triple'] ?? 0) > 0) ? number_format(floatval($firstHotel['first_total']['triple'] ?? 0), 2) : 'N/A' }}
-  Child: {{ number_format(floatval($firstHotel['first_total']['child'] ?? 0), 2) }}
-  Infant: {{ number_format($infantPrice, 2) }}
+                                                </table>
+
+                                                <div style="height:10px; line-height:10px; font-size:10px;">&nbsp;</div>
+                                                <div style="font-family:Arial, sans-serif; font-size:11px; font-weight:900; color:#111827; margin:0 0 8px 0;">Total</div>
+                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border:1px solid #E5E7EB; border-radius:10px;">
+                                                    <tr>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Single</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Double</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Triple</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Child</td>
+                                                        <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Infant</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">
+                                                            {{ number_format(floatval($firstHotel['first_total']['single'] ?? 0), 2) }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">
+                                                            {{ number_format(floatval($firstHotel['first_total']['double'] ?? 0), 2) }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">
+                                                            {{ (floatval($firstHotel['first_total']['triple'] ?? 0) > 0) ? number_format(floatval($firstHotel['first_total']['triple'] ?? 0), 2) : 'N/A' }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">
+                                                            {{ number_format(floatval($firstHotel['first_total']['child'] ?? 0), 2) }}
+                                                        </td>
+                                                        <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">
+                                                            {{ number_format($infantPrice, 2) }}
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
 
         @if(count($additionalHotels) > 0)
-Supplemental Cost:
+                                    <div style="height:12px; line-height:12px; font-size:12px;">&nbsp;</div>
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; font-weight:900; color:#111827; margin:0 0 8px 0;">Supplemental Cost</div>
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border:1px solid #E5E7EB; border-radius:10px;">
             @foreach($additionalHotels as $hotel)
                 @php
                     $singleRooms = (int)($hotel['no_of_rooms']['single'] ?? 0);
@@ -336,14 +483,21 @@ Supplemental Cost:
                     @php
                         $roomCategoryName = !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A';
                     @endphp
-                    {{ $hotel['hotel_name'] ?? 'N/A' }} - {{ $roomCategoryName }} - {{ $totalRooms }} {{ $totalRooms == 1 ? 'room' : 'rooms' }}:
-                    Single: {{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }}
-                    Double: {{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }}
-                    Triple: {{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}
-                    Child: {{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}
+                                        <tr>
+                                            <td style="padding:10px 10px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
+                                                <strong>{{ $hotel['hotel_name'] ?? 'N/A' }}</strong> - {{ $roomCategoryName }} - {{ $totalRooms }} {{ $totalRooms == 1 ? 'room' : 'rooms' }}<br/>
+                                                <span style="color:#6B7280;">
+                                                    Single: {{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }} &nbsp;•&nbsp;
+                                                    Double: {{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }} &nbsp;•&nbsp;
+                                                    Triple: {{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }} &nbsp;•&nbsp;
+                                                    Child: {{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }} &nbsp;•&nbsp;
                     Infant: {{ number_format($infantPrice, 2) }}
+                                                </span>
+                                            </td>
+                                        </tr>
                 @endforeach
             @endforeach
+                                    </table>
             @php
                 $additionalHotelsTotalSingle = 0;
                 $additionalHotelsTotalDouble = 0;
@@ -378,16 +532,33 @@ Supplemental Cost:
                 $optionFinalTotalChild = $optionFirstTotalChild + $optionSupplementalChild + $additionalHotelsTotalChild;
                 $optionFinalTotalInfant = $optionFirstTotalInfant + $optionSupplementalInfant + $additionalHotelsTotalInfant;
             @endphp
-Final Total:
-  Single: {{ number_format($optionFinalTotalSingle, 2) }}
-  Double: {{ number_format($optionFinalTotalDouble, 2) }}
-  Triple: {{ ($optionFinalTotalTriple > 0) ? number_format($optionFinalTotalTriple, 2) : 'N/A' }}
-  Child: {{ number_format($optionFinalTotalChild, 2) }}
-  Infant: {{ number_format($optionFinalTotalInfant, 2) }}
+                                    <div style="height:12px; line-height:12px; font-size:12px;">&nbsp;</div>
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; font-weight:900; color:#111827; margin:0 0 8px 0;">Final Total</div>
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border:1px solid #E5E7EB; border-radius:10px;">
+                                        <tr>
+                                            <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Single</td>
+                                            <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Double</td>
+                                            <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Triple</td>
+                                            <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Child</td>
+                                            <td style="background:#F9FAFB; padding:8px 8px; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; font-weight:900; border-bottom:1px solid #E5E7EB;">Infant</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">{{ number_format($optionFinalTotalSingle, 2) }}</td>
+                                            <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">{{ number_format($optionFinalTotalDouble, 2) }}</td>
+                                            <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">{{ ($optionFinalTotalTriple > 0) ? number_format($optionFinalTotalTriple, 2) : 'N/A' }}</td>
+                                            <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">{{ number_format($optionFinalTotalChild, 2) }}</td>
+                                            <td style="padding:8px 8px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">{{ number_format($optionFinalTotalInfant, 2) }}</td>
+                                        </tr>
+                                    </table>
 
         @endif
     @endif
 @endif
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
 
 @php
     // Define all possible service types
@@ -452,6 +623,13 @@ Final Total:
         'Transfer Services' => ['travel_point', 'travel_hourly', 'local_transport', 'local_transfer', 'point_to_point', 'hourly'],
     ];
 @endphp
+                <!-- Services -->
+                <tr>
+                    <td style="padding:0 0 14px 0;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:12px; width:100%;">
+                            <tr>
+                                <td style="padding:16px 18px;">
+                                    <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:900; color:#111827; margin:0 0 10px 0;">Services</div>
 @foreach($sectionsToShow as $sectionLabel => $types)
 @php
     $typesArray = is_array($types) ? $types : [$types];
@@ -469,11 +647,23 @@ Final Total:
         }
     }
 @endphp
-{{ strtoupper($sectionLabel) }}
-@if(!$hasServices || empty($sectionCards))
-No {{ strtolower($sectionLabel) }} booked for this tour.
 
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; margin-top:10px; border:1px solid #E5E7EB; border-radius:10px;">
+                                        <tr>
+                                            <td style="background:#111827; padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; font-weight:900; color:#FFFFFF;">
+{{ strtoupper($sectionLabel) }}
+                                            </td>
+                                        </tr>
+@if(!$hasServices || empty($sectionCards))
+                                        <tr>
+                                            <td style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#111827;">
+No {{ strtolower($sectionLabel) }} booked for this tour.
+                                            </td>
+                                        </tr>
 @else
+                                        <tr>
+                                            <td style="padding:0 0 0 0;">
+                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border-collapse:collapse;">
     @foreach($sectionCards as $card)
         @php
             // Determine the type of this card
@@ -502,6 +692,25 @@ No {{ strtolower($sectionLabel) }} booked for this tour.
             }
             $normalizedType = $cardType;
         @endphp
+                                                    <tr>
+                                                        <td valign="top" style="padding:12px 12px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB; font-weight:900;">
+                                                            @if($normalizedType === 'entry_port')
+                                                                Port of Arrival Transfer
+                                                            @elseif($normalizedType === 'exit_port')
+                                                                Port of Departure Transfer
+                                                            @elseif($normalizedType === 'attraction' || $normalizedType === 'attraction_package')
+                                                                Attraction
+                                                            @elseif($normalizedType === 'restaurant')
+                                                                Restaurant
+                                                            @elseif($normalizedType === 'guide')
+                                                                Guide
+                                                            @elseif(in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport', 'local_transfer', 'point_to_point', 'hourly']))
+                                                                Transfer
+                                                            @else
+                                                                Service
+                                                            @endif
+                                                        </td>
+                                                        <td valign="top" style="padding:12px 12px; font-family:Arial, sans-serif; font-size:12px; color:#111827; border-bottom:1px solid #E5E7EB;">
 @if($normalizedType === 'entry_port')
         @php
             $pickup = '';
@@ -536,23 +745,32 @@ No {{ strtolower($sectionLabel) }} booked for this tour.
             $destinationArrivalTime = $flightData['destination_arrival_time'] ?? ($entryTime ?: 'TBA');
             $destinationArrivalTerminal = $flightData['destination_arrival_terminal'] ?? 'TBA';
         @endphp
-Port of Arrival Transfer:
-  Port Name: {{ $portName }}
-  Transfer Type: {{ $transferType }}
-  Vehicle Type / Seater: {{ $vehicleTypeSeater }}
-  Vehicle No: {{ $vehicleNumber }}
-  Vehicle Brand: {{ $vehicleBrand }}
-  Max Passenger capacity with luggage: {{ $maxPassengerWithLuggage }}
-  Max Luggage capacity: {{ $maxLuggageCapacity }}
-  Max Passenger Capacity without luggage: {{ $maxPassengerWithoutLuggage }}
-
-Flight Details:
-  Flight Name: {{ $flightName }}
-  Flight No.: {{ $flightNo }}
-  Origin Departure Time: {{ $originDepartureTime }}
-  Origin Departure Terminal: {{ $originDepartureTerminal }}
-  Destination Arrival Time: {{ $destinationArrivalTime }}
-  Destination Arrival Terminal: {{ $destinationArrivalTerminal }}
+                                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border-collapse:collapse; border:1px solid #E5E7EB;">
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Port</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Transfer Type</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Vehicle</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Max Pax</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $portName }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $transferType }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $vehicleTypeSeater }} / {{ $vehicleBrand }} / {{ $vehicleNumber }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $maxPassengerWithLuggage }}</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Flight</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Origin</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Arrival</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Terminal</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $flightName }} ({{ $flightNo }})</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $originDepartureTime }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $destinationArrivalTime }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $originDepartureTerminal }} / {{ $destinationArrivalTerminal }}</td>
+                                                                    </tr>
+                                                                </table>
 
 @elseif($normalizedType === 'exit_port')
         @php
@@ -588,23 +806,32 @@ Flight Details:
             $destinationArrivalTime = $flightData['destination_arrival_time'] ?? 'TBA';
             $destinationArrivalTerminal = $flightData['destination_arrival_terminal'] ?? 'TBA';
         @endphp
-Port of Departure Transfer:
-  Port Name: {{ $portName }}
-  Transfer Type: {{ $transferType }}
-  Vehicle Type / Seater: {{ $vehicleTypeSeater }}
-  Vehicle No: {{ $vehicleNumber }}
-  Vehicle Brand: {{ $vehicleBrand }}
-  Max Passenger capacity with luggage: {{ $maxPassengerWithLuggage }}
-  Max Luggage capacity: {{ $maxLuggageCapacity }}
-  Max Passenger Capacity without luggage: {{ $maxPassengerWithoutLuggage }}
-
-Flight Details:
-  Flight Name: {{ $flightName }}
-  Flight No.: {{ $flightNo }}
-  Origin Departure Time: {{ $originDepartureTime }}
-  Origin Departure Terminal: {{ $originDepartureTerminal }}
-  Destination Arrival Time: {{ $destinationArrivalTime }}
-  Destination Arrival Terminal: {{ $destinationArrivalTerminal }}
+                                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border-collapse:collapse; border:1px solid #E5E7EB;">
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Port</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Transfer Type</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Vehicle</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Max Pax</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $portName }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $transferType }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $vehicleTypeSeater }} / {{ $vehicleBrand }} / {{ $vehicleNumber }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $maxPassengerWithLuggage }}</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Flight</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Origin</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Arrival</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Terminal</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $flightName }} ({{ $flightNo }})</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $originDepartureTime }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $destinationArrivalTime }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $originDepartureTerminal }} / {{ $destinationArrivalTerminal }}</td>
+                                                                    </tr>
+                                                                </table>
 
 @elseif($normalizedType === 'attraction' || $normalizedType === 'attraction_package')
         @php
@@ -618,10 +845,20 @@ Flight Details:
                 $transferType = $transferTypeRaw;
             }
         @endphp
-Attraction Name: {{ $card['title'] ?? 'N/A' }}
-Attraction Timing: {{ $attractionTiming }}
-Transfer: {{ $transferRequired }}
-Transfer Type: {{ $transferType }}
+                                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border-collapse:collapse; border:1px solid #E5E7EB;">
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Attraction Name</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Timing</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Transfer</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Transfer Type</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $card['title'] ?? 'N/A' }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $attractionTiming }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $transferRequired }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $transferType }}</td>
+                                                                    </tr>
+                                                                </table>
 
 @elseif($normalizedType === 'restaurant')
         @php
@@ -636,11 +873,20 @@ Transfer Type: {{ $transferType }}
                 $transferType = $transferTypeRaw;
             }
         @endphp
-Restaurant Name: {{ $card['title'] ?? 'N/A' }}
-Meal Plan: {{ $mealPlan }}
-Meal Type: {{ $mealType }}
-Transfer: {{ $transferRequired }}
-Transfer Type: {{ $transferType }}
+                                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border-collapse:collapse; border:1px solid #E5E7EB;">
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Restaurant</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Meal Plan</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Meal Type</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Transfer / Type</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $card['title'] ?? 'N/A' }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $mealPlan }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $mealType }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $transferRequired }} / {{ $transferType }}</td>
+                                                                    </tr>
+                                                                </table>
 
 @elseif($normalizedType === 'guide')
         @php
@@ -649,9 +895,18 @@ Transfer Type: {{ $transferType }}
             $languageProficiency = $guideData['language_proficiency'] ?? 'N/A';
             $totalExperience = $guideData['total_experience'] ?? 'N/A';
         @endphp
-Tour Guide Name: {{ $guideName }}
-Language Proficiency: {{ $languageProficiency }}
-Total Experience: {{ $totalExperience }}
+                                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border-collapse:collapse; border:1px solid #E5E7EB;">
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Guide</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Language</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Experience</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $guideName }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $languageProficiency }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $totalExperience }}</td>
+                                                                    </tr>
+                                                                </table>
 
 @elseif(in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport', 'local_transfer', 'point_to_point', 'hourly']))
         @php
@@ -667,11 +922,20 @@ Total Experience: {{ $totalExperience }}
             $vehicleBrand = $vehicleData['vehicle_brand'] ?? 'N/A';
             $maxPassengerCapacity = $vehicleData['max_passenger_capacity'] ?? $vehicleData['seating_capacity'] ?? 'N/A';
         @endphp
-Transfer Type: {{ $transferType }}
-Vehicle Type / Seater: {{ $vehicleTypeSeater }}
-Vehicle No: {{ $vehicleNumber }}
-Vehicle Brand: {{ $vehicleBrand }}
-Max Passenger Capacity: {{ $maxPassengerCapacity }}
+                                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border-collapse:collapse; border:1px solid #E5E7EB;">
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Transfer Type</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Vehicle</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Vehicle No</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Max Pax</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $transferType }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $vehicleTypeSeater }} / {{ $vehicleBrand }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $vehicleNumber }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827;">{{ $maxPassengerCapacity }}</td>
+                                                                    </tr>
+                                                                </table>
 
 @else
         @php
@@ -682,21 +946,149 @@ Max Passenger Capacity: {{ $maxPassengerCapacity }}
                 if (strtolower($chip['label']) === 'time') $timeValue = $chip['value'];
             }
         @endphp
-Service Name: {{ $card['title'] ?? 'N/A' }}
-Date: {{ $dateValue ?: 'N/A' }}
-Time: {{ $timeValue ?: 'N/A' }}
-Location: {{ $card['subtitle'] ?? 'N/A' }}
-Details: {{ $card['notes'] ?? 'N/A' }}
-
+                                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border-collapse:collapse; border:1px solid #E5E7EB;">
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Service</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Date</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Time</td>
+                                                                        <td style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Location</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $card['title'] ?? 'N/A' }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $dateValue ?: 'N/A' }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $timeValue ?: 'N/A' }}</td>
+                                                                        <td style="padding:8px; font-weight:800; color:#111827; border-bottom:1px solid #E5E7EB;">{{ $card['subtitle'] ?? 'N/A' }}</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td colspan="4" style="padding:8px; font-size:11px; font-weight:900; color:#6B7280; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">Notes</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td colspan="4" style="padding:8px; font-weight:800; color:#111827;">{{ $card['notes'] ?? 'N/A' }}</td>
+                                                                    </tr>
+                                                                </table>
 @endif
+                                                        </td>
+                                                    </tr>
     @endforeach
+                                                </table>
+                                            </td>
+                                        </tr>
 @endif
+                                    </table>
 @endforeach
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
 
-IMPORTANT NOTES
-*Please note that this is not a tour itinerary / schedule, a confirmed tour itinerary / schedule is only generated post confirmation of the tour and payment is completed.
+                <!-- Pricing (if available) -->
+                <tr>
+                    <td style="padding:0 0 14px 0;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:12px; width:100%;">
+                            <tr>
+                                <td style="padding:16px 18px;">
+                                    <div style="font-family:Arial, sans-serif; font-size:13px; font-weight:900; color:#111827; margin:0 0 10px 0;">Pricing</div>
+                                    @php
+                                        $pricingCurrency = $bookingDetails['currency'] ?? ($tour->currency ?? '');
+                                        $pricingTotal = $bookingDetails['total_price'] ?? null;
+                                        $pricingTaxes = $bookingDetails['taxes'] ?? null;
+                                        $pricingPaid = $bookingDetails['paid_amount'] ?? ($bookingDetails['amount_paid'] ?? null);
+                                        $pricingBalance = $bookingDetails['balance_amount'] ?? ($bookingDetails['balance_due'] ?? null);
+                                    @endphp
+                                    @if(isset($pricingTotal) || isset($tourPrices) || isset($optionFinalTotalSingle) || isset($optionFinalTotalDouble) || isset($optionFinalTotalChild) || isset($optionFinalTotalInfant))
+                                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; border:1px solid #E5E7EB; border-radius:10px;">
+                                            @if(isset($pricingTotal))
+                                            <tr>
+                                                <td style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#6B7280; border-bottom:1px solid #E5E7EB;">Package Cost</td>
+                                                <td align="right" style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900; border-bottom:1px solid #E5E7EB;">
+                                                    {{ $pricingCurrency ? ($pricingCurrency . ' ') : '' }}{{ is_numeric($pricingTotal) ? number_format((float)$pricingTotal, 2) : $pricingTotal }}
+                                                </td>
+                                            </tr>
+                                            @endif
+                                            @if(isset($pricingTaxes))
+                                            <tr>
+                                                <td style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#6B7280; border-bottom:1px solid #E5E7EB;">Taxes</td>
+                                                <td align="right" style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900; border-bottom:1px solid #E5E7EB;">
+                                                    {{ is_numeric($pricingTaxes) ? (($pricingCurrency ? ($pricingCurrency . ' ') : '') . number_format((float)$pricingTaxes, 2)) : (is_array($pricingTaxes) ? json_encode($pricingTaxes) : $pricingTaxes) }}
+                                                </td>
+                                            </tr>
+                                            @endif
+                                            @if(isset($pricingPaid))
+                                            <tr>
+                                                <td style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#6B7280; border-bottom:1px solid #E5E7EB;">Paid</td>
+                                                <td align="right" style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900; border-bottom:1px solid #E5E7EB;">
+                                                    {{ $pricingCurrency ? ($pricingCurrency . ' ') : '' }}{{ is_numeric($pricingPaid) ? number_format((float)$pricingPaid, 2) : $pricingPaid }}
+                                                </td>
+                                            </tr>
+                                            @endif
+                                            @if(isset($pricingBalance))
+                                            <tr>
+                                                <td style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#6B7280;">Balance</td>
+                                                <td align="right" style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; font-weight:900; color:#B91C1C;">
+                                                    {{ $pricingCurrency ? ($pricingCurrency . ' ') : '' }}{{ is_numeric($pricingBalance) ? number_format((float)$pricingBalance, 2) : $pricingBalance }}
+                                                </td>
+                                            </tr>
+                                            @else
+                                            <tr>
+                                                <td style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#6B7280;">Total (Hotel Option Final Totals)</td>
+                                                <td align="right" style="padding:10px 12px; font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">
+                                                    @if(isset($optionFinalTotalSingle) || isset($optionFinalTotalDouble) || isset($optionFinalTotalChild) || isset($optionFinalTotalInfant))
+                                                        S: {{ isset($optionFinalTotalSingle) ? number_format($optionFinalTotalSingle, 2) : 'N/A' }} &nbsp;•&nbsp;
+                                                        D: {{ isset($optionFinalTotalDouble) ? number_format($optionFinalTotalDouble, 2) : 'N/A' }} &nbsp;•&nbsp;
+                                                        C: {{ isset($optionFinalTotalChild) ? number_format($optionFinalTotalChild, 2) : 'N/A' }} &nbsp;•&nbsp;
+                                                        I: {{ isset($optionFinalTotalInfant) ? number_format($optionFinalTotalInfant, 2) : 'N/A' }}
+                                                    @else
+                                                        —
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                            @endif
+                                        </table>
+                                    @else
+                                        <div style="font-family:Arial, sans-serif; font-size:12px; color:#111827;">—</div>
+                                    @endif
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
 
-*The above quotation only specifies the optionwise costs based on the tour requirements with standard exclusions & Inclusions as mentioned above.
+                <!-- Footer -->
+                <tr>
+                    <td style="padding:0;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:12px; width:100%;">
+                            <tr>
+                                <td style="padding:16px 18px;">
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900; margin:0 0 6px 0;">Support</div>
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; color:#6B7280; line-height:1.6;">
+                                        If you have any questions, contact us at <span style="color:#111827; font-weight:800;">{{ $companyEmail }}</span> or <span style="color:#111827; font-weight:800;">{{ $companyTel }}</span>.
+                                    </div>
+                                    <div style="height:12px; line-height:12px; font-size:12px;">&nbsp;</div>
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900; margin:0 0 6px 0;">Important Notes</div>
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; color:#6B7280; line-height:1.6;">
+                                        *Please note that this is not a tour itinerary / schedule, a confirmed tour itinerary / schedule is only generated post confirmation of the tour and payment is completed.<br/>
+                                        *The above quotation only specifies the optionwise costs based on the tour requirements with standard exclusions &amp; Inclusions as mentioned above.
+                                    </div>
+                                    <div style="height:10px; line-height:10px; font-size:10px;">&nbsp;</div>
+                                    <div style="font-family:Arial, sans-serif; font-size:12px; color:#111827; font-weight:900;">Thank you for booking with {{ $companyName }}.</div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="padding:14px 0 0 0; font-family:Arial, sans-serif; font-size:11px; color:#6B7280; text-align:center;">
+                        © {{ date('Y') }} {{ $companyName }}. All rights reserved.
+                    </td>
+                </tr>
+
+            </table>
+            <!-- /Container -->
+        </td>
+    </tr>
+</table>
     </div>
     <!-- End of Email Content Container -->
 
@@ -708,56 +1100,74 @@ IMPORTANT NOTES
             const successMessage = document.getElementById('copySuccessMessage');
             
             try {
-                // Get the plain text content (not HTML)
-                const textContent = emailContent.innerText || emailContent.textContent || '';
-                
-                // Copy as plain text for email
+                function showSuccess(message) {
+                    if (copyButton) {
+                        copyButton.style.background = '#10b981';
+                        copyButton.style.boxShadow = '0 8px 20px rgba(16,185,129,0.25)';
+                    }
+                    if (copyButtonText) copyButtonText.textContent = 'Copied!';
+                    if (successMessage) {
+                        if (message) successMessage.textContent = '✓ ' + message;
+                        successMessage.style.display = 'block';
+                    }
+                    
+                    setTimeout(() => {
+                        if (copyButton) {
+                            copyButton.style.background = '#4f46e5';
+                            copyButton.style.boxShadow = '0 8px 20px rgba(79,70,229,0.25)';
+                        }
+                        if (copyButtonText) copyButtonText.textContent = 'Copy Email Content';
+                        if (successMessage) {
+                            successMessage.textContent = '✓ Content copied! Paste into Gmail compose (Ctrl+V or Cmd+V)';
+                            successMessage.style.display = 'none';
+                        }
+                    }, 4000);
+                }
+
+                // Copy HTML (for rich paste in Gmail/Outlook web compose)
+                const htmlContent = emailContent.innerHTML || '';
+                const textFallback = emailContent.innerText || emailContent.textContent || '';
+
+                if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            "text/html": new Blob([htmlContent], { type: "text/html" }),
+                            "text/plain": new Blob([textFallback], { type: "text/plain" })
+                        })
+                    ]);
+                    showSuccess('Formatted email copied! Paste into Gmail compose using Ctrl+V (or Cmd+V on Mac)');
+                    return;
+                }
+
+                // Fallback: plain text
                 if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(textContent);
-                    showSuccess('Email content copied! Paste into Gmail compose using Ctrl+V (or Cmd+V on Mac)');
+                    await navigator.clipboard.writeText(textFallback);
+                    showSuccess('Email copied (plain text fallback). Paste into Gmail compose using Ctrl+V');
                     return;
                 }
                 
-                // Fallback: Use execCommand
+                // Last fallback: execCommand (plain text)
                 const textArea = document.createElement('textarea');
-                textArea.value = textContent;
+                textArea.value = textFallback;
                 textArea.style.position = 'fixed';
                 textArea.style.left = '-9999px';
                 textArea.style.top = '0';
                 document.body.appendChild(textArea);
                 textArea.select();
-                
                 try {
                     const success = document.execCommand('copy');
                     if (success) {
-                        showSuccess('Email content copied! Paste into Gmail compose using Ctrl+V');
+                        showSuccess('Email copied (plain text fallback). Paste into Gmail compose using Ctrl+V');
                     } else {
                         throw new Error('execCommand failed');
                     }
                 } catch (e) {
-                    alert('Please manually select all content (Ctrl+A) and copy (Ctrl+C), then paste into Gmail compose.');
+                    alert('Copy failed. Please manually select the email (Ctrl+A) and copy (Ctrl+C), then paste into Gmail compose.');
                 }
-                
                 document.body.removeChild(textArea);
-                
-                function showSuccess(message) {
-                    copyButton.classList.add('copied');
-                    copyButtonText.textContent = 'Copied!';
-                    if (message) {
-                        successMessage.textContent = '✓ ' + message;
-                    }
-                    successMessage.classList.add('show');
-                    
-                    setTimeout(() => {
-                        copyButton.classList.remove('copied');
-                        copyButtonText.textContent = 'Copy Email Content';
-                        successMessage.textContent = '✓ Content copied! Paste into Gmail compose (Ctrl+V or Cmd+V)';
-                        successMessage.classList.remove('show');
-                    }, 4000);
-                }
             } catch (err) {
                 console.error('Copy error:', err);
-                alert('Copy failed. Please manually select all content (Ctrl+A) and copy (Ctrl+C), then paste into Gmail compose.');
+                alert('Copy failed. Please manually select the email (Ctrl+A) and copy (Ctrl+C), then paste into Gmail compose.');
             }
         }
         

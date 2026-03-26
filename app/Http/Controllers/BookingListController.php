@@ -1612,7 +1612,7 @@ class BookingListController extends Controller
         $pdf = Pdf::loadView('bookingList.itinerary-pdf', $data)
             ->setPaper('a4', 'portrait');
 
-        $filename = 'Itinerary_' . ($data['display_id'] ?? $tourId) . '.pdf';
+        $filename = 'Itinerary_' . ($data['tourDetails']->display_id ?? $tourId) . '.pdf';
         return $pdf->download($filename);
     }
 
@@ -1981,9 +1981,34 @@ class BookingListController extends Controller
         }
 
         $user_dmc = null;
+        $displayId = null;
         if ($tour->dmc_id) {
-            $user_dmc = User::select('name', 'email', 'phone', 'company_name', 'logo', 'country', 'city', 'address')
+            $user_dmc = User::select('name', 'email', 'phone', 'company_name', 'logo', 'country', 'city', 'address', 'company_reg_no', 'licence_no','company_code')
                 ->where('userId', $tour->dmc_id)->first();
+            
+            $rawDisplayId = (string) ($tour->display_id ?? $tour->tour_id ?? '');
+            $ordPart = trim((string) preg_replace('/^DMC-/', '', $rawDisplayId));
+            if ($ordPart === '') {
+                $ordPart = trim($rawDisplayId);
+            }
+            
+            $createdById = $tour->created_by;
+            $createdByUser = User::select('user_code')->where('userId', $createdById)->first();
+            $createdByCode = $createdByUser ? trim((string) $createdByUser->user_code) : '';
+            
+            $dmcCompanyCodeTrimmed = trim((string) $user_dmc->company_code);
+            $prefixParts = [];
+            if (!empty($dmcCompanyCodeTrimmed)) {
+                $prefixParts[] = $dmcCompanyCodeTrimmed;
+            }
+            if (!empty($createdByCode)) {
+                $prefixParts[] = $createdByCode;
+            }
+    
+            $displayId = !empty($prefixParts)
+                ? (implode('/', $prefixParts) . '/' . $ordPart)
+                : $ordPart;
+
             if ($user_dmc && $user_dmc->logo && !str_starts_with($user_dmc->logo, 'data:image')) {
                 try {
                     $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
@@ -2094,11 +2119,11 @@ class BookingListController extends Controller
                 $terms_and_conditions = $bankDetail->terms_and_conditions;
             }
         }
-
+        
         return [
             'tourId' => $tourId,
             'tourDetails' => $tourDetails,
-            'display_id' => $tourDetails->display_id ?? $tourId,
+            'display_id' => $displayId,
             'user_dmc' => $user_dmc,
             'agent_info' => $agent_info ?? [],
             'adults' => $tourDetails->adult ?? 0,
