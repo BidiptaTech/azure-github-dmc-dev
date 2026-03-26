@@ -113,17 +113,39 @@
         $infantPrice = floatval($tourPrices['segregated']['hotel']['baby_cot']);
     }
 
-    // Logo (optional)
-    $defaultLogoUrl = 'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1754462794_QsnlIj.png';
+    // Logo: use the same dynamic source strategy as sidebar.blade.php
     $logoSrc = null;
-    if (!empty($dmcLogo)) {
+    $masterLogo = '';
+    try {
+        $currentUser = \Illuminate\Support\Facades\Auth::user();
+        $brandUser = $currentUser;
+        if ($currentUser) {
+            $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+            if (!empty($dmcId)) {
+                $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                if ($dmcUser) {
+                    $brandUser = $dmcUser;
+                }
+            }
+        }
+
+        $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
+        $logoSrc = trim((string)($brandUser->logo ?? ''));
+        if ($logoSrc === '') {
+            $logoSrc = trim((string)$masterLogo);
+        }
+    } catch (\Throwable $e) {
+        $logoSrc = null;
+    }
+
+    // Additional fallbacks from already-available variables in this view
+    if (empty($logoSrc) && !empty($brandLogo)) {
+        $logoSrc = (string)$brandLogo;
+    } elseif (empty($logoSrc) && !empty($dmcLogo)) {
         $logoSrc = (string)$dmcLogo;
-    } elseif (!empty($dmcDetails) && is_array($dmcDetails)) {
+    } elseif (empty($logoSrc) && !empty($dmcDetails) && is_array($dmcDetails)) {
         $logoSrc = $dmcDetails['logo'] ?? ($dmcDetails['company_logo'] ?? ($dmcDetails['logo_url'] ?? null));
         $logoSrc = !empty($logoSrc) ? (string)$logoSrc : null;
-    }
-    if (empty($logoSrc) && !empty($defaultLogoUrl)) {
-        $logoSrc = $defaultLogoUrl;
     }
 
     // Make logo URL absolute for Gmail/Outlook rendering
@@ -165,16 +187,12 @@
         }
     }
 
-    // Render URLs:
-    // - Preview can use data: URIs (some apps show them), but
-    // - Sent emails should NOT use data: URIs (Gmail typically strips them on send).
-    $logoSrcPreview = $logoSrcAbs ?: $logoSrc;
+    // For outgoing email, prefer non-data URLs (many clients strip data URIs).
     $logoSrcEmail = null;
     if (!empty($logoSrcAbs) && stripos(trim((string)$logoSrcAbs), 'data:') !== 0) {
         $logoSrcEmail = $logoSrcAbs;
-    } else {
-        // Prefer the public CDN/blob URL for actual email delivery
-        $logoSrcEmail = !empty($defaultLogoUrl) ? $defaultLogoUrl : null;
+    } elseif (!empty($masterLogo) && stripos(trim((string)$masterLogo), 'data:') !== 0) {
+        $logoSrcEmail = preg_match('/^https?:\/\//i', $masterLogo) ? $masterLogo : asset(ltrim($masterLogo, '/'));
     }
 @endphp
 <!-- Email background wrapper -->
@@ -197,7 +215,7 @@
                                                     <img src="{{ $logoSrcEmail }}"
                                                          alt="{{ $companyName }} Logo"
                                                          width="150"
-                                                         style="display:block; width:130px; max-width:150px; height:auto; border:0; outline:none; text-decoration:none; margin:-50px 20px; line-height:0;" />
+                                                         style="display:block; width:130px; max-width:150px; height:auto; border:0; outline:none; text-decoration:none; margin:0px 20px; line-height:0;" />
                                                 @endif
                                             </td>
                                             <td valign="top" align="right" width="70%" style="font-family:Arial, sans-serif; color:#111827; vertical-align:top;">
