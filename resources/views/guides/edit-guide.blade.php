@@ -284,7 +284,7 @@
                                 <label for="app_password" class="form-label"><strong>App Password</strong></label>
                                 <div class="input-group">
                                     <input type="password" class="form-control" id="app_password" name="app_password" 
-                                        value="{{$guide->app_password}}" placeholder="Enter app password" autocomplete="new-password">
+                                        value="" placeholder="Enter app password" autocomplete="new-password">
                                     <button class="btn btn-outline-secondary" type="button" id="toggleAppPassword">
                                         <i class="ri-eye-off-line" id="appPasswordIcon"></i>
                                     </button>
@@ -1750,6 +1750,18 @@
     }
 
     // Removed the auto-validation on page load so validation only happens when user interacts with fields
+
+    // Keep App Password blank on load (no previous password shown)
+    window.addEventListener('load', function() {
+        const passwordField = document.getElementById('app_password');
+        if (passwordField) {
+            passwordField.value = '';
+            setTimeout(function() {
+                const pf = document.getElementById('app_password');
+                if (pf) pf.value = '';
+            }, 250);
+        }
+    });
 
     // Toggle App Password visibility
     document.getElementById('toggleAppPassword').addEventListener('click', function() {

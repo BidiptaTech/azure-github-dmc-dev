@@ -1099,9 +1099,9 @@
                                     <button type="button" class="btn btn-lg px-5 me-3" id="savePackageBtn" onclick="handleSavePackage(this)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none;">
                                         <i class="ri-save-line me-2"></i>Save Tour Package
                                     </button>
-                                    <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
+                                    <!-- <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
                                         <i class="ri-close-line me-2"></i>Cancel
-                                    </a>
+                                    </a> -->
                                 </div>
                             </div>
                         </div>
