@@ -3650,14 +3650,14 @@
                                                         <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
                                                     </button>
                                                     @endif
-                                                    <!-- @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                             onclick="rejectArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
                                                     </button>
-                                                    @endif -->
+                                                    @endif
                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
@@ -3977,14 +3977,14 @@
                                                         <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
                                                     </button>
                                                     @endif
-                                                    <!-- @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                             onclick="rejectDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
                                                     </button>
-                                                    @endif -->
+                                                    @endif
                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
