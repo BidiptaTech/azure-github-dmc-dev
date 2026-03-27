@@ -140,7 +140,7 @@ class InvoiceService
             $finalInvoiceId = CommonHelper::createId($maxInvoiceId);
 
             // Generate final invoice number
-            $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($finalInvoiceId, 6, '0', STR_PAD_LEFT);
+            $invoiceNumber = 'INV-' . date('Y') . '-' . date('m') . '-' . $tourId;
 
             // Refresh tour data and regenerate invoice data from latest tour/orders
             $tour = Tour::where('tour_id', $tourId)->first();
@@ -212,7 +212,7 @@ class InvoiceService
             $finalInvoiceId = CommonHelper::createId($maxInvoiceId);
 
             // Generate final invoice number
-            $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($finalInvoiceId, 6, '0', STR_PAD_LEFT);
+            $invoiceNumber = 'INV-' . date('Y') . '-' . date('m') . '-' . $tour->tour_id;
 
             // Refresh tour data and regenerate invoice data from latest tour/orders
             $tour = Tour::where('tour_id', $tour->tour_id)->first();

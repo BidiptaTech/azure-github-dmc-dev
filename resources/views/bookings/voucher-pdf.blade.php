@@ -11,24 +11,8 @@
             color: #333;
             padding: 15px 25px;
         }
+        @include('invoices.pdf.partials.header-css')
         table { width: 100%; border-collapse: collapse; }
-        .header-table { margin-bottom: 8px; }
-        .header-table td { border: none; vertical-align: middle; padding: 5px 0; }
-        .header-left { width: 22%; text-align: left; vertical-align: middle; }
-        .header-left img { max-width: 165px; max-height: 165px; }
-        .header-center { width: 56%; text-align: center; }
-        .header-center h2 { font-size: 20px; margin-bottom: 4px; color: #222; font-weight: bold; }
-        .header-center p { font-size: 11px; color: #333; margin: 2px 0; font-weight: bold; }
-        .header-right { width: 22%; }
-
-        .voucher-title {
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            text-decoration: underline;
-            margin: 8px 0 10px 0;
-            color: #000;
-        }
 
         .info-table { border: 1px solid #000; }
         .info-table td {
@@ -100,8 +84,6 @@
 </head>
 <body>
     @php
-        $displayLogoSrc = null;
-        $displayCompanyName = 'Company';
         $rootDmc = $dmcUser;
         if ($dmcUser) {
             $visited = [];
@@ -110,57 +92,16 @@
                 $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
             }
             if (!$rootDmc) $rootDmc = $dmcUser;
-            $cn = $rootDmc->company_name ?? $dmcUser->company_name ?? 'Company';
-            $displayCompanyName = is_array($cn) ? implode(' ', $cn) : (string) $cn;
-            $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
-            if ($dmcLogo) {
-                try {
-                    if (preg_match('/^data:image\\//i', $dmcLogo)) {
-                        $displayLogoSrc = $dmcLogo;
-                    } else {
-                        if (preg_match('/^https?:\\/\\//i', $dmcLogo)) {
-                            $logoContent = @file_get_contents($dmcLogo);
-                        } else {
-                            $logoPath = public_path(ltrim($dmcLogo, '/'));
-                            $logoContent = @file_get_contents($logoPath);
-                        }
-                        if (!empty($logoContent)) {
-                            $displayLogoSrc = 'data:image/png;base64,' . base64_encode($logoContent);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    $displayLogoSrc = null;
-                }
-            }
         }
     @endphp
 
-    {{-- HEADER --}}
-    <table class="header-table">
-        <tr>
-            <td class="header-left">
-                @if($displayLogoSrc)
-                    <img src="{{ $displayLogoSrc }}" alt="Logo">
-                @endif
-            </td>
-            <td class="header-center">
-                <h2>{{ $displayCompanyName }}</h2>
-                @php
-                    $companyRegNo = optional($rootDmc)->company_reg_no ?: optional($dmcUser)->company_reg_no;
-                    $licenceNo = optional($rootDmc)->ta_licence_no ?: optional($rootDmc)->licence_no ?: optional($dmcUser)->ta_licence_no ?: optional($dmcUser)->licence_no;
-                @endphp
-                @if(!empty($companyRegNo) && is_string($companyRegNo))
-                    <p><strong>Company Reg No: {{ $companyRegNo }}</strong></p>
-                @endif
-                @if(!empty($licenceNo) && is_string($licenceNo))
-                    <p><strong>TA Licence No: {{ $licenceNo }}</strong></p>
-                @endif
-            </td>
-            <td class="header-right"></td>
-        </tr>
-    </table>
-
-    <div class="voucher-title">CONFIRMATION VOUCHER</div>
+    @include('invoices.pdf.partials.header', [
+        'logoType' => 'dmc',
+        'showBlueTitle' => true,
+        'docTitle' => 'CONFIRMATION VOUCHER',
+        'docNumber' => $referenceId,
+        'user_dmc' => $rootDmc,
+    ])
 
     {{-- MAIN INFO TABLE --}}
     <table class="info-table">

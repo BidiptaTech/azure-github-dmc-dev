@@ -10,6 +10,7 @@
             padding: 0;
             box-sizing: border-box;
         }
+        @include('invoices.pdf.partials.header-css')
         body {
             font-family: Arial, sans-serif;
             font-size: 11px;
@@ -43,72 +44,7 @@
             font-weight: bold;
             page-break-after: avoid;
         }
-        .header {
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .header-table td {
-            vertical-align: middle;
-            padding: 5px;
-        }
-        .header-left {
-            width: 28%;
-            vertical-align: middle;
-            text-align: center;
-            padding: 10px 12px;
-        }
-        .header-center {
-            width: 42%;
-            text-align: center;
-            padding-top: 15px;
-        }
-        .header-right {
-            width: 30%;
-            text-align: right;
-        }
-        .header h1 {
-            font-size: 36px;
-            margin-bottom: 0;
-            font-weight: bold;
-            margin-top: 0;
-            color: #333;
-            letter-spacing: 2px;
-        }
-        .header .dmc-name {
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 15px;
-            margin-bottom: 4px;
-            color: #333;
-        }
-        .header .dmc-meta {
-            font-size: 9px;
-            color: #555;
-            line-height: 1.45;
-            margin-top: 4px;
-            font-weight: normal;
-        }
-        .header .dmc-meta div {
-            margin-top: 2px;
-        }
-        .invoice-number-badge {
-            background-color: #20B2AA;
-            color: #ffffff;
-            padding: 10px 15px;
-            border-radius: 8px;
-            display: inline-block;
-            font-size: 12px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-        .invoice-number-badge strong {
-            display: block;
-            margin-bottom: 3px;
-        }
+        /* Header styles are centralized in invoices/pdf/partials/header-css.blade.php */
         .info-section {
             margin-bottom: 20px;
             background-color: #f5f5f5;
@@ -148,8 +84,8 @@
         .info-box-container-table {
             width: 100%;
             table-layout: fixed;
-            border-collapse: collapse;
-            border-spacing: 0;
+            border-collapse: separate;
+            border-spacing: 16px 0;
         }
         .info-box-container-table td {
             vertical-align: top;
@@ -265,25 +201,7 @@
         .mt-2 {
             margin-top: 8px;
         }
-        .dmc-logo-wrapper {
-            width: 100%;
-            min-height: 160px;
-            height: 160px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .dmc-logo-wrapper img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            object-position: center;
-        }
-        .dmc-logo {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
+        /* Header styles are centralized in invoices/pdf/partials/header-css.blade.php */
         .client-info-table {
             width: 100%;
             border-collapse: collapse;
@@ -325,114 +243,7 @@
 </head>
 <body>
     <!-- Header -->
-    @php
-        $logoType = $logoType ?? 'dmc';
-        $displayLogoSrc = null;
-        $displayCompanyName = 'DMC Name';
-        $displayCompanyRegNo = null;
-        $displayLicenceNo = null;
-
-        if ($logoType === 'agency' && $invoice->agent && $invoice->agent->agency) {
-            $agency = $invoice->agent->agency;
-            $displayCompanyName = $agency->agency_name ?? ($invoice->travel_company_details['company_name'] ?? 'Agency Name');
-            $agencyLogo = $agency->logo ?? null;
-            if ($agencyLogo) {
-                try {
-                    if (preg_match('/^data:image\\//i', $agencyLogo)) {
-                        $displayLogoSrc = $agencyLogo;
-                    } else {
-                        if (preg_match('/^https?:\\/\\//i', $agencyLogo)) {
-                            $logoContent = @file_get_contents($agencyLogo);
-                        } else {
-                            $logoPath = public_path(ltrim($agencyLogo, '/'));
-                            $logoContent = @file_get_contents($logoPath);
-                        }
-                        if ($logoContent) {
-                            $base64 = base64_encode($logoContent);
-                            $displayLogoSrc = 'data:image/png;base64,' . $base64;
-                        }
-                    }
-                } catch (\Exception $e) {
-                    $displayLogoSrc = null;
-                }
-            }
-        }
-
-        if ($logoType === 'dmc') {
-            $dmcUser = $invoice->dmc;
-            $rootDmc = $dmcUser;
-            $visited = [];
-            while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
-                $visited[] = $rootDmc->created_by;
-                $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
-            }
-            if (!$rootDmc) {
-                $rootDmc = $dmcUser;
-            }
-            $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
-            $displayCompanyName = $rootDmc->company_name ?? $dmcUser->company_name ?? 'DMC Name';
-            $reg = trim((string) ($rootDmc->company_reg_no ?? ''));
-            if ($reg === '') {
-                $reg = trim((string) ($dmcUser->company_reg_no ?? ''));
-            }
-            $displayCompanyRegNo = $reg !== '' ? $reg : null;
-            $lic = $rootDmc->ta_licence_no ?? $rootDmc->licence_no ?? $dmcUser->ta_licence_no ?? $dmcUser->licence_no ?? null;
-            $displayLicenceNo = ($lic !== null && trim((string) $lic) !== '') ? trim((string) $lic) : null;
-            if ($dmcLogo) {
-                try {
-                    if (preg_match('/^data:image\\//i', $dmcLogo)) {
-                        $displayLogoSrc = $dmcLogo;
-                    } else {
-                        if (preg_match('/^https?:\\/\\//i', $dmcLogo)) {
-                            $logoContent = @file_get_contents($dmcLogo);
-                        } else {
-                            $logoPath = public_path(ltrim($dmcLogo, '/'));
-                            $logoContent = @file_get_contents($logoPath);
-                        }
-                        if ($logoContent) {
-                            $base64 = base64_encode($logoContent);
-                            $displayLogoSrc = 'data:image/png;base64,' . $base64;
-                        }
-                    }
-                } catch (\Exception $e) {
-                    $displayLogoSrc = null;
-                }
-            }
-        }
-    @endphp
-    <div class="header">
-        <table class="header-table">
-            <tr>
-                <td class="header-left">
-                    @if($displayLogoSrc)
-                    <div class="dmc-logo-wrapper">
-                        <img src="{{ $displayLogoSrc }}" class="dmc-logo" />
-                    </div>
-                    @endif
-                </td>
-                <td class="header-center">
-                    <h1>INVOICE</h1>
-                    <div class="dmc-name">{{ $displayCompanyName }}</div>
-                    @if(!empty($displayCompanyRegNo) || !empty($displayLicenceNo))
-                    <div class="dmc-meta">
-                        @if(!empty($displayCompanyRegNo))
-                        <div>UEN/Co. Reg No.: {{ $displayCompanyRegNo }}</div>
-                        @endif
-                        @if(!empty($displayLicenceNo))
-                        <div>TA Licence No.: {{ $displayLicenceNo }}</div>
-                        @endif
-                    </div>
-                    @endif
-                </td>
-                <td class="header-right" style="width: 20%; justify-content: center;">
-                    <div class="invoice-number-badge">
-                        <strong>Invoice Number:</strong>
-                        {{ $invoice->invoice_number ?? 'DRAFT' }}
-                    </div>
-                </td>
-            </tr>
-        </table>
-    </div>
+    @include('invoices.pdf.partials.header', ['invoice' => $invoice, 'logoType' => ($logoType ?? 'dmc'), 'showBlueTitle' => true])
 
     @php
         $clientDetails = $invoice->client_details ?? [];
