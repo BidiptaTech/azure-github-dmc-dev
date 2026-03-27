@@ -25,7 +25,7 @@
                 <a class="nav-link {{ request()->routeIs('attraction.edit') ? 'active' : '' }}" 
                 href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}" 
                    role="tab">
-                    Attractions & Experiences
+                    Attractions
                 </a>
             </li>
             

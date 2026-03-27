@@ -15,47 +15,7 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
         .no-border td, .no-border th { border: none; }
-        /* Top header: logo (left) | company name + details (right) — no borders */
-        table.header-top {
-            width: 100%;
-            max-width: 100%;
-            table-layout: fixed;
-            border: none !important;
-            margin: 0 0 12px 0;
-            border-collapse: collapse;
-        }
-        table.header-top > tbody > tr > td {
-            border: none !important;
-            padding: 6px 0;
-            vertical-align: middle !important;
-        }
-        table.header-top .logo-cell {
-            width: 38%;
-            text-align: left;
-            vertical-align: middle !important;
-            padding-right: 14px;
-        }
-        table.header-top .logo-cell img {
-            display: block;
-            max-width: 240px;
-            max-height: 200px;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-        }
-        /* Company block flush to the far right (narrow box, LTR text inside) */
-        table.header-top .company-cell {
-            width: 70%;
-            text-align: right;
-            vertical-align: middle !important;
-            padding-left: 0;
-            padding-right: 0;
-        }
-        table.header-top .company-cell .company-block {
-            display: inline-block;
-            text-align: left;
-            max-width: 100%;
-        }
+        @include('invoices.pdf.partials.header-css')
         .inv-title {
             text-align: center;
             font-size: 18px;
@@ -73,8 +33,6 @@
         .note-red { color: #cc0000; font-weight: bold; text-align: center; margin: 12px 0; }
         .footer-disclaimer { color: #cc0000; text-align: center; margin-top: 16px; font-size: 10px; }
         .sign-off { text-align: right; margin-top: 24px; font-size: 11px; }
-        .company-block { font-size: 10px; line-height: 1.45; }
-        .company-block .co-name { font-size: 14px; font-weight: bold; margin-bottom: 6px; }
     </style>
 </head>
 <body>
@@ -173,6 +131,23 @@
         $displayLicenceNo = ($lic !== null && trim((string) $lic) !== '') ? trim((string) $lic) : null;
     }
 
+    $displayAddress = null;
+    $displayPhone = null;
+    $displayEmail = null;
+    if ($contactRoot) {
+        $displayAddress = $contactRoot->company_address ?? $contactRoot->address ?? null;
+        $displayPhone = $contactRoot->company_phone
+            ?? $contactRoot->phone
+            ?? $contactRoot->mobile
+            ?? $contactRoot->tel
+            ?? $contactRoot->telephone
+            ?? null;
+        $displayEmail = $contactRoot->company_email ?? $contactRoot->email ?? null;
+        if (($displayEmail === null || trim((string) $displayEmail) === '') && !empty($emails)) {
+            $displayEmail = implode(' / ', $emails);
+        }
+    }
+
     $clientDetails = $invoice->client_details ?? [];
     $leadGuest = $clientDetails['lead_guest_name'] ?? '';
     $tour = $invoice->tour;
@@ -220,47 +195,7 @@
     $si = 0;
 @endphp
 
-{{-- Top: logo (left) + DMC company & details (right column) — no border --}}
-<table class="header-top">
-    <colgroup>
-        <col style="width: 38%;">
-        <col style="width: 62%;">
-    </colgroup>
-    <tr>
-        <td class="logo-cell">
-            @if($displayLogoSrc)
-                <img src="{{ $displayLogoSrc }}" alt="">
-            @endif
-        </td>
-        <td class="company-cell" align="right">
-            <div class="company-block">
-                <div class="co-name">{{ $displayCompanyName }}</div>
-                {{-- @if(!empty($displayCompanyRegNo) || !empty($displayLicenceNo))
-                <div style="font-size:9px; margin-top:4px; line-height:1.35;">
-                    @if(!empty($displayCompanyRegNo))
-                    <div><strong>Co. Reg No.:</strong> {{ $displayCompanyRegNo }}</div>
-                    @endif
-                    @if(!empty($displayLicenceNo))
-                    <div><strong>TA Licence No.:</strong> {{ $displayLicenceNo }}</div>
-                    @endif
-                </div>
-                @endif --}}
-                @if(is_string($addr) && trim($addr) !== '')
-                    <div><strong>Address:</strong> {{ $addr }}</div>
-                @endif
-                @if(is_string($tel) && trim($tel) !== '')
-                    <div><strong>Tel:</strong> {{ $tel }}@if(is_string($fax) && trim($fax) !== '') <strong>| Fax:</strong> {{ $fax }} @endif</div>
-                @endif
-                @if(!empty($emails))
-                    <div><strong>Email:</strong> {{ implode(' / ', $emails) }}</div>
-                @endif
-                @if(is_string($web) && trim($web) !== '')
-                    <div><strong>Website:</strong> {{ $web }}</div>
-                @endif
-            </div>
-        </td>
-    </tr>
-</table>
+@include('invoices.pdf.partials.header', ['invoice' => $invoice, 'logoType' => ($logoType ?? 'dmc'), 'showBlueTitle' => true])
 
 {{-- M/s + invoice meta --}}
 <table style="margin-top:0; border-top:0;">
