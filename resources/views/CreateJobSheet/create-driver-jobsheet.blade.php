@@ -320,12 +320,11 @@
                                         <th>Vehicle</th>
                                         <th>Assign Driver</th>
                                         <th>Assign Vehicle</th>
-                                        <th>Transporter Remarks</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tourOrdersTableBody">
                                     <tr>
-                                        <td colspan="19" class="text-center">Loading data...</td>
+                                        <td colspan="18" class="text-center">Loading data...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -445,7 +444,7 @@ $(document).ready(function() {
                         <td>${dataItem.entrydropoff || 'N/A'}</td>
                         <td>${item.dropoff_zone || 'N/A'}</td>
                         <td>${item.display_id || item.tour_id || 'N/A'}</td>
-                        <td></td>
+                        <td>$</td>
                         <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
                         <td class="assign-driver-cell">
                             <div class="assign-driver-view">
@@ -523,7 +522,6 @@ $(document).ready(function() {
                                 </select>
                             </div>
                         </td>
-                        <td></td>
                     </tr>`;
             });
             
@@ -536,7 +534,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="19" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -566,7 +564,7 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="19" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
@@ -575,7 +573,7 @@ $(document).ready(function() {
         $('#hiddenDate').val(date);
         
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="19" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date), {
             method: 'GET',
@@ -632,7 +630,7 @@ $(document).ready(function() {
                                 <td>${dataItem.entrydropoff || 'N/A'}</td>
                                 <td>${item.dropoff_zone || 'N/A'}</td>
                                 <td>${item.display_id || item.tour_id || 'N/A'}</td>
-                                <td></td>
+                                <td>${item.remarks || 'N/A'}</td>
                                 <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
                                 <td class="assign-driver-cell">
                                     <div class="assign-driver-view">
@@ -707,7 +705,6 @@ $(document).ready(function() {
                                         </select>
                                     </div>
                                 </td>
-                                <td></td>
                             </tr>`;
                     });
                     
@@ -720,14 +717,14 @@ $(document).ready(function() {
                     // Initialize DataTable after content is loaded
                     initializeDataTable();
                 } else {
-                    $('#tourOrdersTableBody').html('<tr><td colspan="19" class="text-center">No orders found for this date</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">No orders found for this date</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
             } else {
                 const errorMessage = response.message || 'Error loading orders';
                 console.error('Error:', errorMessage);
                 showAlert('error', errorMessage);
-                $('#tourOrdersTableBody').html('<tr><td colspan="19" class="text-center">Error loading orders</td></tr>');
+                $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">Error loading orders</td></tr>');
                 $('#exportOrdersBtn').hide();
             }
         })
@@ -735,7 +732,7 @@ $(document).ready(function() {
             console.error('Error fetching orders by date:', error);
             const errorMessage = error.message || 'Error fetching orders';
             showAlert('error', errorMessage);
-            $('#tourOrdersTableBody').html('<tr><td colspan="19" class="text-center">Error loading orders</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">Error loading orders</td></tr>');
             $('#exportOrdersBtn').hide();
         });
     }
@@ -836,11 +833,11 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 19) {
+            if (cells.length < 18) {
                 return; // Skip incomplete rows
             }
             
-            // Extract data directly from the table cells (column order: 0=Tour ID, 1=Pickup Time, ... 14=Remarks, 15=Vehicle, 16=Assign Driver, 17=Assign Vehicle, 18=Transporter Remarks)
+            // Extract data directly from the table cells (column order: 0=Tour ID, 1=Pickup Time, ... 14=Remarks, 15=Vehicle, 16=Assign Driver, 17=Assign Vehicle)
             const tourId = $(cells[0]).text().trim();
             const pickupTime = $(cells[1]).text().trim();
             const guestName = $(cells[2]).text().trim();
@@ -859,7 +856,6 @@ $(document).ready(function() {
             const vehicle = $(cells[15]).text().trim();
             const driverSelect = $(cells[16]).find('.driver-select');
             const vehicleSelect = $(cells[17]).find('.vehicle-select');
-            const transporterRemarks = $(cells[18]).text().trim();
             
             const assignedDriver = driverSelect.find('option:selected').text().trim() || 'Not Assigned';
             const assignedVehicle = vehicleSelect.find('option:selected').text().trim() || 'Not Assigned';
@@ -883,8 +879,7 @@ $(document).ready(function() {
                 'Remarks': remarks,
                 'Vehicle': vehicle,
                 'Assign Driver': assignedDriver,
-                'Assign Vehicle': assignedVehicle,
-                'Transporter Remarks': transporterRemarks
+                'Assign Vehicle': assignedVehicle
             });
         });
         

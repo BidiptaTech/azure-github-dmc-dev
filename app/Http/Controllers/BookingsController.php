@@ -869,6 +869,83 @@ class BookingsController extends Controller
         }
         $currency = CommonHelper::getDmcCurrencyByCountry();
 
+        // Prepare exchange-rate sources for the "Add Payment" modal:
+        // - DMC rate: countries.exchange_rate JSON keyed by tour.dmc_id
+        // - Previous rate: last entry in tours.payment_details JSON array
+        if ($tours && $tours->count() > 0) {
+            // Build a lightweight lookup of countries by normalized name for best-effort matching.
+            $destinations = $tours->pluck('destination')
+                ->filter(fn ($v) => is_string($v) && trim($v) !== '')
+                ->map(fn ($v) => mb_strtolower(trim($v)))
+                ->unique()
+                ->values()
+                ->all();
+
+            $countriesByName = [];
+            if (!empty($destinations)) {
+                Country::query()
+                    ->whereIn(DB::raw('LOWER(name)'), $destinations)
+                    ->get()
+                    ->each(function ($c) use (&$countriesByName) {
+                        $key = is_string($c->name) ? mb_strtolower(trim($c->name)) : '';
+                        if ($key !== '') {
+                            $countriesByName[$key] = $c;
+                        }
+                    });
+            }
+            
+
+            foreach ($tours as $tour) {
+                // Previous rate/currency from last payment_details entry (if any).
+                $prevRate = null;
+                $prevCurrency = null;
+                $isDefiniteTour = is_string($tour->tour_status) && strcasecmp($tour->tour_status, 'Definite') === 0;
+                if ($isDefiniteTour) {
+                    $paymentDetails = $tour->payment_details;
+                    if (is_string($paymentDetails) && trim($paymentDetails) !== '') {
+                        $decoded = json_decode($paymentDetails, true);
+                        $paymentDetails = is_array($decoded) ? $decoded : [];
+                    }
+                    if (is_array($paymentDetails) && !empty($paymentDetails)) {
+                        $last = end($paymentDetails);
+                        if (is_array($last)) {
+                            $prevRate = $last['exchange_rate'] ?? null;
+                            $prevCurrency = $last['currency'] ?? null;
+                        }
+                    }
+                }
+                $tour->previous_exchange_rate = is_scalar($prevRate) ? (string) $prevRate : null;
+                $tour->previous_payment_currency = is_scalar($prevCurrency) ? (string) $prevCurrency : null;
+
+                // DMC rate lookup: countries.exchange_rate[dmc_id].value
+                $dmcRate = null;
+                $destKey = is_string($tour->destination) ? mb_strtolower(trim($tour->destination)) : '';
+                $country = $destKey !== '' ? ($countriesByName[$destKey] ?? null) : null;
+                
+                if ($country && !empty($dmc_id)) {
+                    
+                    // countries.exchange_rate format is an array of objects, e.g.
+                    // [
+                    //   { "dmc_id": 4, "exchange_rate": 5 }
+                    // ]
+                    $exchangeRateRaw = $country->exchange_rate;
+                    
+                    if (is_string($exchangeRateRaw) && trim($exchangeRateRaw) !== '') {
+                        $decoded = json_decode($exchangeRateRaw, true);
+                        $exchangeRateRaw = is_array($decoded) ? $decoded : [];
+                    }
+                    $exchangeRateArr = is_array($exchangeRateRaw) ? $exchangeRateRaw : [];
+                    
+                    $match = collect($exchangeRateArr)->firstWhere('dmc_id', (int) $dmc_id);
+                    if (is_array($match)) {
+                        $dmcRate = $match['exchange_rate'] ?? null;
+                    }
+                }
+                
+                $tour->dmc_exchange_rate_value = is_scalar($dmcRate) ? (string) $dmcRate : null;
+            }
+        }
+
         $tourIds = $tours->pluck('tour_id')->toArray();
         $tourNegotiationHistory = [];
         if (!empty($tourIds)) {
@@ -885,6 +962,69 @@ class BookingsController extends Controller
         }
 
         return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory'));
+    }
+
+    /**
+     * Fetch DMC exchange rate for selected currency (AJAX).
+     */
+    public function getDmcExchangeRate(Request $request)
+    {
+        $tourId = $request->query('tour_id');
+        $currency = trim((string) $request->query('currency', ''));
+        $defaultRate = '1';
+
+        if (empty($tourId) || $currency === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'tour_id and currency are required.',
+            ], 422);
+        }
+
+        $tour = Tour::query()
+            ->select(['tour_id', 'dmc_id', 'destination'])
+            ->where('tour_id', $tourId)
+            ->first();
+
+        if (!$tour || empty($tour->dmc_id)) {
+            return response()->json([
+                'success' => true,
+                'dmc_rate' => $defaultRate,
+            ]);
+        }
+
+        // Primary lookup by currency selected in modal.
+        $country = Country::query()
+            ->whereRaw('LOWER(currency) = ?', [mb_strtolower($currency)])
+            ->first();
+
+        // Fallback to destination-country mapping if no direct currency country found.
+        if (!$country && is_string($tour->destination) && trim($tour->destination) !== '') {
+            $country = Country::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($tour->destination))])
+                ->first();
+        }
+
+        if (!$country) {
+            return response()->json([
+                'success' => true,
+                'dmc_rate' => $defaultRate,
+            ]);
+        }
+
+        $exchangeRateRaw = $country->exchange_rate;
+        if (is_string($exchangeRateRaw) && trim($exchangeRateRaw) !== '') {
+            $decoded = json_decode($exchangeRateRaw, true);
+            $exchangeRateRaw = is_array($decoded) ? $decoded : [];
+        }
+        $exchangeRateArr = is_array($exchangeRateRaw) ? $exchangeRateRaw : [];
+
+        $match = collect($exchangeRateArr)->firstWhere('dmc_id', (int) $tour->dmc_id);
+        $dmcRate = is_array($match) ? ($match['exchange_rate'] ?? null) : null;
+        
+        return response()->json([
+            'success' => true,
+            'dmc_rate' => is_scalar($dmcRate) ? (string) $dmcRate : $defaultRate,
+        ]);
     }
 
     /**
@@ -1026,6 +1166,74 @@ class BookingsController extends Controller
 
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+
+        // Prepare exchange-rate sources for the "Add Payment" modal:
+        // - DMC rate: countries.exchange_rate JSON array of objects keyed by dmc_id
+        // - Previous rate: last entry in tours.payment_details JSON array (Definite tours only)
+        if ($tours && $tours->count() > 0) {
+            $destinations = $tours->pluck('destination')
+                ->filter(fn ($v) => is_string($v) && trim($v) !== '')
+                ->map(fn ($v) => mb_strtolower(trim($v)))
+                ->unique()
+                ->values()
+                ->all();
+
+            $countriesByName = [];
+            if (!empty($destinations)) {
+                Country::query()
+                    ->whereIn(DB::raw('LOWER(name)'), $destinations)
+                    ->get()
+                    ->each(function ($c) use (&$countriesByName) {
+                        $key = is_string($c->name) ? mb_strtolower(trim($c->name)) : '';
+                        if ($key !== '') {
+                            $countriesByName[$key] = $c;
+                        }
+                    });
+            }
+
+            foreach ($tours as $tour) {
+                // Previous rate/currency from last payment_details entry (if any).
+                $prevRate = null;
+                $prevCurrency = null;
+                $isDefiniteTour = is_string($tour->tour_status) && strcasecmp($tour->tour_status, 'Definite') === 0;
+                if ($isDefiniteTour) {
+                    $paymentDetails = $tour->payment_details;
+                    if (is_string($paymentDetails) && trim($paymentDetails) !== '') {
+                        $decoded = json_decode($paymentDetails, true);
+                        $paymentDetails = is_array($decoded) ? $decoded : [];
+                    }
+                    if (is_array($paymentDetails) && !empty($paymentDetails)) {
+                        $last = end($paymentDetails);
+                        if (is_array($last)) {
+                            $prevRate = $last['exchange_rate'] ?? null;
+                            $prevCurrency = $last['currency'] ?? null;
+                        }
+                    }
+                }
+                $tour->previous_exchange_rate = is_scalar($prevRate) ? (string) $prevRate : null;
+                $tour->previous_payment_currency = is_scalar($prevCurrency) ? (string) $prevCurrency : null;
+
+                // DMC rate lookup: countries.exchange_rate is an array of objects.
+                $dmcRate = null;
+                $destKey = is_string($tour->destination) ? mb_strtolower(trim($tour->destination)) : '';
+                $country = $destKey !== '' ? ($countriesByName[$destKey] ?? null) : null;
+                if ($country && $dmc_id) {
+                    $exchangeRateRaw = $country->exchange_rate;
+                    if (is_string($exchangeRateRaw) && trim($exchangeRateRaw) !== '') {
+                        $decoded = json_decode($exchangeRateRaw, true);
+                        $exchangeRateRaw = is_array($decoded) ? $decoded : [];
+                    }
+                    $exchangeRateArr = is_array($exchangeRateRaw) ? $exchangeRateRaw : [];
+
+                    $match = collect($exchangeRateArr)->firstWhere('dmc_id', (int) $dmc_id);
+                    if (is_array($match)) {
+                        $dmcRate = $match['exchange_rate'] ?? null;
+                    }
+                }
+                $tour->dmc_exchange_rate_value = is_scalar($dmcRate) ? (string) $dmcRate : null;
+            
+            }
+        }
 
         $tourIds = $tours->pluck('tour_id')->toArray();
         $tourNegotiationHistory = [];
@@ -1183,6 +1391,67 @@ class BookingsController extends Controller
             }
             return $tour;
         });
+
+        // Prepare exchange-rate sources for the "Add Payment" modal:
+        // - DMC rate: countries.exchange_rate JSON array of objects keyed by dmc_id
+        // - Previous rate: last entry in tours.payment_details JSON array
+        if ($tours && $tours->count() > 0) {
+            $destinations = $tours->pluck('destination')
+                ->filter(fn ($v) => is_string($v) && trim($v) !== '')
+                ->map(fn ($v) => mb_strtolower(trim($v)))
+                ->unique()
+                ->values()
+                ->all();
+
+            $countriesByName = [];
+            if (!empty($destinations)) {
+                Country::query()
+                    ->whereIn(DB::raw('LOWER(name)'), $destinations)
+                    ->get()
+                    ->each(function ($c) use (&$countriesByName) {
+                        $key = is_string($c->name) ? mb_strtolower(trim($c->name)) : '';
+                        if ($key !== '') {
+                            $countriesByName[$key] = $c;
+                        }
+                    });
+            }
+
+            foreach ($tours as $tour) {
+                $prevRate = null;
+                $prevCurrency = null;
+                $paymentDetails = $tour->payment_details;
+                if (is_string($paymentDetails) && trim($paymentDetails) !== '') {
+                    $decoded = json_decode($paymentDetails, true);
+                    $paymentDetails = is_array($decoded) ? $decoded : [];
+                }
+                if (is_array($paymentDetails) && !empty($paymentDetails)) {
+                    $last = end($paymentDetails);
+                    if (is_array($last)) {
+                        $prevRate = $last['exchange_rate'] ?? null;
+                        $prevCurrency = $last['currency'] ?? null;
+                    }
+                }
+                $tour->previous_exchange_rate = is_scalar($prevRate) ? (string) $prevRate : null;
+                $tour->previous_payment_currency = is_scalar($prevCurrency) ? (string) $prevCurrency : null;
+
+                $dmcRate = null;
+                $destKey = is_string($tour->destination) ? mb_strtolower(trim($tour->destination)) : '';
+                $country = $destKey !== '' ? ($countriesByName[$destKey] ?? null) : null;
+                if ($country && $dmc_id) {
+                    $exchangeRateRaw = $country->exchange_rate;
+                    if (is_string($exchangeRateRaw) && trim($exchangeRateRaw) !== '') {
+                        $decoded = json_decode($exchangeRateRaw, true);
+                        $exchangeRateRaw = is_array($decoded) ? $decoded : [];
+                    }
+                    $exchangeRateArr = is_array($exchangeRateRaw) ? $exchangeRateRaw : [];
+                    $match = collect($exchangeRateArr)->firstWhere('dmc_id', $dmc_id);
+                    if (is_array($match)) {
+                        $dmcRate = $match['exchange_rate'] ?? null;
+                    }
+                }
+                $tour->dmc_exchange_rate_value = is_scalar($dmcRate) ? (string) $dmcRate : null;
+            }
+        }
 
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');

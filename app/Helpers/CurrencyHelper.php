@@ -126,7 +126,6 @@ class CurrencyHelper
                 'target' => $targetCurrency,
                 'error' => $e->getMessage(),
             ]);
-
             return null;
         }
     }

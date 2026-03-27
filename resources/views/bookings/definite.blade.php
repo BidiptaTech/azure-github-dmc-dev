@@ -3650,14 +3650,14 @@
                                                         <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
                                                     </button>
                                                     @endif
-                                                    <!-- @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                             onclick="rejectArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
                                                     </button>
-                                                    @endif -->
+                                                    @endif
                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
@@ -3977,14 +3977,14 @@
                                                         <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
                                                     </button>
                                                     @endif
-                                                    <!-- @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                             onclick="rejectDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
                                                     </button>
-                                                    @endif -->
+                                                    @endif
                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
@@ -4397,7 +4397,16 @@
     </div>
 
     <!-- Add Payment Modal -->
-    <div class="modal fade" id="addPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="addPaymentModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+    <div
+        class="modal fade"
+        id="addPaymentModal{{ $tour->tour_id }}"
+        tabindex="-1"
+        aria-labelledby="addPaymentModalLabel{{ $tour->tour_id }}"
+        aria-hidden="true"
+        data-dmc-rate="{{ $tour->dmc_exchange_rate_value ?? '' }}"
+        data-previous-rate="{{ $tour->previous_exchange_rate ?? '' }}"
+        data-previous-currency="{{ $tour->previous_payment_currency ?? '' }}"
+    >
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content shadow-lg rounded">
                 <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 15px; border-radius: 8px;">
@@ -4498,6 +4507,53 @@
                         
                         <!-- Exchange Rate (Editable) -->
                         <div class="mb-4" id="exchangeRateSection{{ $tour->tour_id }}" style="display: none;">
+                            <div class="mb-3" id="exchangeRateSourceOptions{{ $tour->tour_id }}">
+                                <label class="form-label fw-bold mb-2">
+                                    <i class="fas fa-sliders-h text-primary me-2"></i>Rate Options
+                                </label>
+                                <div class="d-flex flex-wrap gap-3 align-items-center">
+                                    <label class="form-check form-check-inline m-0">
+                                        <input
+                                            class="form-check-input"
+                                            type="radio"
+                                            name="rate_source{{ $tour->tour_id }}"
+                                            id="rateSourceLive{{ $tour->tour_id }}"
+                                            value="live"
+                                            data-rate-source-radio="1"
+                                            data-tour-id="{{ $tour->tour_id }}"
+                                            checked
+                                        >
+                                        <span class="form-check-label">API Rate</span>
+                                    </label>
+
+                                    <label class="form-check form-check-inline m-0">
+                                        <input
+                                            class="form-check-input"
+                                            type="radio"
+                                            name="rate_source{{ $tour->tour_id }}"
+                                            id="rateSourceDmc{{ $tour->tour_id }}"
+                                            value="dmc"
+                                            data-rate-source-radio="1"
+                                            data-tour-id="{{ $tour->tour_id }}"
+                                        >
+                                        <span class="form-check-label">DMC Rate</span>
+                                    </label>
+
+                                    <label class="form-check form-check-inline m-0" id="rateSourcePreviousWrap{{ $tour->tour_id }}">
+                                        <input
+                                            class="form-check-input"
+                                            type="radio"
+                                            name="rate_source{{ $tour->tour_id }}"
+                                            id="rateSourcePrevious{{ $tour->tour_id }}"
+                                            value="previous"
+                                            data-rate-source-radio="1"
+                                            data-tour-id="{{ $tour->tour_id }}"
+                                        >
+                                        <span class="form-check-label">Previous Rate</span>
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-2" id="rateSourceHint{{ $tour->tour_id }}" style="display:none;"></small>
+                            </div>
                             <label for="exchange_rate{{ $tour->tour_id }}" class="form-label fw-bold">
                                 <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
                             </label>
@@ -23227,21 +23283,98 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     const exchangeRateCurrency = document.getElementById(`exchangeRateCurrency${tourId}`);
     const currencySymbol = document.getElementById(`currencySymbol${tourId}`);
     const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
+    const selectedSource = getSelectedRateSource(tourId);
     
     if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
         exchangeRateSection.style.display = 'block';
         exchangeRateCurrency.textContent = selectedCurrency;
         currencySymbol.textContent = selectedCurrency;
         conversionInfoContainer.style.display = 'block';
+
+        // Refresh DMC rate from countries table for the selected currency.
+        fetchDmcRateForCurrency(tourId, selectedCurrency);
         
-        // Fetch exchange rate (placeholder - replace with actual API call)
-        fetchExchangeRate(selectedCurrency, tourId);
+        // Only fetch live rate if Live Rate is selected.
+        if (selectedSource === 'live') {
+            fetchExchangeRate(selectedCurrency, tourId);
+            setRateSourceLabel(tourId, 'API Rate');
+        }
     } else {
         exchangeRateSection.style.display = 'none';
         exchangeRateInput.value = '1.00';
         currencySymbol.textContent = window.bookingCurrency;
         conversionInfoContainer.style.display = 'none';
     }
+}
+
+function getSelectedRateSource(tourId) {
+    const liveEl = document.getElementById(`rateSourceLive${tourId}`);
+    const dmcEl = document.getElementById(`rateSourceDmc${tourId}`);
+    const prevEl = document.getElementById(`rateSourcePrevious${tourId}`);
+    if (prevEl && prevEl.checked) return 'previous';
+    if (dmcEl && dmcEl.checked) return 'dmc';
+    if (liveEl && liveEl.checked) return 'live';
+    return 'live';
+}
+
+function setRateSourceLabel(tourId, label) {
+    const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
+    if (rateSourceText) rateSourceText.textContent = label;
+}
+
+function fetchDmcRateForCurrency(tourId, currency) {
+    if (!tourId || !currency) return;
+
+    const url = `{{ route('bookings.dmc-exchange-rate') }}?tour_id=${encodeURIComponent(tourId)}&currency=${encodeURIComponent(currency)}`;
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        window.paymentRateSources = window.paymentRateSources || {};
+        window.paymentRateSources[tourId] = window.paymentRateSources[tourId] || {};
+
+        const dmcRate = (data && data.success && data.dmc_rate !== null && data.dmc_rate !== '')
+            ? String(data.dmc_rate)
+            : '1';
+        window.paymentRateSources[tourId].dmcRate = dmcRate;
+        window.paymentRateSources[tourId].dmcRateSource = 'ajax';
+
+        const dmcRadio = document.getElementById(`rateSourceDmc${tourId}`);
+        const hint = document.getElementById(`rateSourceHint${tourId}`);
+        if (dmcRadio) dmcRadio.disabled = false;
+
+        if (getSelectedRateSource(tourId) === 'dmc' && dmcRate) {
+            applyRateSourceSelection(tourId, 'dmc');
+        }
+
+        if (hint) {
+            const prevMissing = !(window.paymentRateSources[tourId].previousRate && window.paymentRateSources[tourId].previousCurrency);
+            const hints = [];
+            if (!dmcRate) hints.push('DMC Rate unavailable for selected currency.');
+            if (prevMissing) hints.push('No previous payment rate found.');
+            if (hints.length) {
+                hint.textContent = hints.join(' ');
+                hint.style.display = 'block';
+            } else {
+                hint.textContent = '';
+                hint.style.display = 'none';
+            }
+        }
+    })
+    .catch(() => {
+        // Fallback requested: use 1 when DMC rate lookup fails.
+        window.paymentRateSources = window.paymentRateSources || {};
+        window.paymentRateSources[tourId] = window.paymentRateSources[tourId] || {};
+        window.paymentRateSources[tourId].dmcRate = '1';
+        window.paymentRateSources[tourId].dmcRateSource = 'ajax';
+        const dmcRadio = document.getElementById(`rateSourceDmc${tourId}`);
+        if (dmcRadio) dmcRadio.disabled = false;
+    });
 }
 
 function fetchExchangeRate(currency, tourId) {
@@ -23259,12 +23392,16 @@ function fetchExchangeRate(currency, tourId) {
         'AUD': 1.09,
         'JPY': 109.50,
         'CNY': 5.12,
-        'INR': 61.75
+        'INR': 61.75,
+        'SGD': 10.00,
     };
     
     if (defaultRates[currency]) {
         exchangeRateInput.value = defaultRates[currency];
-        rateSourceText.textContent = 'Default';
+        rateSourceText.textContent = 'API Rate';
+        window.paymentRateSources = window.paymentRateSources || {};
+        window.paymentRateSources[tourId] = window.paymentRateSources[tourId] || {};
+        window.paymentRateSources[tourId].liveRate = String(defaultRates[currency]);
     }
 }
 
@@ -23435,11 +23572,132 @@ function submitPaymentForm(tourId) {
     }
 }
 
+function initPaymentRateSourcesForTour(tourId) {
+    const modal = document.getElementById(`addPaymentModal${tourId}`);
+    if (!modal) return;
+
+    window.paymentRateSources = window.paymentRateSources || {};
+    window.paymentRateSources[tourId] = window.paymentRateSources[tourId] || {};
+
+    const dmcRateRaw = (modal.dataset.dmcRate || '').trim();
+    const prevRateRaw = (modal.dataset.previousRate || '').trim();
+    const prevCurrencyRaw = (modal.dataset.previousCurrency || '').trim();
+
+    const dmcRate = dmcRateRaw !== '' && !Number.isNaN(Number(dmcRateRaw)) ? dmcRateRaw : '';
+    const previousRate = prevRateRaw !== '' && !Number.isNaN(Number(prevRateRaw)) ? prevRateRaw : '';
+    const previousCurrency = prevCurrencyRaw !== '' ? prevCurrencyRaw : '';
+
+    const shouldPreserveAjaxDmc = window.paymentRateSources[tourId]?.dmcRateSource === 'ajax';
+    if (!shouldPreserveAjaxDmc) {
+        window.paymentRateSources[tourId].dmcRate = dmcRate;
+    } else if (!window.paymentRateSources[tourId].dmcRate && dmcRate) {
+        window.paymentRateSources[tourId].dmcRate = dmcRate;
+    }
+    window.paymentRateSources[tourId].previousRate = previousRate;
+    window.paymentRateSources[tourId].previousCurrency = previousCurrency;
+
+    const dmcRadio = document.getElementById(`rateSourceDmc${tourId}`);
+    const prevWrap = document.getElementById(`rateSourcePreviousWrap${tourId}`);
+    const prevRadio = document.getElementById(`rateSourcePrevious${tourId}`);
+    const hint = document.getElementById(`rateSourceHint${tourId}`);
+
+    const effectiveDmcRate = window.paymentRateSources[tourId].dmcRate || '';
+    if (dmcRadio) {
+        dmcRadio.disabled = !effectiveDmcRate;
+    }
+
+    if (!previousRate || !previousCurrency) {
+        if (prevWrap) prevWrap.style.display = 'none';
+        if (prevRadio) prevRadio.checked = false;
+    } else {
+        if (prevWrap) prevWrap.style.display = '';
+    }
+
+    if (hint) {
+        const hints = [];
+        if (!effectiveDmcRate) hints.push('DMC Rate unavailable for this destination/DMC.');
+        if (!previousRate || !previousCurrency) hints.push('No previous payment rate found.');
+        if (hints.length) {
+            hint.textContent = hints.join(' ');
+            hint.style.display = 'block';
+        } else {
+            hint.textContent = '';
+            hint.style.display = 'none';
+        }
+    }
+}
+
+function applyRateSourceSelection(tourId, source) {
+    const selectedCurrency = document.getElementById(`currency${tourId}`)?.value;
+    const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
+    if (!exchangeRateInput) return;
+
+    window.paymentRateSources = window.paymentRateSources || {};
+    const sources = window.paymentRateSources[tourId] || {};
+
+    if (source === 'live') {
+        if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
+            fetchExchangeRate(selectedCurrency, tourId);
+            setRateSourceLabel(tourId, 'API Rate');
+            recalculateFromExchangeRate(tourId);
+            validatePaymentAmountInput(tourId);
+        } else {
+            exchangeRateInput.value = '1.00';
+            setRateSourceLabel(tourId, 'API Rate');
+            validatePaymentAmountInput(tourId);
+        }
+        return;
+    }
+
+    if (source === 'dmc') {
+        if (!sources.dmcRate) {
+            const currentCurrency = document.getElementById(`currency${tourId}`)?.value;
+            if (currentCurrency && currentCurrency !== window.bookingCurrency) {
+                fetchDmcRateForCurrency(tourId, currentCurrency);
+            } else {
+                sources.dmcRate = '1';
+            }
+        }
+        if (!sources.dmcRate) return;
+        exchangeRateInput.value = sources.dmcRate;
+        setRateSourceLabel(tourId, 'DMC Rate');
+        recalculateFromExchangeRate(tourId);
+        validatePaymentAmountInput(tourId);
+        return;
+    }
+
+    if (source === 'previous') {
+        if (!sources.previousRate || !sources.previousCurrency) return;
+        const currencySelect = document.getElementById(`currency${tourId}`);
+        if (currencySelect && currencySelect.value !== sources.previousCurrency) {
+            currencySelect.value = sources.previousCurrency;
+            updatePaymentAmountEnhanced(tourId, sources.previousCurrency);
+        }
+        exchangeRateInput.value = sources.previousRate;
+        setRateSourceLabel(tourId, 'Previous Rate');
+        recalculateFromExchangeRate(tourId);
+        validatePaymentAmountInput(tourId);
+    }
+}
+
 // Add event listeners to reset forms when modals are closed
 document.addEventListener('DOMContentLoaded', function() {
     // Reset payment forms when modals are hidden
     const paymentModals = document.querySelectorAll('[id^="addPaymentModal"]');
     paymentModals.forEach(modal => {
+        modal.addEventListener('shown.bs.modal', function() {
+            const tourId = this.id.replace('addPaymentModal', '');
+            initPaymentRateSourcesForTour(tourId);
+
+            const liveEl = document.getElementById(`rateSourceLive${tourId}`);
+            if (liveEl) liveEl.checked = true;
+
+            const currencySelect = document.getElementById(`currency${tourId}`);
+            if (currencySelect) {
+                updatePaymentAmountEnhanced(tourId, currencySelect.value);
+            }
+        });
+
         modal.addEventListener('hidden.bs.modal', function() {
             const tourId = this.id.replace('addPaymentModal', '');
             const form = document.getElementById(`paymentForm${tourId}`);
@@ -23469,10 +23727,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const currencySelect = form.querySelector('select[name="currency"]');
             if (currencySelect) {
                 currencySelect.value = window.bookingCurrency;
+                const liveEl = document.getElementById(`rateSourceLive${tourId}`);
+                if (liveEl) liveEl.checked = true;
                 updatePaymentAmountEnhanced(tourId, window.bookingCurrency);
             }
         });
     });
+});
+
+document.addEventListener('change', function(e) {
+    const el = e.target;
+    if (!el || !el.matches || !el.matches('input[data-rate-source-radio="1"]')) return;
+    const tourId = el.getAttribute('data-tour-id');
+    if (!tourId) return;
+    initPaymentRateSourcesForTour(tourId);
+    applyRateSourceSelection(tourId, el.value);
 });
 
 function updatePaymentStatus(tourId, paymentIndex, status, amount) {
