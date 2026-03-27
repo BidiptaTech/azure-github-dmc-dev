@@ -262,7 +262,15 @@
                         <div class="col-md-3 mb-3">
                                 <label for="password" class="form-label"><strong>Password</strong><span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <input id="password" type="password" class="form-control" name="password" placeholder="Enter Password" required>
+                                    <input
+                                        id="password"
+                                        type="password"
+                                        class="form-control"
+                                        name="password"
+                                        placeholder="Enter Password"
+                                        value=""
+                                        autocomplete="new-password"
+                                        required>
                                     <!-- Show / Hide -->
                                     <button type="button"id="togglePasswordBtn" class="btn btn-outline-secondary  btn-sm px-2" onclick="togglePassword()">
                                         <i id="eyeIcon" class="bi bi-eye-slash"></i>
@@ -1389,6 +1397,20 @@ if (passwordField.type === 'password') {
         passwordField.value = password;
         passwordField.type = 'text'; // show generated password
     }
+
+    // Prevent browser autofill showing the previous saved password.
+    // Only allow the user to see the newly typed/generated password.
+    window.addEventListener('load', function() {
+        const passwordField = document.getElementById('password');
+        if (passwordField) {
+            passwordField.value = '';
+            // Some browsers autofill after load; clear again shortly after.
+            setTimeout(function() {
+                const pf = document.getElementById('password');
+                if (pf) pf.value = '';
+            }, 250);
+        }
+    });
 </script>
 
 @endsection
