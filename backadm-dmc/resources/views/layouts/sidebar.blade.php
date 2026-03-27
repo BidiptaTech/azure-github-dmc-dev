@@ -136,8 +136,8 @@
                         </a>
                     </li>
                 
-                    <li class="menu-item @if(Request::is('bookings/new-enquiries') || Request::is('custom-packages/create')) open active @endif">
-                        <a href="#" class="menu-link menu-toggle">
+                    <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
+                        <a href="{{ route('bookings.new-enquiries') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center w-100">
                                 <span data-i18n="Enquiries">Enquiries</span>
                                 @if(isset($bookingCounts) && $bookingCounts['new_enquiries'] > 0)
@@ -145,22 +145,10 @@
                                 @endif
                             </div>
                         </a>
-                        <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
-                                <a href="{{ route('bookings.new-enquiries') }}" class="menu-link">
-                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
-                                </a>
-                            </li>
-                            <!-- <li class="menu-item @if(Request::is('custom-packages/create')) active @endif">
-                                <a href="{{ route('custom-packages.create') }}" class="menu-link">
-                                    <div data-i18n="Custom Itinerary">Custom Itinerary</div>
-                                </a>
-                            </li> -->
-                        </ul>
                     </li>
                     <!-- Show Booking -->
                     <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
-                        <a href="#" class="menu-link menu-toggle">
+                        <a href="{{ route('bookings.follow-ups') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Follow Ups">Follow Ups</span>
                                 @if(isset($bookingCounts) && $bookingCounts['follow_ups'] > 0)
@@ -168,18 +156,11 @@
                                 @endif
                             </div>
                         </a>
-                        <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
-                                <a href="{{ route('bookings.follow-ups') }}" class="menu-link">
-                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                 @endif
                 @if(in_array(auth()->user()->role_id, [1,2,11,12,26,33,34,36,37,38,49,50,51,52,53,64,65,66,67,68,69,70,71,72,73,80,81,87,89,90,96,98,99,105,107,108,114,116,117,123,124,125,126,127,128,129,131,132,133,134,135,136,137,138]))
                     <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
-                        <a href="#" class="menu-link menu-toggle">
+                        <a href="{{ route('bookings.confirmed') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Confirmed">Confirmed</span>
                                 @if(isset($bookingCounts) && $bookingCounts['confirmed'] > 0) 
@@ -187,17 +168,10 @@
                                 @endif
                             </div>
                         </a>
-                        <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
-                                <a href="{{ route('bookings.confirmed') }}" class="menu-link">
-                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                 
                     <li class="menu-item @if(Request::is('bookings/definite')) active @endif">
-                        <a href="#" class="menu-link menu-toggle">
+                        <a href="{{ route('bookings.definite') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Definite">Definite</span>
                                 @if(isset($bookingCounts) && $bookingCounts['definite'] > 0)
@@ -205,17 +179,10 @@
                                 @endif
                             </div>
                         </a>
-                        <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('bookings/definite')) active @endif">
-                                <a href="{{ route('bookings.definite') }}" class="menu-link">
-                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                     
                     <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
-                        <a href="#" class="menu-link menu-toggle">
+                        <a href="{{ route('bookings.actual') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Actual">Actual</span>
                                 @if(isset($bookingCounts) && $bookingCounts['actual'] > 0)
@@ -223,13 +190,6 @@
                                 @endif
                             </div>
                         </a>
-                        <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
-                                <a href="{{ route('bookings.actual') }}" class="menu-link">
-                                    <div data-i18n="Custom Itenerary">Custom Itenerary</div>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                     {{-- <li class="menu-item @if(Request::is('bookings/cancelled') || Request::is('bookings/refunds')) open active @endif">
                         <a href="#" class="menu-link menu-toggle">
@@ -243,7 +203,7 @@
                         </a>
                         <ul class="menu-sub"> --}}
                             <li class="menu-item @if(Request::is('bookings/cancelled')) active @endif">
-                                <a href="#" class="menu-link menu-toggle">
+                                <a href="{{ route('bookings.cancelled') }}" class="menu-link">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Cancelled">Cancelled</span>
                                         @if(isset($bookingCounts) && $bookingCounts['cancelled'] > 0)
@@ -251,16 +211,9 @@
                                         @endif
                                     </div>
                                 </a>
-                                <ul class="menu-sub">
-                                    <li class="menu-item @if(Request::is('bookings/cancelled')) active @endif">
-                                        <a href="{{ route('bookings.cancelled') }}" class="menu-link">
-                                            <div data-i18n="Custom Itenerary">Custom Itenerary</div>
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
                             <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
-                                <a href="#" class="menu-link menu-toggle">
+                                <a href="{{ route('bookings.refunds') }}" class="menu-link">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Refunds">Refunds</span>
                                         @if(isset($bookingCounts) && $bookingCounts['refunds'] > 0)
@@ -268,13 +221,6 @@
                                         @endif
                                     </div>
                                 </a>
-                                <ul class="menu-sub">
-                                    <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
-                                        <a href="{{ route('bookings.refunds') }}" class="menu-link">
-                                            <div data-i18n="Custom Itenerary">Custom Itenerary</div>
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
                         {{-- </ul>
                     </li> --}}
