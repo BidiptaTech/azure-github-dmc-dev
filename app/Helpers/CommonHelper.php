@@ -3659,6 +3659,23 @@ class CommonHelper
             ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
             ?? null;
 
+        // Standardize per-item guest counts (used for transport/ports and other services)
+        $adultCountStd = $item['adultCount']
+            ?? $item['adults']
+            ?? $item['adult']
+            ?? $item['no_of_adults']
+            ?? null;
+        $childCountStd = $item['childCount']
+            ?? $item['children']
+            ?? $item['child']
+            ?? $item['no_of_children']
+            ?? null;
+        $infantCountStd = $item['infants']
+            ?? $item['infantCount']
+            ?? $item['infant']
+            ?? $item['no_of_infants']
+            ?? null;
+
         $notes = $item['guide_name']
             ?? $item['vehicle']
             ?? $item['ticketName']
@@ -3795,11 +3812,32 @@ class CommonHelper
             // Get transfer type (from transfer_options or direct item)
             $transferOptions = $item['transfer_options'] ?? null;
             $transferType = null;
+            $transferWay = null;
             if ($transferOptions && !empty($transferOptions['type'])) {
                 $transferType = $transferOptions['type'];
             } else {
                 // For travel_point, travel_hourly, local_transport, and local_transfer, use the type field directly
                 $transferType = $item['type'] ?? null;
+            }
+            // Way (One Way / Two Way / Both Way depending on UI/payload)
+            if ($transferOptions && (isset($transferOptions['way']) || isset($transferOptions['Way']))) {
+                $transferWay = $transferOptions['way'] ?? $transferOptions['Way'];
+            } else {
+                $transferWay = $item['way'] ?? $item['Way'] ?? $item['transfer_way'] ?? null;
+            }
+            // Normalize way values like "both-way"/"one-way"/"2-way"/"1-way" for display
+            if (is_string($transferWay)) {
+                $wayRaw = trim($transferWay);
+                $wayNorm = strtolower(str_replace(['_', ' '], '-', $wayRaw));
+                if (in_array($wayNorm, ['one-way', '1-way'], true)) {
+                    $transferWay = 'One Way';
+                } elseif (in_array($wayNorm, ['both-way', 'two-way', '2-way'], true)) {
+                    // UI sometimes uses "both-way" but business meaning is round trip
+                    $transferWay = 'Both Way';
+                } else {
+                    // Keep original but make it readable if it's like "both-way"
+                    $transferWay = ucwords(str_replace('-', ' ', $wayRaw));
+                }
             }
             
             // Get vehicle details (from transfer_options.vehicle_details or direct item)
@@ -3895,6 +3933,7 @@ class CommonHelper
                 'name' => $vehiclesName,
                 'type' => $item['type'] ?? null,
                 'transfer_type' => $transferType ?? $item['type'] ?? null,
+                'way' => $transferWay,
                 'vehicle_type' => $vehicleType,
                 'vehicle_type_seater' => $vehicleTypeSeater,
                 'vehicle_number' => $vehicleNumber ?: 'N/A',
@@ -3953,6 +3992,8 @@ class CommonHelper
         if (strtolower($type) === 'restaurant') {
             $adultCount = $item['adultCount'] ?? $item['adult'] ?? 0;
             $childCount = $item['childCount'] ?? $item['child'] ?? 0;
+            // Restaurant uses "infants" in some payloads (older payloads may use seniorCount)
+            $infantCount = $item['infants'] ?? $item['infantCount'] ?? $item['infant'] ?? 0;
             $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
             
             $mealItems = [];
@@ -3998,7 +4039,8 @@ class CommonHelper
                 'ticket_name' => $item['ticketName'] ?? null,
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
-                'senior_count' => $seniorCount > 0 ? $seniorCount : null,
+                'infant_count' => $infantCount > 0 ? $infantCount : null,
+                'senior_count' => $seniorCount > 0 ? $seniorCount : null, // kept for backward compatibility
                 'visit_time' => $item['visitTime'] ?? null,
                 'meal_type' => $mealSpecificType ?: null,
                 'meal_plan' => $item['mealType'] ?? null,
@@ -4061,6 +4103,9 @@ class CommonHelper
             'subtitle' => $location,
             'time' => $time,
             'pax' => $pax,
+            'adult_count' => (is_numeric($adultCountStd) && (float)$adultCountStd > 0) ? (int)$adultCountStd : null,
+            'child_count' => (is_numeric($childCountStd) && (float)$childCountStd > 0) ? (int)$childCountStd : null,
+            'infant_count' => (is_numeric($infantCountStd) && (float)$infantCountStd > 0) ? (int)$infantCountStd : null,
             'notes' => $notes,
             'chips' => $chips,
             'icon' => self::serviceIcon($type),
@@ -4158,9 +4203,32 @@ class CommonHelper
                     $firstTotalBabyCot = (float) ($segThis['baby_cot'] ?? 0);
                     $adultPrice = 'N/A';
                     $roomTypeName = 'N/A';
+                    // Also compute room counts from rooms payload (for display)
+                    $totalSingleRooms = 0;
+                    $totalDoubleRooms = 0;
+                    $totalTripleRooms = 0;
                     if (is_array($rooms) && count($rooms) > 0) {
                         $firstRoom = $rooms[0];
                         $roomTypeName = $firstRoom['room_type'] ?? $firstRoom['roomType'] ?? 'N/A';
+                        foreach ($rooms as $room) {
+                            $noOfRooms = (int)($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
+                            $noOfRooms = $noOfRooms > 0 ? $noOfRooms : 1;
+                            $beds = (is_array($room) && isset($room['beds']) && is_array($room['beds'])) ? $room['beds'] : [];
+                            if (!empty($beds)) {
+                                foreach ($beds as $bed) {
+                                    $occupancy = (int)($bed['head_count'] ?? $bed['occupancy'] ?? 1);
+                                    if ($occupancy >= 3) {
+                                        $totalTripleRooms += $noOfRooms;
+                                    } elseif ($occupancy >= 2) {
+                                        $totalDoubleRooms += $noOfRooms;
+                                    } else {
+                                        $totalSingleRooms += $noOfRooms;
+                                    }
+                                }
+                            } else {
+                                $totalSingleRooms += $noOfRooms;
+                            }
+                        }
                     }
                     $roomCategories = [
                         [
@@ -4258,6 +4326,8 @@ class CommonHelper
                     'option_number' => $hotelIndex++,
                     'hotel_name' => $hotelName,
                     'hotel_category' => $hotelCategory,
+                    // Keep raw rooms payload so email template can extract beds[*].head_count
+                    'rooms' => is_array($rooms) ? $rooms : [],
                     'adult_price' => isset($adultPrice) && is_numeric($adultPrice) ? number_format($adultPrice, 2) : ($adultPrice ?? 'N/A'),
                     'child_price' => is_numeric($childPrice) ? number_format($childPrice, 2) : ($childPrice ?? 'N/A'),
                     'infant_price' => is_numeric($infantPrice) ? number_format($infantPrice, 2) : ($infantPrice ?? 'N/A'),
