@@ -38,7 +38,7 @@
     .trip-log-page .trip-log-card .table thead th {
         background:rgb(6, 132, 216) !important;
         color: #fff !important;
-        font-size: 14px !important;
+        font-size: 12px !important;
         font-weight: 500 !important;
         text-transform: uppercase;
         letter-spacing: 0.02em;
@@ -49,7 +49,7 @@
     }
     .trip-log-page .trip-log-table tbody td,
     .trip-log-page .trip-log-card .table tbody td {
-        font-size: 14px !important;
+        font-size: 12px !important;
         padding: 0.25rem 0.4rem;
         vertical-align: middle;
         border-bottom: 1px solid #f1f5f9;
@@ -172,7 +172,37 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="trip-log-footer">Number of records: {{ count($allLogs ?? []) }}</div>
+                        <div class="trip-log-footer">
+                            Number of records: {{ $paginationByTab['all']['total'] ?? count($allLogs ?? []) }}
+                        </div>
+                        @php $pag = $paginationByTab['all'] ?? null; @endphp
+                        @if(!empty($pag) && ($pag['totalPages'] ?? 1) > 1)
+                            <nav aria-label="All pagination">
+                                @php
+                                    $startPage = max(1, ($pag['page'] ?? 1) - 3);
+                                    $endPage = min($pag['totalPages'] ?? 1, ($pag['page'] ?? 1) + 3);
+                                @endphp
+                                <ul class="pagination pagination-sm justify-content-end mb-0">
+                                    @php $prev = ($pag['page'] ?? 1) - 1; @endphp
+                                    <li class="page-item {{ $prev < 1 ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'all', 'page' => max(1, $prev)]) }}">
+                                            Prev
+                                        </a>
+                                    </li>
+                                    @for($p = $startPage; $p <= $endPage; $p++)
+                                        <li class="page-item {{ ($pag['page'] ?? 1) === $p ? 'active' : '' }}">
+                                            <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'all', 'page' => $p]) }}">{{ $p }}</a>
+                                        </li>
+                                    @endfor
+                                    @php $next = ($pag['page'] ?? 1) + 1; @endphp
+                                    <li class="page-item {{ $next > ($pag['totalPages'] ?? 1) ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'all', 'page' => min($pag['totalPages'] ?? 1, $next)]) }}">
+                                            Next
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        @endif
                     @else
                         <div class="trip-log-empty">No bookings for the selected date range.</div>
                     @endif
@@ -201,6 +231,7 @@
                                         <th>Adults</th>
                                         <th>Child</th>
                                         <th>Driver</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -218,12 +249,43 @@
                                             <td>{{ $row['adults'] ?? 0 }}</td>
                                             <td>{{ $row['child'] ?? 0 }}</td>
                                             <td>{{ $row['driver'] ?? '—' }}</td>
+                                            <td>{{ $row['status'] ?? '—' }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
-                        <div class="trip-log-footer">Number of records: {{ count($transferLogs) }}</div>
+                        <div class="trip-log-footer">
+                            Number of records: {{ $paginationByTab['transfer-logs']['total'] ?? count($transferLogs) }}
+                        </div>
+                        @php $pag = $paginationByTab['transfer-logs'] ?? null; @endphp
+                        @if(!empty($pag) && ($pag['totalPages'] ?? 1) > 1)
+                            <nav aria-label="Transfer logs pagination">
+                                @php
+                                    $startPage = max(1, ($pag['page'] ?? 1) - 3);
+                                    $endPage = min($pag['totalPages'] ?? 1, ($pag['page'] ?? 1) + 3);
+                                @endphp
+                                <ul class="pagination pagination-sm justify-content-end mb-0">
+                                    @php $prev = ($pag['page'] ?? 1) - 1; @endphp
+                                    <li class="page-item {{ $prev < 1 ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'transfer-logs', 'page' => max(1, $prev)]) }}">
+                                            Prev
+                                        </a>
+                                    </li>
+                                    @for($p = $startPage; $p <= $endPage; $p++)
+                                        <li class="page-item {{ ($pag['page'] ?? 1) === $p ? 'active' : '' }}">
+                                            <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'transfer-logs', 'page' => $p]) }}">{{ $p }}</a>
+                                        </li>
+                                    @endfor
+                                    @php $next = ($pag['page'] ?? 1) + 1; @endphp
+                                    <li class="page-item {{ $next > ($pag['totalPages'] ?? 1) ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'transfer-logs', 'page' => min($pag['totalPages'] ?? 1, $next)]) }}">
+                                            Next
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        @endif
                     @else
                         <div class="trip-log-empty">No transfer logs for the selected date.</div>
                     @endif
@@ -268,7 +330,37 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="trip-log-footer">Number of records: {{ count($attractionLogs) }}</div>
+                        <div class="trip-log-footer">
+                            Number of records: {{ $paginationByTab['attractions']['total'] ?? count($attractionLogs) }}
+                        </div>
+                        @php $pag = $paginationByTab['attractions'] ?? null; @endphp
+                        @if(!empty($pag) && ($pag['totalPages'] ?? 1) > 1)
+                            <nav aria-label="Attractions pagination">
+                                @php
+                                    $startPage = max(1, ($pag['page'] ?? 1) - 3);
+                                    $endPage = min($pag['totalPages'] ?? 1, ($pag['page'] ?? 1) + 3);
+                                @endphp
+                                <ul class="pagination pagination-sm justify-content-end mb-0">
+                                    @php $prev = ($pag['page'] ?? 1) - 1; @endphp
+                                    <li class="page-item {{ $prev < 1 ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'attractions', 'page' => max(1, $prev)]) }}">
+                                            Prev
+                                        </a>
+                                    </li>
+                                    @for($p = $startPage; $p <= $endPage; $p++)
+                                        <li class="page-item {{ ($pag['page'] ?? 1) === $p ? 'active' : '' }}">
+                                            <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'attractions', 'page' => $p]) }}">{{ $p }}</a>
+                                        </li>
+                                    @endfor
+                                    @php $next = ($pag['page'] ?? 1) + 1; @endphp
+                                    <li class="page-item {{ $next > ($pag['totalPages'] ?? 1) ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'attractions', 'page' => min($pag['totalPages'] ?? 1, $next)]) }}">
+                                            Next
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        @endif
                     @else
                         <div class="trip-log-empty">No attraction bookings for the selected date.</div>
                     @endif
@@ -313,7 +405,37 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="trip-log-footer">Number of records: {{ count($restaurantLogs) }}</div>
+                        <div class="trip-log-footer">
+                            Number of records: {{ $paginationByTab['restaurants']['total'] ?? count($restaurantLogs) }}
+                        </div>
+                        @php $pag = $paginationByTab['restaurants'] ?? null; @endphp
+                        @if(!empty($pag) && ($pag['totalPages'] ?? 1) > 1)
+                            <nav aria-label="Restaurants pagination">
+                                @php
+                                    $startPage = max(1, ($pag['page'] ?? 1) - 3);
+                                    $endPage = min($pag['totalPages'] ?? 1, ($pag['page'] ?? 1) + 3);
+                                @endphp
+                                <ul class="pagination pagination-sm justify-content-end mb-0">
+                                    @php $prev = ($pag['page'] ?? 1) - 1; @endphp
+                                    <li class="page-item {{ $prev < 1 ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'restaurants', 'page' => max(1, $prev)]) }}">
+                                            Prev
+                                        </a>
+                                    </li>
+                                    @for($p = $startPage; $p <= $endPage; $p++)
+                                        <li class="page-item {{ ($pag['page'] ?? 1) === $p ? 'active' : '' }}">
+                                            <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'restaurants', 'page' => $p]) }}">{{ $p }}</a>
+                                        </li>
+                                    @endfor
+                                    @php $next = ($pag['page'] ?? 1) + 1; @endphp
+                                    <li class="page-item {{ $next > ($pag['totalPages'] ?? 1) ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'restaurants', 'page' => min($pag['totalPages'] ?? 1, $next)]) }}">
+                                            Next
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        @endif
                     @else
                         <div class="trip-log-empty">No restaurant bookings for the selected date.</div>
                     @endif
@@ -354,7 +476,37 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="trip-log-footer">Number of records: {{ count($hotelLogs) }}</div>
+                        <div class="trip-log-footer">
+                            Number of records: {{ $paginationByTab['hotels']['total'] ?? count($hotelLogs) }}
+                        </div>
+                        @php $pag = $paginationByTab['hotels'] ?? null; @endphp
+                        @if(!empty($pag) && ($pag['totalPages'] ?? 1) > 1)
+                            <nav aria-label="Hotels pagination">
+                                @php
+                                    $startPage = max(1, ($pag['page'] ?? 1) - 3);
+                                    $endPage = min($pag['totalPages'] ?? 1, ($pag['page'] ?? 1) + 3);
+                                @endphp
+                                <ul class="pagination pagination-sm justify-content-end mb-0">
+                                    @php $prev = ($pag['page'] ?? 1) - 1; @endphp
+                                    <li class="page-item {{ $prev < 1 ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'hotels', 'page' => max(1, $prev)]) }}">
+                                            Prev
+                                        </a>
+                                    </li>
+                                    @for($p = $startPage; $p <= $endPage; $p++)
+                                        <li class="page-item {{ ($pag['page'] ?? 1) === $p ? 'active' : '' }}">
+                                            <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'hotels', 'page' => $p]) }}">{{ $p }}</a>
+                                        </li>
+                                    @endfor
+                                    @php $next = ($pag['page'] ?? 1) + 1; @endphp
+                                    <li class="page-item {{ $next > ($pag['totalPages'] ?? 1) ? 'disabled' : '' }}">
+                                        <a class="page-link" href="{{ route('bookings.today', ['date' => $tripDate, 'end_date' => $end_date, 'tab' => 'hotels', 'page' => min($pag['totalPages'] ?? 1, $next)]) }}">
+                                            Next
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        @endif
                     @else
                         <div class="trip-log-empty">No hotel bookings for the selected date.</div>
                     @endif
