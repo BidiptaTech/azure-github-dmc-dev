@@ -161,6 +161,20 @@
     #tourOrdersTable .select2-search--dropdown .select2-search__field {
         padding: 4px 10px;
     }
+
+    /* Horizontal scroll like driver jobsheet table */
+    .card-body .table-responsive {
+        overflow-x: auto !important;
+    }
+
+    /* Keep DataTables scroll header/body aligned */
+    #tourOrdersTable,
+    #tourOrdersTable thead th,
+    #tourOrdersTable tbody td,
+    .dataTables_scrollHeadInner table,
+    .dataTables_scrollHeadInner table th {
+        box-sizing: border-box !important;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -210,6 +224,7 @@
                                 <th>Infant</th>
                                 <th>Pickup Location</th>
                                 <th>Tour Type</th>
+                                <th>Remarks</th>
                                 <th>Guide</th>
                                 <th>Assign Guide</th>
                                 <!-- Hidden columns for now -->
@@ -358,6 +373,7 @@ $(document).ready(function() {
                         <td>${normalizeCount(item.tour?.infant)}</td>
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
+                        <td>${item.remarks || 'N/A'}</td>
                         <td>${(function() {
                             if (item.OrderGuide) {
                                 const guide = item.OrderGuide;
@@ -420,7 +436,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -431,13 +447,13 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
 
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date) + '?type=guide', {
             method: 'GET',
@@ -484,6 +500,7 @@ $(document).ready(function() {
                                     <td>${normalizeCount(item.tour?.infant)}</td>
                                     <td>${dataItem.entrypickup || 'N/A'}</td>
                                     <td>${dataItem.type || 'N/A'}</td>
+                                    <td>${item.remarks || 'N/A'}</td>
                                     <td>${(function() {
                                         if (item.OrderGuide) {
                                             const guide = item.OrderGuide;
@@ -546,14 +563,14 @@ $(document).ready(function() {
                         // Initialize DataTable
                         initializeDataTable();
                     } else {
-                        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found for this date</td></tr>');
+                        $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">No orders found for this date</td></tr>');
                         $('#exportOrdersBtn').hide();
                     }
                 } else {
                     const errorMessage = response.message || 'Error loading orders';
                     console.error('Error:', errorMessage);
                     showAlert('error', errorMessage);
-                    $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Error loading orders</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
         })
@@ -561,7 +578,7 @@ $(document).ready(function() {
             console.error('Error fetching orders by date:', error);
             const errorMessage = error.message || 'Error fetching orders';
             showAlert('error', errorMessage);
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Error loading orders</td></tr>');
             $('#exportOrdersBtn').hide();
         });
     }
@@ -606,15 +623,22 @@ $(document).ready(function() {
                            !$('#tourOrdersTableBody tr td[colspan]').length;
             
             if (hasData) {
-                // Initialize DataTable with minimal options
-                $('#tourOrdersTable').DataTable({
+                // Initialize DataTable with horizontal scroll so pager stays below scrollbar
+                var dt = $('#tourOrdersTable').DataTable({
                     paging: true,
                     ordering: true,
                     info: true,
                     searching: true,
+                    responsive: false,
+                    scrollX: true,
+                    autoWidth: false,
                     columnDefs: [
-                        { orderable: false, targets: [10] } // Disable sorting on guide select column
-                    ]
+                        { orderable: false, targets: [11] } // Disable sorting on assign guide column
+                    ],
+                    drawCallback: function() {
+                        // Recalculate widths so scroll header aligns with body
+                        setTimeout(function() { dt.columns().adjust(); }, 0);
+                    }
                 });
                 
                 // Set the flag
@@ -797,7 +821,7 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 11) {
+            if (cells.length < 12) {
                 return; // Skip incomplete rows
             }
             
@@ -811,10 +835,11 @@ $(document).ready(function() {
             const infant = $(cells[6]).text().trim();
             const pickupLocation = $(cells[7]).text().trim();
             const tourType = $(cells[8]).text().trim();
-            const guide = $(cells[9]).text().trim();
+            const remarks = $(cells[9]).text().trim();
+            const guide = $(cells[10]).text().trim();
             
             // Get selected guide from the dropdown
-            const guideSelect = $(cells[10]).find('.guide-select');
+            const guideSelect = $(cells[11]).find('.guide-select');
             const assignedGuide = guideSelect.find('option:selected').text().trim() || 'Not Assigned';
             
             // Add to excel data
@@ -828,6 +853,7 @@ $(document).ready(function() {
                 'Infant': infant,
                 'Pickup Location': pickupLocation,
                 'Tour Type': tourType,
+                'Remarks': remarks,
                 'Guide': guide,
                 'Assigned Guide': assignedGuide
             });
