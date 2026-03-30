@@ -981,21 +981,23 @@ class HotelController extends Controller
         // Get the specific hotel by hotel_unique_id
         $hotel = Hotel::where('hotel_unique_id', $hotel_unique_id)->firstOrFail();
         
-        if($auth_user->user_type == 1){
+        if ($auth_user->user_type == 1) {
             $hotels = Hotel::get();
-        }elseif($auth_user->user_type == 2){
-            $hotels = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
-            if($auth_user->is_master_dmc == 1){
-                $commission_type = $auth_user->markup_type;
-                $commission_price = $auth_user->markup_price;
-            }else{
-                $master_id = User::where('master_dmc_id',$auth_user->master_dmc_id)->first();
-                $commission_type = $master_id->markup_type;
-                $commission_price = $master_id->markup_price;
+        } else {
+            $dmcForHotels = $this->resolveRoomPricingDmcUserId($auth_user);
+            $hotels = $dmcForHotels
+                ? Hotel::whereJsonContains('dmc_id', $dmcForHotels)->get()
+                : Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
+            if ($auth_user->user_type == 2 || $this->canManageRoomPricingImport($auth_user)) {
+                [$commission_type, $commission_price] = $this->resolveDmcMarkupForPricing($auth_user);
             }
-        }else {
-            $hotels = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
         }
+
+        $effective_room_owner_id = $auth_user->userId;
+        if (! in_array((int) $auth_user->role_id, [1, 20], true)) {
+            $effective_room_owner_id = $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
+        }
+        $show_dmc_room_pricing_hints = (int) $auth_user->user_type === 2 || $this->canManageRoomPricingImport($auth_user);
         
         $roomtypes = RoomType::where('status', 1)->get();
         
@@ -1040,10 +1042,10 @@ class HotelController extends Controller
                 $rooms = Room::with('beds')->where('dmc_base_room', 1)->where('hotel_id', $hotel_unique_id)->get();
             }
         } else {
-            // DMC/Other users: Show their own rooms + admin base rooms
+            // DMC and delegated roles: show parent DMC's room copies + admin base rooms
             $dmcRooms = Room::with('beds')
                           ->where('hotel_id', $hotel_unique_id)
-                          ->where('created_by', $auth_user->userId)
+                          ->where('created_by', $effective_room_owner_id)
                           ->where('dmc_base_room', 0)
                           ->get();
             
@@ -1083,7 +1085,9 @@ class HotelController extends Controller
             'currentRooms',
             'mealTypes',
             'auth_user',
-            'dmcUsers'
+            'dmcUsers',
+            'effective_room_owner_id',
+            'show_dmc_room_pricing_hints'
         ));
     }
     /*
@@ -1657,29 +1661,27 @@ class HotelController extends Controller
                            ->where('varient_price', '0')
                            ->first();
         } else {
-            // DMC/Other users: Check if they have their own room for this hotel and room type
+            $dmcOwnerId = $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
+
+            // DMC / delegated roles: rooms are owned by parent DMC (created_by)
             $dmcRoom = Room::where('hotel_id', $originalRoom->hotel_id)
                           ->where('room_type', $originalRoom->room_type)
-                          ->where('created_by', $auth_user->userId)
+                          ->where('created_by', $dmcOwnerId)
                           ->where('dmc_base_room', 0)
                           ->first();
 
             if ($dmcRoom) {
-                // Edit their existing DMC room
                 $room = $dmcRoom;
             } else {
-                // Edit the original room (will create new DMC room on update)
                 $room = $originalRoom;
             }
 
-            // Find DMC's own base room for this hotel
             $baseRoom = Room::where('hotel_id', $originalRoom->hotel_id)
-                           ->where('created_by', $auth_user->userId)
+                           ->where('created_by', $dmcOwnerId)
                            ->where('base_room', true)
                            ->where('dmc_base_room', 0)
                            ->first();
 
-            // If DMC doesn't have their own base room yet, use admin's base room as reference
             if (!$baseRoom) {
                 $baseRoom = Room::where('hotel_id', $originalRoom->hotel_id)
                                ->where('dmc_base_room', 1)
@@ -1687,31 +1689,31 @@ class HotelController extends Controller
                                ->first();
             }
 
-            if ($auth_user->user_type == 2) {
-                $hotel = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
+            $hotel = Hotel::whereJsonContains('dmc_id', $dmcOwnerId)->get();
 
-                if ($auth_user->is_master_dmc == 1) {
-                    $commission_type = $auth_user->markup_type;
-                    $commission_price = $auth_user->markup_price;
+            if ($auth_user->user_type == 2 || $this->canManageRoomPricingImport($auth_user)) {
+                $dmcPricingUser = User::where('userId', $dmcOwnerId)->first() ?? $auth_user;
+
+                if ((int) $dmcPricingUser->is_master_dmc === 1) {
+                    $commission_type = $dmcPricingUser->markup_type;
+                    $commission_price = $dmcPricingUser->markup_price;
                 } else {
-                    $master_id = User::where('master_dmc_id', $auth_user->master_dmc_id)->first();
+                    $master_id = User::where('master_dmc_id', $dmcPricingUser->master_dmc_id)->first();
                     $commission_type = $master_id->markup_type ?? 0;
                     $commission_price = $master_id->markup_price ?? 0;
                 }
 
                 if ($commission_type == 0) {
-                    $single_weekday_price = $auth_user->markup_price + $room->weekday_price;
-                    $double_weekday_price = $auth_user->markup_price + $room->double_weekday_price;
-                    $single_weekend_price = $auth_user->markup_price + $room->weekend_price;
-                    $double_weekend_price = $auth_user->markup_price + $room->double_weekend_price;
+                    $single_weekday_price = $dmcPricingUser->markup_price + $room->weekday_price;
+                    $double_weekday_price = $dmcPricingUser->markup_price + $room->double_weekday_price;
+                    $single_weekend_price = $dmcPricingUser->markup_price + $room->weekend_price;
+                    $double_weekend_price = $dmcPricingUser->markup_price + $room->double_weekend_price;
                 } else {
-                    $single_weekday_price = $room->weekday_price + ($auth_user->markup_price * $room->weekday_price) / 100;
-                    $double_weekday_price = $room->double_weekday_price + ($auth_user->markup_price * $room->double_weekday_price) / 100;
-                    $single_weekend_price = $room->weekend_price + ($auth_user->markup_price * $room->weekend_price) / 100;
-                    $double_weekend_price = $room->double_weekend_price + ($auth_user->markup_price * $room->double_weekend_price) / 100;
+                    $single_weekday_price = $room->weekday_price + ($dmcPricingUser->markup_price * $room->weekday_price) / 100;
+                    $double_weekday_price = $room->double_weekday_price + ($dmcPricingUser->markup_price * $room->double_weekday_price) / 100;
+                    $single_weekend_price = $room->weekend_price + ($dmcPricingUser->markup_price * $room->weekend_price) / 100;
+                    $double_weekend_price = $room->double_weekend_price + ($dmcPricingUser->markup_price * $room->double_weekend_price) / 100;
                 }
-            } else {
-                $hotel = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
             }
         }
 
@@ -1768,21 +1770,20 @@ class HotelController extends Controller
                 \Log::info("Admin updating original room");
                 $this->updateExistingRoom($request, $originalRoom);
             } else {
-                // DMC/Other users: Check if they already have a room for this hotel and room type
+                $dmcOwnerId = $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
+
                 $dmcRoom = Room::where('hotel_id', $request->hotel_id)
                               ->where('room_type', $originalRoom->room_type)
-                              ->where('created_by', $auth_user->userId)
-                              ->where('dmc_base_room', 0) // DMC specific room, not admin base room
+                              ->where('created_by', $dmcOwnerId)
+                              ->where('dmc_base_room', 0)
                               ->first();
 
                 if ($dmcRoom) {
-                    // Update their existing DMC room
                     \Log::info("DMC updating existing room", ['dmc_room_id' => $dmcRoom->room_id]);
                     $this->updateExistingRoom($request, $dmcRoom);
                 } else {
-                    // Create new DMC room based on the original room
                     \Log::info("DMC creating new room");
-                    $this->createDmcRoom($request, $originalRoom, $auth_user);
+                    $this->createDmcRoom($request, $originalRoom, $auth_user, $dmcOwnerId);
                 }
             }
 
@@ -1800,6 +1801,11 @@ class HotelController extends Controller
      */
     private function updateExistingRoom(Request $request, Room $room)
     {
+        $auth_user = Auth::user();
+        $dmcPricingOwnerId = in_array((int) $auth_user->role_id, [1, 20], true)
+            ? null
+            : ($this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId);
+
         // Handle master image
         $master_image = $room->master_image ?? '';
         
@@ -1852,7 +1858,6 @@ class HotelController extends Controller
         $img_path = array_merge($existingImages, $imagePaths);
 
         // Calculate final prices based on user type and base room logic
-        $auth_user = Auth::user();
         $finalWeekdayPrice = $request->singleWeekdayPrice ?? $request->baseSingleWeekdayPrice ?? 0;
         $finalWeekendPrice = $request->singleWeekendPrice ?? $request->baseSingleWeekendPrice ?? 0;
         $finalDoubleWeekdayPrice = $request->doubleWeekdayPrice ?? $request->baseDoubleWeekdayPrice ?? 0;
@@ -1874,9 +1879,9 @@ class HotelController extends Controller
                     $finalDoubleWeekendPrice = $adminBaseRoom->double_weekend_price + $room->varient_price;
                 }
             } else {
-                // DMC: Use DMC's own base room
+                // DMC / delegated roles: use parent DMC base room
                 $dmcBaseRoom = Room::where('hotel_id', $request->hotel_id)
-                                 ->where('created_by', $auth_user->userId)
+                                 ->where('created_by', $dmcPricingOwnerId)
                                  ->where('base_room', true)
                                  ->where('dmc_base_room', 0)
                                  ->first();
@@ -1935,8 +1940,10 @@ class HotelController extends Controller
     /**
      * Create new DMC room based on original room (first time DMC edits)
      */
-    private function createDmcRoom(Request $request, Room $originalRoom, $auth_user)
+    private function createDmcRoom(Request $request, Room $originalRoom, $auth_user, ?int $roomCreatedByDmcUserId = null)
     {
+        $roomCreatedByDmcUserId = $roomCreatedByDmcUserId ?? $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
+
         // Generate new room ID
         $lastRoom = Room::withTrashed()->orderBy('id', 'desc')->first();
         $room_max_id = $lastRoom->room_id ?? 0;
@@ -1967,7 +1974,7 @@ class HotelController extends Controller
 
         // Check if DMC has a base room for this hotel
         $dmcBaseRoom = Room::where('hotel_id', $request->hotel_id)
-                          ->where('created_by', $auth_user->userId)
+                          ->where('created_by', $roomCreatedByDmcUserId)
                           ->where('base_room', true)
                           ->where('dmc_base_room', 0)
                           ->first();
@@ -2024,7 +2031,8 @@ class HotelController extends Controller
             'breakfast_included' => $request->supplementary_breakfast ?? false,
             'master_image' => $master_image,
             'images' => json_encode($imagePaths),
-            'created_by' => $auth_user->userId,
+            'created_by' => $roomCreatedByDmcUserId,
+            'dmc_id' => $roomCreatedByDmcUserId,
             'dmc_base_room' => 0, // This is DMC specific room, not admin base room
             'base_room' => $isBaseRoom, // True if this is DMC's first/base room
             'status' => $request->room_status == 1 ? 1 : 0,
@@ -3434,16 +3442,95 @@ class HotelController extends Controller
     }
 
     /**
+     * Product-head / product-manager roles that manage room pricing for a parent DMC.
+     */
+    private function roomPricingDelegateRoleIds(): array
+    {
+        return [35, 130, 132, 133, 136, 137, 138, 77, 84, 139, 140];
+    }
+
+    /**
+     * Whether the user may bulk-import room pricing and download templates for their DMC.
+     */
+    private function canManageRoomPricingImport(User $user): bool
+    {
+        if ((int) $user->user_type === 2) {
+            return true;
+        }
+        if ((int) $user->role_id === 11) {
+            return true;
+        }
+
+        return in_array((int) $user->role_id, $this->roomPricingDelegateRoleIds(), true);
+    }
+
+    /**
+     * DMC userId used for room ownership (created_by), hotel access, and imports (delegated staff use parent DMC).
+     */
+    private function resolveRoomPricingDmcUserId(User $user): ?int
+    {
+        if ((int) $user->role_id === 11) {
+            return (int) $user->userId;
+        }
+        if ((int) $user->role_id === 35 || in_array((int) $user->role_id, [130, 132, 133, 136, 137, 138], true)) {
+            return $user->created_by ? (int) $user->created_by : null;
+        }
+        if ((int) $user->role_id === 77 || (int) $user->role_id === 139) {
+            $product_head = User::where('userId', $user->created_by)->first();
+
+            return ($product_head && $product_head->created_by) ? (int) $product_head->created_by : null;
+        }
+        if ((int) $user->role_id === 84 || (int) $user->role_id === 140) {
+            $product_manager = User::where('userId', $user->created_by)->first();
+            if (! $product_manager) {
+                return null;
+            }
+            $product_head = User::where('userId', $product_manager->created_by)->first();
+
+            return ($product_head && $product_head->created_by) ? (int) $product_head->created_by : null;
+        }
+        if ((int) $user->user_type === 2) {
+            return (int) $user->userId;
+        }
+
+        return null;
+    }
+
+    /**
+     * Markup settings for room pricing UI (delegated users inherit their DMC's markup).
+     *
+     * @return array{0: int|float, 1: int|float} [commission_type, commission_price]
+     */
+    private function resolveDmcMarkupForPricing(User $authUser): array
+    {
+        $dmcId = $this->resolveRoomPricingDmcUserId($authUser);
+        $subject = $dmcId ? User::where('userId', $dmcId)->first() : null;
+        if (! $subject) {
+            return [0, 0];
+        }
+        if ((int) $subject->is_master_dmc === 1) {
+            return [$subject->markup_type ?? 0, $subject->markup_price ?? 0];
+        }
+        $master_id = User::where('master_dmc_id', $subject->master_dmc_id)->first();
+        if (! $master_id) {
+            return [0, 0];
+        }
+
+        return [$master_id->markup_type ?? 0, $master_id->markup_price ?? 0];
+    }
+
+    /**
      * Display rooms import view with upload history
      */
     public function roomsImportView($hotel_id)
     {
         $user = Auth::user();
-        
-        // Only DMC users can import rooms
-        if ($user->user_type != 2) {
+
+        if (! $this->canManageRoomPricingImport($user)) {
             abort(403, 'You do not have permission to import rooms.');
         }
+
+        $dmcOwnerId = $this->resolveRoomPricingDmcUserId($user) ?? (int) $user->userId;
 
         // Get the specific hotel
         $hotel = Hotel::where('hotel_unique_id', $hotel_id)->first();
@@ -3458,7 +3545,7 @@ class HotelController extends Controller
             $dmcIds = [];
         }
 
-        if (!in_array($user->userId, $dmcIds)) {
+        if (!in_array($dmcOwnerId, $dmcIds)) {
             return redirect()->back()->with('error', 'You do not have access to this hotel.');
         }
 
@@ -3485,18 +3572,34 @@ class HotelController extends Controller
 
         $user = Auth::user();
 
-        // Only DMC users can import
-        if ($user->user_type != 2) {
+        if (! $this->canManageRoomPricingImport($user)) {
             return redirect()->back()->with('error', 'You do not have permission to import rooms.');
+        }
+
+        $dmcOwnerId = $this->resolveRoomPricingDmcUserId($user);
+        if (! $dmcOwnerId) {
+            return redirect()->back()->with('error', 'Unable to resolve DMC account for room import.');
         }
 
         try {
             $file = $request->file('file');
             $hotelId = $request->input('hotel_id');
+            $hotelForAccess = Hotel::where('hotel_unique_id', $hotelId)->first();
+            if (! $hotelForAccess) {
+                return redirect()->back()->with('error', 'Hotel not found.');
+            }
+            $dmcIdsAccess = is_string($hotelForAccess->dmc_id) ? json_decode($hotelForAccess->dmc_id, true) : $hotelForAccess->dmc_id;
+            if (! is_array($dmcIdsAccess)) {
+                $dmcIdsAccess = [];
+            }
+            if (! in_array($dmcOwnerId, $dmcIdsAccess)) {
+                return redirect()->back()->with('error', 'You do not have access to this hotel.');
+            }
+
             $originalFileName = $file->getClientOriginalName();
             
             // Check for duplicate uploads within 5 minutes
-            $cacheKey = 'room_upload_' . $user->userId . '_' . $hotelId . '_' . md5($originalFileName . $file->getSize());
+            $cacheKey = 'room_upload_' . $user->userId . '_' . $dmcOwnerId . '_' . $hotelId . '_' . md5($originalFileName . $file->getSize());
             
             if (\Cache::has($cacheKey)) {
                 return redirect()->back()->with('error', 'This file has already been uploaded recently. Please wait a few minutes before trying again.');
@@ -3509,9 +3612,9 @@ class HotelController extends Controller
             $csv = array_map('str_getcsv', file($filePath));
             $totalRecords = count($csv) - 1; // Subtract header row
 
-            // Process import
+            // Process import (rooms stored under parent DMC userId when uploaded by delegated roles)
             $importer = new \App\Imports\RoomsImport();
-            $result = $importer->import($filePath);
+            $result = $importer->import($filePath, $dmcOwnerId);
 
             $successCount = $result['success'];
             $errorCount = $result['errors'];
@@ -3593,10 +3696,11 @@ class HotelController extends Controller
     {
         $user = Auth::user();
 
-        // Only DMC users can download template
-        if ($user->user_type != 2) {
+        if (! $this->canManageRoomPricingImport($user)) {
             abort(403, 'You do not have permission to download this template.');
         }
+
+        $dmcOwnerId = $this->resolveRoomPricingDmcUserId($user) ?? (int) $user->userId;
 
         // Use the hotel_id from route parameter
         $hotelId = $hotel_id;
@@ -3627,7 +3731,7 @@ class HotelController extends Controller
                 $dmcIds = [];
             }
 
-            if (!in_array($user->userId, $dmcIds)) {
+            if (!in_array($dmcOwnerId, $dmcIds)) {
                 return redirect()->back()->with('error', 'You do not have access to this hotel.');
             }
         }
