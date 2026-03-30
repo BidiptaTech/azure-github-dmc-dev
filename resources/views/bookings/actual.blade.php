@@ -4909,7 +4909,16 @@
     </div>
 
     <!-- Add Payment Modal -->
-    <div class="modal fade" id="addPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="addPaymentModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+    <div
+        class="modal fade"
+        id="addPaymentModal{{ $tour->tour_id }}"
+        tabindex="-1"
+        aria-labelledby="addPaymentModalLabel{{ $tour->tour_id }}"
+        aria-hidden="true"
+        data-dmc-rate="{{ $tour->dmc_exchange_rate_value ?? '' }}"
+        data-previous-rate="{{ $tour->previous_exchange_rate ?? '' }}"
+        data-previous-currency="{{ $tour->previous_payment_currency ?? '' }}"
+    >
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content shadow-lg rounded">
                 <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 15px; border-radius: 8px;">
@@ -5010,6 +5019,26 @@
                         
                         <!-- Exchange Rate (Editable) -->
                         <div class="mb-4" id="exchangeRateSection{{ $tour->tour_id }}" style="display: none;">
+                            <div class="mb-3" id="exchangeRateSourceOptions{{ $tour->tour_id }}">
+                                <label class="form-label fw-bold mb-2">
+                                    <i class="fas fa-sliders-h text-primary me-2"></i>Rate Options
+                                </label>
+                                <div class="d-flex flex-wrap gap-3 align-items-center">
+                                    <label class="form-check form-check-inline m-0">
+                                        <input class="form-check-input" type="radio" name="rate_source{{ $tour->tour_id }}" id="rateSourceLive{{ $tour->tour_id }}" value="live" data-rate-source-radio="1" data-tour-id="{{ $tour->tour_id }}" checked>
+                                        <span class="form-check-label">API Rate</span>
+                                    </label>
+                                    <label class="form-check form-check-inline m-0">
+                                        <input class="form-check-input" type="radio" name="rate_source{{ $tour->tour_id }}" id="rateSourceDmc{{ $tour->tour_id }}" value="dmc" data-rate-source-radio="1" data-tour-id="{{ $tour->tour_id }}">
+                                        <span class="form-check-label">DMC Rate</span>
+                                    </label>
+                                    <label class="form-check form-check-inline m-0" id="rateSourcePreviousWrap{{ $tour->tour_id }}">
+                                        <input class="form-check-input" type="radio" name="rate_source{{ $tour->tour_id }}" id="rateSourcePrevious{{ $tour->tour_id }}" value="previous" data-rate-source-radio="1" data-tour-id="{{ $tour->tour_id }}">
+                                        <span class="form-check-label">Previous Rate</span>
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-2" id="rateSourceHint{{ $tour->tour_id }}" style="display:none;"></small>
+                            </div>
                             <label for="exchange_rate{{ $tour->tour_id }}" class="form-label fw-bold">
                                 <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
                             </label>
@@ -22823,6 +22852,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reset payment forms when modals are hidden
     const paymentModals = document.querySelectorAll('[id^="addPaymentModal"]');
     paymentModals.forEach(modal => {
+        modal.addEventListener('shown.bs.modal', function() {
+            const tourId = this.id.replace('addPaymentModal', '');
+            initPaymentRateSourcesForTour(tourId);
+
+            const liveEl = document.getElementById(`rateSourceLive${tourId}`);
+            if (liveEl) liveEl.checked = true;
+
+            const currencySelect = document.getElementById(`currency${tourId}`);
+            if (currencySelect) {
+                updatePaymentAmountEnhanced(tourId, currencySelect.value);
+            }
+        });
+
         modal.addEventListener('hidden.bs.modal', function() {
             const tourId = this.id.replace('addPaymentModal', '');
             const form = document.getElementById(`paymentForm${tourId}`);
@@ -26762,6 +26804,7 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     const exchangeRateCurrency = document.getElementById(`exchangeRateCurrency${tourId}`);
     const currencySymbol = document.getElementById(`currencySymbol${tourId}`);
     const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
+    const selectedSource = getSelectedRateSource(tourId);
     
     if (selectedCurrency && selectedCurrency !== 'SGD') {
         exchangeRateSection.style.display = 'block';
@@ -26769,8 +26812,10 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
         currencySymbol.textContent = selectedCurrency;
         conversionInfoContainer.style.display = 'block';
         
-        // Fetch exchange rate (placeholder - replace with actual API call)
-        fetchExchangeRate(selectedCurrency, tourId);
+        if (selectedSource === 'live') {
+            fetchExchangeRate(selectedCurrency, tourId);
+            setRateSourceLabel(tourId, 'API Rate');
+        }
     } else {
         exchangeRateSection.style.display = 'none';
         exchangeRateInput.value = 1.00;
@@ -26779,25 +26824,139 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     }
 }
 
+function getSelectedRateSource(tourId) {
+    const liveEl = document.getElementById(`rateSourceLive${tourId}`);
+    const dmcEl = document.getElementById(`rateSourceDmc${tourId}`);
+    const prevEl = document.getElementById(`rateSourcePrevious${tourId}`);
+    if (prevEl && prevEl.checked) return 'previous';
+    if (dmcEl && dmcEl.checked) return 'dmc';
+    if (liveEl && liveEl.checked) return 'live';
+    return 'live';
+}
+
+function setRateSourceLabel(tourId, label) {
+    const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
+    if (rateSourceText) rateSourceText.textContent = label;
+}
+
 function fetchExchangeRate(currency, tourId) {
     // This would normally call your exchange rate API
-    fetch(`/api/exchange-rate?from=SGD&to=${currency}`)
+    fetch(`/get-exchange-rate?from=SGD&to=${currency}`)
         .then(response => response.json())
         .then(data => {
             const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
             const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
             if (data.rate) {
                 exchangeRateInput.value = data.rate.toFixed(4);
-                rateSourceText.textContent = 'API';
+                rateSourceText.textContent = 'API Rate';
+                window.paymentRateSources = window.paymentRateSources || {};
+                window.paymentRateSources[tourId] = window.paymentRateSources[tourId] || {};
+                window.paymentRateSources[tourId].liveRate = String(data.rate);
             } else {
-                rateSourceText.textContent = 'Manual';
+                exchangeRateInput.value = '1.00';
+                rateSourceText.textContent = 'API Rate';
             }
         })
         .catch(error => {
             console.error('Error fetching exchange rate:', error);
+            const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
             const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
-            rateSourceText.textContent = 'Manual';
+            exchangeRateInput.value = '1.00';
+            rateSourceText.textContent = 'API Rate';
         });
+}
+
+function initPaymentRateSourcesForTour(tourId) {
+    const modal = document.getElementById(`addPaymentModal${tourId}`);
+    if (!modal) return;
+
+    window.paymentRateSources = window.paymentRateSources || {};
+    window.paymentRateSources[tourId] = window.paymentRateSources[tourId] || {};
+
+    const dmcRateRaw = (modal.dataset.dmcRate || '').trim();
+    const prevRateRaw = (modal.dataset.previousRate || '').trim();
+    const prevCurrencyRaw = (modal.dataset.previousCurrency || '').trim();
+
+    const dmcRate = dmcRateRaw !== '' && !Number.isNaN(Number(dmcRateRaw)) ? dmcRateRaw : '';
+    const previousRate = prevRateRaw !== '' && !Number.isNaN(Number(prevRateRaw)) ? prevRateRaw : '';
+    const previousCurrency = prevCurrencyRaw !== '' ? prevCurrencyRaw : '';
+
+    window.paymentRateSources[tourId].dmcRate = dmcRate;
+    window.paymentRateSources[tourId].previousRate = previousRate;
+    window.paymentRateSources[tourId].previousCurrency = previousCurrency;
+
+    const dmcRadio = document.getElementById(`rateSourceDmc${tourId}`);
+    const prevWrap = document.getElementById(`rateSourcePreviousWrap${tourId}`);
+    const prevRadio = document.getElementById(`rateSourcePrevious${tourId}`);
+    const hint = document.getElementById(`rateSourceHint${tourId}`);
+
+    if (dmcRadio) dmcRadio.disabled = !dmcRate;
+
+    if (!previousRate || !previousCurrency) {
+        if (prevWrap) prevWrap.style.display = 'none';
+        if (prevRadio) prevRadio.checked = false;
+    } else if (prevWrap) {
+        prevWrap.style.display = '';
+    }
+
+    if (hint) {
+        const hints = [];
+        if (!dmcRate) hints.push('DMC Rate unavailable for this destination/DMC.');
+        if (!previousRate || !previousCurrency) hints.push('No previous payment rate found.');
+        if (hints.length) {
+            hint.textContent = hints.join(' ');
+            hint.style.display = 'block';
+        } else {
+            hint.textContent = '';
+            hint.style.display = 'none';
+        }
+    }
+}
+
+function applyRateSourceSelection(tourId, source) {
+    const selectedCurrency = document.getElementById(`currency${tourId}`)?.value;
+    const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
+    if (!exchangeRateInput) return;
+
+    window.paymentRateSources = window.paymentRateSources || {};
+    const sources = window.paymentRateSources[tourId] || {};
+
+    if (source === 'live') {
+        if (selectedCurrency && selectedCurrency !== 'SGD') {
+            exchangeRateInput.value = '1.00';
+            setRateSourceLabel(tourId, 'API Rate');
+            fetchExchangeRate(selectedCurrency, tourId);
+            recalculateFromExchangeRate(tourId);
+            validatePaymentAmountInput(tourId);
+        } else {
+            exchangeRateInput.value = '1.00';
+            setRateSourceLabel(tourId, 'API Rate');
+            validatePaymentAmountInput(tourId);
+        }
+        return;
+    }
+
+    if (source === 'dmc') {
+        if (!sources.dmcRate) return;
+        exchangeRateInput.value = sources.dmcRate;
+        setRateSourceLabel(tourId, 'DMC Rate');
+        recalculateFromExchangeRate(tourId);
+        validatePaymentAmountInput(tourId);
+        return;
+    }
+
+    if (source === 'previous') {
+        if (!sources.previousRate || !sources.previousCurrency) return;
+        const currencySelect = document.getElementById(`currency${tourId}`);
+        if (currencySelect && currencySelect.value !== sources.previousCurrency) {
+            currencySelect.value = sources.previousCurrency;
+            updatePaymentAmountEnhanced(tourId, sources.previousCurrency);
+        }
+        exchangeRateInput.value = sources.previousRate;
+        setRateSourceLabel(tourId, 'Previous Rate');
+        recalculateFromExchangeRate(tourId);
+        validatePaymentAmountInput(tourId);
+    }
 }
 
 function recalculateFromExchangeRate(tourId) {
@@ -27263,6 +27422,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const currencySelect = document.getElementById(`currency${tourId}`);
             if (currencySelect) {
                 currencySelect.value = 'SGD';
+                const liveEl = document.getElementById(`rateSourceLive${tourId}`);
+                if (liveEl) liveEl.checked = true;
                 updatePaymentAmountEnhanced(tourId, 'SGD');
             }
             
@@ -27273,6 +27434,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+});
+
+document.addEventListener('change', function(e) {
+    const el = e.target;
+    if (!el || !el.matches || !el.matches('input[data-rate-source-radio="1"]')) return;
+    const tourId = el.getAttribute('data-tour-id');
+    if (!tourId) return;
+    initPaymentRateSourcesForTour(tourId);
+    applyRateSourceSelection(tourId, el.value);
 });
 </script>
 @endsection

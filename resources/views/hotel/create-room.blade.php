@@ -562,7 +562,7 @@
                                         <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="singleWeekdayPrice">Weekday Price</label>
-                                        @if($auth_user->user_type == 2)
+                                        @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekdayPrice">0</span></span>
                                         @endif
@@ -572,7 +572,7 @@
                                         <input type="text" id="singleWeekendPrice" name="singleWeekendPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="singleWeekendPrice">Weekend Price</label>
-                                        @if($auth_user->user_type == 2)
+                                        @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekendPrice">0</span></span>
                                         @endif
@@ -593,7 +593,7 @@
                                         <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleWeekdayPrice">Weekday Price</label>
-                                        @if($auth_user->user_type == 2)
+                                        @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekdayPrice">0</span></span>
                                         @endif
@@ -603,7 +603,7 @@
                                         <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleWeekendPrice">Weekend Price</label>
-                                        @if($auth_user->user_type == 2)
+                                        @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekendPrice">0</span></span>
                                         @endif
@@ -625,7 +625,7 @@
                                 <input type="text" id="weekdayPrice" name="baseSingleWeekdayPrice" class="form-control"
                                     placeholder=" " onkeyup="calculatePrice()">
                                         <label for="weekdayPrice">Base Weekday Price</label>
-                                        @if($auth_user->user_type == 2)
+                                        @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalWeekdayPrice">0</span></span>
                                         @endif
@@ -634,7 +634,7 @@
                                 <input type="text" id="weekendPrice" name="baseSingleWeekendPrice" class="form-control"
                                     placeholder=" " onkeyup="calculatePrice()">
                                         <label for="weekendPrice">Base Weekend Price</label>
-                                        @if($auth_user->user_type == 2)
+                                        @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalWeekendPrice">0</span></span>
                                         @endif
@@ -655,7 +655,7 @@
                                         <input type="text" id="doubleweekdayPrice" name="baseDoubleWeekdayPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleweekdayPrice">Base Weekday Price</label>
-                                        @if($auth_user->user_type == 2)
+                                        @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalBaseDoubleWeekdayPrice">0</span></span>
                                         @endif
@@ -666,7 +666,7 @@
                                         <input type="text" id="doubleweekendPrice" name="baseDoubleWeekendPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleweekendPrice">Base Weekend Price</label>
-                                        @if($auth_user->user_type == 2)
+                                        @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalBaseDoubleWeekendPrice">0</span></span>
                                         @endif
@@ -855,7 +855,7 @@
                         @endif
                         
                         <!-- Import Button -->
-                        @if($auth_user->role_id == 11)
+                        @if(!empty($show_dmc_room_pricing_hints))
                         <a href="{{ route('rooms.import', ['hotel_id' => $hotel->hotel_unique_id]) }}" class="btn btn-success btn-sm">
                             <i class="fas fa-file-upload"></i> Import Rooms
                         </a>
@@ -939,11 +939,11 @@
                                                data-room-id="{{ $room->room_id }}" 
                                                style="width: 2.00em !important;"
                                                {{ $room->base_room ? 'checked' : '' }}
-                                               {{ $room->created_by == $auth_user->userId ? '' : 'disabled' }}
-                                               {{ $room->created_by == $auth_user->userId ? '' : 'style=opacity:0.5;cursor:not-allowed;' }}>
+                                               {{ $room->created_by == ($effective_room_owner_id ?? $auth_user->userId) ? '' : 'disabled' }}
+                                               {{ $room->created_by == ($effective_room_owner_id ?? $auth_user->userId) ? '' : 'style=opacity:0.5;cursor:not-allowed;' }}>
                                         <label class="form-check-label ms-2" for="baseRoomToggle{{ $room->room_id }}">
                                             {{ $room->base_room ? 'Yes' : 'No' }}
-                                            @if($room->created_by != $auth_user->userId)
+                                            @if($room->created_by != ($effective_room_owner_id ?? $auth_user->userId))
                                                 <small class="text-muted ms-2">(Created by another user)</small>
                                             @endif
                                         </label>
@@ -999,12 +999,12 @@
                                             data-room-id="{{ $room->room_id }}"
                                             data-created-by="{{ $room->created_by }}"
                                             onclick="handleDeleteClick(this, '{{ env('APP_URL') }}/deleteroom/{{ $room->room_id }}')"
-                                            {{ $room->created_by == $auth_user->userId ? '' : 'disabled' }}
-                                            {{ $room->created_by == $auth_user->userId ? '' : 'style=opacity:0.5;cursor:not-allowed;' }}>
+                                            {{ $room->created_by == ($effective_room_owner_id ?? $auth_user->userId) ? '' : 'disabled' }}
+                                            {{ $room->created_by == ($effective_room_owner_id ?? $auth_user->userId) ? '' : 'style=opacity:0.5;cursor:not-allowed;' }}>
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
                                             <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
                                         </svg>
-                                        @if($room->created_by != $auth_user->userId)
+                                        @if($room->created_by != ($effective_room_owner_id ?? $auth_user->userId))
                                             <span class="visually-hidden">(Cannot delete - created by another user)</span>
                                         @endif
                                     </button>
@@ -1756,7 +1756,7 @@ $(document).ready(function() {
 function handleDeleteClick(button, action) {
     // Get the created_by value from the button's data attribute
     const createdBy = $(button).data('created-by');
-    const authUserId = '{{ $auth_user->userId }}';
+    const authUserId = '{{ $effective_room_owner_id ?? $auth_user->userId }}';
     
     // Reset modal to default state
     $('#deleteModalDefaultContent').hide();

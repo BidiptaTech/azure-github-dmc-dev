@@ -929,6 +929,7 @@ Route::get('/clear', function () {
             Route::get('/bookings/follow-ups', [BookingsController::class, 'followUps'])->name('bookings.follow-ups');
             Route::get('/bookings/tentative', [BookingsController::class, 'tentative'])->name('bookings.tentative');
             Route::get('/bookings/confirmed', [BookingsController::class, 'confirmedBookings'])->name('bookings.confirmed');
+            Route::get('/bookings/dmc-exchange-rate', [BookingsController::class, 'getDmcExchangeRate'])->name('bookings.dmc-exchange-rate');
             Route::get('/bookings/definite', [BookingsController::class, 'definiteBookings'])->name('bookings.definite');
             Route::get('/bookings/actual', [BookingsController::class, 'actualBookings'])->name('bookings.actual');
             Route::get('/bookings/today', [TodaysBookingsController::class, 'index'])->name('bookings.today');
