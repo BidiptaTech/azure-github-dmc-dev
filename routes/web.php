@@ -312,6 +312,10 @@ Route::get('/clear', function () {
             Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
                 ->name('tour.itinerary.pdf');
 
+            // Temporarily store edited “quotation_information” for preview + PDF
+            Route::post('/tour/{tourId}/quotation-info', [\App\Http\Controllers\QuotationController::class, 'storeQuotationInfo'])
+                ->name('tour.quotation.info');
+
             Route::get('/tour/{encryptedTourId}/email-preview', function ($encryptedTourId) {
                 try {
                     // Decrypt the tour ID
@@ -1196,6 +1200,14 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/itinerary_settings/{id}/edit', [BookingListController::class, 'editItinerarySettings'])->name('itinerary_settings.edit');
         Route::match(['put', 'post'], '/itinerary_settings/{id}/update', [BookingListController::class, 'updateItinerarySettings'])->name('itinerary_settings.update_route');
         Route::delete('/itinerary_settings/{id}', [BookingListController::class, 'deleteItinerarySettings'])->name('itinerary_settings.delete');
+
+        // Quotation Settings routes
+        Route::get('/quotation_settings.pdf', [BookingListController::class, 'quotationSettings'])->name('quotation_settings.pdf');
+        Route::post('/quotation_settings.pdf', [BookingListController::class, 'saveQuotationSettings'])->name('quotation_settings.save');
+        Route::get('/quotation_settings/fetch', [BookingListController::class, 'fetchQuotationSettings'])->name('quotation_settings.fetch');
+        Route::get('/quotation_settings/{id}/edit', [BookingListController::class, 'editQuotationSettings'])->name('quotation_settings.edit');
+        Route::match(['put', 'post'], '/quotation_settings/{id}/update', [BookingListController::class, 'updateQuotationSettings'])->name('quotation_settings.update_route');
+        Route::delete('/quotation_settings/{id}', [BookingListController::class, 'deleteQuotationSettings'])->name('quotation_settings.delete');
     });
 
     //authentication check for manager (route can access admin & manager)

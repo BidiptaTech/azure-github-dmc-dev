@@ -1667,7 +1667,7 @@ class CommonHelper
         }
     }
 
-    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false)
+    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null)
     {
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
@@ -2149,6 +2149,7 @@ class CommonHelper
                 'baseCurrency' => $baseCurrency,
                 'selectedCurrency' => $selectedCurrency,
                 'exchangeRate' => $exchangeRate,
+                'quotationInformationHtml' => $quotationInformationHtml,
             ]);
             
             $pdf->setPaper('a4');
@@ -2190,6 +2191,7 @@ class CommonHelper
                     'baseCurrency' => $baseCurrency,
                     'selectedCurrency' => $selectedCurrency,
                     'exchangeRate' => $exchangeRate,
+                    'quotationInformationHtml' => $quotationInformationHtml,
                 ]);
                 
                 $pdf->setPaper('a4');
