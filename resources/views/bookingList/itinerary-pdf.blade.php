@@ -5,19 +5,7 @@
     <title>Itinerary - {{ $display_id ?? $tourId }}</title>
     <style>
         body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; color: #333; margin: 0; padding: 12px; }
-        .header { display: table; width: 100%; margin-bottom: 10px; }
-        .header-left { display: table-cell; width: 25%; vertical-align: top; }
-        .header-center { display: table-cell; width: 50%; text-align: center; vertical-align: top; }
-        .header-right { display: table-cell; width: 25%; vertical-align: top; }
-        .company-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
-        .company-details { font-size: 11px; color: #444; line-height: 1.4; }
-        .header-center .company-name,
-        .header-center .company-details { text-align: center; }
-        .logo-img { max-height: 140px; max-width: 140px; display: block;
-            margin-left: 0; margin-top: -50px; }
-        .title-row { text-align: center; margin: 8px 0 6px; }
-        .title-itinerary { font-size: 18px; font-weight: bold; color: #2563eb; }
-        .title-ref { font-size: 16px; font-weight: bold; color: #2563eb; margin-left: 10px; }
+        @include('invoices.pdf.partials.header-css')
         .band { background-color: #e5e7eb; padding: 6px 10px; margin-bottom: 10px; font-weight: bold; }
         .band span { margin-right: 20px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
@@ -50,58 +38,12 @@
 </head>
 <body>
 
-    <div class="header">
-        <div class="header-left">
-            @if($user_dmc && !empty($user_dmc->logo))
-                <img src="{{ $user_dmc->logo }}" alt="Logo" class="logo-img">
-            @endif
-        </div>
-        <div class="header-center">
-            <div class="company-name">{{ $user_dmc->company_name ?? $user_dmc->name ?? config('app.name') }}</div>
-            <div class="company-details">
-                @if($user_dmc && (!empty($user_dmc->licence_no) || !empty($user_dmc->company_reg_no)))
-                    @if(!empty($user_dmc->licence_no)) License No: {{ $user_dmc->licence_no }} @endif
-                    @if(!empty($user_dmc->licence_no) && !empty($user_dmc->company_reg_no)) @endif
-                    @if(!empty($user_dmc->company_reg_no))
-                        @if(!empty($user_dmc->licence_no)) / @endif
-                        Company Reg No: {{ $user_dmc->company_reg_no }}
-                    @endif
-                    <br>
-                @endif
-
-                @if($user_dmc && !empty($user_dmc->address))
-                    Address: {{ $user_dmc->address }}<br>
-                @endif
-
-                @php
-                    $hasPhone = $user_dmc && (!empty($user_dmc->phone) || !empty($user_dmc->tel));
-                    $hasEmail = $user_dmc && !empty($user_dmc->email);
-                @endphp
-                @if($user_dmc && ($hasPhone || $hasEmail))
-                    @if($hasPhone)
-                        Contact: Tel: {{ $user_dmc->phone ?? $user_dmc->tel ?? '' }}
-                        @if(!empty($user_dmc->fax)) , Fax: {{ $user_dmc->fax }} @endif
-                    @endif
-
-                    @if($hasEmail)
-                        @if($hasPhone) &nbsp;|&nbsp; @endif
-                        Email: {{ $user_dmc->email }}
-                    @endif
-                    <br>
-                @endif
-
-                @if($user_dmc && !empty($user_dmc->website))
-                    Website: {{ $user_dmc->website }}
-                @endif
-            </div>
-        </div>
-        <div class="header-right"></div>
-    </div>
-
-    <div class="title-row">
-        <span class="title-itinerary">ITINERARY</span>
-        <span class="title-ref">{{ $display_id ?? $tourId }}</span>
-    </div>
+    @include('invoices.pdf.partials.header', [
+        'logoType' => 'dmc',
+        'showBlueTitle' => true,
+        'docTitle' => 'ITINERARY',
+        'docNumber' => ($display_id ?? $tourId),
+    ])
 
     <div class="band">
         <span>Group / Pax: {{ $agent_info['company_name'] ?? 'N/A' }}</span>

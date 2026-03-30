@@ -13,6 +13,7 @@
             padding: 0;
             background: #fff;
         }
+        @include('invoices.pdf.partials.header-css')
 
         .page {
             padding: 10px;
@@ -103,43 +104,17 @@
             color: #000;
         }
 
-        /* Header */
-        .quotation-header-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
+        .quotation-information {
+            border: 1px solid #000;
+            padding: 6px 6px;
+            margin-top: 10px;
+            line-height: 1.25;
         }
 
-        .quotation-header-table td {
-            vertical-align: top;
-            padding: 0;
+        .quotation-information p {
+            margin: 0 0 6px 0;
         }
 
-        .quotation-logo-cell {
-            width: 180px;
-        }
-
-        .quotation-logo {
-            width: 130px;
-            height: 130px;
-            object-fit: contain;
-            margin-top: -52px;
-        }
-
-        .quotation-title {
-            text-align: center;
-            font-weight: bold;
-            font-size: 20px;
-            padding-top: 1px;
-        }
-
-        .quotation-dmc-details {
-            text-align: left;
-            font-size: 12px;
-            line-height: 1.5;
-            padding-top: 6px;
-            white-space: pre-line;
-        }
     </style>
 </head>
 <body>
@@ -410,67 +385,6 @@
 
     <div class="page">
         @php
-            // DMC/Company header data (requested: derive from logged-in user)
-            $dmcLogoSrc = !empty($dmcLogo) ? (string)$dmcLogo : null;
-
-            $dmcUser = null;
-            $dmcCompanyNameHeader = $dmcDetails['company_name'] ?? ($dmcCompanyName ?? '');
-            $dmcAddressHeader = $dmcDetails['address'] ?? '';
-            $dmcPhoneHeader = $dmcDetails['phone'] ?? '';
-            $dmcEmailHeader = $dmcDetails['email'] ?? '';
-            $dmcCompanyRegNo = $dmcDetails['company_reg_no'] ?? null;
-            $dmcLicenceNo = $dmcDetails['licence_no'] ?? null;
-
-            try {
-                $currentUser = \Illuminate\Support\Facades\Auth::user();
-                if ($currentUser) {
-                    $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
-                    if (!empty($dmcId)) {
-                        $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
-                    }
-                }
-            } catch (\Throwable $e) {
-                // keep fallback values if DMC lookup fails
-            }
-
-            if ($dmcUser) {
-                $dmcCompanyNameHeader = $dmcUser->company_name ?? ($dmcUser->companyName ?? $dmcCompanyNameHeader);
-                $dmcAddressHeader = $dmcUser->address ?? $dmcAddressHeader;
-                $dmcEmailHeader = $dmcUser->email ?? $dmcEmailHeader;
-
-                // Build phone with country code if present
-                $phoneRaw = $dmcUser->phone ?? null;
-                if (!empty($phoneRaw)) {
-                    $cc = $dmcUser->country_code ?? null;
-                    $dmcPhoneHeader = !empty($cc) ? ('+' . $cc . ' ' . $phoneRaw) : (string)$phoneRaw;
-                }
-
-                $dmcCompanyRegNo = $dmcUser->company_reg_no ?? ($dmcUser->companyRegNo ?? $dmcCompanyRegNo);
-                $dmcLicenceNo = $dmcUser->licence_no ?? ($dmcUser->licenceNo ?? $dmcLicenceNo);
-            }
-
-            $dmcLines = trim((string)$dmcCompanyNameHeader) . "\n";
-            $dmcLines .= trim((string)$dmcAddressHeader) . "\n";
-
-            if (!empty($dmcPhoneHeader)) {
-                $dmcLines .= "Tel: " . trim((string)$dmcPhoneHeader) . "\n";
-            }
-            if (!empty($dmcEmailHeader)) {
-                $dmcLines .= "Email: " . trim((string)$dmcEmailHeader) . "\n";
-            }
-
-            if (!empty($dmcCompanyRegNo)) {
-                $dmcLines .= "Company Reg No: " . trim((string)$dmcCompanyRegNo) . "\n";
-            }
-            if (!empty($dmcLicenceNo)) {
-                $dmcLines .= "Licence No: " . trim((string)$dmcLicenceNo);
-            } else {
-                // Trim trailing newlines for cleaner PDF output
-                $dmcLines = rtrim($dmcLines);
-            }
-        @endphp
-
-        @php
             // Format tour display id as:
             // - company_code/user_code/ORD1234 (both found)
             // - company_code/ORD1234 (only company code found)
@@ -508,26 +422,17 @@
             }
         @endphp
 
-        <table class="quotation-header-table">
-            <tr>
-                <td class="quotation-logo-cell">
-                    @if(!empty($dmcLogoSrc))
-                        <img src="{{ $dmcLogoSrc }}" class="quotation-logo" alt="DMC Logo" />
-                    @endif
-                </td>
-                <td style="text-align: center; vertical-align: top;">
-                    <div class="quotation-title">QUOTATION</div>
-                </td>
-                <td class="quotation-logo-cell"></td>
-                
-            </tr>
-        </table>
+        @include('invoices.pdf.partials.header', [
+            'logoType' => 'dmc',
+            'showBlueTitle' => true,
+            'docTitle' => 'QUOTATION',
+            'docNumber' => $formattedDisplayId,
+            'user_dmc' => $tourDmcUser,
+        ])
+
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
             <tr>
-                <td style="width: 50%; vertical-align: top; padding-right: 8px;">
-                    <div class="quotation-dmc-details">{{ $dmcLines }}</div>
-                </td>
-                <td style="width: 30%; vertical-align: top; padding-left: 2px;">
+                <td style="width: 100%; vertical-align: top; padding-left: 2px;">
                     <div class="top-lines">
                         <div class="top-line"><span class="bold">Reference No:</span> {{ $formattedDisplayId }}</div>
                         <div class="top-line"><span class="bold">LEAD GUEST NAME:</span> {{ $leadGuestName }}</div>
@@ -636,6 +541,8 @@
             </tr>
         </table>
 
+        
+
         @if(!empty($supplements) && is_array($supplements))
             <div style="margin-top: 10px;">
                 <div class="panel-title">Supplements</div>
@@ -671,8 +578,13 @@
                 </table>
             </div>
         @endif
+        @if(!empty($quotationInformationHtml))
+            <div class="quotation-information">
+                <div class="section-label">Quotation Information</div>
+                {!! $quotationInformationHtml !!}
+            </div>
+        @endif
 
     </div>
 </body>
 </html>
-

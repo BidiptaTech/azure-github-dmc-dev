@@ -11,51 +11,7 @@
             margin: 0;
             padding: 18px 18px 12px 18px;
         }
-        .header {
-            display: table;
-            width: 100%;
-            margin-bottom: 12px;
-        }
-        .header-left {
-            display: table-cell;
-            width: 25%;
-            vertical-align: top;
-        }
-        .header-center {
-            display: table-cell;
-            width: 75%;
-            vertical-align: top;
-        }
-        .header-right {
-            display: table-cell;
-            width: 35%;
-            text-align: right;
-            vertical-align: top;
-        }
-        .company-name {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 4px;
-        }
-        .company-details {
-            font-size: 9px;
-            color: #444;
-            line-height: 1.4;
-        }
-        .logo-img {
-            max-height: 120px;
-            max-width: 180px;
-            display: inline-block;
-        }
-        .title-row {
-            text-align: center;
-            margin: 10px 0 8px;
-        }
-        .title-main {
-            font-size: 14px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-        }
+        @include('invoices.pdf.partials.header-css')
         .summary-table {
             width: 100%;
             border-collapse: collapse;
@@ -125,75 +81,31 @@
     </style>
 </head>
 <body>
-
-    <div class="header">
-        <div class="header-left">
-            @if(!empty($dmc->logo))
-                <img src="{{ $dmc->logo }}" alt="Logo" class="logo-img">
-            @endif
-        </div>
-        <div class="header-center">
-            @php
-                $dmcUser = null;
-                try {
-                    $currentUser = \Illuminate\Support\Facades\Auth::user();
-                    if ($currentUser) {
-                        $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
-                        if (!empty($dmcId)) {
-                            $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
-                        }
-                    }
-                } catch (\Throwable $e) {
-                    $dmcUser = null;
+    @php
+        // Prefer DMC user from logged-in session (has UEN/TA licence fields),
+        // fallback to the passed $dmc object if lookup fails.
+        $headerDmcUser = null;
+        try {
+            $currentUser = \Illuminate\Support\Facades\Auth::user();
+            if ($currentUser) {
+                $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                if (!empty($dmcId)) {
+                    $headerDmcUser = \App\Models\User::where('userId', $dmcId)->first();
                 }
+            }
+        } catch (\Throwable $e) {
+            $headerDmcUser = null;
+        }
+        $headerDmc = $headerDmcUser ?: ($dmc ?? null);
+    @endphp
 
-                $companyRegNo = $dmcUser->company_reg_no ?? ($dmc->company_reg_no ?? null);
-                $licenceNo = $dmcUser->licence_no ?? ($dmc->licence_no ?? null);
-            @endphp
-
-            <div class="company-name">
-                {{ $dmc->company_name ?? $dmc->name ?? config('app.name') }}
-            </div>
-            <div class="company-details">
-                @if(!empty($dmc->address))
-                    {{ $dmc->address }}<br>
-                @endif
-                @if((!empty($dmc->phone) || !empty($dmc->tel)) || !empty($dmc->email))
-                    @if(!empty($dmc->phone) || !empty($dmc->tel))
-                        Tel: {{ $dmc->phone ?? $dmc->tel }}
-                        @if(!empty($dmc->fax))
-                            &nbsp;|&nbsp; Fax: {{ $dmc->fax }}
-                        @endif
-                    @endif
-                    @if((!empty($dmc->phone) || !empty($dmc->tel)) && !empty($dmc->email))
-                        &nbsp;|&nbsp;
-                    @endif
-                    @if(!empty($dmc->email))
-                        Email: {{ $dmc->email }}
-                    @endif
-                    <br>
-                @endif
-                @if(!empty($dmc->website))
-                    Website: {{ $dmc->website }}<br>
-                @endif
-                @if(!empty($companyRegNo) || !empty($licenceNo))
-                    @if(!empty($companyRegNo))
-                        Company Reg No: {{ $companyRegNo }}
-                    @endif
-                    @if(!empty($companyRegNo) && !empty($licenceNo))
-                        &nbsp;|&nbsp;
-                    @endif
-                    @if(!empty($licenceNo))
-                        Licence No: {{ $licenceNo }}
-                    @endif
-                @endif
-            </div>
-        </div>
-    </div>
-
-    <div class="title-row">
-        <div class="title-main">HANDOVER ACKNOWLEDGEMENT CHECKLIST</div>
-    </div>
+    @include('invoices.pdf.partials.header', [
+        'logoType' => 'dmc',
+        'showBlueTitle' => true,
+        'docTitle' => 'HANDOVER ACKNOWLEDGEMENT CHECKLIST',
+        'docNumber' => ($display_id ?? $tourId ?? ''),
+        'user_dmc' => $headerDmc,
+    ])
 
     <div class="divider-line"></div>
 

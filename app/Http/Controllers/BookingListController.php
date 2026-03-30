@@ -10,6 +10,7 @@ use App\Models\Tour;
 use App\Models\Country;
 use App\Models\City;
 use App\Models\ItinerarySetting;
+use App\Models\QuotationSetting;
 use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\CurrencyService;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\QueryException;
 
 class BookingListController extends Controller
 {
@@ -297,6 +300,294 @@ class BookingListController extends Controller
         } catch (\Throwable $e) {
             Log::error('Delete itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return redirect()->route('itinerary_settings.pdf')->with('error', 'Unable to delete itinerary setting. '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Quotation Settings (mirrors ItinerarySettings)
+     */
+    public function quotationSettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $selectedCountry = (string) $request->get('country', '');
+            $selectedCity = (string) $request->get('city', '');
+
+            $currentSetting = null;
+            if ($selectedCountry !== '' && $selectedCity !== '') {
+                $currentSetting = QuotationSetting::where('dmc_id', $dmcId)
+                    ->where('country', $selectedCountry)
+                    ->where('city', $selectedCity)
+                    ->first();
+            }
+
+            $allSettings = QuotationSetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.quotation_settings', [
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => $selectedCountry,
+                'selectedCity' => $selectedCity,
+                'quotationInformationHtml' => $currentSetting ? (string) ($currentSetting->quotation_information ?? '') : '',
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Quotation settings index failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to load quotation settings. Please try again. ' . $e->getMessage());
+        }
+    }
+
+    public function saveQuotationSettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'quotation_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+            $quotationInformationHtml = $validated['quotation_information'] ?? null;
+
+            DB::beginTransaction();
+            try {
+                $last = QuotationSetting::withTrashed()->orderBy('quotation_setting_id', 'desc')->first();
+                $lastId = (int) ($last->quotation_setting_id ?? 0);
+                $newId = CommonHelper::createId($lastId);
+
+                $setting = new QuotationSetting();
+                $setting->quotation_setting_id = $newId;
+                $setting->dmc_id = $dmcId;
+                $setting->country = $country;
+                $setting->city = $city;
+                $setting->quotation_information = $quotationInformationHtml;
+                $setting->save();
+
+                DB::commit();
+                return redirect()
+                    ->route('quotation_settings.pdf')
+                    ->with('success', 'Quotation settings saved successfully.');
+            }
+            catch (\Illuminate\Validation\QueryException $e) {
+                DB::rollBack();
+                Log::error('Save quotation settings failed query exception', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                return redirect()->back()->with('error', 'Failed to save quotation settings. query exception');
+            }
+             catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('Save quotation settings failed inside', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                return redirect()->back()->with('error', 'Failed to save quotation settings. Check if quotation setting already exists for this DMC, country and city.')->withInput();
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Save quotation settings failed outsider', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to save quotation settings. Please try again. ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function fetchQuotationSettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+            ]);
+
+            $setting = QuotationSetting::where('dmc_id', $dmcId)
+                ->where('country', $validated['country'])
+                ->where('city', $validated['city'])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'found' => (bool) $setting,
+                'data' => [
+                    'quotation_information' => $setting ? (string) ($setting->quotation_information ?? '') : '',
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Fetch quotation settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Unable to load quotation settings. ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function editQuotationSettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = QuotationSetting::where('quotation_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $allSettings = QuotationSetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.quotation_settings_edit', [
+                'setting' => $setting,
+                'encryptedId' => Crypt::encryptString((string) $setting->quotation_setting_id),
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => (string) ($setting->country ?? ''),
+                'selectedCity' => (string) ($setting->city ?? ''),
+                'quotationInformationHtml' => (string) ($setting->quotation_information ?? ''),
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Edit quotation settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('quotation_settings.pdf')->with('error', 'Unable to load quotation setting for editing. ' . $e->getMessage());
+        }
+    }
+
+    public function updateQuotationSettings(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = QuotationSetting::where('quotation_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'quotation_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+
+            $setting->country = $country;
+            $setting->city = $city;
+            $setting->quotation_information = $validated['quotation_information'] ?? null;
+            $setting->save();
+
+            return redirect()
+                ->route('quotation_settings.pdf')
+                ->with('success', 'Quotation settings updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Update quotation settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to update quotation settings. ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function deleteQuotationSettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = QuotationSetting::where('quotation_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $setting->delete();
+
+            return redirect()
+                ->route('quotation_settings.pdf')
+                ->with('success', 'Quotation setting deleted successfully.');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Delete quotation settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('quotation_settings.pdf')->with('error', 'Unable to delete quotation setting. ' . $e->getMessage());
         }
     }
 
