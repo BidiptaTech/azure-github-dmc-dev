@@ -83,6 +83,7 @@
             white-space: nowrap;
             min-width: 1200px;
             table-layout: fixed; /* stable widths => stable sticky offsets */
+            width: 100%;
             border-collapse: separate;
             border-spacing: 0;
         }
@@ -163,6 +164,24 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             min-width: 0; /* important for ellipsis inside sticky cells */
+        }
+
+        /* Wrapping (multi-line) override for specific columns only */
+        .finance-daily-arrival-table .wrap-text {
+            white-space: normal !important;
+            text-overflow: clip !important;
+            overflow: hidden;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            min-width: 0; /* important for sticky + wrapping */
+        }
+
+        /* Ellipsis enforcement for "all other" columns */
+        .finance-daily-arrival-table .ellipsis-text {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            min-width: 0;
         }
 
         /* QUERY NO: ellipsis fix for the last sticky column.
@@ -266,7 +285,7 @@
                         <th class="sticky-col" data-sticky-index="4">HOTEL</th>
                         <th class="sticky-col" data-sticky-index="5">AGENT NAME</th>
                         <th class="sticky-col sticky-last" data-sticky-index="6">
-                            <div class="query-no-ellipsis">QUERY NO</div>
+                            <div class="query-no-ellipsis wrap-text">QUERY NO</div>
                         </th>
 
                         <th class="text-end">ADULTS</th>
@@ -297,14 +316,14 @@
                             <td class="sticky-col" data-sticky-index="0">{{ $loop->iteration }}</td>
                             <td class="sticky-col" data-sticky-index="1">{{ $row['arr_date'] ?? '—' }}</td>
                             <td class="sticky-col" data-sticky-index="2">{{ $row['dep_date'] ?? '—' }}</td>
-                            <td class="sticky-col cell-ellipsis" data-sticky-index="3"
+                            <td class="sticky-col cell-ellipsis wrap-text" data-sticky-index="3"
                                 title="{{ $row['guest_name'] ?? '—' }}">{{ $row['guest_name'] ?? '—' }}</td>
                             <td class="sticky-col cell-ellipsis" data-sticky-index="4"
                                 title="{{ $row['hotel'] ?? '—' }}">{{ $row['hotel'] ?? '—' }}</td>
-                            <td class="sticky-col cell-ellipsis" data-sticky-index="5"
+                            <td class="sticky-col cell-ellipsis wrap-text" data-sticky-index="5"
                                 title="{{ $row['agent_name'] ?? '—' }}">{{ $row['agent_name'] ?? '—' }}</td>
                             <td class="sticky-col sticky-last" data-sticky-index="6">
-                                <div class="query-no-ellipsis" title="{{ $row['query_no'] ?? '—' }}">
+                                <div class="query-no-ellipsis wrap-text" title="{{ $row['query_no'] ?? '—' }}">
                                     {{ $row['query_no'] ?? '—' }}
                                 </div>
                             </td>

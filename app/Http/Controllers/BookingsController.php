@@ -258,7 +258,10 @@ class BookingsController extends Controller
  
         // Get filtered agents based on logged-in DMC user
         $filteredAgents = $this->getFilteredAgents();
-        $currency = CommonHelper::getDmcCurrencyByCountry();
+        $currency = Country::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower((string) ($user->country ?? ''))])
+            ->value('currency');
+        $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
         return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax', 'currency'));
     }
@@ -1164,7 +1167,10 @@ class BookingsController extends Controller
             $this->formatToursDisplayId($tours);
         }
 
-        $currency = CommonHelper::getDmcCurrencyByCountry();
+        $currency = Country::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower((string) ($user->country ?? ''))])
+            ->value('currency');
+        $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
 
         // Prepare exchange-rate sources for the "Add Payment" modal:
@@ -1453,7 +1459,10 @@ class BookingsController extends Controller
             }
         }
 
-        $currency = CommonHelper::getDmcCurrencyByCountry();
+        $currency = Country::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower((string) ($user->country ?? ''))])
+            ->value('currency');
+        $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
 
         $tourIds = $tours->pluck('tour_id')->toArray();
