@@ -459,6 +459,68 @@ class CountryController extends Controller
     }
 
     /**
+     * Delete remitance charge + exchange rate for the current user's resolved DMC.
+     */
+    public function deleteRemitanceAndExchange(Request $request)
+    {
+        $user = Auth::user();
+        $userRoleId = (int) ($user->role_id ?? 0);
+        if (! $user || ! in_array($userRoleId, Country::DMC_REMITTANCE_EXCHANGE_ROLE_IDS, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete remittance charge or exchange rate.',
+            ], 403);
+        }
+
+        $resolvedDmcId = (int) $this->resolveDmcIdForUser($user);
+        if ($resolvedDmcId < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your user profile has no linked DMC account. Values can only be deleted for a DMC-linked user.',
+            ], 422);
+        }
+
+        $payload = $request->all();
+        $request->merge([
+            'id' => $payload['id'] ?? null,
+        ]);
+
+        try {
+            $validated = $request->validate([
+                'id' => ['required', 'integer', 'exists:countries,id'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid request. Please reload and try again.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        $country = Country::findOrFail($validated['id']);
+
+        $remExisting = $this->normalizeCountryJsonColumn($country->remitance_charge);
+        $exExisting = $this->normalizeCountryJsonColumn($country->exchange_rate);
+
+        // Null value removes the entry for this DMC key from each JSON column.
+        $remExisting = $this->mergeDmcCountryJsonEntry($remExisting, $resolvedDmcId, 'remitance_charge', null);
+        $exExisting = $this->mergeDmcCountryJsonEntry($exExisting, $resolvedDmcId, 'exchange_rate', null);
+
+        $country->remitance_charge = $remExisting;
+        $country->exchange_rate = $exExisting;
+        $country->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Deleted remitance charge & exchange rate for '.$country->name.'.',
+            'id' => $country->id,
+            'dmcId' => $resolvedDmcId,
+            'remitance_charge' => null,
+            'exchange_rate' => null,
+        ]);
+    }
+
+    /**
      * @param  mixed  $raw
      * @return array<string, array<string, mixed>>
      */
