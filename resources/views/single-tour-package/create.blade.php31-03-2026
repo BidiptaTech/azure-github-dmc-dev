@@ -278,58 +278,6 @@
             color: #fff;
         }
 
-        /* City mode toggle (same design as FIT/GROUP) */
-        .city-toggle {
-            position: relative;
-            display: flex;
-            background: #e9ecef;
-            border-radius: 30px;
-            padding: 4px;
-            width: 100%;
-            height: 42px;
-            align-items: center;
-        }
-
-        .city-toggle input {
-            display: none;
-        }
-
-        .city-toggle label {
-            flex: 1;
-            text-align: center;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            z-index: 2;
-            color: #6c757d;
-            transition: color 0.3s ease;
-            white-space: nowrap;
-        }
-
-        .city-toggle .slider {
-            position: absolute;
-            top: 4px;
-            bottom: 4px;
-            left: 4px;
-            width: calc(50% - 4px);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 30px;
-            transition: all 0.3s ease;
-            z-index: 1;
-        }
-
-        .city-toggle input#city_mode_single:checked ~ .slider {
-            left: 4px;
-        }
-
-        .city-toggle input#city_mode_multi:checked ~ .slider {
-            left: 50%;
-        }
-
-        .city-toggle input:checked + label {
-            color: #fff;
-        }
-
         /* Guest Selector Modal Button Hover Effects */
         #mainGuestSelectorModal .btn:hover {
             transform: translateY(-1px);
@@ -394,8 +342,9 @@
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                            <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem; transition: all 0.3s ease;">
+                    <div class="accordion-item border-0">
+                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                            <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#tourPackageConfigurationSection" aria-expanded="true" aria-controls="tourPackageConfigurationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem; transition: all 0.3s ease;">
                                 <div class="d-flex align-items-center flex-grow-1">
                                     <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
                                         <i class="ri-settings-3-line fs-5 text-white" style="color: #ffffff !important; display: flex; align-items: center;"></i>
@@ -421,19 +370,10 @@
                                             <span class="slider"></span>
                                         </div>
                                     </div>
-                                    <div class="ms-3" style="min-width: 230px;">
-                                        <div class="city-toggle">
-                                            <input type="radio" name="city_mode" id="city_mode_single" value="single" checked>
-                                            <label for="city_mode_single">Single City</label>
-
-                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi">
-                                            <label for="city_mode_multi">Multi City</label>
-
-                                            <span class="slider"></span>
-                                        </div>
-                                    </div>
+                                    <i class="ri-arrow-up-s-line ms-3 fs-5 text-white transition-transform" style="color: #ffffff !important;"></i>
                                 </div>
                             </div>
+                            <div id="tourPackageConfigurationSection" class="collapse show">
                                 <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
                             @if($enquiry)
                             {{-- Reference Number - top single section --}}
@@ -444,18 +384,10 @@
                                     </label>
                                     <input type="text" name="reference_number" id="reference_number" class="form-control" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number', $enquiry->reference_number ?? '') }}">
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="single_city" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-map-pin-line me-1"></i>City
-                                    </label>
-                                    <select id="single_city" name="city" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;">
-                                        <option value="">Select city...</option>
-                                    </select>
-                                </div>
                             </div>
                             {{-- Two-row layout when form is in 8 columns (with enquiry sidebar) for proper alignment --}}
                             <div class="row g-3 mt-2">
-                                <div class="col-12 col-sm-4 d-none">
+                                <div class="col-12 col-sm-4">
                                     <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
@@ -513,28 +445,6 @@
                                     <input type="hidden" name="child_ages" id="child_ages" value="{{ $enquiry && $enquiry->child_ages ? $enquiry->child_ages : '[]' }}">
                                 </div>
                             </div>
-                            {{-- Multi City master + planning --}}
-                            <div id="multiCityControls" class="mt-2 d-none">
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <label for="multi_cities" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.78rem;">
-                                            <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
-                                        </label>
-                                        <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;"></select>
-                                        <small class="text-muted" style="font-size:0.72rem;">Select multiple cities to plan segments.</small>
-                                    </div>
-                                    <div class="col-md-6 d-flex align-items-end justify-content-end">
-                                        <button type="button" id="addCityPlan" class="btn btn-primary btn-sm" style="height: 34px;">Add City Plan</button>
-                                    </div>
-                                </div>
-
-                                <div class="mt-2">
-                                    <!-- <div class="d-flex align-items-center justify-content-between">
-                                        <h6 class="fw-semibold mb-0" style="color:#495057; font-size:0.85rem;">City Planning</h6>
-                                    </div> -->
-                                    <div id="segmentsWrapper"></div>
-                                </div>
-                            </div>
                             <div class="row g-3 mt-0">
                                 <div class="col-12 col-sm-6">
                                     <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
@@ -574,19 +484,11 @@
                                     </label>
                                     <input type="text" name="reference_number" id="reference_number" class="form-control" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number') }}">
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="single_city" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-map-pin-line me-1"></i>City
-                                    </label>
-                                    <select id="single_city" name="city" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;">
-                                        <option value="">Select city...</option>
-                                    </select>
-                                </div>
                             </div>
                             {{-- Single row layout when form is full 12 columns --}}
                             <div class="row g-3 mt-2">
                                 <!-- Country Selection -->
-                                <div class="col-md-2 d-none">
+                                <div class="col-md-2">
                                     <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
@@ -667,41 +569,20 @@
                                     </select>
                                 </div>
                             </div>
-                            {{-- Multi City master + planning --}}
-                            <div id="multiCityControls" class="mt-2 d-none">
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <label for="multi_cities" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.78rem;">
-                                            <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
-                                        </label>
-                                        <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;"></select>
-                                        <small class="text-muted" style="font-size:0.72rem;">Select multiple cities to plan segments.</small>
-                                    </div>
-                                    <div class="col-md-6 d-flex align-items-end justify-content-end">
-                                        <button type="button" id="addCityPlan" class="btn btn-primary btn-sm" style="height: 34px;">Add City Plan</button>
-                                    </div>
-                                </div>
-
-                                <div class="mt-2">
-                                    <!-- <div class="d-flex align-items-center justify-content-between">
-                                        <h6 class="fw-semibold mb-0" style="color:#495057; font-size:0.85rem;">City Planning</h6>
-                                    </div> -->
-                                    <div id="segmentsWrapper"></div>
-                                </div>
-                            </div>
                             @endif
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
             </div>
 
 
             <!-- Hotel Selection Section -->
-            <div id="servicesAccordionHome"></div>
             <div class="accordion mb-4" id="servicesAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="false" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: #e9ecef; border: 1px solid #dee2e6; padding: 0.875rem 1.25rem;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: #e9ecef; border: 1px solid #dee2e6; padding: 0.875rem 1.25rem;">
                             <div class="d-flex align-items-center">
                                 <div style="width: 35px; height: 35px; background: rgba(108, 117, 125, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
                                     <i class="ri-hotel-line" style="color: #6c757d; font-size: 1rem;"></i>
@@ -717,10 +598,10 @@
                             <div class="d-flex align-items-center">
                                 <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="tourDates">Aug 03 - Aug 07, 2025</span>
                                 <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="hotelNights">4 Nights Selected</span>
-                                <i class="ri-arrow-down-s-line ms-2" style="color: #6c757d !important; font-size: 0.9rem;"></i>
+                                <i class="ri-arrow-up-s-line ms-2" style="color: #6c757d !important; font-size: 0.9rem;"></i>
                             </div>
                         </div>
-                        <div id="hotelAccommodationsSection" class="collapse">
+                        <div id="hotelAccommodationsSection" class="collapse show">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                 <div class="row" id="hotelSection">
                             <!-- Hotel Selection Controls -->
@@ -5049,7 +4930,7 @@
                         const enquiry = @json($enquiry);
 
                         if (!country || !startDate || !endDate || !agent) {
-                            alert('Please fill in all required fields (City, Travel Dates, Agent, and Guests) before saving the tour package.');
+                            alert('Please fill in all required fields (Country, Travel Dates, Agent, and Guests) before saving the tour package.');
                             resetSaveButton();
                             return false;
                         }
@@ -5995,23 +5876,6 @@
             transform: scale(1);
         }
     }
-
-    /* Compact UI helpers for multi-city planning */
-    #multiCityControls .select2-container .select2-selection--multiple {
-        min-height: 34px !important;
-        border-radius: 8px !important;
-        border: 1px solid #dee2e6 !important;
-        font-size: 0.82rem !important;
-    }
-
-    #multiCityControls .select2-container--default .select2-selection--multiple .select2-selection__rendered {
-        padding: 2px 6px !important;
-    }
-
-    #multiCityControls .select2-container--default .select2-selection--multiple .select2-selection__choice {
-        margin-top: 3px !important;
-        font-size: 0.75rem !important;
-    }
 </style>
 
 <!-- jQuery (required for date range picker and AJAX) -->
@@ -6055,305 +5919,6 @@
             placeholder: "Choose a country...",
             allowClear: true,
             width: '100%'
-        });
-
-        // City dropdown (Single City mode)
-        $('#single_city').select2({
-            placeholder: "Select city...",
-            allowClear: true,
-            width: '100%',
-            ajax: {
-                url: "{{ route('ajax.cities') }}",
-                dataType: 'json',
-                delay: 200,
-                data: function (params) {
-                    return { q: params.term || '' };
-                },
-                processResults: function (data) {
-                    return data;
-                },
-                cache: true
-            }
-        });
-
-        // Master cities (Multi City mode)
-        $('#multi_cities').select2({
-            placeholder: "Select cities...",
-            allowClear: true,
-            width: '100%',
-            ajax: {
-                url: "{{ route('ajax.cities') }}",
-                dataType: 'json',
-                delay: 200,
-                data: function (params) {
-                    return { q: params.term || '' };
-                },
-                processResults: function (data) {
-                    return data;
-                },
-                cache: true
-            }
-        });
-
-        function toISODate(s) {
-            // expects YYYY-MM-DD
-            return s ? new Date(s + 'T00:00:00') : null;
-        }
-
-        function isWithinMainRange(start, end) {
-            const mainStart = toISODate($('#start_date').val());
-            const mainEnd = toISODate($('#end_date').val());
-            const segStart = toISODate(start);
-            const segEnd = toISODate(end);
-
-            if (!mainStart || !mainEnd || !segStart || !segEnd) return false;
-            return segStart >= mainStart && segEnd <= mainEnd && segStart <= segEnd;
-        }
-
-        function applySegmentDateLimits() {
-            const min = $('#start_date').val() || '';
-            const max = $('#end_date').val() || '';
-            if (!min || !max) return;
-
-            $('#segmentsWrapper .start-date').attr({ min: min, max: max });
-            $('#segmentsWrapper .end-date').attr({ min: min, max: max });
-        }
-
-        function getMasterCities() {
-            return ($('#multi_cities').val() || []).map(String);
-        }
-
-        function rebuildSegmentCityOptions($select) {
-            const selected = $select.val() || '';
-            const master = getMasterCities();
-            let html = '<option value="">Select city...</option>';
-
-            // Use Select2 selected data for nicer labels when available
-            const data = $('#multi_cities').select2('data') || [];
-            const labelById = {};
-            data.forEach(function (item) {
-                labelById[String(item.id)] = item.text;
-            });
-
-            master.forEach(function (id) {
-                const label = labelById[id] || id;
-                const cityName = String(label).split('(')[0].trim();
-                html += `<option value="${id}" data-city-name="${cityName}">${label}</option>`;
-            });
-
-            $select.html(html);
-            if (selected && master.includes(String(selected))) {
-                $select.val(selected);
-            } else {
-                $select.val('');
-            }
-        }
-
-        function setCityMode(mode) {
-            const isMulti = mode === 'multi';
-            $('#multiCityControls').toggleClass('d-none', !isMulti);
-
-            // Single-city inputs shown/hidden
-            $('#single_city').closest('.col-md-6, .col-md-2, .col-12').toggleClass('d-none', isMulti);
-
-            // main travel_dates MUST stay visible in both modes (main range constraint)
-            // so do nothing here; segments validate against #start_date/#end_date.
-        }
-
-        function syncAllServiceCities(cityName) {
-            if (!cityName) return;
-
-            const selectors = [
-                '#hotelCitySelect',
-                '#modal_local_transfer_city',
-                '#modal_exit_city',
-                '.attraction-city-select',
-                '.guide-city-select',
-                '.restaurant-city-select',
-                '.transport-city-select'
-            ];
-
-            selectors.forEach(function (sel) {
-                $(sel).each(function () {
-                    const $dd = $(this);
-                    if (!$dd.length) return;
-
-                    // If option not present, inject it so value can be set
-                    if ($dd.find(`option[value="${cityName.replace(/"/g, '\\"')}"]`).length === 0) {
-                        $dd.append(`<option value="${cityName}">${cityName}</option>`);
-                    }
-
-                    $dd.val(cityName).trigger('change');
-                });
-            });
-        }
-
-        function resetTourPackageCityMode(mode) {
-            if (mode === 'multi') {
-                // Switching to multi: clear single-city selection
-                if ($('#single_city').length) {
-                    $('#single_city').val(null).trigger('change');
-                }
-            } else {
-                // Switching to single: clear multi-city master + segments
-                if ($('#multi_cities').length) {
-                    $('#multi_cities').val(null).trigger('change');
-                }
-                $('#segmentsWrapper').empty();
-                segmentIndex = 0;
-
-                // Move services accordion back to its original place
-                const $accordion = $('#servicesAccordion');
-                const $home = $('#servicesAccordionHome');
-                if ($accordion.length && $home.length) {
-                    $home.after($accordion);
-                }
-            }
-        }
-
-        $(document).on('change', 'input[name="city_mode"]', function () {
-            const mode = $(this).val();
-            resetTourPackageCityMode(mode);
-            setCityMode(mode);
-        });
-
-        // default mode
-        setCityMode('single');
-
-        // Multi-city segments
-        let segmentIndex = 0;
-
-        $('#addCityPlan').on('click', function () {
-            const master = getMasterCities();
-            if (!master.length) {
-                alert('Please select cities in the master list first.');
-                return;
-            }
-
-            segmentIndex++;
-
-            const segmentHTML = `
-            <div class="card mt-2 segment border-0 shadow-sm" data-index="${segmentIndex}" style="border-radius: 10px;">
-                <div class="card-body py-2 px-2 position-relative">
-                    <button type="button"
-                        class="btn btn-outline-danger btn-sm removeSegment py-0 px-2 position-absolute top-0 end-0 mt-2 me-2"
-                        title="Remove plan"
-                        style="height: 24px; font-size:0.72rem; line-height: 1;">
-                        <i class="ri-close-line"></i>
-                    </button>
-
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">City</label>
-                            <select class="form-select form-select-sm city-select" name="segments[${segmentIndex}][city]" style="height: 32px;">
-                                <option value="">Select city...</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Start</label>
-                            <input type="date" class="form-control form-control-sm start-date" name="segments[${segmentIndex}][start_date]" style="height: 32px;">
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">End</label>
-                            <input type="date" class="form-control form-control-sm end-date" name="segments[${segmentIndex}][end_date]" style="height: 32px;">
-                        </div>
-                    </div>
-
-                    <div class="segment-header mt-2 d-none">
-                        <div class="d-flex align-items-center justify-content-between px-2 py-1 rounded"
-                             style="background:#f8f9fa;border:1px solid #e9ecef;">
-                            <div class="fw-semibold segment-title" style="font-size:0.78rem;color:#495057;"></div>
-                            <div class="text-muted segment-range" style="font-size:0.75rem;"></div>
-                        </div>
-                    </div>
-
-                    <div class="segment-services mt-2"></div>
-                    <div class="service-grid mt-2"></div>
-                </div>
-            </div>`;
-
-            $('#segmentsWrapper').append(segmentHTML);
-
-            const $newCitySelect = $('#segmentsWrapper .segment:last .city-select');
-            rebuildSegmentCityOptions($newCitySelect);
-
-            // Disable dates outside main tour range
-            applySegmentDateLimits();
-        });
-
-        $(document).on('click', '.removeSegment', function () {
-            $(this).closest('.segment').remove();
-        });
-
-        // When master list changes, update all segment dropdown options
-        $('#multi_cities').on('change', function () {
-            $('#segmentsWrapper .city-select').each(function () {
-                rebuildSegmentCityOptions($(this));
-            });
-        });
-
-        // Load services grid dynamically per segment when city+dates valid and within main range
-        $(document).on('change', '.city-select, .start-date, .end-date', function () {
-            const $segment = $(this).closest('.segment');
-            const city = $segment.find('.city-select').val();
-            const start = $segment.find('.start-date').val();
-            const end = $segment.find('.end-date').val();
-
-            if (!(city && start && end)) return;
-
-            if (!isWithinMainRange(start, end)) {
-                $segment.find('.service-grid').html(
-                    '<div class="alert alert-warning mb-0">Segment dates must be within the main tour date range.</div>'
-                );
-                return;
-            }
-
-            // Show city/date header and place services UI under this segment (Multi City)
-            if ($('input[name="city_mode"]:checked').val() === 'multi') {
-                const $opt = $segment.find('.city-select option:selected');
-                const cityName = ($opt.data('city-name') || '').toString().trim();
-                const cityText = ($opt.text() || '').trim();
-                $segment.find('.segment-title').text(cityText || 'Selected City');
-                $segment.find('.segment-range').text(start + ' → ' + end);
-                $segment.find('.segment-header').removeClass('d-none');
-
-                const $accordion = $('#servicesAccordion');
-                if ($accordion.length) {
-                    $segment.find('.segment-services').append($accordion);
-
-                    // Auto-select same city across all services dropdowns
-                    syncAllServiceCities(cityName || cityText.split('(')[0].trim());
-
-                    // Update main header badges to reflect the segment range
-                    const s = moment(start, 'YYYY-MM-DD');
-                    const e = moment(end, 'YYYY-MM-DD');
-                    if (s.isValid() && e.isValid()) {
-                        $('#tourDates').text(s.format('MMM DD') + ' - ' + e.format('MMM DD, YYYY'));
-                        $('#hotelNights').text(e.diff(s, 'days') + ' Nights Selected');
-                    }
-                }
-            }
-
-            $.ajax({
-                url: "{{ url('/get-services') }}",
-                type: 'GET',
-                data: { city: city, start_date: start, end_date: end },
-                success: function (res) {
-                    $segment.find('.service-grid').html(res);
-                },
-                error: function () {
-                    $segment.find('.service-grid').html(
-                        '<div class="alert alert-danger mb-0">Failed to load services.</div>'
-                    );
-                }
-            });
-        });
-
-        // Re-apply date limits whenever main tour dates change
-        $('#travel_dates').on('apply.daterangepicker', function () {
-            applySegmentDateLimits();
         });
         
         // Store previous country value for Select2

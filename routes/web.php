@@ -64,6 +64,7 @@ use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
+use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -659,6 +660,8 @@ Route::get('/clear', function () {
         Route::get('/drivers/search', [GuideController::class, 'search'])->name('drivers.search');
         
         Route::get('/get-cities', [OperationalCountryController::class, 'getCities'])->name('getCities');
+        Route::get('/ajax/cities', [CityController::class, 'ajaxCities'])->name('ajax.cities');
+        Route::get('/get-services', [ServiceController::class, 'getServices'])->name('getServices');
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');

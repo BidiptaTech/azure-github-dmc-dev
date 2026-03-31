@@ -6,7 +6,9 @@ use App\Helpers\CommonHelper;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\CityExploration;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -749,5 +751,70 @@ class CityController extends Controller
             return redirect()->route('cities.index')
                 ->with('error', 'Failed to delete exploration data: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * AJAX city search for Select2 (Single/Multi City planning)
+     * Returns: { results: [{id, text}] }
+     */
+    public function ajaxCities(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        $authUser = Auth::user();
+
+        // Resolve DMC userId for logged-in user (same role mapping used in SingleTourPackageController)
+        $dmcId = null;
+        if ($authUser) {
+            if ((int) $authUser->role_id === 11) {
+                $dmcId = $authUser->userId;
+            } elseif (in_array((int) $authUser->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138], true)) {
+                $dmcId = $authUser->created_by;
+            } elseif (in_array((int) $authUser->role_id, [37, 64, 65, 66, 67, 68], true)) {
+                $salesHead = User::where('userId', $authUser->created_by)->first();
+                $dmcId = $salesHead?->created_by;
+            } elseif (in_array((int) $authUser->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127], true)) {
+                $salesManager = User::where('userId', $authUser->created_by)->first();
+                $salesHead = $salesManager ? User::where('userId', $salesManager->created_by)->first() : null;
+                $dmcId = $salesHead?->created_by;
+            } else {
+                // Fallback to direct userId if role mapping is not covered
+                $dmcId = $authUser->userId ?? null;
+            }
+        }
+
+        // Resolve Master DMC countries (comma-separated)
+        $countryNames = [];
+        if ($dmcId) {
+            $dmcUser = User::where('userId', $dmcId)->first();
+            $masterDmc = $dmcUser?->created_by ? User::where('userId', $dmcUser->created_by)->first() : null;
+            $mdmcCountry = $masterDmc?->country;
+            if ($mdmcCountry) {
+                $countryNames = array_values(array_filter(array_map('trim', explode(',', $mdmcCountry))));
+            }
+        }
+
+        // If we cannot resolve allowed countries, do not leak global cities
+        if (empty($countryNames)) {
+            return response()->json(['results' => []]);
+        }
+
+        $cities = City::query()
+            ->whereIn('country', $countryNames)
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where('name', 'like', '%' . $q . '%');
+            })
+            ->orderBy('name')
+            ->get(['city_id', 'name', 'country']);
+
+        $results = $cities->map(function ($city) {
+            $country = $city->country ? (' (' . $city->country . ')') : '';
+            return [
+                'id' => $city->city_id,
+                'text' => $city->name . $country,
+            ];
+        })->values();
+
+        return response()->json(['results' => $results]);
     }
 }
