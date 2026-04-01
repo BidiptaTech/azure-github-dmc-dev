@@ -88,6 +88,7 @@
     /* Assign Guide: view (read-only text + pen) vs edit (dropdown) */
     .assign-guide-cell {
         min-width: 170px;
+        position: relative; /* Anchor Select2 dropdown positioning */
     }
     .assign-guide-view {
         display: flex;
@@ -160,6 +161,14 @@
 
     #tourOrdersTable .select2-search--dropdown .select2-search__field {
         padding: 4px 10px;
+    }
+
+    /* Prevent Select2 options from being hidden by DataTables/pagination overlays */
+    .select2-dropdown {
+        z-index: 99999 !important;
+    }
+    .select2-container--open .select2-dropdown {
+        z-index: 99999 !important;
     }
 
     /* Horizontal scroll like driver jobsheet table */
@@ -586,6 +595,17 @@ $(document).ready(function() {
     // Function to safely clean up DataTable
     function cleanupDataTable() {
         try {
+            // Destroy Select2 dropdown UI leftovers from previous renders.
+            $('.guide-select').each(function() {
+                if ($(this).hasClass('select2-hidden-accessible')) {
+                    try {
+                        $(this).select2('destroy');
+                    } catch (e) {
+                        // Best-effort cleanup; ignore.
+                    }
+                }
+            });
+
             // If DataTable exists and is initialized
             if (dataTableInitialized) {
                 // First remove all event handlers to prevent memory leaks
@@ -652,6 +672,64 @@ $(document).ready(function() {
         }
     }
     
+    // Ensures Select2 dropdown is positioned relative to the DataTables scroll container.
+    // Without this, the dropdown can render offset (especially with scrollX).
+    function getSelect2DropdownParent($cell) {
+        // Most reliable: attach dropdown to the cell content that is inside the scrollable area.
+        // Attaching to the DataTables scroll container can produce wrong offsets in some setups.
+        if ($cell && $cell.length) {
+            const $td = $cell.closest('td').first();
+            if ($td && $td.length) return $td;
+            return $cell;
+        }
+
+        const $tableScrollBody = $('#tourOrdersTable').closest('.dataTables_scrollBody').first();
+        if ($tableScrollBody && $tableScrollBody.length) return $tableScrollBody;
+
+        const $tableResponsive = $('#tourOrdersTable').closest('.table-responsive').first();
+        if ($tableResponsive && $tableResponsive.length) return $tableResponsive;
+
+        return $('#tourOrdersTable').parent();
+    }
+    
+    // Chooses whether Select2 dropdown should open above or below,
+    // based on available space inside the DataTables scroll container.
+    function adjustSelect2DropdownPlacement($select, $dropdownParent) {
+        try {
+            const $container = $select.next('.select2-container');
+            if (!$container.length) return;
+
+            // Select2 dropdown is rendered under the open container.
+            const $dropdown = $('.select2-container--open .select2-dropdown').first();
+            if (!$dropdown.length) return;
+
+            const $scrollBody = $('#tourOrdersTable').closest('.dataTables_scrollBody').first();
+            const scrollRect = $scrollBody.length ? $scrollBody[0].getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+
+            const containerRect = $container[0].getBoundingClientRect();
+            const dropdownHeight = $dropdown.outerHeight();
+            const spaceBelow = scrollRect.bottom - containerRect.bottom;
+            const spaceAbove = containerRect.top - scrollRect.top;
+
+            // If there's not enough space below, open above (otherwise default below).
+            const showBelow = spaceBelow >= dropdownHeight || spaceBelow >= spaceAbove;
+
+            const parentRect = $dropdownParent && $dropdownParent.length
+                ? $dropdownParent[0].getBoundingClientRect()
+                : $container[0].getBoundingClientRect();
+
+            let relTop = showBelow
+                ? (containerRect.bottom - parentRect.top)
+                : (containerRect.top - parentRect.top - dropdownHeight);
+
+            // Prevent dropdown from going completely negative.
+            relTop = Math.max(relTop, 0);
+            $dropdown.css({ top: relTop + 'px' });
+        } catch (e) {
+            // Best-effort only; ignore.
+        }
+    }
+    
     // Function to initialize Select2 on guide dropdowns
     function initializeSelect2() {
         try {
@@ -667,7 +745,7 @@ $(document).ready(function() {
                 placeholder: "Select Guide",
                 allowClear: true,
                 width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
+                dropdownParent: $('body')
             });
             
             console.log("Select2 initialized successfully");
@@ -706,22 +784,39 @@ $(document).ready(function() {
         const $view = $cell.find('.assign-guide-view');
         const $edit = $cell.find('.assign-guide-edit');
         const $select = $cell.find('.guide-select').first();
+        // Match the working driver page behavior: render dropdown relative to <body>.
+        // This prevents dropdowns from being clipped/covered by DataTables scroll areas.
+        const $dropdownParent = $('body');
         $view.hide();
         $edit.addClass('is-active').show();
+        // Re-init Select2 every time to avoid stale dropdownParent/positioning.
+        if ($select.hasClass('select2-hidden-accessible')) {
+            try {
+                $select.select2('destroy');
+            } catch (e) {
+                // ignore
+            }
+        }
+
         if (!$select.hasClass('select2-hidden-accessible')) {
             $select.select2({
                 placeholder: "Select Guide",
                 allowClear: true,
                 width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
-            });
-            $select.on('select2:close', function() {
-                const selectedText = $select.find('option:selected').text();
-                $cell.find('.assign-guide-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
-                $edit.removeClass('is-active').hide();
-                $view.show();
+                dropdownParent: $dropdownParent,
+                dropdownAutoWidth: true
             });
         }
+        $select.off('select2:close');
+        $select.on('select2:close', function() {
+            const selectedText = $select.find('option:selected').text();
+            $cell.find('.assign-guide-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+            $edit.removeClass('is-active').hide();
+            $view.show();
+        });
+        
+        // Let Select2 handle auto "above/below" placement when dropdownParent is <body>.
+
         $select.select2('open');
     });
 

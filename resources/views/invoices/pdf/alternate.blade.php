@@ -154,8 +154,21 @@
     $displayIdTour = $tour ? ($tour->display_id ?? '') : '';
     $salesRefNoMeta = '';
     if ($tour) {
-        $sr = trim((string) (data_get($tour, 'sales_ref_no') ?? data_get($tour, 'sales_reference') ?? ''));
-        $salesRefNoMeta = $sr !== '' ? $sr : (string) ($tour->display_id ?? '');
+        $createdByUserCode = '';
+        try {
+            if (!empty($tour->created_by)) {
+                $createdByUser = \App\Models\User::where('userId', $tour->created_by)->first();
+                $createdByUserCode = trim((string) ($createdByUser->user_code ?? ''));
+            }
+        } catch (\Throwable $e) {
+            $createdByUserCode = '';
+        }
+
+        // Sales Ref No should be users.user_code (requested).
+        // If not available, fall back to tour sales_ref_no/sales_reference, else to display_id.
+        if ($createdByUserCode !== '') {
+            $salesRefNoMeta = $createdByUserCode ?? '';
+        }
     }
     $invNo = ($invoice->invoice_type ?? '') === 'proforma' ? ($invoice->proforma_number ?? '') : ($invoice->invoice_number ?? '');
     $invDate = $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('d-M-Y') : '';

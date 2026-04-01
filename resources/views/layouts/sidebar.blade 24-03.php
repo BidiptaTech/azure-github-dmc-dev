@@ -2320,6 +2320,11 @@
                                     <div data-i18n="Itinerary Settings">Itinerary Settings</div>
                                 </a>
                             </li>
+                            <li class="menu-item @if(Request::is('quotation_settings.pdf')) active @endif">
+                                <a href="{{ route('quotation_settings.pdf') }}" class="menu-link">
+                                    <div data-i18n="Quotation Settings">Quotation Settings</div>
+                                </a>
+                            </li>
                         @endif
 
                         @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))

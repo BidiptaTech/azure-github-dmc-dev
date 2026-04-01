@@ -84,14 +84,31 @@
 </head>
 <body>
     @php
-        $rootDmc = $dmcUser;
-        if ($dmcUser) {
+        // Prefer DMC user from logged-in session for header fields (UEN/TA licence),
+        // fallback to the injected $dmcUser if lookup fails.
+        $headerDmcUser = null;
+        try {
+            $currentUser = \Illuminate\Support\Facades\Auth::user();
+            if ($currentUser) {
+                $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                if (!empty($dmcId)) {
+                    $headerDmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                }
+            }
+        } catch (\Throwable $e) {
+            $headerDmcUser = null;
+        }
+
+        $dmcUserForHeader = $headerDmcUser ?: $dmcUser;
+
+        $rootDmc = $dmcUserForHeader;
+        if ($dmcUserForHeader) {
             $visited = [];
             while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
                 $visited[] = $rootDmc->created_by;
                 $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
             }
-            if (!$rootDmc) $rootDmc = $dmcUser;
+            if (!$rootDmc) $rootDmc = $dmcUserForHeader;
         }
     @endphp
 

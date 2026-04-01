@@ -111,70 +111,85 @@
                         </div>
                         
                         @php
-                            // Parse itinerary data safely
-                            $itineraryData = [];
-                            if (!empty($package->itinerary)) {
-                                if (is_string($package->itinerary)) {
-                                    $itineraryData = json_decode($package->itinerary, true) ?: [];
-                                } else if (is_array($package->itinerary)) {
-                                    $itineraryData = $package->itinerary;
-                                }
-                            }
-                            
+                            // Parse selected_* JSON columns safely (new source of truth)
+                            $selectedHotelsRaw = $package->selected_hotels ?? [];
+                            $selectedAttractionsRaw = $package->selected_attractions ?? [];
+                            $selectedGuidesRaw = $package->selected_guide ?? [];
+                            $selectedRestaurantsRaw = $package->selected_restaurants ?? [];
+
+                            $selectedHotels = is_string($selectedHotelsRaw) ? (json_decode($selectedHotelsRaw, true) ?: []) : (is_array($selectedHotelsRaw) ? $selectedHotelsRaw : []);
+                            $selectedAttractions = is_string($selectedAttractionsRaw) ? (json_decode($selectedAttractionsRaw, true) ?: []) : (is_array($selectedAttractionsRaw) ? $selectedAttractionsRaw : []);
+                            $selectedGuides = is_string($selectedGuidesRaw) ? (json_decode($selectedGuidesRaw, true) ?: []) : (is_array($selectedGuidesRaw) ? $selectedGuidesRaw : []);
+                            $selectedRestaurants = is_string($selectedRestaurantsRaw) ? (json_decode($selectedRestaurantsRaw, true) ?: []) : (is_array($selectedRestaurantsRaw) ? $selectedRestaurantsRaw : []);
+
                             // Extract key information
                             $attractions = [];
                             $guides = [];
                             $hotels = [];
                             $hasArrivalPickup = false;
                             $hasDepartureService = false;
-                            
-                            // Process itinerary data if available
-                            if(!empty($itineraryData)) {
-                                // Check if we have itinerary key (from the JSON structure)
-                                if(isset($itineraryData['itinerary']) && is_array($itineraryData['itinerary'])) {
-                                    foreach($itineraryData['itinerary'] as $day) {
-                                        // Collect attractions - more efficient using associative array
-                                        
-                                        if(isset($day['attractions']) && is_array($day['attractions'])) {
-                                            foreach($day['attractions'] as $attraction) {
-                                                if(is_array($attraction) && isset($attraction['attraction_id'])) {
-                                                    // Use attraction_id as key for efficient deduplication
-                                                    $attractions[$attraction['attraction_id']] = $attraction;
-                                                }
-                                            }
-                                        }
-                                        
-                                        // Collect guides - more efficient using associative array
-                                        if(isset($day['guide']) && !empty($day['guide']) && is_array($day['guide'])) {
-                                            $guideId = $day['guide']['id'] ?? null;
-                                            if($guideId) {
-                                                $guides[$guideId] = $day['guide'];
-                                            }
-                                        }
-                                        
-                                        // Check for arrival/departure services
-                                        if(isset($day['arrival_pickup']) && $day['arrival_pickup'] == 1) {
+
+                            // Build attractions list (dedupe by attraction_id/id)
+                            if (!empty($selectedAttractions) && is_array($selectedAttractions)) {
+                                foreach ($selectedAttractions as $attraction) {
+                                    if (!is_array($attraction)) continue;
+                                    $attractionKey = $attraction['attraction_id'] ?? $attraction['id'] ?? null;
+                                    if ($attractionKey !== null) {
+                                        $attractions[$attractionKey] = $attraction;
+                                    }
+                                }
+                            }
+
+                            // Build hotels list (dedupe by hotel_id/id)
+                            if (!empty($selectedHotels) && is_array($selectedHotels)) {
+                                foreach ($selectedHotels as $hotel) {
+                                    if (!is_array($hotel)) continue;
+                                    $hotelKey = $hotel['hotel_id'] ?? $hotel['id'] ?? null;
+                                    if ($hotelKey !== null) {
+                                        $hotels[$hotelKey] = $hotel;
+                                    }
+                                }
+                            }
+
+                            // Build guides list (dedupe by id)
+                            if (!empty($selectedGuides) && is_array($selectedGuides)) {
+                                foreach ($selectedGuides as $guide) {
+                                    if (!is_array($guide)) continue;
+                                    $guideId = $guide['id'] ?? null;
+                                    if ($guideId !== null) {
+                                        $guides[$guideId] = $guide;
+                                    }
+                                }
+                            }
+
+                            // Services flags:
+                            // - Arrival pickup when any attraction/restaurant has pickup from airport
+                            // - Departure service when any attraction/restaurant has dropoff to airport
+                            $airportKeywords = ['airport', 'air port'];
+
+                            foreach ([$selectedAttractions, $selectedRestaurants] as $serviceCollection) {
+                                if (empty($serviceCollection) || !is_array($serviceCollection)) continue;
+                                foreach ($serviceCollection as $serviceItem) {
+                                    if (!is_array($serviceItem)) continue;
+
+                                    $pickupName = strtolower((string) ($serviceItem['pickup_name'] ?? ''));
+                                    $dropoffName = strtolower((string) ($serviceItem['dropoff_name'] ?? ''));
+
+                                    foreach ($airportKeywords as $kw) {
+                                        if (!$hasArrivalPickup && $pickupName !== '' && str_contains($pickupName, $kw)) {
                                             $hasArrivalPickup = true;
                                         }
-                                        
-                                        if(isset($day['departure_service']) && $day['departure_service'] == 1) {
+                                        if (!$hasDepartureService && $dropoffName !== '' && str_contains($dropoffName, $kw)) {
                                             $hasDepartureService = true;
                                         }
                                     }
                                 }
-                                
-                                // Process hotels data if available
-                                if(isset($itineraryData['hotels']) && is_array($itineraryData['hotels'])) {
-                                    foreach($itineraryData['hotels'] as $hotel) {
-                                        if(is_array($hotel) && isset($hotel['id'])) {
-                                            $hotels[$hotel['id']] = $hotel;
-                                        }
-                                    }
-                                }
                             }
-                            
+
                             // Convert associative arrays to indexed arrays for display
                             $attractions = array_values($attractions);
+                            $hotels = array_values($hotels);
+                            $guides = array_values($guides);
                         @endphp
 
                         <!-- Itinerary Highlights -->
@@ -236,6 +251,7 @@
                                         </div>
                                     </div>
                                     <div class="hotel-preview">
+                                        
                                         @foreach(array_slice($hotels, 0, 2) as $hotel)
                                             <div class="d-flex align-items-center mb-1">
                                                 <div class="flex-shrink-0" style="width: 30px; height: 30px;">

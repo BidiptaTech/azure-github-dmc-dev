@@ -20,8 +20,14 @@ class RoomsImport
         $this->authUser = Auth::user();
     }
 
-    public function import($filePath)
+    /**
+     * @param  string  $filePath
+     * @param  int|null  $roomCreatedByDmcUserId  Parent DMC userId for created_by (delegated uploads)
+     */
+    public function import($filePath, ?int $roomCreatedByDmcUserId = null)
     {
+        $dmcOwnerUserId = $roomCreatedByDmcUserId ?? (int) $this->authUser->userId;
+
         $file = fopen($filePath, 'r');
         
         if (!$file) {
@@ -168,7 +174,8 @@ class RoomsImport
                     // Check if DMC already has their own room for this hotel/room_type
                     $existingDmcRoom = Room::where('hotel_id', $hotelId)
                                           ->where('room_type', $room->room_type)
-                                          ->where('created_by', $this->authUser->userId)
+                                          ->where('created_by', $dmcOwnerUserId)
+                                          ->where('dmc_base_room', 0)
                                           ->first();
 
                     if ($existingDmcRoom) {
@@ -196,7 +203,7 @@ class RoomsImport
                         $existingDmcRoom->save();
                     } else {
                         // DMC doesn't have their own room yet - CREATE NEW ROW
-                        $this->createDmcRoomCopy($room, $row);
+                        $this->createDmcRoomCopy($room, $row, $dmcOwnerUserId);
                     }
                 }
 
@@ -330,7 +337,7 @@ class RoomsImport
     /**
      * Create a new DMC room copy from admin base room
      */
-    private function createDmcRoomCopy($originalRoom, $row)
+    private function createDmcRoomCopy($originalRoom, $row, int $dmcOwnerUserId)
     {
         // Generate new unique room_id
         $newRoomId = $this->generateNewRoomId();
@@ -367,9 +374,9 @@ class RoomsImport
 
         $newRoom->breakfast_included = isset($row['breakfast_included']) && $row['breakfast_included'] == 1 ? 1 : 0;
 
-        // Set ownership to DMC
-        $newRoom->created_by = $this->authUser->userId;
-        $newRoom->dmc_id = $this->authUser->userId;
+        // Set ownership to parent DMC (same when upload is done by product head / PM / assistant)
+        $newRoom->created_by = $dmcOwnerUserId;
+        $newRoom->dmc_id = $dmcOwnerUserId;
         $newRoom->dmc_base_room = 0; // This is DMC's custom room, not base room
         
         // Copy other fields
@@ -381,7 +388,7 @@ class RoomsImport
         
         $newRoom->save();
         
-        Log::info("Created new DMC room copy: {$newRoomId} for DMC user: {$this->authUser->userId}");
+        Log::info("Created new DMC room copy: {$newRoomId} for DMC user: {$dmcOwnerUserId}");
     }
 
     /**

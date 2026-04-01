@@ -81,12 +81,30 @@
     </style>
 </head>
 <body>
+    @php
+        // Prefer DMC user from logged-in session (has UEN/TA licence fields),
+        // fallback to the passed $dmc object if lookup fails.
+        $headerDmcUser = null;
+        try {
+            $currentUser = \Illuminate\Support\Facades\Auth::user();
+            if ($currentUser) {
+                $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                if (!empty($dmcId)) {
+                    $headerDmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                }
+            }
+        } catch (\Throwable $e) {
+            $headerDmcUser = null;
+        }
+        $headerDmc = $headerDmcUser ?: ($dmc ?? null);
+    @endphp
+
     @include('invoices.pdf.partials.header', [
         'logoType' => 'dmc',
         'showBlueTitle' => true,
         'docTitle' => 'HANDOVER ACKNOWLEDGEMENT CHECKLIST',
         'docNumber' => ($display_id ?? $tourId ?? ''),
-        'user_dmc' => $dmc,
+        'user_dmc' => $headerDmc,
     ])
 
     <div class="divider-line"></div>

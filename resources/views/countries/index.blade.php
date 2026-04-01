@@ -95,6 +95,12 @@
     #toast-container > .toast-success { background-color: #198754 !important; }
     #toast-container > .toast-error { background-color: #dc3545 !important; }
     #toast-container > .toast-warning { background-color: #ffc107 !important; color: #212529 !important; }
+
+    /* Inline edit action buttons (DMC). Core CSS sets `.btn { display:inline-flex !important; }`
+       so we must override with `!important` too. */
+    .dmc-inline-save-btn { display: none !important; }
+    .dmc-inline-editing .dmc-inline-save-btn { display: inline-flex !important; }
+    .dmc-inline-editing .dmc-inline-edit-btn { display: none !important; }
 </style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -188,6 +194,9 @@
                             @if($showRemitanceAndExchange)
                                 <th>Remitance Charge</th>
                                 <th>Exchange Rate</th>
+                                @if($currentDmcId)
+                                    <th>Action</th>
+                                @endif
                             @endif
                             @if(!$showRemitanceAndExchange)
                             <th>Status</th>
@@ -216,6 +225,40 @@
                                     @endphp
                                     <td style="min-width: 120px;" class="text-muted small" id="country-rem-{{ $country->id }}">{{ $remValue !== '' ? $remValue : '—' }}</td>
                                     <td style="min-width: 120px;" class="text-muted small" id="country-ex-{{ $country->id }}">{{ $exValue !== '' ? $exValue : '—' }}</td>
+                                    @if($currentDmcId)
+                                        <td style="display: inline-block; white-space: nowrap;">
+                                            <button
+                                                type="button"
+                                                class="btn btn-primary btn-sm rounded-circle waves-effect waves-light dmc-inline-edit-btn"
+                                                style="min-width: 28px; min-height: 28px; padding: 0;"
+                                                data-country-id="{{ $country->id }}"
+                                                title="Edit">
+                                                <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
+                                                    <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
+                                                </svg>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="btn btn-success btn-sm rounded-circle waves-effect waves-light dmc-inline-save-btn"
+                                                style="min-width: 28px; min-height: 28px; padding: 0; display:none !important;"
+                                                data-country-id="{{ $country->id }}"
+                                                title="Save">
+                                                <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
+                                                    <path d="M480-344 228-596l56-56 196 196 444-444 56 56-500 500Z"/>
+                                                </svg>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="btn btn-danger btn-sm rounded-circle waves-effect waves-light dmc-inline-delete-btn"
+                                                style="min-width: 28px; min-height: 28px; padding: 0;"
+                                                data-country-id="{{ $country->id }}"
+                                                title="Delete">
+                                                <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
+                                                    <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    @endif
                                 @endif
                                 @if(!$showRemitanceAndExchange)
                                 <td>
@@ -461,6 +504,73 @@
 
         @if($showRemitanceAndExchange && $currentDmcId)
         (function() {
+            function syncDmcInlineActions() {
+                function setBtnDisplay($el, displayValue) {
+                    const el = $el && $el[0];
+                    if (!el) return;
+                    // Override `.btn { display: inline-flex !important; }`
+                    el.style.setProperty('display', displayValue, 'important');
+                }
+
+                // Ensure buttons follow row edit mode even after DataTables redraw.
+                $('.dmc-inline-edit-btn').each(function() {
+                    const row = $(this).closest('tr');
+                    const hasInputs = row.find('.dmc-inline-remittance-input, .dmc-inline-exchange-input').length > 0;
+                    if (hasInputs) {
+                        setBtnDisplay($(this), 'none');
+                    } else {
+                        // Bootstrap `.btn` uses inline-flex; match it to avoid layout glitches.
+                        setBtnDisplay($(this), 'inline-flex');
+                    }
+                });
+
+                $('.dmc-inline-save-btn').each(function() {
+                    const row = $(this).closest('tr');
+                    const hasInputs = row.find('.dmc-inline-remittance-input, .dmc-inline-exchange-input').length > 0;
+                    if (hasInputs) {
+                        row.addClass('dmc-inline-editing');
+                    } else {
+                        row.removeClass('dmc-inline-editing');
+                    }
+                    if (hasInputs) {
+                        setBtnDisplay($(this), 'inline-flex');
+                    } else {
+                        setBtnDisplay($(this), 'none');
+                    }
+                });
+
+                $('.dmc-inline-delete-btn').each(function() {
+                    const row = $(this).closest('tr');
+                    const hasInputs = row.find('.dmc-inline-remittance-input, .dmc-inline-exchange-input').length > 0;
+                    if (hasInputs) {
+                        $(this).prop('disabled', true).css('opacity', 0.6);
+                    } else {
+                        $(this).prop('disabled', false).css('opacity', 1);
+                    }
+                });
+            }
+
+            function dmcActionCellHtml(countryId) {
+                return '' +
+                    '<div style="display:inline-block; white-space:nowrap;">' +
+                        '<button type="button" class="btn btn-primary btn-sm rounded-circle waves-effect waves-light dmc-inline-edit-btn" style="min-width: 28px; min-height: 28px; padding: 0;" data-country-id="' + countryId + '" title="Edit">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">' +
+                                '<path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>' +
+                            '</svg>' +
+                        '</button>' +
+                        '<button type="button" class="btn btn-success btn-sm rounded-circle waves-effect waves-light dmc-inline-save-btn" style="min-width: 28px; min-height: 28px; padding: 0; display:none !important;" data-country-id="' + countryId + '" title="Save">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">' +
+                                '<path d="M480-344 228-596l56-56 196 196 444-444 56 56-500 500Z"/>' +
+                            '</svg>' +
+                        '</button>' +
+                        '<button type="button" class="btn btn-danger btn-sm rounded-circle waves-effect waves-light dmc-inline-delete-btn" style="min-width: 28px; min-height: 28px; padding: 0;" data-country-id="' + countryId + '" title="Delete">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">' +
+                                '<path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>' +
+                            '</svg>' +
+                        '</button>' +
+                    '</div>';
+            }
+
             function dmcFormatCell(val) {
                 return (val === null || val === undefined || val === '' || String(val) === 'NaN') ? '—' : String(val);
             }
@@ -559,6 +669,7 @@
                                     '<span class="country-name">' + $('<div>').text(countryName).html() + '</span>',
                                     '<span class="text-muted small" id="country-rem-' + countryId + '">' + $('<div>').text(remDisp).html() + '</span>',
                                     '<span class="text-muted small" id="country-ex-' + countryId + '">' + $('<div>').text(exDisp).html() + '</span>',
+                                    dmcActionCellHtml(countryId),
                                 ]).draw(false);
                             } else if (countriesTable) {
                                 // If already present, just redraw to keep numbering stable
@@ -585,6 +696,149 @@
                     countriesNotify('error', errMsg);
                         try { sessionStorage.setItem('countries_dmc_flash_error', errMsg); } catch (e) {}
                         console.error('Country save error:', xhr.status, xhr.responseText);
+                    }
+                });
+            });
+
+            function dmcTextToInputVal(cellText) {
+                // Server uses '—' for empty; in inline mode we want ''.
+                const t = (cellText || '').toString().trim();
+                return t === '—' ? '' : t;
+            }
+
+            // Initial sync + keep in sync after DataTables redraw.
+            try {
+                syncDmcInlineActions();
+                if (countriesTable) countriesTable.on('draw', syncDmcInlineActions);
+            } catch (e) {
+                // ignore
+            }
+
+            // Inline edit: turn the two value cells into <input> fields.
+            $(document).on('click', '.dmc-inline-edit-btn', function() {
+                const countryId = $(this).data('country-id');
+                const row = $(this).closest('tr');
+                if (row.hasClass('dmc-inline-editing')) return;
+
+                const remEl = $('#country-rem-' + countryId);
+                const exEl = $('#country-ex-' + countryId);
+
+                const remVal = dmcTextToInputVal(remEl.text());
+                const exVal = dmcTextToInputVal(exEl.text());
+
+                remEl.html(
+                    '<input type="number" min="0" step="1" class="form-control form-control-sm dmc-inline-remittance-input" ' +
+                    'placeholder="Enter whole number" value="' + $('<div>').text(remVal).html() + '">'
+                );
+                exEl.html(
+                    '<input type="number" min="0" step="1" class="form-control form-control-sm dmc-inline-exchange-input" ' +
+                    'placeholder="Enter whole number" value="' + $('<div>').text(exVal).html() + '">'
+                );
+
+                row.addClass('dmc-inline-editing');
+                syncDmcInlineActions();
+            });
+
+            // Inline save: call the existing update endpoint.
+            $(document).on('click', '.dmc-inline-save-btn', function() {
+                const countryId = $(this).data('country-id');
+                const row = $(this).closest('tr');
+                const btn = $(this);
+
+                const remRaw = (row.find('.dmc-inline-remittance-input').val() || '').toString().trim();
+                const exRaw = (row.find('.dmc-inline-exchange-input').val() || '').toString().trim();
+
+                if (remRaw !== '') {
+                    const r = parseInt(remRaw, 10);
+                    if (isNaN(r) || r < 0) {
+                        countriesNotify('error', 'Remitance charge must be a whole number ≥ 0.');
+                        return;
+                    }
+                }
+
+                if (exRaw !== '') {
+                    const e = parseInt(exRaw, 10);
+                    if (isNaN(e) || e < 0) {
+                        countriesNotify('error', 'Exchange rate must be a whole number ≥ 0.');
+                        return;
+                    }
+                }
+
+                btn.prop('disabled', true);
+                $.ajax({
+                    url: "{{ route('countries.update-remitance-exchange') }}",
+                    type: 'POST',
+                    dataType: 'json',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    data: {
+                        id: countryId,
+                        remitance_charge: remRaw === '' ? '' : parseInt(remRaw, 10),
+                        exchange_rate: exRaw === '' ? '' : parseInt(exRaw, 10),
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        btn.prop('disabled', false);
+                        if (response.success) {
+                            countriesNotify('success', response.message || 'Saved successfully.');
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 800);
+                        } else {
+                            countriesNotify('error', response.message || 'Could not save your changes.');
+                        }
+                    },
+                    error: function(xhr) {
+                        btn.prop('disabled', false);
+                        const errMsg = readDmcSaveErrorMessage(xhr);
+                        countriesNotify('error', errMsg);
+                        try { sessionStorage.setItem('countries_dmc_flash_error', errMsg); } catch (e) {}
+                    }
+                });
+            });
+
+            // Inline delete: remove both remitance_charge and exchange_rate for this DMC.
+            $(document).on('click', '.dmc-inline-delete-btn', function() {
+                const countryId = $(this).data('country-id');
+                const row = $(this).closest('tr');
+                const btn = $(this);
+                if (row.hasClass('dmc-inline-editing')) return;
+
+                if (!confirm('Are you sure you want to delete remitance charge & exchange rate for this DMC?')) {
+                    return;
+                }
+
+                btn.prop('disabled', true);
+                $.ajax({
+                    url: "{{ route('countries.delete-remitance-exchange') }}",
+                    type: 'POST',
+                    dataType: 'json',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    data: {
+                        id: countryId,
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        btn.prop('disabled', false);
+                        if (response.success) {
+                            countriesNotify('success', response.message || 'Deleted successfully.');
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 800);
+                        } else {
+                            countriesNotify('error', response.message || 'Could not delete your changes.');
+                        }
+                    },
+                    error: function(xhr) {
+                        btn.prop('disabled', false);
+                        const j = xhr.responseJSON || {};
+                        countriesNotify('error', j.message || 'An error occurred while deleting.');
+                        try { sessionStorage.setItem('countries_dmc_flash_error', j.message); } catch (e) {}
                     }
                 });
             });

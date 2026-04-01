@@ -104,6 +104,17 @@
             color: #000;
         }
 
+        .quotation-information {
+            border: 1px solid #000;
+            padding: 6px 6px;
+            margin-top: 10px;
+            line-height: 1.25;
+        }
+
+        .quotation-information p {
+            margin: 0 0 6px 0;
+        }
+
     </style>
 </head>
 <body>
@@ -530,6 +541,8 @@
             </tr>
         </table>
 
+        
+
         @if(!empty($supplements) && is_array($supplements))
             <div style="margin-top: 10px;">
                 <div class="panel-title">Supplements</div>
@@ -565,8 +578,13 @@
                 </table>
             </div>
         @endif
+        @if(!empty($quotationInformationHtml))
+            <div class="quotation-information">
+                <div class="section-label">Quotation Information</div>
+                {!! $quotationInformationHtml !!}
+            </div>
+        @endif
 
     </div>
 </body>
 </html>
-
