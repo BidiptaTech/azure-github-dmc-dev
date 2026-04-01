@@ -593,9 +593,16 @@ Route::get('/clear', function () {
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
         // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
+        Route::get('/packages/booking/create/{package_id?}', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create');
+        Route::get('/packages/{package_id}/booking', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create.legacy');
+        Route::get('/packages/booking/filter', [\App\Http\Controllers\PackageBookingController::class, 'filterPackages'])->name('packages.booking.filter');
+        Route::get('/packages/get-agents-by-agency', [\App\Http\Controllers\PackageBookingController::class, 'getAgentsByAgency'])
+        ->name('packages.getAgentsByAgency');
+        Route::get('/packages/booking/details/{packageId}', [\App\Http\Controllers\PackageBookingController::class, 'packageDetails'])->name('packages.booking.details');
+        Route::post('/packages/booking', [\App\Http\Controllers\PackageBookingController::class, 'store'])->name('packages.booking.store');
+        Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
         Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
-        Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         // Legacy route for backward compatibility
         Route::get('/package', [PackageController::class, 'index'])->name('package');
         Route::get('/predefined-package-booking-list', [PackageController::class, 'predefinedPackageBookingList'])->name('predefined.package.booking.list');

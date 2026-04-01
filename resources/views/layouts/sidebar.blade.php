@@ -111,6 +111,13 @@
                     <span class="badge-lite">Lite</span>
                 </a>
             </li> 
+
+            <li class="menu-item @if(Request::is('packages/booking/create')) active @endif" style="position: relative;">
+                <a href="{{ route('packages.booking.create') }}" class="menu-link">
+                    <i class="menu-icon tf-icons ri-route-line"></i>
+                    <div data-i18n="Create Package Booking">Create Package Booking</div>
+                </a>
+            </li>
         @endif
 
         <!-- End Tour -->
