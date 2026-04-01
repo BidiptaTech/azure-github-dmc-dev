@@ -811,6 +811,31 @@ class UserController extends Controller
             // Final sorted result
             $users = $allUsers->sortBy('userId')->values();
         }
+        // Role 10 policy: initialize/sync Booking Type (is_pro) for visible role 11 rows from auth user's is_pro.
+        $authRoleId = (int) ($this->auth_user->role_id ?? 0);
+        $authIsPro = (int) ($this->auth_user->is_pro ?? 0);
+        if ($authRoleId === 10 && in_array($authIsPro, [1, 2, 3], true)) {
+            $targetUserIds = collect($users)
+                ->filter(function ($u) {
+                    return (int) ($u->role_id ?? 0) === 11;
+                })
+                ->pluck('userId')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($targetUserIds->isNotEmpty()) {
+                User::whereIn('userId', $targetUserIds->all())->update(['is_pro' => $authIsPro]);
+
+                // Keep in-memory rows aligned with DB update for immediate view rendering.
+                foreach ($users as $u) {
+                    if ((int) ($u->role_id ?? 0) === 11) {
+                        $u->is_pro = $authIsPro;
+                    }
+                }
+            }
+        }
+
         return view('users.users',compact('users'));
     }
 
@@ -2613,6 +2638,64 @@ class UserController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function updateBookingType(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required',
+            'booking_type' => 'required|integer|in:1,2,3',
+        ]);
+
+        $targetUser = User::where('userId', $request->user_id)->first();
+        if (! $targetUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $authRoleId = (int) (Auth::user()->role_id ?? 0);
+        $targetRoleId = (int) ($targetUser->role_id ?? 0);
+
+        $allowed = ($authRoleId === 1 && $targetRoleId === 10)
+            || ($authRoleId === 10 && $targetRoleId === 11);
+
+        if (! $allowed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update booking type for this user.',
+            ], 403);
+        }
+
+        // For role 10 updating role 11 users, enforce auth user's is_pro policy.
+        if ($authRoleId === 10 && $targetRoleId === 11) {
+            $authIsPro = (int) (Auth::user()->is_pro ?? 0);
+
+            if ($authIsPro === 1 && (int) $request->booking_type !== 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking Type is locked to Lite Form for this account.',
+                ], 422);
+            }
+            if ($authIsPro === 2 && (int) $request->booking_type !== 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking Type is locked to Pro Form for this account.',
+                ], 422);
+            }
+            // authIsPro === 3 can choose any of 1,2,3
+        }
+
+        $targetUser->is_pro = (int) $request->booking_type;
+        $targetUser->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Booking type updated successfully.',
+            'user_id' => $targetUser->userId,
+            'is_pro' => (int) $targetUser->is_pro,
+        ]);
     }
 
     /*
