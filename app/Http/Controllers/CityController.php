@@ -810,7 +810,8 @@ class CityController extends Controller
         $results = $cities->map(function ($city) {
             $country = $city->country ? (' (' . $city->country . ')') : '';
             return [
-                'id' => $city->city_id,
+                // Select2 compares ids as strings; force string to avoid numeric coercion edge-cases.
+                'id' => (string) $city->city_id,
                 'text' => $city->name . $country,
             ];
         })->values();

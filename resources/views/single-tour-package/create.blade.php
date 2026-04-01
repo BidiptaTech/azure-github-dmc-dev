@@ -521,7 +521,7 @@
                                             <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
                                         </label>
                                         <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;"></select>
-                                        <small class="text-muted" style="font-size:0.72rem;">Select multiple cities to plan segments.</small>
+                                        <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
                                     </div>
                                     <div class="col-md-6 d-flex align-items-end justify-content-end">
                                         <button type="button" id="addCityPlan" class="btn btn-primary btn-sm" style="height: 34px;">Add City Plan</button>
@@ -675,7 +675,7 @@
                                             <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
                                         </label>
                                         <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;"></select>
-                                        <small class="text-muted" style="font-size:0.72rem;">Select multiple cities to plan segments.</small>
+                                        <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
                                     </div>
                                     <div class="col-md-6 d-flex align-items-end justify-content-end">
                                         <button type="button" id="addCityPlan" class="btn btn-primary btn-sm" style="height: 34px;">Add City Plan</button>
@@ -698,6 +698,13 @@
 
             <!-- Hotel Selection Section -->
             <div id="servicesAccordionHome"></div>
+            <div id="multiCityServicesHint" class="alert alert-info border-0 shadow-sm mb-3 py-2 px-3 d-none" style="font-size:0.82rem;border-radius:10px;background:#e7f1ff;border:1px solid #b6d4fe !important;color:#055160;">
+                <div class="fw-semibold mb-1"><i class="ri-route-line me-1"></i>Multi-city: services follow each city plan</div>
+                <p class="mb-0">Set your <strong>main travel dates</strong> above, choose cities, then <strong>Add City plan</strong> for each leg. Enter <strong>Stay from</strong> and <strong>Stay until</strong> so every row sits inside the main tour (for example 1 Mar–5 Mar in Kolkata, then 5 Mar–10 Mar in Delhi).</p>
+                <p class="mb-0 mt-2"><strong>Hotels, attractions, guides, restaurants and transport</strong> open <em>under that row only</em>—not for the whole tour at once. If you change another row, the same service panel moves to the row you last completed.</p>
+            </div>
+            <!-- Hotels + daily services (attractions, guides, restaurants, transport, ports) move together in multi-city -->
+            <div id="segmentServicesBundle">
             <div class="accordion mb-4" id="servicesAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
@@ -1002,6 +1009,8 @@
                     </div>
                 </div>
             </div>
+            </div>
+            <!-- /#segmentServicesBundle -->
 
             <!-- Hidden Fields for Storing Booking Data -->
             <input type="hidden" id="tour_id" name="tour_id" value="">
@@ -6013,6 +6022,32 @@
         margin-top: 3px !important;
         font-size: 0.75rem !important;
     }
+
+    /* Multi-city segment visuals (better separation + clarity) */
+    #segmentsWrapper .segment {
+        border: 1px solid #e9ecef;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+    }
+    #segmentsWrapper .segment .segment-header > div {
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.22) 0%, rgba(118, 75, 162, 0.18) 100%) !important;
+        border-color: rgba(102, 126, 234, 0.35) !important;
+    }
+    #segmentsWrapper .segment .segment-services-banner {
+        background: rgba(13, 110, 253, 0.10);
+        border-color: rgba(13, 110, 253, 0.28) !important;
+        color: #0b3d91;
+    }
+
+    /* Segment body toggle (in city/date header) */
+    #segmentsWrapper .segment .segment-body-toggle {
+        border-color: rgba(13, 110, 253, 0.35) !important;
+        color: #0d6efd !important;
+        background: rgba(13, 110, 253, 0.08);
+    }
+    #segmentsWrapper .segment .segment-body-toggle:hover {
+        background: rgba(13, 110, 253, 0.16);
+        border-color: rgba(13, 110, 253, 0.55) !important;
+    }
 </style>
 
 <!-- jQuery (required for date range picker and AJAX) -->
@@ -6088,6 +6123,18 @@
         return $('input[name="city_mode"]:checked').val() === 'single';
     };
 
+    window.setServiceCityReadonly = function (readonly) {
+        const ro = !!readonly;
+        window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
+            $(sel).each(function () {
+                const $dd = $(this);
+                if (!$dd.length) return;
+                $dd.prop('disabled', ro);
+                // If Select2 is attached, it will reflect disabled state automatically.
+            });
+        });
+    };
+
     window.getSingleCityName = function () {
         const $sc = $('#single_city');
         if (!$sc.length) return '';
@@ -6135,7 +6182,10 @@
         if (!cityName || !String(cityName).trim()) return;
 
         const needle = String(cityName).trim();
-        const meta = window.getSingleCityMeta ? window.getSingleCityMeta() : { value: '', text: needle, id: '' };
+        // Multi-city: #single_city is cleared — do not use getSingleCityMeta() or matching fails (hotel city stays empty).
+        const meta = (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode() && typeof window.getSingleCityMeta === 'function')
+            ? window.getSingleCityMeta()
+            : { value: needle, text: needle, id: '' };
         const norm = function (s) {
             return String(s || '').trim().toLowerCase();
         };
@@ -6328,6 +6378,125 @@
             }
         }
 
+        function isServicesAccordionInSegment() {
+            return $('#segmentServicesBundle').closest('.segment-services').length > 0;
+        }
+
+        window.multiSegmentStayRange = null;
+
+        function clearMultiSegmentStayContext() {
+            window.multiSegmentStayRange = null;
+        }
+
+        function freezeServicesBundleInSegment($segment) {
+            const $bundle = $('#segmentServicesBundle');
+            if (!$segment || !$segment.length || !$bundle.length) return;
+            if (!$segment.find('#segmentServicesBundle').length) return; // bundle not currently inside this segment
+            if ($segment.find('.segment-services-frozen').length) return; // already frozen snapshot exists
+
+            const $clone = $bundle.clone(false, false);
+
+            // Avoid duplicate IDs / aria references in the snapshot copy.
+            $clone.find('[id]').removeAttr('id');
+            $clone.find('label[for]').removeAttr('for');
+
+            // Make it read-only (visual snapshot).
+            $clone.find('input, select, textarea, button').prop('disabled', true);
+            $clone.addClass('segment-services-frozen');
+            $clone.css({ pointerEvents: 'none', opacity: 0.92 });
+
+            // Add a small header note (kept minimal to avoid layout shift).
+            $clone.prepend(
+                $('<div class="mb-2 text-muted"></div>').css({ fontSize: '0.72rem' }).html(
+                    '<i class="ri-lock-line me-1"></i>Saved services for this city plan (read-only). Select this plan again to edit.'
+                )
+            );
+
+            $segment.find('.segment-services').append($clone);
+        }
+
+        /** Badges next to Hotel Accommodations: segment stay (e.g. 01 Mar – 05 Mar, 2026), not full tour. */
+        function applySegmentStayDateBadges(startStr, endStr) {
+            const s = moment(startStr, 'YYYY-MM-DD');
+            const e = moment(endStr, 'YYYY-MM-DD');
+            if (!s.isValid() || !e.isValid()) return;
+            const y = e.format('YYYY');
+            $('#tourDates').text(s.format('DD MMM') + ' – ' + e.format('DD MMM') + ', ' + y);
+            $('#hotelNights').text(e.diff(s, 'days') + ' nights · this stay');
+        }
+
+        /** After city plan is set: fill hotel/port/attraction/guide/restaurant/transport city selects; retry for async DOM. */
+        function resyncSegmentCityToAllServiceSelects(cityLabel) {
+            if (!cityLabel || typeof window.syncAllServiceCities !== 'function') return;
+            window.syncAllServiceCities(cityLabel);
+            [120, 400, 800].forEach(function (ms) {
+                setTimeout(function () { window.syncAllServiceCities(cityLabel); }, ms);
+            });
+        }
+
+        /** Multi-city: hide global services until a segment has city + dates; single-city always shows global block. */
+        function refreshGlobalServicesVisibility() {
+            const multi = $('input[name="city_mode"]:checked').val() === 'multi';
+            const $bundle = $('#segmentServicesBundle');
+            const $hint = $('#multiCityServicesHint');
+            if (!$hint.length || !$bundle.length) return;
+
+            if (!multi) {
+                if (typeof window.setServiceCityReadonly === 'function') {
+                    window.setServiceCityReadonly(false);
+                }
+                clearMultiSegmentStayContext();
+                $bundle.removeClass('d-none');
+                $hint.addClass('d-none');
+                if (typeof window.generateNightSelection === 'function') {
+                    window.generateNightSelection();
+                }
+                if (typeof window.updateNightDisplay === 'function') {
+                    window.updateNightDisplay();
+                }
+                return;
+            }
+
+            if (isServicesAccordionInSegment()) {
+                if (typeof window.setServiceCityReadonly === 'function') {
+                    window.setServiceCityReadonly(true);
+                }
+                $bundle.removeClass('d-none');
+                $hint.addClass('d-none');
+            } else {
+                if (typeof window.setServiceCityReadonly === 'function') {
+                    window.setServiceCityReadonly(false);
+                }
+                clearMultiSegmentStayContext();
+                $bundle.addClass('d-none');
+                $hint.removeClass('d-none');
+                const s = $('#start_date').val();
+                const e = $('#end_date').val();
+                if (s && e && typeof moment !== 'undefined') {
+                    const ms = moment(s, 'YYYY-MM-DD');
+                    const me = moment(e, 'YYYY-MM-DD');
+                    if (ms.isValid() && me.isValid()) {
+                        $('#tourDates').text(ms.format('DD MMM') + ' – ' + me.format('DD MMM') + ', ' + me.format('YYYY'));
+                        $('#hotelNights').text(me.diff(ms, 'days') + ' nights · full tour');
+                    }
+                }
+                const tdc = document.getElementById('transportDayCount');
+                if (tdc && s && e && typeof moment !== 'undefined') {
+                    const ms = moment(s, 'YYYY-MM-DD');
+                    const me = moment(e, 'YYYY-MM-DD');
+                    if (ms.isValid() && me.isValid()) {
+                        tdc.textContent = (me.diff(ms, 'days') + 1) + ' days · full tour';
+                    }
+                }
+                if (typeof window.generateNightSelection === 'function') {
+                    window.generateNightSelection();
+                }
+                if (typeof window.updateNightDisplay === 'function') {
+                    window.updateNightDisplay();
+                }
+            }
+        }
+
         function setCityMode(mode) {
             const isMulti = mode === 'multi';
             $('#multiCityControls').toggleClass('d-none', !isMulti);
@@ -6337,28 +6506,84 @@
 
             // main travel_dates MUST stay visible in both modes (main range constraint)
             // so do nothing here; segments validate against #start_date/#end_date.
+            refreshGlobalServicesVisibility();
+        }
+
+        function clearTourPackageHeaderFields() {
+            // Reference number
+            $('#reference_number').val('');
+
+            // Travel dates
+            $('#travel_dates').val('');
+            $('#start_date').val('');
+            $('#end_date').val('');
+
+            // City selects
+            if ($('#single_city').length) {
+                $('#single_city').val(null).trigger('change');
+            }
+            if ($('#multi_cities').length) {
+                $('#multi_cities').val(null).trigger('change');
+            }
+
+            // Agency + Agent
+            if ($('#agency_id').length) {
+                $('#agency_id').val(null).trigger('change');
+            }
+            if ($('#agent_id').length) {
+                $('#agent_id').val(null).trigger('change');
+            }
+
+            // Guests: reset to defaults
+            $('#adults').val('1');
+            $('#male').val('0');
+            $('#female').val('0');
+            $('#children').val('0');
+            $('#infants').val('0');
+            $('#child_ages').val('[]');
+
+            // Refresh guest summary UI if helper exists
+            if (typeof window.updateGuestSummary === 'function') {
+                window.updateGuestSummary();
+            } else if (typeof window.updateMainGuestSummary === 'function') {
+                window.updateMainGuestSummary();
+            }
+        }
+
+        function clearCityModeUIState() {
+            if ($('#multi_cities').length) {
+                $('#multi_cities').val(null).trigger('change');
+            }
+            $('#segmentsWrapper').empty();
+            segmentIndex = 0;
+
+            if (window.__segmentBundleDomByIdx) window.__segmentBundleDomByIdx = {};
+            if (window.__segmentServiceState) window.__segmentServiceState = {};
+            if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
+
+            clearMultiSegmentStayContext();
+
+            const $bundle = $('#segmentServicesBundle');
+            const $home = $('#servicesAccordionHome');
+            if ($bundle.length && $home.length) {
+                $home.after($bundle);
+            }
+
+            $('.service-grid').empty();
         }
 
         function resetTourPackageCityMode(mode) {
+            // Full reset of Tour Package Configuration when switching city mode
+            clearTourPackageHeaderFields();
+            clearCityModeUIState();
+
             if (mode === 'multi') {
                 // Switching to multi: clear single-city selection
                 if ($('#single_city').length) {
                     $('#single_city').val(null).trigger('change');
                 }
             } else {
-                // Switching to single: clear multi-city master + segments
-                if ($('#multi_cities').length) {
-                    $('#multi_cities').val(null).trigger('change');
-                }
-                $('#segmentsWrapper').empty();
-                segmentIndex = 0;
-
-                // Move services accordion back to its original place
-                const $accordion = $('#servicesAccordion');
-                const $home = $('#servicesAccordionHome');
-                if ($accordion.length && $home.length) {
-                    $home.after($accordion);
-                }
+                refreshGlobalServicesVisibility();
             }
         }
 
@@ -6388,42 +6613,61 @@
             const segmentHTML = `
             <div class="card mt-2 segment border-0 shadow-sm" data-index="${segmentIndex}" style="border-radius: 10px;">
                 <div class="card-body py-2 px-2 position-relative">
-                    <button type="button"
-                        class="btn btn-outline-danger btn-sm removeSegment py-0 px-2 position-absolute top-0 end-0 mt-2 me-2"
-                        title="Remove plan"
-                        style="height: 24px; font-size:0.72rem; line-height: 1;">
-                        <i class="ri-close-line"></i>
-                    </button>
-
                     <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">City</label>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">City (this stay)</label>
                             <select class="form-select form-select-sm city-select" name="segments[${segmentIndex}][city]" style="height: 32px;">
                                 <option value="">Select city...</option>
                             </select>
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Start</label>
-                            <input type="date" class="form-control form-control-sm start-date" name="segments[${segmentIndex}][start_date]" style="height: 32px;">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Stay from</label>
+                            <input type="date" class="form-control form-control-sm start-date" name="segments[${segmentIndex}][start_date]" style="height: 32px;" title="Must be on or after main tour start">
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">End</label>
-                            <input type="date" class="form-control form-control-sm end-date" name="segments[${segmentIndex}][end_date]" style="height: 32px;">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Stay until</label>
+                            <input type="date" class="form-control form-control-sm end-date" name="segments[${segmentIndex}][end_date]" style="height: 32px;" title="Must be on or before main tour end">
+                        </div>
+
+                        <div class="col-md-1 d-flex align-items-end justify-content-end">
+                            <button type="button"
+                                class="btn btn-danger btn-sm removeSegment"
+                                title="Remove plan"
+                                style="height: 32px; width: 100%; border-radius: 8px;">
+                                <i class="ri-close-line"></i>
+                            </button>
                         </div>
                     </div>
 
                     <div class="segment-header mt-2 d-none">
                         <div class="d-flex align-items-center justify-content-between px-2 py-1 rounded"
-                             style="background:#f8f9fa;border:1px solid #e9ecef;">
-                            <div class="fw-semibold segment-title" style="font-size:0.78rem;color:#495057;"></div>
-                            <div class="text-muted segment-range" style="font-size:0.75rem;"></div>
+                             style="background:#f8f9fa;border:1px solid #e9ecef;pointer-events:none;">
+                            <div class="d-flex flex-column">
+                                <div class="fw-semibold segment-title" style="font-size:0.78rem;color:#495057;"></div>
+                                <div class="text-muted segment-range" style="font-size:0.75rem;"></div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary segment-body-toggle"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#segmentBodyCollapse_${segmentIndex}"
+                                aria-expanded="false"
+                                aria-controls="segmentBodyCollapse_${segmentIndex}"
+                                style="height:26px;line-height:1;padding:0 8px;border-radius:8px;pointer-events:auto;">
+                                <i class="ri-arrow-down-s-line"></i>
+                            </button>
                         </div>
                     </div>
 
-                    <div class="segment-services mt-2"></div>
-                    <div class="service-grid mt-2"></div>
+                    <div id="segmentBodyCollapse_${segmentIndex}" class="collapse segment-body-collapse mt-2">
+                        <div class="segment-services">
+                            <div class="segment-services-banner alert alert-light border py-1 px-2 mb-2 d-none" style="font-size:0.74rem;">
+                                <i class="ri-layout-grid-line me-1 text-primary"></i><span class="fw-semibold">All services for this stay</span> (hotels, arrival/departure, attractions, guides, restaurants, transport) — scoped to the city and dates on this row.
+                            </div>
+                        </div>
+                        <div class="service-grid mt-2"></div>
+                    </div>
                 </div>
             </div>`;
 
@@ -6437,7 +6681,14 @@
         });
 
         $(document).on('click', '.removeSegment', function () {
-            $(this).closest('.segment').remove();
+            const $seg = $(this).closest('.segment');
+            const $bundle = $('#segmentServicesBundle');
+            if ($bundle.length && $seg.find('#segmentServicesBundle').length) {
+                $('#servicesAccordionHome').after($bundle);
+                clearMultiSegmentStayContext();
+            }
+            $seg.remove();
+            refreshGlobalServicesVisibility();
         });
 
         // When master list changes, update all segment dropdown options
@@ -6453,13 +6704,35 @@
             const city = $segment.find('.city-select').val();
             const start = $segment.find('.start-date').val();
             const end = $segment.find('.end-date').val();
+            let segmentCityLabelForAjax = '';
 
-            if (!(city && start && end)) return;
+            if (!(city && start && end)) {
+                if ($('input[name="city_mode"]:checked').val() === 'multi') {
+                    $segment.find('.segment-services-banner').addClass('d-none');
+                    const $bundle = $('#segmentServicesBundle');
+                    if ($bundle.length && $segment.find('#segmentServicesBundle').length) {
+                        $segment.find('.service-grid').empty();
+                        $('#servicesAccordionHome').after($bundle);
+                        // Keep any frozen snapshot (do not remove); it's the segment's saved view.
+                        clearMultiSegmentStayContext();
+                        refreshGlobalServicesVisibility();
+                    }
+                }
+                return;
+            }
 
             if (!isWithinMainRange(start, end)) {
                 $segment.find('.service-grid').html(
-                    '<div class="alert alert-warning mb-0">Segment dates must be within the main tour date range.</div>'
+                    '<div class="alert alert-warning mb-0">Stay dates must fall inside your main <strong>Travel dates</strong> (tour start → tour end).</div>'
                 );
+                $segment.find('.segment-services-banner').addClass('d-none');
+                const $bundleBad = $('#segmentServicesBundle');
+                if ($bundleBad.length && $segment.find('#segmentServicesBundle').length) {
+                    $('#servicesAccordionHome').after($bundleBad);
+                }
+                // Keep any frozen snapshot (do not remove).
+                clearMultiSegmentStayContext();
+                refreshGlobalServicesVisibility();
                 return;
             }
 
@@ -6468,25 +6741,62 @@
                 const $opt = $segment.find('.city-select option:selected');
                 const cityName = ($opt.data('city-name') || '').toString().trim();
                 const cityText = ($opt.text() || '').trim();
+                segmentCityLabelForAjax = cityName || cityText.split('(')[0].trim();
+
                 $segment.find('.segment-title').text(cityText || 'Selected City');
-                $segment.find('.segment-range').text(start + ' → ' + end);
+                const mStart = moment(start, 'YYYY-MM-DD');
+                const mEnd = moment(end, 'YYYY-MM-DD');
+                if (mStart.isValid() && mEnd.isValid()) {
+                    $segment.find('.segment-range').text(
+                        mStart.format('DD MMM') + ' – ' + mEnd.format('DD MMM YYYY')
+                    );
+                } else {
+                    $segment.find('.segment-range').text(start + ' → ' + end);
+                }
                 $segment.find('.segment-header').removeClass('d-none');
+                $segment.find('.segment-services-banner').removeClass('d-none');
 
-                const $accordion = $('#servicesAccordion');
-                if ($accordion.length) {
-                    $segment.find('.segment-services').append($accordion);
+                // Ensure the segment body (services + grid) is opened when the plan becomes valid.
+                const $collapse = $segment.find('.segment-body-collapse');
+                if ($collapse.length) {
+                    $collapse.addClass('show');
+                    $segment.find('.segment-body-toggle').attr('aria-expanded', 'true');
+                }
 
-                    // Auto-select same city across all services dropdowns
-                    syncAllServiceCities(cityName || cityText.split('(')[0].trim());
+                window.multiSegmentStayRange = { start: start, end: end };
 
-                    // Update main header badges to reflect the segment range
-                    const s = moment(start, 'YYYY-MM-DD');
-                    const e = moment(end, 'YYYY-MM-DD');
-                    if (s.isValid() && e.isValid()) {
-                        $('#tourDates').text(s.format('MMM DD') + ' - ' + e.format('MMM DD, YYYY'));
-                        $('#hotelNights').text(e.diff(s, 'days') + ' Nights Selected');
+                const $bundle = $('#segmentServicesBundle');
+                const $svcHost = $segment.find('.segment-services');
+                if ($bundle.length && $svcHost.length) {
+                    // If the bundle is currently attached to another segment, leave behind a read-only snapshot there.
+                    const $prevSegment = $bundle.closest('.segment');
+                    if ($prevSegment.length && !$prevSegment.is($segment)) {
+                        freezeServicesBundleInSegment($prevSegment);
+                    }
+
+                    // If this segment had a previous snapshot, remove it (we are activating live editing here).
+                    $segment.find('.segment-services-frozen').remove();
+
+                    $svcHost.append($bundle);
+                    $bundle.removeClass('d-none');
+
+                    applySegmentStayDateBadges(start, end);
+                    resyncSegmentCityToAllServiceSelects(segmentCityLabelForAjax);
+                    if (typeof window.setServiceCityReadonly === 'function') {
+                        window.setServiceCityReadonly(true);
+                    }
+
+                    if (typeof generateDailyServices === 'function') {
+                        generateDailyServices();
+                    }
+                    if (typeof window.generateNightSelection === 'function') {
+                        window.generateNightSelection();
+                    }
+                    if (typeof window.updateNightDisplay === 'function') {
+                        window.updateNightDisplay();
                     }
                 }
+                refreshGlobalServicesVisibility();
             }
 
             $.ajax({
@@ -6495,6 +6805,18 @@
                 data: { city: city, start_date: start, end_date: end },
                 success: function (res) {
                     $segment.find('.service-grid').html(res);
+                    if ($('input[name="city_mode"]:checked').val() === 'multi' && segmentCityLabelForAjax) {
+                        resyncSegmentCityToAllServiceSelects(segmentCityLabelForAjax);
+                        if (typeof generateDailyServices === 'function') {
+                            generateDailyServices();
+                        }
+                        if (typeof generateNightSelection === 'function') {
+                            generateNightSelection();
+                        }
+                        if (typeof updateNightDisplay === 'function') {
+                            updateNightDisplay();
+                        }
+                    }
                 },
                 error: function () {
                     $segment.find('.service-grid').html(
@@ -6507,6 +6829,7 @@
         // Re-apply date limits whenever main tour dates change
         $('#travel_dates').on('apply.daterangepicker', function () {
             applySegmentDateLimits();
+            refreshGlobalServicesVisibility();
         });
         
         // Store previous country value for Select2
@@ -6606,15 +6929,19 @@
             arrow.removeClass('ri-arrow-up-s-line').addClass('ri-arrow-down-s-line');
         });
 
-        // One accordion open at a time: when any accordion opens, close all others
-        $(document).on('show.bs.collapse', '.collapse', function (e) {
+        // One accordion open at a time (scoped): only within the main services accordions.
+        // Do NOT affect per-city-plan wrapper accordion (segmentFullCollapse_*).
+        $(document).on('show.bs.collapse', '#servicesAccordion .collapse, #servicesAccordionInner .collapse', function (e) {
             var $opening = $(e.target);
-            $('.collapse').not($opening).filter('.show').collapse('hide');
+            $('#servicesAccordion .collapse, #servicesAccordionInner .collapse')
+                .not($opening)
+                .filter('.show')
+                .collapse('hide');
         });
-        $(document).on('show.bs.collapse', '.collapse', function (e) {
+        $(document).on('show.bs.collapse', '#servicesAccordion .collapse, #servicesAccordionInner .collapse', function (e) {
             $(e.target).prev('.card-header').find('i[class*="ri-arrow"]').removeClass('ri-arrow-down-s-line').addClass('ri-arrow-up-s-line');
         });
-        $(document).on('hide.bs.collapse', '.collapse', function (e) {
+        $(document).on('hide.bs.collapse', '#servicesAccordion .collapse, #servicesAccordionInner .collapse', function (e) {
             $(e.target).prev('.card-header').find('i[class*="ri-arrow"]').removeClass('ri-arrow-up-s-line').addClass('ri-arrow-down-s-line');
         });
 
@@ -11005,7 +11332,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let weekendNights = 0;
         
         newNights.forEach(nightNum => {
-            const nightDate = moment(tourStartDate).add(nightNum - 1, 'days');
+            const nightDate = moment(getHotelNightPlanStart()).add(nightNum - 1, 'days');
             
             // Determine weekend based on hotel's configured weekend_days
             const isWeekend = isWeekendForSelectedHotel(nightDate);
@@ -11677,15 +12004,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-         // Generate night selection based on date range
+         // Generate night selection based on date range (full tour, or multi-city segment stay when bundle is under a segment)
+    function isMultiSegmentHotelContext() {
+         return !!(window.multiSegmentStayRange && window.multiSegmentStayRange.start && window.multiSegmentStayRange.end &&
+             typeof $ !== 'undefined' &&
+             $('input[name="city_mode"]:checked').val() === 'multi' &&
+             $('#segmentServicesBundle').closest('.segment-services').length);
+     }
+
+     function getHotelNightPlanStart() {
+         return isMultiSegmentHotelContext() ? window.multiSegmentStayRange.start : tourStartDate;
+     }
+
+     function getHotelNightPlanNightCount() {
+         if (isMultiSegmentHotelContext()) {
+             const s = window.multiSegmentStayRange.start;
+             const e = window.multiSegmentStayRange.end;
+             return Math.max(0, moment(e).diff(moment(s), 'days'));
+         }
+         return tourNights;
+     }
+
     function generateNightSelection() {
          const nightSelectionDiv = document.getElementById('nightSelection');
          nightSelectionDiv.innerHTML = '';
+
+         const planNights = getHotelNightPlanNightCount();
+         const planStart = getHotelNightPlanStart();
          
-         if (tourNights > 0) {
-             for (let i = 1; i <= tourNights; i++) {
-                 const startDate = moment(tourStartDate).add(i-1, 'days');
-                 const endDate = moment(tourStartDate).add(i, 'days');
+         if (planNights > 0 && planStart) {
+             for (let i = 1; i <= planNights; i++) {
+                 const startDate = moment(planStart).add(i-1, 'days');
+                 const endDate = moment(planStart).add(i, 'days');
                  
                 const nightButton = document.createElement('button');
                 nightButton.type = 'button';
@@ -11803,9 +12153,10 @@ document.addEventListener('DOMContentLoaded', function() {
          autoNights.sort((a, b) => a - b);
          
          if (selectedNights.length > 0) {
+            const planStartDisp = getHotelNightPlanStart();
             // Format dates for each selected night
             const nightDates = selectedNights.map(night => {
-                const nightDate = moment(tourStartDate).add(night-1, 'days');
+                const nightDate = moment(planStartDisp).add(night-1, 'days');
                 return nightDate.format('MMM DD');
             });
             
@@ -11817,8 +12168,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
              const startNight = Math.min(...selectedNights);
              const endNight = Math.max(...selectedNights);
-             const startDate = moment(tourStartDate).add(startNight-1, 'days');
-             const endDate = moment(tourStartDate).add(endNight, 'days');
+             const startDate = moment(planStartDisp).add(startNight-1, 'days');
+             const endDate = moment(planStartDisp).add(endNight, 'days');
              
             let summaryHTML = `
                 <div class="alert" style="background: #d1f2eb; border: 1px solid #7dd3c0; border-radius: 6px; padding: 0.75rem 1rem; margin: 0;">
@@ -11859,6 +12210,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    window.generateNightSelection = generateNightSelection;
+    window.updateNightDisplay = updateNightDisplay;
 
     // Store hotel data globally for reference (already declared globally)
     
@@ -13718,7 +14071,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
         // Calculate price for each selected night
         nightNumbers.forEach(nightNum => {
-            const nightDate = moment(tourStartDate).add(nightNum-1, 'days');
+            const nightDate = moment(getHotelNightPlanStart()).add(nightNum-1, 'days');
             
             // Determine weekend based on hotel's configured weekend_days
             const isWeekend = isWeekendForSelectedHotel(nightDate);
@@ -14424,19 +14777,28 @@ document.addEventListener('DOMContentLoaded', function() {
          // Generate daily services based on tour dates
     function generateDailyServices() {
          const container = document.getElementById('dailyServicesContainer');
+
+         const useSeg = window.multiSegmentStayRange && window.multiSegmentStayRange.start && window.multiSegmentStayRange.end &&
+             typeof $ !== 'undefined' &&
+             $('input[name="city_mode"]:checked').val() === 'multi' &&
+             $('#segmentServicesBundle').closest('.segment-services').length;
+         const effStart = useSeg ? window.multiSegmentStayRange.start : tourStartDate;
+         const effEnd = useSeg ? window.multiSegmentStayRange.end : tourEndDate;
          
-         // Ensure we have valid tour dates
-         if (!tourStartDate || !tourEndDate) {
+         if (!effStart || !effEnd) {
              console.log('Tour dates not set, cannot generate daily services');
              return;
          }
          
-         console.log('Generating daily services for tour');
+         console.log('Generating daily services for tour', useSeg ? '(segment stay)' : '(full tour)');
          
-         const totalDays = moment(tourEndDate).diff(moment(tourStartDate), 'days') + 1;
+         const totalDays = moment(effEnd).diff(moment(effStart), 'days') + 1;
          
          // Update day count
-         document.getElementById('transportDayCount').textContent = totalDays + ' Days';
+         const tdcEl = document.getElementById('transportDayCount');
+         if (tdcEl) {
+             tdcEl.textContent = useSeg ? (totalDays + ' days · this stay') : (totalDays + ' Days');
+         }
          
          let servicesHTML = '';
          window.multiRestaurants = @json($multiRestaurants ?? []);
@@ -14446,7 +14808,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         for (let dayIndex = 0; dayIndex < daysToShow.length; dayIndex++) {
             const day = daysToShow[dayIndex];
-            const currentDate = moment(tourStartDate).add(day-1, 'days');
+            const currentDate = moment(effStart).add(day-1, 'days');
             const isFirstDay = day === 1;
             const isLastDay = day === totalDays;
              
