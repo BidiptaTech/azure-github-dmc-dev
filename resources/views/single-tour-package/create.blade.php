@@ -948,6 +948,7 @@
                                             </div>
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
 
@@ -6047,6 +6048,180 @@
         }
     };
 
+    /**
+     * One in-flight GET + JSON parse per URL. Bulk single-city sync triggers many identical
+     * loads; without this Chrome may hit net::ERR_INSUFFICIENT_RESOURCES and services look empty.
+     */
+    window.fetchJsonDeduped = function (url) {
+        if (!window.__fetchJsonInflight) {
+            window.__fetchJsonInflight = Object.create(null);
+        }
+        var inflight = window.__fetchJsonInflight;
+        if (inflight[url]) {
+            return inflight[url];
+        }
+        var p = fetch(url).then(function (response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            return response.json();
+        });
+        inflight[url] = p;
+        p.finally(function () {
+            delete inflight[url];
+        });
+        return p;
+    };
+
+    // Service city dropdowns (single-city mode: default from main tour city; stays editable)
+    window.SERVICE_CITY_SELECTORS = [
+        '#hotelCitySelect',
+        '#modal_local_transfer_city',
+        '#modal_exit_city',
+        '.attraction-city-select',
+        '.guide-city-select',
+        '.restaurant-city-select',
+        '.transport-city-select'
+    ];
+
+    window.isSingleCityMode = function () {
+        return $('input[name="city_mode"]:checked').val() === 'single';
+    };
+
+    window.getSingleCityName = function () {
+        const $sc = $('#single_city');
+        if (!$sc.length) return '';
+
+        let txt = '';
+        try {
+            const data = $sc.select2('data');
+            if (data && data.length && data[0].text) {
+                txt = String(data[0].text);
+            }
+        } catch (e) { /* select2 not ready */ }
+
+        if (!txt) {
+            const $opt = $sc.find('option:selected');
+            txt = ($opt.text() || '').trim() || String($sc.val() || '');
+        }
+
+        return txt.split('(')[0].trim();
+    };
+
+    window.getSingleCityMeta = function () {
+        const $sc = $('#single_city');
+        const selectedVal = String($sc.val() || '').trim();
+        let selectedText = window.getSingleCityName() || selectedVal;
+        let selectedDataId = '';
+
+        try {
+            const data = $sc.select2('data');
+            if (data && data.length && data[0]) {
+                if (data[0].text) selectedText = String(data[0].text).split('(')[0].trim();
+                if (data[0].id !== undefined && data[0].id !== null) {
+                    selectedDataId = String(data[0].id).trim();
+                }
+            }
+        } catch (e) { /* select2 not ready */ }
+
+        return {
+            value: selectedVal,
+            text: selectedText,
+            id: selectedDataId
+        };
+    };
+
+    window.syncAllServiceCities = function (cityName) {
+        if (!cityName || !String(cityName).trim()) return;
+
+        const needle = String(cityName).trim();
+        const meta = window.getSingleCityMeta ? window.getSingleCityMeta() : { value: '', text: needle, id: '' };
+        const norm = function (s) {
+            return String(s || '').trim().toLowerCase();
+        };
+        const nNeedle = norm(needle);
+        const nVal = norm(meta.value);
+        const nText = norm(meta.text);
+        const nId = norm(meta.id);
+
+        window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
+            $(sel).each(function () {
+                const $dd = $(this);
+                if (!$dd.length) return;
+
+                let matchedVal = null;
+                $dd.find('option').each(function () {
+                    const $o = $(this);
+                    const v = $o.attr('value');
+                    const did = $o.data('id') !== undefined && $o.data('id') !== null ? String($o.data('id')) : '';
+                    const t = ($o.text() || '').trim();
+                    const tBase = t ? t.split('(')[0].trim() : '';
+
+                    if (v !== undefined && v !== '' && nVal && norm(v) === nVal) {
+                        matchedVal = v;
+                        return false;
+                    }
+                    if (did && nId && norm(did) === nId) {
+                        matchedVal = (v !== undefined && v !== '') ? v : tBase;
+                        return false;
+                    }
+                    if (tBase && nText && norm(tBase) === nText) {
+                        matchedVal = (v !== undefined && v !== '') ? v : tBase;
+                        return false;
+                    }
+                    if (v !== undefined && v !== '' && norm(v) === nNeedle) {
+                        matchedVal = v;
+                        return false;
+                    }
+                    if (tBase && norm(tBase) === nNeedle) {
+                        matchedVal = (v !== undefined && v !== '') ? v : t;
+                        return false;
+                    }
+                });
+
+                if (matchedVal === null) {
+                    $dd.append($('<option></option>').attr('value', needle).text(needle));
+                    matchedVal = needle;
+                }
+
+                var prevVal = String($dd.val() || '');
+                var nextVal = String(matchedVal || '');
+                $dd.val(matchedVal);
+                // Only fire change when value actually changes — avoids reload loops (XHR → DOM → sync again).
+                if (prevVal !== nextVal) {
+                    $dd.trigger('change');
+                }
+            });
+        });
+    };
+
+    // Single-city mode: default tour city onto service city fields only (editable; never lock/disabled).
+    window.syncSingleCityToAllServices = function () {
+        if (!window.isSingleCityMode()) {
+            return;
+        }
+        const city = window.getSingleCityName();
+        if (city) {
+            window.syncAllServiceCities(city);
+        } else {
+            window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
+                $(sel).each(function () {
+                    $(this).val('').trigger('change');
+                });
+            });
+        }
+    };
+
+    let _syncSingleCityDebounce = null;
+    window.scheduleSyncSingleCityToAllServices = function () {
+        clearTimeout(_syncSingleCityDebounce);
+        _syncSingleCityDebounce = setTimeout(function () {
+            if (typeof window.syncSingleCityToAllServices === 'function') {
+                window.syncSingleCityToAllServices();
+            }
+        }, 100);
+    };
+
     $(document).ready(function() {
         // Initialize Select2 for all static select fields
         
@@ -6074,6 +6249,10 @@
                 },
                 cache: true
             }
+        });
+
+        $('#single_city').on('change select2:select select2:clear', function () {
+            window.syncSingleCityToAllServices();
         });
 
         // Master cities (Multi City mode)
@@ -6160,34 +6339,6 @@
             // so do nothing here; segments validate against #start_date/#end_date.
         }
 
-        function syncAllServiceCities(cityName) {
-            if (!cityName) return;
-
-            const selectors = [
-                '#hotelCitySelect',
-                '#modal_local_transfer_city',
-                '#modal_exit_city',
-                '.attraction-city-select',
-                '.guide-city-select',
-                '.restaurant-city-select',
-                '.transport-city-select'
-            ];
-
-            selectors.forEach(function (sel) {
-                $(sel).each(function () {
-                    const $dd = $(this);
-                    if (!$dd.length) return;
-
-                    // If option not present, inject it so value can be set
-                    if ($dd.find(`option[value="${cityName.replace(/"/g, '\\"')}"]`).length === 0) {
-                        $dd.append(`<option value="${cityName}">${cityName}</option>`);
-                    }
-
-                    $dd.val(cityName).trigger('change');
-                });
-            });
-        }
-
         function resetTourPackageCityMode(mode) {
             if (mode === 'multi') {
                 // Switching to multi: clear single-city selection
@@ -6215,10 +6366,12 @@
             const mode = $(this).val();
             resetTourPackageCityMode(mode);
             setCityMode(mode);
+            window.syncSingleCityToAllServices();
         });
 
         // default mode
         setCityMode('single');
+        window.syncSingleCityToAllServices();
 
         // Multi-city segments
         let segmentIndex = 0;
@@ -6754,26 +6907,42 @@
             
             // Fix icon padding for all Select2 elements with icons
             setTimeout(fixSelect2IconPadding, 50);
+            // Do NOT call scheduleSyncSingleCityToAllServices here: it runs on every observer tick,
+            // triggers change → AJAX → DOM updates → observer again (infinite refresh / fetch storm).
+            // City sync runs only from #single_city / country city loads / city_mode (see those call sites).
+        }
+
+        let _dynamicSelect2Debounce = null;
+        function scheduleInitializeDynamicSelect2() {
+            clearTimeout(_dynamicSelect2Debounce);
+            _dynamicSelect2Debounce = setTimeout(function () {
+                initializeDynamicSelect2();
+                // Prefill new service city selects only when main city is set; syncAllServiceCities skips
+                // change if value unchanged so this does not refetch all rows on every DOM tweak.
+                if (typeof window.getSingleCityName === 'function' && window.getSingleCityName() &&
+                    typeof window.scheduleSyncSingleCityToAllServices === 'function') {
+                    window.scheduleSyncSingleCityToAllServices();
+                }
+            }, 150);
         }
         
         // Initialize existing dynamic selects
         initializeDynamicSelect2();
         
-        // Watch for DOM changes and initialize Select2 on new elements
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.addedNodes.length > 0) {
-                    // Small delay to ensure elements are fully rendered
-                    setTimeout(initializeDynamicSelect2, 100);
+        // Watch for new form markup only (not document.body — Select2 dropdowns append to body and would retrigger forever)
+        const observer = new MutationObserver(function (mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+                if (mutations[i].addedNodes && mutations[i].addedNodes.length > 0) {
+                    scheduleInitializeDynamicSelect2();
+                    return;
                 }
-            });
+            }
         });
-        
-        // Start observing the document body for added nodes
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+
+        var _tourFormRoot = document.getElementById('singleTourPackageForm');
+        if (_tourFormRoot) {
+            observer.observe(_tourFormRoot, { childList: true, subtree: true });
+        }
         
         // Custom styling for Select2 to match the form design with proper height
         $('<style>')
@@ -8078,6 +8247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             window.reinitializeSelect2(dropdown.id, 'Select city...');
                         }
                     });
+                    window.scheduleSyncSingleCityToAllServices();
                 },
                 error: function(xhr, status, error) {
                     console.error('Error loading cities:', error);
@@ -8154,6 +8324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (cityDropdown.id && typeof window.reinitializeSelect2 === 'function') {
                         window.reinitializeSelect2(cityDropdown.id, 'Select city...');
                     }
+                    window.scheduleSyncSingleCityToAllServices();
                 },
                 error: function(xhr, status, error) {
                     console.error('Error loading cities for dropdown:', error);
@@ -8251,8 +8422,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Load attractions for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
             
-            fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
-                .then(response => response.json())
+            window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(data => {
                     attractionSelect.innerHTML = '<option value="">Search Attraction</option>';
                     
@@ -8487,8 +8657,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Load guides for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
             
-            fetch(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
-                .then(response => response.json())
+            window.fetchJsonDeduped(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(data => {
                     // Store guides data for this attraction
                     const storageKey = `day${day}_attraction_${index}`;
@@ -9285,12 +9454,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
         Promise.all([
-            fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json()),
-            fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json()),
-            fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json())
+            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
         ])
         .then(([hotelsData, attractionsData, restaurantsData]) => {
             // Clear the dropdown
@@ -10307,8 +10473,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Load guides for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
             
-            fetch(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
-                .then(response => response.json())
+            window.fetchJsonDeduped(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(data => {
                     // Destroy Select2 before updating options
                     if (isSelect2Initialized) {
@@ -10426,8 +10591,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const currentDmcId = '{{ $finalDmcId }}';
             
-            fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
-                .then(response => response.json())
+            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(data => {
                     restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
                     prependMultiRestaurantOptions(restaurantSelect);
@@ -10596,12 +10760,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
         Promise.all([
-            fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json()),
-            fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json()),
-            fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json())
+            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
         ])
         .then(([hotelsData, attractionsData, restaurantsData]) => {
             // Clear the dropdown
@@ -11742,13 +11903,7 @@ document.addEventListener('DOMContentLoaded', function() {
         hotelLoadingStatus.innerHTML = `<i class="ri-loader-2-line spin me-1"></i>Loading hotels for DMC ${currentDmcId} in ${cityName}...`;
         
         // Fetch hotels from API using DMC-specific endpoint
-        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
+        window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
             .then(response => {
                 console.log('Hotel API Response:', response);
                 
@@ -11937,12 +12092,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
         Promise.all([
-            fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json()),
-            fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json()),
-            fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                .then(response => response.json())
+            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
         ])
         .then(([hotelsData, attractionsData, restaurantsData]) => {
             // Function to populate a select element
@@ -23820,12 +23972,9 @@ function loadPortsForCity(cityName) {
     console.log('Making AJAX calls for city:', cityName, 'DMC ID:', dmcId);
     
     Promise.all([
-        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-            .then(response => response.json()),
-        fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-            .then(response => response.json()),
-        fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-            .then(response => response.json())
+        window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+        window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+        window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
     ])
     .then(([hotelsData, attractionsData, restaurantsData]) => {
         console.log('AJAX responses received:');
@@ -23972,12 +24121,9 @@ function loadExitPortsForCity(cityName) {
     console.log('Making AJAX calls for exit port city:', cityName, 'DMC ID:', dmcId);
     
     Promise.all([
-        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-            .then(response => response.json()),
-        fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-            .then(response => response.json()),
-        fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-            .then(response => response.json())
+        window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+        window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+        window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
     ])
     .then(([hotelsData, attractionsData, restaurantsData]) => {
         console.log('Exit port AJAX responses received:');
@@ -28748,8 +28894,7 @@ window.saveService = function(day, type) {
              
              const dmcId = '{{ $finalDmcId }}';
              // Fetch all hotels for the city so dropdown shows every hotel
-             fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
-                 .then(response => response.json())
+             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
                  .then(hotelsData => {
                      dropoffZoneSelect.innerHTML = '<option value="">Select dropoff location</option>';
                      if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
