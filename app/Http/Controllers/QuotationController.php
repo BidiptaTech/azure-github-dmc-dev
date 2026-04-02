@@ -10,7 +10,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\User;
 use App\Models\Country;
+use App\Models\City;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class QuotationController extends Controller
 {
@@ -109,10 +112,19 @@ class QuotationController extends Controller
             $selectedCurrency = $defaultCurrency;
         }
 
+        // For the “Quotation Information” modal (country/city selection)
+        $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+        $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+        $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+            return $group->pluck('name')->values();
+        })->toArray();
+
         return view('single-tour-package.itinerary-preview', [
             'tour' => $tour,
             'selectedCurrency' => $selectedCurrency,
             'availableCurrencies' => $availableCurrencies,
+            'countries' => $countries,
+            'citiesByCountry' => $citiesByCountry,
         ]);
     }
 
@@ -129,9 +141,16 @@ class QuotationController extends Controller
 
             $currency = $request->query('currency'); // target currency selected by user
             $preview = $request->boolean('preview', false);
+            $quotationInfoKey = $request->query('quotation_info_key');
+            $quotationInformationHtml = $quotationInfoKey ? Cache::get((string) $quotationInfoKey) : null;
 
             try {
-                $pdfResponse = CommonHelper::downloadTourPdf($tourId, $currency, $preview);
+                $pdfResponse = CommonHelper::downloadTourPdf(
+                    $tourId,
+                    $currency,
+                    $preview,
+                    $quotationInformationHtml
+                );
                 if ($pdfResponse) {
                     return $pdfResponse;
                 }
@@ -152,7 +171,45 @@ class QuotationController extends Controller
         }
     }
 
+    /**
+     * Store edited quotation info temporarily for preview + PDF generation.
+     * Uses cache so we can pass a short key via querystring.
+     */
+    public function storeQuotationInfo($tourId, Request $request)
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return response()->json(['success' => false, 'message' => 'Tour not found.'], 404);
+        }
 
-    
+        try {
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'quotation_information' => 'nullable|string|max:200000',
+            ]);
+
+            $quotationInformationHtml = (string) ($validated['quotation_information'] ?? '');
+
+            $key = 'quotation_info_' . Str::random(40);
+            Cache::put($key, $quotationInformationHtml, now()->addMinutes(10));
+
+            return response()->json([
+                'success' => true,
+                'quotation_info_key' => $key,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Invalid input.'], 422);
+        } catch (\Throwable $e) {
+            Log::error('storeQuotationInfo failed', [
+                'tour_id' => $tourId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json(['success' => false, 'message' => 'Unable to store quotation info.'], 500);
+        }
+    }
+
 }
 

@@ -111,6 +111,13 @@
                     <span class="badge-lite">Lite</span>
                 </a>
             </li> 
+
+            <li class="menu-item @if(Request::is('packages/booking/create')) active @endif" style="position: relative;">
+                <a href="{{ route('packages.booking.create') }}" class="menu-link">
+                    <i class="menu-icon tf-icons ri-route-line"></i>
+                    <div data-i18n="Create Package Booking">Create Package Booking</div>
+                </a>
+            </li>
         @endif
 
         <!-- End Tour -->
@@ -707,33 +714,42 @@
                 @endif --}}
                 <!-- End Predefined Packages Booking List -->
             @endif
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,36,37,38,126,127,128, 129, 130, 134, 135, 136, 138]))
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
                 </li>
-                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*')) open active @endif">
+                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*') || Request::is('booking-list/daily-arrival')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-bar-chart-box-line"></i>
                         <div data-i18n="Reports">Reports</div>
                     </a>
                     <ul class="menu-sub">
-                        <li class="menu-item @if(Request::is('reports/sales-revenue')) active @endif">
-                            <a href="{{ route('reports.sales-revenue') }}" class="menu-link">
-                                
-                                <div data-i18n="Sales & Revenue">Sales & Revenue</div>
-                            </a>
-                        </li>
-                        <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
-                            <a href="{{ route('reports.ledger') }}" class="menu-link">
-                                <div data-i18n="Ledger">Ledger</div>
-                            </a>
-                        </li>
+                        @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
+                            <li class="menu-item @if(Request::is('reports/sales-revenue')) active @endif">
+                                <a href="{{ route('reports.sales-revenue') }}" class="menu-link">
+                                    
+                                    <div data-i18n="Sales & Revenue">Sales & Revenue</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
+                                <a href="{{ route('reports.ledger') }}" class="menu-link">
+                                    <div data-i18n="Ledger">Ledger</div>
+                                </a>
+                            </li>
+                        @endif
                         {{-- <li class="menu-item @if(Request::is('reports/balance-sheet')) active @endif">
                             <a href="{{ route('reports.balance-sheet') }}" class="menu-link">
                                 <div data-i18n="Balance Sheet & P&L">Balance Sheet & P&L</div>
                             </a>
                         </li> --}}
+                        @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))
+                            <li class="menu-item @if(Request::is('booking-list/daily-arrival')) active @endif">
+                                <a href="{{ route('booking-list.daily-arrival') }}" class="menu-link">
+                                    <div data-i18n="Daily Arrival">Daily Arrival</div>
+                                </a>
+                            </li>
+                        @endif
                     </ul>
                 </li>
                 <!-- End Reports -->
@@ -1383,15 +1399,14 @@
                                     <div data-i18n="Itinerary Settings">Itinerary Settings</div>
                                 </a>
                             </li>
-                        @endif
-
-                        @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))
-                            <li class="menu-item @if(Request::is('booking-list/daily-arrival')) active @endif">
-                                <a href="{{ route('booking-list.daily-arrival') }}" class="menu-link">
-                                    <div data-i18n="Daily Arrival">Daily Arrival</div>
+                            <li class="menu-item @if(Request::is('quotation_settings.pdf')) active @endif">
+                                <a href="{{ route('quotation_settings.pdf') }}" class="menu-link">
+                                    <div data-i18n="Quotation Settings">Quotation Settings</div>
                                 </a>
                             </li>
                         @endif
+
+                        
                     </ul>
                 </li>
                 @endif

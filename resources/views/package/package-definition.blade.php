@@ -523,16 +523,16 @@
                 </div>
             </div>
 
-            <!-- Optional services aggregated price data (JSON) -->
+            <!-- Add-On services aggregated price data (JSON) -->
             <input type="hidden" name="price_data" id="price-data-hidden" value="[]">
 
-            <!-- Optional Services Summary: list and total (shown when any optional service exists) -->
+            <!-- Add-On Services Summary: list and total (shown when any add-on service exists) -->
             <div class="card mb-4 border-success border-opacity-25" id="optional-services-summary-card" style="display: none;">
                 <div class="card-header bg-success-subtle py-2">
-                    <h5 class="mb-0"><i class="ri-price-tag-3-line me-2 text-success"></i>Optional Services – Price Summary</h5>
+                    <h5 class="mb-0"><i class="ri-price-tag-3-line me-2 text-success"></i>Add-On Services – Price Summary</h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted small mb-3">Add-on services marked as optional and their prices. Total is the sum of all optional service prices.</p>
+                    <p class="text-muted small mb-3">Services marked as Add-On and their prices. Total is the sum of all add-on service prices.</p>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover align-middle mb-0" id="optional-services-summary-table">
                             <thead class="table-light">
@@ -546,14 +546,14 @@
                             <tbody id="optional-services-summary-tbody"></tbody>
                             <tfoot class="table-light fw-semibold">
                                 <tr>
-                                    <td colspan="3" class="text-end">Total (optional services)</td>
+                                    <td colspan="3" class="text-end">Total (add-on services)</td>
                                     <td class="text-end" id="optional-services-total-cell">—</td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
                     <div id="optional-services-summary-empty" class="alert alert-light border text-muted py-3 mb-0 mt-2 text-center" style="display: none;">
-                        <i class="ri-information-line me-1"></i>No optional services added yet. Mark any hotel, attraction, restaurant, guide or transfer as <strong>Optional</strong> to see their prices from the database here.
+                        <i class="ri-information-line me-1"></i>No add-on services added yet. Mark any hotel, attraction, restaurant, guide or transfer as <strong>Add-On</strong> to see their prices from the database here.
                     </div>
                 </div>
             </div>
@@ -863,7 +863,7 @@ $(document).ready(function() {
         });
         dbPrice = dbPrice * nights;
         const hotelBasePrice = dbPrice > 0 ? dbPrice : '';
-        definitionHotels.push({ hotel_id: hotelId, hotel_name: hotelName, nights, rooms, compulsory: false, optional: false, optional_price: hotelBasePrice, base_price: hotelBasePrice });
+        definitionHotels.push({ hotel_id: hotelId, hotel_name: hotelName, nights, rooms, compulsory: false, optional: false, addon: false, optional_price: '', addon_price: hotelBasePrice, base_price: hotelBasePrice });
         updateDefinitionHotelsInput();
         renderChosenHotels();
         resetDefinitionHotelForm();
@@ -896,9 +896,10 @@ $(document).ready(function() {
             const roomsText = entry.rooms.map(function(r) { return r.room_type_name + ' × ' + r.quantity; }).join(', ');
             const isCompulsory = entry.compulsory === true;
             const isOptional = entry.optional === true;
-            const optPriceRaw = entry.optional_price != null && entry.optional_price !== '' ? entry.optional_price : (entry.base_price != null && entry.base_price !== '' ? entry.base_price : '');
-            const optPrice = optPriceRaw !== '' ? parseFloat(optPriceRaw) : '';
-            const priceDisplay = isOptional && optPrice !== '' && !isNaN(optPrice) ? '<span class="badge bg-primary ms-2 optional-price-badge">' + formatOptionalPrice(optPrice) + '</span>' : '';
+            const isAddon = entry.addon === true;
+            const addonPriceRaw = entry.addon_price != null && entry.addon_price !== '' ? entry.addon_price : (entry.base_price != null && entry.base_price !== '' ? entry.base_price : '');
+            const addonPrice = addonPriceRaw !== '' ? parseFloat(addonPriceRaw) : '';
+            const priceDisplay = isAddon && addonPrice !== '' && !isNaN(addonPrice) ? '<span class="badge bg-primary ms-2 optional-price-badge">' + formatOptionalPrice(addonPrice) + '</span>' : '';
             listEl.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
                     <div class="card-body py-2 px-3">
@@ -912,12 +913,16 @@ $(document).ready(function() {
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input chosen-hotel-compulsory" type="checkbox" id="hotel-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <input class="form-check-input chosen-hotel-mode" type="radio" name="hotel-mode-${idx}" id="hotel-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
                                     <label class="form-check-label small" for="hotel-comp-${idx}">Compulsory</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input chosen-hotel-optional" type="checkbox" id="hotel-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <input class="form-check-input chosen-hotel-mode" type="radio" name="hotel-mode-${idx}" id="hotel-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
                                     <label class="form-check-label small" for="hotel-opt-${idx}">Optional</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input chosen-hotel-mode" type="radio" name="hotel-mode-${idx}" id="hotel-addon-${idx}" data-idx="${idx}" value="addon" ${isAddon ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="hotel-addon-${idx}">Add-On</label>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-chosen-hotel" data-idx="${idx}" title="Remove">
                                     <i class="ri-delete-bin-line"></i>
@@ -934,31 +939,22 @@ $(document).ready(function() {
             updateDefinitionHotelsInput();
             renderChosenHotels();
         });
-        $('.chosen-hotel-compulsory').on('change', function() {
+        $('.chosen-hotel-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#hotel-opt-' + idx).prop('checked', false);
-                if (definitionHotels[idx]) { definitionHotels[idx].optional = false; definitionHotels[idx].optional_price = ''; }
-            }
-            if (definitionHotels[idx]) definitionHotels[idx].compulsory = $(this).is(':checked');
-            updateDefinitionHotelsInput();
-            renderChosenHotels();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        });
-        $('.chosen-hotel-optional').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#hotel-comp-' + idx).prop('checked', false);
-                if (definitionHotels[idx]) {
-                    definitionHotels[idx].compulsory = false;
-                    if ((definitionHotels[idx].optional_price === '' || definitionHotels[idx].optional_price == null) && definitionHotels[idx].base_price != null && definitionHotels[idx].base_price !== '') {
-                        definitionHotels[idx].optional_price = definitionHotels[idx].base_price;
+            const mode = $(this).val();
+            if (definitionHotels[idx]) {
+                definitionHotels[idx].compulsory = mode === 'compulsory';
+                definitionHotels[idx].optional = mode === 'optional';
+                definitionHotels[idx].addon = mode === 'addon';
+                definitionHotels[idx].optional_price = '';
+                if (definitionHotels[idx].addon) {
+                    if ((definitionHotels[idx].addon_price === '' || definitionHotels[idx].addon_price == null) && definitionHotels[idx].base_price != null && definitionHotels[idx].base_price !== '') {
+                        definitionHotels[idx].addon_price = definitionHotels[idx].base_price;
                     }
+                } else {
+                    definitionHotels[idx].addon_price = '';
                 }
-            } else {
-                if (definitionHotels[idx]) definitionHotels[idx].optional_price = '';
             }
-            if (definitionHotels[idx]) definitionHotels[idx].optional = $(this).is(':checked');
             updateDefinitionHotelsInput();
             renderChosenHotels();
             if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
@@ -1065,7 +1061,9 @@ $(document).ready(function() {
             image: data.image || '',
             compulsory: false,
             optional: false,
-            optional_price: attrPrice,
+            addon: false,
+            optional_price: '',
+            addon_price: attrPrice,
             base_price: attrPrice,
             guide: g ? { id: g.guide_id, name: g.name, languages: g.languages, contact_no: g.contact_no } : null,
             transfer: transfer,
@@ -1108,9 +1106,10 @@ $(document).ready(function() {
             const summaryHtml = parts.length ? parts.join(' <span class="text-muted">·</span> ') : '—';
             const isCompulsory = a.compulsory === true;
             const isOptional = a.optional === true;
-            const optPriceRawA = a.optional_price != null && a.optional_price !== '' ? a.optional_price : (a.base_price != null && a.base_price !== '' ? a.base_price : '');
-            const optPriceA = optPriceRawA !== '' ? parseFloat(optPriceRawA) : '';
-            const priceDisplay = isOptional && optPriceA !== '' && !isNaN(optPriceA) ? '<span class="badge bg-success ms-2 optional-price-badge">' + formatOptionalPrice(optPriceA) + '</span>' : '';
+            const isAddon = a.addon === true;
+            const addonPriceRawA = a.addon_price != null && a.addon_price !== '' ? a.addon_price : (a.base_price != null && a.base_price !== '' ? a.base_price : '');
+            const addonPriceA = addonPriceRawA !== '' ? parseFloat(addonPriceRawA) : '';
+            const priceDisplay = isAddon && addonPriceA !== '' && !isNaN(addonPriceA) ? '<span class="badge bg-success ms-2 optional-price-badge">' + formatOptionalPrice(addonPriceA) + '</span>' : '';
             container.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
                     <div class="card-body py-2 px-3">
@@ -1124,12 +1123,16 @@ $(document).ready(function() {
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-attraction-compulsory" type="checkbox" id="attr-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <input class="form-check-input def-attraction-mode" type="radio" name="attr-mode-${idx}" id="attr-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
                                     <label class="form-check-label small" for="attr-comp-${idx}">Compulsory</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-attraction-optional" type="checkbox" id="attr-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <input class="form-check-input def-attraction-mode" type="radio" name="attr-mode-${idx}" id="attr-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
                                     <label class="form-check-label small" for="attr-opt-${idx}">Optional</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-attraction-mode" type="radio" name="attr-mode-${idx}" id="attr-addon-${idx}" data-idx="${idx}" value="addon" ${isAddon ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="attr-addon-${idx}">Add-On</label>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-def-attraction" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                             </div>
@@ -1144,31 +1147,22 @@ $(document).ready(function() {
             renderDefinitionAttractions();
             updateDefinitionAttractionsInput();
         });
-        $('.def-attraction-compulsory').on('change', function() {
+        $('.def-attraction-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#attr-opt-' + idx).prop('checked', false);
-                if (definitionAttractions[idx]) { definitionAttractions[idx].optional = false; definitionAttractions[idx].optional_price = ''; }
-            }
-            if (definitionAttractions[idx]) definitionAttractions[idx].compulsory = $(this).is(':checked');
-            updateDefinitionAttractionsInput();
-            renderDefinitionAttractions();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        });
-        $('.def-attraction-optional').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#attr-comp-' + idx).prop('checked', false);
-                if (definitionAttractions[idx]) {
-                    definitionAttractions[idx].compulsory = false;
-                    if ((definitionAttractions[idx].optional_price === '' || definitionAttractions[idx].optional_price == null) && definitionAttractions[idx].base_price != null && definitionAttractions[idx].base_price !== '') {
-                        definitionAttractions[idx].optional_price = definitionAttractions[idx].base_price;
+            const mode = $(this).val();
+            if (definitionAttractions[idx]) {
+                definitionAttractions[idx].compulsory = mode === 'compulsory';
+                definitionAttractions[idx].optional = mode === 'optional';
+                definitionAttractions[idx].addon = mode === 'addon';
+                definitionAttractions[idx].optional_price = '';
+                if (definitionAttractions[idx].addon) {
+                    if ((definitionAttractions[idx].addon_price === '' || definitionAttractions[idx].addon_price == null) && definitionAttractions[idx].base_price != null && definitionAttractions[idx].base_price !== '') {
+                        definitionAttractions[idx].addon_price = definitionAttractions[idx].base_price;
                     }
+                } else {
+                    definitionAttractions[idx].addon_price = '';
                 }
-            } else {
-                if (definitionAttractions[idx]) definitionAttractions[idx].optional_price = '';
             }
-            if (definitionAttractions[idx]) definitionAttractions[idx].optional = $(this).is(':checked');
             updateDefinitionAttractionsInput();
             renderDefinitionAttractions();
             if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
@@ -1266,7 +1260,9 @@ $(document).ready(function() {
             restaurant_name: name,
             compulsory: false,
             optional: false,
-            optional_price: restPrice,
+            addon: false,
+            optional_price: '',
+            addon_price: restPrice,
             base_price: restPrice,
             selected_meals: selectedMeals,
             transfer: transfer,
@@ -1311,9 +1307,10 @@ $(document).ready(function() {
             const summaryHtml = parts.length ? parts.join(' <span class="text-muted">·</span> ') : '—';
             const isCompulsory = r.compulsory === true;
             const isOptional = r.optional === true;
-            const optPriceRawR = r.optional_price != null && r.optional_price !== '' ? r.optional_price : (r.base_price != null && r.base_price !== '' ? r.base_price : '');
-            const optPriceR = optPriceRawR !== '' ? parseFloat(optPriceRawR) : '';
-            const priceDisplay = isOptional && optPriceR !== '' && !isNaN(optPriceR) ? '<span class="badge bg-warning text-dark ms-2 optional-price-badge">' + formatOptionalPrice(optPriceR) + '</span>' : '';
+            const isAddon = r.addon === true;
+            const addonPriceRawR = r.addon_price != null && r.addon_price !== '' ? r.addon_price : (r.base_price != null && r.base_price !== '' ? r.base_price : '');
+            const addonPriceR = addonPriceRawR !== '' ? parseFloat(addonPriceRawR) : '';
+            const priceDisplay = isAddon && addonPriceR !== '' && !isNaN(addonPriceR) ? '<span class="badge bg-warning text-dark ms-2 optional-price-badge">' + formatOptionalPrice(addonPriceR) + '</span>' : '';
             container.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
                     <div class="card-body py-2 px-3">
@@ -1327,12 +1324,16 @@ $(document).ready(function() {
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-restaurant-compulsory" type="checkbox" id="rest-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <input class="form-check-input def-restaurant-mode" type="radio" name="rest-mode-${idx}" id="rest-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
                                     <label class="form-check-label small" for="rest-comp-${idx}">Compulsory</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-restaurant-optional" type="checkbox" id="rest-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <input class="form-check-input def-restaurant-mode" type="radio" name="rest-mode-${idx}" id="rest-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
                                     <label class="form-check-label small" for="rest-opt-${idx}">Optional</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-restaurant-mode" type="radio" name="rest-mode-${idx}" id="rest-addon-${idx}" data-idx="${idx}" value="addon" ${isAddon ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="rest-addon-${idx}">Add-On</label>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-def-restaurant" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                             </div>
@@ -1347,31 +1348,22 @@ $(document).ready(function() {
             renderDefinitionRestaurants();
             updateDefinitionRestaurantsInput();
         });
-        $('.def-restaurant-compulsory').on('change', function() {
+        $('.def-restaurant-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#rest-opt-' + idx).prop('checked', false);
-                if (definitionRestaurants[idx]) { definitionRestaurants[idx].optional = false; definitionRestaurants[idx].optional_price = ''; }
-            }
-            if (definitionRestaurants[idx]) definitionRestaurants[idx].compulsory = $(this).is(':checked');
-            updateDefinitionRestaurantsInput();
-            renderDefinitionRestaurants();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        });
-        $('.def-restaurant-optional').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#rest-comp-' + idx).prop('checked', false);
-                if (definitionRestaurants[idx]) {
-                    definitionRestaurants[idx].compulsory = false;
-                    if ((definitionRestaurants[idx].optional_price === '' || definitionRestaurants[idx].optional_price == null) && definitionRestaurants[idx].base_price != null && definitionRestaurants[idx].base_price !== '') {
-                        definitionRestaurants[idx].optional_price = definitionRestaurants[idx].base_price;
+            const mode = $(this).val();
+            if (definitionRestaurants[idx]) {
+                definitionRestaurants[idx].compulsory = mode === 'compulsory';
+                definitionRestaurants[idx].optional = mode === 'optional';
+                definitionRestaurants[idx].addon = mode === 'addon';
+                definitionRestaurants[idx].optional_price = '';
+                if (definitionRestaurants[idx].addon) {
+                    if ((definitionRestaurants[idx].addon_price === '' || definitionRestaurants[idx].addon_price == null) && definitionRestaurants[idx].base_price != null && definitionRestaurants[idx].base_price !== '') {
+                        definitionRestaurants[idx].addon_price = definitionRestaurants[idx].base_price;
                     }
+                } else {
+                    definitionRestaurants[idx].addon_price = '';
                 }
-            } else {
-                if (definitionRestaurants[idx]) definitionRestaurants[idx].optional_price = '';
             }
-            if (definitionRestaurants[idx]) definitionRestaurants[idx].optional = $(this).is(':checked');
             updateDefinitionRestaurantsInput();
             renderDefinitionRestaurants();
             if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
@@ -1535,7 +1527,9 @@ $(document).ready(function() {
             vehicles: localTransferChosenVehicles.slice(),
             compulsory: false,
             optional: false,
-            optional_price: transferBasePrice,
+            addon: false,
+            optional_price: '',
+            addon_price: transferBasePrice,
             base_price: transferBasePrice
         });
         localTransferChosenVehicles = [];
@@ -1557,17 +1551,19 @@ $(document).ready(function() {
             const vList = (t.vehicles || []).map(function(v) { return (v.vehicle_name || '') + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : ''); }).join(', ');
             const isCompulsory = t.compulsory === true;
             const isOptional = t.optional === true;
-            const optPriceRawT = t.optional_price != null && t.optional_price !== '' ? t.optional_price : (t.base_price != null && t.base_price !== '' ? t.base_price : '');
-            const optPriceT = optPriceRawT !== '' ? parseFloat(optPriceRawT) : '';
-            const priceDisplay = isOptional && optPriceT !== '' && !isNaN(optPriceT) ? ' <span class="badge bg-secondary optional-price-badge">' + formatOptionalPrice(optPriceT) + '</span>' : '';
+            const isAddon = t.addon === true;
+            const addonPriceRawT = t.addon_price != null && t.addon_price !== '' ? t.addon_price : (t.base_price != null && t.base_price !== '' ? t.base_price : '');
+            const addonPriceT = addonPriceRawT !== '' ? parseFloat(addonPriceRawT) : '';
+            const priceDisplay = isAddon && addonPriceT !== '' && !isNaN(addonPriceT) ? ' <span class="badge bg-secondary optional-price-badge">' + formatOptionalPrice(addonPriceT) + '</span>' : '';
             return '<div class="border rounded p-2 mb-2 small">' +
                 '<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">' +
                 '<div class="flex-grow-1">' +
                 (t.pickup_label || '') + ' → ' + (t.dropoff_label || '') + priceDisplay + (vList ? ' <span class="text-muted">(' + vList + ')</span>' : '') +
                 '</div>' +
                 '<div class="d-flex align-items-center gap-3">' +
-                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-compulsory" type="checkbox" id="lt-comp-' + i + '" data-idx="' + i + '" ' + (isCompulsory ? 'checked' : '') + '><label class="form-check-label small" for="lt-comp-' + i + '">Compulsory</label></div>' +
-                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-optional" type="checkbox" id="lt-opt-' + i + '" data-idx="' + i + '" ' + (isOptional ? 'checked' : '') + '><label class="form-check-label small" for="lt-opt-' + i + '">Optional</label></div>' +
+                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-comp-' + i + '" data-idx="' + i + '" value="compulsory" ' + (isCompulsory ? 'checked' : '') + '><label class="form-check-label small" for="lt-comp-' + i + '">Compulsory</label></div>' +
+                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-opt-' + i + '" data-idx="' + i + '" value="optional" ' + (isOptional ? 'checked' : '') + '><label class="form-check-label small" for="lt-opt-' + i + '">Optional</label></div>' +
+                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-addon-' + i + '" data-idx="' + i + '" value="addon" ' + (isAddon ? 'checked' : '') + '><label class="form-check-label small" for="lt-addon-' + i + '">Add-On</label></div>' +
                 '<button type="button" class="btn btn-outline-danger btn-sm local-transfer-remove" data-idx="' + i + '"><i class="ri-delete-bin-line"></i></button>' +
                 '</div></div></div>';
         }).join('');
@@ -1575,27 +1571,20 @@ $(document).ready(function() {
         if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
     }
 
-    $(document).on('change', '.local-transfer-compulsory', function() {
+    $(document).on('change', '.local-transfer-mode', function() {
         const idx = parseInt($(this).data('idx'), 10);
+        const mode = $(this).val();
         if (localTransfersList[idx]) {
-            localTransfersList[idx].compulsory = $(this).is(':checked');
-            if ($(this).is(':checked')) { localTransfersList[idx].optional = false; localTransfersList[idx].optional_price = ''; }
-            renderLocalTransfersList();
-            $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        }
-    });
-    $(document).on('change', '.local-transfer-optional', function() {
-        const idx = parseInt($(this).data('idx'), 10);
-        if (localTransfersList[idx]) {
-            localTransfersList[idx].optional = $(this).is(':checked');
-            if ($(this).is(':checked')) {
-                localTransfersList[idx].compulsory = false;
-                if ((localTransfersList[idx].optional_price === '' || localTransfersList[idx].optional_price == null) && localTransfersList[idx].base_price != null && localTransfersList[idx].base_price !== '') {
-                    localTransfersList[idx].optional_price = localTransfersList[idx].base_price;
+            localTransfersList[idx].compulsory = mode === 'compulsory';
+            localTransfersList[idx].optional = mode === 'optional';
+            localTransfersList[idx].addon = mode === 'addon';
+            localTransfersList[idx].optional_price = '';
+            if (localTransfersList[idx].addon) {
+                if ((localTransfersList[idx].addon_price === '' || localTransfersList[idx].addon_price == null) && localTransfersList[idx].base_price != null && localTransfersList[idx].base_price !== '') {
+                    localTransfersList[idx].addon_price = localTransfersList[idx].base_price;
                 }
             } else {
-                localTransfersList[idx].optional_price = '';
+                localTransfersList[idx].addon_price = '';
             }
             renderLocalTransfersList();
             $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
@@ -1639,7 +1628,9 @@ $(document).ready(function() {
             contact_no: data.contact_no || '',
             compulsory: false,
             optional: false,
-            optional_price: guidePrice,
+            addon: false,
+            optional_price: '',
+            addon_price: guidePrice,
             base_price: guidePrice,
             duration_key: durationKey || 'hourly',
             duration_label: durationLabel
@@ -1667,11 +1658,12 @@ $(document).ready(function() {
         definitionGuides.forEach(function(g, idx) {
             const isCompulsory = g.compulsory === true;
             const isOptional = g.optional === true;
+            const isAddon = g.addon === true;
             const langText = g.languages && g.languages.length ? ' (' + g.languages.join(', ') + ')' : '';
             const durationText = g.duration_label ? ' <span class="text-muted">·</span> ' + escapeHtml(g.duration_label) : '';
-            const optPriceRawG = g.optional_price != null && g.optional_price !== '' ? g.optional_price : (g.base_price != null && g.base_price !== '' ? g.base_price : '');
-            const optPriceG = optPriceRawG !== '' ? parseFloat(optPriceRawG) : '';
-            const priceDisplay = isOptional && optPriceG !== '' && !isNaN(optPriceG) ? '<span class="badge bg-info ms-2 optional-price-badge">' + formatOptionalPrice(optPriceG) + '</span>' : '';
+            const addonPriceRawG = g.addon_price != null && g.addon_price !== '' ? g.addon_price : (g.base_price != null && g.base_price !== '' ? g.base_price : '');
+            const addonPriceG = addonPriceRawG !== '' ? parseFloat(addonPriceRawG) : '';
+            const priceDisplay = isAddon && addonPriceG !== '' && !isNaN(addonPriceG) ? '<span class="badge bg-info ms-2 optional-price-badge">' + formatOptionalPrice(addonPriceG) + '</span>' : '';
             listEl.append(`
                 <div class="card mb-2 border shadow-sm" data-idx="${idx}">
                     <div class="card-body py-2 px-3">
@@ -1685,12 +1677,16 @@ $(document).ready(function() {
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-guide-compulsory" type="checkbox" id="guide-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
                                     <label class="form-check-label small" for="guide-comp-${idx}">Compulsory</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-guide-optional" type="checkbox" id="guide-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
                                     <label class="form-check-label small" for="guide-opt-${idx}">Optional</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-addon-${idx}" data-idx="${idx}" value="addon" ${isAddon ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="guide-addon-${idx}">Add-On</label>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-def-guide" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                             </div>
@@ -1705,31 +1701,22 @@ $(document).ready(function() {
             renderChosenGuides();
             updateDefinitionGuidesInput();
         });
-        $('.def-guide-compulsory').on('change', function() {
+        $('.def-guide-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#guide-opt-' + idx).prop('checked', false);
-                if (definitionGuides[idx]) { definitionGuides[idx].optional = false; definitionGuides[idx].optional_price = ''; }
-            }
-            if (definitionGuides[idx]) definitionGuides[idx].compulsory = $(this).is(':checked');
-            updateDefinitionGuidesInput();
-            renderChosenGuides();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        });
-        $('.def-guide-optional').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#guide-comp-' + idx).prop('checked', false);
-                if (definitionGuides[idx]) {
-                    definitionGuides[idx].compulsory = false;
-                    if ((definitionGuides[idx].optional_price === '' || definitionGuides[idx].optional_price == null) && definitionGuides[idx].base_price != null && definitionGuides[idx].base_price !== '') {
-                        definitionGuides[idx].optional_price = definitionGuides[idx].base_price;
+            const mode = $(this).val();
+            if (definitionGuides[idx]) {
+                definitionGuides[idx].compulsory = mode === 'compulsory';
+                definitionGuides[idx].optional = mode === 'optional';
+                definitionGuides[idx].addon = mode === 'addon';
+                definitionGuides[idx].optional_price = '';
+                if (definitionGuides[idx].addon) {
+                    if ((definitionGuides[idx].addon_price === '' || definitionGuides[idx].addon_price == null) && definitionGuides[idx].base_price != null && definitionGuides[idx].base_price !== '') {
+                        definitionGuides[idx].addon_price = definitionGuides[idx].base_price;
                     }
+                } else {
+                    definitionGuides[idx].addon_price = '';
                 }
-            } else {
-                if (definitionGuides[idx]) definitionGuides[idx].optional_price = '';
             }
-            if (definitionGuides[idx]) definitionGuides[idx].optional = $(this).is(':checked');
             updateDefinitionGuidesInput();
             renderChosenGuides();
             if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
@@ -1745,32 +1732,32 @@ $(document).ready(function() {
     function renderOptionalServicesSummary() {
         const items = [];
         (definitionHotels || []).forEach(function(h) {
-            if (h.optional === true) {
-                const price = parseOptionalPrice(h.optional_price);
+            if (h.addon === true) {
+                const price = parseOptionalPrice(h.addon_price);
                 items.push({ name: h.hotel_name || '', type: 'Hotel', price: price });
             }
         });
         (definitionAttractions || []).forEach(function(a) {
-            if (a.optional === true) {
-                const price = parseOptionalPrice(a.optional_price);
+            if (a.addon === true) {
+                const price = parseOptionalPrice(a.addon_price);
                 items.push({ name: a.name || '', type: 'Attraction', price: price });
             }
         });
         (definitionRestaurants || []).forEach(function(r) {
-            if (r.optional === true) {
-                const price = parseOptionalPrice(r.optional_price);
+            if (r.addon === true) {
+                const price = parseOptionalPrice(r.addon_price);
                 items.push({ name: r.restaurant_name || '', type: 'Restaurant', price: price });
             }
         });
         (definitionGuides || []).forEach(function(g) {
-            if (g.optional === true) {
-                const price = parseOptionalPrice(g.optional_price);
+            if (g.addon === true) {
+                const price = parseOptionalPrice(g.addon_price);
                 items.push({ name: g.name || '', type: 'Guide', price: price });
             }
         });
         (localTransfersList || []).forEach(function(t) {
-            if (t.optional === true) {
-                const price = parseOptionalPrice(t.optional_price);
+            if (t.addon === true) {
+                const price = parseOptionalPrice(t.addon_price);
                 const label = (t.pickup_label || '') + ' → ' + (t.dropoff_label || '');
                 items.push({ name: label, type: 'Transfer', price: price });
             }
@@ -1981,7 +1968,8 @@ $(document).ready(function() {
                 rooms: h.rooms,
                 compulsory: !!h.compulsory,
                 optional: !!h.optional,
-                optional_price: h.optional_price != null && h.optional_price !== '' ? parseFloat(h.optional_price) : null
+                "add-on": !!h.addon,
+                "add-on-price": h.addon_price != null && h.addon_price !== '' ? parseFloat(h.addon_price) : null
             };
         });
         // Attractions: full data including guide, transfer, pickup/dropoff, compulsory
@@ -1994,7 +1982,8 @@ $(document).ready(function() {
                 image: a.image || '',
                 compulsory: !!a.compulsory,
                 optional: !!a.optional,
-                optional_price: a.optional_price != null && a.optional_price !== '' ? parseFloat(a.optional_price) : null,
+                "add-on": !!a.addon,
+                "add-on-price": a.addon_price != null && a.addon_price !== '' ? parseFloat(a.addon_price) : null,
                 guide: a.guide || null,
                 transfer: !!a.transfer,
                 vehicle_id: a.vehicle_id || null,
@@ -2015,7 +2004,8 @@ $(document).ready(function() {
                 restaurant_name: r.restaurant_name,
                 compulsory: !!r.compulsory,
                 optional: !!r.optional,
-                optional_price: r.optional_price != null && r.optional_price !== '' ? parseFloat(r.optional_price) : null,
+                "add-on": !!r.addon,
+                "add-on-price": r.addon_price != null && r.addon_price !== '' ? parseFloat(r.addon_price) : null,
                 selected_meals: r.selected_meals || [],
                 transfer: !!r.transfer,
                 vehicle_id: r.vehicle_id || null,
@@ -2047,7 +2037,8 @@ $(document).ready(function() {
                 contact_no: g.contact_no || '',
                 compulsory: !!g.compulsory,
                 optional: !!g.optional,
-                optional_price: g.optional_price != null && g.optional_price !== '' ? parseFloat(g.optional_price) : null,
+                "add-on": !!g.addon,
+                "add-on-price": g.addon_price != null && g.addon_price !== '' ? parseFloat(g.addon_price) : null,
                 duration_key: g.duration_key || 'hourly',
                 duration_label: g.duration_label || ''
             };

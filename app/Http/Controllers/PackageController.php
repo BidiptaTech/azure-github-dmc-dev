@@ -756,10 +756,37 @@ class PackageController extends Controller
             // Decode main JSON payloads once so we can derive price_data server-side reliably.
             // This avoids depending on frontend JS to send price_data correctly.
             $decodedHotels = is_string($selectedHotels) ? (json_decode($selectedHotels, true) ?: []) : ($selectedHotels ?: []);
+           
+            foreach ($decodedHotels as &$hotel) {
+                $hotel['city'] = $request->input('city') ?? '';
+            }
+            unset($hotel);
+            
             $decodedAttractions = is_string($selectedAttractions) ? (json_decode($selectedAttractions, true) ?: []) : ($selectedAttractions ?: []);
             $decodedRestaurants = is_string($selectedRestaurants) ? (json_decode($selectedRestaurants, true) ?: []) : ($selectedRestaurants ?: []);
             $decodedLocalTransfers = is_string($localTransfers) ? (json_decode($localTransfers, true) ?: []) : ($localTransfers ?: []);
             $decodedIndependentGuides = json_decode($request->input('definition_independent_guide', '[]'), true) ?: [];
+            $decodedArrivalVehicles = json_decode($request->input('arrival_vehicles', '[]'), true) ?: [];
+            
+            $decodedDepartureVehicles = json_decode($request->input('departure_vehicles', '[]'), true) ?: [];
+
+            // Persisted direct columns (JSON) for transfer/arrival/departure
+            // transfer_data: local transfer list
+            // arrival_data / departure_data: dedicated arrival/departure section config
+            $transferDataPayload = is_array($decodedLocalTransfers) ? $decodedLocalTransfers : [];
+            $arrivalDataPayload = [
+                'enabled' => (int) $request->input('arrival_pickup', 0) === 1,
+                'pickup_port_id' => $request->input('arrival_pickup_port_id') ?: null,
+                'dropoff_hotel_id' => $request->input('arrival_dropoff_hotel_id') ?: null,
+                'vehicles' => is_array($decodedArrivalVehicles) ? $decodedArrivalVehicles : [],
+            ];
+            
+            $departureDataPayload = [
+                'enabled' => (int) $request->input('departure_service', 0) === 1,
+                'pickup_hotel_id' => $request->input('departure_pickup_hotel_id') ?: null,
+                'dropoff_port_id' => $request->input('departure_dropoff_port_id') ?: null,
+                'vehicles' => is_array($decodedDepartureVehicles) ? $decodedDepartureVehicles : [],
+            ];
 
             // If price_data was not sent (or is empty), compute it from optional selections
             // Shape: [{ name: string, type: string, price: number }]
@@ -871,12 +898,15 @@ class PackageController extends Controller
                 'dmc_id' => $dmc_id,
                 'created_by' => $user->userId,
                 'updated_by' => $user->userId,
-                'selected_hotels' => $selectedHotels,
+                'selected_hotels' => $decodedHotels,
                 'selected_attractions' => $selectedAttractions,
                 'selected_guide' => $request->input('definition_independent_guide', 'null'),
                 'selected_restaurants' => $selectedRestaurants,
                 // Store as JSON array (like selected_guide), letting Eloquent handle encoding via cast
                 'price_data' => $decodedPriceData,
+                'transfer_data' => $transferDataPayload,
+                'arrival_data' => $arrivalDataPayload,
+                'departure_data' => $departureDataPayload,
                 'itinerary' => json_encode($definitionData),
             ]);
 
@@ -885,7 +915,7 @@ class PackageController extends Controller
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Package definition store error: ' . $e->getMessage());
-            return back()->withInput()->withErrors(['error' => 'Failed to create package definition.']);
+            return back()->withInput()->withErrors(['error' => 'Failed to create package definition. '.$e->getMessage()]);
         }
     }
 
