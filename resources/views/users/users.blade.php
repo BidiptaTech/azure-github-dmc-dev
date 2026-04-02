@@ -3,6 +3,81 @@
 @extends('layouts.datatablecss')
 
 @section('content')
+@php
+  $settingsRoleIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  $authRoleId = (int) (auth()->user()->role_id ?? 0);
+  $authUserIsPro = (int) (auth()->user()->is_pro ?? 0);
+  $usersCollection = $users instanceof \Illuminate\Pagination\AbstractPaginator ? $users->getCollection() : collect($users);
+  $showSettingsColumn = $usersCollection->contains(function ($u) use ($settingsRoleIds, $authRoleId) {
+      $rowRoleId = (int) ($u->role_id ?? 0);
+      return in_array($rowRoleId, $settingsRoleIds, true)
+          || ($authRoleId === 10 && $rowRoleId === 11);
+  });
+  $showBookingTypeColumn = $usersCollection->contains(function ($u) use ($authRoleId) {
+      $rowRoleId = (int) ($u->role_id ?? 0);
+      return ($authRoleId === 1 && $rowRoleId === 10) || ($authRoleId === 10 && $rowRoleId === 11);
+  });
+@endphp
+<style>
+  /* Compact users table layout */
+  .datatables-basic {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .datatables-basic thead th,
+  .datatables-basic tbody td {
+    padding: 0.35rem 0.45rem !important;
+    vertical-align: middle;
+  }
+
+  .datatables-basic thead th {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .datatables-basic .badge {
+    font-size: 10px;
+    padding: 0.25rem 0.45rem;
+  }
+
+  .datatables-basic .form-check {
+    margin-bottom: 0;
+    min-height: 0;
+  }
+
+  .datatables-basic .form-check-input {
+    margin-top: 0;
+  }
+
+  .datatables-basic .settings-controls-cell .d-flex {
+    gap: 0.35rem !important;
+    min-width: 110px !important;
+  }
+
+  .datatables-basic .booking-type-select,
+  .datatables-basic .auto-cancel-dropdown,
+  .datatables-basic .guide-pax-input {
+    height: 26px !important;
+    font-size: 11px !important;
+    padding: 0.1rem 0.35rem !important;
+  }
+
+  .datatables-basic .btn.btn-sm {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+    padding: 0 !important;
+  }
+
+  .dataTables_wrapper .dataTables_filter input,
+  .dataTables_wrapper .dataTables_length select {
+    height: 30px;
+    font-size: 12px;
+    padding: 0.2rem 0.45rem;
+  }
+</style>
 <div class="content-wrapper">
   <div class="container-xxl flex-grow-1 container-p-y">
     <div class="card">
@@ -47,8 +122,8 @@
               <th>Contact Information</th>
               <th>Country & City</th>
 
-              @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <th style="min-width: 140px;">
+              @if($showSettingsColumn)
+                <th class="settings-controls-col" style="min-width: 140px;">
                   <div class="text-center">
                    
                     <div class="d-flex justify-content-between mt-1" style="font-size: 10px; gap: 10px;">
@@ -61,6 +136,9 @@
                     </div>
                   </div>
                 </th>
+              @endif
+              @if($showBookingTypeColumn)
+                <th class="booking-type-col" style="min-width: 150px;">Booking Type</th>
               @endif
 
               <th>User Type</th>
@@ -75,7 +153,43 @@
           </thead>
           <tbody>
             @foreach ($users as $key => $user)
-              <tr>
+              @php
+                $rowRoleId = (int) ($user->role_id ?? 0);
+                $showSettingsForThisRow = in_array($rowRoleId, $settingsRoleIds, true)
+                    || ($authRoleId === 10 && $rowRoleId === 11);
+                $showBookingTypeForThisRow = ($authRoleId === 1 && (int) ($user->role_id ?? 0) === 10)
+                    || ($authRoleId === 10 && (int) ($user->role_id ?? 0) === 11);
+                $bookingOptionsForRow = [
+                    1 => 'Lite Form',
+                    2 => 'Pro Form',
+                    3 => 'Both',
+                ];
+                $selectedBookingTypeForRow = (int) ($user->is_pro ?? 1);
+                $bookingTypeLockedForRow = false;
+
+                if ($authRoleId === 10 && (int) ($user->role_id ?? 0) === 11) {
+                    if ($authUserIsPro === 1) {
+                        $bookingOptionsForRow = [1 => 'Lite Form'];
+                        $selectedBookingTypeForRow = 1;
+                        $bookingTypeLockedForRow = true;
+                    } elseif ($authUserIsPro === 2) {
+                        $bookingOptionsForRow = [2 => 'Pro Form'];
+                        $selectedBookingTypeForRow = 2;
+                        $bookingTypeLockedForRow = true;
+                    } elseif ($authUserIsPro === 3) {
+                        // Full access: show all 3 options, default to Both on initialization.
+                        $bookingOptionsForRow = [
+                            1 => 'Lite Form',
+                            2 => 'Pro Form',
+                            3 => 'Both',
+                        ];
+                        $selectedBookingTypeForRow = 3;
+                    }
+                } elseif (!in_array($selectedBookingTypeForRow, [1, 2, 3], true)) {
+                    $selectedBookingTypeForRow = 1;
+                }
+              @endphp
+              <tr class="{{ $showSettingsForThisRow ? '' : 'no-settings-row' }}">
                 <td>{{ ++$key }}</td>
                 <td>{{ $user->company_name ?? 'N/A' }}</td>
                 <td>
@@ -105,9 +219,9 @@
                     </div>
                 </td>
 
-                @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <td>
-                  @if($user->role_id == 11)
+                @if($showSettingsColumn)
+                <td class="settings-controls-cell">
+                  @if($showSettingsForThisRow)
                     <div class="d-flex justify-content-between align-items-center gap-2" style="min-width: 130px;">
                       @if(auth::user()->role_id == 10)
                         <!-- Zone On Toggle -->
@@ -249,7 +363,26 @@
                       @endif
                     </div>
                   @else
-                    <div class="text-center">--</div>
+                    <span class="d-none">N/A</span>
+                  @endif
+                </td>
+                @endif
+                @if($showBookingTypeColumn)
+                <td class="booking-type-cell">
+                  @if($showBookingTypeForThisRow)
+                    <select class="form-select form-select-sm booking-type-select"
+                            data-user-id="{{ $user->userId }}"
+                            data-previous-value="{{ $selectedBookingTypeForRow }}"
+                            style="min-width: 130px;"
+                            {{ $bookingTypeLockedForRow ? 'disabled' : '' }}>
+                      @foreach($bookingOptionsForRow as $bookingValue => $bookingLabel)
+                        <option value="{{ $bookingValue }}" {{ $selectedBookingTypeForRow === $bookingValue ? 'selected' : '' }}>
+                          {{ $bookingLabel }}
+                        </option>
+                      @endforeach
+                    </select>
+                  @else
+                    <span class="d-none">N/A</span>
                   @endif
                 </td>
                 @endif
@@ -377,7 +510,7 @@
 <script>
     $(document).ready(function() {
         // Initialize DataTable with export buttons
-        $('.datatables-basic').DataTable({
+        const usersTable = $('.datatables-basic').DataTable({
             responsive: true,
             buttons: [
                 'copy',
@@ -393,25 +526,42 @@
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
         });
 
+        function hideSettingsForNonEligibleRows() {
+            const settingsColIndex = usersTable.column('.settings-controls-col').index();
+            if (settingsColIndex === undefined) return;
+
+            // In responsive child rows, hide this column's label/value for rows not eligible.
+            $('.datatables-basic tbody tr.no-settings-row.parent').each(function() {
+                const child = $(this).next('tr.child');
+                if (!child.length) return;
+                child.find('li[data-dt-column="' + settingsColIndex + '"]').hide();
+            });
+        }
+
+        hideSettingsForNonEligibleRows();
+        $('.datatables-basic').on('responsive-display.dt draw.dt', function() {
+            hideSettingsForNonEligibleRows();
+        });
+
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-copy').trigger();
+            usersTable.button('.buttons-copy').trigger();
         });
 
         $('#exportCSV').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-csv').trigger();
+            usersTable.button('.buttons-csv').trigger();
         });
 
         $('#exportExcel').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-excel').trigger();
+            usersTable.button('.buttons-excel').trigger();
         });
 
         $('#exportPDF').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-pdf').trigger();
+            usersTable.button('.buttons-pdf').trigger();
         });
 
         $('#exportPrint').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-print').trigger();
+            usersTable.button('.buttons-print').trigger();
         });
     });
 </script>
@@ -622,6 +772,49 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
+    // Booking Type select: Lite Form(1) / Pro From(2) / Both(3)
+    $(document).on('change', '.booking-type-select', function() {
+        const $select = $(this);
+        const userId = $select.data('user-id');
+        const bookingType = parseInt($select.val(), 10);
+        const previousValue = parseInt($select.data('previous-value') || $select.find('option[selected]').val() || '1', 10);
+
+        if (![1, 2, 3].includes(bookingType)) {
+            toastr.error('Invalid booking type selected');
+            $select.val(previousValue);
+            return;
+        }
+
+        $select.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('users.update.booking-type') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                booking_type: bookingType,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $select.prop('disabled', false);
+                if (response.success) {
+                    $select.data('previous-value', bookingType);
+                    toastr.success(response.message || 'Booking type updated successfully');
+                } else {
+                    toastr.error(response.message || 'Error updating booking type');
+                    $select.val(previousValue);
+                }
+            },
+            error: function(xhr) {
+                $select.prop('disabled', false);
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error updating booking type';
+                toastr.error(msg);
+                $select.val(previousValue);
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
     // Show/hide "Auto Cancel" header label based on whether any row has auto cancel checked
     function updateHeaderAutoCancelLabel() {
         const anyChecked = $('.auto-cancel-toggle:checked').length > 0;
