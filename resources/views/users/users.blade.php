@@ -36,6 +36,11 @@
     white-space: nowrap;
   }
 
+  .datatables-basic thead th.settings-controls-col {
+    white-space: normal;
+    vertical-align: bottom;
+  }
+
   .datatables-basic .badge {
     font-size: 10px;
     padding: 0.25rem 0.45rem;
@@ -50,9 +55,51 @@
     margin-top: 0;
   }
 
-  .datatables-basic .settings-controls-cell .d-flex {
-    gap: 0.35rem !important;
-    min-width: 110px !important;
+  /* Settings column: 6 aligned slots (Auto Cancel Status = toggle, Auto Cancel = D-n dropdown) */
+  .settings-header-grid,
+  .settings-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.35rem;
+    width: 100%;
+    min-width: 320px;
+  }
+
+  .settings-header-grid {
+    align-items: end;
+    font-size: 10px;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .settings-controls-grid {
+    align-items: start;
+  }
+
+  .settings-header-grid > span {
+    display: block;
+    padding: 0 2px;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  .settings-controls-grid .settings-col {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .settings-controls-grid .form-check.form-switch {
+    padding-left: 0;
+    margin-bottom: 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .settings-controls-grid .form-check.form-switch .form-check-input {
+    margin-left: 0;
+    float: none;
   }
 
   .datatables-basic .booking-type-select,
@@ -123,17 +170,14 @@
               <th>Country & City</th>
 
               @if($showSettingsColumn)
-                <th class="settings-controls-col" style="min-width: 140px;">
-                  <div class="text-center">
-                   
-                    <div class="d-flex justify-content-between mt-1" style="font-size: 10px; gap: 10px;">
-                      <span class="fw-bold">Zone On</span>
-                      <span class="fw-bold">Price Hide</span>
-                      <span class="fw-bold">Email On</span>
-                      <span class="fw-bold">Auto Cancel Status</span>
-                      <span class="fw-bold header-auto-cancel-label" id="header_auto_cancel_label" style="display: none;">Auto Cancel</span>
-                      <span class="fw-bold">Guide Pax</span>
-                    </div>
+                <th class="settings-controls-col" style="min-width: 320px;">
+                  <div class="settings-header-grid fw-bold text-uppercase">
+                    <span>Zone On</span>
+                    <span>Price Hide</span>
+                    <span>Email On</span>
+                    <span>Auto Cancel Status</span>
+                    <span>Auto Cancel</span>
+                    <span>Guide Pax</span>
                   </div>
                 </th>
               @endif
@@ -222,144 +266,151 @@
                 @if($showSettingsColumn)
                 <td class="settings-controls-cell">
                   @if($showSettingsForThisRow)
-                    <div class="d-flex justify-content-between align-items-center gap-2" style="min-width: 130px;">
+                    <div class="settings-controls-grid">
                       @if(auth::user()->role_id == 10)
-                        <!-- Zone On Toggle -->
-                        <div class="form-check form-switch">
-                            <input type="hidden" name="zone_on" value="0">
-                            <input {{$user->zone_on == 1 ? 'checked' : ''}} 
-                                class="form-check-input zone-toggle" 
-                                data-user-id="{{ $user->userId }}"
-                                type="checkbox" 
-                                id="zone_on_{{ $user->userId }}"
-                                value="1" 
-                                style="width: 25px; height: 15px;">
+                        <div class="settings-col">
+                            <div class="form-check form-switch mb-0">
+                                <input type="hidden" name="zone_on" value="0">
+                                <input {{$user->zone_on == 1 ? 'checked' : ''}} 
+                                    class="form-check-input zone-toggle" 
+                                    data-user-id="{{ $user->userId }}"
+                                    type="checkbox" 
+                                    id="zone_on_{{ $user->userId }}"
+                                    value="1" 
+                                    style="width: 25px; height: 15px;">
+                            </div>
                         </div>
-                        
-                        <!-- Price Hide Toggle -->
-                        <div class="form-check form-switch">
-                            <input type="hidden" name="price_hide" value="0">
-                            <input {{$user->price_hide == 1 ? 'checked' : ''}} 
-                                class="form-check-input price-hide_toggle" 
-                                data-user-id="{{ $user->userId }}"
-                                type="checkbox" 
-                                id="price_hide_{{ $user->userId }}"
-                                value="1" 
-                                style="width: 25px; height: 15px;">
+                        <div class="settings-col">
+                            <div class="form-check form-switch mb-0">
+                                <input type="hidden" name="price_hide" value="0">
+                                <input {{$user->price_hide == 1 ? 'checked' : ''}} 
+                                    class="form-check-input price-hide_toggle" 
+                                    data-user-id="{{ $user->userId }}"
+                                    type="checkbox" 
+                                    id="price_hide_{{ $user->userId }}"
+                                    value="1" 
+                                    style="width: 25px; height: 15px;">
+                            </div>
                         </div>
-                        
-                        <!-- Email On Toggle -->
-                        <div class="form-check form-switch">
-                            <input type="hidden" name="email_on" value="0">
-                            <input {{$user->email_on == 1 ? 'checked' : ''}} 
-                                class="form-check-input email-toggle" 
-                                data-user-id="{{ $user->userId }}"
-                                type="checkbox" 
-                                id="email_on_{{ $user->userId }}"
-                                value="1" 
-                                style="width: 25px; height: 15px;">
+                        <div class="settings-col">
+                            <div class="form-check form-switch mb-0">
+                                <input type="hidden" name="email_on" value="0">
+                                <input {{$user->email_on == 1 ? 'checked' : ''}} 
+                                    class="form-check-input email-toggle" 
+                                    data-user-id="{{ $user->userId }}"
+                                    type="checkbox" 
+                                    id="email_on_{{ $user->userId }}"
+                                    value="1" 
+                                    style="width: 25px; height: 15px;">
+                            </div>
                         </div>
-                        
-                        <!-- Auto Cancel Toggle -->
-                        <div class="form-check form-switch">
-                            <input type="hidden" name="auto_cancel_on" value="0">
-                            <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
-                                class="form-check-input auto-cancel-toggle"
-                                data-user-id="{{ $user->userId }}"
-                                type="checkbox"
-                                id="auto_cancel_toggle_{{ $user->userId }}"
-                                value="1"
-                                style="width: 25px; height: 15px;">
+                        <div class="settings-col">
+                            <div class="form-check form-switch mb-0">
+                                <input type="hidden" name="auto_cancel_on" value="0">
+                                <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
+                                    class="form-check-input auto-cancel-toggle"
+                                    data-user-id="{{ $user->userId }}"
+                                    type="checkbox"
+                                    id="auto_cancel_toggle_{{ $user->userId }}"
+                                    value="1"
+                                    style="width: 25px; height: 15px;">
+                            </div>
                         </div>
-                        <!-- Auto Cancel Day Dropdown (shown when toggle is ON) -->
-                        <div class="form-group auto-cancel-day-wrap" data-user-id="{{ $user->userId }}" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
-                            <select class="form-select auto-cancel-dropdown"
-                                data-user-id="{{ $user->userId }}"
-                                id="auto_cancel_{{ $user->userId }}"
-                                style="width: 60px; height: 25px; font-size: 12px; padding: 1px;">
-                                <option value="1" {{ ($user->auto_cancel_date == 1 || is_null($user->auto_cancel_date)) ? 'selected' : '' }}>D-1</option>
-                                <option value="2" {{ $user->auto_cancel_date == 2 ? 'selected' : '' }}>D-2</option>
-                                <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
-                                <option value="4" {{ $user->auto_cancel_date == 4 ? 'selected' : '' }}>D-4</option>
-                                <option value="5" {{ $user->auto_cancel_date == 5 ? 'selected' : '' }}>D-5</option>
-                                <option value="6" {{ $user->auto_cancel_date == 6 ? 'selected' : '' }}>D-6</option>
-                                <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
-                                <option value="8" {{ $user->auto_cancel_date == 8 ? 'selected' : '' }}>D-8</option>
-                                <option value="9" {{ $user->auto_cancel_date == 9 ? 'selected' : '' }}>D-9</option>
-                                <option value="10" {{ $user->auto_cancel_date == 10 ? 'selected' : '' }}>D-10</option>
-                                <option value="11" {{ $user->auto_cancel_date == 11 ? 'selected' : '' }}>D-11</option>
-                                <option value="12" {{ $user->auto_cancel_date == 12 ? 'selected' : '' }}>D-12</option>
-                                <option value="13" {{ $user->auto_cancel_date == 13 ? 'selected' : '' }}>D-13</option>
-                                <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
-                            </select>
+                        <div class="settings-col">
+                            <div class="form-group auto-cancel-day-wrap mb-0" data-user-id="{{ $user->userId }}" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
+                                <select class="form-select auto-cancel-dropdown"
+                                    data-user-id="{{ $user->userId }}"
+                                    id="auto_cancel_{{ $user->userId }}"
+                                    style="width: 60px; height: 25px; font-size: 12px; padding: 1px;">
+                                    <option value="1" {{ ($user->auto_cancel_date == 1 || is_null($user->auto_cancel_date)) ? 'selected' : '' }}>D-1</option>
+                                    <option value="2" {{ $user->auto_cancel_date == 2 ? 'selected' : '' }}>D-2</option>
+                                    <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
+                                    <option value="4" {{ $user->auto_cancel_date == 4 ? 'selected' : '' }}>D-4</option>
+                                    <option value="5" {{ $user->auto_cancel_date == 5 ? 'selected' : '' }}>D-5</option>
+                                    <option value="6" {{ $user->auto_cancel_date == 6 ? 'selected' : '' }}>D-6</option>
+                                    <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
+                                    <option value="8" {{ $user->auto_cancel_date == 8 ? 'selected' : '' }}>D-8</option>
+                                    <option value="9" {{ $user->auto_cancel_date == 9 ? 'selected' : '' }}>D-9</option>
+                                    <option value="10" {{ $user->auto_cancel_date == 10 ? 'selected' : '' }}>D-10</option>
+                                    <option value="11" {{ $user->auto_cancel_date == 11 ? 'selected' : '' }}>D-11</option>
+                                    <option value="12" {{ $user->auto_cancel_date == 12 ? 'selected' : '' }}>D-12</option>
+                                    <option value="13" {{ $user->auto_cancel_date == 13 ? 'selected' : '' }}>D-13</option>
+                                    <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
+                                </select>
+                            </div>
                         </div>
-                        <!-- Guide Pax Input (max 2 digits) -->
-                        <div class="form-group">
-                            <input type="text" class="form-control guide-pax-input"
-                                data-user-id="{{ $user->userId }}"
-                                id="guide_pax_{{ $user->userId }}"
-                                value="{{ $user->guide_pax ?? 0 }}"
-                                maxlength="2" inputmode="numeric" pattern="[0-9]*"
-                                style="width: 50px; height: 25px; font-size: 12px; padding: 1px; text-align: center;"
-                                oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
+                        <div class="settings-col">
+                            <div class="form-group mb-0">
+                                <input type="text" class="form-control guide-pax-input"
+                                    data-user-id="{{ $user->userId }}"
+                                    id="guide_pax_{{ $user->userId }}"
+                                    value="{{ $user->guide_pax ?? 0 }}"
+                                    maxlength="2" inputmode="numeric" pattern="[0-9]*"
+                                    style="width: 50px; height: 25px; font-size: 12px; padding: 1px; text-align: center;"
+                                    oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
+                            </div>
                         </div>
                       @else
-                        <!-- Zone On Toggle (Disabled) -->
-                        <div class="form-check form-switch">
-                            <input type="hidden" name="zone_on" value="0">
-                            <input {{$user->zone_on == 1 ? 'checked' : ''}} 
-                                class="form-check-input" 
-                                name="zone_on" 
-                                type="checkbox" 
-                                id="zone_on"
-                                value="1" 
-                                style="width: 25px; height: 15px;" 
-                                disabled>
+                        <div class="settings-col">
+                            <div class="form-check form-switch mb-0">
+                                <input type="hidden" name="zone_on" value="0">
+                                <input {{$user->zone_on == 1 ? 'checked' : ''}} 
+                                    class="form-check-input" 
+                                    name="zone_on" 
+                                    type="checkbox" 
+                                    id="zone_on"
+                                    value="1" 
+                                    style="width: 25px; height: 15px;" 
+                                    disabled>
+                            </div>
                         </div>
-                        
-                        <!-- Price Hide Toggle (Disabled) -->
-                        <div class="form-check form-switch">
-                            <input type="hidden" name="price_hide" value="0">
-                            <input {{$user->price_hide == 1 ? 'checked' : ''}} 
-                                class="form-check-input" 
-                                name="price_hide" 
-                                type="checkbox" 
-                                id="price_hide"
-                                value="1" 
-                                style="width: 25px; height: 15px;" 
-                                disabled>
+                        <div class="settings-col">
+                            <div class="form-check form-switch mb-0">
+                                <input type="hidden" name="price_hide" value="0">
+                                <input {{$user->price_hide == 1 ? 'checked' : ''}} 
+                                    class="form-check-input" 
+                                    name="price_hide" 
+                                    type="checkbox" 
+                                    id="price_hide"
+                                    value="1" 
+                                    style="width: 25px; height: 15px;" 
+                                    disabled>
+                            </div>
                         </div>
-                        
-                        <!-- Email On Toggle (Disabled) -->
-                        <div class="form-check form-switch">
-                            <input type="hidden" name="email_on" value="0">
-                            <input {{$user->email_on == 1 ? 'checked' : ''}} 
-                                class="form-check-input" 
-                                name="email_on" 
-                                type="checkbox" 
-                                id="email_on"
-                                value="1" 
-                                style="width: 25px; height: 15px;" 
-                                disabled>
+                        <div class="settings-col">
+                            <div class="form-check form-switch mb-0">
+                                <input type="hidden" name="email_on" value="0">
+                                <input {{$user->email_on == 1 ? 'checked' : ''}} 
+                                    class="form-check-input" 
+                                    name="email_on" 
+                                    type="checkbox" 
+                                    id="email_on"
+                                    value="1" 
+                                    style="width: 25px; height: 15px;" 
+                                    disabled>
+                            </div>
                         </div>
-                        
-                        <!-- Auto Cancel Toggle (Disabled) -->
-                        <div class="form-check form-switch">
-                            <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
-                                class="form-check-input" type="checkbox" value="1"
-                                style="width: 25px; height: 15px;" disabled>
+                        <div class="settings-col">
+                            <div class="form-check form-switch mb-0">
+                                <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
+                                    class="form-check-input" type="checkbox" value="1"
+                                    style="width: 25px; height: 15px;" disabled>
+                            </div>
                         </div>
-                        <!-- Auto Cancel Dropdown (Disabled, shown when value set) -->
-                        <div class="form-group" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
-                            <select class="form-select" id="auto_cancel_disabled"
-                                style="width: 50px; height: 25px; font-size: 10px; padding: 2px;" disabled>
-                                <option value="">--</option>
-                                <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
-                                <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
-                                <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
-                            </select>
+                        <div class="settings-col">
+                            <div class="form-group mb-0" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
+                                <select class="form-select" id="auto_cancel_disabled"
+                                    style="width: 50px; height: 25px; font-size: 10px; padding: 2px;" disabled>
+                                    <option value="">--</option>
+                                    <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
+                                    <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
+                                    <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
+                                </select>
+                            </div>
                         </div>
-                        
+                        <div class="settings-col">
+                            <span class="text-muted small">—</span>
+                        </div>
                       @endif
                     </div>
                   @else
@@ -815,15 +866,6 @@ $(document).ready(function() {
         });
     });
 
-    // Show/hide "Auto Cancel" header label based on whether any row has auto cancel checked
-    function updateHeaderAutoCancelLabel() {
-        const anyChecked = $('.auto-cancel-toggle:checked').length > 0;
-        $('#header_auto_cancel_label').css('display', anyChecked ? 'inline' : 'none');
-    }
-
-    // Set initial header label visibility on load
-    updateHeaderAutoCancelLabel();
-
     // Auto Cancel toggle: show/hide day dropdown and sync with backend
     $(document).on('change', '.auto-cancel-toggle', function() {
         const $toggle = $(this);
@@ -833,7 +875,6 @@ $(document).ready(function() {
         const $dropdown = $('.auto-cancel-dropdown[data-user-id="' + userId + '"]');
 
         $wrap.css('display', isOn ? 'block' : 'none');
-        updateHeaderAutoCancelLabel();
 
         $toggle.prop('disabled', true);
         $.ajax({
@@ -857,7 +898,6 @@ $(document).ready(function() {
                 toastr.error('Error updating auto cancel');
                 $wrap.css('display', isOn ? 'none' : 'block');
                 $toggle.prop('checked', !isOn);
-                updateHeaderAutoCancelLabel();
             }
         });
     });
