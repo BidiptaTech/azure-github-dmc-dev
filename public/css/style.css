@@ -348,23 +348,24 @@
     }
     
     /* For submenu items that are active */
-    .menu-sub .menu-item.active .menu-link {
+    .menu-sub .menu-item.active > .menu-link {
         color: #ffffff !important;
-        /* background: linear-gradient(118deg, #4bbca5, #725aab); */
         background: linear-gradient(25deg, #c851ec, #566ee4);
         box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+        border-radius: 8px;
     }
     
-    .menu-sub .menu-item.active .menu-link div {
+    .menu-sub .menu-item.active > .menu-link div,
+    .menu-sub .menu-item.active > .menu-link div span {
         color: #ffffff !important;
     }
     
     /* Ensure other submenu items are not white */
-    .menu-sub .menu-item:not(.active) .menu-link {
+    .menu-sub .menu-item:not(.active) > .menu-link {
         color: #000 !important;
     }
     
-    .menu-sub .menu-item:not(.active) .menu-link div {
+    .menu-sub .menu-item:not(.active) > .menu-link div {
         color: #000 !important;
     }
 
@@ -647,9 +648,9 @@
     /* Active menu item badge styling */
     .menu-item.active .menu-link .badge {
         margin-right: 20px !important;
-        background-color: rgba(255, 255, 255, 0.9) !important;
-        color: #dc3545 !important;
-        border-color: rgba(255, 255, 255, 0.5);
+        background-color: #dc3545 !important;
+        color: #ffffff !important;
+        border-color: #dc3545 !important;
     }
 
     /* Submenu badge styling */
