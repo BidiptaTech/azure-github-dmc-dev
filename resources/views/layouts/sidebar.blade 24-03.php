@@ -648,9 +648,9 @@
 
     /* Active menu item badge styling */
     .menu-item.active .menu-link .badge {
-        background-color: rgba(255, 255, 255, 0.9) !important;
-        color: #dc3545 !important;
-        border-color: rgba(255, 255, 255, 0.5);
+        background-color: #dc3545 !important;
+        color: #ffffff !important;
+        border-color: #dc3545 !important;
     }
 
     /* Submenu badge styling */
