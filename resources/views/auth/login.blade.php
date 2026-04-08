@@ -66,8 +66,9 @@
     pointer-events: none; white-space: nowrap;
   }
   .auth-logo{
-    display: block; margin: 0 auto; max-width: 150px; max-height: 100px;
-    scale: 3; width: auto; height: auto;
+    display: block; margin: 0 auto;
+    width: 150px; height: 70px; object-fit: contain;
+    scale: 1.2;
   }
   .auth-section-title{ font-weight: 800; letter-spacing: .2px; }
   .auth-divider{

@@ -3,174 +3,382 @@
 @extends('layouts.datatablecss')
 
 @section('css')
-<!-- Add SweetAlert2 CSS -->
+<!-- SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <style>
-    :root {
-        --table-border: #e2e8f0;
-        --table-head-bg: #f8fafc;
-        --table-head-text: #334155;
-        --table-body-text: #0f172a;
-        --table-muted: #64748b;
-        /* Primary brand blue used for accents (calendar + status) */
-        --table-link: #5c61e6;
+    /* Premium Wrapper */
+    .container-p-y > .card {
+        border: 1px solid #d0d7e2;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 0 1px rgba(0, 0, 0, 0.08);
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+        overflow: hidden;
     }
 
-    #attractionsTable thead th {
-        background: var(--table-head-bg);
-        color: var(--table-head-text);
-        font-weight: 600;
-        font-size: 0.8125rem;
-        padding: 0.5rem 0.75rem;
-        border-color: var(--table-border);
-        white-space: nowrap;
-        line-height: 1.4;
+    /* Page Header */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+        border-bottom: 1px solid #d0d7e2;
+        margin-bottom: 0;
     }
 
-    #attractionsTable tbody td {
-        color: var(--table-body-text);
-        border-color: var(--table-border);
-        vertical-align: top;
-        padding: 0.5rem 0.75rem;
-        font-size: 0.875rem;
+    .page-title {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #1e293b;
+        margin: 0;
+        letter-spacing: -0.01em;
     }
 
-    /* Attraction name styling */
-    #attractionsTable .hotel-detail-title {
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--table-body-text);
-    }
-
-    /* Calendar link styling - same as hotels page */
-    #attractionsTable .calendar-link {
-        color: var(--table-link);
-        text-decoration: none;
+    .page-subtitle {
+        font-size: 12.5px;
+        color: #64748b;
+        margin: 0.15rem 0 0;
         font-weight: 500;
-        font-size: 0.875rem;
+    }
+
+    /* Toolbar */
+    .page-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.85rem 1.25rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #e9edf3;
+    }
+
+    .toolbar-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .btn-premium {
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 0.45rem 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    }
+
+    .btn-premium.btn-primary {
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        border: none;
+    }
+
+    .btn-premium.btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(99, 102, 241, 0.25);
+    }
+
+    .btn-premium.btn-warning {
+        background: linear-gradient(135deg, #f59e0b, #f97316);
+        border: none;
+        color: #fff;
+    }
+
+    .btn-premium.btn-warning:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(249, 115, 22, 0.22);
+        color: #fff;
+    }
+
+    /* Table polish */
+    .table-shell {
+        padding: 1rem 1.25rem 1.25rem;
+        background: #fff;
+    }
+
+    .table-premium {
+        border-collapse: separate !important;
+        border-spacing: 0;
+        overflow: hidden;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+        background: #fff;
+    }
+
+    .table thead th {
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        color: #334155;
+        font-weight: 800;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid #e2e8f0 !important;
+        padding: 0.55rem 0.75rem !important;
+    }
+
+    .table tbody td {
+        vertical-align: middle;
+        font-size: 12.5px;
+        color: #334155;
+        padding: 0.55rem 0.75rem !important;
+    }
+
+    /* Softer dividers + zebra + hover */
+    .table-premium tbody tr {
+        transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .table-premium tbody tr:nth-child(even) {
+        background: #fbfdff;
+    }
+
+    .table-premium tbody tr:hover {
+        background: #f4f7ff;
+    }
+
+    .table-premium > :not(caption) > * > * {
+        border-bottom-color: #eef2f7;
+    }
+
+    /* Remove harsh outer borders from bootstrap bordered tables */
+    .table-premium.table-bordered > :not(caption) > * {
+        border-color: transparent;
+    }
+
+    /* DataTables controls - standard layout */
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info {
+        color: #64748b;
+        font-size: 12.5px;
+        font-weight: 600;
+    }
+
+    .dataTables_wrapper .dataTables_length label,
+    .dataTables_wrapper .dataTables_filter label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        width: 100%;
+    }
+
+    /* Left: Entries */
+    .dataTables_wrapper .dataTables_length {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .dataTables_wrapper .dataTables_length select {
+        width: auto;
+        min-width: 80px;
+        padding: 0.32rem 0.55rem;
+    }
+
+    /* Right: Search */
+    .dataTables_wrapper .dataTables_filter {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        text-align: right;
+    }
+
+    .dataTables_wrapper .dataTables_filter label {
+        justify-content: flex-end;
+    }
+
+    .dataTables_wrapper .dataTables_length select,
+    .dataTables_wrapper .dataTables_filter input {
+        border: 1px solid #dbe3ee;
+        border-radius: 10px;
+        padding: 0.35rem 0.6rem;
+        font-size: 12.5px;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        width: 260px;
+        max-width: 100%;
+    }
+
+    .dataTables_wrapper .dataTables_filter input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        border-radius: 10px !important;
+        padding: 0.25rem 0.6rem !important;
+        margin: 0 2px !important;
+        border: 1px solid transparent !important;
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+        color: #fff !important;
+        border-color: transparent !important;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background: #eef2ff !important;
+        color: #4338ca !important;
+        border-color: #c7d2fe !important;
+    }
+
+    /* Hide default DataTables buttons (we use the custom Export dropdown) */
+    .dataTables_wrapper .dt-buttons {
+        display: none !important;
+    }
+
+    /* Status badges - standard subtle style */
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem 0.55rem;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        border: 1px solid transparent;
+    }
+
+    .badge-status .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .badge-status.active {
+        background: #ecfdf5;
+        color: #065f46;
+        border-color: #a7f3d0;
+    }
+
+    .badge-status.active .dot {
+        background: #10b981;
+    }
+
+    .badge-status.inactive {
+        background: #fef2f2;
+        color: #7f1d1d;
+        border-color: #fecaca;
+    }
+
+    .badge-status.inactive .dot {
+        background: #ef4444;
+    }
+
+    /* Action buttons */
+    .btn-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .btn-icon:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.10);
+    }
+
+    .btn-icon-calendar {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+    }
+
+    .btn-icon-edit {
+        background: #ecfdf5;
+        border-color: #d1fae5;
+    }
+
+    .btn-icon-delete {
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    /* Calendar link */
+    .calendar-link {
+        color: #6366f1;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 12.5px;
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
     }
 
-    #attractionsTable .calendar-link:hover {
+    .calendar-link:hover {
         text-decoration: underline;
-        color: var(--table-link);
+        color: #4f46e5;
     }
 
-    #attractionsTable .calendar-link i {
+    .calendar-link i {
         font-size: 0.875rem;
     }
 
-    /* Status badge styling - standardized colors */
-    #attractionsTable .badge {
-        font-size: 0.75rem;
-        font-weight: 500;
-        padding: 0.35rem 0.65rem;
-        border-radius: 0.375rem;
+    /* Column width control */
+    #attractionsTable th:nth-child(2),
+    #attractionsTable td:nth-child(2) {
+        width: 120px;
+        min-width: 100px;
+        max-width: 140px;
     }
 
-    #attractionsTable .badge.bg-success {
-        background-color: var(--table-link) !important;
-        color: #ffffff;
+    /* Master DMC & DMC columns - narrower */
+    #attractionsTable .col-master-dmc,
+    #attractionsTable .col-dmc {
+        min-width: 100px;
+        max-width: 130px;
     }
 
-    #attractionsTable .badge.bg-danger {
-        background-color: #e5e7eb !important;
-        color: #111827;
+    /* Action column - compact, just enough for icons */
+    #attractionsTable .col-action {
+        min-width: 90px;
+        width: 90px;
+        white-space: nowrap;
     }
 
-    /* Location and other text styling */
-    #attractionsTable tbody td {
-        line-height: 1.5;
+    /* Tighter gap between action icons */
+    #attractionsTable .col-action,
+    #attractionsTable td.col-action {
+        display: table-cell;
     }
 
-    /* Subtle muted text */
-    #attractionsTable .text-muted {
-        color: var(--table-muted);
-        font-size: 0.875rem;
+    #attractionsTable td.col-action .btn-icon + .btn-icon {
+        margin-left: 3px;
     }
 
-    /* Created date styling */
-    #attractionsTable .d-flex.flex-column span {
-        font-size: 0.875rem;
+    /* Slightly smaller icon buttons in action column */
+    #attractionsTable td.col-action .btn-icon {
+        width: 28px;
+        height: 28px;
     }
 
-    #attractionsTable .d-flex.flex-column small {
-        font-size: 0.75rem;
+    /* Created At header - single line, slightly smaller */
+    #attractionsTable thead th.col-created-at {
+        font-size: 10.5px;
+        white-space: nowrap;
     }
 
+    /* Header tooltip */
     .th-tooltip {
         cursor: help;
     }
 
-    /* Global tooltip (same style as Hotels/New Enquiries pages) */
-    #service-icon-global-tooltip {
-        position: fixed;
-        padding: 0.4rem 0.65rem;
-        background: #2d3748;
-        color: #fff;
-        font-size: 0.75rem;
-        font-weight: 500;
-        white-space: nowrap;
-        border-radius: 0.375rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        z-index: 1100;
-        pointer-events: none;
-        display: none;
-        left: 0;
-        top: 0;
-        transform: translate(-50%, -100%);
-    }
-
-    /* Actions column: same soft-badge design as Hotels page */
-    #attractionsTable td.col-actions {
-        white-space: nowrap;
-        overflow: visible;
-    }
-
-    #attractionsTable .actions-icons-wrap {
-        display: grid;
-        grid-template-columns: repeat(3, auto);
-        row-gap: 0.5rem;
-        column-gap: 0.5rem;
-        align-items: center;
-        justify-content: start;
-        max-width: 100%;
-    }
-
-    #attractionsTable .action-icon-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 32px;
-        min-width: 32px;
-        padding: 0.35rem;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-        background: #f8fafc;
-        cursor: pointer;
-        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-        flex-shrink: 0;
-        text-decoration: none;
-        color: inherit;
-    }
-
-    #attractionsTable .action-icon-badge:hover {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-        color: inherit;
-    }
-
-    #attractionsTable .action-icon-badge i {
-        font-size: 1rem;
-        color: var(--action-color, #475569);
-    }
-
-    #attractionsTable .action-icon-badge:hover i {
-        color: var(--action-color, #0f766e);
-    }
 
     /* Loading spinner animation for delete button */
     .spin {
@@ -181,6 +389,12 @@
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
     }
+
+    @media (max-width: 768px) {
+        .page-header { padding: 0.9rem 1rem; }
+        .page-toolbar { padding: 0.75rem 1rem; }
+        .page-title { font-size: 1.2rem; }
+    }
 </style>
 @endsection
 
@@ -189,24 +403,23 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
             <div class="card-datatable table-responsive pt-0">
-                <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
-                    <div class="d-flex align-items-center">
-                        <h5 class="card-title mb-0">Attractions & Experienc</h5>
+                <!-- Header -->
+                <div class="page-header">
+                    <div>
+                        <h5 class="page-title">Attractions & Experiences</h5>
+                        <p class="page-subtitle">Manage attractions, availability calendars, and status</p>
                     </div>
-
-                    <div class="d-flex justify-content-between gap-3">
-                        <!-- Add New Category Button -->
+                    <div class="toolbar-actions">
                         @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         @if(hasPermission('create attraction'))
-                        <a href="{{ route('attraction.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
+                        <a href="{{ route('attraction.create') }}" class="btn btn-primary btn-premium">
                             <i class="fas fa-plus"></i> Add New Attraction
                         </a>
                         @endif
                         @endif
 
-                        <!-- Export Dropdown Button -->
                         <div class="dropdown">
-                            <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                            <button class="btn btn-warning btn-premium dropdown-toggle" type="button" id="exportDropdown"
                                 data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-download"></i> Export
                             </button>
@@ -220,10 +433,17 @@
                         </div>
                     </div>
                 </div>
-                <x-alert />
-                <hr>
-                <table class="datatables-basic table table-bordered" id="attractionsTable">
-                    <thead class="table-light">
+
+                <!-- Toolbar (alerts only) -->
+                <div class="page-toolbar">
+                    <div style="width: 100%;">
+                        <x-alert />
+                    </div>
+                </div>
+
+                <div class="table-shell">
+                <table class="datatables-basic table table-bordered table-premium" id="attractionsTable">
+                    <thead>
                         <tr>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Serial Number">No</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Attraction Name">Name</th>
@@ -235,32 +455,26 @@
                             @endphp
 
                             @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
-                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
+                                <th class="th-tooltip col-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
-                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master Dmc</th>
-                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
+                                <th class="th-tooltip col-master-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master DMC</th>
+                                <th class="th-tooltip col-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @endif
 
-                            {{-- <th>Adult Price</th>
-                            <th>Child Price</th> --}}
-                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Location">location</th>
-                            
-                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Availability Calendar">Calendar</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Location">Location</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Status">Status</th>
-                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id ==91 || auth()->user()->role_id == 93 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || hasPermission('edit attraction') || hasPermission('delete attraction'))
-                                <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Available Actions">Action</th>
+                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23 || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id == 91 || auth()->user()->role_id == 93 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || hasPermission('edit attraction') || hasPermission('delete attraction'))
+                                <th class="th-tooltip col-action" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Available Actions">Action</th>
                             @endif
-                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Created Date and Time">Created At</th>
+                            <th class="th-tooltip col-created-at" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Created Date and Time">Created At</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($attractions as $key => $attraction)
                             <tr>
-                                <td class="align-top">{{ ++$key }}</td>
-                                <td class="align-top">
-                                    <div class="d-flex flex-column">
-                                        <span class="hotel-detail-title">{{ $attraction->name ?? 'N/A' }}</span>
-                                    </div>
+                                <td>{{ ++$key }}</td>
+                                <td>
+                                    <span class="fw-semibold">{{ $attraction->name ?? 'N/A' }}</span>
                                 </td>
                                 @php
                                     $roleId = auth()->user()->role_id;
@@ -271,36 +485,36 @@
 
                                 @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
                                     @php
-                                        $dmcIds = $attraction->getSelectedDmcIds(); // Get array of DMC IDs
+                                        $dmcIds = $attraction->getSelectedDmcIds();
                                         $dmcUsers = App\Models\User::whereIn('userId', $dmcIds)->get();
                                     @endphp
-                                    <td class="align-top">
+                                    <td class="col-dmc">
                                         @if($dmcUsers->count() > 0)
                                             {{ $dmcUsers->first()->company_name }}
                                             @if($dmcUsers->count() > 1)
-                                                <br><a href="javascript:void(0)" 
+                                                <br><a href="javascript:void(0)"
                                                        class="btn btn-outline-secondary btn-sm"
                                                        onclick="showDmcModal('{{ $attraction->attraction_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
                                                     <small>+{{ $dmcUsers->count() - 1 }} More</small>
                                                 </a>
                                             @endif
                                         @else
-                                            N/A
+                                            <span class="text-muted">N/A</span>
                                         @endif
                                     </td>
                                 @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
                                     @php
-                                        $dmcIds = $attraction->getSelectedDmcIds(); // Get array of DMC IDs
+                                        $dmcIds = $attraction->getSelectedDmcIds();
                                         $dmcUsers = App\Models\User::whereIn('userId', $dmcIds)->get();
                                         $masterDmcIds = $dmcUsers->pluck('master_dmc_id')->filter()->unique();
                                         $masterDmcUsers = App\Models\User::whereIn('userId', $masterDmcIds)->get();
                                     @endphp
-                                    <td class="align-top">
+                                    <td class="col-master-dmc">
                                         @if($masterDmcUsers->count() > 0)
                                             <span>{{ $masterDmcUsers->first()->company_name }}</span>
                                             @if($masterDmcUsers->count() > 1)
-                                                <br><a href="javascript:void(0)" 
-                                                       class="btn btn-primary btn-sm text-white" 
+                                                <br><a href="javascript:void(0)"
+                                                       class="btn btn-primary btn-sm text-white"
                                                        onclick="showDmcModal('{{ $attraction->attraction_id }}', 'master_dmc', {{ $masterDmcUsers->toJson() }})">
                                                     <small>+{{ $masterDmcUsers->count() - 1 }} More</small>
                                                 </a>
@@ -309,12 +523,12 @@
                                             <span class="text-muted">No DMC assigned</span>
                                         @endif
                                     </td>
-                                    <td class="align-top">
+                                    <td class="col-dmc">
                                         @if($dmcUsers->count() > 0)
                                             <span>{{ $dmcUsers->first()->company_name }}</span>
                                             @if($dmcUsers->count() > 1)
-                                                <br><a href="javascript:void(0)" 
-                                                       class="btn btn-primary btn-sm text-white" 
+                                                <br><a href="javascript:void(0)"
+                                                       class="btn btn-primary btn-sm text-white"
                                                        onclick="showDmcModal('{{ $attraction->attraction_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
                                                     <small>+{{ $dmcUsers->count() - 1 }} More</small>
                                                 </a>
@@ -325,117 +539,86 @@
                                     </td>
                                 @endif
 
-                                {{-- <td>
-                                    @if($attraction->adult_price)
-                                        {{ $attraction->adult_price }}
-                                    @else
-                                        <span class="badge bg-danger">No details</span>
-                                    @endif
-                                </td>
-                                <td class="align-top">
-                                @if($attraction->child_price)
-                                    {{$attraction->child_price}}
-                                @else
-                                    <span class="badge bg-danger">No details</span>
-                                @endif
-                                </td> --}}
-                                <td class="align-top">
+                                <td>
                                     <span>{{ $attraction->location ?: 'N/A' }}</span>
                                 </td>
-                                
-                                <td class="align-top"> 
-                                    <a href="{{ route('attraction.calendar', ['attraction_id' => Crypt::encrypt($attraction->attraction_id)]) }}" target="_blank" class="calendar-link">
-                                        <i class="ri-calendar-line"></i>View Calendar
-                                    </a>
-                                </td>
-                                <td class="align-top">
-                                @if($attraction->is_active == 1)
-                                    <span class="badge bg-success">Active</span>
-                                    @else
-                                        <span class="badge bg-danger">Inactive</span>
-                                    @endif  
-                                </td>
-                                @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id ==91 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || auth()->user()->role_id == 93 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit attraction') || hasPermission('delete attraction'))
-                                @if($attraction->status == 1)
-                                <td class="align-top col-actions">
-                                    <div class="actions-icons-wrap">
-                                        <!-- Edit Button -->
-                                        @if(hasPermission('edit attraction'))
-                                        <a href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}" 
-                                           class="action-icon-badge"
-                                           style="--action-color: #047857;"
-                                           data-tooltip="Edit Attraction">
-                                            <i class="ri-pencil-line"></i>
-                                        </a>
-                                        @endif
 
-                                        <!-- Delete Button -->
-                                        @if( Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
-                                        <button type="button"
-                                                class="action-icon-badge"
-                                                style="--action-color: #dc2626;"
-                                                data-tooltip="Delete Attraction"
-                                                onclick="deleteAttraction('{{ route('attraction.destroy', Crypt::encrypt($attraction->attraction_id)) }}', {{ json_encode($attraction->name) }})"
-                                                id="delete-btn-{{ $attraction->attraction_id }}">
-                                            <i class="ri-delete-bin-line"></i>
-                                        </button>
-                                        @endif
-                                    </div>
+                                <td>
+                                    @if($attraction->is_active == 1)
+                                        <span class="badge-status active"><span class="dot"></span>Active</span>
+                                    @else
+                                        <span class="badge-status inactive"><span class="dot"></span>Inactive</span>
+                                    @endif
                                 </td>
-                                @else
-                                    {{-- @if(Auth::user()->role_id == 11)
-                                    <td>
-                                        @if($attraction->status == 2)
-                                            <span>Pending approval from the A.M</span>
-                                        @elseif($attraction->status == 4)
-                                            <span>Awaiting S.M approval</span>
-                                        @elseif($attraction->status == 5)
-                                            <span>Awaiting Admin approval</span>
-                                        @elseif($attraction->status == 3)
-                                            <span>Declined</span>
-                                        @endif
-                                    </td>
-                                    @endif  
-                                    @if(Auth::user()->role_id == 4)
-                                        <td>
-                                            @if($attraction->status == 4)
-                                                <span>Awaiting S.M approval</span>
-                                            @elseif($attraction->status == 5)
-                                                <span>Awaiting Admin approval</span>
-                                            @elseif($attraction->status == 3)
-                                                <span>Declined</span>
-                                            @endif
-                                        </td>
+
+                                @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23 || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id == 91 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || auth()->user()->role_id == 93 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit attraction') || hasPermission('delete attraction'))
+                                @if($attraction->status == 1)
+                                <td class="col-action">
+                                    <!-- Calendar Button -->
+                                    <a href="{{ route('attraction.calendar', ['attraction_id' => Crypt::encrypt($attraction->attraction_id)]) }}"
+                                       target="_blank"
+                                       class="btn btn-icon btn-icon-calendar th-tooltip"
+                                       data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="View Calendar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#4f46e5">
+                                            <path d="M200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-80h560v-400H200v400Zm0-480h560v-80H200v80Zm0 0v-80 80Zm280 240q-17 0-28.5-11.5T440-440q0-17 11.5-28.5T480-480q17 0 28.5 11.5T520-440q0 17-11.5 28.5T480-400Zm-160 0q-17 0-28.5-11.5T280-440q0-17 11.5-28.5T320-480q17 0 28.5 11.5T360-440q0 17-11.5 28.5T320-400Zm320 0q-17 0-28.5-11.5T600-440q0-17 11.5-28.5T640-480q17 0 28.5 11.5T680-440q0 17-11.5 28.5T640-400ZM480-240q-17 0-28.5-11.5T440-280q0-17 11.5-28.5T480-320q17 0 28.5 11.5T520-280q0 17-11.5 28.5T480-240Zm-160 0q-17 0-28.5-11.5T280-280q0-17 11.5-28.5T320-320q17 0 28.5 11.5T360-280q0 17-11.5 28.5T320-240Zm320 0q-17 0-28.5-11.5T600-280q0-17 11.5-28.5T640-320q17 0 28.5 11.5T680-280q0 17-11.5 28.5T640-240Z"/>
+                                        </svg>
+                                    </a>
+
+                                    <!-- Edit Button -->
+                                    @if(hasPermission('edit attraction'))
+                                    <a href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}"
+                                       class="btn btn-icon btn-icon-edit th-tooltip"
+                                       data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Edit Attraction">
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#059669">
+                                            <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
+                                        </svg>
+                                    </a>
                                     @endif
 
-                                    @if(Auth::user()->role_id == 3)
-                                        <td>
-                                            @if($attraction->status == 5)
-                                                <span>Awaiting Admin approval</span>
-                                            @elseif($attraction->status == 3)
-                                                <span>Declined</span>
-                                            @endif
-                                        </td>
-                                    @endif --}}
+                                    <!-- Delete Button -->
+                                    @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                    <button type="button"
+                                            class="btn btn-icon btn-icon-delete th-tooltip"
+                                            data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Delete Attraction"
+                                            onclick="deleteAttraction('{{ route('attraction.destroy', Crypt::encrypt($attraction->attraction_id)) }}', {{ json_encode($attraction->name) }})"
+                                            id="delete-btn-{{ $attraction->attraction_id }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#dc2626">
+                                            <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
+                                        </svg>
+                                    </button>
+                                    @endif
+                                </td>
+                                @else
                                     <td>
+                                        <!-- Calendar Button always visible -->
+                                        <a href="{{ route('attraction.calendar', ['attraction_id' => Crypt::encrypt($attraction->attraction_id)]) }}"
+                                           target="_blank"
+                                           class="btn btn-icon btn-icon-calendar th-tooltip"
+                                           data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="View Calendar">
+                                            <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#4f46e5">
+                                                <path d="M200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-80h560v-400H200v400Zm0-480h560v-80H200v80Zm0 0v-80 80Zm280 240q-17 0-28.5-11.5T440-440q0-17 11.5-28.5T480-480q17 0 28.5 11.5T520-440q0 17-11.5 28.5T480-400Zm-160 0q-17 0-28.5-11.5T280-440q0-17 11.5-28.5T320-480q17 0 28.5 11.5T360-440q0 17-11.5 28.5T320-400Zm320 0q-17 0-28.5-11.5T600-440q0-17 11.5-28.5T640-480q17 0 28.5 11.5T680-440q0 17-11.5 28.5T640-400ZM480-240q-17 0-28.5-11.5T440-280q0-17 11.5-28.5T480-320q17 0 28.5 11.5T520-280q0 17-11.5 28.5T480-240Zm-160 0q-17 0-28.5-11.5T280-280q0-17 11.5-28.5T320-320q17 0 28.5 11.5T360-280q0 17-11.5 28.5T320-240Zm320 0q-17 0-28.5-11.5T600-280q0-17 11.5-28.5T640-320q17 0 28.5 11.5T680-280q0 17-11.5 28.5T640-240Z"/>
+                                            </svg>
+                                        </a>
                                         @if($attraction->status == 5)
-                                            <span>Your Attraction, awaiting for Admin approval</span>
+                                            <span class="text-muted" style="font-size:11.5px;">Awaiting Admin approval</span>
                                         @elseif($attraction->status == 3)
-                                            <span>Declined</span>
+                                            <span class="text-muted" style="font-size:11.5px;">Declined</span>
                                         @endif
                                     </td>
                                 @endif
-                            @endif
-                            <td class="align-top">
-                                <div class="d-flex flex-column">
-                                    <span>{{ $attraction->created_at->format('D,  M d, Y') }}</span>
-                                    <small class="text-muted">{{ $attraction->created_at->format('h:i A') }}</small>
-                                </div>
-                            </td>
+                                @endif
+
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span>{{ $attraction->created_at->format('D,  M d, Y') }}</span>
+                                        <small class="text-muted">{{ $attraction->created_at->format('h:i A') }}</small>
+                                    </div>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
@@ -461,10 +644,10 @@
     </div>
 </div>
 
-<!-- Attraction Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" Category="dialog" 
+<!-- Attraction Delete Modal (kept for backward compatibility) -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog"
         aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog" Category="document">
+    <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="deleteModalLabel">Confirmation</h5>
@@ -483,11 +666,10 @@
         </div>
     </div>
 </div>
-<!-- End Modal -->
 @endsection
-@section('scripts')
 
-<!-- Add SweetAlert2 JS -->
+@section('scripts')
+<!-- SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <!-- DataTable JS -->
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
@@ -497,18 +679,20 @@
         // Initialize DataTable with export buttons
         $('.datatables-basic').DataTable({
             responsive: true,
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
             buttons: [
                 'copy',
                 'csv',
                 'excel',
                 'pdf',
-                'print' // Enable copy, CSV, Excel, PDF, and Print buttons
+                'print'
             ],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            lengthMenu: [10, 25, 50, 100],
+            pagingType: 'simple_numbers',
         });
 
         // Custom export button functionality (for the dropdown)
@@ -537,10 +721,10 @@
 
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Body-level tooltip for attraction action icons and headers (same behaviour as Hotels page)
-    function initAttractionHeaderTooltips() {
+    // Initialise all Bootstrap tooltips in the table (headers + action buttons)
+    function initAttractionTooltips() {
         if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
-        document.querySelectorAll('#attractionsTable thead .th-tooltip[data-bs-toggle="tooltip"]').forEach(function(el) {
+        document.querySelectorAll('#attractionsTable .th-tooltip[data-bs-toggle="tooltip"]').forEach(function(el) {
             const existing = bootstrap.Tooltip.getInstance(el);
             if (existing) existing.dispose();
             new bootstrap.Tooltip(el, {
@@ -551,39 +735,13 @@
     }
 
     $(document).ready(function() {
-        initAttractionHeaderTooltips();
+        initAttractionTooltips();
         $('#attractionsTable').on('draw.dt', function() {
-            initAttractionHeaderTooltips();
-        });
-
-        var $globalTooltip = $('#service-icon-global-tooltip');
-        if (!$globalTooltip.length) {
-            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
-        } else {
-            $globalTooltip.appendTo('body');
-        }
-
-        // Tooltips for action icon badges in Attractions table
-        $(document).on('mouseenter', '#attractionsTable .action-icon-badge', function() {
-            var $w = $(this);
-            var text = $w.attr('data-tooltip') || $w.attr('title') || '';
-            if (!text) return;
-            var el = this;
-            var rect = el.getBoundingClientRect();
-            $globalTooltip.css({
-                display: 'block',
-                left: (rect.left + rect.width / 2) + 'px',
-                top: (rect.top - 6) + 'px',
-                transform: 'translate(-50%, -100%)'
-            }).text(text);
-        });
-
-        $(document).on('mouseleave', '#attractionsTable .action-icon-badge', function() {
-            $globalTooltip.hide();
+            initAttractionTooltips();
         });
     });
 
-    // Attraction deletion function with SweetAlert (similar to Hotels page)
+    // Attraction deletion with SweetAlert2
     window.deleteAttraction = function(deleteUrl, attractionName) {
         Swal.fire({
             title: 'Delete Attraction?',
@@ -591,16 +749,15 @@
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d',
             confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'No, keep it'
+            cancelButtonText: 'Cancel'
         }).then((result) => {
             if (result.isConfirmed) {
                 const button = document.querySelector(`[onclick*="${deleteUrl}"]`);
-                const originalContent = button ? button.innerHTML : '';
 
                 if (button) {
-                    button.innerHTML = '<i class="ri-loader-4-line spin"></i> Deleting...';
+                    button.innerHTML = '<i class="ri-loader-4-line spin"></i>';
                     button.disabled = true;
                 }
 
@@ -629,20 +786,18 @@
         });
     };
 
-    // Existing modal-based delete helper (kept for backward compatibility if needed)
+    // Backward-compatible modal delete helper
     function setDeleteForm(action) {
         document.getElementById('deleteForm').action = action;
     }
-    
+
     function showDmcModal(attractionId, type, companies) {
-        // Set modal title
         const modalTitle = document.getElementById('dmcCompaniesModalLabel');
         modalTitle.textContent = type === 'master_dmc' ? 'Master DMC Companies' : 'DMC Companies';
-        
-        // Clear and populate modal body
+
         const modalBody = document.getElementById('dmcCompaniesModalBody');
         modalBody.innerHTML = '';
-        
+
         if (companies && companies.length > 0) {
             companies.forEach(function(company) {
                 const companyDiv = document.createElement('div');
@@ -656,20 +811,16 @@
         } else {
             modalBody.innerHTML = '<p class="text-muted">No companies found.</p>';
         }
-        
-        // Show modal using Bootstrap 4 syntax
+
         $('#dmcCompaniesModal').modal('show');
     }
-    
-    // Add explicit close functionality
+
     function closeDmcModal() {
         $('#dmcCompaniesModal').modal('hide');
     }
-    
-    // Ensure modal can be closed with escape key and click outside
+
     $(document).ready(function() {
         $('#dmcCompaniesModal').on('hidden.bs.modal', function () {
-            // Clean up when modal is closed
             $('#dmcCompaniesModalBody').html('');
         });
     });
