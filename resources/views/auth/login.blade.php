@@ -3,8 +3,7 @@
 @section('title', 'Login')
 
 @section('css')
-{{-- Leaflet CSS --}}
-<link rel="stylesheet" href="{{ asset('assets/vendor/libs/leaflet/leaflet.css') }}">
+{{-- Static map background video --}}
 <style>
   /* ═══════════════════════════════════════════
      Page-level polish
@@ -13,6 +12,41 @@
     background: radial-gradient(1200px 600px at 20% 10%, rgba(13,110,253,.10) 0%, rgba(13,110,253,0) 55%),
                 radial-gradient(900px 500px at 90% 30%, rgba(111,66,193,.08) 0%, rgba(111,66,193,0) 60%),
                 #f6f8ff;
+  }
+  /* Make the login view fill the viewport height (prevents large bottom gap). */
+  .auth-page-wrapper{
+    min-height: 100vh;
+    display: flex;
+    align-items: stretch;
+    padding: .75rem 0;
+  }
+  .auth-shell-card{
+    max-width: 1280px;
+    width: 100%;
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+  }
+  .auth-shell-card > .row{
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .auth-shell-card .col-lg-5,
+  .auth-shell-card .col-lg-7{
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  /* Left column content should be allowed to stretch when card height grows. */
+  .auth-shell-card .col-lg-5 .card-body{
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .auth-hero{
+    flex: 1 1 auto;
+    min-height: 320px;
+    height: 100%;
   }
   .auth-shell-card{
     background: rgba(255,255,255,.85);
@@ -60,6 +94,18 @@
   .auth-hero{
     background: #f0f4f8;
     box-shadow: inset 0 0 0 1px rgba(0,0,0,.06), 0 18px 45px rgba(0,0,0,.08);
+  }
+  .auth-hero-video{
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+    background: #f0f4f8;
+    opacity: .95;
+    filter: saturate(.65) contrast(1.05);
+    pointer-events: none;
   }
   #heroLeafletMap{
     position: absolute; inset: 0; width: 100%; height: 100%;
@@ -224,12 +270,12 @@
 
 @section('content')
 
-<div class="mx-3 mx-lg-0">
+<div class="mx-3 mx-lg-0 auth-page-wrapper">
   @php
       $logoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
       $fileStorage = \App\Helpers\CommonHelper::masterSettingsName('file_storage')['master_value'] ?? 'local';
   @endphp
-  <div class="card my-2 col-xl-9 col-xxl-8 mx-auto rounded-4 overflow-hidden p-2 auth-shell-card">
+  <div class="card my-0 mx-auto rounded-4 overflow-hidden p-2 auth-shell-card">
     <div class="row g-1">
       <div class="col-lg-5 d-flex">
         <div class="card-body p-2">
@@ -304,10 +350,12 @@
         </div>
       </div>
 
-      {{-- ═══ RIGHT PANEL: Leaflet World Map ═══ --}}
+      {{-- ═══ RIGHT PANEL: Map Background Video ═══ --}}
       <div class="col-lg-7 d-lg-flex d-none">
         <div class="p-0 rounded-4 w-100 d-flex flex-column text-white position-relative overflow-hidden auth-hero">
-          <div id="heroLeafletMap"></div>
+          <video class="auth-hero-video" autoplay loop muted playsinline preload="metadata">
+            <source src="{{ asset('assets/images/map.mp4') }}" type="video/mp4">
+          </video>
           <div class="auth-hero-gradient"></div>
 
           {{-- Bottom overlay text --}}
@@ -327,7 +375,6 @@
 @endsection
 
 @section('scripts')
-<script src="{{ asset('assets/vendor/libs/leaflet/leaflet.js') }}"></script>
 <script>
 (function(){
 

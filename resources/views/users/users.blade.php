@@ -317,11 +317,11 @@
                             </div>
                         </div>
                         <div class="settings-col">
-                            <div class="form-group auto-cancel-day-wrap mb-0" data-user-id="{{ $user->userId }}" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
+                            <div class="form-group auto-cancel-day-wrap mb-0" data-user-id="{{ $user->userId }}" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }}; padding-right: 5px;">
                                 <select class="form-select auto-cancel-dropdown"
                                     data-user-id="{{ $user->userId }}"
                                     id="auto_cancel_{{ $user->userId }}"
-                                    style="width: 60px; height: 25px; font-size: 12px; padding: 1px;">
+                                    style="width: 60px; height: 25px; font-size: 12px; padding: 1px; ">
                                     <option value="1" {{ ($user->auto_cancel_date == 1 || is_null($user->auto_cancel_date)) ? 'selected' : '' }}>D-1</option>
                                     <option value="2" {{ $user->auto_cancel_date == 2 ? 'selected' : '' }}>D-2</option>
                                     <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
@@ -346,7 +346,7 @@
                                     id="guide_pax_{{ $user->userId }}"
                                     value="{{ $user->guide_pax ?? 0 }}"
                                     maxlength="2" inputmode="numeric" pattern="[0-9]*"
-                                    style="width: 50px; height: 25px; font-size: 12px; padding: 1px; text-align: center;"
+                                    style="width: 50px; height: 25px; font-size: 12px; padding: 1px; text-align: center; padding-left: 5px;"
                                     oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
                             </div>
                         </div>
