@@ -268,7 +268,7 @@
                                                 </div>
                                                 <div class="flex-grow-1 ms-2">
                                                     <div class="text-truncate small fw-medium">{{ $hotel['name'] }}</div>
-                                                    <div class="text-muted" style="font-size: 10px;">{{ $hotel['city'] }}</div>
+                                                    <div class="text-muted" style="font-size: 10px;">{{ $hotel['city'] ?? '' }} {{ $hotel['country'] ?? '' }}</div>
                                                 </div>
                                             </div>
                                         @endforeach

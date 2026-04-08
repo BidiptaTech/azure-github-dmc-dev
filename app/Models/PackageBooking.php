@@ -30,10 +30,14 @@ class PackageBooking extends Model
         'selected_attractions' => 'json',
         'selected_guides' => 'json',
         'selected_restaurants' => 'json',
+        'transfer_data' => 'json',
+        'arrival_data' => 'json',
+        'departure_data' => 'json',
         'payment_details' => 'json',
         'taxes' => 'json',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+
     ];
     
     /**

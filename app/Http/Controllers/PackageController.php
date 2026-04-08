@@ -21,6 +21,8 @@ use App\Models\PackageBooking;
 use App\Models\Vehicle;
 use App\Models\Agent;
 use App\Models\Room;
+use App\Models\Bed;
+use App\Models\Ticket;
 use App\Models\Port;
 use Illuminate\Support\Facades\Crypt;
 
@@ -695,6 +697,54 @@ class PackageController extends Controller
         });
 
         return response()->json(['room_types' => $roomTypes]);
+    }
+
+    /**
+     * Get bed types by room (AJAX) for package definition.
+     * Uses beds.room_id -> rooms.room_id
+     */
+    public function getBedsByRoom($roomId)
+    {
+        $beds = Bed::where('room_id', $roomId)->get();
+
+        $bedTypes = $beds->map(function ($bed) {
+            return [
+                'room_type' => (string) ($bed->room_type ?? ''),
+                'extra_bed' => (int) ($bed->extra_bed ?? 0) === 1,
+                'bed_id' => (int) ($bed->bed_id ?? 0),
+                'extra_bed_type' => (string) ($bed->extra_bed_type ?? ''),
+            ];
+        })
+        ->filter(function ($bed) {
+            return $bed['room_type'] !== '';
+        })
+        ->unique(function ($bed) {
+            return strtolower($bed['room_type']) . '|' . ($bed['extra_bed'] ? '1' : '0');
+        })
+        ->values();
+
+        return response()->json(['beds' => $bedTypes]);
+    }
+
+    /**
+     * Get tickets by attraction (AJAX) for package definition.
+     */
+    public function getTicketsByAttraction($attractionId)
+    {
+        $tickets = Ticket::where('attraction_id', $attractionId)
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get([
+                'id',
+                'ticket_id',
+                'name',
+                'adult_price',
+                'child_price',
+                'senior_adult_price',
+                'attraction_id',
+            ]);
+
+        return response()->json(['tickets' => $tickets]);
     }
 
     /**
