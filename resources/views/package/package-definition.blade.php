@@ -171,6 +171,12 @@
                                                     <option value="">Select room type</option>
                                                 </select>
                                             </div>
+                                            <div class="flex-grow-1" style="min-width: 140px;">
+                                                <label class="form-label small mb-0">Bed Type</label>
+                                                <select class="form-select form-select-sm" id="definition-bed-type-select">
+                                                    <option value="">Select bed type</option>
+                                                </select>
+                                            </div>
                                             <div style="width: 70px;">
                                                 <label class="form-label small mb-0">Qty</label>
                                                 <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1">
@@ -200,10 +206,20 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3 h-100 hotel-attraction-box">
                                 <h6 class="fw-semibold mb-2 text-success"><i class="ri-map-pin-line me-1"></i>Attraction</h6>
-                                <label class="form-label small mb-1">Select Attraction</label>
-                                <select class="form-select form-select-sm w-100 mb-2" id="definition-attraction-select">
-                                    <option value="">Select City First</option>
-                                </select>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small mb-1">Select Attraction</label>
+                                        <select class="form-select form-select-sm w-100" id="definition-attraction-select">
+                                            <option value="">Select City First</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small mb-1">Select Ticket</label>
+                                        <select class="form-select form-select-sm w-100" id="definition-attraction-ticket-select">
+                                            <option value="">Select attraction first</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div id="definition-attraction-config" style="display: none;">
                                     <div class="bg-success-subtle rounded p-2 mb-2">
                                         <h6 class="small fw-semibold mb-1">Guide & transfer</h6>
@@ -476,7 +492,7 @@
             </div>
 
             <!-- Transport: Local Transfer (pickup & dropoff = hotels, attractions, restaurants, ports; dropoff excludes selected pickup) -->
-            <div class="card mb-5">
+            <!-- <div class="card mb-5">
                 <div class="card-header bg-light">
                     <h5 class="mb-0"><i class="ri-car-line me-2 text-secondary"></i>Transport</h5>
                 </div>
@@ -521,7 +537,7 @@
                     </div>
                     <input type="hidden" name="local_transfers" id="local-transfers-hidden" value="[]">
                 </div>
-            </div>
+            </div> -->
 
             <!-- Add-On services aggregated price data (JSON) -->
             <input type="hidden" name="price_data" id="price-data-hidden" value="[]">
@@ -761,18 +777,22 @@ $(document).ready(function() {
 
     let definitionPendingRooms = [];
     let definitionRoomTypesByHotel = [];
+    let definitionBedsByRoom = [];
 
     // Hotel → Room types (AJAX): populate Room Type select
     $('#definition-hotel-select').on('change', function() {
         const hotelId = $(this).val();
         const wrapper = $('#definition-rooms-wrapper');
         const roomTypeSelect = $('#definition-room-type-select');
+        const bedTypeSelect = $('#definition-bed-type-select');
         roomTypeSelect.empty().append('<option value="">Select room type</option>');
+        bedTypeSelect.empty().append('<option value="">Select bed type</option>');
         definitionPendingRooms = [];
         renderDefinitionPendingRooms();
         if (!hotelId) {
             wrapper.hide();
             definitionRoomTypesByHotel = [];
+            definitionBedsByRoom = [];
             return;
         }
         $.get(baseUrl + '/room-types-by-hotel/' + encodeURIComponent(hotelId), function(res) {
@@ -790,6 +810,32 @@ $(document).ready(function() {
         });
     });
 
+    // Room type -> Bed types (AJAX): populate Bed Type select
+    $('#definition-room-type-select').on('change', function() {
+        const roomId = $(this).val();
+        const bedTypeSelect = $('#definition-bed-type-select');
+        bedTypeSelect.empty().append('<option value="">Select bed type</option>');
+        definitionBedsByRoom = [];
+        if (!roomId) return;
+
+        $.get(baseUrl + '/beds-by-room/' + encodeURIComponent(roomId), function(res) {
+            const beds = Array.isArray(res.beds) ? res.beds : [];
+            definitionBedsByRoom = beds;
+            if (beds.length === 0) {
+                bedTypeSelect.append('<option value="" disabled>No bed types found</option>');
+                return;
+            }
+            beds.forEach(function(b) {
+                const label = b.room_type || 'Bed';
+                const opt = new Option(label, label);
+                $(opt).attr('data-extra-bed', b.extra_bed ? 1 : 0);
+                $(opt).attr('data-extra-bed-type', b.extra_bed_type);
+                $(opt).attr('data-bed-id', b.bed_id);
+                bedTypeSelect.append(opt);
+            });
+        });
+    });
+
     function renderDefinitionPendingRooms() {
         const el = $('#definition-pending-rooms');
         el.empty();
@@ -797,7 +843,7 @@ $(document).ready(function() {
         definitionPendingRooms.forEach(function(r, i) {
             el.append(`
                 <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1 mb-1 bg-white small">
-                    <span>${escapeHtml(r.room_type_name)} × ${r.quantity}</span>
+                    <span>${escapeHtml(r.room_type_name)} · ${escapeHtml(r.bed_type || 'N/A')} × ${r.quantity}</span>
                     <button type="button" class="btn btn-link btn-sm p-0 text-danger definition-pending-room-remove" data-i="${i}" title="Remove"><i class="ri-close-line"></i></button>
                 </div>
             `);
@@ -816,9 +862,25 @@ $(document).ready(function() {
             return;
         }
         const roomTypeName = $('#definition-room-type-select').find('option:selected').text();
+        const bedType = $('#definition-bed-type-select').val();
+        if (!bedType) {
+            alert('Please select a bed type.');
+            return;
+        }
+        const extraBed = parseInt($('#definition-bed-type-select option:selected').attr('data-extra-bed') || '0', 10) === 1;
+        const extraBedType = $('#definition-bed-type-select option:selected').attr('data-extra-bed-type');
+        const bedId = $('#definition-bed-type-select option:selected').attr('data-bed-id');
         const qty = parseInt($('#definition-room-type-qty').val(), 10) || 1;
         if (qty < 1) return;
-        definitionPendingRooms.push({ room_type_id: roomTypeId, room_type_name: roomTypeName, quantity: qty });
+        definitionPendingRooms.push({
+            room_type_id: roomTypeId,
+            room_type_name: roomTypeName,
+            bed_type: bedType,
+            extra_bed: extraBed,
+            quantity: qty,
+            extra_bed_type: extraBedType,
+            bed_id: bedId
+        });
         renderDefinitionPendingRooms();
         $('#definition-room-type-qty').val(1);
     });
@@ -873,6 +935,8 @@ $(document).ready(function() {
         $('#definition-hotel-select').val('').trigger('change.select2');
         $('#definition-rooms-wrapper').hide();
         $('#definition-room-type-select').empty().append('<option value="">Select room type</option>');
+        $('#definition-bed-type-select').empty().append('<option value="">Select bed type</option>');
+        definitionBedsByRoom = [];
         definitionPendingRooms = [];
         renderDefinitionPendingRooms();
         $('#definition-room-type-qty').val(1);
@@ -893,7 +957,9 @@ $(document).ready(function() {
         countEl.text(definitionHotels.length);
         listEl.show().empty();
         definitionHotels.forEach(function(entry, idx) {
-            const roomsText = entry.rooms.map(function(r) { return r.room_type_name + ' × ' + r.quantity; }).join(', ');
+            const roomsText = entry.rooms.map(function(r) {
+                return r.room_type_name + ' (' + (r.bed_type || 'N/A') + ') × ' + r.quantity;
+            }).join(', ');
             const isCompulsory = entry.compulsory === true;
             const isOptional = entry.optional === true;
             const isAddon = entry.addon === true;
@@ -982,10 +1048,27 @@ $(document).ready(function() {
     $('#definition-attraction-select').on('change', function() {
         const val = $(this).val();
         const configEl = $('#definition-attraction-config');
+        const ticketSel = $('#definition-attraction-ticket-select');
+        ticketSel.empty().append('<option value="">Select ticket</option>');
         if (!val) {
             configEl.hide();
+            ticketSel.empty().append('<option value="">Select attraction first</option>');
             return;
         }
+        $.get(baseUrl + '/tickets-by-attraction/' + encodeURIComponent(val), function(res) {
+            const tickets = Array.isArray(res.tickets) ? res.tickets : [];
+            if (tickets.length === 0) {
+                ticketSel.append('<option value="" disabled>No tickets found</option>');
+                return;
+            }
+            tickets.forEach(function(t) {
+                const ticketId = t.ticket_id || t.id;
+                const label = t.name || ('Ticket ' + ticketId);
+                const opt = new Option(label, ticketId);
+                $(opt).data('ticket-data', t);
+                ticketSel.append(opt);
+            });
+        });
         configEl.show();
         const guideSel = $('#definition-attraction-config-guide');
         guideSel.empty().append('<option value="">Select guide</option>');
@@ -1042,6 +1125,9 @@ $(document).ready(function() {
             alert('Please select an attraction.');
             return;
         }
+        const ticketOpt = $('#definition-attraction-ticket-select').find('option:selected');
+        const ticketId = $('#definition-attraction-ticket-select').val();
+        const ticketData = ticketOpt.data('ticket-data') || null;
         const needGuide = $('#definition-attraction-config-need-guide').is(':checked');
         const guideId = needGuide ? $('#definition-attraction-config-guide').val() : '';
         const g = guideId ? guidesByCity.find(x => x.guide_id == guideId) : null;
@@ -1065,6 +1151,13 @@ $(document).ready(function() {
             optional_price: '',
             addon_price: attrPrice,
             base_price: attrPrice,
+            ticket_id: ticketId || null,
+            ticket_name: ticketData ? (ticketData.name || null) : null,
+            ticket: ticketData ? {
+                id: ticketData.id || null,
+                ticket_id: ticketData.ticket_id || ticketId || null,
+                name: ticketData.name || null
+            } : null,
             guide: g ? { id: g.guide_id, name: g.name, languages: g.languages, contact_no: g.contact_no } : null,
             transfer: transfer,
             vehicle_id: v ? v.vehicle_id : null,
@@ -1078,6 +1171,7 @@ $(document).ready(function() {
         updateDefinitionAttractionsInput();
         renderDefinitionAttractions();
         $('#definition-attraction-select').val('').trigger('change');
+        $('#definition-attraction-ticket-select').empty().append('<option value="">Select attraction first</option>');
         $('#definition-attraction-config').hide();
     });
 
@@ -1094,6 +1188,7 @@ $(document).ready(function() {
         container.show();
         definitionAttractions.forEach(function(a, idx) {
             const parts = [];
+            if (a.ticket_name) parts.push('<i class="ri-coupon-3-line me-1" title="Ticket"></i>' + escapeHtml(a.ticket_name));
             if (a.guide && a.guide.name) parts.push('<i class="ri-user-line me-1" title="Guide"></i>' + escapeHtml(a.guide.name));
             if (a.transfer) {
                 if (a.vehicle_name) parts.push('<i class="ri-car-line me-1" title="Vehicle"></i>' + escapeHtml(a.vehicle_name));
@@ -1424,6 +1519,17 @@ $(document).ready(function() {
     let localTransferChosenVehicles = [];
     let localTransfersList = [];
 
+    /** Match API vehicle row to select value (string/number/id aliases). */
+    function findLocalTransferVehicleBySelectValue(vehicles, val) {
+        if (val == null || val === '' || !Array.isArray(vehicles)) return null;
+        const s = String(val);
+        return vehicles.find(function(x) {
+            if (!x) return false;
+            const id = x.vehicle_id != null ? x.vehicle_id : x.id;
+            return String(id) === s;
+        }) || null;
+    }
+
     $(document).ready(function() {
         refreshLocalTransferPickupDropoff();
     });
@@ -1462,12 +1568,15 @@ $(document).ready(function() {
                 zone_status: 1
             },
             success: function(res) {
-                localTransferVehiclesByZone = res.vehicles || [];
+                localTransferVehiclesByZone = Array.isArray(res.vehicles) ? res.vehicles : [];
                 const sel = $('#local-transfer-vehicle-select');
                 sel.empty().append('<option value="">Select vehicle</option>');
                 localTransferVehiclesByZone.forEach(function(v) {
+                    const vid = v.vehicle_id != null ? v.vehicle_id : v.id;
                     const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
-                    sel.append(new Option(name, v.vehicle_id));
+                    const opt = new Option(name, vid);
+                    $(opt).data('vehicle-row', v);
+                    sel.append(opt);
                 });
                 $('#local-transfer-vehicle-wrap').show();
             },
@@ -1481,12 +1590,17 @@ $(document).ready(function() {
     $('#local-transfer-add-vehicle-btn').on('click', function() {
         const val = $('#local-transfer-vehicle-select').val();
         if (!val) return;
-        const v = localTransferVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
+        let v = findLocalTransferVehicleBySelectValue(localTransferVehiclesByZone, val);
+        if (!v) {
+            const opt = $('#local-transfer-vehicle-select').find('option:selected');
+            v = opt.data('vehicle-row');
+        }
         if (!v) return;
-        if (localTransferChosenVehicles.some(function(x) { return x.vehicle_id == val; })) return;
+        const vid = v.vehicle_id != null ? v.vehicle_id : v.id;
+        if (localTransferChosenVehicles.some(function(x) { return String(x.vehicle_id) === String(vid); })) return;
         const priv = parseFloat(v.private_price) || 0;
         const shared = parseFloat(v.shared_price) || 0;
-        localTransferChosenVehicles.push({ vehicle_id: v.vehicle_id, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type, private_price: priv, shared_price: shared });
+        localTransferChosenVehicles.push({ vehicle_id: vid, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type, private_price: priv, shared_price: shared });
         const html = localTransferChosenVehicles.map(function(x, i) {
             return '<span class="badge bg-secondary me-1 mb-1">' + (x.vehicle_name || '') + (x.vehicle_type ? ' (' + x.vehicle_type + ')' : '') + ' <a href="#" class="text-white local-transfer-remove-vehicle" data-idx="' + i + '">×</a></span>';
         }).join('');
@@ -1511,7 +1625,25 @@ $(document).ready(function() {
         const fromItem = list.find(function(x) { return x.value === pickupVal; });
         const toItem = list.find(function(x) { return x.value === dropoffVal; });
         if (!fromItem || !toItem) return;
-        const transferPrice = localTransferChosenVehicles.reduce(function(sum, v) {
+        let vehiclesSnapshot = localTransferChosenVehicles.slice();
+        const pendingVal = $('#local-transfer-vehicle-select').val();
+        if (pendingVal) {
+            const already = vehiclesSnapshot.some(function(x) { return String(x.vehicle_id) === String(pendingVal); });
+            if (!already) {
+                let pv = findLocalTransferVehicleBySelectValue(localTransferVehiclesByZone, pendingVal);
+                if (!pv) {
+                    const opt = $('#local-transfer-vehicle-select').find('option:selected');
+                    pv = opt.data('vehicle-row');
+                }
+                if (pv) {
+                    const pvid = pv.vehicle_id != null ? pv.vehicle_id : pv.id;
+                    const priv = parseFloat(pv.private_price) || 0;
+                    const shared = parseFloat(pv.shared_price) || 0;
+                    vehiclesSnapshot.push({ vehicle_id: pvid, vehicle_name: pv.vehicle_name || pv.name, vehicle_type: pv.vehicle_type, private_price: priv, shared_price: shared });
+                }
+            }
+        }
+        const transferPrice = vehiclesSnapshot.reduce(function(sum, v) {
             return sum + (parseFloat(v.private_price) || parseFloat(v.shared_price) || 0);
         }, 0);
         const transferBasePrice = transferPrice > 0 ? transferPrice : '';
@@ -1524,7 +1656,7 @@ $(document).ready(function() {
             dropoff_label: toItem.label,
             dropoff_type: toItem.type,
             dropoff_zone_id: toItem.zoneId,
-            vehicles: localTransferChosenVehicles.slice(),
+            vehicles: vehiclesSnapshot,
             compulsory: false,
             optional: false,
             addon: false,
@@ -1982,8 +2114,10 @@ $(document).ready(function() {
                 image: a.image || '',
                 compulsory: !!a.compulsory,
                 optional: !!a.optional,
-                "add-on": !!a.addon,
-                "add-on-price": a.addon_price != null && a.addon_price !== '' ? parseFloat(a.addon_price) : null,
+                optional_price: a.optional_price != null && a.optional_price !== '' ? parseFloat(a.optional_price) : null,
+                ticket_id: a.ticket_id || null,
+                ticket_name: a.ticket_name || null,
+                ticket: a.ticket || null,
                 guide: a.guide || null,
                 transfer: !!a.transfer,
                 vehicle_id: a.vehicle_id || null,

@@ -557,6 +557,8 @@ Route::get('/clear', function () {
                 // Country → City
                 Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity'])->name('hotel-city');
                 Route::get('/room-types-by-hotel/{hotelId}', [PackageController::class, 'getRoomTypesByHotel'])->name('room-types-by-hotel');
+                Route::get('/beds-by-room/{roomId}', [PackageController::class, 'getBedsByRoom'])->name('beds-by-room');
+                Route::get('/tickets-by-attraction/{attractionId}', [PackageController::class, 'getTicketsByAttraction'])->name('tickets-by-attraction');
 
                 Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
                 Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
@@ -600,6 +602,9 @@ Route::get('/clear', function () {
         ->name('packages.getAgentsByAgency');
         Route::get('/packages/booking/details/{packageId}', [\App\Http\Controllers\PackageBookingController::class, 'packageDetails'])->name('packages.booking.details');
         Route::post('/packages/booking', [\App\Http\Controllers\PackageBookingController::class, 'store'])->name('packages.booking.store');
+        Route::get('/package-booking/{booking_id}/details', [\App\Http\Controllers\PackageBookingController::class, 'showBookingDetails'])->name('package.booking.details');
+        Route::get('/packages/booking/bed-options', [\App\Http\Controllers\PackageBookingController::class, 'bedOptions'])->name('packages.booking.bed-options');
+        Route::post('/package-booking/{booking_id}/update-service-date', [\App\Http\Controllers\PackageBookingController::class, 'updateServiceTourDate'])->name('package.booking.update-service-date');
         Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
         Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
