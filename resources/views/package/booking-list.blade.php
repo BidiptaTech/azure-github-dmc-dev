@@ -730,7 +730,10 @@
                                 </td>
                                 <td class="align-top col-actions">
                                     <div class="actions-icons-wrap">
-                                        <a href="javascript:void(0);" class="action-icon-badge" style="--action-color: #0369a1;" data-toggle="modal" data-target="#viewBookingModal{{ $booking->id }}" data-bs-toggle="modal" data-bs-target="#viewBookingModal{{ $booking->id }}" data-tooltip="View">
+                                        <!-- <a href="javascript:void(0);" class="action-icon-badge" style="--action-color: #0369a1;" data-toggle="modal" data-target="#viewBookingModal{{ $booking->id }}" data-bs-toggle="modal" data-bs-target="#viewBookingModal{{ $booking->id }}" data-tooltip="View">
+                                            <i class="ri-eye-line"></i>
+                                        </a> -->
+                                        <a href="{{ route('package.booking.details', $booking->booking_id) }}" class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="View details">
                                             <i class="ri-eye-line"></i>
                                         </a>
                                         @if(in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 131, 132, 134, 135, 137, 138]) && !in_array($booking->status, ['5', '6', '7']))

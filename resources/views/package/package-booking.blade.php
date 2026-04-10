@@ -6,6 +6,7 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
+                <x-alert />
                 <h4 class="fw-bold mb-1"><i class="ri-suitcase-line me-2 text-primary"></i>Package Booking</h4>
                 <p class="text-muted mb-0">Choose booking criteria, load a package, then modify services.</p>
             </div>
@@ -73,10 +74,6 @@
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Hotels</h6></div>
                             <div class="card-body">
-                                <div class="d-flex gap-2 mb-3">
-                                    <input type="text" class="form-control form-control-sm" id="newHotelName" placeholder="Hotel name">
-                                    <button type="button" class="btn btn-sm btn-primary" id="addHotelBtn">Add</button>
-                                </div>
                                 <div id="hotelsList"></div>
                             </div>
                         </div>
@@ -85,10 +82,6 @@
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Attractions</h6></div>
                             <div class="card-body">
-                                <div class="d-flex gap-2 mb-3">
-                                    <input type="text" class="form-control form-control-sm" id="newAttractionName" placeholder="Attraction name">
-                                    <button type="button" class="btn btn-sm btn-success" id="addAttractionBtn">Add</button>
-                                </div>
                                 <div id="attractionsList"></div>
                             </div>
                         </div>
@@ -97,10 +90,6 @@
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Restaurants</h6></div>
                             <div class="card-body">
-                                <div class="d-flex gap-2 mb-3">
-                                    <input type="text" class="form-control form-control-sm" id="newRestaurantName" placeholder="Restaurant name">
-                                    <button type="button" class="btn btn-sm btn-warning" id="addRestaurantBtn">Add</button>
-                                </div>
                                 <div id="restaurantsList"></div>
                             </div>
                         </div>
@@ -109,10 +98,6 @@
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Guides</h6></div>
                             <div class="card-body">
-                                <div class="d-flex gap-2 mb-3">
-                                    <input type="text" class="form-control form-control-sm" id="newGuideName" placeholder="Guide name">
-                                    <button type="button" class="btn btn-sm btn-info" id="addGuideBtn">Add</button>
-                                </div>
                                 <div id="guidesList"></div>
                             </div>
                         </div>
@@ -120,46 +105,41 @@
                 </div>
 
                 <div class="row g-4 mt-1">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Arrival Data</h6></div>
                             <div class="card-body">
-                                <label class="form-label">Enabled</label>
-                                <select class="form-select form-select-sm mb-2" id="arrivalEnabled">
+                                <div id="arrivalSummary"></div>
+                                <select class="d-none" id="arrivalEnabled">
                                     <option value="1">Yes</option>
                                     <option value="0">No</option>
                                 </select>
-                                <label class="form-label">Pickup Port ID</label>
-                                <input type="text" class="form-control form-control-sm mb-2" id="arrivalPickupPortId">
-                                <label class="form-label">Dropoff Hotel ID</label>
-                                <input type="text" class="form-control form-control-sm mb-2" id="arrivalDropoffHotelId">
+                                <input type="hidden" id="arrivalPickupPortId">
+                                <input type="hidden" id="arrivalDropoffHotelId">
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Departure Data</h6></div>
                             <div class="card-body">
-                                <label class="form-label">Enabled</label>
-                                <select class="form-select form-select-sm mb-2" id="departureEnabled">
+                                <div id="departureSummary"></div>
+                                <select class="d-none" id="departureEnabled">
                                     <option value="1">Yes</option>
                                     <option value="0">No</option>
                                 </select>
-                                <label class="form-label">Pickup Hotel ID</label>
-                                <input type="text" class="form-control form-control-sm mb-2" id="departurePickupHotelId">
-                                <label class="form-label">Dropoff Port ID</label>
-                                <input type="text" class="form-control form-control-sm mb-2" id="departureDropoffPortId">
+                                <input type="hidden" id="departurePickupHotelId">
+                                <input type="hidden" id="departureDropoffPortId">
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                </div>
+
+                <div class="row g-4 mt-1">
+                    <div class="col-md-12">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Transfer Data</h6></div>
                             <div class="card-body">
-                                <div class="d-flex gap-2 mb-2">
-                                    <input type="text" class="form-control form-control-sm" id="newTransferLabel" placeholder="Pickup -> Dropoff">
-                                    <button type="button" class="btn btn-sm btn-secondary" id="addTransferBtn">Add</button>
-                                </div>
                                 <div id="transfersList"></div>
                             </div>
                         </div>
@@ -200,10 +180,12 @@
         let departureData = {};
         let transfers = [];
         let selectedPackageCity = '';
+        let bedOptionsBySourceBedId = {};
 
         const prefilledPackageId = @json($prefilledPackageId ?? null);
         const filterUrl = @json(route('packages.booking.filter'));
         const detailUrlTemplate = @json(route('packages.booking.details', ['packageId' => '__PACKAGE_ID__']));
+        const bedOptionsUrl = @json(route('packages.booking.bed-options'));
 
         const packageSelect = document.getElementById('package_select');
         const packageFilterMessage = document.getElementById('packageFilterMessage');
@@ -224,60 +206,499 @@
 
         function esc(v) { return String(v || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-        function renderList(container, list, nameKey) {
-            if (!Array.isArray(list) || list.length === 0) {
-                container.innerHTML = '<div class="text-muted small">No items</div>';
-                return;
-            }
-            container.innerHTML = list.map((item, idx) => {
-                const name = item[nameKey] || item.name || item.label || ('Item ' + (idx + 1));
-                return '<div class="d-flex justify-content-between align-items-center border rounded px-2 py-1 mb-1 small">'
-                    + '<span>' + esc(name) + '</span>'
-                    + '<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" data-remove-idx="' + idx + '">x</button>'
-                    + '</div>';
-            }).join('');
+        function formatBadge(text, cls) {
+            return '<span class="badge ' + cls + '">' + esc(text) + '</span>';
         }
 
-        function bindRemove(container, getList, setList, renderFn) {
-            container.querySelectorAll('[data-remove-idx]').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const idx = parseInt(this.getAttribute('data-remove-idx'), 10);
-                    const list = getList();
-                    list.splice(idx, 1);
-                    setList(list);
-                    renderFn();
+        function isOptional(item) {
+            return !!(item && item.optional === true);
+        }
+
+        function isCompulsory(item) {
+            return !!(item && item.compulsory === true);
+        }
+
+        function statusBadge(item) {
+            if (isCompulsory(item)) {
+                return formatBadge('Compulsory', 'bg-success');
+            }
+            if (isOptional(item)) {
+                return formatBadge('Optional', 'bg-warning text-dark');
+            }
+            return formatBadge('-', 'bg-secondary');
+        }
+
+        function initOptionalSelections(list) {
+            if (!Array.isArray(list)) return [];
+            return list.map(item => {
+                const next = item || {};
+                if (next.optional === true) {
+                    next.selected = false; // default unselected for optional items
+                }
+                return next;
+            });
+        }
+
+        function bindOptionalCheckboxes(container, listRef) {
+            container.querySelectorAll('.optional-checkbox').forEach(cb => {
+                cb.addEventListener('change', function () {
+                    const index = parseInt(this.getAttribute('data-index') || '-1', 10);
+                    if (!Array.isArray(listRef) || index < 0 || !listRef[index]) return;
+                    listRef[index].selected = this.checked === true;
                     syncHidden();
                 });
             });
         }
 
-        function renderHotels() { renderList(hotelsList, hotels, 'hotel_name'); bindRemove(hotelsList, () => hotels, v => hotels = v, renderHotels); }
-        function renderAttractions() { renderList(attractionsList, attractions, 'name'); bindRemove(attractionsList, () => attractions, v => attractions = v, renderAttractions); }
-        function renderGuides() { renderList(guidesList, guides, 'name'); bindRemove(guidesList, () => guides, v => guides = v, renderGuides); }
-        function renderRestaurants() { renderList(restaurantsList, restaurants, 'restaurant_name'); bindRemove(restaurantsList, () => restaurants, v => restaurants = v, renderRestaurants); }
-        function renderTransfers() { renderList(transfersList, transfers, 'pickup_label'); bindRemove(transfersList, () => transfers, v => transfers = v, renderTransfers); }
+        function renderTypeToggle(section, idx, item) {
+            const compChecked = isCompulsory(item) ? 'checked' : '';
+            const optChecked = isOptional(item) ? 'checked' : '';
+            return '<div class="d-flex align-items-center gap-3 flex-wrap">'
+                + '<div class="form-check m-0">'
+                + '<input class="form-check-input service-type-radio" type="radio" name="type_' + section + '_' + idx + '" value="compulsory" data-section="' + section + '" data-index="' + idx + '" ' + compChecked + '>'
+                + '<label class="form-check-label small">Compulsory</label>'
+                + '</div>'
+                + '<div class="form-check m-0">'
+                + '<input class="form-check-input service-type-radio" type="radio" name="type_' + section + '_' + idx + '" value="optional" data-section="' + section + '" data-index="' + idx + '" ' + optChecked + '>'
+                + '<label class="form-check-label small">Optional</label>'
+                + '</div>'
+                + '</div>';
+        }
+
+        function bindTypeToggles(container, listRef) {
+            container.querySelectorAll('.service-type-radio').forEach(radio => {
+                radio.addEventListener('change', function () {
+                    const section = this.getAttribute('data-section') || '';
+                    const idx = parseInt(this.getAttribute('data-index') || '-1', 10);
+                    if (!Array.isArray(listRef) || idx < 0 || !listRef[idx]) return;
+                    if (this.value === 'compulsory') {
+                        if (section === 'hotels') handleHotelCompulsory(idx);
+                        else if (section === 'attractions') handleAttractionCompulsory(idx);
+                        else if (section === 'guides') handleGuideCompulsory(idx);
+                        else if (section === 'restaurants') handleRestaurantCompulsory(idx);
+                        else if (section === 'transfers') handleTransferCompulsory(idx);
+                    } else {
+                        listRef[idx].compulsory = false;
+                        listRef[idx].optional = true;
+                        renderAllSections();
+                        syncHidden();
+                    }
+                });
+            });
+        }
+
+        function enforceSingleCompulsory(list) {
+            if (!Array.isArray(list) || list.length === 0) return list;
+            let compulsoryIndex = list.findIndex(item => item && item.compulsory === true && item.optional !== true);
+            if (compulsoryIndex === -1) compulsoryIndex = 0;
+            return list.map((item, i) => {
+                const next = item || {};
+                if (i === compulsoryIndex) {
+                    next.compulsory = true;
+                    next.optional = false;
+                } else {
+                    next.compulsory = false;
+                    next.optional = true;
+                }
+                return next;
+            });
+        }
+
+        function handleHotelCompulsory(index) {
+            hotels = hotels.map((item, i) => {
+                const next = item || {};
+                if (i === index) {
+                    next.compulsory = true;
+                    next.optional = false;
+                } else {
+                    next.compulsory = false;
+                    next.optional = true;
+                }
+                return next;
+            });
+            renderAllSections();
+            syncHidden();
+        }
+
+        function handleAttractionCompulsory(index) {
+            attractions = attractions.map((item, i) => {
+                const next = item || {};
+                if (i === index) {
+                    next.compulsory = true;
+                    next.optional = false;
+                } else {
+                    next.compulsory = false;
+                    next.optional = true;
+                }
+                return next;
+            });
+            renderAllSections();
+            syncHidden();
+        }
+
+        function handleGuideCompulsory(index) {
+            guides = guides.map((item, i) => {
+                const next = item || {};
+                if (i === index) {
+                    next.compulsory = true;
+                    next.optional = false;
+                } else {
+                    next.compulsory = false;
+                    next.optional = true;
+                }
+                return next;
+            });
+            renderAllSections();
+            syncHidden();
+        }
+
+        function handleRestaurantCompulsory(index) {
+            restaurants = restaurants.map((item, i) => {
+                const next = item || {};
+                if (i === index) {
+                    next.compulsory = true;
+                    next.optional = false;
+                } else {
+                    next.compulsory = false;
+                    next.optional = true;
+                }
+                return next;
+            });
+            renderAllSections();
+            syncHidden();
+        }
+
+        function handleTransferCompulsory(index) {
+            transfers = transfers.map((item, i) => {
+                const next = item || {};
+                if (i === index) {
+                    next.compulsory = true;
+                    next.optional = false;
+                } else {
+                    next.compulsory = false;
+                    next.optional = true;
+                }
+                return next;
+            });
+            renderAllSections();
+            syncHidden();
+        }
+
+        function renderAllSections() {
+            renderHotels();
+            renderAttractions();
+            renderGuides();
+            renderRestaurants();
+            renderTransfers();
+            renderArrivalDeparture();
+        }
+
+        function getRoomExtraBedKey(hotelIndex, roomIndex) {
+            return String(hotelIndex) + '_' + String(roomIndex);
+        }
+
+        function collectSourceBedIds(hotelsListRaw) {
+            const ids = [];
+            (hotelsListRaw || []).forEach(h => {
+                const rooms = Array.isArray(h && h.rooms) ? h.rooms : [];
+                rooms.forEach(r => {
+                    if (r && r.extra_bed === true && r.bed_id != null && String(r.bed_id).trim() !== '') {
+                        ids.push(String(r.bed_id).trim());
+                    }
+                });
+            });
+            return Array.from(new Set(ids));
+        }
+
+        async function ensureBedOptionsLoaded(hotelsListRaw) {
+            const bedIds = collectSourceBedIds(hotelsListRaw);
+            if (bedIds.length === 0) {
+                bedOptionsBySourceBedId = {};
+                return;
+            }
+            const params = new URLSearchParams({ bed_ids: bedIds.join(',') });
+            const response = await fetch(bedOptionsUrl + '?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const data = await response.json();
+            bedOptionsBySourceBedId = (response.ok && data && data.success && data.options) ? data.options : {};
+        }
+
+        function renderHotels() {
+            if (!Array.isArray(hotels) || hotels.length === 0) {
+                hotelsList.innerHTML = '<div class="text-muted small">No hotels selected</div>';
+                return;
+            }
+            hotelsList.innerHTML = hotels.map((h, idx) => {
+                const rooms = Array.isArray(h.rooms) ? h.rooms : [];
+                const roomsHtml = rooms.length
+                    ? rooms.map((r, roomIdx) => {
+                        const mainQty = parseInt(r.quantity, 10) > 0 ? parseInt(r.quantity, 10) : 1;
+                        const base = ''
+                            + '<div class="d-flex align-items-center justify-content-between gap-2 mt-1 py-1 border-bottom">'
+                            +   '<div class="small fw-semibold">' + esc(r.room_type_name || 'Room') + '</div>'
+                            +   '<div class="d-flex align-items-center gap-1 flex-shrink-0">'
+                            +     '<label class="small text-muted mb-0">Qty</label>'
+                            +     '<input type="number" min="1" step="1" value="' + mainQty + '" class="form-control form-control-sm hotel-main-room-qty" style="width:70px; min-height:30px;" data-hotel-index="' + idx + '" data-room-index="' + roomIdx + '">'
+                            +   '</div>'
+                            + '</div>';
+                        if (!(r && r.extra_bed === true)) return base;
+
+                        const sourceBedId = String((r.bed_id != null ? r.bed_id : '')).trim();
+                        const selectId = 'extra_bed_type_' + getRoomExtraBedKey(idx, roomIdx);
+                        const options = sourceBedId !== '' ? (bedOptionsBySourceBedId[sourceBedId] || []) : [];
+                        const selectedType = r.extra_bed_type || '';
+
+                        const fallbackOption = (selectedType && !options.some(opt => (opt.room_type || '') === selectedType))
+                            ? ['<option value="' + esc(selectedType) + '" selected>' + esc(selectedType) + '</option>']
+                            : [];
+                        const optionHtml = ['<option value="">Select extra bed type</option>']
+                            .concat(fallbackOption)
+                            .concat(options.map(opt => {
+                                const value = opt.room_type || '';
+                                const label = (opt.room_type || 'Bed') + (opt.extra_bed ? ' (Extra Bed)' : '');
+                                const selected = value === selectedType ? ' selected' : '';
+                                return '<option value="' + esc(value) + '"' + selected + '>' + esc(label) + '</option>';
+                            }))
+                            .join('');
+
+                        const extraUi = ''
+                            + '<div class="row g-2 mt-1 p-2 rounded bg-label-primary">'
+                            +   '<div class="col-12">'
+                            +     '<label class="form-label small mb-1">Extra Bed Type</label>'
+                            +     '<select id="' + selectId + '" class="form-select form-select-sm hotel-extra-bed-type" data-hotel-index="' + idx + '" data-room-index="' + roomIdx + '" data-bed-id="' + esc(sourceBedId) + '">' + optionHtml + '</select>'
+                            +   '</div>'
+                            + '</div>';
+                        return base + extraUi;
+                    }).join('')
+                    : '<div class="small text-muted">No room details</div>';
+                const showOptionalPrice = isOptional(h);
+                const optionalCheckbox = isOptional(h)
+                    ? '<div class="form-check m-0">' +
+                        '<input class="form-check-input optional-checkbox" type="checkbox" data-section="hotels" data-index="' + idx + '" ' + (h.selected === true ? 'checked' : '') + '>' +
+                        '<label class="form-check-label small mb-0">Select</label>' +
+                      '</div>'
+                    : '';
+                return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
+                    + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
+                    + esc(h.hotel_name || h.name || 'Hotel') + '</div>'
+                    + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(h) + optionalCheckbox + '</div></div>'
+                    + '<div class="row g-2">'
+                    + '<div class="col-md-4"><div class="text-muted small">City</div><div>' + esc(h.city || selectedPackageCity || '-') + '</div></div>'
+                    + '<div class="col-md-2"><div class="text-muted small">Nights</div><div>' + esc(h.nights || 1) + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Rooms</div>' + roomsHtml + '</div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Optional Price</div><div>' + (showOptionalPrice ? esc(h.optional_price || '-') : '-') + '</div></div>'
+                    + '</div></div>';
+            }).join('');
+            bindOptionalCheckboxes(hotelsList, hotels);
+            bindHotelExtraBedInputs();
+        }
+
+        function bindHotelExtraBedInputs() {
+            hotelsList.querySelectorAll('.hotel-main-room-qty').forEach(inp => {
+                inp.addEventListener('input', function () {
+                    const hIdx = parseInt(this.getAttribute('data-hotel-index') || '-1', 10);
+                    const rIdx = parseInt(this.getAttribute('data-room-index') || '-1', 10);
+                    if (hIdx < 0 || rIdx < 0 || !hotels[hIdx] || !Array.isArray(hotels[hIdx].rooms) || !hotels[hIdx].rooms[rIdx]) return;
+                    const qty = parseInt(this.value || '1', 10);
+                    hotels[hIdx].rooms[rIdx].quantity = qty > 0 ? qty : 1;
+                    if (qty <= 0) this.value = '1';
+                    syncHidden();
+                });
+            });
+
+            hotelsList.querySelectorAll('.hotel-extra-bed-type').forEach(sel => {
+                sel.addEventListener('change', function () {
+                    const hIdx = parseInt(this.getAttribute('data-hotel-index') || '-1', 10);
+                    const rIdx = parseInt(this.getAttribute('data-room-index') || '-1', 10);
+                    if (hIdx < 0 || rIdx < 0 || !hotels[hIdx] || !Array.isArray(hotels[hIdx].rooms) || !hotels[hIdx].rooms[rIdx]) return;
+                    hotels[hIdx].rooms[rIdx].extra_bed_type = this.value || '';
+                    syncHidden();
+                });
+            });
+        }
+
+        function renderAttractions() {
+            if (!Array.isArray(attractions) || attractions.length === 0) {
+                attractionsList.innerHTML = '<div class="text-muted small">No attractions selected</div>';
+                return;
+            }
+            attractionsList.innerHTML = attractions.map((a, idx) => {
+                const guide = a.guide || {};
+                const languages = Array.isArray(guide.languages) ? guide.languages.join(', ') : '-';
+                const showOptionalPrice = isOptional(a);
+                const optionalCheckbox = isOptional(a)
+                    ? '<div class="form-check m-0">' +
+                        '<input class="form-check-input optional-checkbox" type="checkbox" data-section="attractions" data-index="' + idx + '" ' + (a.selected === true ? 'checked' : '') + '>' +
+                        '<label class="form-check-label small mb-0">Select</label>' +
+                      '</div>'
+                    : '';
+                return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
+                    + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
+                    + esc(a.name || 'Attraction') + '</div>'
+                    + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(a) + optionalCheckbox + '</div></div>'
+                    + '<div class="row g-2">'
+                    + '<div class="col-md-4"><div class="text-muted small">Location</div><div>' + esc(a.location || selectedPackageCity || '-') + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Guide</div><div>' + esc(guide.name || '-') + '</div><div class="small text-muted">' + esc(languages) + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>' + esc(a.vehicle_name || '-') + ' / ' + esc(a.transfer_type || '-') + '</div></div>'
+                    + '<div class="col-md-12"><div class="text-muted small">Pickup -> Dropoff</div><div style="font-size: 0.8rem;">' + esc(a.pickup_name || '-') + ' -> ' + esc(a.dropoff_name || '-') + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Optional Price</div><div>' + (showOptionalPrice ? esc(a.optional_price || '-') : '-') + '</div></div>'
+                    + '</div></div>';
+            }).join('');
+            bindOptionalCheckboxes(attractionsList, attractions);
+        }
+
+        function renderRestaurants() {
+            if (!Array.isArray(restaurants) || restaurants.length === 0) {
+                restaurantsList.innerHTML = '<div class="text-muted small">No restaurants selected</div>';
+                return;
+            }
+            restaurantsList.innerHTML = restaurants.map((r, idx) => {
+                const meals = Array.isArray(r.selected_meals) ? r.selected_meals : [];
+                const mealBadges = meals.length
+                    ? meals.map(m => formatBadge(m, 'bg-info')).join(' ')
+                    : '<span class="text-muted small">No meals</span>';
+                const showOptionalPrice = isOptional(r);
+                const optionalCheckbox = isOptional(r)
+                    ? '<div class="form-check m-0">' +
+                        '<input class="form-check-input optional-checkbox" type="checkbox" data-section="restaurants" data-index="' + idx + '" ' + (r.selected === true ? 'checked' : '') + '>' +
+                        '<label class="form-check-label small mb-0">Select</label>' +
+                      '</div>'
+                    : '';
+                return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
+                    + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
+                    + esc(r.restaurant_name || r.name || 'Restaurant') + '</div>'
+                    + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(r) + optionalCheckbox + '</div></div>'
+                    + '<div class="row g-2">'
+                    + '<div class="col-md-4"><div class="text-muted small">Meals</div><div>' + mealBadges + '</div></div>'
+                    + '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>' + esc(r.transfer ? 'Yes' : 'No') + '</div></div>'
+                    + '<div class="col-md-3"><div class="text-muted small">Pickup</div><div>' + esc(r.pickup_name || '-') + '</div></div>'
+                    + '<div class="col-md-3"><div class="text-muted small">Dropoff</div><div>' + esc(r.dropoff_name || '-') + '</div></div>'
+                    + '<div class="col-md-3"><div class="text-muted small">Optional Price</div><div>' + (showOptionalPrice ? esc(r.optional_price || '-') : '-') + '</div></div>'
+                    + '</div></div>';
+            }).join('');
+            bindOptionalCheckboxes(restaurantsList, restaurants);
+        }
+
+        function renderGuides() {
+            if (!Array.isArray(guides) || guides.length === 0) {
+                guidesList.innerHTML = '<div class="text-muted small">No guides selected</div>';
+                return;
+            }
+            guidesList.innerHTML = guides.map((g, idx) => {
+                const languages = Array.isArray(g.languages) ? g.languages.join(', ') : '-';
+                const showOptionalPrice = isOptional(g);
+                const optionalCheckbox = isOptional(g)
+                    ? '<div class="form-check m-0">' +
+                        '<input class="form-check-input optional-checkbox" type="checkbox" data-section="guides" data-index="' + idx + '" ' + (g.selected === true ? 'checked' : '') + '>' +
+                        '<label class="form-check-label small mb-0">Select</label>' +
+                      '</div>'
+                    : '';
+                return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
+                    + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
+                    + esc(g.name || 'Guide') + '</div>'
+                    + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(g) + optionalCheckbox + '</div></div>'
+                    + '<div class="row g-2">'
+                    + '<div class="col-md-4"><div class="text-muted small">Languages</div><div>' + esc(languages || '-') + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Contact</div><div>' + esc(g.contact_no || '-') + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Duration Type</div><div>' + esc(g.duration_key || g.duration_label || '-') + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Optional Price</div><div>' + (showOptionalPrice ? esc(g.optional_price || '-') : '-') + '</div></div>'
+                    + '</div></div>';
+            }).join('');
+            bindOptionalCheckboxes(guidesList, guides);
+        }
+
+        function renderTransfers() {
+            if (!Array.isArray(transfers) || transfers.length === 0) {
+                transfersList.innerHTML = '<div class="text-muted small">No transfers selected</div>';
+                return;
+            }
+            transfersList.innerHTML = transfers.map((t, idx) => '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
+                + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
+                + esc(t.pickup_label || '-') + ' -> ' + esc(t.dropoff_label || '-') + '</div>'
+                + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(t) + (isOptional(t)
+                    ? '<div class="form-check m-0">'
+                        + '<input class="form-check-input optional-checkbox" type="checkbox" data-section="transfers" data-index="' + idx + '" ' + (t.selected === true ? 'checked' : '') + '>'
+                        + '<label class="form-check-label small mb-0">Select</label>'
+                      + '</div>'
+                    : '') + '</div></div>'
+                + '<div class="row g-2">'
+                + '<div class="col-md-3"><div class="text-muted small">Pickup Label</div><div>' + esc(t.pickup_label || '-') + '</div></div>'
+                + '<div class="col-md-3"><div class="text-muted small">Dropoff Label</div><div>' + esc(t.dropoff_label || '-') + '</div></div>'
+                + '<div class="col-md-3"><div class="text-muted small">Type</div><div>' + esc(t.pickup_type || '-') + ' -> ' + esc(t.dropoff_type || '-') + '</div></div>'
+                + '<div class="col-md-3"><div class="text-muted small">Base Price</div><div>' + esc(t.base_price || '-') + '</div></div>'
+                + '<div class="col-md-3"><div class="text-muted small">Optional Price</div><div>' + (isOptional(t) ? esc(t.optional_price || '-') : '-') + '</div></div>'
+                + '</div></div>').join('');
+            bindOptionalCheckboxes(transfersList, transfers);
+        }
+
+        function renderArrivalDeparture() {
+            const arrivalSummary = document.getElementById('arrivalSummary');
+            const departureSummary = document.getElementById('departureSummary');
+            const arrivalEnabled = arrivalData && arrivalData.enabled;
+            const departureEnabled = departureData && departureData.enabled;
+            const arrivalBadge = arrivalEnabled ? formatBadge('Enabled', 'bg-success') : formatBadge('Disabled', 'bg-secondary');
+            const departureBadge = departureEnabled ? formatBadge('Enabled', 'bg-success') : formatBadge('Disabled', 'bg-secondary');
+            const arrivalVehicles = Array.isArray(arrivalData.vehicles) ? arrivalData.vehicles : [];
+            const departureVehicles = Array.isArray(departureData.vehicles) ? departureData.vehicles : [];
+
+            arrivalSummary.innerHTML = '<div class="border rounded p-3 mb-2">'
+                + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">Arrival</div>'
+                + '<div class="d-flex align-items-center gap-2 flex-wrap">' + arrivalBadge + '</div></div>'
+                + '<div class="row g-2">'
+                + '<div class="col-6"><div class="text-muted small">Pickup Port</div><div>' + esc(arrivalData.pickup_port_id || '-') + '</div></div>'
+                + '<div class="col-6"><div class="text-muted small">Dropoff Hotel</div><div>' + esc(arrivalData.dropoff_hotel_id || '-') + '</div></div>'
+                + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">' + (arrivalVehicles.map(v => esc(v.vehicle_name || v.vehicle_id)).join(', ') || '-') + '</div></div>'
+                + '</div></div>';
+
+            departureSummary.innerHTML = '<div class="border rounded p-3 mb-2">'
+                + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">Departure</div>'
+                + '<div class="d-flex align-items-center gap-2 flex-wrap">' + departureBadge + '</div></div>'
+                + '<div class="row g-2">'
+                + '<div class="col-6"><div class="text-muted small">Pickup Hotel</div><div>' + esc(departureData.pickup_hotel_id || '-') + '</div></div>'
+                + '<div class="col-6"><div class="text-muted small">Dropoff Port</div><div>' + esc(departureData.dropoff_port_id || '-') + '</div></div>'
+                + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">' + (departureVehicles.map(v => esc(v.vehicle_name || v.vehicle_id)).join(', ') || '-') + '</div></div>'
+                + '</div></div>';
+        }
 
         function syncHidden() {
+            const tourStartDate = startDateEl && startDateEl.value ? startDateEl.value : null;
             arrivalData = {
                 enabled: document.getElementById('arrivalEnabled').value === '1',
                 pickup_port_id: document.getElementById('arrivalPickupPortId').value || null,
                 dropoff_hotel_id: document.getElementById('arrivalDropoffHotelId').value || null,
-                vehicles: Array.isArray(arrivalData.vehicles) ? arrivalData.vehicles : []
+                vehicles: Array.isArray(arrivalData.vehicles) ? arrivalData.vehicles : [],
+                tour_start_date: tourStartDate
             };
             departureData = {
                 enabled: document.getElementById('departureEnabled').value === '1',
                 pickup_hotel_id: document.getElementById('departurePickupHotelId').value || null,
                 dropoff_port_id: document.getElementById('departureDropoffPortId').value || null,
-                vehicles: Array.isArray(departureData.vehicles) ? departureData.vehicles : []
+                vehicles: Array.isArray(departureData.vehicles) ? departureData.vehicles : [],
+                tour_start_date: tourStartDate
             };
 
-            document.getElementById('selected_hotels_input').value = JSON.stringify(hotels || []);
-            document.getElementById('selected_attractions_input').value = JSON.stringify(attractions || []);
-            document.getElementById('selected_guides_input').value = JSON.stringify(guides || []);
-            document.getElementById('selected_restaurants_input').value = JSON.stringify(restaurants || []);
+            const hotelsPayload = (hotels || [])
+                .filter(h => h && (h.compulsory === true || h.selected === true))
+                .map(h => ({ ...h, tour_start_date: tourStartDate }));
+            const attractionsPayload = (attractions || [])
+                .filter(a => a && (a.compulsory === true || a.selected === true))
+                .map(a => ({ ...a, tour_start_date: tourStartDate }));
+            const guidesPayload = (guides || [])
+                .filter(g => g && (g.compulsory === true || g.selected === true))
+                .map(g => ({ ...g, tour_start_date: tourStartDate }));
+            const restaurantsPayload = (restaurants || [])
+                .filter(r => r && (r.compulsory === true || r.selected === true))
+                .map(r => ({ ...r, tour_start_date: tourStartDate }));
+            const transfersPayload = (transfers || [])
+                .filter(t => t && (t.compulsory === true || t.selected === true))
+                .map(t => ({ ...t, tour_start_date: tourStartDate }));
+
+            document.getElementById('selected_hotels_input').value = JSON.stringify(hotelsPayload);
+            document.getElementById('selected_attractions_input').value = JSON.stringify(attractionsPayload);
+            document.getElementById('selected_guides_input').value = JSON.stringify(guidesPayload);
+            document.getElementById('selected_restaurants_input').value = JSON.stringify(restaurantsPayload);
             document.getElementById('arrival_data_input').value = JSON.stringify(arrivalData || {});
             document.getElementById('departure_data_input').value = JSON.stringify(departureData || {});
-            document.getElementById('transfer_data_input').value = JSON.stringify(transfers || []);
+            document.getElementById('transfer_data_input').value = JSON.stringify(transfersPayload);
         }
 
         function resetPackageDetailsUI() {
@@ -289,6 +710,7 @@
             departureData = {};
             transfers = [];
             selectedPackageCity = '';
+            bedOptionsBySourceBedId = {};
             packageDetailsSection.style.display = 'none';
             createBookingBtn.disabled = true;
             selectedPackageIdInput.value = '';
@@ -297,6 +719,7 @@
             renderGuides();
             renderRestaurants();
             renderTransfers();
+            renderArrivalDeparture();
             document.getElementById('arrivalEnabled').value = '0';
             document.getElementById('arrivalPickupPortId').value = '';
             document.getElementById('arrivalDropoffHotelId').value = '';
@@ -306,14 +729,15 @@
             syncHidden();
         }
 
-        function applyPackageData(pkg) {
-            hotels = Array.isArray(pkg.selected_hotels) ? pkg.selected_hotels : [];
-            attractions = Array.isArray(pkg.selected_attractions) ? pkg.selected_attractions : [];
-            guides = Array.isArray(pkg.selected_guides) ? pkg.selected_guides : [];
-            restaurants = Array.isArray(pkg.selected_restaurants) ? pkg.selected_restaurants : [];
+        async function applyPackageData(pkg) {
+            hotels = initOptionalSelections(Array.isArray(pkg.selected_hotels) ? pkg.selected_hotels : []);
+            await ensureBedOptionsLoaded(hotels);
+            attractions = initOptionalSelections(Array.isArray(pkg.selected_attractions) ? pkg.selected_attractions : []);
+            guides = initOptionalSelections(Array.isArray(pkg.selected_guides) ? pkg.selected_guides : []);
+            restaurants = initOptionalSelections(Array.isArray(pkg.selected_restaurants) ? pkg.selected_restaurants : []);
             arrivalData = pkg.arrival_data || {};
             departureData = pkg.departure_data || {};
-            transfers = Array.isArray(pkg.transfer_data) ? pkg.transfer_data : [];
+            transfers = initOptionalSelections(Array.isArray(pkg.transfer_data) ? pkg.transfer_data : []);
             selectedPackageCity = pkg.city || '';
 
             document.getElementById('arrivalEnabled').value = arrivalData && arrivalData.enabled ? '1' : '0';
@@ -332,6 +756,7 @@
             renderGuides();
             renderRestaurants();
             renderTransfers();
+            renderArrivalDeparture();
             syncHidden();
         }
 
@@ -349,7 +774,7 @@
             if (!response.ok || !data.success || !data.package) {
                 throw new Error(data.message || 'Unable to load package details.');
             }
-            applyPackageData(data.package);
+            await applyPackageData(data.package);
         }
 
         function allFilterInputsReady() {
@@ -399,52 +824,6 @@
                 await loadPackageDetails(prefilledPackageId);
             }
         }
-
-        document.getElementById('addHotelBtn').addEventListener('click', function () {
-            const name = document.getElementById('newHotelName').value.trim();
-            if (!name) return;
-            const uid = Date.now().toString();
-            hotels.push({ id: uid, hotel_id: uid, hotel_name: name, name: name, city: selectedPackageCity });
-            document.getElementById('newHotelName').value = '';
-            renderHotels(); syncHidden();
-        });
-        document.getElementById('addAttractionBtn').addEventListener('click', function () {
-            const name = document.getElementById('newAttractionName').value.trim();
-            if (!name) return;
-            const uid = Date.now();
-            attractions.push({ id: uid, attraction_id: uid, name: name, location: selectedPackageCity });
-            document.getElementById('newAttractionName').value = '';
-            renderAttractions(); syncHidden();
-        });
-        document.getElementById('addRestaurantBtn').addEventListener('click', function () {
-            const name = document.getElementById('newRestaurantName').value.trim();
-            if (!name) return;
-            const uid = Date.now().toString();
-            restaurants.push({ id: uid, restaurant_id: uid, restaurant_name: name, name: name });
-            document.getElementById('newRestaurantName').value = '';
-            renderRestaurants(); syncHidden();
-        });
-        document.getElementById('addGuideBtn').addEventListener('click', function () {
-            const name = document.getElementById('newGuideName').value.trim();
-            if (!name) return;
-            guides.push({ id: Date.now(), name: name, languages: [] });
-            document.getElementById('newGuideName').value = '';
-            renderGuides(); syncHidden();
-        });
-        document.getElementById('addTransferBtn').addEventListener('click', function () {
-            const label = document.getElementById('newTransferLabel').value.trim();
-            if (!label) return;
-            const parts = label.split('->');
-            transfers.push({
-                pickup_label: (parts[0] || label).trim(),
-                dropoff_label: (parts[1] || '').trim(),
-                vehicles: [],
-                compulsory: false,
-                optional: false
-            });
-            document.getElementById('newTransferLabel').value = '';
-            renderTransfers(); syncHidden();
-        });
 
         ['arrivalEnabled', 'arrivalPickupPortId', 'arrivalDropoffHotelId', 'departureEnabled', 'departurePickupHotelId', 'departureDropoffPortId']
             .forEach(id => document.getElementById(id).addEventListener('change', syncHidden));
