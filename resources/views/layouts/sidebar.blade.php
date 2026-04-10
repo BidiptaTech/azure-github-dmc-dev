@@ -12,55 +12,51 @@
     <div class="layout-container">
         <!-- Menu -->
         <aside id="layout-menu" class="layout-menu layout-menu1 menu-vertical menu bg-menu-theme">
-            <div class="app-brand demo ">
-                <a href="{{ route('dashboard') }}" class="app-brand-link">
+            <div class="app-brand demo">
+                @php
+                $currentUser = Auth::user();
+                $brandUser = $currentUser;
+
+                // Resolve DMC branding for hierarchical roles (sales/finance/product/ops etc.).
+                if ($currentUser) {
+                    $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                    if (!empty($dmcId)) {
+                        $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                        if ($dmcUser) {
+                            $brandUser = $dmcUser;
+                        }
+                    }
+                }
+
+                $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
+                $masterName = \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] ?? 'Dashboard';
+
+                $brandName = trim((string) ($brandUser->company_name ?? ''));
+                if ($brandName === '') {
+                    $brandName = $masterName;
+                }
+
+                $brandLogo = trim((string) ($brandUser->logo ?? ''));
+                if ($brandLogo === '') {
+                    $brandLogo = $masterLogo;
+                }
+
+                if ($brandLogo !== '' && !preg_match('/^(https?:\/\/|data:image\/)/i', $brandLogo)) {
+                    $brandLogo = asset(ltrim($brandLogo, '/'));
+                }
+                @endphp
+                <a href="{{ route('dashboard') }}" class="app-brand-link" title="{{ $brandName }}">
                     <span class="app-brand-logo demo">
-                        @php
-                        $currentUser = Auth::user();
-                        $brandUser = $currentUser;
-
-                        // Resolve DMC branding for hierarchical roles (sales/finance/product/ops etc.).
-                        if ($currentUser) {
-                            $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
-                            if (!empty($dmcId)) {
-                                $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
-                                if ($dmcUser) {
-                                    $brandUser = $dmcUser;
-                                }
-                            }
-                        }
-
-                        $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
-                        $masterName = \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] ?? 'Dashboard';
-
-                        $brandName = trim((string) ($brandUser->company_name ?? ''));
-                        if ($brandName === '') {
-                            $brandName = $masterName;
-                        }
-
-                        $brandLogo = trim((string) ($brandUser->logo ?? ''));
-                        if ($brandLogo === '') {
-                            $brandLogo = $masterLogo;
-                        }
-
-                        if ($brandLogo !== '' && !preg_match('/^(https?:\/\/|data:image\/)/i', $brandLogo)) {
-                            $brandLogo = asset(ltrim($brandLogo, '/'));
-                        }
-                        @endphp
-                        <div class="logo-icon">
-                            <img src="{{ $brandLogo }}" class="logo-img rounded-logo" alt="Logo">
-                        </div>
-                        {{-- <div class="logo-name flex-grow-1">
-                            <h5 class="mb-0 text-white">
-                                {{ \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] }}</h5>
-                        </div> --}}
+                        <span class="sidebar-brand-logo-box" aria-hidden="true">
+                            <img src="{{ $brandLogo }}" class="logo-img rounded-logo" alt="">
+                        </span>
                     </span>
-                    <span class="app-brand-text demo menu-text fw-semibold ms-2">
-                        <span class="small-brand-text" title="{{ $brandName }}">{{ $brandName }}</span>
+                    <span class="app-brand-text demo menu-text">
+                        <span class="sidebar-brand-name">{{ $brandName }}</span>
                     </span>
                 </a>
-                <a href="javascript:void(0);" class="layout-menu-toggle menu-link7 text-large ms-auto" style="right: -25px;">
-                    <i class="menu-icon tf-icons ri-menu-fold-line" style="margin-left: 10px"></i>
+                <a href="javascript:void(0);" class="layout-menu-toggle sidebar-menu-toggle" aria-label="Toggle navigation">
+                    <i class="menu-icon tf-icons ri-menu-fold-line"></i>
                 </a>
             </div>
             <div class="menu-inner-shadow"></div>
