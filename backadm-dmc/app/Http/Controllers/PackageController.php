@@ -10,6 +10,7 @@ use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Guide;
 use App\Models\Restaurant;
+use App\Models\Meal;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -612,6 +613,38 @@ class PackageController extends Controller
     }
 
     /**
+     * Get meals by restaurant (AJAX) for package definition
+     * meals.type: 1=Buffet, 2=Set Menu, 3=A la carte
+     */
+    public function getMealsByRestaurant($restaurantId)
+    {
+        $typeMap = [
+            1 => 'Buffet',
+            2 => 'Set Menu',
+            3 => 'A la carte',
+        ];
+
+        $meals = Meal::where('restaurant_id', $restaurantId)
+            ->orderBy('type')
+            ->get(['id', 'meal_id', 'restaurant_id', 'type', 'adult_price', 'child_price']);
+
+        $rows = $meals->map(function ($m) use ($typeMap) {
+            $typeInt = (int) ($m->type ?? 0);
+            return [
+                'id' => $m->id,
+                'meal_id' => $m->meal_id ?? $m->id,
+                'restaurant_id' => $m->restaurant_id,
+                'type' => $typeInt,
+                'type_label' => $typeMap[$typeInt] ?? ('Type ' . $typeInt),
+                'adult_price' => $m->adult_price != null ? (float) $m->adult_price : null,
+                'child_price' => $m->child_price != null ? (float) $m->child_price : null,
+            ];
+        })->values();
+
+        return response()->json(['meals' => $rows]);
+    }
+
+    /**
      * Get ports by country (AJAX) for package definition transfers
      */
     public function getPortsByCountry($country)
@@ -773,6 +806,9 @@ class PackageController extends Controller
             'status' => 'required',
             'child_max_age' => 'nullable|integer',
             'price_data' => 'nullable|json',
+            'total_price' => 'nullable|numeric|min:0',
+            'markup_type' => 'nullable|in:percentage,flat',
+            'markup_amount' => 'nullable|numeric|min:0',
         ]);
         } catch (Exception $e) {
             return back()->withInput()->withErrors(['error' => 'Failed to validate package definition. ' . $e->getMessage()]);
@@ -802,6 +838,9 @@ class PackageController extends Controller
             $selectedRestaurants = $request->input('selected_restaurants', '[]');
             $localTransfers = $request->input('local_transfers', '[]');
             $priceData = $request->input('price_data', '[]');
+            $totalPrice = $request->input('total_price');
+            $markupType = $request->input('markup_type');
+            $markupAmount = $request->input('markup_amount');
 
             // Decode main JSON payloads once so we can derive price_data server-side reliably.
             // This avoids depending on frontend JS to send price_data correctly.
@@ -854,8 +893,15 @@ class PackageController extends Controller
                     if (!empty($h['optional'])) {
                         $computedPriceData[] = [
                             'name' => $h['hotel_name'] ?? $h['name'] ?? '',
-                            'type' => 'Hotel',
-                            'price' => $toPrice($h['optional_price'] ?? 0),
+                            'type' => 'Hotel (Optional)',
+                            'price' => $toPrice($h['optional_price'] ?? $h['base_price'] ?? 0),
+                        ];
+                    }
+                    if (!empty($h['addon'])) {
+                        $computedPriceData[] = [
+                            'name' => $h['hotel_name'] ?? $h['name'] ?? '',
+                            'type' => 'Hotel (Add-on)',
+                            'price' => $toPrice($h['addon_price'] ?? $h['base_price'] ?? 0),
                         ];
                     }
                 }
@@ -863,8 +909,15 @@ class PackageController extends Controller
                     if (!empty($a['optional'])) {
                         $computedPriceData[] = [
                             'name' => $a['name'] ?? '',
-                            'type' => 'Attraction',
-                            'price' => $toPrice($a['optional_price'] ?? 0),
+                            'type' => 'Attraction (Optional)',
+                            'price' => $toPrice($a['optional_price'] ?? $a['base_price'] ?? 0),
+                        ];
+                    }
+                    if (!empty($a['addon'])) {
+                        $computedPriceData[] = [
+                            'name' => $a['name'] ?? '',
+                            'type' => 'Attraction (Add-on)',
+                            'price' => $toPrice($a['addon_price'] ?? $a['base_price'] ?? 0),
                         ];
                     }
                 }
@@ -872,8 +925,15 @@ class PackageController extends Controller
                     if (!empty($r['optional'])) {
                         $computedPriceData[] = [
                             'name' => $r['restaurant_name'] ?? $r['name'] ?? '',
-                            'type' => 'Restaurant',
-                            'price' => $toPrice($r['optional_price'] ?? 0),
+                            'type' => 'Restaurant (Optional)',
+                            'price' => $toPrice($r['optional_price'] ?? $r['base_price'] ?? $r['adult_price'] ?? 0),
+                        ];
+                    }
+                    if (!empty($r['addon'])) {
+                        $computedPriceData[] = [
+                            'name' => $r['restaurant_name'] ?? $r['name'] ?? '',
+                            'type' => 'Restaurant (Add-on)',
+                            'price' => $toPrice($r['addon_price'] ?? $r['base_price'] ?? $r['adult_price'] ?? 0),
                         ];
                     }
                 }
@@ -881,8 +941,15 @@ class PackageController extends Controller
                     if (!empty($g['optional'])) {
                         $computedPriceData[] = [
                             'name' => $g['name'] ?? '',
-                            'type' => 'Guide',
-                            'price' => $toPrice($g['optional_price'] ?? 0),
+                            'type' => 'Guide (Optional)',
+                            'price' => $toPrice($g['optional_price'] ?? $g['base_price'] ?? 0),
+                        ];
+                    }
+                    if (!empty($g['addon'])) {
+                        $computedPriceData[] = [
+                            'name' => $g['name'] ?? '',
+                            'type' => 'Guide (Add-on)',
+                            'price' => $toPrice($g['addon_price'] ?? $g['base_price'] ?? 0),
                         ];
                     }
                 }
@@ -891,13 +958,46 @@ class PackageController extends Controller
                         $label = trim(($t['pickup_label'] ?? '') . ' → ' . ($t['dropoff_label'] ?? ''));
                         $computedPriceData[] = [
                             'name' => $label,
-                            'type' => 'Transfer',
-                            'price' => $toPrice($t['optional_price'] ?? 0),
+                            'type' => 'Transfer (Optional)',
+                            'price' => $toPrice($t['optional_price'] ?? $t['base_price'] ?? 0),
+                        ];
+                    }
+                    if (!empty($t['addon'])) {
+                        $label = trim(($t['pickup_label'] ?? '') . ' → ' . ($t['dropoff_label'] ?? ''));
+                        $computedPriceData[] = [
+                            'name' => $label,
+                            'type' => 'Transfer (Add-on)',
+                            'price' => $toPrice($t['addon_price'] ?? $t['base_price'] ?? 0),
                         ];
                     }
                 }
 
                 $decodedPriceData = $computedPriceData;
+            }
+
+            // Always persist total/markup metadata in price_data JSON for package definition pricing context.
+            $decodedPriceData = array_values(array_filter($decodedPriceData, function ($row) {
+                if (!is_array($row)) return false;
+                $type = $row['type'] ?? '';
+                return !in_array($type, ['Summary', 'Markup'], true);
+            }));
+
+            if ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice)) {
+                $decodedPriceData[] = [
+                    'name' => 'Total Price',
+                    'type' => !empty($markupType) ? ucfirst($markupType) : 'Summary',
+                    'price' => (float) $totalPrice,
+                ];
+            }
+
+            if (!empty($markupType) && $markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount)) {
+                $decodedPriceData[] = [
+                    'name' => 'Markup',
+                    'type' => 'Markup',
+                    'price' => 0,
+                    'markup_type' => $markupType,
+                    'markup_amount' => (float) $markupAmount,
+                ];
             }
 
             $definitionData = [
@@ -909,6 +1009,9 @@ class PackageController extends Controller
                 'independent_guide' => $decodedIndependentGuides,
                 'local_transfers' => $decodedLocalTransfers,
                 'price_data' => $decodedPriceData,
+                'total_price' => ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice)) ? (float) $totalPrice : null,
+                'markup_type' => $markupType ?: null,
+                'markup_amount' => ($markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount)) ? (float) $markupAmount : null,
             ];
 
             $user = Auth::user();
