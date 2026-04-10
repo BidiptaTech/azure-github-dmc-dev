@@ -94,14 +94,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="card h-100">
-                            <div class="card-header bg-light"><h6 class="mb-0">Guides</h6></div>
-                            <div class="card-body">
-                                <div id="guidesList"></div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="row g-4 mt-1">
@@ -138,9 +130,9 @@
                 <div class="row g-4 mt-1">
                     <div class="col-md-12">
                         <div class="card h-100">
-                            <div class="card-header bg-light"><h6 class="mb-0">Transfer Data</h6></div>
+                            <div class="card-header bg-light"><h6 class="mb-0">Price Summary</h6></div>
                             <div class="card-body">
-                                <div id="transfersList"></div>
+                                <div id="pricingSummary"></div>
                             </div>
                         </div>
                     </div>
@@ -195,9 +187,8 @@
 
         const hotelsList = document.getElementById('hotelsList');
         const attractionsList = document.getElementById('attractionsList');
-        const guidesList = document.getElementById('guidesList');
         const restaurantsList = document.getElementById('restaurantsList');
-        const transfersList = document.getElementById('transfersList');
+        const pricingSummary = document.getElementById('pricingSummary');
 
         const startDateEl = document.getElementById('travel_start_date');
         const endDateEl = document.getElementById('travel_end_date');
@@ -274,9 +265,7 @@
                     if (this.value === 'compulsory') {
                         if (section === 'hotels') handleHotelCompulsory(idx);
                         else if (section === 'attractions') handleAttractionCompulsory(idx);
-                        else if (section === 'guides') handleGuideCompulsory(idx);
                         else if (section === 'restaurants') handleRestaurantCompulsory(idx);
-                        else if (section === 'transfers') handleTransferCompulsory(idx);
                     } else {
                         listRef[idx].compulsory = false;
                         listRef[idx].optional = true;
@@ -336,40 +325,8 @@
             syncHidden();
         }
 
-        function handleGuideCompulsory(index) {
-            guides = guides.map((item, i) => {
-                const next = item || {};
-                if (i === index) {
-                    next.compulsory = true;
-                    next.optional = false;
-                } else {
-                    next.compulsory = false;
-                    next.optional = true;
-                }
-                return next;
-            });
-            renderAllSections();
-            syncHidden();
-        }
-
         function handleRestaurantCompulsory(index) {
             restaurants = restaurants.map((item, i) => {
-                const next = item || {};
-                if (i === index) {
-                    next.compulsory = true;
-                    next.optional = false;
-                } else {
-                    next.compulsory = false;
-                    next.optional = true;
-                }
-                return next;
-            });
-            renderAllSections();
-            syncHidden();
-        }
-
-        function handleTransferCompulsory(index) {
-            transfers = transfers.map((item, i) => {
                 const next = item || {};
                 if (i === index) {
                     next.compulsory = true;
@@ -387,10 +344,9 @@
         function renderAllSections() {
             renderHotels();
             renderAttractions();
-            renderGuides();
             renderRestaurants();
-            renderTransfers();
             renderArrivalDeparture();
+            renderPricingSummary();
         }
 
         function getRoomExtraBedKey(hotelIndex, roomIndex) {
@@ -578,58 +534,6 @@
             bindOptionalCheckboxes(restaurantsList, restaurants);
         }
 
-        function renderGuides() {
-            if (!Array.isArray(guides) || guides.length === 0) {
-                guidesList.innerHTML = '<div class="text-muted small">No guides selected</div>';
-                return;
-            }
-            guidesList.innerHTML = guides.map((g, idx) => {
-                const languages = Array.isArray(g.languages) ? g.languages.join(', ') : '-';
-                const showOptionalPrice = isOptional(g);
-                const optionalCheckbox = isOptional(g)
-                    ? '<div class="form-check m-0">' +
-                        '<input class="form-check-input optional-checkbox" type="checkbox" data-section="guides" data-index="' + idx + '" ' + (g.selected === true ? 'checked' : '') + '>' +
-                        '<label class="form-check-label small mb-0">Select</label>' +
-                      '</div>'
-                    : '';
-                return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
-                    + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
-                    + esc(g.name || 'Guide') + '</div>'
-                    + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(g) + optionalCheckbox + '</div></div>'
-                    + '<div class="row g-2">'
-                    + '<div class="col-md-4"><div class="text-muted small">Languages</div><div>' + esc(languages || '-') + '</div></div>'
-                    + '<div class="col-md-4"><div class="text-muted small">Contact</div><div>' + esc(g.contact_no || '-') + '</div></div>'
-                    + '<div class="col-md-4"><div class="text-muted small">Duration Type</div><div>' + esc(g.duration_key || g.duration_label || '-') + '</div></div>'
-                    + '<div class="col-md-4"><div class="text-muted small">Optional Price</div><div>' + (showOptionalPrice ? esc(g.optional_price || '-') : '-') + '</div></div>'
-                    + '</div></div>';
-            }).join('');
-            bindOptionalCheckboxes(guidesList, guides);
-        }
-
-        function renderTransfers() {
-            if (!Array.isArray(transfers) || transfers.length === 0) {
-                transfersList.innerHTML = '<div class="text-muted small">No transfers selected</div>';
-                return;
-            }
-            transfersList.innerHTML = transfers.map((t, idx) => '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
-                + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
-                + esc(t.pickup_label || '-') + ' -> ' + esc(t.dropoff_label || '-') + '</div>'
-                + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(t) + (isOptional(t)
-                    ? '<div class="form-check m-0">'
-                        + '<input class="form-check-input optional-checkbox" type="checkbox" data-section="transfers" data-index="' + idx + '" ' + (t.selected === true ? 'checked' : '') + '>'
-                        + '<label class="form-check-label small mb-0">Select</label>'
-                      + '</div>'
-                    : '') + '</div></div>'
-                + '<div class="row g-2">'
-                + '<div class="col-md-3"><div class="text-muted small">Pickup Label</div><div>' + esc(t.pickup_label || '-') + '</div></div>'
-                + '<div class="col-md-3"><div class="text-muted small">Dropoff Label</div><div>' + esc(t.dropoff_label || '-') + '</div></div>'
-                + '<div class="col-md-3"><div class="text-muted small">Type</div><div>' + esc(t.pickup_type || '-') + ' -> ' + esc(t.dropoff_type || '-') + '</div></div>'
-                + '<div class="col-md-3"><div class="text-muted small">Base Price</div><div>' + esc(t.base_price || '-') + '</div></div>'
-                + '<div class="col-md-3"><div class="text-muted small">Optional Price</div><div>' + (isOptional(t) ? esc(t.optional_price || '-') : '-') + '</div></div>'
-                + '</div></div>').join('');
-            bindOptionalCheckboxes(transfersList, transfers);
-        }
-
         function renderArrivalDeparture() {
             const arrivalSummary = document.getElementById('arrivalSummary');
             const departureSummary = document.getElementById('departureSummary');
@@ -644,8 +548,8 @@
                 + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">Arrival</div>'
                 + '<div class="d-flex align-items-center gap-2 flex-wrap">' + arrivalBadge + '</div></div>'
                 + '<div class="row g-2">'
-                + '<div class="col-6"><div class="text-muted small">Pickup Port</div><div>' + esc(arrivalData.pickup_port_id || '-') + '</div></div>'
-                + '<div class="col-6"><div class="text-muted small">Dropoff Hotel</div><div>' + esc(arrivalData.dropoff_hotel_id || '-') + '</div></div>'
+                + '<div class="col-6"><div class="text-muted small">Pickup Port</div><div>' + esc(arrivalData.pickup_port_name || arrivalData.pickup_port_id || '-') + '</div></div>'
+                + '<div class="col-6"><div class="text-muted small">Dropoff Hotel</div><div>' + esc(arrivalData.dropoff_hotel_name || arrivalData.dropoff_hotel_id || '-') + '</div></div>'
                 + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">' + (arrivalVehicles.map(v => esc(v.vehicle_name || v.vehicle_id)).join(', ') || '-') + '</div></div>'
                 + '</div></div>';
 
@@ -653,10 +557,130 @@
                 + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">Departure</div>'
                 + '<div class="d-flex align-items-center gap-2 flex-wrap">' + departureBadge + '</div></div>'
                 + '<div class="row g-2">'
-                + '<div class="col-6"><div class="text-muted small">Pickup Hotel</div><div>' + esc(departureData.pickup_hotel_id || '-') + '</div></div>'
-                + '<div class="col-6"><div class="text-muted small">Dropoff Port</div><div>' + esc(departureData.dropoff_port_id || '-') + '</div></div>'
+                + '<div class="col-6"><div class="text-muted small">Pickup Hotel</div><div>' + esc(departureData.pickup_hotel_name || departureData.pickup_hotel_id || '-') + '</div></div>'
+                + '<div class="col-6"><div class="text-muted small">Dropoff Port</div><div>' + esc(departureData.dropoff_port_name || departureData.dropoff_port_id || '-') + '</div></div>'
                 + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">' + (departureVehicles.map(v => esc(v.vehicle_name || v.vehicle_id)).join(', ') || '-') + '</div></div>'
                 + '</div></div>';
+        }
+
+        function numVal(v) {
+            const n = parseFloat(v);
+            return isNaN(n) ? 0 : n;
+        }
+
+        function minVal(list) {
+            if (!Array.isArray(list) || list.length === 0) return 0;
+            let m = list[0];
+            for (let i = 1; i < list.length; i++) {
+                if (list[i] < m) m = list[i];
+            }
+            return m;
+        }
+
+        function serviceStatus(item) {
+            if (item && item.compulsory === true) return 'Compulsory';
+            if (item && item.optional === true) return 'Optional';
+            if (item && item.addon === true) return 'Add-on';
+            return '-';
+        }
+
+        function renderPricingSummary() {
+            if (!pricingSummary) return;
+
+            const hotelRows = (hotels || []).map(h => ({
+                name: h.hotel_name || h.name || 'Hotel',
+                status: serviceStatus(h),
+                total: numVal(h.base_price),
+                compulsory: !!(h && h.compulsory === true),
+                optional: !!(h && h.optional === true),
+                addon: !!(h && h.addon === true),
+            }));
+
+            const attractionRows = (attractions || []).map(a => {
+                const base = numVal(a.base_price);
+                const guide = numVal(a && a.guide ? a.guide.price : 0);
+                const transfer = numVal(a.transfer_price);
+                return {
+                    name: a.name || 'Attraction',
+                    status: serviceStatus(a),
+                    total: base + guide + transfer,
+                    compulsory: !!(a && a.compulsory === true),
+                    optional: !!(a && a.optional === true),
+                    addon: !!(a && a.addon === true),
+                };
+            });
+
+            const restaurantRows = (restaurants || []).map(r => ({
+                name: r.restaurant_name || r.name || 'Restaurant',
+                status: serviceStatus(r),
+                total: numVal(r.base_price) + numVal(r.transfer_price),
+                compulsory: !!(r && r.compulsory === true),
+                optional: !!(r && r.optional === true),
+                addon: !!(r && r.addon === true),
+            }));
+
+            const arrivalRows = Array.isArray(arrivalData && arrivalData.vehicles) ? arrivalData.vehicles.map(v => ({
+                name: 'Arrival - ' + (v.vehicle_name || v.vehicle_id || 'Vehicle'),
+                status: 'Compulsory',
+                total: numVal(v.selected_price),
+            })) : [];
+            const departureRows = Array.isArray(departureData && departureData.vehicles) ? departureData.vehicles.map(v => ({
+                name: 'Departure - ' + (v.vehicle_name || v.vehicle_id || 'Vehicle'),
+                status: 'Compulsory',
+                total: numVal(v.selected_price),
+            })) : [];
+
+            const hotelComp = hotelRows.filter(x => x.compulsory && !x.addon).map(x => x.total);
+            const hotelOpt = hotelRows.filter(x => x.optional && !x.addon).map(x => x.total);
+            const hotelContribution = hotelComp.length > 0 ? hotelComp.reduce((s, n) => s + n, 0) : (hotelOpt.length > 0 ? minVal(hotelOpt) : 0);
+
+            const restComp = restaurantRows.filter(x => x.compulsory && !x.addon).map(x => x.total);
+            const restOpt = restaurantRows.filter(x => x.optional && !x.addon).map(x => x.total);
+            const restaurantContribution = restComp.length > 0 ? restComp.reduce((s, n) => s + n, 0) : (restOpt.length > 0 ? minVal(restOpt) : 0);
+
+            const attrComp = attractionRows.filter(x => x.compulsory && !x.addon).map(x => x.total);
+            const attrOpt = attractionRows.filter(x => x.optional && !x.addon).map(x => x.total);
+            const attractionContribution = attrComp.reduce((s, n) => s + n, 0) + (attrOpt.length > 0 ? minVal(attrOpt) : 0);
+
+            const arrivalContribution = arrivalRows.reduce((s, x) => s + x.total, 0);
+            const departureContribution = departureRows.reduce((s, x) => s + x.total, 0);
+
+            const grandTotal = hotelContribution + attractionContribution + restaurantContribution + arrivalContribution + departureContribution;
+
+            const allRows = []
+                .concat(hotelRows.map(r => ({ section: 'Hotel', ...r })))
+                .concat(attractionRows.map(r => ({ section: 'Attraction', ...r })))
+                .concat(restaurantRows.map(r => ({ section: 'Restaurant', ...r })))
+                .concat(arrivalRows.map(r => ({ section: 'Arrival', ...r })))
+                .concat(departureRows.map(r => ({ section: 'Departure', ...r })));
+
+            if (allRows.length === 0) {
+                pricingSummary.innerHTML = '<div class="text-muted small">No pricing data available.</div>';
+                return;
+            }
+
+            pricingSummary.innerHTML =
+                '<div class="table-responsive">'
+                + '<table class="table table-sm table-bordered mb-3">'
+                + '<thead class="table-light"><tr><th>Section</th><th>Service</th><th>Status</th><th class="text-end">Total (SGD)</th></tr></thead>'
+                + '<tbody>'
+                + allRows.map(r =>
+                    '<tr>'
+                    + '<td>' + esc(r.section) + '</td>'
+                    + '<td>' + esc(r.name) + '</td>'
+                    + '<td>' + esc(r.status || '-') + '</td>'
+                    + '<td class="text-end">' + esc(r.total.toFixed(2)) + '</td>'
+                    + '</tr>'
+                ).join('')
+                + '</tbody></table></div>'
+                + '<div class="row g-2 small">'
+                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Hotel Contribution:</strong> SGD ' + esc(hotelContribution.toFixed(2)) + '</div></div>'
+                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Attraction Contribution:</strong> SGD ' + esc(attractionContribution.toFixed(2)) + '</div></div>'
+                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Restaurant Contribution:</strong> SGD ' + esc(restaurantContribution.toFixed(2)) + '</div></div>'
+                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Arrival Contribution:</strong> SGD ' + esc(arrivalContribution.toFixed(2)) + '</div></div>'
+                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Departure Contribution:</strong> SGD ' + esc(departureContribution.toFixed(2)) + '</div></div>'
+                + '<div class="col-md-4"><div class="border rounded p-2 bg-light"><strong>Grand Total:</strong> SGD ' + esc(grandTotal.toFixed(2)) + '</div></div>'
+                + '</div>';
         }
 
         function syncHidden() {
@@ -716,10 +740,9 @@
             selectedPackageIdInput.value = '';
             renderHotels();
             renderAttractions();
-            renderGuides();
             renderRestaurants();
-            renderTransfers();
             renderArrivalDeparture();
+            renderPricingSummary();
             document.getElementById('arrivalEnabled').value = '0';
             document.getElementById('arrivalPickupPortId').value = '';
             document.getElementById('arrivalDropoffHotelId').value = '';
@@ -753,10 +776,9 @@
 
             renderHotels();
             renderAttractions();
-            renderGuides();
             renderRestaurants();
-            renderTransfers();
             renderArrivalDeparture();
+            renderPricingSummary();
             syncHidden();
         }
 
