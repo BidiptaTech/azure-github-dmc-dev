@@ -1487,6 +1487,7 @@
                             <th><input type="checkbox" id="selectAllArrivalDeparture"></th>
                             <th>Date/Time</th>
                             <th>Port</th>
+                            <th>Dropoff/Pickup Location</th>
                             <th>Flight/Train/Bus No</th>
                             <th>Type</th>
                             <th>Transfer</th>
@@ -8589,6 +8590,20 @@
             syncArrivalGuideCounts();
             syncDepartureGuideCounts();
         }, 100);
+
+        // Apply default selections for NEW accommodation add flow (hotel/port/vehicle/guide).
+        // Do not override existing edits or arrival/departure-only edit mode.
+        setTimeout(() => {
+            const isEditingAccommodation = window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined;
+            const hasStandaloneArrival = arrivalDepartureList.some(item => item.type === 'Arrival' && (item.accommodationIndex === null || item.accommodationIndex === undefined));
+            const hasStandaloneDeparture = arrivalDepartureList.some(item => item.type === 'Departure' && (item.accommodationIndex === null || item.accommodationIndex === undefined));
+            const shouldApplyDefaults = !isArrivalDepartureOnly && !isEditingAccommodation && !hasStandaloneArrival && !hasStandaloneDeparture;
+
+            if (shouldApplyDefaults && typeof applyArrivalDepartureDefaults === 'function') {
+                console.log('Applying defaults for new accommodation add flow');
+                applyArrivalDepartureDefaults();
+            }
+        }, 900);
         
         // Populate existing arrival/departure data if available AFTER modal is shown
         setTimeout(() => {
@@ -10075,10 +10090,17 @@
             }
             combo.price = perNight;
             const priceCell = row.querySelector('.combo-price-cell');
+            const sellInput = row.querySelector('.combo-sell');
             if (priceCell) {
                 // Display price - show 0.00 if price is 0, or '--' if invalid/NaN
                 if (Number.isFinite(perNight)) {
                     priceCell.textContent = perNight.toFixed(2);
+                    if (sellInput) {
+                        const wasEdited = sellInput.getAttribute('data-user-edited') === 'true';
+                        if (!wasEdited) {
+                            sellInput.value = perNight.toFixed(2);
+                        }
+                    }
                 } else {
                     priceCell.textContent = '--';
                 }
@@ -13514,6 +13536,7 @@
             
             // Get vehicle name
             const vehicleNameDisplay = item.vehicleName || '-';
+            const pickupDropDisplay = item.transferDestinationName || item.destinationName || '-';
             
             return `
             <tr>
@@ -13524,6 +13547,7 @@
                         ${item.portName || '-'}
                     </a>
                 </td>
+                <td>${pickupDropDisplay}</td>
                 <td>${item.flightNo || '-'}</td>
                 <td>${item.type}</td>
                 <td style="text-align: center; vertical-align: middle;">${transferDisplay}</td>

@@ -336,7 +336,7 @@
                                         <button type="submit" 
                                                 class="btn btn-danger btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                                 style="width: 28px; height: 28px; padding: 0;" title="Delete"
-                                                onclick="return confirm('Are you sure you want to delete this port?')">
+                                                onclick="return confirm('Are you sure you want to delete this zone?\\n\\nNote: This will also remove this zone assignment from all related {{ strtolower($zone->zone_type ?? 'items') }} for your DMC (by updating zone_assignments).')">
                                             <i class="ri-delete-bin-line" style="font-size: 16px;"></i>
                                         </button>
                                     </form>

@@ -1636,6 +1636,7 @@
                             <th><input type="checkbox" id="selectAllArrivalDeparture"></th>
                             <th>Date/Time</th>
                             <th>Port</th>
+                            <th>Dropoff/Pickup Location</th>
                             <th>Flight/Train/Bus No</th>
                             <th>Type</th>
                             <th>Transfer</th>
@@ -14574,6 +14575,7 @@
             
             // Get vehicle name
             const vehicleNameDisplay = item.vehicleName || '-';
+            const pickupDropDisplay = item.transferDestinationName || item.destinationName || '-';
             
             return `
             <tr>
@@ -14584,6 +14586,7 @@
                         ${item.portName || '-'}
                     </a>
                 </td>
+                <td>${pickupDropDisplay}</td>
                 <td>${item.flightNo || '-'}</td>
                 <td>${item.type}</td>
                 <td style="text-align: center; vertical-align: middle;">${transferDisplay}</td>

@@ -1706,7 +1706,11 @@
                                                 $hotelNights = $checkIn->diffInDays($checkOut);
                                             }
                                         @endphp
-                                        @if((isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled']) || (isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled']))
+                                        @if(
+                                            (isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled']) ||
+                                            (isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled']) ||
+                                            (isset($booking['extra_bed']['enabled']) && $booking['extra_bed']['enabled'])
+                                        )
                                         <div class="bg-light rounded p-2 mb-2">
                                             <div class="d-flex align-items-center mb-1">
                                                 <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
@@ -1722,7 +1726,7 @@
                                                     $cwbChildren = (int)($cwb['children'] ?? 0);
                                                     $cwbTotal = isset($cwb['total_cost']) ? (float)$cwb['total_cost'] : ($cwbPrice * $cwbChildren * $hotelNights);
                                                 @endphp
-                                                <div class="col-md-6">
+                                                <div class="col-md-4">
                                                     <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
                                                         <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-bed-line me-1" style="font-size: 0.8rem;"></i>Child with Bed</div>
                                                         <div class="row g-1">
@@ -1742,7 +1746,7 @@
                                                     $cwobChildren = (int)($cwob['children'] ?? 0);
                                                     $cwobTotal = isset($cwob['total_cost']) ? (float)$cwob['total_cost'] : ($cwobPrice * $cwobChildren * $hotelNights);
                                                 @endphp
-                                                <div class="col-md-6">
+                                                <div class="col-md-4">
                                                     <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
                                                         <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>Child without Bed</div>
                                                         <div class="row g-1">
@@ -1751,6 +1755,26 @@
                                                             <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Children</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $cwobChildren }}</div></div>
                                                             <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
                                                             <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Children × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($cwobTotal, 2) }}</div></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                                @if(isset($booking['extra_bed']['enabled']) && $booking['extra_bed']['enabled'])
+                                                @php
+                                                    $extraBed = $booking['extra_bed'];
+                                                    $extraBedPrice = (float)($extraBed['price'] ?? 0);
+                                                    $extraBedQty = (int)($extraBed['quantity'] ?? 0);
+                                                    $extraBedTotal = isset($extraBed['total_cost']) ? (float)$extraBed['total_cost'] : ($extraBedPrice * $extraBedQty);
+                                                @endphp
+                                                <div class="col-md-4">
+                                                    <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
+                                                        <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-hotel-bed-line me-1" style="font-size: 0.8rem;"></i>Extra Bed</div>
+                                                        <div class="row g-1">
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($extraBedPrice, 2) }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Quantity</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $extraBedQty }}</div></div>
+                                                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $hotelNights }}</div></div>
+                                                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($extraBedTotal, 2) }}</div></div>
                                                         </div>
                                                     </div>
                                                 </div>
