@@ -2,11 +2,6 @@
 <div class="layout-page">
 <!-- Navbar -->
 <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
-      <div class="layout-menu-toggle navbar-nav align-items-xl-center me-4 me-xl-0   d-xl-none ">
-        <a class="nav-item nav-link px-0 me-xl-6" href="javascript:void(0)">
-          <i class="ri-menu-fill ri-22px"></i>
-        </a>
-      </div>
       <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
         <!-- Search -->
         {{-- <div class="navbar-nav align-items-center">
@@ -27,15 +22,71 @@
                      style="padding: 8px 12px; border-radius: 12px; transition: all 0.3s ease; border: 1px solid transparent;">
                       
                       <!-- User Avatar with Status Indicator -->
+                     @php
+                         $currentUser = Auth::user();
+ 
+                         // 1) Employee profile image (highest priority)
+                         $employeeAvatarRaw = $currentUser?->profile_image ?: null;
+ 
+                         // 2) Company branding logo (same hierarchical logic as sidebar)
+                         $brandUser = $currentUser;
+                         if ($currentUser) {
+                             $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                             if (!empty($dmcId)) {
+                                 $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                                 if ($dmcUser) {
+                                     $brandUser = $dmcUser;
+                                 }
+                             }
+                         }
+ 
+                         $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
+                         $companyLogoRaw = trim((string) ($brandUser->logo ?? ''));
+                         if ($companyLogoRaw === '') {
+                             $companyLogoRaw = trim((string) $masterLogo);
+                         }
+ 
+                         // 3) Random default avatar from: public/assets/img/avatars (png)
+ 
+                         // Random default avatar from: public/assets/img/avatars
+                         $avatarDir = public_path('assets/img/avatars');
+                         $avatarFiles = \Illuminate\Support\Facades\File::exists($avatarDir)
+                             ? collect(\Illuminate\Support\Facades\File::files($avatarDir))
+                                 ->filter(fn ($f) => strtolower($f->getExtension()) === 'png')
+                                 ->values()
+                             : collect();
+ 
+                         $avatarCacheBust = \Illuminate\Support\Str::random(10);
+                         $randomDefaultAvatarSrc = $avatarFiles->isNotEmpty()
+                             ? (asset('assets/img/avatars/' . $avatarFiles->random()->getFilename()) . '?r=' . $avatarCacheBust)
+                             : asset('assets/images/users/avatar-1.jpg');
+ 
+                         $toSrc = function (?string $raw): ?string {
+                             $raw = $raw !== null ? trim($raw) : '';
+                             if ($raw === '') {
+                                 return null;
+                             }
+                             return \Illuminate\Support\Str::startsWith($raw, ['http://', 'https://', 'data:image/'])
+                                 ? $raw
+                                 : asset(ltrim($raw, '/'));
+                         };
+ 
+                         $employeeAvatarSrc = $toSrc($employeeAvatarRaw);
+                         $companyLogoSrc = $toSrc($companyLogoRaw);
+ 
+                         // Final: employee avatar -> company logo -> random avatar
+                         $userAvatarSrc = $employeeAvatarSrc ?: ($companyLogoSrc ?: $randomDefaultAvatarSrc);
+                     @endphp
                       <div class="position-relative me-3">
-                          <img src="{{ Auth::user()->profile_image ?? Auth::user()->logo ?? env('APP_URL') . '/assets/images/users/avatar-1.jpg' }}" 
+                         <img src="{{ $userAvatarSrc }}" 
                                width="42" height="42" 
                                class="rounded-circle shadow-sm border border-2 border-primary" 
                                alt="user-image"
-                               style="object-fit: cover;">
+                               style="object-fit: contain; object-position: center; background-color: #ffffff; transform: scale(1.12);">
                           <!-- Online Status Indicator -->
                           <div class="position-absolute bottom-0 end-0 bg-success rounded-circle border border-2 border-white" 
-                               style="width: 12px; height: 12px;"></div>
+                               style="width: 12px; height: 12px;">
+                            </div>
                       </div>
                       
                       <!-- User Info -->
@@ -69,14 +120,14 @@
                       <!-- User Profile Header -->
                       <div class="bg-gradient-primary text-white p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                           <div class="d-flex align-items-center">
-                              <img src="{{ Auth::user()->profile_image ?? Auth::user()->logo ?? env('APP_URL') . '/assets/images/users/avatar-1.jpg' }}" 
+                              <img src="{{ $userAvatarSrc }}" 
                                    width="60" height="60" 
-                                   class="rounded-circle shadow border border-3 border-white me-3" 
+                                   class="rounded-circle shadow border border-2 border-white me-3" 
                                    alt="user-image"
-                                   style="object-fit: cover;">
+                                   style="object-fit: contain; object-position: center; background-color: #ffffff; transform: scale(1.12);">
                               <div class="flex-grow-1">
                                   <h6 class="mb-1 fw-bold">{{ Auth::user()->name }}</h6>
-                                  <p class="mb-1 opacity-75" style="font-size: 0.9rem;">
+                                  <p class="mb-1 opacity-75" style="font-size: 0.85rem; line-height: 1.2;">
                                       {{ Auth::user()->company_name ?? 'No Company' }}
                                   </p>
                                   <small class="opacity-75">

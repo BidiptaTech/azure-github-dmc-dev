@@ -488,7 +488,13 @@ class VehicleController extends Controller
             // Get existing mappings
             $mappings = VehicleZoneMapping::with(['fromZone', 'toZone'])
                 ->where('vehicle_id', $vehicle->vehicle_id)
-                ->get();
+                ->get()
+                // Hide mappings pointing to soft-deleted/deleted zones
+                // (done in PHP to avoid PostgreSQL varchar vs integer join comparison errors)
+                ->filter(function ($mapping) {
+                    return !is_null($mapping->fromZone) && !is_null($mapping->toZone);
+                })
+                ->values();
 
             // Precompute zone items for each mapping (hotels/attractions/restaurants in each zone via zone_assignments)
             $mappingZoneItems = [];

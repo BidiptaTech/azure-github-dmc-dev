@@ -17,6 +17,28 @@ use Illuminate\Support\Facades\Crypt;
 class ZoneController extends Controller
 {
     /**
+     * Remove a single {dmc_id, zone_id} assignment from a model's zone_assignments array.
+     */
+    private function removeZoneAssignmentForDmc($model, int $dmcId, $zoneId): void
+    {
+        $assignments = $model->zone_assignments ?? [];
+        $zoneIdStr = (string) $zoneId;
+
+        $assignments = array_values(array_filter($assignments, function ($assignment) use ($dmcId, $zoneIdStr) {
+            if (!is_array($assignment)) {
+                return true;
+            }
+            $aDmc = isset($assignment['dmc_id']) ? (int) $assignment['dmc_id'] : null;
+            $aZone = isset($assignment['zone_id']) ? (string) $assignment['zone_id'] : '';
+            // Keep everything that is NOT the exact pair {dmc_id, zone_id}
+            return !($aDmc === $dmcId && $aZone === $zoneIdStr);
+        }));
+
+        $model->zone_assignments = $assignments;
+        $model->save();
+    }
+
+    /**
      * Resolve the DMC ID for the given user based on role hierarchy
      * This mirrors the conditions used in index() for filtering zones.
      */
@@ -280,25 +302,62 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
-        
-        // Remove zone assignments from associated hotels, attractions, and restaurants
-        if ($zone->zone_type == 'Hotel') {
-            $hotels = Hotel::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
-            foreach ($hotels as $hotel) {
-                $hotel->removeZoneAssignment($zoneId);
-            }
-        } elseif ($zone->zone_type == 'Attraction') {
-            $attractions = Attraction::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
-            foreach ($attractions as $attraction) {
-                $attraction->removeZoneAssignment($zoneId);
-            }
-        } elseif ($zone->zone_type == 'Restaurant') {
-            $restaurants = Restaurant::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
-            foreach ($restaurants as $restaurant) {
-                $restaurant->removeZoneAssignment($zoneId);
+        if (!$zone) {
+            return redirect()->route('zones.index')
+                ->with('success', 'Zone deleted successfully');
+        }
+
+        // Remove assignments for the DMC performing the delete (this is what user expects).
+        // Do NOT rely on $zone->dmc_id because it can be stored as JSON/array and cast to 0.
+        $currentDmcId = (int) ($this->resolveDmcIdForUser(Auth::user()) ?? 0);
+        if (!$currentDmcId) {
+            // Fallback: attempt to parse zone dmc_id if present
+            $zd = $zone->dmc_id ?? null;
+            if (is_array($zd)) {
+                $currentDmcId = (int) ($zd[0] ?? 0);
+            } elseif (is_string($zd)) {
+                $decoded = json_decode($zd, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $currentDmcId = (int) ($decoded[0] ?? 0);
+                } elseif (is_numeric($zd)) {
+                    $currentDmcId = (int) $zd;
+                }
+            } elseif (is_numeric($zd)) {
+                $currentDmcId = (int) $zd;
             }
         }
         
+        // Remove zone assignments from associated hotels, attractions, and restaurants
+        // NOTE:
+        // In some DB rows zone_assignments JSON can have mixed string/integer types
+        // causing whereJsonContains matches to fail. Use model helpers instead.
+        if ($currentDmcId && $zone->zone_type == 'Hotel') {
+            $hotels = Hotel::whereNotNull('zone_assignments')->get();
+            foreach ($hotels as $hotel) {
+                $assignedZone = $hotel->getZoneForDmc($currentDmcId);
+                if ((string) ($assignedZone ?? '') === (string) $zoneId) {
+                    $hotel->setZoneForDmc($currentDmcId, null);
+                }
+            }
+        } elseif ($currentDmcId && $zone->zone_type == 'Attraction') {
+            $attractions = Attraction::whereNotNull('zone_assignments')->get();
+            foreach ($attractions as $attraction) {
+                $assignedZone = $attraction->getZoneForDmc($currentDmcId);
+                if ((string) ($assignedZone ?? '') === (string) $zoneId) {
+                    $attraction->setZoneForDmc($currentDmcId, null);
+                }
+            }
+        } elseif ($currentDmcId && $zone->zone_type == 'Restaurant') {
+            $restaurants = Restaurant::whereNotNull('zone_assignments')->get();
+            foreach ($restaurants as $restaurant) {
+                $assignedZone = $restaurant->getZoneForDmc($currentDmcId);
+                if ((string) ($assignedZone ?? '') === (string) $zoneId) {
+                    $restaurant->setZoneForDmc($currentDmcId, null);
+                }
+            }
+        }
+        
+        // Soft delete the zone (uses deleted_at column)
         $zone->delete();
 
         return redirect()->route('zones.index')

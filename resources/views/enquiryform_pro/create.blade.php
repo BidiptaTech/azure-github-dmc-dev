@@ -1487,6 +1487,7 @@
                             <th><input type="checkbox" id="selectAllArrivalDeparture"></th>
                             <th>Date/Time</th>
                             <th>Port</th>
+                            <th>Dropoff/Pickup Location</th>
                             <th>Flight/Train/Bus No</th>
                             <th>Type</th>
                             <th>Transfer</th>
@@ -8589,6 +8590,20 @@
             syncArrivalGuideCounts();
             syncDepartureGuideCounts();
         }, 100);
+
+        // Apply default selections for NEW accommodation add flow (hotel/port/vehicle/guide).
+        // Do not override existing edits or arrival/departure-only edit mode.
+        setTimeout(() => {
+            const isEditingAccommodation = window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined;
+            const hasStandaloneArrival = arrivalDepartureList.some(item => item.type === 'Arrival' && (item.accommodationIndex === null || item.accommodationIndex === undefined));
+            const hasStandaloneDeparture = arrivalDepartureList.some(item => item.type === 'Departure' && (item.accommodationIndex === null || item.accommodationIndex === undefined));
+            const shouldApplyDefaults = !isArrivalDepartureOnly && !isEditingAccommodation && !hasStandaloneArrival && !hasStandaloneDeparture;
+
+            if (shouldApplyDefaults && typeof applyArrivalDepartureDefaults === 'function') {
+                console.log('Applying defaults for new accommodation add flow');
+                applyArrivalDepartureDefaults();
+            }
+        }, 900);
         
         // Populate existing arrival/departure data if available AFTER modal is shown
         setTimeout(() => {
@@ -10075,10 +10090,17 @@
             }
             combo.price = perNight;
             const priceCell = row.querySelector('.combo-price-cell');
+            const sellInput = row.querySelector('.combo-sell');
             if (priceCell) {
                 // Display price - show 0.00 if price is 0, or '--' if invalid/NaN
                 if (Number.isFinite(perNight)) {
                     priceCell.textContent = perNight.toFixed(2);
+                    if (sellInput) {
+                        const wasEdited = sellInput.getAttribute('data-user-edited') === 'true';
+                        if (!wasEdited) {
+                            sellInput.value = perNight.toFixed(2);
+                        }
+                    }
                 } else {
                     priceCell.textContent = '--';
                 }
@@ -11778,9 +11800,11 @@
             const departurePortName = departurePortSelect.selectedOptions[0]?.text || '';
             const departureFlightNo = document.getElementById('departureFlightNo').value;
             
+            const editAccIdx = window.editingAccommodationIndex;
+
             // Update the existing accommodation
-            accommodationList[window.editingAccommodationIndex] = {
-                ...accommodationList[window.editingAccommodationIndex],
+            accommodationList[editAccIdx] = {
+                ...accommodationList[editAccIdx],
                 hotelId: hotelId,
                 hotel_unique_id: hotel_unique_id,
                 hotelName: hotelName,
@@ -11825,133 +11849,24 @@
                 departurePortName: departurePortName,
                 departureFlightNo: departureFlightNo
             };
-            
-            // Update arrival/departure list
-            const adults = parseInt(document.getElementById('adultCountInput')?.value || 0);
-            const child = parseInt(document.getElementById('childCountInput')?.value || 0);
-            const infant = parseInt(document.getElementById('infantCountInput')?.value || 0);
-            
-            // Remove old arrival/departure entries for this accommodation
-            // IMPORTANT: Save the IDs BEFORE modifying the accommodation object
-            const oldHotel = accommodationList[window.editingAccommodationIndex];
-            const oldArrivalDepartureIds = oldHotel.arrivalDepartureIds ? [...oldHotel.arrivalDepartureIds] : [];
-            
-            console.log('Removing old arrival/departure entries for accommodation index:', window.editingAccommodationIndex);
-            console.log('Old arrival/departure IDs:', oldArrivalDepartureIds);
-            
-            // Remove entries by both ID and accommodation index to ensure clean update
-            arrivalDepartureList = arrivalDepartureList.filter(item => {
-                const matchesId = oldArrivalDepartureIds.map(String).includes(String(item.id));
-                const matchesIndex = item.accommodationIndex === window.editingAccommodationIndex;
-                return !(matchesId || matchesIndex);
-            });
-            
-            // Add new arrival/departure entries
-            const newArrivalDepartureIds = [];
-            
-            if (arrivalDateTime && arrivalPortId) {
-                const arrivalId = generateId('arrdep');
-                const arrivalTransfer = document.getElementById('arrivalTransfer')?.checked || false;
-                const arrivalTransferWay = 'one-way';
-                const arrivalTransferType = document.getElementById('arrivalTransferType')?.value || 'S';
-                const arrivalVehicleType = document.getElementById('arrivalVehicleType')?.value || '';
-                
-                // Calculate vehicle price
-                const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
-                
-                // Get manual cost/sell from input fields
-                const manualArrivalCost = parseFloat(document.getElementById('arrivalCost')?.value || 0);
-                const manualArrivalSell = parseFloat(document.getElementById('arrivalSell')?.value || 0);
-                
-                // Use manual cost/sell if provided, otherwise use calculated price
-                const finalArrivalCost = manualArrivalCost > 0 ? manualArrivalCost : arrivalVehiclePrice;
-                const finalArrivalSell = manualArrivalSell > 0 ? manualArrivalSell : arrivalVehiclePrice;
-                
-                arrivalDepartureList.push({
-                    id: arrivalId,
-                    travel_type: 'entry_port',
-                    sourceType: 'hotel',
-                    dateTime: arrivalDateTime,
-                    portId: arrivalPortId,
-                    portName: arrivalPortName,
-                    flightNo: arrivalFlightNo || '-',
-                    type: 'Arrival',
-                    adultsQty: adults,
-                    cost: finalArrivalCost,
-                    sell: finalArrivalSell,
-                    adultCost: finalArrivalCost,
-                    adultSell: finalArrivalSell,
-                    childQty: child,
-                    childCost: finalArrivalCost,
-                    childSell: finalArrivalSell,
-                    infantQty: infant,
-                    amount: 0,
-                    hasTransfer: arrivalTransfer,
-                    transferWay: arrivalTransferWay,
-                    transferType: arrivalTransferType,
-                    vehicleType: arrivalVehicleType,
-                    supplement: '',
-                    accommodationIndex: null
-                });
-                newArrivalDepartureIds.push(arrivalId);
-            }
-            
-            if (departureDateTime && departurePortId) {
-                const departureId = generateId('arrdep');
-                const departureTransfer = document.getElementById('departureTransfer')?.checked || false;
-                const departureTransferWay = 'one-way';
-                const departureTransferType = document.getElementById('departureTransferType')?.value || 'S';
-                const departureVehicleType = document.getElementById('departureVehicleType')?.value || '';
-                
-                // Calculate vehicle price
-                const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
-                
-                // Get manual cost/sell from input fields
-                const manualDepartureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
-                const manualDepartureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
-                
-                // Use manual cost/sell if provided, otherwise use calculated price
-                const finalDepartureCost = manualDepartureCost > 0 ? manualDepartureCost : departureVehiclePrice;
-                const finalDepartureSell = manualDepartureSell > 0 ? manualDepartureSell : departureVehiclePrice;
-                
-                arrivalDepartureList.push({
-                    id: departureId,
-                    travel_type: 'exit_port',
-                    sourceType: 'hotel',
-                    dateTime: departureDateTime,
-                    portId: departurePortId,
-                    portName: departurePortName,
-                    flightNo: departureFlightNo || '-',
-                    type: 'Departure',
-                    adultsQty: adults,
-                    cost: finalDepartureCost,
-                    sell: finalDepartureSell,
-                    adultCost: finalDepartureCost,
-                    adultSell: finalDepartureSell,
-                    childQty: child,
-                    childCost: finalDepartureCost,
-                    childSell: finalDepartureSell,
-                    infantQty: infant,
-                    amount: 0,
-                    hasTransfer: departureTransfer,
-                    transferWay: departureTransferWay,
-                    transferType: departureTransferType,
-                    vehicleType: departureVehicleType,
-                    supplement: '',
-                    accommodationIndex: null
-                });
-                newArrivalDepartureIds.push(departureId);
-            }
-            
-            // Store the IDs with the accommodation
-            accommodationList[window.editingAccommodationIndex].arrivalDepartureIds = newArrivalDepartureIds;
-            
-            // Remove any old hotel-linked transfers (legacy cleanup)
-            const oldTransferIds = accommodationList[window.editingAccommodationIndex].transferIds || [];
+
+            // One global hotel-synced arrival + departure (same as edit template) — do not push duplicate rows here.
+            const oldTransferIds = accommodationList[editAccIdx].transferIds || [];
             if (oldTransferIds.length > 0) {
-                transferList = transferList.filter(t => !oldTransferIds.includes(t.id));
+                transferList = transferList.filter(t => !oldTransferIds.map(String).includes(String(t.id)));
             }
-            accommodationList[window.editingAccommodationIndex].transferIds = [];
+            accommodationList[editAccIdx].transferIds = [];
+            accommodationList[editAccIdx].arrivalDepartureIds = [];
+
+            await syncHotelArrDepToGlobal({ preserveGuideSelection: true });
+
+            const syncedArr = arrivalDepartureList.find(
+                e => e.travel_type === 'entry_port' && e.sourceType === 'hotel'
+            );
+            const syncedDep = arrivalDepartureList.find(
+                e => e.travel_type === 'exit_port' && e.sourceType === 'hotel'
+            );
+            accommodationList[editAccIdx].arrivalDepartureIds = [syncedArr?.id, syncedDep?.id].filter(Boolean);
 
             if (false) {
                     // placeholder to keep brace structure intact
@@ -12036,9 +11951,6 @@
             
             // Clear the editing flag
             window.editingAccommodationIndex = null;
-
-            // Sync global entry/exit port from hotel dates + form settings
-            await syncHotelArrDepToGlobal();
 
             // Update table
             updateAccommodationTable();
@@ -12551,23 +12463,63 @@
             }
         }
 
+        // Always align hotel destinations to current hotel date range in modal preview:
+        // arrival dropoff => earliest check-in hotel, departure pickup => latest check-out hotel.
+        const arrDest = document.getElementById('arrivalDestination');
+        if (arrDest && arrDefault?.hotelUniqueId && arrDest.value !== arrDefault.hotelUniqueId) {
+            arrDest.value = arrDefault.hotelUniqueId;
+        }
+        const depDest = document.getElementById('departureDestination');
+        if (depDest && depDefault?.hotelUniqueId && depDest.value !== depDefault.hotelUniqueId) {
+            depDest.value = depDefault.hotelUniqueId;
+        }
+
         section.style.display = 'block';
     }
 
     // Reads the full Arrival/Departure form and syncs ONE entry_port + ONE exit_port
     // (with guide data) into arrivalDepartureList / guideList.
-    async function syncHotelArrDepToGlobal() {
+    async function syncHotelArrDepToGlobal(options = {}) {
+        const preserveGuideSelection = options.preserveGuideSelection === true;
         const dmcId = '{{ $dmc_id ?? "" }}';
         const allHotels = accommodationList.filter(h => h.checkIn && h.checkOut);
-        if (allHotels.length === 0) return;
+        if (allHotels.length === 0) {
+            // Keep selected port/guide data untouched when no hotel exists.
+            // Hotel-based date/destination auto-sync is skipped until at least one hotel is present.
+            return;
+        }
+
+        // Snapshot hotel rows before cleanup so add/remove cycles keep stable ids and linked transfers.
+        const snapArrRow = arrivalDepartureList.find(e =>
+            (e.sourceType === 'hotel' && e.travel_type === 'entry_port') ||
+            ((e.type || '').toString() === 'Arrival' && (!e.travel_type || e.travel_type === ''))
+        ) || null;
+        const snapDepRow = arrivalDepartureList.find(e =>
+            (e.sourceType === 'hotel' && e.travel_type === 'exit_port') ||
+            ((e.type || '').toString() === 'Departure' && (!e.travel_type || e.travel_type === ''))
+        ) || null;
+        const preservedEntryPortId = snapArrRow?.id || null;
+        const preservedExitPortId = snapDepRow?.id || null;
+        const preservedArrTransferId = snapArrRow?.transferId || null;
+        const preservedDepTransferId = snapDepRow?.transferId || null;
+
+        // Drop current hotel-synced port rows; we will upsert exactly one arrival + one departure below.
+        arrivalDepartureList = arrivalDepartureList.filter(item => {
+            if (item.sourceType === 'hotel' && (item.travel_type === 'entry_port' || item.travel_type === 'exit_port')) {
+                return false;
+            }
+            return true;
+        });
 
         // *** Always recalculate dates from accommodationList directly (never trust stale form field) ***
         const allIns  = allHotels.map(h => h.checkIn.substring(0, 10));
         const allOuts = allHotels.map(h => h.checkOut.substring(0, 10));
         const minIn   = allIns.reduce((a, b)  => a < b ? a : b);
         const maxOut  = allOuts.reduce((a, b) => a > b ? a : b);
-        const arrDTVal = minIn  + 'T00:00';
-        const depDTVal = maxOut + 'T00:00';
+        const arrHotel = allHotels.find(h => h.checkIn.substring(0, 10) === minIn);
+        const depHotel = allHotels.find(h => h.checkOut.substring(0, 10) === maxOut);
+        const arrDTVal = normalizeDateTimeLocal(arrHotel?.checkIn) || (minIn + 'T09:00');
+        const depDTVal = normalizeDateTimeLocal(depHotel?.checkOut) || (maxOut + 'T09:00');
 
         // Also update the locked display fields with the correct calculated dates
         const arrDTEl = document.getElementById('arrivalDateTime');
@@ -12575,24 +12527,33 @@
         const depDTEl = document.getElementById('departureDateTime');
         if (depDTEl) { depDTEl.value = depDTVal; }
 
-        // Find the hotel that provides arrival (min checkIn) and departure (max checkOut)
-        const arrHotel = allHotels.find(h => h.checkIn.substring(0, 10) === minIn);
-        const depHotel = allHotels.find(h => h.checkOut.substring(0, 10) === maxOut);
+        const existingArrPortRow = snapArrRow;
+        const existingDepPortRow = snapDepRow;
 
         // ---- Arrival fields ----
         const arrPortSel     = document.getElementById('arrivalPort');
-        const arrPortId      = arrPortSel?.value || '';
-        const arrPortName    = arrPortSel?.selectedOptions[0]?.text || '';
-        const arrFlightNo    = document.getElementById('arrivalFlightNo')?.value || '';
-        const arrHasTransfer = document.getElementById('arrivalTransfer')?.checked || false;
-        const arrTypeVal     = document.getElementById('arrivalTransferType')?.value || 'S';
+        const arrPortId      = arrPortSel?.value || existingArrPortRow?.portId || '';
+        const arrPortName    = (arrPortSel?.value && arrPortSel?.selectedOptions[0]?.text) || existingArrPortRow?.portName || '';
+        const arrFlightNo    = document.getElementById('arrivalFlightNo')?.value || existingArrPortRow?.flightNo || '';
+        const arrHasTransfer = preserveGuideSelection
+            ? (existingArrPortRow?.hasTransfer ?? (document.getElementById('arrivalTransfer')?.checked || false))
+            : (document.getElementById('arrivalTransfer')?.checked || false);
+        const arrTypeVal     = preserveGuideSelection
+            ? (existingArrPortRow?.transferType || document.getElementById('arrivalTransferType')?.value || 'S')
+            : (document.getElementById('arrivalTransferType')?.value || 'S');
         const arrVehicleSel  = document.getElementById('arrivalVehicleType');
-        const arrVehicleId   = arrVehicleSel?.value || '';
+        const arrVehicleId   = preserveGuideSelection
+            ? (existingArrPortRow?.vehicleId || arrVehicleSel?.value || '')
+            : (arrVehicleSel?.value || '');
         const arrVehicleOpt  = arrVehicleSel?.selectedOptions[0];
-        const arrVehicleName = arrVehicleOpt?.text || '';
-        const arrVehicleType = arrVehicleOpt?.getAttribute('data-type') || '';
-        const arrAdults      = parseInt(document.getElementById('arrivalAdults')?.value  || 2);
-        const arrChild       = parseInt(document.getElementById('arrivalChild')?.value   || 0);
+        const arrVehicleName = arrVehicleOpt?.text || existingArrPortRow?.vehicleName || '';
+        const arrVehicleType = arrVehicleOpt?.getAttribute('data-type') || existingArrPortRow?.vehicleType || '';
+        const arrAdults      = preserveGuideSelection
+            ? parseInt((existingArrPortRow?.adultsQty ?? existingArrPortRow?.adults ?? document.getElementById('arrivalAdults')?.value ?? 2), 10)
+            : parseInt((document.getElementById('arrivalAdults')?.value ?? 2), 10);
+        const arrChild       = preserveGuideSelection
+            ? parseInt((existingArrPortRow?.childQty ?? existingArrPortRow?.child ?? document.getElementById('arrivalChild')?.value ?? 0), 10)
+            : parseInt((document.getElementById('arrivalChild')?.value ?? 0), 10);
         const arrInfant      = parseInt(document.getElementById('arrivalInfant')?.value  || 0);
         const arrDestSel     = document.getElementById('arrivalDestination');
         // Always use hotel_unique_id from accommodationList as the authoritative destination
@@ -12605,18 +12566,28 @@
 
         // ---- Departure fields ----
         const depPortSel     = document.getElementById('departurePort');
-        const depPortId      = depPortSel?.value || '';
-        const depPortName    = depPortSel?.selectedOptions[0]?.text || '';
-        const depFlightNo    = document.getElementById('departureFlightNo')?.value || '';
-        const depHasTransfer = document.getElementById('departureTransfer')?.checked || false;
-        const depTypeVal     = document.getElementById('departureTransferType')?.value || 'S';
+        const depPortId      = depPortSel?.value || existingDepPortRow?.portId || '';
+        const depPortName    = (depPortSel?.value && depPortSel?.selectedOptions[0]?.text) || existingDepPortRow?.portName || '';
+        const depFlightNo    = document.getElementById('departureFlightNo')?.value || existingDepPortRow?.flightNo || '';
+        const depHasTransfer = preserveGuideSelection
+            ? (existingDepPortRow?.hasTransfer ?? (document.getElementById('departureTransfer')?.checked || false))
+            : (document.getElementById('departureTransfer')?.checked || false);
+        const depTypeVal     = preserveGuideSelection
+            ? (existingDepPortRow?.transferType || document.getElementById('departureTransferType')?.value || 'S')
+            : (document.getElementById('departureTransferType')?.value || 'S');
         const depVehicleSel  = document.getElementById('departureVehicleType');
-        const depVehicleId   = depVehicleSel?.value || '';
+        const depVehicleId   = preserveGuideSelection
+            ? (existingDepPortRow?.vehicleId || depVehicleSel?.value || '')
+            : (depVehicleSel?.value || '');
         const depVehicleOpt  = depVehicleSel?.selectedOptions[0];
-        const depVehicleName = depVehicleOpt?.text || '';
-        const depVehicleType = depVehicleOpt?.getAttribute('data-type') || '';
-        const depAdults      = parseInt(document.getElementById('departureAdults')?.value  || 2);
-        const depChild       = parseInt(document.getElementById('departureChild')?.value   || 0);
+        const depVehicleName = depVehicleOpt?.text || existingDepPortRow?.vehicleName || '';
+        const depVehicleType = depVehicleOpt?.getAttribute('data-type') || existingDepPortRow?.vehicleType || '';
+        const depAdults      = preserveGuideSelection
+            ? parseInt((existingDepPortRow?.adultsQty ?? existingDepPortRow?.adults ?? document.getElementById('departureAdults')?.value ?? 2), 10)
+            : parseInt((document.getElementById('departureAdults')?.value ?? 2), 10);
+        const depChild       = preserveGuideSelection
+            ? parseInt((existingDepPortRow?.childQty ?? existingDepPortRow?.child ?? document.getElementById('departureChild')?.value ?? 0), 10)
+            : parseInt((document.getElementById('departureChild')?.value ?? 0), 10);
         const depInfant      = parseInt(document.getElementById('departureInfant')?.value  || 0);
         const depDestSel     = document.getElementById('departureDestination');
         // Always use hotel_unique_id from accommodationList as the authoritative destination
@@ -12681,16 +12652,27 @@
                             xferType, vehicleId, vehicleType, vehicleName,
                             nAdults, nChild, nInfant, destId, destName, vehiclePrice, zonePrice) {
             const isArrival = travelType === 'entry_port';
-            let idx = arrivalDepartureList.findIndex(e => e.travel_type === travelType && e.sourceType === 'hotel');
+            const desiredType = isArrival ? 'Arrival' : 'Departure';
+            const matchingIdxs = [];
+            arrivalDepartureList.forEach((e, i) => {
+                const tt = e.travel_type;
+                const ty = (e.type || '').toString();
+                const isHotelSynced = e.sourceType === 'hotel' && (tt === 'entry_port' || tt === 'exit_port');
+                const isLegacyGlobal = (!tt || tt === '') && (ty === 'Arrival' || ty === 'Departure');
+                if ((isHotelSynced && tt === travelType) || (isLegacyGlobal && ty === desiredType)) {
+                    matchingIdxs.push(i);
+                }
+            });
+            const idx = matchingIdxs.length ? matchingIdxs[0] : -1;
             const base = idx >= 0 ? arrivalDepartureList[idx] : {};
-
-            // Remove old linked transfer entry to avoid duplicates
-            if (base.transferId) {
-                const tIdx = transferList.findIndex(t => t.id === base.transferId);
-                if (tIdx !== -1) transferList.splice(tIdx, 1);
+            if (matchingIdxs.length > 1) {
+                const toRemove = new Set(matchingIdxs.slice(1));
+                arrivalDepartureList = arrivalDepartureList.filter((_, i) => !toRemove.has(i));
             }
 
-            const entryId = base.id || generateId('port');
+            const entryId = base.id
+                || (isArrival ? preservedEntryPortId : preservedExitPortId)
+                || generateId('port');
             const updated = {
                 ...base, id: entryId, travel_type: travelType,
                 type: isArrival ? 'Arrival' : 'Departure', dateTime: dtVal,
@@ -12705,13 +12687,56 @@
                 accommodationIndex: null, sourceType: 'hotel', isStandalone: true
             };
 
-            // Create new transfer list entry if transfer is enabled
-            if (hasTransfer && vehicleId) {
-                const transferId = generateId('transfer');
+            // Match and update existing transfer row for this side; avoid creating duplicates on add/remove cycles.
+            const sourceKey = isArrival ? 'arrival' : 'departure';
+            const prefix = isArrival ? 'Arrival:' : 'Departure:';
+            function findBestTransferIndex() {
+                const expectedXferId = base.transferId || (isArrival ? preservedArrTransferId : preservedDepTransferId);
+                const scored = [];
+                transferList.forEach((t, i) => {
+                    if ((t.sourceType || '').toLowerCase() !== sourceKey) return;
+                    const bySrc = String(t.sourceId) === String(entryId);
+                    const byTid = expectedXferId && String(t.id) === String(expectedXferId);
+                    let score = 0;
+                    if (bySrc) score += 2;
+                    if (byTid) score += 3;
+                    if (score) scored.push({ i, score });
+                });
+                if (scored.length) {
+                    scored.sort((a, b) => b.score - a.score);
+                    return scored[0].i;
+                }
+                const loose = [];
+                transferList.forEach((t, i) => {
+                    if ((t.sourceType || '').toLowerCase() !== sourceKey) return;
+                    const dest = String(t.destination || t.service || '');
+                    if (dest.indexOf(prefix) === 0) loose.push(i);
+                });
+                if (loose.length === 1) return loose[0];
+                if (loose.length > 1 && expectedXferId) {
+                    const hit = loose.find(i => String(transferList[i].id) === String(expectedXferId));
+                    if (hit !== undefined) return hit;
+                }
+                return loose.length ? loose[0] : -1;
+            }
+            const existingTransferIdx = findBestTransferIndex();
+            const prevTransfer = existingTransferIdx !== -1 ? transferList[existingTransferIdx] : null;
+            const effectiveVehicleId = vehicleId || (prevTransfer?.vehicleId || '');
+            const effectiveVehicleType = vehicleType || (prevTransfer?.vehicleType || '');
+            const effectiveVehicleName = vehicleName || (prevTransfer?.vehicleName || '');
+            const effectiveAdults = preserveGuideSelection ? (prevTransfer?.adults ?? nAdults) : nAdults;
+            const effectiveChild = preserveGuideSelection ? (prevTransfer?.child ?? nChild) : nChild;
+            const effectiveCost = vehiclePrice;
+            const effectiveSell = vehiclePrice;
+
+            if (hasTransfer && effectiveVehicleId) {
+                const transferId = existingTransferIdx !== -1
+                    ? transferList[existingTransferIdx].id
+                    : generateId('transfer');
                 const destination = isArrival
                     ? (destName ? `Arrival: ${portName} → ${destName}` : `Arrival: ${portName}`)
                     : (destName ? `Departure: ${destName} → ${portName}` : `Departure: ${portName}`);
-                transferList.push({
+                const payload = {
                     id: transferId,
                     transportMode: 'local',
                     isStandalone: false,
@@ -12720,25 +12745,37 @@
                     dateTime: dtVal,
                     portName,
                     destination,
-                    vehicleId, vehicleType, vehicleName,
+                    vehicleId: effectiveVehicleId,
+                    vehicleType: effectiveVehicleType,
+                    vehicleName: effectiveVehicleName,
                     type: xferType,
+                    transferType: xferType,
                     way: 'one-way',
                     hasTransfer: true,
-                    adults: nAdults,
-                    child: nChild,
-                    cost: vehiclePrice,
-                    sell: vehiclePrice,
+                    adults: effectiveAdults,
+                    child: effectiveChild,
+                    cost: effectiveCost,
+                    sell: effectiveSell,
                     zonePrivatePrice: zonePrice?.private_price || 0,
                     zoneSharedPrice:  zonePrice?.shared_price  || 0,
                     taxIncluded: false
-                });
+                };
+                if (existingTransferIdx !== -1) {
+                    transferList[existingTransferIdx] = {
+                        ...transferList[existingTransferIdx],
+                        ...payload
+                    };
+                } else {
+                    transferList.push(payload);
+                }
                 updated.transferId = transferId;
             } else {
-                updated.transferId = null;
+                updated.transferId = base.transferId || null;
             }
 
             if (idx >= 0) arrivalDepartureList[idx] = updated; else arrivalDepartureList.push(updated);
-            return arrivalDepartureList.find(e => e.travel_type === travelType && e.sourceType === 'hotel');
+            return arrivalDepartureList.find(e => e.travel_type === travelType && e.sourceType === 'hotel')
+                || arrivalDepartureList.find(e => (e.type || '').toString() === desiredType && (!e.travel_type || e.travel_type === '') && e.sourceType === 'hotel');
         }
 
         const arrEntry = upsertPort('entry_port', arrDTVal, arrPortId, arrPortName, arrFlightNo,
@@ -12748,6 +12785,22 @@
         const depEntry = upsertPort('exit_port',  depDTVal, depPortId, depPortName, depFlightNo,
                                     depHasTransfer, depTypeVal, depVehicleId, depVehicleType, depVehicleName,
                                     depAdults, depChild, depInfant, depDestId, depDestName, depVehiclePrice, depZonePrice);
+
+        // Remove stale duplicate airport transfer rows from older syncs (keep only rows linked to current entry ids).
+        if (arrEntry?.id && depEntry?.id) {
+            transferList = transferList.filter(t => {
+                const st = (t.sourceType || '').toLowerCase();
+                if (st !== 'arrival' && st !== 'departure') return true;
+                const dest = String(t.destination || t.service || '');
+                if (st === 'arrival' && dest.indexOf('Arrival:') === 0) {
+                    return String(t.sourceId) === String(arrEntry.id);
+                }
+                if (st === 'departure' && dest.indexOf('Departure:') === 0) {
+                    return String(t.sourceId) === String(depEntry.id);
+                }
+                return true;
+            });
+        }
 
         // ---- Guide handling (same logic as saveArrivalDepartureOnly) ----
         function syncGuide(entry, travelLabel, guideCheckboxId, guideSelectId, adultQtyId, childQtyId) {
@@ -12765,7 +12818,12 @@
                 const arrivalId  = entry.id;
                 const linkedTo   = travelLabel;
 
-                const existingIdx = guideList.findIndex(g => g.linkedTo === linkedTo && g.arrivalId === arrivalId);
+                const linkedKey = String(linkedTo || '').toLowerCase();
+                let existingIdx = guideList.findIndex(g =>
+                    String(g.linkedTo || '').toLowerCase() === linkedKey && String(g.arrivalId) === String(arrivalId));
+                if (existingIdx === -1 && (linkedKey === 'arrival' || linkedKey === 'departure')) {
+                    existingIdx = guideList.findIndex(g => String(g.linkedTo || '').toLowerCase() === linkedKey);
+                }
                 const guideObj = {
                     dateTime: entry.dateTime,
                     tourActivity: `${travelLabel === 'arrival' ? 'Arrival' : 'Departure'} Guide`,
@@ -12783,7 +12841,7 @@
                     guideList.push({ id: guideEntryId, ...guideObj });
                     entry.guideId = guideEntryId;
                 }
-            } else if (!guideChecked && entry?.guideId) {
+            } else if (!guideChecked && entry?.guideId && !preserveGuideSelection) {
                 const idx = guideList.findIndex(g => String(g.id) === String(entry.guideId));
                 if (idx !== -1) guideList.splice(idx, 1);
                 entry.guideId = null;
@@ -12792,6 +12850,20 @@
 
         syncGuide(arrEntry, 'arrival',   'arrivalGuideCheckbox',   'arrivalGuide',   'arrivalGuideAdultQty',   'arrivalGuideChildQty');
         syncGuide(depEntry, 'departure',  'departureGuideCheckbox', 'departureGuide', 'departureGuideAdultQty', 'departureGuideChildQty');
+
+        // Keep linked guides attached when syncing after hotel remove/add while modal guide checkboxes are hidden.
+        if (preserveGuideSelection) {
+            const arrGi = guideList.findIndex(g => String(g.linkedTo || '').toLowerCase() === 'arrival');
+            if (arrGi !== -1 && arrEntry) {
+                guideList[arrGi] = { ...guideList[arrGi], arrivalId: arrEntry.id, dateTime: arrEntry.dateTime };
+                arrEntry.guideId = guideList[arrGi].id;
+            }
+            const depGi = guideList.findIndex(g => String(g.linkedTo || '').toLowerCase() === 'departure');
+            if (depGi !== -1 && depEntry) {
+                guideList[depGi] = { ...guideList[depGi], arrivalId: depEntry.id, dateTime: depEntry.dateTime };
+                depEntry.guideId = guideList[depGi].id;
+            }
+        }
 
         if (typeof updateGuideTable    === 'function') updateGuideTable();
         if (typeof updateTransferTable === 'function') updateTransferTable();
@@ -12844,6 +12916,11 @@
 
                 // Recalculate global arrival/departure based on hotel dates
                 recalculateEntryExitPorts();
+
+                // Keep global hotel-synced arrival/departure + pickup/dropoff in sync with latest hotel set
+                if (typeof syncHotelArrDepToGlobal === 'function') {
+                    syncHotelArrDepToGlobal({ preserveGuideSelection: true }).catch(e => console.warn('syncHotelArrDepToGlobal failed', e));
+                }
             }
         }
     }
@@ -12891,7 +12968,7 @@
                 
                 // Find the matching combination
                 // Try to match by roomType, bedTypeRaw (or bedType), and mealPlanLabel (or mealPlan)
-                const matchingCombo = window.currentRoomCombinations.find(combo => {
+                let matchingCombo = window.currentRoomCombinations.find(combo => {
                     const roomMatch = combo.roomType === hotel.roomType;
                     const bedMatch = (combo.bedTypeRaw || combo.bedType) === (hotel.bedTypeRaw || hotel.bedType) || 
                                     combo.bedType === hotel.bedType;
@@ -12910,6 +12987,17 @@
                     return roomMatch && bedMatch && mealMatch;
                 });
                 
+                if (!matchingCombo) {
+                    matchingCombo =
+                        window.currentRoomCombinations.find(combo => {
+                            const roomMatch = combo.roomType === hotel.roomType;
+                            const bedMatch = (combo.bedTypeRaw || combo.bedType) === (hotel.bedTypeRaw || hotel.bedType) ||
+                                            combo.bedType === hotel.bedType;
+                            return roomMatch && bedMatch;
+                        }) ||
+                        window.currentRoomCombinations.find(combo => combo.roomType === hotel.roomType);
+                }
+
                 if (matchingCombo) {
                     console.log('Found matching combo:', matchingCombo);
                     
@@ -13076,14 +13164,35 @@
             setTimeout(() => {
                 const hotelSelectElement = document.getElementById('hotelSelect');
                 if (hotelSelectElement && hotel.hotelId) {
-                    hotelSelectElement.value = hotel.hotelId;
-                    console.log('Set hotel ID:', hotel.hotelId);
+                    let hotelValue = hotel.hotelId;
+                    const options = Array.from(hotelSelectElement.options || []);
+                    const hotelIdStr = String(hotel.hotelId);
+                    const hotelUniqueId = String(hotel.hotel_unique_id || hotel.hotelId);
+                    const matchingOption = options.find(opt => {
+                        const optValue = String(opt.value || '');
+                        const optHotelId = String(opt.getAttribute('data-hotel-unique-id') || '');
+                        const optValueId = optValue.replace('hotel_', '');
+                        return optValue === hotelIdStr ||
+                               optValue === `hotel_${hotelIdStr}` ||
+                               optHotelId === hotelUniqueId ||
+                               optHotelId === hotelIdStr ||
+                               optValueId === hotelIdStr ||
+                               optValueId === hotelUniqueId;
+                    });
+                    if (matchingOption) {
+                        hotelValue = matchingOption.value;
+                    } else if (!String(hotelValue).startsWith('hotel_')) {
+                        hotelValue = `hotel_${hotelValue}`;
+                    }
+
+                    hotelSelectElement.value = hotelValue;
+                    console.log('Set hotel ID:', hotelValue, 'from original:', hotel.hotelId);
                     
                     // Verify hotel was selected
-                    if (hotelSelectElement.value != hotel.hotelId) {
+                    if (hotelSelectElement.value != hotelValue) {
                         console.log('Hotel not found, trying again...');
                         setTimeout(async () => {
-                            hotelSelectElement.value = hotel.hotelId;
+                            hotelSelectElement.value = hotelValue;
                             await loadRoomTypes();
                             // Wait a bit for DOM to update after combinations are displayed
                             setTimeout(() => {
@@ -13359,7 +13468,7 @@
     }
 
     // Remove selected accommodation
-    function removeSelectedAccommodation() {
+    async function removeSelectedAccommodation() {
         const checkboxes = document.querySelectorAll('.accommodation-checkbox:checked');
         
         if (checkboxes.length === 0) {
@@ -13369,20 +13478,9 @@
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
         
-        // Also remove associated arrival/departure entries and their transfers
+        // Remove only selected hotel rows; keep global arrival/departure port + guide data intact
         accommodationList.forEach(hotel => {
             if (idsToRemove.includes(String(hotel.id))) {
-                // Remove arrival/departure entries
-                if (hotel.arrivalDepartureIds) {
-                    const linkedIds = new Set(hotel.arrivalDepartureIds.map(id => String(id)));
-                    // Remove transfers associated with these arrival/departure entries
-                    arrivalDepartureList.forEach(item => {
-                        if (linkedIds.has(String(item.id)) && item.transferId) {
-                            transferList = transferList.filter(t => String(t.id) !== String(item.transferId));
-                        }
-                    });
-                    arrivalDepartureList = arrivalDepartureList.filter(item => !linkedIds.has(String(item.id)));
-                }
                 // Remove hotel transfers
                 if (hotel.transferIds && hotel.transferIds.length > 0) {
                     hotel.transferIds.forEach(transferId => {
@@ -13395,8 +13493,16 @@
         accommodationList = accommodationList.filter(hotel => !idsToRemove.includes(String(hotel.id)));
         updateAccommodationTable();
         recalculateEntryExitPorts();
+
+        // Update global arrival/departure dates + pickup/dropoff based on remaining hotels,
+        // and clear them (and related transfer/guide) when no hotels remain.
+        if (typeof syncHotelArrDepToGlobal === 'function') {
+            await syncHotelArrDepToGlobal({ preserveGuideSelection: true });
+        }
+
         updateArrivalDepartureTable();
         updateTransferTable();
+        if (typeof updateGuideTable === 'function') updateGuideTable();
         recalculateHeaderDatesFromServices();
         recalculateTotals();
     }
@@ -13430,6 +13536,7 @@
             
             // Get vehicle name
             const vehicleNameDisplay = item.vehicleName || '-';
+            const pickupDropDisplay = item.transferDestinationName || item.destinationName || '-';
             
             return `
             <tr>
@@ -13440,6 +13547,7 @@
                         ${item.portName || '-'}
                     </a>
                 </td>
+                <td>${pickupDropDisplay}</td>
                 <td>${item.flightNo || '-'}</td>
                 <td>${item.type}</td>
                 <td style="text-align: center; vertical-align: middle;">${transferDisplay}</td>
@@ -13680,10 +13788,26 @@
                     
                     // Sync guide counts with transfer values
                     syncArrivalGuideCounts();
+
+                    let arrGuideEntry = data.guideId
+                        ? guideList.find(g => String(g.id) === String(data.guideId))
+                        : null;
+                    if (!arrGuideEntry) {
+                        arrGuideEntry = guideList.find(g =>
+                            String(g.linkedTo || '').toLowerCase() === 'arrival' &&
+                            String(g.arrivalId || '') === String(data.id || '')
+                        );
+                    }
+                    if (!arrGuideEntry) {
+                        arrGuideEntry = guideList.find(g => String(g.linkedTo || '').toLowerCase() === 'arrival');
+                    }
+                    if (arrGuideEntry) {
+                        data.guideId = arrGuideEntry.id;
+                    }
                     
                     // Populate arrival guide if exists
-                    if (data.guideId) {
-                        const guideEntry = guideList.find(g => String(g.id) === String(data.guideId));
+                    if (arrGuideEntry) {
+                        const guideEntry = arrGuideEntry;
                         if (guideEntry) {
                             const arrivalGuideSection = document.getElementById('arrivalGuideSection');
                             if (arrivalGuideSection) {
@@ -13793,10 +13917,26 @@
                     
                     // Sync guide counts with transfer values
                     syncDepartureGuideCounts();
+
+                    let depGuideEntry = data.guideId
+                        ? guideList.find(g => String(g.id) === String(data.guideId))
+                        : null;
+                    if (!depGuideEntry) {
+                        depGuideEntry = guideList.find(g =>
+                            String(g.linkedTo || '').toLowerCase() === 'departure' &&
+                            String(g.arrivalId || '') === String(data.id || '')
+                        );
+                    }
+                    if (!depGuideEntry) {
+                        depGuideEntry = guideList.find(g => String(g.linkedTo || '').toLowerCase() === 'departure');
+                    }
+                    if (depGuideEntry) {
+                        data.guideId = depGuideEntry.id;
+                    }
                     
                     // Populate departure guide if exists
-                    if (data.guideId) {
-                        const guideEntry = guideList.find(g => String(g.id) === String(data.guideId));
+                    if (depGuideEntry) {
+                        const guideEntry = depGuideEntry;
                         if (guideEntry) {
                             const departureGuideSection = document.getElementById('departureGuideSection');
                             if (departureGuideSection) {
@@ -21262,6 +21402,30 @@
     function editTransfer(index) {
         const transfer = transferList[index];
         if (!transfer) return;
+
+        // For airport Arrival/Departure local transfers, always open Edit Arrival/Departure modal.
+        const destStr = String(transfer.destination || transfer.service || '');
+        const isPortArrDepLocal = (transfer.transportMode === 'local' || !transfer.transportMode) &&
+            (destStr.indexOf('Arrival:') === 0 || destStr.indexOf('Departure:') === 0);
+        if (isPortArrDepLocal) {
+            const wantArrival = destStr.indexOf('Arrival:') === 0;
+            let adIdx = arrivalDepartureList.findIndex(item => String(item.transferId) === String(transfer.id));
+            if (adIdx === -1) {
+                adIdx = arrivalDepartureList.findIndex(item => String(item.id) === String(transfer.sourceId));
+            }
+            if (adIdx === -1) {
+                adIdx = arrivalDepartureList.findIndex(item => {
+                    if (item.sourceType !== 'hotel') return false;
+                    const isArr = item.type === 'Arrival' || item.type === 'arrival';
+                    if (wantArrival) return isArr || item.travel_type === 'entry_port';
+                    return !isArr && (item.type === 'Departure' || item.type === 'departure' || item.travel_type === 'exit_port');
+                });
+            }
+            if (adIdx !== -1) {
+                editArrivalDeparture(adIdx);
+                return;
+            }
+        }
         
         // If it's linked to a service, open the source modal instead
         if (transfer.isStandalone === false) {
