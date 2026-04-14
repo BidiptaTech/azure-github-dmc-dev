@@ -489,10 +489,18 @@ class VehicleController extends Controller
             $mappings = VehicleZoneMapping::with(['fromZone', 'toZone'])
                 ->where('vehicle_id', $vehicle->vehicle_id)
                 ->get()
-                // Hide mappings pointing to soft-deleted/deleted zones
+                // Hide mappings pointing to soft-deleted/deleted zones.
+                // Note: For Port-based mappings, from/to IDs refer to the ports table (not zones),
+                // so the Zone relationships are expected to be null and should not hide the mapping.
                 // (done in PHP to avoid PostgreSQL varchar vs integer join comparison errors)
                 ->filter(function ($mapping) {
-                    return !is_null($mapping->fromZone) && !is_null($mapping->toZone);
+                    $fromType = (string) ($mapping->from_zone_type ?? '');
+                    $toType = (string) ($mapping->to_zone_type ?? '');
+
+                    $fromOk = ($fromType === 'Port') ? true : !is_null($mapping->fromZone);
+                    $toOk = ($toType === 'Port') ? true : !is_null($mapping->toZone);
+
+                    return $fromOk && $toOk;
                 })
                 ->values();
 
