@@ -140,7 +140,22 @@ class PackageBookingController extends Controller
 
         $user = Auth::user();
         $dmcId = CommonHelper::getDmcId($user);
-     
+        
+        $arrivalData = $this->parseJsonField($package->arrival_data);
+        $departureData = $this->parseJsonField($package->departure_data);
+
+        if (is_array($arrivalData)) {
+            $pickupPortId = (string) ($arrivalData['pickup_port_id'] ?? '');
+            $dropoffHotelId = (string) ($arrivalData['dropoff_hotel_id'] ?? '');
+            $arrivalData['pickup_port_name'] = $this->resolvePortName($pickupPortId);
+            $arrivalData['dropoff_hotel_name'] = $this->resolveHotelName($dropoffHotelId);
+        }
+        if (is_array($departureData)) {
+            $pickupHotelId = (string) ($departureData['pickup_hotel_id'] ?? '');
+            $dropoffPortId = (string) ($departureData['dropoff_port_id'] ?? '');
+            $departureData['pickup_hotel_name'] = $this->resolveHotelName($pickupHotelId);
+            $departureData['dropoff_port_name'] = $this->resolvePortName($dropoffPortId);
+        }
 
         return response()->json([
             'success' => true,
@@ -153,14 +168,50 @@ class PackageBookingController extends Controller
                 'selected_attractions' => $this->parseJsonField($package->selected_attractions),
                 'selected_guides' => $this->parseJsonField($package->selected_guide),
                 'selected_restaurants' => $this->parseJsonField($package->selected_restaurants),
-                'arrival_data' => $this->parseJsonField($package->arrival_data),
-                'departure_data' => $this->parseJsonField($package->departure_data),
+                'arrival_data' => $arrivalData,
+                'departure_data' => $departureData,
                 'transfer_data' => $this->parseJsonField($package->transfer_data),
                 'price_adult' => (float) ($package->price_adult ?? 0),
                 'price_child' => (float) ($package->price_child ?? 0),
                 'duration_days' => (int) ($package->duration_days ?? 1),
             ],
         ]);
+    }
+
+    private function resolvePortName($portId): ?string
+    {
+        
+        $portId = trim((string) $portId);
+        if ($portId === '') {
+            return null;
+        }
+
+        $port = Port::where('port_id', $portId)
+            ->orWhere('id', $portId)
+            ->first();
+
+        if (!$port) {
+            return null;
+        }
+
+        return $port->port_name ?? $port->name ?? null;
+    }
+
+    private function resolveHotelName($hotelId): ?string
+    {
+        $hotelId = trim((string) $hotelId);
+        if ($hotelId === '') {
+            return null;
+        }
+
+        $hotel = Hotel::where('hotel_unique_id', $hotelId)
+            ->first();
+
+        if (!$hotel) {
+            return null;
+        }
+
+        return $hotel->name ?? $hotel->hotel_name ?? null;
     }
 
     public function bedOptions(Request $request)
