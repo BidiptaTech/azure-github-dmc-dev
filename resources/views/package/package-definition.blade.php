@@ -377,41 +377,8 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Guide box (col-md-6) -->
-                        <!-- <div class="col-md-6">
-                            <div class="border rounded p-3 h-100 hotel-attraction-box">
-                                <h6 class="fw-semibold mb-2 text-info"><i class="ri-user-voice-line me-1"></i>Guide</h6>
-                                <label class="form-label small mb-1">Select Guide</label>
-                                <div class="d-flex gap-2 mb-2">
-                                    <select class="form-select form-select-sm flex-grow-1" id="definition-guide-select">
-                                        <option value="">Select City First / No guide</option>
-                                    </select>
-                                    <button type="button" class="btn btn-info btn-sm align-self-end" id="definition-guide-add-btn"><i class="ri-add-line me-1"></i>Add</button>
-                                </div>
-                                <div id="definition-guide-duration-wrap" class="bg-info-subtle rounded p-2 mb-2" style="display: none;">
-                                    <h6 class="small fw-semibold mb-1">Duration (time)</h6>
-                                    <select class="form-select form-select-sm" id="definition-guide-duration">
-                                        <option value="">Select duration</option>
-                                        <option value="hourly">1 Hour</option>
-                                        <option value="two_hour">2 Hours</option>
-                                        <option value="four_hour">4 Hours</option>
-                                        <option value="six_hour">6 Hours</option>
-                                        <option value="eight_hour">8 Hours</option>
-                                        <option value="ten_hour">10 Hours</option>
-                                        <option value="twelve_hour">12 Hours</option>
-                                    </select>
-                                    <small class="text-muted d-block mt-1">Price is taken from guide's rate for selected duration.</small>
-                                </div>
-                                <div class="pt-2 border-top mt-2">
-                                    <h6 class="small fw-semibold mb-1">Chosen Guides <span class="text-muted fw-normal">(<span id="definition-total-guides-count">0</span>)</span></h6>
-                                    <div id="definition-guides-empty" class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select guide, then Add.</div>
-                                    <div id="definition-guides-list" class="mt-1" style="display: none;"></div>
-                                </div>
-                            </div>
-                        </div> -->
                     </div>
                     <input type="hidden" name="selected_restaurants" id="definition-restaurants-input" value="[]">
-                    <input type="hidden" name="definition_independent_guide" id="definition-independent-guide-input" value="[]">
                 </div>
             </div>
 
@@ -584,83 +551,6 @@
                 </div>
             </div>
 
-            <!-- Transport: Local Transfer (pickup & dropoff = hotels, attractions, restaurants, ports; dropoff excludes selected pickup) -->
-            <!-- <div class="card mb-5">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-car-line me-2 text-secondary"></i>Transport</h5>
-                </div>
-                <div class="card-body" style="margin-top: 12px;">
-                    <p class="text-muted small mb-3">Pickup and dropoff can be any hotel, attraction, restaurant or port. Dropoff will not show the selected pickup location.</p>
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-5">
-                            <label class="form-label">Pickup location</label>
-                            <select class="form-select" id="local-transfer-pickup">
-                                <option value="">Select location</option>
-                            </select>
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label">Dropoff location</label>
-                            <select class="form-select" id="local-transfer-dropoff">
-                                <option value="">Select location (excludes pickup)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Search vehicle</label>
-                            <button type="button" class="btn btn-secondary btn-sm w-100" id="local-transfer-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle (zone-based)</button>
-                            
-                        </div>
-                    </div>
-                    <div class="row g-3 mb-3">
-                        <div id="local-transfer-vehicle-wrap" class="mt-2" style="display: none;">
-                            <label class="form-label small mb-1">Choose vehicle(s)</label>
-                            <div class="d-flex gap-2 mb-1">
-                                <select class="form-select form-select-sm flex-grow-1" id="local-transfer-vehicle-select">
-                                    <option value="">Select vehicle</option>
-                                </select>
-                                <button type="button" class="btn btn-secondary btn-sm" id="local-transfer-add-vehicle-btn"><i class="ri-add-line"></i> Add</button>
-                            </div>
-                            <div id="local-transfer-chosen-vehicles" class="small"></div>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-primary btn-sm" id="local-transfer-add-btn"><i class="ri-add-line me-1"></i>Add this transfer</button>
-                    <div class="mt-3 pt-3 border-top">
-                        <h6 class="small fw-semibold mb-2">Chosen local transfers</h6>
-                        <div id="local-transfer-empty" class="alert alert-secondary py-2 small mb-0"><i class="ri-information-line me-1"></i>Add pickup/dropoff and vehicles above, then click Add this transfer.</div>
-                        <div id="local-transfer-list" style="display: none;"></div>
-                    </div>
-                    <input type="hidden" name="local_transfers" id="local-transfers-hidden" value="[]">
-                </div>
-            </div> -->
-
-            <input type="hidden" name="price_data" id="price-data-hidden" value="[]">
-            <div class="card mb-4" id="optional-services-summary-card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-price-tag-3-line me-2 text-primary"></i>Optional &amp; Add-On Services – Price Summary</h5>
-                </div>
-                <div class="card-body py-3">
-                    <p class="text-muted small mb-2">Listed prices come from services you marked as <strong>Optional</strong> or <strong>Add-On</strong> below.</p>
-                    <div id="optional-services-summary-empty" class="alert alert-secondary py-2 small mb-0"><i class="ri-information-line me-1"></i>No optional or add-on priced lines yet. Mark a service as Optional or Add-On to include it here.</div>
-                    <div id="optional-services-summary-table-wrap" class="table-responsive mt-2" style="display: none;">
-                        <table class="table table-sm table-bordered mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Service</th>
-                                    <th>Type</th>
-                                    <th class="text-end">Price</th>
-                                </tr>
-                            </thead>
-                            <tbody id="optional-services-summary-tbody"></tbody>
-                            <tfoot>
-                                <tr class="fw-semibold">
-                                    <td colspan="2">Total</td>
-                                    <td class="text-end" id="optional-services-total">—</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
             <!-- Inclusions, Exclusions, Terms & Conditions, Status - one box -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
@@ -714,7 +604,6 @@ $(document).ready(function() {
     $('#definition-hotel-select').select2({ placeholder: 'Select hotel' });
     $('#definition-attraction-select').select2({ placeholder: 'Select attraction' });
     $('#definition-restaurant-select').select2({ placeholder: 'Select restaurant' });
-    $('#definition-guide-select').select2({ placeholder: 'Select guide (optional)' });
 
     // Date validation
     $('#start-date-input').on('change', function() {
@@ -736,17 +625,11 @@ $(document).ready(function() {
         $('#definition-attraction-config').hide();
         $('#definition-restaurant-select').empty().append('<option value="">Select City First</option>');
         $('#definition-restaurant-config').hide();
-        $('#definition-guide-select').empty().append('<option value="">Select City First</option>');
         $('#definition-rooms-wrapper').hide();
         $('#arrival-pickup-port').empty().append('<option value="">Select country first</option>');
         $('#departure-dropoff-port').empty().append('<option value="">Select country first</option>');
         portsByCountry = [];
-        allHotelsForLocalTransfer = [];
-        allAttractionsForLocalTransfer = [];
-        allRestaurantsForLocalTransfer = [];
         restaurantMealsByRestaurant = {};
-        if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
-        if (typeof definitionGuides !== 'undefined') { definitionGuides = []; if (typeof updateDefinitionGuidesInput === 'function') updateDefinitionGuidesInput(); if (typeof renderChosenGuides === 'function') renderChosenGuides(); }
         if (!country) return;
         $.get(baseUrl + '/ports-by-country/' + encodeURIComponent(country), function(ports) {
             portsByCountry = ports || [];
@@ -761,7 +644,6 @@ $(document).ready(function() {
                     dep.append(new Option(name, portId));
                 }
             });
-            if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
         });
         citySelect.prop('disabled', false);
         $.get(baseUrl + '/cities-by-country/' + encodeURIComponent(country), function(response) {
@@ -771,9 +653,6 @@ $(document).ready(function() {
     });
 
     let portsByCountry = [];
-    let allHotelsForLocalTransfer = [];
-    let allAttractionsForLocalTransfer = [];
-    let allRestaurantsForLocalTransfer = [];
     let definitionHotels = [];
     let definitionAttractions = [];
     let definitionRestaurants = [];
@@ -781,86 +660,45 @@ $(document).ready(function() {
     let vehiclesByCity = [];
     let guidesByCity = [];
 
-    // City → Hotel, Attractions, Restaurants, Guides, Vehicles
+    // City → Hotel, Attractions, Restaurants, Vehicles
     $('#city-select').on('change', function() {
         const city = $(this).val();
         if (!city) return;
-        if (typeof definitionGuides !== 'undefined') {
-            definitionGuides = [];
-            if (typeof updateDefinitionGuidesInput === 'function') updateDefinitionGuidesInput();
-            if (typeof renderChosenGuides === 'function') renderChosenGuides();
-        }
 
         $.get(baseUrl + '/hotel-city/' + encodeURIComponent(city), function(response) {
-            allHotelsForLocalTransfer = Array.isArray(response) ? response : [];
+            const hotels = Array.isArray(response) ? response : [];
             const sel = $('#definition-hotel-select');
             sel.empty().append('<option value="">Select Hotel</option>');
-            allHotelsForLocalTransfer.forEach(function(h) {
+            hotels.forEach(function(h) {
                 sel.append(new Option(h.name, h.hotel_unique_id));
             });
-            if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
         });
 
         $.get(baseUrl + '/attractions/' + encodeURIComponent(city), function(response) {
-            allAttractionsForLocalTransfer = Array.isArray(response) ? response : [];
+            const attractions = Array.isArray(response) ? response : [];
             const sel = $('#definition-attraction-select');
             sel.empty().append('<option value="">Select Attraction</option>');
-            allAttractionsForLocalTransfer.forEach(function(a) {
+            attractions.forEach(function(a) {
                 const opt = new Option(a.name, a.attraction_id);
                 $(opt).data('attraction-data', { attraction_id: a.attraction_id, name: a.name, location: a.location, image: a.master_image || '', adult_price: a.adult_price, child_price: a.child_price });
                 sel.append(opt);
             });
-            if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
         });
 
         $.get(baseUrl + '/restaurants/' + encodeURIComponent(city), function(response) {
             const list = response.restaurants || response;
-            allRestaurantsForLocalTransfer = Array.isArray(list) ? list : [];
+            const restaurants = Array.isArray(list) ? list : [];
             restaurantMealsByRestaurant = {};
             const sel = $('#definition-restaurant-select');
             sel.empty().append('<option value="">Select Restaurant</option>');
-            allRestaurantsForLocalTransfer.forEach(function(r) {
+            restaurants.forEach(function(r) {
                 sel.append(new Option(r.name, r.restaurant_id));
             });
-            if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
         });
 
         $.get(baseUrl + '/guides/' + encodeURIComponent(city), function(response) {
-            guidesByCity = response;
-            const sel = $('#definition-guide-select');
-            sel.empty().append('<option value="">Select City First / No guide</option>');
-            response.forEach(function(g) {
-                const opt = new Option(g.name + (g.languages && g.languages.length ? ' (' + g.languages.join(', ') + ')' : ''), g.guide_id);
-                $(opt).data('guide-data', g);
-                sel.append(opt);
-            });
+            guidesByCity = Array.isArray(response) ? response : [];
         });
-
-    // Guide select: show duration dropdown when a guide is selected; enable only options that have a price
-    $('#definition-guide-select').on('change', function() {
-        const val = $(this).val();
-        const wrap = $('#definition-guide-duration-wrap');
-        $('#definition-guide-duration').val('');
-        if (!val) {
-            wrap.hide();
-            return;
-        }
-        const opt = $(this).find('option:selected');
-        const data = opt.data('guide-data');
-        if (data) {
-            wrap.show();
-            const durationSel = $('#definition-guide-duration');
-            durationSel.find('option').each(function() {
-                const key = $(this).val();
-                if (!key) { $(this).prop('disabled', false); return; }
-                const priceKey = key === 'hourly' ? 'hourly_price' : key + '_price';
-                const hasPrice = data[priceKey] != null && data[priceKey] !== '' && !isNaN(parseFloat(data[priceKey]));
-                $(this).prop('disabled', !hasPrice);
-            });
-        } else {
-            wrap.hide();
-        }
-    });
 
         $.get(baseUrl + '/get-transport/' + encodeURIComponent(city), function(response) {
             vehiclesByCity = Array.isArray(response) ? response : [];
@@ -1141,76 +979,6 @@ $(document).ready(function() {
         const subtotal = hotelsTotal + attractionsTotal + restaurantsTotal + arrivalTotal + departureTotal;
         $('#definition-total-price').val(subtotal.toFixed(2));
     }
-    function renderOptionalServicesSummary() {
-        function trimStr(s) { return (s || '').trim(); }
-        const lines = [];
-        function pushLine(name, type, rawPrice, fallback) {
-            const p = numPriceVal(rawPrice !== '' && rawPrice != null ? rawPrice : fallback);
-            if (p > 0 && name) lines.push({ name: String(name), type: type, price: p });
-        }
-        (definitionHotels || []).forEach(function(h) {
-            const n = h.hotel_name || h.name || '';
-            if (h.optional) pushLine(n, 'Hotel (Optional)', h.optional_price, h.base_price);
-            if (h.addon) pushLine(n, 'Hotel (Add-on)', h.addon_price, h.base_price);
-        });
-        (definitionAttractions || []).forEach(function(a) {
-            const n = a.name || '';
-            if (a.optional) pushLine(n, 'Attraction (Optional)', a.optional_price, a.base_price);
-            if (a.addon) pushLine(n, 'Attraction (Add-on)', a.addon_price, a.base_price);
-        });
-        (definitionRestaurants || []).forEach(function(r) {
-            const n = r.restaurant_name || r.name || '';
-            if (r.optional) pushLine(n, 'Restaurant (Optional)', r.optional_price, r.base_price);
-            if (r.addon) pushLine(n, 'Restaurant (Add-on)', r.addon_price, r.base_price);
-        });
-        (definitionGuides || []).forEach(function(g) {
-            const n = g.name || '';
-            if (g.optional) pushLine(n, 'Guide (Optional)', g.optional_price, g.base_price);
-            if (g.addon) pushLine(n, 'Guide (Add-on)', g.addon_price, g.base_price);
-        });
-        (localTransfersList || []).forEach(function(t) {
-            const n = trimStr((t.pickup_label || '') + ' → ' + (t.dropoff_label || ''));
-            if (t.optional) pushLine(n || 'Transfer', 'Transfer (Optional)', t.optional_price, t.base_price);
-            if (t.addon) pushLine(n || 'Transfer', 'Transfer (Add-on)', t.addon_price, t.base_price);
-        });
-        const tbody = $('#optional-services-summary-tbody');
-        const emptyEl = $('#optional-services-summary-empty');
-        const wrap = $('#optional-services-summary-table-wrap');
-        const totalEl = $('#optional-services-total');
-        tbody.empty();
-        if (lines.length === 0) {
-            emptyEl.show();
-            wrap.hide();
-            totalEl.text('—');
-            $('#price-data-hidden').val('[]');
-            return;
-        }
-        emptyEl.hide();
-        wrap.show();
-        let sum = 0;
-        lines.forEach(function(row) {
-            sum += row.price;
-            tbody.append(
-                '<tr><td>' + escapeHtml(row.name) + '</td><td>' + escapeHtml(row.type) + '</td><td class="text-end">' + formatOptionalPrice(row.price) + '</td></tr>'
-            );
-        });
-        totalEl.text(formatOptionalPrice(sum));
-        const payload = lines.map(function(x) {
-            return { name: x.name, type: x.type, price: x.price };
-        });
-        const markupType = $('#definition-markup-type').val();
-        const markupAmount = numPriceVal($('#definition-markup-amount').val());
-        if (markupType && markupAmount > 0) {
-            payload.push({
-                name: 'Markup',
-                type: 'Markup',
-                price: 0,
-                markup_type: markupType,
-                markup_amount: markupAmount
-            });
-        }
-        $('#price-data-hidden').val(JSON.stringify(payload));
-    }
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -1284,7 +1052,6 @@ $(document).ready(function() {
             placeholder.show().html('<div class="alert alert-info py-3 mb-0 d-flex align-items-center"><i class="ri-information-line me-2 fs-5"></i><span>No hotels selected yet. Choose your hotels above and click <strong>Add</strong>.</span></div>');
             listEl.hide().empty();
             countEl.text('0');
-            renderOptionalServicesSummary();
             return;
         }
         normalizeHotelModesByFirst();
@@ -1383,7 +1150,6 @@ $(document).ready(function() {
             renderChosenHotels();
         });
         refreshTransferHotelDropdowns();
-        renderOptionalServicesSummary();
         updateDefinitionTotalsAndMarkup();
     }
 
@@ -1395,7 +1161,6 @@ $(document).ready(function() {
             arrivalDropoff.append(new Option(h.hotel_name, h.hotel_id));
             departurePickup.append(new Option(h.hotel_name, h.hotel_id));
         });
-        if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
     }
 
     function updateDefinitionHotelsInput() {
@@ -1671,7 +1436,6 @@ $(document).ready(function() {
         if (definitionAttractions.length === 0) {
             emptyEl.show();
             container.hide();
-            renderOptionalServicesSummary();
             return;
         }
         emptyEl.hide();
@@ -1771,13 +1535,11 @@ $(document).ready(function() {
             updateDefinitionAttractionsInput();
             renderDefinitionAttractions();
         });
-        renderOptionalServicesSummary();
         updateDefinitionTotalsAndMarkup();
     }
 
     function updateDefinitionAttractionsInput() {
         $('#definition-attractions-input').val(JSON.stringify(definitionAttractions));
-        if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
     }
 
     // Restaurant select: show config panel, load meal types, and populate vehicle
@@ -1974,7 +1736,6 @@ $(document).ready(function() {
         if (definitionRestaurants.length === 0) {
             emptyEl.show();
             container.hide();
-            renderOptionalServicesSummary();
             return;
         }
         normalizeRestaurantModesByFirst();
@@ -2075,429 +1836,11 @@ $(document).ready(function() {
             updateDefinitionRestaurantsInput();
             renderDefinitionRestaurants();
         });
-        renderOptionalServicesSummary();
         updateDefinitionTotalsAndMarkup();
     }
 
     function updateDefinitionRestaurantsInput() {
         $('#definition-restaurants-input').val(JSON.stringify(definitionRestaurants));
-        if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
-    }
-
-    // --- Transport: Local Transfer (pickup/dropoff = all hotels, attractions, restaurants, ports from DB; dropoff excludes pickup) ---
-    function buildLocalTransferLocationList() {
-        const list = [];
-        (allHotelsForLocalTransfer || []).forEach(function(h) {
-            const id = h.hotel_unique_id || h.hotel_id;
-            const name = h.name || h.hotel_name || '';
-            if (id && name) list.push({ value: 'hotel_' + id, label: name + ' (Hotel)', type: 'Hotel', zoneId: id });
-        });
-        (allAttractionsForLocalTransfer || []).forEach(function(a) {
-            const id = a.attraction_id || a.id;
-            const name = a.name || '';
-            if (id && name) list.push({ value: 'attraction_' + id, label: name + ' (Attraction)', type: 'Attraction', zoneId: id });
-        });
-        (allRestaurantsForLocalTransfer || []).forEach(function(r) {
-            const id = r.restaurant_id || r.id;
-            const name = r.name || r.restaurant_name || '';
-            if (id && name) list.push({ value: 'restaurant_' + id, label: name + ' (Restaurant)', type: 'Restaurant', zoneId: id });
-        });
-        (portsByCountry || []).forEach(function(p) {
-            const portId = p.port_id || p.id;
-            const name = p.port_name || p.name;
-            if (portId && name) list.push({ value: 'port_' + portId, label: name + ' (Port)', type: 'Port', zoneId: portId });
-        });
-        return list;
-    }
-
-    function refreshLocalTransferPickupDropoff() {
-        const list = buildLocalTransferLocationList();
-        const pickupSel = $('#local-transfer-pickup');
-        const dropoffSel = $('#local-transfer-dropoff');
-        const currentPickup = pickupSel.val();
-        pickupSel.empty().append('<option value="">Select location</option>');
-        list.forEach(function(item) {
-            pickupSel.append(new Option(item.label, item.value));
-        });
-        if (currentPickup && list.some(function(x) { return x.value === currentPickup; })) pickupSel.val(currentPickup);
-        dropoffSel.empty().append('<option value="">Select location (excludes pickup)</option>');
-        list.forEach(function(item) {
-            if (item.value !== pickupSel.val()) dropoffSel.append(new Option(item.label, item.value));
-        });
-        var curDrop = dropoffSel.val();
-        if (curDrop && list.some(function(x) { return x.value === curDrop && x.value !== pickupSel.val(); })) dropoffSel.val(curDrop);
-    }
-
-    let localTransferVehiclesByZone = [];
-    let localTransferChosenVehicles = [];
-    let localTransfersList = [];
-
-    /** Match API vehicle row to select value (string/number/id aliases). */
-    function findLocalTransferVehicleBySelectValue(vehicles, val) {
-        if (val == null || val === '' || !Array.isArray(vehicles)) return null;
-        const s = String(val);
-        return vehicles.find(function(x) {
-            if (!x) return false;
-            const id = x.vehicle_id != null ? x.vehicle_id : x.id;
-            return String(id) === s;
-        }) || null;
-    }
-
-    $(document).ready(function() {
-        refreshLocalTransferPickupDropoff();
-    });
-
-    $('#local-transfer-pickup').on('change', function() {
-        const list = buildLocalTransferLocationList();
-        const dropoffSel = $('#local-transfer-dropoff');
-        const pickupVal = $(this).val();
-        dropoffSel.empty().append('<option value="">Select location (excludes pickup)</option>');
-        list.forEach(function(item) {
-            if (item.value !== pickupVal) dropoffSel.append(new Option(item.label, item.value));
-        });
-    });
-
-    $('#local-transfer-search-vehicle-btn').on('click', function() {
-        const pickupVal = $('#local-transfer-pickup').val();
-        const dropoffVal = $('#local-transfer-dropoff').val();
-        const city = $('#city-select').val();
-        if (!pickupVal || !dropoffVal) { alert('Select pickup and dropoff first.'); return; }
-        if (!city) { alert('Select city first.'); return; }
-        const list = buildLocalTransferLocationList();
-        const fromItem = list.find(function(x) { return x.value === pickupVal; });
-        const toItem = list.find(function(x) { return x.value === dropoffVal; });
-        if (!fromItem || !toItem) { alert('Invalid pickup or dropoff.'); return; }
-        const btn = $(this).prop('disabled', true);
-        $.ajax({
-            url: fetchVehiclesByZonesUrl,
-            type: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                from_zone_id: fromItem.zoneId,
-                to_zone_id: toItem.zoneId,
-                from_zone_type: fromItem.type,
-                to_zone_type: toItem.type,
-                city: city,
-                zone_status: 1
-            },
-            success: function(res) {
-                localTransferVehiclesByZone = Array.isArray(res.vehicles) ? res.vehicles : [];
-                const sel = $('#local-transfer-vehicle-select');
-                sel.empty().append('<option value="">Select vehicle</option>');
-                localTransferVehiclesByZone.forEach(function(v) {
-                    const vid = v.vehicle_id != null ? v.vehicle_id : v.id;
-                    const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
-                    const opt = new Option(name, vid);
-                    $(opt).data('vehicle-row', v);
-                    sel.append(opt);
-                });
-                $('#local-transfer-vehicle-wrap').show();
-            },
-            error: function(xhr) {
-                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No vehicles found for this route.';
-                alert(msg);
-            }
-        }).always(function() { btn.prop('disabled', false); });
-    });
-
-    $('#local-transfer-add-vehicle-btn').on('click', function() {
-        const val = $('#local-transfer-vehicle-select').val();
-        if (!val) return;
-        let v = findLocalTransferVehicleBySelectValue(localTransferVehiclesByZone, val);
-        if (!v) {
-            const opt = $('#local-transfer-vehicle-select').find('option:selected');
-            v = opt.data('vehicle-row');
-        }
-        if (!v) return;
-        const vid = v.vehicle_id != null ? v.vehicle_id : v.id;
-        if (localTransferChosenVehicles.some(function(x) { return String(x.vehicle_id) === String(vid); })) return;
-        const priv = parseFloat(v.private_price) || 0;
-        const shared = parseFloat(v.shared_price) || 0;
-        localTransferChosenVehicles.push({ vehicle_id: vid, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type, private_price: priv, shared_price: shared });
-        const html = localTransferChosenVehicles.map(function(x, i) {
-            return '<span class="badge bg-secondary me-1 mb-1">' + (x.vehicle_name || '') + (x.vehicle_type ? ' (' + x.vehicle_type + ')' : '') + ' <a href="#" class="text-white local-transfer-remove-vehicle" data-idx="' + i + '">×</a></span>';
-        }).join('');
-        $('#local-transfer-chosen-vehicles').html(html || '—');
-    });
-
-    $(document).on('click', '.local-transfer-remove-vehicle', function(e) {
-        e.preventDefault();
-        const idx = parseInt($(this).data('idx'), 10);
-        localTransferChosenVehicles.splice(idx, 1);
-        const html = localTransferChosenVehicles.map(function(x, i) {
-            return '<span class="badge bg-secondary me-1 mb-1">' + (x.vehicle_name || '') + (x.vehicle_type ? ' (' + x.vehicle_type + ')' : '') + ' <a href="#" class="text-white local-transfer-remove-vehicle" data-idx="' + i + '">×</a></span>';
-        }).join('');
-        $('#local-transfer-chosen-vehicles').html(html || '—');
-    });
-
-    $('#local-transfer-add-btn').on('click', function() {
-        const pickupVal = $('#local-transfer-pickup').val();
-        const dropoffVal = $('#local-transfer-dropoff').val();
-        if (!pickupVal || !dropoffVal) { alert('Select pickup and dropoff first.'); return; }
-        const list = buildLocalTransferLocationList();
-        const fromItem = list.find(function(x) { return x.value === pickupVal; });
-        const toItem = list.find(function(x) { return x.value === dropoffVal; });
-        if (!fromItem || !toItem) return;
-        let vehiclesSnapshot = localTransferChosenVehicles.slice();
-        const pendingVal = $('#local-transfer-vehicle-select').val();
-        if (pendingVal) {
-            const already = vehiclesSnapshot.some(function(x) { return String(x.vehicle_id) === String(pendingVal); });
-            if (!already) {
-                let pv = findLocalTransferVehicleBySelectValue(localTransferVehiclesByZone, pendingVal);
-                if (!pv) {
-                    const opt = $('#local-transfer-vehicle-select').find('option:selected');
-                    pv = opt.data('vehicle-row');
-                }
-                if (pv) {
-                    const pvid = pv.vehicle_id != null ? pv.vehicle_id : pv.id;
-                    const priv = parseFloat(pv.private_price) || 0;
-                    const shared = parseFloat(pv.shared_price) || 0;
-                    vehiclesSnapshot.push({ vehicle_id: pvid, vehicle_name: pv.vehicle_name || pv.name, vehicle_type: pv.vehicle_type, private_price: priv, shared_price: shared });
-                }
-            }
-        }
-        const transferPrice = vehiclesSnapshot.reduce(function(sum, v) {
-            return sum + (parseFloat(v.private_price) || parseFloat(v.shared_price) || 0);
-        }, 0);
-        const transferBasePrice = transferPrice > 0 ? transferPrice : '';
-        localTransfersList.push({
-            pickup_value: pickupVal,
-            pickup_label: fromItem.label,
-            pickup_type: fromItem.type,
-            pickup_zone_id: fromItem.zoneId,
-            dropoff_value: dropoffVal,
-            dropoff_label: toItem.label,
-            dropoff_type: toItem.type,
-            dropoff_zone_id: toItem.zoneId,
-            vehicles: vehiclesSnapshot,
-            compulsory: true,
-            optional: false,
-            addon: false,
-            optional_price: '',
-            addon_price: '',
-            base_price: transferBasePrice
-        });
-        localTransferChosenVehicles = [];
-        $('#local-transfer-chosen-vehicles').html('—');
-        $('#local-transfer-vehicle-wrap').hide();
-        $('#local-transfer-vehicle-select').empty().append('<option value="">Select vehicle</option>');
-        renderLocalTransfersList();
-        $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
-    });
-
-    function renderLocalTransfersList() {
-        if (localTransfersList.length === 0) {
-            $('#local-transfer-empty').show();
-            $('#local-transfer-list').hide().empty();
-            renderOptionalServicesSummary();
-            return;
-        }
-        $('#local-transfer-empty').hide();
-        const html = localTransfersList.map(function(t, i) {
-            const vList = (t.vehicles || []).map(function(v) { return (v.vehicle_name || '') + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : ''); }).join(', ');
-            const isCompulsory = t.compulsory === true || (!t.optional && !t.addon);
-            const isOptional = t.optional === true;
-            const isAddonT = t.addon === true;
-            const baseRawT = t.base_price != null && t.base_price !== '' ? t.base_price : '';
-            const basePT = baseRawT !== '' ? parseFloat(baseRawT) : '';
-            const optPriceRawT = t.optional_price != null && t.optional_price !== '' ? t.optional_price : '';
-            const optPriceT = optPriceRawT !== '' ? parseFloat(optPriceRawT) : '';
-            const addonPriceRawT = t.addon_price != null && t.addon_price !== '' ? t.addon_price : '';
-            const addonPriceT = addonPriceRawT !== '' ? parseFloat(addonPriceRawT) : '';
-            let priceDisplay = '';
-            if (isOptional && optPriceT !== '' && !isNaN(optPriceT)) {
-                priceDisplay = ' <span class="badge bg-secondary optional-price-badge">Optional: ' + formatOptionalPrice(optPriceT) + '</span>';
-            } else if (isAddonT && addonPriceT !== '' && !isNaN(addonPriceT)) {
-                priceDisplay = ' <span class="badge bg-dark optional-price-badge">Add-on: ' + formatOptionalPrice(addonPriceT) + '</span>';
-            } else if (basePT !== '' && !isNaN(basePT)) {
-                priceDisplay = ' <span class="badge bg-light text-dark optional-price-badge">' + formatOptionalPrice(basePT) + '</span>';
-            }
-            return '<div class="border rounded p-2 mb-2 small">' +
-                '<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">' +
-                '<div class="flex-grow-1">' +
-                (t.pickup_label || '') + ' → ' + (t.dropoff_label || '') + priceDisplay + (vList ? ' <span class="text-muted">(' + vList + ')</span>' : '') +
-                '</div>' +
-                '<div class="d-flex align-items-center gap-2 flex-wrap">' +
-                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-comp-' + i + '" data-idx="' + i + '" value="compulsory" ' + (isCompulsory ? 'checked' : '') + '><label class="form-check-label small" for="lt-comp-' + i + '">Compulsory</label></div>' +
-                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-opt-' + i + '" data-idx="' + i + '" value="optional" ' + (isOptional ? 'checked' : '') + '><label class="form-check-label small" for="lt-opt-' + i + '">Optional</label></div>' +
-                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-addon-' + i + '" data-idx="' + i + '" value="addon" ' + (isAddonT ? 'checked' : '') + '><label class="form-check-label small" for="lt-addon-' + i + '">Add-On</label></div>' +
-                '<button type="button" class="btn btn-outline-danger btn-sm local-transfer-remove" data-idx="' + i + '"><i class="ri-delete-bin-line"></i></button>' +
-                '</div></div></div>';
-        }).join('');
-        $('#local-transfer-list').html(html).show();
-        renderOptionalServicesSummary();
-    }
-
-    $(document).on('change', '.local-transfer-mode', function() {
-        const idx = parseInt($(this).data('idx'), 10);
-        const mode = $(this).val();
-        const t = localTransfersList[idx];
-        if (t) {
-            t.compulsory = mode === 'compulsory';
-            t.optional = mode === 'optional';
-            t.addon = mode === 'addon';
-            if (mode === 'optional') {
-                if ((t.optional_price === '' || t.optional_price == null) && t.base_price != null && t.base_price !== '') t.optional_price = t.base_price;
-                t.addon_price = '';
-            } else if (mode === 'addon') {
-                if ((t.addon_price === '' || t.addon_price == null) && t.base_price != null && t.base_price !== '') t.addon_price = t.base_price;
-                t.optional_price = '';
-            } else {
-                t.optional_price = '';
-                t.addon_price = '';
-            }
-            renderLocalTransfersList();
-            $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
-        }
-    });
-
-    $(document).on('click', '.local-transfer-remove', function(e) {
-        e.preventDefault();
-        const idx = parseInt($(this).data('idx'), 10);
-        localTransfersList.splice(idx, 1);
-        renderLocalTransfersList();
-        $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
-    });
-
-    // Independent guides: multiple with Compulsory/Optional (mutually exclusive)
-    let definitionGuides = [];
-
-    $('#definition-guide-add-btn').on('click', function() {
-        const opt = $('#definition-guide-select').find('option:selected');
-        const data = opt.data('guide-data');
-        if (!data || !opt.val()) {
-            alert('Please select a guide.');
-            return;
-        }
-        const durationKey = $('#definition-guide-duration').val();
-        const priceKey = durationKey === 'hourly' ? 'hourly_price' : (durationKey ? durationKey + '_price' : 'hourly_price');
-        let guidePrice = '';
-        if (durationKey && data[priceKey] != null && data[priceKey] !== '') {
-            guidePrice = parseFloat(data[priceKey]);
-        } else if (data.hourly_price != null && data.hourly_price !== '') {
-            guidePrice = parseFloat(data.hourly_price);
-        }
-        const durationLabels = { hourly: '1 Hour', two_hour: '2 Hours', four_hour: '4 Hours', six_hour: '6 Hours', eight_hour: '8 Hours', ten_hour: '10 Hours', twelve_hour: '12 Hours' };
-        const durationLabel = durationKey ? (durationLabels[durationKey] || '') : '';
-        definitionGuides.push({
-            id: data.guide_id,
-            name: data.name,
-            languages: data.languages || [],
-            contact_no: data.contact_no || '',
-            compulsory: true,
-            optional: false,
-            addon: false,
-            optional_price: '',
-            addon_price: '',
-            base_price: guidePrice,
-            duration_key: durationKey || 'hourly',
-            duration_label: durationLabel
-        });
-        updateDefinitionGuidesInput();
-        renderChosenGuides();
-        $('#definition-guide-select').val('').trigger('change.select2');
-        $('#definition-guide-duration').val('');
-        $('#definition-guide-duration-wrap').hide();
-    });
-
-    function renderChosenGuides() {
-        const emptyEl = $('#definition-guides-empty');
-        const listEl = $('#definition-guides-list');
-        const countEl = $('#definition-total-guides-count');
-        if (definitionGuides.length === 0) {
-            emptyEl.show();
-            listEl.hide().empty();
-            countEl.text('0');
-            renderOptionalServicesSummary();
-            return;
-        }
-        emptyEl.hide();
-        countEl.text(definitionGuides.length);
-        listEl.show().empty();
-        definitionGuides.forEach(function(g, idx) {
-            const isCompulsory = g.compulsory === true || (!g.optional && !g.addon);
-            const isOptional = g.optional === true;
-            const isAddonG = g.addon === true;
-            const langText = g.languages && g.languages.length ? ' (' + g.languages.join(', ') + ')' : '';
-            const durationText = g.duration_label ? ' <span class="text-muted">·</span> ' + escapeHtml(g.duration_label) : '';
-            const baseRawG = g.base_price != null && g.base_price !== '' ? g.base_price : '';
-            const basePG = baseRawG !== '' ? parseFloat(baseRawG) : '';
-            const optPriceRawG = g.optional_price != null && g.optional_price !== '' ? g.optional_price : '';
-            const optPriceG = optPriceRawG !== '' ? parseFloat(optPriceRawG) : '';
-            const addonPriceRawG = g.addon_price != null && g.addon_price !== '' ? g.addon_price : '';
-            const addonPriceG = addonPriceRawG !== '' ? parseFloat(addonPriceRawG) : '';
-            let priceDisplay = '';
-            if (isOptional && optPriceG !== '' && !isNaN(optPriceG)) {
-                priceDisplay = '<span class="badge bg-info ms-2 optional-price-badge">Optional: ' + formatOptionalPrice(optPriceG) + '</span>';
-            } else if (isAddonG && addonPriceG !== '' && !isNaN(addonPriceG)) {
-                priceDisplay = '<span class="badge bg-secondary ms-2 optional-price-badge">Add-on: ' + formatOptionalPrice(addonPriceG) + '</span>';
-            } else if (basePG !== '' && !isNaN(basePG)) {
-                priceDisplay = '<span class="badge bg-info-subtle text-info ms-2 optional-price-badge">' + formatOptionalPrice(basePG) + '</span>';
-            }
-            listEl.append(`
-                <div class="card mb-2 border shadow-sm" data-idx="${idx}">
-                    <div class="card-body py-2 px-3">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                            <div class="d-flex align-items-center gap-2 flex-grow-1">
-                                <span class="badge bg-info-subtle text-info rounded-circle p-2"><i class="ri-user-voice-line"></i></span>
-                                <div>
-                                    <strong class="d-block">${escapeHtml(g.name)}${priceDisplay}</strong>
-                                    <small class="text-muted">${escapeHtml(langText)}${durationText}</small>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
-                                    <label class="form-check-label small" for="guide-comp-${idx}">Compulsory</label>
-                                </div>
-                                <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
-                                    <label class="form-check-label small" for="guide-opt-${idx}">Optional</label>
-                                </div>
-                                <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-addon-${idx}" data-idx="${idx}" value="addon" ${isAddonG ? 'checked' : ''}>
-                                    <label class="form-check-label small" for="guide-addon-${idx}">Add-On</label>
-                                </div>
-                                <button type="button" class="btn btn-sm btn-outline-danger remove-def-guide" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `);
-        });
-        $('.remove-def-guide').on('click', function() {
-            const idx = parseInt($(this).data('idx'));
-            definitionGuides.splice(idx, 1);
-            renderChosenGuides();
-            updateDefinitionGuidesInput();
-        });
-        $('.def-guide-mode').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            const mode = $(this).val();
-            const g = definitionGuides[idx];
-            if (g) {
-                g.compulsory = mode === 'compulsory';
-                g.optional = mode === 'optional';
-                g.addon = mode === 'addon';
-                if (mode === 'optional') {
-                    if ((g.optional_price === '' || g.optional_price == null) && g.base_price != null && g.base_price !== '') g.optional_price = g.base_price;
-                    g.addon_price = '';
-                } else if (mode === 'addon') {
-                    if ((g.addon_price === '' || g.addon_price == null) && g.base_price != null && g.base_price !== '') g.addon_price = g.base_price;
-                    g.optional_price = '';
-                } else {
-                    g.optional_price = '';
-                    g.addon_price = '';
-                }
-            }
-            updateDefinitionGuidesInput();
-            renderChosenGuides();
-        });
-        renderOptionalServicesSummary();
-    }
-
-    function updateDefinitionGuidesInput() {
-        $('#definition-independent-guide-input').val(JSON.stringify(definitionGuides));
     }
 
     // Arrival Pickup: toggle config, sync hidden; Search vehicle → show vehicle dropdown
@@ -2782,7 +2125,6 @@ $(document).ready(function() {
         }
         $('#main-image-required-msg').addClass('d-none');
         updateDefinitionTotalsAndMarkup();
-        renderOptionalServicesSummary();
         // Hotels: full data with id/name for API compatibility
         const selectedHotelsPayload = definitionHotels.map(function(h) {
             return {
@@ -2869,24 +2211,6 @@ $(document).ready(function() {
         $('#departure-pickup-hotel-hidden').val($('#departure-pickup-hotel').val() || '');
         $('#departure-dropoff-port-hidden').val($('#departure-dropoff-port').val() || '');
         $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles || []));
-        $('#local-transfers-hidden').val(JSON.stringify(localTransfersList || []));
-        const selectedGuidesPayload = definitionGuides.map(function(g) {
-            return {
-                id: g.id,
-                name: g.name,
-                languages: g.languages || [],
-                contact_no: g.contact_no || '',
-                compulsory: !!g.compulsory,
-                optional: !!g.optional,
-                addon: !!g.addon,
-                optional_price: g.optional_price != null && g.optional_price !== '' ? parseFloat(g.optional_price) : null,
-                addon_price: g.addon_price != null && g.addon_price !== '' ? parseFloat(g.addon_price) : null,
-                base_price: g.base_price != null && g.base_price !== '' ? parseFloat(g.base_price) : null,
-                duration_key: g.duration_key || 'hourly',
-                duration_label: g.duration_label || ''
-            };
-        });
-        $('#definition-independent-guide-input').val(JSON.stringify(selectedGuidesPayload));
     });
 
     // Main image preview
@@ -2907,7 +2231,6 @@ $(document).ready(function() {
     // Gallery (simple)
     $('#gallery-drop-area').on('click', function() { $('#gallery_images').click(); });
 
-    renderOptionalServicesSummary();
     updateDefinitionTotalsAndMarkup();
 });
 </script>

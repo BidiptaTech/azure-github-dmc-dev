@@ -689,6 +689,7 @@ class PackageController extends Controller
      */
     public function getRoomTypesByHotel($hotelId)
     {
+        
         $rooms = Room::where('hotel_id', $hotelId)
             ->get([
                 'room_id',
@@ -698,6 +699,8 @@ class PackageController extends Controller
                 'no_of_room',
                 'weekday_price',
                 'weekend_price',
+                'double_weekday_price',
+                'double_weekend_price',
                 'dimension',
                 'breakfast',
                 'breakfast_included',
@@ -715,8 +718,8 @@ class PackageController extends Controller
                 'name'         => $room->room_type ?: ('Room ' . ($room->room_id ?? $room->id)),
                 'room_type'    => $room->room_type,
                 'no_of_room'   => $room->no_of_room,
-                'weekday_price'=> $room->weekday_price,
-                'weekend_price'=> $room->weekend_price,
+                'weekday_price'=> ceil(($room->double_weekday_price)/2),
+                'weekend_price'=> ceil(($room->double_weekend_price)/2),
                 'dimension'    => $room->dimension,
                 'breakfast'    => $room->breakfast,
                 'breakfast_included' => $room->breakfast_included,

@@ -107,6 +107,7 @@ class PackageBookingController extends Controller
         $packages = Package::query()
             ->whereDate('start_date', '<=', $startDate->toDateString())
             ->whereDate('expire_date', '>=', $endDate->toDateString())
+            ->where('duration_days', $durationDays)
             ->orderBy('title')
             ->get(['package_id', 'title', 'destination', 'city', 'duration_days', 'max_pax', 'start_date', 'expire_date'])
             ->map(function ($package) {
@@ -288,6 +289,7 @@ class PackageBookingController extends Controller
             'arrival_data' => 'nullable|string',
             'departure_data' => 'nullable|string',
             'transfer_data' => 'nullable|string',
+            'supplementary_data' => 'nullable|string',
             'notes' => 'nullable|string',
         ]);
 
@@ -303,6 +305,7 @@ class PackageBookingController extends Controller
         $arrivalData = $this->parseJsonField($validated['arrival_data'] ?? '{}');
         $departureData = $this->parseJsonField($validated['departure_data'] ?? '{}');
         $transferData = $this->parseJsonField($validated['transfer_data'] ?? '[]');
+        $supplementaryData = $this->parseJsonField($validated['supplementary_data'] ?? '{}');
 
         $adultCount = (int) ($validated['adult_count'] ?? 0);
         $childCount = (int) ($validated['child_count'] ?? 0);
@@ -353,6 +356,7 @@ class PackageBookingController extends Controller
                 'arrival_data' => $arrivalData,
                 'departure_data' => $departureData,
                 'transfer_data' => $transferData,
+                'supplementary_data' => $supplementaryData,
             ];
 
             $travelDates = [
@@ -373,6 +377,7 @@ class PackageBookingController extends Controller
                 'arrival_data' => $arrivalData,
                 'departure_data' => $departureData,
                 'transfer_data' => $transferData,
+                'supplementary_data' => $supplementaryData,
                 'status' => '1',
                 'booked_by' => $user?->userId,
                 'agent_id' => $validated['agent_id'] ?: null,

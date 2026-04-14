@@ -33,6 +33,7 @@ class PackageBooking extends Model
         'transfer_data' => 'json',
         'arrival_data' => 'json',
         'departure_data' => 'json',
+        'supplementary_data' => 'json',
         'payment_details' => 'json',
         'taxes' => 'json',
         'created_at' => 'datetime',

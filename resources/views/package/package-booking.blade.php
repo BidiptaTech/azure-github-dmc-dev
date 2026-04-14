@@ -70,7 +70,7 @@
 
             <div id="packageDetailsSection" style="display:none;">
                 <div class="row g-4">
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Hotels</h6></div>
                             <div class="card-body">
@@ -78,7 +78,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Attractions</h6></div>
                             <div class="card-body">
@@ -86,7 +86,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Restaurants</h6></div>
                             <div class="card-body">
@@ -97,7 +97,7 @@
                 </div>
 
                 <div class="row g-4 mt-1">
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Arrival Data</h6></div>
                             <div class="card-body">
@@ -111,7 +111,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Departure Data</h6></div>
                             <div class="card-body">
@@ -153,6 +153,7 @@
             <input type="hidden" name="arrival_data" id="arrival_data_input">
             <input type="hidden" name="departure_data" id="departure_data_input">
             <input type="hidden" name="transfer_data" id="transfer_data_input">
+            <input type="hidden" name="supplementary_data" id="supplementary_data_input">
 
             <div class="d-flex justify-content-end gap-2 mt-4">
                 <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary">Cancel</a>
@@ -216,6 +217,9 @@
             if (isOptional(item)) {
                 return formatBadge('Optional', 'bg-warning text-dark');
             }
+            if (item && item.addon === true) {
+                return formatBadge('Add-on', 'bg-info');
+            }
             return formatBadge('-', 'bg-secondary');
         }
 
@@ -230,12 +234,62 @@
             });
         }
 
-        function bindOptionalCheckboxes(container, listRef) {
-            container.querySelectorAll('.optional-checkbox').forEach(cb => {
+        function initSectionSelections(list, sectionKey) {
+            if (!Array.isArray(list)) return [];
+            const nextList = list.map(item => {
+                const next = item || {};
+                if (next.compulsory === true) {
+                    next.selected = true;
+                } else {
+                    next.selected = false;
+                }
+                return next;
+            });
+
+            const optionalIndexes = [];
+            nextList.forEach((item, index) => {
+                if (item && item.optional === true) optionalIndexes.push(index);
+            });
+
+            if (optionalIndexes.length > 0) {
+                let minIndex = optionalIndexes[0];
+                let minTotal = sectionServiceTotal(sectionKey, nextList[minIndex]);
+                for (let i = 1; i < optionalIndexes.length; i++) {
+                    const idx = optionalIndexes[i];
+                    const total = sectionServiceTotal(sectionKey, nextList[idx]);
+                    if (total < minTotal) {
+                        minTotal = total;
+                        minIndex = idx;
+                    }
+                }
+                nextList[minIndex].selected = true;
+            }
+
+            return nextList;
+        }
+
+        function bindSelectableCheckboxes(container, listRef, sectionKey) {
+            container.querySelectorAll('.service-select-checkbox').forEach(cb => {
                 cb.addEventListener('change', function () {
                     const index = parseInt(this.getAttribute('data-index') || '-1', 10);
+                    const mode = this.getAttribute('data-mode') || '';
                     if (!Array.isArray(listRef) || index < 0 || !listRef[index]) return;
-                    listRef[index].selected = this.checked === true;
+
+                    if (mode === 'optional') {
+                        if (this.checked !== true) {
+                            this.checked = true;
+                            return;
+                        }
+                        listRef.forEach((item, idx) => {
+                            if (!item) return;
+                            if (item.optional === true) item.selected = idx === index;
+                        });
+                        renderAllSections();
+                    } else if (mode === 'addon') {
+                        listRef[index].selected = this.checked === true;
+                        renderPricingSummary();
+                    }
+
                     syncHidden();
                 });
             });
@@ -349,6 +403,50 @@
             renderPricingSummary();
         }
 
+        function sectionServiceTotal(sectionKey, item) {
+            if (sectionKey === 'hotels') return hotelTotal(item);
+            if (sectionKey === 'attractions') return attractionTotal(item);
+            if (sectionKey === 'restaurants') return restaurantTotal(item);
+            return 0;
+        }
+
+        function getHotelTotalRooms(hotel) {
+            const rooms = Array.isArray(hotel && hotel.rooms) ? hotel.rooms : [];
+            return rooms.reduce((sum, room) => sum + Math.max(1, parseInt(room && room.quantity, 10) || 1), 0);
+        }
+
+        function ensureHotelOccupancyDistribution(hotel) {
+            if (!hotel) return { single: 0, double: 0, triple: 0, total_rooms: 0 };
+
+            const totalRooms = getHotelTotalRooms(hotel);
+            let single = Math.max(0, parseInt(hotel.single_occupancy_rooms, 10) || 0);
+            let double = Math.max(0, parseInt(hotel.double_occupancy_rooms, 10) || 0);
+            let triple = Math.max(0, parseInt(hotel.triple_occupancy_rooms, 10) || 0);
+
+            const hasAnyStoredValue = (single + double + triple) > 0;
+            if (!hasAnyStoredValue) {
+                single = 0;
+                double = totalRooms;
+                triple = 0;
+            }
+
+            if (single > totalRooms) single = totalRooms;
+            if (triple > totalRooms - single) triple = totalRooms - single;
+            double = totalRooms - single - triple;
+
+            hotel.single_occupancy_rooms = single;
+            hotel.double_occupancy_rooms = double;
+            hotel.triple_occupancy_rooms = triple;
+            hotel.total_rooms = totalRooms;
+
+            return {
+                single: single,
+                double: double,
+                triple: triple,
+                total_rooms: totalRooms
+            };
+        }
+
         function getRoomExtraBedKey(hotelIndex, roomIndex) {
             return String(hotelIndex) + '_' + String(roomIndex);
         }
@@ -385,6 +483,7 @@
             }
             hotelsList.innerHTML = hotels.map((h, idx) => {
                 const rooms = Array.isArray(h.rooms) ? h.rooms : [];
+                const occupancy = ensureHotelOccupancyDistribution(h);
                 const roomsHtml = rooms.length
                     ? rooms.map((r, roomIdx) => {
                         const mainQty = parseInt(r.quantity, 10) > 0 ? parseInt(r.quantity, 10) : 1;
@@ -426,10 +525,21 @@
                         return base + extraUi;
                     }).join('')
                     : '<div class="small text-muted">No room details</div>';
-                const showOptionalPrice = isOptional(h);
-                const optionalCheckbox = isOptional(h)
+                const occupancyHtml = occupancy.total_rooms > 1
+                    ? '<div class="col-md-12"><div class="border rounded p-2 bg-label-secondary">'
+                        + '<div class="small fw-semibold mb-2">Room Occupancy Distribution (Total Rooms: ' + esc(occupancy.total_rooms) + ')</div>'
+                        + '<div class="row g-2">'
+                        + '<div class="col-md-4"><label class="form-label small mb-1">Single</label><input type="number" min="0" max="' + esc(occupancy.total_rooms) + '" class="form-control form-control-sm hotel-occupancy-input" data-hotel-index="' + idx + '" data-field="single" value="' + esc(occupancy.single) + '"></div>'
+                        + '<div class="col-md-4"><label class="form-label small mb-1">Double</label><input type="number" min="0" max="' + esc(occupancy.total_rooms) + '" class="form-control form-control-sm hotel-occupancy-input" data-hotel-index="' + idx + '" data-field="double" value="' + esc(occupancy.double) + '"></div>'
+                        + '<div class="col-md-4"><label class="form-label small mb-1">Triple</label><input type="number" min="0" max="' + esc(occupancy.total_rooms) + '" class="form-control form-control-sm hotel-occupancy-input" data-hotel-index="' + idx + '" data-field="triple" value="' + esc(occupancy.triple) + '"></div>'
+                        + '</div>'
+                        + '</div></div>'
+                    : '';
+                const isSelectable = isOptional(h) || !!(h && h.addon === true);
+                const selectMode = isOptional(h) ? 'optional' : ((h && h.addon === true) ? 'addon' : '');
+                const optionalCheckbox = isSelectable
                     ? '<div class="form-check m-0">' +
-                        '<input class="form-check-input optional-checkbox" type="checkbox" data-section="hotels" data-index="' + idx + '" ' + (h.selected === true ? 'checked' : '') + '>' +
+                        '<input class="form-check-input service-select-checkbox" type="checkbox" data-section="hotels" data-mode="' + esc(selectMode) + '" data-index="' + idx + '" ' + (h.selected === true ? 'checked' : '') + '>' +
                         '<label class="form-check-label small mb-0">Select</label>' +
                       '</div>'
                     : '';
@@ -441,10 +551,11 @@
                     + '<div class="col-md-4"><div class="text-muted small">City</div><div>' + esc(h.city || selectedPackageCity || '-') + '</div></div>'
                     + '<div class="col-md-2"><div class="text-muted small">Nights</div><div>' + esc(h.nights || 1) + '</div></div>'
                     + '<div class="col-md-4"><div class="text-muted small">Rooms</div>' + roomsHtml + '</div>'
-                    + '<div class="col-md-4"><div class="text-muted small">Optional Price</div><div>' + (showOptionalPrice ? esc(h.optional_price || '-') : '-') + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Total Price</div><div>' + esc(money(hotelTotal(h))) + '</div></div>'
+                    + occupancyHtml
                     + '</div></div>';
             }).join('');
-            bindOptionalCheckboxes(hotelsList, hotels);
+            bindSelectableCheckboxes(hotelsList, hotels, 'hotels');
             bindHotelExtraBedInputs();
         }
 
@@ -457,6 +568,8 @@
                     const qty = parseInt(this.value || '1', 10);
                     hotels[hIdx].rooms[rIdx].quantity = qty > 0 ? qty : 1;
                     if (qty <= 0) this.value = '1';
+                    ensureHotelOccupancyDistribution(hotels[hIdx]);
+                    renderHotels();
                     syncHidden();
                 });
             });
@@ -470,6 +583,51 @@
                     syncHidden();
                 });
             });
+
+            hotelsList.querySelectorAll('.hotel-occupancy-input').forEach(inp => {
+                inp.addEventListener('change', function () {
+                    const hIdx = parseInt(this.getAttribute('data-hotel-index') || '-1', 10);
+                    const field = this.getAttribute('data-field') || '';
+                    if (hIdx < 0 || !hotels[hIdx]) return;
+
+                    const hotel = hotels[hIdx];
+                    const current = ensureHotelOccupancyDistribution(hotel);
+                    const totalRooms = current.total_rooms;
+                    if (totalRooms <= 1) return;
+
+                    const entered = Math.max(0, Math.min(totalRooms, parseInt(this.value || '0', 10) || 0));
+                    let single = current.single;
+                    let double = current.double;
+                    let triple = current.triple;
+
+                    if (field === 'single') {
+                        single = entered;
+                        if (triple > totalRooms - single) triple = totalRooms - single;
+                        double = totalRooms - single - triple;
+                    } else if (field === 'triple') {
+                        triple = entered;
+                        if (single > totalRooms - triple) single = totalRooms - triple;
+                        double = totalRooms - single - triple;
+                    } else if (field === 'double') {
+                        double = entered;
+                        let remaining = totalRooms - double;
+                        if (remaining < 0) {
+                            double = totalRooms;
+                            remaining = 0;
+                        }
+                        if (single > remaining) single = remaining;
+                        triple = remaining - single;
+                    }
+
+                    hotel.single_occupancy_rooms = Math.max(0, single);
+                    hotel.double_occupancy_rooms = Math.max(0, double);
+                    hotel.triple_occupancy_rooms = Math.max(0, triple);
+                    hotel.total_rooms = totalRooms;
+
+                    renderHotels();
+                    syncHidden();
+                });
+            });
         }
 
         function renderAttractions() {
@@ -480,10 +638,11 @@
             attractionsList.innerHTML = attractions.map((a, idx) => {
                 const guide = a.guide || {};
                 const languages = Array.isArray(guide.languages) ? guide.languages.join(', ') : '-';
-                const showOptionalPrice = isOptional(a);
-                const optionalCheckbox = isOptional(a)
+                const isSelectable = isOptional(a) || !!(a && a.addon === true);
+                const selectMode = isOptional(a) ? 'optional' : ((a && a.addon === true) ? 'addon' : '');
+                const optionalCheckbox = isSelectable
                     ? '<div class="form-check m-0">' +
-                        '<input class="form-check-input optional-checkbox" type="checkbox" data-section="attractions" data-index="' + idx + '" ' + (a.selected === true ? 'checked' : '') + '>' +
+                        '<input class="form-check-input service-select-checkbox" type="checkbox" data-section="attractions" data-mode="' + esc(selectMode) + '" data-index="' + idx + '" ' + (a.selected === true ? 'checked' : '') + '>' +
                         '<label class="form-check-label small mb-0">Select</label>' +
                       '</div>'
                     : '';
@@ -496,10 +655,10 @@
                     + '<div class="col-md-4"><div class="text-muted small">Guide</div><div>' + esc(guide.name || '-') + '</div><div class="small text-muted">' + esc(languages) + '</div></div>'
                     + '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>' + esc(a.vehicle_name || '-') + ' / ' + esc(a.transfer_type || '-') + '</div></div>'
                     + '<div class="col-md-12"><div class="text-muted small">Pickup -> Dropoff</div><div style="font-size: 0.8rem;">' + esc(a.pickup_name || '-') + ' -> ' + esc(a.dropoff_name || '-') + '</div></div>'
-                    + '<div class="col-md-4"><div class="text-muted small">Optional Price</div><div>' + (showOptionalPrice ? esc(a.optional_price || '-') : '-') + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Total Price</div><div>' + esc(money(attractionTotal(a))) + '</div></div>'
                     + '</div></div>';
             }).join('');
-            bindOptionalCheckboxes(attractionsList, attractions);
+            bindSelectableCheckboxes(attractionsList, attractions, 'attractions');
         }
 
         function renderRestaurants() {
@@ -512,10 +671,11 @@
                 const mealBadges = meals.length
                     ? meals.map(m => formatBadge(m, 'bg-info')).join(' ')
                     : '<span class="text-muted small">No meals</span>';
-                const showOptionalPrice = isOptional(r);
-                const optionalCheckbox = isOptional(r)
+                const isSelectable = isOptional(r) || !!(r && r.addon === true);
+                const selectMode = isOptional(r) ? 'optional' : ((r && r.addon === true) ? 'addon' : '');
+                const optionalCheckbox = isSelectable
                     ? '<div class="form-check m-0">' +
-                        '<input class="form-check-input optional-checkbox" type="checkbox" data-section="restaurants" data-index="' + idx + '" ' + (r.selected === true ? 'checked' : '') + '>' +
+                        '<input class="form-check-input service-select-checkbox" type="checkbox" data-section="restaurants" data-mode="' + esc(selectMode) + '" data-index="' + idx + '" ' + (r.selected === true ? 'checked' : '') + '>' +
                         '<label class="form-check-label small mb-0">Select</label>' +
                       '</div>'
                     : '';
@@ -528,10 +688,10 @@
                     + '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>' + esc(r.transfer ? 'Yes' : 'No') + '</div></div>'
                     + '<div class="col-md-3"><div class="text-muted small">Pickup</div><div>' + esc(r.pickup_name || '-') + '</div></div>'
                     + '<div class="col-md-3"><div class="text-muted small">Dropoff</div><div>' + esc(r.dropoff_name || '-') + '</div></div>'
-                    + '<div class="col-md-3"><div class="text-muted small">Optional Price</div><div>' + (showOptionalPrice ? esc(r.optional_price || '-') : '-') + '</div></div>'
+                    + '<div class="col-md-3"><div class="text-muted small">Total Price</div><div>' + esc(money(restaurantTotal(r))) + '</div></div>'
                     + '</div></div>';
             }).join('');
-            bindOptionalCheckboxes(restaurantsList, restaurants);
+            bindSelectableCheckboxes(restaurantsList, restaurants, 'restaurants');
         }
 
         function renderArrivalDeparture() {
@@ -550,7 +710,9 @@
                 + '<div class="row g-2">'
                 + '<div class="col-6"><div class="text-muted small">Pickup Port</div><div>' + esc(arrivalData.pickup_port_name || arrivalData.pickup_port_id || '-') + '</div></div>'
                 + '<div class="col-6"><div class="text-muted small">Dropoff Hotel</div><div>' + esc(arrivalData.dropoff_hotel_name || arrivalData.dropoff_hotel_id || '-') + '</div></div>'
-                + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">' + (arrivalVehicles.map(v => esc(v.vehicle_name || v.vehicle_id)).join(', ') || '-') + '</div></div>'
+                + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">'
+                + (arrivalVehicles.map(v => esc(v.vehicle_name || v.vehicle_id) + ' (Qty: ' + numVal(v.qty || 0) + ', Total: ' + money(transferVehicleTotal(v)) + ')').join(', ') || '-')
+                + '</div></div>'
                 + '</div></div>';
 
             departureSummary.innerHTML = '<div class="border rounded p-3 mb-2">'
@@ -559,13 +721,19 @@
                 + '<div class="row g-2">'
                 + '<div class="col-6"><div class="text-muted small">Pickup Hotel</div><div>' + esc(departureData.pickup_hotel_name || departureData.pickup_hotel_id || '-') + '</div></div>'
                 + '<div class="col-6"><div class="text-muted small">Dropoff Port</div><div>' + esc(departureData.dropoff_port_name || departureData.dropoff_port_id || '-') + '</div></div>'
-                + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">' + (departureVehicles.map(v => esc(v.vehicle_name || v.vehicle_id)).join(', ') || '-') + '</div></div>'
+                + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">'
+                + (departureVehicles.map(v => esc(v.vehicle_name || v.vehicle_id) + ' (Qty: ' + numVal(v.qty || 0) + ', Total: ' + money(transferVehicleTotal(v)) + ')').join(', ') || '-')
+                + '</div></div>'
                 + '</div></div>';
         }
 
         function numVal(v) {
             const n = parseFloat(v);
             return isNaN(n) ? 0 : n;
+        }
+
+        function money(v) {
+            return 'SGD ' + numVal(v).toFixed(2);
         }
 
         function minVal(list) {
@@ -584,36 +752,159 @@
             return '-';
         }
 
+        function hotelTotal(item) {
+            return numVal(item && item.base_price);
+        }
+
+        function attractionTotal(item) {
+            return numVal(item && item.base_price)
+                + numVal(item && item.guide ? item.guide.price : 0)
+                + numVal(item && item.transfer_price);
+        }
+
+        function restaurantTotal(item) {
+            return numVal(item && item.base_price) + numVal(item && item.transfer_price);
+        }
+
+        function transferVehicleTotal(vehicle) {
+            const selected = numVal(vehicle && vehicle.selected_price);
+            if (selected > 0) return selected;
+            return numVal(vehicle && vehicle.qty) * numVal(vehicle && vehicle.unit_price);
+        }
+
+        function getHotelRoomUnitPrice(room) {
+            return numVal(room && (room.weekend_price != null ? room.weekend_price : room.weekday_price));
+        }
+
+        function getHotelRoomExtraBedPrice(room) {
+            const directPrice = room && (room.extra_bed_price != null ? room.extra_bed_price : room.extra_bed_rate);
+            return numVal(directPrice);
+        }
+
+        function buildSupplementaryData(tourStartDate) {
+            const hotelAddons = (hotels || [])
+                .filter(h => h && h.addon === true && h.selected === true)
+                .map(h => ({
+                    hotel_id: h.hotel_id || h.id || null,
+                    hotel_name: h.hotel_name || h.name || 'Hotel',
+                    service_type: 'addon',
+                    base_price: numVal(h.base_price),
+                    selected_price: numVal(h.base_price),
+                    nights: numVal(h.nights || 1),
+                    tour_start_date: tourStartDate
+                }));
+
+            const hotelSingleOccupancy = [];
+            (hotels || []).forEach(h => {
+                if (!h || !(h.compulsory === true || h.selected === true)) return;
+                const rooms = Array.isArray(h.rooms) ? h.rooms : [];
+                const singleCount = Math.max(0, parseInt(h.single_occupancy_rooms, 10) || 0);
+                if (singleCount <= 0 || rooms.length === 0) return;
+
+                const expandedRooms = [];
+                rooms.forEach(room => {
+                    const qty = Math.max(1, parseInt(room && room.quantity, 10) || 1);
+                    for (let i = 0; i < qty; i++) {
+                        expandedRooms.push(room || {});
+                    }
+                });
+
+                const roomLines = expandedRooms.slice(0, singleCount).map(room => {
+                    const basePrice = getHotelRoomUnitPrice(room);
+                    const singlePrice = basePrice * 2;
+                    return {
+                        room_type: room.room_type_name || room.room_type || 'Room',
+                        bed_type: room.bed_type || 'N/A',
+                        base_price: basePrice,
+                        single_occupancy_price: singlePrice,
+                        extra_bed_type: room.extra_bed_type || '',
+                        extra_bed_price: room.extra_bed === true ? getHotelRoomExtraBedPrice(room) : 0
+                    };
+                });
+
+                hotelSingleOccupancy.push({
+                    hotel_id: h.hotel_id || h.id || null,
+                    hotel_name: h.hotel_name || h.name || 'Hotel',
+                    service_type: 'single_occupancy',
+                    single_occupancy_room_count: roomLines.length,
+                    rooms: roomLines,
+                    total_single_occupancy_price: roomLines.reduce((sum, line) => sum + numVal(line.single_occupancy_price), 0),
+                    total_extra_bed_price: roomLines.reduce((sum, line) => sum + numVal(line.extra_bed_price), 0),
+                    tour_start_date: tourStartDate
+                });
+            });
+
+            const attractionAddons = (attractions || [])
+                .filter(a => a && a.addon === true && a.selected === true)
+                .map(a => ({
+                    attraction_id: a.attraction_id || a.id || null,
+                    attraction_name: a.name || 'Attraction',
+                    service_type: 'addon',
+                    pricing: {
+                        base_price: numVal(a.base_price),
+                        guide_price: numVal(a.guide && a.guide.price),
+                        transfer_price: numVal(a.transfer_price),
+                        total_price: attractionTotal(a)
+                    },
+                    tour_start_date: tourStartDate
+                }));
+
+            const restaurantAddons = (restaurants || [])
+                .filter(r => r && r.addon === true && r.selected === true)
+                .map(r => ({
+                    restaurant_id: r.restaurant_id || r.id || null,
+                    restaurant_name: r.restaurant_name || r.name || 'Restaurant',
+                    service_type: 'addon',
+                    pricing: {
+                        base_price: numVal(r.base_price),
+                        transfer_price: numVal(r.transfer_price),
+                        total_price: restaurantTotal(r)
+                    },
+                    tour_start_date: tourStartDate
+                }));
+
+            return {
+                hotel: {
+                    addons: hotelAddons,
+                    single_occupancy: hotelSingleOccupancy
+                },
+                attraction: {
+                    addons: attractionAddons
+                },
+                restaurant: {
+                    addons: restaurantAddons
+                }
+            };
+        }
+
         function renderPricingSummary() {
             if (!pricingSummary) return;
 
             const hotelRows = (hotels || []).map(h => ({
                 name: h.hotel_name || h.name || 'Hotel',
                 status: serviceStatus(h),
-                total: numVal(h.base_price),
+                total: hotelTotal(h),
+                selected: !!(h && h.selected === true),
                 compulsory: !!(h && h.compulsory === true),
                 optional: !!(h && h.optional === true),
                 addon: !!(h && h.addon === true),
             }));
 
-            const attractionRows = (attractions || []).map(a => {
-                const base = numVal(a.base_price);
-                const guide = numVal(a && a.guide ? a.guide.price : 0);
-                const transfer = numVal(a.transfer_price);
-                return {
-                    name: a.name || 'Attraction',
-                    status: serviceStatus(a),
-                    total: base + guide + transfer,
-                    compulsory: !!(a && a.compulsory === true),
-                    optional: !!(a && a.optional === true),
-                    addon: !!(a && a.addon === true),
-                };
-            });
+            const attractionRows = (attractions || []).map(a => ({
+                name: a.name || 'Attraction',
+                status: serviceStatus(a),
+                total: attractionTotal(a),
+                selected: !!(a && a.selected === true),
+                compulsory: !!(a && a.compulsory === true),
+                optional: !!(a && a.optional === true),
+                addon: !!(a && a.addon === true),
+            }));
 
             const restaurantRows = (restaurants || []).map(r => ({
                 name: r.restaurant_name || r.name || 'Restaurant',
                 status: serviceStatus(r),
-                total: numVal(r.base_price) + numVal(r.transfer_price),
+                total: restaurantTotal(r),
+                selected: !!(r && r.selected === true),
                 compulsory: !!(r && r.compulsory === true),
                 optional: !!(r && r.optional === true),
                 addon: !!(r && r.addon === true),
@@ -622,30 +913,15 @@
             const arrivalRows = Array.isArray(arrivalData && arrivalData.vehicles) ? arrivalData.vehicles.map(v => ({
                 name: 'Arrival - ' + (v.vehicle_name || v.vehicle_id || 'Vehicle'),
                 status: 'Compulsory',
-                total: numVal(v.selected_price),
+                total: transferVehicleTotal(v),
+                selected: true,
             })) : [];
             const departureRows = Array.isArray(departureData && departureData.vehicles) ? departureData.vehicles.map(v => ({
                 name: 'Departure - ' + (v.vehicle_name || v.vehicle_id || 'Vehicle'),
                 status: 'Compulsory',
-                total: numVal(v.selected_price),
+                total: transferVehicleTotal(v),
+                selected: true,
             })) : [];
-
-            const hotelComp = hotelRows.filter(x => x.compulsory && !x.addon).map(x => x.total);
-            const hotelOpt = hotelRows.filter(x => x.optional && !x.addon).map(x => x.total);
-            const hotelContribution = hotelComp.length > 0 ? hotelComp.reduce((s, n) => s + n, 0) : (hotelOpt.length > 0 ? minVal(hotelOpt) : 0);
-
-            const restComp = restaurantRows.filter(x => x.compulsory && !x.addon).map(x => x.total);
-            const restOpt = restaurantRows.filter(x => x.optional && !x.addon).map(x => x.total);
-            const restaurantContribution = restComp.length > 0 ? restComp.reduce((s, n) => s + n, 0) : (restOpt.length > 0 ? minVal(restOpt) : 0);
-
-            const attrComp = attractionRows.filter(x => x.compulsory && !x.addon).map(x => x.total);
-            const attrOpt = attractionRows.filter(x => x.optional && !x.addon).map(x => x.total);
-            const attractionContribution = attrComp.reduce((s, n) => s + n, 0) + (attrOpt.length > 0 ? minVal(attrOpt) : 0);
-
-            const arrivalContribution = arrivalRows.reduce((s, x) => s + x.total, 0);
-            const departureContribution = departureRows.reduce((s, x) => s + x.total, 0);
-
-            const grandTotal = hotelContribution + attractionContribution + restaurantContribution + arrivalContribution + departureContribution;
 
             const allRows = []
                 .concat(hotelRows.map(r => ({ section: 'Hotel', ...r })))
@@ -654,32 +930,38 @@
                 .concat(arrivalRows.map(r => ({ section: 'Arrival', ...r })))
                 .concat(departureRows.map(r => ({ section: 'Departure', ...r })));
 
+            const sectionTotals = {
+                Hotel: { compulsory: 0, optional: 0, addon: 0 },
+                Attraction: { compulsory: 0, optional: 0, addon: 0 },
+                Restaurant: { compulsory: 0, optional: 0, addon: 0 },
+                Arrival: { compulsory: 0, optional: 0, addon: 0 },
+                Departure: { compulsory: 0, optional: 0, addon: 0 }
+            };
+            allRows.forEach(row => {
+                if (!sectionTotals[row.section]) return;
+                if (row.status === 'Compulsory') sectionTotals[row.section].compulsory += row.total;
+                else if (row.status === 'Optional') sectionTotals[row.section].optional += row.total;
+                else if (row.status === 'Add-on') sectionTotals[row.section].addon += row.total;
+            });
+            const grandTotal = allRows.reduce((sum, row) => {
+                if (row.status === 'Compulsory') return sum + row.total;
+                if ((row.status === 'Optional' || row.status === 'Add-on') && row.selected === true) return sum + row.total;
+                return sum;
+            }, 0);
+
             if (allRows.length === 0) {
                 pricingSummary.innerHTML = '<div class="text-muted small">No pricing data available.</div>';
                 return;
             }
 
             pricingSummary.innerHTML =
-                '<div class="table-responsive">'
-                + '<table class="table table-sm table-bordered mb-3">'
-                + '<thead class="table-light"><tr><th>Section</th><th>Service</th><th>Status</th><th class="text-end">Total (SGD)</th></tr></thead>'
-                + '<tbody>'
-                + allRows.map(r =>
-                    '<tr>'
-                    + '<td>' + esc(r.section) + '</td>'
-                    + '<td>' + esc(r.name) + '</td>'
-                    + '<td>' + esc(r.status || '-') + '</td>'
-                    + '<td class="text-end">' + esc(r.total.toFixed(2)) + '</td>'
-                    + '</tr>'
-                ).join('')
-                + '</tbody></table></div>'
-                + '<div class="row g-2 small">'
-                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Hotel Contribution:</strong> SGD ' + esc(hotelContribution.toFixed(2)) + '</div></div>'
-                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Attraction Contribution:</strong> SGD ' + esc(attractionContribution.toFixed(2)) + '</div></div>'
-                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Restaurant Contribution:</strong> SGD ' + esc(restaurantContribution.toFixed(2)) + '</div></div>'
-                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Arrival Contribution:</strong> SGD ' + esc(arrivalContribution.toFixed(2)) + '</div></div>'
-                + '<div class="col-md-4"><div class="border rounded p-2"><strong>Departure Contribution:</strong> SGD ' + esc(departureContribution.toFixed(2)) + '</div></div>'
-                + '<div class="col-md-4"><div class="border rounded p-2 bg-light"><strong>Grand Total:</strong> SGD ' + esc(grandTotal.toFixed(2)) + '</div></div>'
+                '<div class="row g-2 small">'
+                + '<div class="col-md-6"><div class="border rounded p-2"><strong>Hotel:</strong> C ' + esc(money(sectionTotals.Hotel.compulsory)) + ' / O ' + esc(money(sectionTotals.Hotel.optional)) + ' / A ' + esc(money(sectionTotals.Hotel.addon)) + '</div></div>'
+                + '<div class="col-md-6"><div class="border rounded p-2"><strong>Attraction:</strong> C ' + esc(money(sectionTotals.Attraction.compulsory)) + ' / O ' + esc(money(sectionTotals.Attraction.optional)) + ' / A ' + esc(money(sectionTotals.Attraction.addon)) + '</div></div>'
+                + '<div class="col-md-6"><div class="border rounded p-2"><strong>Restaurant:</strong> C ' + esc(money(sectionTotals.Restaurant.compulsory)) + ' / O ' + esc(money(sectionTotals.Restaurant.optional)) + ' / A ' + esc(money(sectionTotals.Restaurant.addon)) + '</div></div>'
+                + '<div class="col-md-6"><div class="border rounded p-2"><strong>Arrival:</strong> C ' + esc(money(sectionTotals.Arrival.compulsory)) + ' / O ' + esc(money(sectionTotals.Arrival.optional)) + ' / A ' + esc(money(sectionTotals.Arrival.addon)) + '</div></div>'
+                + '<div class="col-md-6"><div class="border rounded p-2"><strong>Departure:</strong> C ' + esc(money(sectionTotals.Departure.compulsory)) + ' / O ' + esc(money(sectionTotals.Departure.optional)) + ' / A ' + esc(money(sectionTotals.Departure.addon)) + '</div></div>'
+                + '<div class="col-md-4"><div class="border rounded p-2 bg-light"><strong>Grand Total:</strong> ' + esc(money(grandTotal)) + '</div></div>'
                 + '</div>';
         }
 
@@ -723,6 +1005,7 @@
             document.getElementById('arrival_data_input').value = JSON.stringify(arrivalData || {});
             document.getElementById('departure_data_input').value = JSON.stringify(departureData || {});
             document.getElementById('transfer_data_input').value = JSON.stringify(transfersPayload);
+            document.getElementById('supplementary_data_input').value = JSON.stringify(buildSupplementaryData(tourStartDate));
         }
 
         function resetPackageDetailsUI() {
@@ -753,11 +1036,11 @@
         }
 
         async function applyPackageData(pkg) {
-            hotels = initOptionalSelections(Array.isArray(pkg.selected_hotels) ? pkg.selected_hotels : []);
+            hotels = initSectionSelections(Array.isArray(pkg.selected_hotels) ? pkg.selected_hotels : [], 'hotels');
             await ensureBedOptionsLoaded(hotels);
-            attractions = initOptionalSelections(Array.isArray(pkg.selected_attractions) ? pkg.selected_attractions : []);
+            attractions = initSectionSelections(Array.isArray(pkg.selected_attractions) ? pkg.selected_attractions : [], 'attractions');
             guides = initOptionalSelections(Array.isArray(pkg.selected_guides) ? pkg.selected_guides : []);
-            restaurants = initOptionalSelections(Array.isArray(pkg.selected_restaurants) ? pkg.selected_restaurants : []);
+            restaurants = initSectionSelections(Array.isArray(pkg.selected_restaurants) ? pkg.selected_restaurants : [], 'restaurants');
             arrivalData = pkg.arrival_data || {};
             departureData = pkg.departure_data || {};
             transfers = initOptionalSelections(Array.isArray(pkg.transfer_data) ? pkg.transfer_data : []);
