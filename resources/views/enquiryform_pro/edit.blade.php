@@ -4083,6 +4083,180 @@
     let transferList = [];
     let mealList = [];
     let miscList = [];
+    // Soft-remove + undo state
+    let removedItems = new Map();
+    let removeOperationSeq = 0;
+    let deletedItems = {
+        accommodations: [],
+        arrival_departures: [],
+        tours: [],
+        guides: [],
+        transfers: [],
+        meals: [],
+        miscellaneous: []
+    };
+
+    function uniqStringArray(arr = []) {
+        return Array.from(new Set((arr || []).map(v => String(v))));
+    }
+
+    function pushDeletedItems(categoryKey, ids = []) {
+        if (!deletedItems[categoryKey]) deletedItems[categoryKey] = [];
+        deletedItems[categoryKey] = uniqStringArray([...(deletedItems[categoryKey] || []), ...(ids || [])]);
+    }
+
+    function snapshotAllServiceState() {
+        return {
+            accommodationList: JSON.parse(JSON.stringify(accommodationList || [])),
+            arrivalDepartureList: JSON.parse(JSON.stringify(arrivalDepartureList || [])),
+            tourList: JSON.parse(JSON.stringify(tourList || [])),
+            guideList: JSON.parse(JSON.stringify(guideList || [])),
+            transferList: JSON.parse(JSON.stringify(transferList || [])),
+            mealList: JSON.parse(JSON.stringify(mealList || [])),
+            miscList: JSON.parse(JSON.stringify(miscList || []))
+        };
+    }
+
+    function restoreAllServiceState(snapshot) {
+        if (!snapshot) return;
+        accommodationList = snapshot.accommodationList || [];
+        arrivalDepartureList = snapshot.arrivalDepartureList || [];
+        tourList = snapshot.tourList || [];
+        guideList = snapshot.guideList || [];
+        transferList = snapshot.transferList || [];
+        mealList = snapshot.mealList || [];
+        miscList = snapshot.miscList || [];
+
+        if (typeof updateAccommodationTable === 'function') updateAccommodationTable();
+        if (typeof recalculateEntryExitPorts === 'function') recalculateEntryExitPorts();
+        if (typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
+        if (typeof updateTourTable === 'function') updateTourTable();
+        if (typeof updateGuideTable === 'function') updateGuideTable();
+        if (typeof updateTransferTable === 'function') updateTransferTable();
+        if (typeof updateMealTable === 'function') updateMealTable();
+        if (typeof updateMiscTable === 'function') updateMiscTable();
+        if (typeof recalculateHeaderDatesFromServices === 'function') recalculateHeaderDatesFromServices();
+        if (typeof recalculateTotals === 'function') recalculateTotals();
+    }
+
+    function ensureUndoToastContainer() {
+        let container = document.getElementById('undoToastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'undoToastContainer';
+            container.style.position = 'fixed';
+            container.style.bottom = '16px';
+            container.style.left = '50%';
+            container.style.transform = 'translateX(-50%)';
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '8px';
+            container.style.zIndex = '99999';
+            container.style.pointerEvents = 'none';
+            container.style.alignItems = 'center';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    function removeUndoToast(opId) {
+        const toast = document.getElementById(`undo-toast-${opId}`);
+        if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
+    }
+
+    function showUndoToast(opId, message, onUndo, durationMs = 4000) {
+        const container = ensureUndoToastContainer();
+        const toast = document.createElement('div');
+        toast.id = `undo-toast-${opId}`;
+        toast.style.pointerEvents = 'auto';
+        toast.style.background = '#1f2937';
+        toast.style.color = '#fff';
+        toast.style.borderRadius = '8px';
+        toast.style.padding = '8px 10px';
+        toast.style.display = 'flex';
+        toast.style.justifyContent = 'space-between';
+        toast.style.alignItems = 'center';
+        toast.style.boxShadow = '0 8px 18px rgba(0,0,0,0.2)';
+        toast.style.maxWidth = '520px';
+        toast.style.width = 'fit-content';
+        toast.style.minWidth = '280px';
+        toast.innerHTML = `
+            <span style="font-size: 12px; line-height: 1.2; padding-right: 10px;">${message}</span>
+            <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                <button type="button" data-action="cancel" style="background:transparent;color:#e5e7eb;border:1px solid rgba(255,255,255,0.25);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:600;">Cancel</button>
+                <button type="button" data-action="undo" style="background:#fff;color:#111827;border:none;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;">Undo <span data-countdown style="opacity:.75; font-weight:700;"></span></button>
+            </div>
+        `;
+        const undoBtn = toast.querySelector('button[data-action="undo"]');
+        const cancelBtn = toast.querySelector('button[data-action="cancel"]');
+        const countdownEl = toast.querySelector('[data-countdown]');
+        const secondsTotal = Math.max(1, Math.round(durationMs / 1000));
+        let secondsLeft = secondsTotal;
+        if (countdownEl) countdownEl.textContent = `(${secondsLeft})`;
+
+        const interval = setInterval(() => {
+            secondsLeft -= 1;
+            if (secondsLeft <= 0) {
+                clearInterval(interval);
+                return;
+            }
+            if (countdownEl) countdownEl.textContent = `(${secondsLeft})`;
+        }, 1000);
+
+        toast.addEventListener('remove', () => clearInterval(interval));
+
+        if (undoBtn) {
+            undoBtn.addEventListener('click', function () {
+                clearInterval(interval);
+                if (typeof onUndo === 'function') onUndo();
+            });
+        }
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function () {
+                // Cancel only dismisses the snackbar (deletion continues unless Undo is clicked).
+                clearInterval(interval);
+                removeUndoToast(opId);
+            });
+        }
+        container.appendChild(toast);
+    }
+
+    function scheduleRemoveWithUndo({ categoryKey, serviceMessage, existingIds, snapshotBefore }) {
+        const opId = ++removeOperationSeq;
+        const persistedIds = uniqStringArray(existingIds || []);
+        const timer = setTimeout(() => {
+            pushDeletedItems(categoryKey, persistedIds);
+            removedItems.delete(opId);
+            removeUndoToast(opId);
+        }, 4000);
+
+        removedItems.set(opId, {
+            id: opId,
+            categoryKey,
+            persistedIds,
+            snapshotBefore,
+            timer
+        });
+
+        showUndoToast(opId, `${serviceMessage} removed`, () => {
+            const op = removedItems.get(opId);
+            if (!op) return;
+            clearTimeout(op.timer);
+            removedItems.delete(opId);
+            removeUndoToast(opId);
+            restoreAllServiceState(op.snapshotBefore);
+        }, 4000);
+    }
+
+    function finalizePendingRemovals() {
+        const pending = Array.from(removedItems.values());
+        pending.forEach(op => {
+            clearTimeout(op.timer);
+            pushDeletedItems(op.categoryKey, op.persistedIds || []);
+            removeUndoToast(op.id);
+            removedItems.delete(op.id);
+        });
+    }
 
     /**
      * Prefer JSON `type` ("Shared"/"Private") over `transferType` when both are set — entry_port/exit_port
@@ -11376,10 +11550,20 @@
                             
                             // Calculate prices
                             const prices = calculateTransferPrice(zonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
-                            
-                            // Use manual cost/sell if provided, otherwise use calculated prices
-                            const finalCost = arrivalCost > 0 ? arrivalCost : prices.cost;
-                            const finalSell = arrivalSell > 0 ? arrivalSell : prices.sell;
+
+                            // If user changed route-related fields, ignore previously stored cost/sell
+                            // so price updates correctly when Port/Hotel changes.
+                            const arrivalRouteChanged =
+                                String(item.portId ?? '') !== String(arrivalPortId ?? '') ||
+                                String(item.transferDestinationId ?? '') !== String(arrivalDestinationId ?? '') ||
+                                String(item.vehicleId ?? '') !== String(arrivalVehicleId ?? '') ||
+                                String(transferServiceRawToPS(item) ?? '') !== String(arrivalTransferType ?? '') ||
+                                String(item.transferWay ?? 'one-way') !== String(arrivalTransferWay ?? 'one-way') ||
+                                Number(item.adultsQty ?? item.adults ?? 0) !== Number(arrivalAdults ?? 0) ||
+                                Number(item.childQty ?? item.child ?? 0) !== Number(arrivalChild ?? 0);
+
+                            const finalCost = (!arrivalRouteChanged && arrivalCost > 0) ? arrivalCost : prices.cost;
+                            const finalSell = (!arrivalRouteChanged && arrivalSell > 0) ? arrivalSell : prices.sell;
                             
                             // Update existing transfer
                             transferList[transferIndex] = {
@@ -11405,7 +11589,10 @@
                             // Sync linked guide date when arrival date changes
                             if (item.guideId) {
                                 const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
-                                if (gIdx !== -1) guideList[gIdx].dateTime = arrivalDateTime;
+                                if (gIdx !== -1) {
+                                    guideList[gIdx].dateTime = arrivalDateTime;
+                                    guideList[gIdx].tourActivity = `Arrival Guide - ${arrivalPortName}`;
+                                }
                             }
                             
                             // Update arrival/departure entry prices
@@ -11461,10 +11648,19 @@
                     
                     // Calculate prices
                     const prices = calculateTransferPrice(zonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
-                    
-                    // Use manual cost/sell if provided, otherwise use calculated prices
-                    const finalCost = arrivalCost > 0 ? arrivalCost : prices.cost;
-                    const finalSell = arrivalSell > 0 ? arrivalSell : prices.sell;
+
+                    const arrivalRouteChanged =
+                        String(item.portId ?? '') !== String(arrivalPortId ?? '') ||
+                        String(item.transferDestinationId ?? '') !== String(arrivalDestinationId ?? '') ||
+                        String(item.vehicleId ?? '') !== String(arrivalVehicleId ?? '') ||
+                        String(transferServiceRawToPS(item) ?? '') !== String(arrivalTransferType ?? '') ||
+                        String(item.transferWay ?? 'one-way') !== String(arrivalTransferWay ?? 'one-way') ||
+                        Number(item.adultsQty ?? item.adults ?? 0) !== Number(arrivalAdults ?? 0) ||
+                        Number(item.childQty ?? item.child ?? 0) !== Number(arrivalChild ?? 0);
+
+                    // Use stored values only when route didn't change
+                    const finalCost = (!arrivalRouteChanged && arrivalCost > 0) ? arrivalCost : prices.cost;
+                    const finalSell = (!arrivalRouteChanged && arrivalSell > 0) ? arrivalSell : prices.sell;
                     
                     // Create new transfer if checked and doesn't exist
                     const transferId = generateId('transfer');
@@ -11609,7 +11805,10 @@
                             // Sync linked guide date when departure date changes
                             if (item.guideId) {
                                 const gIdx = guideList.findIndex(g => String(g.id) === String(item.guideId));
-                                if (gIdx !== -1) guideList[gIdx].dateTime = departureDateTime;
+                                if (gIdx !== -1) {
+                                    guideList[gIdx].dateTime = departureDateTime;
+                                    guideList[gIdx].tourActivity = `Departure Guide - ${departurePortName}`;
+                                }
                             }
                             
                             // Update arrival/departure entry prices
@@ -13337,6 +13536,50 @@
         }
 
         section.style.display = 'block';
+
+        // Live-sync for existing hotel edits:
+        // when hotel/date changes in modal, update arrival/departure + local transfer prices immediately
+        // (without waiting for Save & Close).
+        if (window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined) {
+            clearTimeout(window._liveHotelArrDepSyncTimer);
+            window._liveHotelArrDepSyncTimer = setTimeout(async () => {
+                try {
+                    const checkInPreview = document.getElementById('checkInDate')?.value || '';
+                    const checkOutPreview = document.getElementById('checkOutDate')?.value || '';
+                    let previewHotelUniqueId = '';
+                    let previewHotelName = '';
+                    const hotelSelectEl = document.getElementById('hotelSelect');
+                    if (hotelSelectEl?.selectedOptions?.[0]) {
+                        try {
+                            const hotelData = JSON.parse(hotelSelectEl.selectedOptions[0].getAttribute('data-hotel-data') || '{}');
+                            previewHotelUniqueId = hotelData.hotel_unique_id || hotelData.id || hotelSelectEl.value || '';
+                            previewHotelName = hotelData.name || hotelSelectEl.selectedOptions[0].text || '';
+                        } catch (e) {
+                            previewHotelUniqueId = hotelSelectEl.value || '';
+                            previewHotelName = hotelSelectEl.selectedOptions[0].text || '';
+                        }
+                    }
+
+                    if (typeof syncHotelArrDepToGlobal === 'function') {
+                        await syncHotelArrDepToGlobal({
+                            preserveGuideSelection: true,
+                            previewHotel: {
+                                checkIn: checkInPreview,
+                                checkOut: checkOutPreview,
+                                hotel_unique_id: previewHotelUniqueId,
+                                hotelName: previewHotelName
+                            }
+                        });
+                    }
+                    if (typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
+                    if (typeof updateTransferTable === 'function') updateTransferTable();
+                    if (typeof updateGuideTable === 'function') updateGuideTable();
+                    if (typeof recalculateTotals === 'function') recalculateTotals();
+                } catch (e) {
+                    console.warn('Live hotel edit sync failed', e);
+                }
+            }, 120);
+        }
     }
 
     // Reads the full Arrival/Departure form and syncs ONE entry_port + ONE exit_port
@@ -13344,7 +13587,47 @@
     async function syncHotelArrDepToGlobal(options = {}) {
         const preserveGuideSelection = options.preserveGuideSelection === true;
         const dmcId = '{{ $dmc_id ?? "" }}';
-        const allHotels = accommodationList.filter(h => h.checkIn && h.checkOut);
+        const previewHotel = options.previewHotel || null;
+        const editIdxForPreview = (window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined)
+            ? window.editingAccommodationIndex
+            : null;
+
+        // Build sync source from saved hotels, with optional in-modal preview override.
+        // This enables instant min/max hotel date and price updates before Save & Close.
+        let allHotels = accommodationList
+            .map((h, idx) => ({ ...h, __idx: idx }))
+            .filter(h => h.checkIn && h.checkOut);
+
+        if (previewHotel && previewHotel.checkIn && previewHotel.checkOut) {
+            let appliedPreview = false;
+            if (editIdxForPreview !== null) {
+                allHotels = allHotels.map(h => {
+                    if (h.__idx === editIdxForPreview) {
+                        appliedPreview = true;
+                        return {
+                            ...h,
+                            checkIn: previewHotel.checkIn,
+                            checkOut: previewHotel.checkOut,
+                            hotel_unique_id: previewHotel.hotel_unique_id || h.hotel_unique_id,
+                            hotelName: previewHotel.hotelName || h.hotelName
+                        };
+                    }
+                    return h;
+                });
+            }
+
+            // If no matching saved row exists yet (edge case), include preview as a candidate.
+            if (!appliedPreview) {
+                allHotels.push({
+                    checkIn: previewHotel.checkIn,
+                    checkOut: previewHotel.checkOut,
+                    hotel_unique_id: previewHotel.hotel_unique_id || '',
+                    hotelName: previewHotel.hotelName || '',
+                    __idx: -1
+                });
+            }
+        }
+
         if (allHotels.length === 0) {
             // Keep selected port / modal data when no hotel — skip hotel-based sync
             return;
@@ -13658,8 +13941,14 @@
                     hasTransfer: true,
                     adults: effectiveAdults,
                     child: effectiveChild,
+                    adultCost: effectiveCost,
+                    adultSell: effectiveSell,
+                    childCost: effectiveCost,
+                    childSell: effectiveSell,
                     cost: effectiveCost,
                     sell: effectiveSell,
+                    basePrice: effectiveCost,
+                    base_price: effectiveCost,
                     zonePrivatePrice: zonePrice?.private_price || 0,
                     zoneSharedPrice:  zonePrice?.shared_price  || 0,
                     taxIncluded: false
@@ -14507,6 +14796,10 @@
         }
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const existingIdsToRemove = idsToRemove.filter(id => {
+            const item = accommodationList.find(h => String(h.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         const hasExistingItems = idsToRemove.some(id => {
             const item = accommodationList.find(h => String(h.id) === String(id));
             return item && (item.orderId != null && item.orderId !== '');
@@ -14515,6 +14808,7 @@
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'accommodation' : 'accommodations';
         showRemoveFormSelectionAlert(count, itemLabel, async () => {
+            const snapshotBefore = snapshotAllServiceState();
             accommodationList.forEach(hotel => {
                 if (idsToRemove.includes(String(hotel.id))) {
                     if (hotel.transferIds && hotel.transferIds.length > 0) {
@@ -14538,6 +14832,12 @@
             if (typeof updateGuideTable === 'function') updateGuideTable();
             recalculateHeaderDatesFromServices();
             recalculateTotals();
+            scheduleRemoveWithUndo({
+                categoryKey: 'accommodations',
+                serviceMessage: 'Hotel service',
+                existingIds: existingIdsToRemove,
+                snapshotBefore
+            });
         }, window.hasNegotiationHistory, hasExistingItems);
     }
 
@@ -15304,6 +15604,10 @@
         }
 
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const existingIdsToRemove = idsToRemove.filter(id => {
+            const item = arrivalDepartureList.find(a => String(a.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         const hasExistingItems = idsToRemove.some(id => {
             const item = arrivalDepartureList.find(a => String(a.id) === String(id));
             return item && (item.orderId != null && item.orderId !== '');
@@ -15312,6 +15616,7 @@
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'arrival/departure entry' : 'arrival/departure entries';
         showRemoveFormSelectionAlert(count, itemLabel, () => {
+            const snapshotBefore = snapshotAllServiceState();
             arrivalDepartureList.forEach(item => {
                 if (idsToRemove.includes(String(item.id))) {
                     if (item.transferId) {
@@ -15329,6 +15634,12 @@
             updateGuideTable();
             recalculateHeaderDatesFromServices();
             recalculateTotals();
+            scheduleRemoveWithUndo({
+                categoryKey: 'arrival_departures',
+                serviceMessage: 'Arrival/Departure service',
+                existingIds: existingIdsToRemove,
+                snapshotBefore
+            });
         }, window.hasNegotiationHistory, hasExistingItems);
     }
 
@@ -17046,6 +17357,10 @@
         }
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const existingIdsToRemove = idsToRemove.filter(id => {
+            const item = tourList.find(t => String(t.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         const hasExistingItems = idsToRemove.some(id => {
             const item = tourList.find(t => String(t.id) === String(id));
             return item && (item.orderId != null && item.orderId !== '');
@@ -17054,6 +17369,7 @@
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'tour' : 'tours';
         showRemoveFormSelectionAlert(count, itemLabel, () => {
+            const snapshotBefore = snapshotAllServiceState();
             tourList.forEach(tour => {
                 if (idsToRemove.includes(String(tour.id))) {
                     if (tour.transferId) {
@@ -17072,6 +17388,12 @@
             updateGuideTable();
             recalculateHeaderDatesFromServices();
             recalculateTotals();
+            scheduleRemoveWithUndo({
+                categoryKey: 'tours',
+                serviceMessage: 'Tour service',
+                existingIds: existingIdsToRemove,
+                snapshotBefore
+            });
         }, window.hasNegotiationHistory, hasExistingItems);
     }
 
@@ -17737,6 +18059,10 @@
         }
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const existingIdsToRemove = idsToRemove.filter(id => {
+            const item = guideList.find(g => String(g.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         const hasExistingItems = idsToRemove.some(id => {
             const item = guideList.find(g => String(g.id) === String(id));
             return item && (item.orderId != null && item.orderId !== '');
@@ -17745,6 +18071,7 @@
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'guide' : 'guides';
         showRemoveFormSelectionAlert(count, itemLabel, () => {
+        const snapshotBefore = snapshotAllServiceState();
         
         // CASCADE: Remove guide links from parent services
         idsToRemove.forEach(guideIdToRemove => {
@@ -17823,6 +18150,12 @@
             updateArrivalDepartureTable();
             recalculateHeaderDatesFromServices();
             recalculateTotals();
+            scheduleRemoveWithUndo({
+                categoryKey: 'guides',
+                serviceMessage: 'Guide service',
+                existingIds: existingIdsToRemove,
+                snapshotBefore
+            });
         }, window.hasNegotiationHistory, hasExistingItems);
     }
     
@@ -18339,6 +18672,10 @@
         }
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const existingIdsToRemove = idsToRemove.filter(id => {
+            const item = miscList.find(m => String(m.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         const hasExistingItems = idsToRemove.some(id => {
             const item = miscList.find(m => String(m.id) === String(id));
             return item && (item.orderId != null && item.orderId !== '');
@@ -18347,11 +18684,18 @@
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'item' : 'items';
         showRemoveFormSelectionAlert(count, itemLabel, () => {
+            const snapshotBefore = snapshotAllServiceState();
             miscList = miscList.filter(item => !idsToRemove.includes(String(item.id)));
             
             updateMiscTable();
             recalculateHeaderDatesFromServices();
             recalculateTotals();
+            scheduleRemoveWithUndo({
+                categoryKey: 'miscellaneous',
+                serviceMessage: 'Miscellaneous service',
+                existingIds: existingIdsToRemove,
+                snapshotBefore
+            });
         }, window.hasNegotiationHistory, hasExistingItems);
     }
 
@@ -21014,6 +21358,10 @@
         }
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const existingIdsToRemove = idsToRemove.filter(id => {
+            const item = mealList.find(m => String(m.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         const hasExistingItems = idsToRemove.some(id => {
             const item = mealList.find(m => String(m.id) === String(id));
             return item && (item.orderId != null && item.orderId !== '');
@@ -21022,6 +21370,7 @@
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'meal' : 'meals';
         showRemoveFormSelectionAlert(count, itemLabel, () => {
+            const snapshotBefore = snapshotAllServiceState();
             mealList.forEach(meal => {
                 if (idsToRemove.includes(String(meal.id))) {
                     if (meal.transferId) {
@@ -21040,6 +21389,12 @@
             updateGuideTable();
             recalculateHeaderDatesFromServices();
             recalculateTotals();
+            scheduleRemoveWithUndo({
+                categoryKey: 'meals',
+                serviceMessage: 'Meal service',
+                existingIds: existingIdsToRemove,
+                snapshotBefore
+            });
         }, window.hasNegotiationHistory, hasExistingItems);
     }
 
@@ -23014,6 +23369,10 @@
         }
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        const existingIdsToRemove = idsToRemove.filter(id => {
+            const item = transferList.find(t => String(t.id) === String(id));
+            return item && (item.orderId != null && item.orderId !== '');
+        });
         const hasExistingItems = idsToRemove.some(id => {
             const item = transferList.find(t => String(t.id) === String(id));
             return item && (item.orderId != null && item.orderId !== '');
@@ -23022,6 +23381,7 @@
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'transfer' : 'transfers';
         showRemoveFormSelectionAlert(count, itemLabel, () => {
+            const snapshotBefore = snapshotAllServiceState();
             
             const guideIdsToRemove = [];
             
@@ -23111,6 +23471,12 @@
             updateGuideTable();
             recalculateHeaderDatesFromServices();
             recalculateTotals();
+            scheduleRemoveWithUndo({
+                categoryKey: 'transfers',
+                serviceMessage: 'Transfer service',
+                existingIds: existingIdsToRemove,
+                snapshotBefore
+            });
         }, window.hasNegotiationHistory, hasExistingItems);
     }
 
@@ -25475,6 +25841,10 @@
     }
     
     async function saveEnquiryData() {
+        // Any pending undo windows should resolve before submit.
+        // If user submits now, treat currently removed items as final deletions.
+        finalizePendingRemovals();
+
         // Get values from header fields
         // Extract destination countries directly from the visible destination tags in the header
         // These tags represent the countries selected by the user from the dropdown
@@ -25599,6 +25969,7 @@
             formData.append('guides', JSON.stringify(transformedGuides));
             formData.append('transfers', JSON.stringify(transformedTransfers));
             formData.append('miscellaneous', JSON.stringify(transformedMiscellaneous));
+            formData.append('deleted_items', JSON.stringify(deletedItems || {}));
         } else {
             if (entryPortData.length > 0) {
                 formData.append('entry_port', JSON.stringify(entryPortData));
@@ -25624,6 +25995,7 @@
             if (transformedMiscellaneous.length > 0) {
                 formData.append('miscellaneous', JSON.stringify(transformedMiscellaneous));
             }
+            formData.append('deleted_items', JSON.stringify(deletedItems || {}));
         }
         
         // Show loading modal and disable form
