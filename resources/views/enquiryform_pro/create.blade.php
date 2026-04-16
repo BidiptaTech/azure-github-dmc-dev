@@ -15012,12 +15012,9 @@
                 } else if (destinationType === 'attraction') {
                     const attractionDestId = destOption.getAttribute('data-attraction-id');
                     if (attractionDestId) actualDestinationId = attractionDestId;
-                    // Also try to get zone_id for destination attraction
-                    const destZoneId = destOption.getAttribute('data-zone-id');
-                    if (destZoneId) {
-                        console.log('  Found zone_id for destination attraction:', destZoneId);
-                        actualDestinationId = destZoneId;
-                    }
+                    // IMPORTANT:
+                    // Do NOT replace attraction_id with zone_id here.
+                    // Zone assignments are DMC-specific and are resolved server-side using (attraction_id + dmc_id).
                 } else if (destinationType === 'restaurant') {
                     const restaurantId = destOption.getAttribute('data-restaurant-id');
                     if (restaurantId) actualDestinationId = restaurantId;
@@ -15372,12 +15369,9 @@
                 } else if (destinationType === 'attraction') {
                     const attractionDestId = destOption.getAttribute('data-attraction-id');
                     if (attractionDestId) actualDestinationId = attractionDestId;
-                    // Also try to get zone_id for destination attraction
-                    const destZoneId = destOption.getAttribute('data-zone-id');
-                    if (destZoneId) {
-                        console.log('  Found zone_id for destination attraction:', destZoneId);
-                        actualDestinationId = destZoneId;
-                    }
+                    // IMPORTANT:
+                    // Do NOT replace attraction_id with zone_id here.
+                    // Zone assignments are DMC-specific and are resolved server-side using (attraction_id + dmc_id).
                 } else if (destinationType === 'restaurant') {
                     const restaurantId = destOption.getAttribute('data-restaurant-id');
                     if (restaurantId) actualDestinationId = restaurantId;
@@ -20638,7 +20632,8 @@
                 }
             }
             
-            // For attractions, extract zone_id from data attribute (preferred) or attraction_id as fallback
+            // For attractions, DO NOT use data-zone-id here.
+            // Zone assignments are DMC-specific and are resolved server-side using (attraction_id + dmc_id).
             if (actualPickupType === 'attraction') {
                 const pickupSelects = [
                     document.getElementById('localPickup'),
@@ -20668,16 +20663,11 @@
                     }
                     
                     if (pickupOption) {
-                        const zoneId = pickupOption.getAttribute('data-zone-id');
                         const attractionId = pickupOption.getAttribute('data-attraction-id');
-                        if (zoneId) {
-                            console.log('  Found zone_id for pickup attraction:', zoneId, '(from attraction_id:', attractionId || pickupId, ')');
-                            actualPickupId = zoneId;
-                            zoneIdFound = true;
-                            break;
-                        } else if (attractionId && String(attractionId) === String(pickupId)) {
-                            console.log('  Found attraction_id for pickup (no zone_id):', attractionId);
+                        if (attractionId) {
+                            console.log('  Using attraction_id for pickup (DMC-specific zone resolution):', attractionId);
                             actualPickupId = attractionId;
+                            zoneIdFound = true;
                             break;
                         }
                     }
@@ -20738,16 +20728,11 @@
                     }
                     
                     if (dropOption) {
-                        const zoneId = dropOption.getAttribute('data-zone-id');
                         const attractionId = dropOption.getAttribute('data-attraction-id');
-                        if (zoneId) {
-                            console.log('  Found zone_id for drop attraction:', zoneId, '(from attraction_id:', attractionId || dropId, ')');
-                            actualDropId = zoneId;
-                            zoneIdFound = true;
-                            break;
-                        } else if (attractionId && String(attractionId) === String(dropId)) {
-                            console.log('  Found attraction_id for drop (no zone_id):', attractionId);
+                        if (attractionId) {
+                            console.log('  Using attraction_id for drop (DMC-specific zone resolution):', attractionId);
                             actualDropId = attractionId;
+                            zoneIdFound = true;
                             break;
                         }
                     }
@@ -20758,7 +20743,8 @@
                 }
             }
             
-            // For restaurants, extract zone_id from data attribute (preferred) or restaurant_id as fallback
+            // For restaurants, DO NOT use data-zone-id here.
+            // Zone assignments are DMC-specific and are resolved server-side using (restaurant_id + dmc_id).
             if (actualPickupType === 'restaurant') {
                 const pickupSelects = [
                     document.getElementById('mealRestaurant'), // Restaurant popup dropdown
@@ -20785,18 +20771,12 @@
                     }
                     
                     if (pickupOption) {
-                        const zoneId = pickupOption.getAttribute('data-zone-id');
                         const restaurantId = pickupOption.getAttribute('data-restaurant-id') || pickupOption.value;
                         
-                        if (zoneId) {
-                            console.log('  Found zone_id for pickup restaurant:', zoneId, '(from restaurant_id:', restaurantId, ')');
-                            actualPickupId = zoneId;
-                            zoneIdFound = true;
-                            break;
-                        } else if (restaurantId && restaurantId === pickupId) {
-                            console.log('  Found restaurant_id for pickup (no zone_id):', restaurantId);
-                            // Keep restaurant_id, API will extract zone_id from zone_assignments
+                        if (restaurantId) {
+                            console.log('  Using restaurant_id for pickup (DMC-specific zone resolution):', restaurantId);
                             actualPickupId = restaurantId;
+                            zoneIdFound = true;
                             break;
                         }
                     }
@@ -20833,18 +20813,12 @@
                     }
                     
                     if (dropOption) {
-                        const zoneId = dropOption.getAttribute('data-zone-id');
                         const restaurantId = dropOption.getAttribute('data-restaurant-id') || dropOption.value;
                         
-                        if (zoneId) {
-                            console.log('  Found zone_id for drop restaurant:', zoneId, '(from restaurant_id:', restaurantId, ')');
-                            actualDropId = zoneId;
-                            zoneIdFound = true;
-                            break;
-                        } else if (restaurantId && restaurantId === dropId) {
-                            console.log('  Found restaurant_id for drop (no zone_id):', restaurantId);
-                            // Keep restaurant_id, API will extract zone_id from zone_assignments
+                        if (restaurantId) {
+                            console.log('  Using restaurant_id for drop (DMC-specific zone resolution):', restaurantId);
                             actualDropId = restaurantId;
+                            zoneIdFound = true;
                             break;
                         }
                     }
@@ -20986,6 +20960,15 @@
             
             const result = await response.json();
             console.log('API Response:', result);
+
+            console.log('Mapping debug:', {
+                mapping_row_id: result.data?.mapping_row_id,
+                mapping_id: result.data?.mapping_id,
+                from_zone_id: result.data?.from_zone_id,
+                to_zone_id: result.data?.to_zone_id,
+                from_zone_type: result.data?.from_zone_type,
+                to_zone_type: result.data?.to_zone_type
+            });
             
             // Handle case where API returns error message
             if (!result.success) {

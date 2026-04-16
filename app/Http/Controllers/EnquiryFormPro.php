@@ -20,6 +20,7 @@ use App\Models\Order;
 use App\Models\Tax;
 use App\Models\Rate;
 use App\Models\VehicleZoneMapping;
+use App\Models\Zone;
 use App\Helpers\CommonHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -2161,9 +2162,48 @@ class EnquiryFormPro extends Controller
             // Extract zone_id from zone_assignments for hotels, attractions, and restaurants
             $fromZoneId = $pickupId;
             $toZoneId = $dropId;
+
+            // If caller already passed a zone_id (DMC-specific), prefer it and skip entity->zone conversion.
+            // This prevents mismatches when IDs overlap (e.g., attraction_id "42" vs zone_id "42") and allows
+            // create/edit screens to use zone IDs directly when they already have them.
+            $pickupIsZoneId = false;
+            $dropIsZoneId = false;
+            if ($dmcId && $fromZoneType && $fromZoneType !== 'Port') {
+                $fromZoneExists = Zone::where('zone_id', (string) $pickupId)
+                    ->where('dmc_id', (string) $dmcId)
+                    ->whereRaw('LOWER(TRIM(zone_type)) = ?', [strtolower($fromZoneType)])
+                    ->exists();
+                if ($fromZoneExists) {
+                    $fromZoneId = (string) $pickupId;
+                    $pickupIsZoneId = true;
+                    \Log::info('Using pickup_id directly as zone_id (zone exists for DMC)', [
+                        'pickup_id' => $pickupId,
+                        'from_zone_id' => $fromZoneId,
+                        'from_zone_type' => $fromZoneType,
+                        'dmc_id' => $dmcId
+                    ]);
+                }
+            }
+
+            if ($dmcId && $toZoneType && $toZoneType !== 'Port') {
+                $toZoneExists = Zone::where('zone_id', (string) $dropId)
+                    ->where('dmc_id', (string) $dmcId)
+                    ->whereRaw('LOWER(TRIM(zone_type)) = ?', [strtolower($toZoneType)])
+                    ->exists();
+                if ($toZoneExists) {
+                    $toZoneId = (string) $dropId;
+                    $dropIsZoneId = true;
+                    \Log::info('Using drop_id directly as zone_id (zone exists for DMC)', [
+                        'drop_id' => $dropId,
+                        'to_zone_id' => $toZoneId,
+                        'to_zone_type' => $toZoneType,
+                        'dmc_id' => $dmcId
+                    ]);
+                }
+            }
             
             // For hotels: extract zone_id from zone_assignments
-            if ($fromZoneType === 'Hotel' && $dmcId) {
+            if ($fromZoneType === 'Hotel' && $dmcId && !$pickupIsZoneId) {
                 $hotel = \App\Models\Hotel::where('hotel_unique_id', $pickupId)->first();
                 if ($hotel) {
                     $zoneId = $hotel->getZoneForDmc($dmcId);
@@ -2174,7 +2214,7 @@ class EnquiryFormPro extends Controller
                 }
             }
             
-            if ($toZoneType === 'Hotel' && $dmcId) {
+            if ($toZoneType === 'Hotel' && $dmcId && !$dropIsZoneId) {
                 $hotel = \App\Models\Hotel::where('hotel_unique_id', $dropId)->first();
                 if ($hotel) {
                     $zoneId = $hotel->getZoneForDmc($dmcId);
@@ -2186,7 +2226,7 @@ class EnquiryFormPro extends Controller
             }
             
             // For attractions: extract zone_id from zone_assignments
-            if ($fromZoneType === 'Attraction' && $dmcId) {
+            if ($fromZoneType === 'Attraction' && $dmcId && !$pickupIsZoneId) {
                 $attraction = \App\Models\Attraction::where('attraction_id', $pickupId)->first();
                 if ($attraction) {
                     $zoneId = $attraction->getZoneForDmc($dmcId);
@@ -2197,7 +2237,7 @@ class EnquiryFormPro extends Controller
                 }
             }
             
-            if ($toZoneType === 'Attraction' && $dmcId) {
+            if ($toZoneType === 'Attraction' && $dmcId && !$dropIsZoneId) {
                 $attraction = \App\Models\Attraction::where('attraction_id', $dropId)->first();
                 if ($attraction) {
                     $zoneId = $attraction->getZoneForDmc($dmcId);
@@ -2209,7 +2249,7 @@ class EnquiryFormPro extends Controller
             }
             
             // For restaurants: extract zone_id from zone_assignments
-            if ($fromZoneType === 'Restaurant' && $dmcId) {
+            if ($fromZoneType === 'Restaurant' && $dmcId && !$pickupIsZoneId) {
                 $restaurant = \App\Models\Restaurant::where('restaurant_id', $pickupId)->first();
                 if ($restaurant) {
                     $zoneId = $restaurant->getZoneForDmc($dmcId);
@@ -2220,7 +2260,7 @@ class EnquiryFormPro extends Controller
                 }
             }
             
-            if ($toZoneType === 'Restaurant' && $dmcId) {
+            if ($toZoneType === 'Restaurant' && $dmcId && !$dropIsZoneId) {
                 $restaurant = \App\Models\Restaurant::where('restaurant_id', $dropId)->first();
                 if ($restaurant) {
                     $zoneId = $restaurant->getZoneForDmc($dmcId);
@@ -2265,12 +2305,14 @@ class EnquiryFormPro extends Controller
                 ]);
             }
             
-            // Verify that the vehicle belongs to this DMC (important for port-to-port transfers)
-            // Vehicles are DMC-specific, so we need to ensure the vehicle belongs to the requesting DMC
-            if ($dmcId) {
+            // Verify that the vehicle belongs to this DMC ONLY for port-to-port transfers.
+            // Reason: ports don't have DMC-specific zone_assignments; for non-port (hotel/attraction/restaurant),
+            // we resolve zones by dmc_id and then use vehicle_zone_mappings which may be shared/managed centrally.
+            $isPortToPort = (strtolower((string) $pickupType) === 'port') && (strtolower((string) $dropType) === 'port');
+            if ($isPortToPort && $dmcId) {
                 $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
-                if (!$vehicle || $vehicle->dmc_id != $dmcId) {
-                    \Log::warning('Vehicle does not belong to this DMC', [
+                if (!$vehicle || (string) $vehicle->dmc_id !== (string) $dmcId) {
+                    \Log::warning('Vehicle does not belong to this DMC (port-to-port check)', [
                         'vehicle_id' => $vehicleId,
                         'vehicle_dmc_id' => $vehicle->dmc_id ?? 'N/A',
                         'requested_dmc_id' => $dmcId
@@ -2287,40 +2329,82 @@ class EnquiryFormPro extends Controller
                 }
             }
             
+            // Normalize to strings (PGSQL: these columns are often varchar)
+            $vehicleId = (string) $vehicleId;
+            $fromZoneId = (string) $fromZoneId;
+            $toZoneId = (string) $toZoneId;
+
+            // Normalize zone types for safe matching (case-insensitive compare in query)
+            $fromZoneTypeNorm = $fromZoneType ? strtolower(trim($fromZoneType)) : null;
+            $toZoneTypeNorm = $toZoneType ? strtolower(trim($toZoneType)) : null;
+
             // Query vehicle_zone_mappings with bidirectional check using extracted zone_ids
             // Match SingleTourPackageController logic: check zone_id AND zone_type, also check deleted_at
             // For port-to-port transfers: Since ports don't have DMC-specific zones, we rely on the vehicle's DMC ownership
             $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
                 ->whereNull('deleted_at')
-                ->where(function($query) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
+                ->where(function ($query) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
                     // Case 1: from = pickup, to = drop
-                    $query->where(function($q) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
+                    $query->where(function ($q) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
                         $q->where('from_zone_id', $fromZoneId)
-                          ->where('to_zone_id', $toZoneId);
-                        // Add zone type checks if provided
-                        if ($fromZoneType) {
-                            $q->where('from_zone_type', $fromZoneType);
+                            ->where('to_zone_id', $toZoneId);
+
+                        if ($fromZoneTypeNorm) {
+                            $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$fromZoneTypeNorm]);
                         }
-                        if ($toZoneType) {
-                            $q->where('to_zone_type', $toZoneType);
+                        if ($toZoneTypeNorm) {
+                            $q->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$toZoneTypeNorm]);
                         }
                     })
                     // Case 2: from = drop, to = pickup (bidirectional)
-                    ->orWhere(function($q) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
+                    ->orWhere(function ($q) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
                         $q->where('from_zone_id', $toZoneId)
-                          ->where('to_zone_id', $fromZoneId);
-                        // Swap zone types for bidirectional check
-                        if ($fromZoneType && $toZoneType) {
-                            $q->where('from_zone_type', $toZoneType)
-                              ->where('to_zone_type', $fromZoneType);
-                        } elseif ($toZoneType) {
-                            $q->where('from_zone_type', $toZoneType);
-                        } elseif ($fromZoneType) {
-                            $q->where('to_zone_type', $fromZoneType);
+                            ->where('to_zone_id', $fromZoneId);
+
+                        if ($fromZoneTypeNorm && $toZoneTypeNorm) {
+                            $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$toZoneTypeNorm])
+                                ->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$fromZoneTypeNorm]);
+                        } elseif ($toZoneTypeNorm) {
+                            $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$toZoneTypeNorm]);
+                        } elseif ($fromZoneTypeNorm) {
+                            $q->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$fromZoneTypeNorm]);
                         }
                     });
                 })
+                ->orderByDesc('updated_at')
+                ->orderByDesc('id')
                 ->first();
+
+            // Fallback: if strict type matching fails, try ID-only bidirectional match.
+            // Some legacy rows may have inconsistent from/to types or casing/spacing.
+            if (!$mapping) {
+                $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
+                    ->whereNull('deleted_at')
+                    ->where(function ($q) use ($fromZoneId, $toZoneId) {
+                        $q->where(function ($qq) use ($fromZoneId, $toZoneId) {
+                            $qq->where('from_zone_id', $fromZoneId)->where('to_zone_id', $toZoneId);
+                        })->orWhere(function ($qq) use ($fromZoneId, $toZoneId) {
+                            $qq->where('from_zone_id', $toZoneId)->where('to_zone_id', $fromZoneId);
+                        });
+                    })
+                    ->orderByDesc('updated_at')
+                    ->orderByDesc('id')
+                    ->first();
+
+                if ($mapping) {
+                    \Log::warning('Vehicle zone mapping found via ID-only fallback (type mismatch)', [
+                        'vehicle_id' => $vehicleId,
+                        'from_zone_id' => $fromZoneId,
+                        'to_zone_id' => $toZoneId,
+                        'from_zone_type_norm' => $fromZoneTypeNorm,
+                        'to_zone_type_norm' => $toZoneTypeNorm,
+                        'mapping_id' => $mapping->mapping_id ?? null,
+                        'row_from_zone_type' => $mapping->from_zone_type ?? null,
+                        'row_to_zone_type' => $mapping->to_zone_type ?? null,
+                        'dmc_id' => $dmcId
+                    ]);
+                }
+            }
             
             if (!$mapping) {
                 \Log::warning('No vehicle zone mapping found', [
@@ -2359,6 +2443,13 @@ class EnquiryFormPro extends Controller
                 'success' => true,
                 'message' => 'Zone prices retrieved successfully',
                 'data' => [
+                    'mapping_row_id' => $mapping->id ?? null,
+                    'mapping_id' => $mapping->mapping_id ?? null,
+                    'vehicle_id' => $mapping->vehicle_id ?? $vehicleId,
+                    'from_zone_id' => $mapping->from_zone_id ?? $fromZoneId,
+                    'to_zone_id' => $mapping->to_zone_id ?? $toZoneId,
+                    'from_zone_type' => $mapping->from_zone_type ?? null,
+                    'to_zone_type' => $mapping->to_zone_type ?? null,
                     'private_price' => $mapping->private_price ?? 0,
                     'shared_price' => $mapping->shared_price ?? 0
                 ]
