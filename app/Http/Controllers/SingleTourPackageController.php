@@ -775,6 +775,8 @@ class SingleTourPackageController extends Controller
             $tour->infant = $request->infants ?? 0;
             $tour->agent_id = $request->agent_id;
             $tour->tour_type = $request->tour_type ?? 'FIT';
+            // Persist new DB column `city_type` ("single" / "multi")
+            $tour->city_type = $request->city_type ?? ($request->city_mode ?? 'single');
             $tour->tour_id = $tourId;
             $tour->male_count = $request->male;
             $tour->female_count = $request->female;
@@ -1387,7 +1389,7 @@ class SingleTourPackageController extends Controller
         $countryName = $request->input('country');
         
         $cities = City::where('country', $countryName)
-                ->select('name', 'city_id', 'id')
+                ->select('name', 'city_id', 'id', 'country')
                 ->get();
                  
         return response()->json(['cities' => $cities]);

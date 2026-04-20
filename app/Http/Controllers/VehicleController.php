@@ -345,7 +345,7 @@ class VehicleController extends Controller
                     // 'status' => $status,
                 ]);
 
-                LogActivityService::log('restore_vehicle', 'App\Models\Vehicle', $existingVehicle->id, $existingVehicle);
+                // LogActivityService::log('restore_vehicle', 'App\Models\Vehicle', $existingVehicle->id, $existingVehicle);
 
                 return redirect()->route('vehicle.edit', [
                     'vehicle' => Crypt::encrypt($existingVehicle->vehicle_id),
@@ -421,7 +421,7 @@ class VehicleController extends Controller
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
 
         if ($vehicle->save()) {
-            LogActivityService::log('create_vehicle', 'App\Models\Vehicle', $vehicle->vehicle_id, $vehicle);
+            // LogActivityService::log('create_vehicle', 'App\Models\Vehicle', $vehicle->vehicle_id, $vehicle);
             
             // Redirect to edit page with zone mapping tab active
             return redirect()->route('vehicle.edit', [
@@ -430,7 +430,7 @@ class VehicleController extends Controller
                 'mapping_type' => 'port_port'
             ])->with('success', 'Vehicle added successfully! Now you can map zones.');
         } else {
-            LogActivityService::log('create_vehicle_failed', 'App\Models\Vehicle', $vehicle_max_id, 'An error occurred while saving the vehicle details.');
+            // LogActivityService::log('create_vehicle_failed', 'App\Models\Vehicle', $vehicle_max_id, 'An error occurred while saving the vehicle details.');
             return redirect()->back()
                 ->with('error', 'An error occurred while saving the vehicle details.');
         }
@@ -703,10 +703,10 @@ class VehicleController extends Controller
             
 
         if ($vehicle->save()) {
-            LogActivityService::log('edit_vehicle', 'App\Models\Vehicle', $vehicle->vehicle_id, $vehicle);
+            // LogActivityService::log('edit_vehicle', 'App\Models\Vehicle', $vehicle->vehicle_id, $vehicle);
             return redirect()->route('vehicle.index')->with('success', 'Vehicle updated successfully!');
         } else {
-            LogActivityService::log('edit_vehicle_failed', 'App\Models\vehicle', $vehicle_max_id,'An error occurred while saving the vehicle details.');
+            // LogActivityService::log('edit_vehicle_failed', 'App\Models\vehicle', $vehicle_max_id,'An error occurred while saving the vehicle details.');
             return redirect()->back()
                 ->with('error', 'An error occurred while saving the vehicle details.');
         }

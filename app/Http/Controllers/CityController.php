@@ -783,14 +783,13 @@ class CityController extends Controller
             }
         }
 
-        // Resolve Master DMC countries (comma-separated)
+        // Resolve this DMC's countries (comma-separated on the DMC user — not Master DMC)
         $countryNames = [];
         if ($dmcId) {
             $dmcUser = User::where('userId', $dmcId)->first();
-            $masterDmc = $dmcUser?->created_by ? User::where('userId', $dmcUser->created_by)->first() : null;
-            $mdmcCountry = $masterDmc?->country;
-            if ($mdmcCountry) {
-                $countryNames = array_values(array_filter(array_map('trim', explode(',', $mdmcCountry))));
+            $dmcCountry = $dmcUser?->country;
+            if ($dmcCountry) {
+                $countryNames = array_values(array_filter(array_map('trim', explode(',', $dmcCountry))));
             }
         }
 
@@ -808,11 +807,13 @@ class CityController extends Controller
             ->get(['city_id', 'name', 'country']);
 
         $results = $cities->map(function ($city) {
-            $country = $city->country ? (' (' . $city->country . ')') : '';
+            $countrySuffix = $city->country ? (' (' . $city->country . ')') : '';
             return [
                 // Select2 compares ids as strings; force string to avoid numeric coercion edge-cases.
                 'id' => (string) $city->city_id,
-                'text' => $city->name . $country,
+                'text' => $city->name . $countrySuffix,
+                // Exposed for tour save when country field is hidden — stored on segment city <option data-country>
+                'country' => $city->country,
             ];
         })->values();
 

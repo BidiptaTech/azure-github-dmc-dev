@@ -393,141 +393,6 @@
             cursor: not-allowed;
         }
         
-        /* Tour type toggle (FIT / GROUP) */
-        .tour-toggle {
-            position: relative;
-            display: flex;
-            background: #e9ecef;
-            border-radius: 30px;
-            padding: 4px;
-            width: 100%;
-            height: 42px;
-            align-items: center;
-        }
-
-        .tour-toggle input {
-            display: none;
-        }
-
-        .tour-toggle label {
-            flex: 1;
-            text-align: center;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            z-index: 2;
-            color: #6c757d;
-            transition: color 0.3s ease;
-            white-space: nowrap;
-        }
-
-        .tour-toggle .slider {
-            position: absolute;
-            top: 4px;
-            bottom: 4px;
-            left: 4px;
-            width: calc(50% - 4px);
-            background: linear-gradient(135deg, #198754, #20c997);
-            border-radius: 30px;
-            transition: all 0.3s ease;
-            z-index: 1;
-        }
-
-        .tour-toggle input#fit:checked ~ .slider {
-            left: 4px;
-        }
-
-        .tour-toggle input#group:checked ~ .slider {
-            left: 50%;
-        }
-
-        .tour-toggle input:checked + label {
-            color: #fff;
-        }
-
-        /* City mode toggle (Single / Multi) */
-        .city-toggle {
-            position: relative;
-            display: flex;
-            background: #e9ecef;
-            border-radius: 30px;
-            padding: 4px;
-            width: 100%;
-            height: 42px;
-            align-items: center;
-        }
-
-        .city-toggle input {
-            display: none;
-        }
-
-        .city-toggle label {
-            flex: 1;
-            text-align: center;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            z-index: 2;
-            color: #6c757d;
-            transition: color 0.3s ease;
-            white-space: nowrap;
-        }
-
-        .city-toggle .slider {
-            position: absolute;
-            top: 4px;
-            bottom: 4px;
-            left: 4px;
-            width: calc(50% - 4px);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 30px;
-            transition: all 0.3s ease;
-            z-index: 1;
-        }
-
-        .city-toggle input#city_mode_single:checked ~ .slider {
-            left: 4px;
-        }
-
-        .city-toggle input#city_mode_multi:checked ~ .slider {
-            left: 50%;
-        }
-
-        .city-toggle input:checked + label {
-            color: #fff;
-        }
-
-        /* Multi-city planning cards (match create page) */
-        #segmentsWrapper .segment {
-            border-radius: 10px;
-        }
-
-        #segmentsWrapper .segment .segment-header > div {
-            border-radius: 10px;
-        }
-
-        #segmentsWrapper .segment .segment-services-banner {
-            border-radius: 8px;
-        }
-
-        #segmentsWrapper .segment .segment-body-toggle {
-            border-radius: 8px;
-        }
-
-        #segmentsWrapper .segment .segment-body-toggle:hover {
-            background: #f8f9fa;
-        }
-
-        /* Add 20px left/right margin to service grids (hotel/arrival/attraction/guide/restaurant/transport) */
-        .excel-form #servicesAccordion,
-        .excel-form .day-services,
-        .excel-form .service-section,
-        .excel-form #customerAccordion,
-        .excel-form #additionalGuestsAccordion {
-            margin-left: 20px;
-            margin-right: 20px;
-        }
-
         /* Toggle Label Styling */
         .toggle-label {
             font-size: 0.875rem;
@@ -841,7 +706,7 @@
                     <div class="d-flex align-items-center">
                         <i class="ri-edit-line me-3" style="font-size: 2rem;"></i>
                         <div>
-                            <h5 class="mb-1">Edit Single Tour Package</h5>
+                            <h5 class="mb-1">Edit Tour Services</h5>
                             <p class="mb-0">You edit services for tour <strong>{{ $tour->display_id ?? 'N/A' }}</strong>. Tour information can be modified here, but you can edit all services including hotels, attractions, guides, restaurants, and transport.</p>
                         </div>
                     </div>
@@ -854,75 +719,35 @@
         <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}" data-update-info-url="{{ isset($tour) ? route('single-tour-package.update-info', $tour->tour_id) : '' }}" data-update-guests-url="{{ isset($tour) ? route('single-tour-package.update-guests', $tour->tour_id) : '' }}">
             @csrf
             
-            <!-- Tour Configuration (no accordion) -->
+            <!-- Main Form Card - All in One Row with Accordion -->
             <div class="row mb-3">
                 <div class="col-12">
-                    <div class="card border-0" style="box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 12px; overflow: hidden;">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                            <div class="d-flex align-items-center flex-grow-1">
-                                <div style="width: 36px; height: 36px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                    <i class="ri-settings-3-line" style="font-size: 1.1rem; color: #ffffff;"></i>
-                                </div>
-                                <div>
-                                    <h6 class="mb-0 fw-bold" style="font-size: 1rem; letter-spacing: -0.01em; color: #ffffff;">Tour Configuration</h6>
-                                    <small style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">Update tour type and package details</small>
-                                </div>
-                            </div>
-
-                            <div class="d-flex align-items-center ms-3">
-                                <div class="tour-type-wrapper" style="min-width: 220px;">
-                                    <div class="tour-toggle">
-                                        <input type="radio" name="tour_type" id="fit" value="FIT" {{ (old('tour_type', $tour->tour_type ?? 'FIT') === 'FIT') ? 'checked' : '' }}>
-                                        <label for="fit">FIT</label>
-
-                                        <input type="radio" name="tour_type" id="group" value="GROUP" {{ (old('tour_type', $tour->tour_type ?? 'FIT') === 'GROUP') ? 'checked' : '' }}>
-                                        <label for="group">GROUP</label>
-
-                                        <span class="slider"></span>
+                    <div class="accordion" id="tourInfoAccordion">
+                        <div class="accordion-item border-0" style="box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 12px; overflow: hidden;">
+                            <h2 class="accordion-header" id="tourInfoHeading">
+                                <button class="accordion-button text-white border-0 collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tourInfoCollapse" aria-expanded="false" aria-controls="tourInfoCollapse" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.875rem 1.25rem;">
+                                    <div class="d-flex align-items-center w-100">
+                                        <div style="width: 36px; height: 36px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                            <i class="ri-settings-3-line" style="font-size: 1.1rem; color: #ffffff;"></i>
+                                        </div>
+                                        <h6 class="mb-0 fw-bold" style="font-size: 1rem; letter-spacing: -0.01em; color: #ffffff;">
+                                            Tour Information
+                                        </h6>
                                     </div>
-                                </div>
-                                <div class="ms-3" style="min-width: 240px;">
-                                    <div class="city-toggle">
-                                        <input type="radio" name="city_type" id="city_mode_single" value="single" {{ (old('city_type', $tour->city_type ?? 'single') === 'single') ? 'checked' : '' }}>
-                                        <label for="city_mode_single">Single City</label>
-
-                                        <input type="radio" name="city_type" id="city_mode_multi" value="multi" {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'checked' : '' }}>
-                                        <label for="city_mode_multi">Multi City</label>
-
-                                        <span class="slider"></span>
+                                </button>
+                            </h2>
+                            <div id="tourInfoCollapse" class="accordion-collapse collapse" aria-labelledby="tourInfoHeading" data-bs-parent="#tourInfoAccordion">
+                                <div class="accordion-body" style="padding: 1.25rem; background: #ffffff;">
+                                    <!-- Reference Number - top single section -->
+                                    <div class="row g-3 mb-2">
+                                        <div class="col-md-6">
+                                            <label for="reference_number" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                                <i class="ri-hashtag me-1" style="color: #667eea;"></i>Reference Number
+                                            </label>
+                                            <input type="text" name="reference_number" id="reference_number" class="form-control modern-input" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number', $tour->reference_id ?? '') }}" readonly>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card-body" style="padding: 1.25rem; background: #ffffff;">
-                            @php
-                                $rawTourCity = (string) ($tour->city ?? '');
-                                $tourCities = [];
-                                if (!empty($rawTourCity)) {
-                                    $tourCities = array_values(array_filter(array_map('trim', explode(',', $rawTourCity))));
-                                }
-                                // Normalize city tokens: "Singapore (Singapore)" -> "Singapore"
-                                $tourCitiesNormalized = array_map(function ($c) {
-                                    $c = (string) $c;
-                                    $c = preg_replace('/\s*\([^)]*\)\s*$/', '', $c);
-                                    return trim($c);
-                                }, $tourCities);
-                                $tourSingleCityNormalized = !empty($tourCitiesNormalized) ? $tourCitiesNormalized[0] : '';
-                            @endphp
-
-                            <!-- Reference Number - top single section -->
-                            <div class="row g-3 mb-2">
-                                <div class="col-md-6">
-                                    <label for="reference_number" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-hashtag me-1" style="color: #667eea;"></i>Reference Number
-                                    </label>
-                                    <input type="text" name="reference_number" id="reference_number" class="form-control modern-input" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number', $tour->reference_id ?? '') }}" readonly>
-                                </div>
-                                <div class="col-md-6"></div>
-                            </div>
-
-                            <div class="row g-3">
+                                    <div class="row g-3">
                                 <!-- Tour ID -->
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
@@ -939,8 +764,20 @@
                                     <input type="hidden" id="is_point_to_point" name="is_point_to_point" value="{{ $isPointToPoint ? 1 : 0 }}">
                                 </div>
 
-                                <!-- Country (hidden; used by JS + update) -->
-                                <input type="hidden" name="user_country" id="user_country" value="{{ $tour->destination ?? '' }}">
+                                <!-- Country -->
+                                <div class="col-md-2">
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-earth-line me-1" style="color: #667eea;"></i>Country
+                                    </label>
+                                    <select class="form-select modern-select" name="user_country" id="user_country" required disabled>
+                                        <option value="">Select Country</option >
+                                        @foreach($countries as $country)
+                                            <option value="{{ $country->name }}" {{ ($tour->destination ?? '') == $country->name ? 'selected' : '' }}>
+                                                {{ $country->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
 
                                 <!-- Travel Dates -->
                                 <div class="col-md-3">
@@ -1024,68 +861,15 @@
                                         @endforeach
                                     </select>
                                 </div>
-                            </div>
-
-                            <!-- City section (below tour details) -->
-                            <div class="row g-3 mt-2" id="singleCityField">
-                                <div class="col-md-6">
-                                    <label for="single_city" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-map-pin-line me-1" style="color: #667eea;"></i>City
-                                    </label>
-                                    <select id="single_city" name="single_city" class="form-select modern-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;">
-                                        <option value="">Select city...</option>
-                                        @foreach($cities as $city)
-                                            <option value="{{ $city->name }}"
-                                                data-country="{{ $city->country ?? '' }}"
-                                                {{ (old('single_city', $tourSingleCityNormalized ?? ($tour->city ?? '')) == $city->name) ? 'selected' : '' }}>
-                                                {{ $city->name }}{{ !empty($city->country) ? ' (' . $city->country . ')' : '' }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-6"></div>
-                            </div>
-
-                            <input type="hidden" name="city" id="city" value="{{ old('city', $tour->city ?? '') }}">
-
-                            {{-- Multi City master + planning (match create page design) --}}
-                            <div id="multiCityControls" class="mt-2 d-none">
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <label for="multi_cities" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.78rem;">
-                                            <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
-                                        </label>
-                                        <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;">
-                                            @foreach($cities as $city)
-                                                <option value="{{ $city->name }}"
-                                                    data-country="{{ $city->country ?? '' }}"
-                                                    {{ in_array($city->name, $tourCitiesNormalized ?? [], true) ? 'selected' : '' }}>
-                                                    {{ $city->name }}{{ !empty($city->country) ? ' (' . $city->country . ')' : '' }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
                                     </div>
-                                    <div class="col-md-6"></div>
-                                </div>
-
-                                <!-- Actions should sit on top of the city-plan date grid -->
-                                <div class="d-flex justify-content-end align-items-center gap-2 mt-2">
-                                    <button type="button" id="addCityPlan" class="btn btn-primary btn-sm" style="height: 34px;">Add City Plan</button>
-                                    <div id="multiCityActionsSlot"></div>
-                                </div>
-
-                                <div class="mt-2">
-                                    <div id="segmentsWrapper"></div>
-                                </div>
-                            </div>
-                                <div id="tourInfoActions" class="d-flex justify-content-end align-items-center gap-3 mt-3 pt-3" style="border-top: 1px solid #e9ecef;">
-                                    <div class="text-muted small" id="tour_info_feedback" style="font-size: 0.875rem;"></div>
-                                    <button type="button" class="btn d-flex align-items-center gap-2 modern-update-btn" onclick="UpdateTourInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; padding: 1rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);">
-                                        <span class="spinner-border spinner-border-sm d-none" id="tour_info_spinner" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
-                                        <i class="ri-save-line me-1"></i>
-                                        <span>Update Tour Information</span>
-                                    </button>
+                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3 pt-3" style="border-top: 1px solid #e9ecef;">
+                                        <div class="text-muted small" id="tour_info_feedback" style="font-size: 0.875rem;"></div>
+                                        <button type="button" class="btn d-flex align-items-center gap-2 modern-update-btn" onclick="UpdateTourInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; padding: 1rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);">
+                                            <span class="spinner-border spinner-border-sm d-none" id="tour_info_spinner" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                                            <i class="ri-save-line me-1"></i>
+                                            <span>Update Tour Information</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1109,12 +893,6 @@
             <!-- Service Action Buttons -->
 
             <!-- Hotel Accommodation Section -->
-            <div id="servicesAccordionHome"></div>
-            <div id="multiCityServicesHint" class="alert alert-info border-0 shadow-sm mb-3 py-2 px-3 d-none" style="font-size:0.82rem;border-radius:10px;background:#e7f1ff;border:1px solid #b6d4fe !important;color:#055160;">
-                <div class="fw-semibold mb-1"><i class="ri-route-line me-1"></i>Multi-city: services follow each city plan</div>
-                <div class="small">Select a city plan row (city + stay dates) to load its services grid. Blank sections stay blank so you can add.</div>
-            </div>
-            <div id="segmentServicesBundle">
             <div class="accordion mb-4" id="servicesAccordion">
             <div class="accordion-item border-0">
                 <div class="card shadow-sm border-0">
@@ -2625,7 +2403,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div>
-                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; border-radius: 8px 8px 0 0; transition: all 0.3s ease; margin-left: 20px; margin-right: 20px;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
                                     <i class="ri-login-circle-line fs-4"></i>
@@ -4929,11 +4707,7 @@
                                 </div>
                             </div>
 
-            </div>
-            <!-- /#segmentServicesBundle -->
-
                             <!-- Combined Guest Information Section (Lead Guest + Additional Guests in same grid) -->
-                            <div id="guestInfoSection">
                             <div class="row mb-4">
                                 <div class="col-12">
                                     <!-- Customer Information Section (always show when editing tour so Lead Guest can be added/updated) -->
@@ -4954,7 +4728,7 @@
                                                     </div>
                                                     <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
                                                 </div>
-                                                <div id="customerInformationSection" class="collapse" data-bs-parent="#customerAccordion">
+                                                <div id="customerInformationSection" class="collapse" data-bs-parent="#servicesAccordion">
                                                     <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
                                                         <div class="row g-2">
                                                             <div class="col-md-2">
@@ -5039,7 +4813,6 @@
                                                             @endif
                                                         </div>
                                                     </div>
-                            </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -5064,7 +4837,7 @@
                                                     </div>
                                                     <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
                                                 </div>
-                                                <div id="additionalGuestsSection" class="collapse" data-bs-parent="#additionalGuestsAccordion">
+                                                <div id="additionalGuestsSection" class="collapse" data-bs-parent="#servicesAccordion">
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                                         <div class="mb-3 text-end">
                                                             <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addNewGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -5156,7 +4929,7 @@
 
                                     <!-- Save Changes Button -->
                                     <div class="d-flex justify-content-end mt-4 pt-3">
-                                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; height: 35px; padding: 0 10px; margin-left: 20px; margin-right: 20px;">
+                                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; height: 35px; padding: 0 10px;">
                                             <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
                                             <i class="ri-save-3-line"></i>
                                             <span>Save Guest Changes</span>
@@ -8389,7 +8162,7 @@
         var sectionIds = [
             'hotelAccommodationsSection', 'arrivalTransportSection', 'allAttractionsSection',
             'allGuidesSection', 'restaurantServicesSection', 'otherTransportSection',
-            'departureTransportSection'
+            'departureTransportSection', 'customerInformationSection', 'additionalGuestsSection'
         ];
         function closeOtherSections(openId) {
             sectionIds.forEach(function(id) {
@@ -25115,533 +24888,6 @@
             }
         }
     }
-
-    // =========================
-    // Multi-city header UI (Edit)
-    // Match create page design
-    // =========================
-    (function () {
-        const DB_CITY_RAW = @json(old('city', $tour->city ?? ''));
-        const SERVICES_HOME_ID = 'servicesAccordionHome';
-        const SERVICES_BUNDLE_ID = 'segmentServicesBundle';
-        const SERVICES_HINT_ID = 'multiCityServicesHint';
-        let _activeSegmentEl = null;
-
-        function normalizeCityValue(raw) {
-            // "Singapore (Singapore)" -> "Singapore"
-            const s = (raw || '').toString().trim();
-            return s.replace(/\s*\([^)]*\)\s*$/, '').trim();
-        }
-
-        function getCityTypeMode() {
-            const el = document.querySelector('input[name="city_type"]:checked');
-            return el && el.value ? el.value : 'single';
-        }
-
-        function getServicesBundleEl() {
-            return document.getElementById(SERVICES_BUNDLE_ID);
-        }
-
-        function getServicesHomeEl() {
-            return document.getElementById(SERVICES_HOME_ID);
-        }
-
-        function setServicesHintVisible(visible) {
-            const hint = document.getElementById(SERVICES_HINT_ID);
-            if (!hint) return;
-            hint.classList.toggle('d-none', !visible);
-        }
-
-        function moveServicesBundleToHome() {
-            const bundle = getServicesBundleEl();
-            const home = getServicesHomeEl();
-            if (!bundle || !home) return;
-            if (bundle.parentElement && bundle.parentElement.contains(home)) {
-                // no-op (unlikely), but avoid weird DOM moves
-            }
-            home.insertAdjacentElement('afterend', bundle);
-        }
-
-        function setServicesBundleVisible(visible) {
-            const bundle = getServicesBundleEl();
-            if (!bundle) return;
-            bundle.classList.toggle('d-none', !visible);
-        }
-
-        function applySegmentStayDateBadges(startStr, endStr) {
-            try {
-                if (typeof moment === 'undefined') return;
-                const s = moment(startStr, 'YYYY-MM-DD');
-                const e = moment(endStr, 'YYYY-MM-DD');
-                if (!s.isValid() || !e.isValid()) return;
-                const y = e.format('YYYY');
-                const td = document.getElementById('tourDates');
-                const hn = document.getElementById('hotelNights');
-                if (td) td.textContent = s.format('DD MMM') + ' – ' + e.format('DD MMM') + ', ' + y;
-                if (hn) hn.textContent = e.diff(s, 'days') + ' nights · this stay';
-            } catch (e) { /* ignore */ }
-        }
-
-        function getMainTourRange() {
-            const s = (document.getElementById('start_date') || {}).value || '';
-            const e = (document.getElementById('end_date') || {}).value || '';
-            return { start: s, end: e };
-        }
-
-        function applySegmentDateLimits() {
-            const { start, end } = getMainTourRange();
-            if (!start && !end) return;
-            document.querySelectorAll('#segmentsWrapper .start-date').forEach(inp => {
-                if (start) inp.min = start;
-                if (end) inp.max = end;
-            });
-            document.querySelectorAll('#segmentsWrapper .end-date').forEach(inp => {
-                if (start) inp.min = start;
-                if (end) inp.max = end;
-            });
-        }
-
-        function parseSegmentsFromDbCity(raw) {
-            const s = (raw || '').toString();
-            const out = [];
-            // Match: City Name [YYYY-MM-DD→YYYY-MM-DD]
-            const re = /([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/g;
-            let m;
-            while ((m = re.exec(s)) !== null) {
-                const cityDisplay = (m[1] || '').trim(); // may include "(Country)"
-                const city = normalizeCityValue(cityDisplay); // option value is city name only
-                const start = (m[2] || '').trim();
-                const end = (m[3] || '').trim();
-                if (city) out.push({ city, cityDisplay, start, end });
-            }
-            if (out.length) return out;
-
-            // Fallback: CSV of cities without dates
-            return s.split(',')
-                .map(t => t.trim())
-                .filter(Boolean)
-                .map(cityDisplay => ({ city: normalizeCityValue(cityDisplay), cityDisplay, start: '', end: '' }));
-        }
-
-        function updateCityHiddenField() {
-            const mode = getCityTypeMode();
-            const cityHidden = document.getElementById('city');
-            if (!cityHidden) return;
-
-            if (mode === 'multi') {
-                // Prefer segments (city plans) since DB stores city+date ranges
-                const segs = Array.from(document.querySelectorAll('#segmentsWrapper .segment'));
-                const parts = [];
-                for (const seg of segs) {
-                    const citySel = seg.querySelector('.city-select');
-                    const startEl = seg.querySelector('.start-date');
-                    const endEl = seg.querySelector('.end-date');
-                    const cityVal = (citySel && citySel.value ? citySel.value : '').trim();
-                    const st = (startEl && startEl.value ? startEl.value : '').trim();
-                    const en = (endEl && endEl.value ? endEl.value : '').trim();
-                    if (!cityVal) continue;
-                    // Store display text (e.g., "Singapore (Singapore)") if available, else value
-                    const opt = citySel && citySel.selectedOptions && citySel.selectedOptions[0] ? citySel.selectedOptions[0] : null;
-                    const display = opt ? (opt.textContent || '').trim() : '';
-                    const cityToken = display || cityVal;
-                    parts.push(st && en ? `${cityToken} [${st}→${en}]` : cityToken);
-                }
-                if (parts.length) {
-                    cityHidden.value = parts.join(', ');
-                    return;
-                }
-
-                // Otherwise fall back to master list
-                const mc = document.getElementById('multi_cities');
-                const vals = mc ? Array.from(mc.selectedOptions).map(o => (o.value || '').trim()).filter(Boolean) : [];
-                cityHidden.value = vals.join(', ');
-            } else {
-                const sc = document.getElementById('single_city');
-                cityHidden.value = sc ? (sc.value || '') : '';
-            }
-        }
-
-        function setCityTypeMode(mode) {
-            const isMulti = mode === 'multi';
-            const mc = document.getElementById('multiCityControls');
-            const sc = document.getElementById('singleCityField');
-            if (mc) mc.classList.toggle('d-none', !isMulti);
-            if (sc) sc.classList.toggle('d-none', isMulti);
-            updateCityHiddenField();
-
-            // Move the "Update Tour Information" action row to sit near the segment date grid in multi-city mode.
-            try {
-                const actions = document.getElementById('tourInfoActions');
-                const slot = document.getElementById('multiCityActionsSlot');
-                if (actions && slot) {
-                    if (isMulti) {
-                        // Remove top border/padding when embedded in the segment action bar
-                        actions.style.borderTop = 'none';
-                        actions.style.paddingTop = '0';
-                        actions.style.marginTop = '0';
-                        slot.appendChild(actions);
-                    } else {
-                        // Restore original styling when back in the tour config card
-                        actions.style.borderTop = '1px solid #e9ecef';
-                        actions.style.paddingTop = '';
-                        actions.style.marginTop = '';
-                        const configCardBody = slot.closest('.card-body');
-                        if (configCardBody) {
-                            configCardBody.appendChild(actions);
-                        }
-                    }
-                }
-            } catch (e) { /* ignore */ }
-
-            // Services visibility follows city type
-            if (!isMulti) {
-                _activeSegmentEl = null;
-                setServicesHintVisible(false);
-                setServicesBundleVisible(true);
-                moveServicesBundleToHome();
-            } else {
-                // In multi-city, hide the services until a segment is activated.
-                setServicesBundleVisible(false);
-                setServicesHintVisible(true);
-            }
-        }
-
-        // Toggle on change
-        document.addEventListener('change', function (e) {
-            const t = e.target;
-            if (t && t.matches && t.matches('input[name="city_type"]')) {
-                setCityTypeMode(t.value || 'single');
-            }
-            if (t && (t.id === 'single_city' || t.id === 'multi_cities')) {
-                updateCityHiddenField();
-            }
-        });
-
-        // Segments builder (edit: pre-populate from DB city field)
-        let segmentIndex = 0;
-        function getMasterCities() {
-            const mc = document.getElementById('multi_cities');
-            if (!mc) return [];
-            return Array.from(mc.selectedOptions).map(o => o.value).filter(Boolean);
-        }
-
-        function buildSegmentOptions(masterCities) {
-            return ['<option value="">Select city...</option>']
-                .concat(masterCities.map(c => `<option value="${String(c).replace(/"/g, '&quot;')}">${String(c)}</option>`))
-                .join('');
-        }
-
-        function selectMasterCities(cities) {
-            const mc = document.getElementById('multi_cities');
-            if (!mc) return;
-            const wanted = new Set((cities || []).map(c => (c || '').toString().trim()).filter(Boolean));
-            Array.from(mc.options).forEach(opt => {
-                opt.selected = wanted.has((opt.value || '').toString().trim());
-            });
-            // If select2 is attached, trigger update
-            try {
-                if (window.jQuery && window.jQuery(mc).data('select2')) {
-                    window.jQuery(mc).trigger('change');
-                }
-            } catch (e) { /* ignore */ }
-        }
-
-        function addSegmentRow(prefill) {
-            const master = getMasterCities();
-            if (!master.length) return;
-            segmentIndex++;
-            const wrap = document.getElementById('segmentsWrapper');
-            if (!wrap) return;
-
-            const segmentHTML = `
-                <div class="card mt-2 segment border-0 shadow-sm" data-index="${segmentIndex}" style="border-radius: 10px;">
-                    <div class="card-body py-2 px-2 position-relative">
-                        <div class="row g-2">
-                            <div class="col-md-5">
-                                <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">City (this stay)</label>
-                                <select class="form-select form-select-sm city-select" name="segments[${segmentIndex}][city]" style="height: 32px;">
-                                    ${buildSegmentOptions(master)}
-                                </select>
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Stay from</label>
-                                <input type="date" class="form-control form-control-sm start-date" name="segments[${segmentIndex}][start_date]" style="height: 32px;" title="Must be on or after main tour start">
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Stay until</label>
-                                <input type="date" class="form-control form-control-sm end-date" name="segments[${segmentIndex}][end_date]" style="height: 32px;" title="Must be on or before main tour end">
-                            </div>
-
-                            <div class="col-md-1 d-flex align-items-end justify-content-end">
-                                <button type="button"
-                                    class="btn btn-danger btn-sm removeSegment"
-                                    title="Remove plan"
-                                    style="height: 32px; width: 100%; border-radius: 8px;">
-                                    <i class="ri-close-line"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="segment-header mt-2 d-none">
-                            <div class="d-flex align-items-center justify-content-between px-2 py-1 rounded"
-                                 style="background:#f8f9fa;border:1px solid #e9ecef;pointer-events:none;">
-                                <div class="d-flex flex-column">
-                                    <div class="fw-semibold segment-title" style="font-size:0.78rem;color:#495057;"></div>
-                                    <div class="text-muted segment-range" style="font-size:0.75rem;"></div>
-                                </div>
-                                <button class="btn btn-sm btn-outline-secondary segment-body-toggle"
-                                        type="button"
-                                        data-bs-toggle="collapse"
-                                        data-bs-target="#segmentBodyCollapse_${segmentIndex}"
-                                        aria-expanded="false"
-                                        aria-controls="segmentBodyCollapse_${segmentIndex}"
-                                        style="height:26px;line-height:1;padding:0 8px;border-radius:8px;pointer-events:auto;">
-                                    <i class="ri-arrow-down-s-line"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div id="segmentBodyCollapse_${segmentIndex}" class="collapse segment-body-collapse mt-2">
-                            <div class="segment-services">
-                                <div class="segment-services-banner alert alert-light border py-1 px-2 mb-2 d-none" style="font-size:0.74rem;">
-                                    <i class="ri-layout-grid-line me-1 text-primary"></i><span class="fw-semibold">All services for this stay</span> — scoped to the city and dates on this row.
-                                </div>
-                            </div>
-                            <div class="service-grid mt-2"></div>
-                        </div>
-                    </div>
-                </div>`;
-
-            wrap.insertAdjacentHTML('beforeend', segmentHTML);
-            const seg = wrap.querySelector('.segment:last-child');
-            if (!seg) return;
-            if (prefill && prefill.city) {
-                const citySel = seg.querySelector('.city-select');
-                if (citySel) {
-                    citySel.value = prefill.city;
-                    // If exact value not found, try matching by text prefix (handles "(Country)" stored)
-                    if (!citySel.value && prefill.cityDisplay) {
-                        const wanted = (prefill.cityDisplay || '').toString().trim();
-                        const opt = Array.from(citySel.options).find(o => (o.text || '').trim() === wanted) ||
-                                    Array.from(citySel.options).find(o => ((o.text || '').trim()).startsWith(wanted)) ||
-                                    Array.from(citySel.options).find(o => normalizeCityValue((o.text || '').trim()) === normalizeCityValue(wanted));
-                        if (opt) citySel.value = opt.value;
-                    }
-                }
-            }
-            if (prefill && prefill.start) {
-                const startEl = seg.querySelector('.start-date');
-                if (startEl) startEl.value = prefill.start;
-            }
-            if (prefill && prefill.end) {
-                const endEl = seg.querySelector('.end-date');
-                if (endEl) endEl.value = prefill.end;
-            }
-            applySegmentDateLimits();
-        }
-
-        function isWithinMainRange(start, end) {
-            // Minimal validation: must be within tour start/end and start <= end.
-            const main = getMainTourRange();
-            if (!main.start || !main.end || !start || !end) return false;
-            if (start > end) return false;
-            if (start < main.start) return false;
-            if (end > main.end) return false;
-            return true;
-        }
-
-        function activateSegmentForServices(seg) {
-            const mode = getCityTypeMode();
-            if (mode !== 'multi') return;
-            const bundle = getServicesBundleEl();
-            if (!bundle) return;
-
-            const citySel = seg.querySelector('.city-select');
-            const startEl = seg.querySelector('.start-date');
-            const endEl = seg.querySelector('.end-date');
-            const cityText = citySel && citySel.selectedOptions && citySel.selectedOptions[0] ? (citySel.selectedOptions[0].textContent || '').trim() : '';
-            const start = startEl ? (startEl.value || '').trim() : '';
-            const end = endEl ? (endEl.value || '').trim() : '';
-
-            // Require city + dates, and dates must be within main range
-            if (!citySel || !citySel.value || !start || !end || !isWithinMainRange(start, end)) {
-                // If invalid, keep UI clean: move bundle back home and close any open service sections.
-                try {
-                    const openIds = [
-                        'hotelAccommodationsSection', 'arrivalTransportSection', 'allAttractionsSection',
-                        'allGuidesSection', 'restaurantServicesSection', 'otherTransportSection',
-                        'departureTransportSection'
-                    ];
-                    openIds.forEach(function (id) {
-                        const el = document.getElementById(id);
-                        if (!el || !el.classList || !el.classList.contains('show')) return;
-                        if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
-                            const inst = bootstrap.Collapse.getInstance(el) || new bootstrap.Collapse(el, { toggle: false });
-                            inst.hide();
-                        } else {
-                            el.classList.remove('show');
-                        }
-                    });
-                } catch (e) { /* ignore */ }
-                setServicesBundleVisible(false);
-                setServicesHintVisible(true);
-                moveServicesBundleToHome();
-                _activeSegmentEl = null;
-                return;
-            }
-
-            // Update segment header UI
-            const header = seg.querySelector('.segment-header');
-            const title = seg.querySelector('.segment-title');
-            const range = seg.querySelector('.segment-range');
-            const banner = seg.querySelector('.segment-services-banner');
-            if (title) title.textContent = cityText || 'Selected City';
-            if (range) {
-                if (typeof moment !== 'undefined') {
-                    const ms = moment(start, 'YYYY-MM-DD');
-                    const me = moment(end, 'YYYY-MM-DD');
-                    range.textContent = (ms.isValid() && me.isValid())
-                        ? (ms.format('DD MMM') + ' – ' + me.format('DD MMM YYYY'))
-                        : (start + ' → ' + end);
-                } else {
-                    range.textContent = start + ' → ' + end;
-                }
-            }
-            if (header) header.classList.remove('d-none');
-            if (banner) banner.classList.remove('d-none');
-
-            // Ensure collapse is open for UX
-            const collapse = seg.querySelector('.segment-body-collapse');
-            if (collapse) {
-                collapse.classList.add('show');
-                const tgl = seg.querySelector('.segment-body-toggle');
-                if (tgl) tgl.setAttribute('aria-expanded', 'true');
-            }
-
-            const host = seg.querySelector('.segment-services');
-            if (!host) return;
-
-            host.appendChild(bundle);
-            setServicesBundleVisible(true);
-            setServicesHintVisible(false);
-            _activeSegmentEl = seg;
-
-            applySegmentStayDateBadges(start, end);
-
-            // Auto-open the first service accordion (Hotel) when segment becomes valid.
-            try {
-                const el = document.getElementById('hotelAccommodationsSection');
-                if (el && !el.classList.contains('show')) {
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
-                        const inst = bootstrap.Collapse.getInstance(el) || new bootstrap.Collapse(el, { toggle: false });
-                        inst.show();
-                    } else {
-                        el.classList.add('show');
-                    }
-                }
-            } catch (e) { /* ignore */ }
-        }
-
-        // React when user edits a segment row
-        document.addEventListener('change', function (e) {
-            const t = e.target;
-            if (!t) return;
-            if (t.classList && (t.classList.contains('city-select') || t.classList.contains('start-date') || t.classList.contains('end-date'))) {
-                const seg = t.closest ? t.closest('.segment') : null;
-                if (seg) activateSegmentForServices(seg);
-                updateCityHiddenField();
-            }
-        });
-
-        // React when user clicks anywhere on a segment row (activate even without changing)
-        document.addEventListener('click', function (e) {
-            const seg = e.target && e.target.closest ? e.target.closest('#segmentsWrapper .segment') : null;
-            if (!seg) return;
-            // Do not steal clicks from remove button
-            if (e.target && (e.target.classList?.contains('removeSegment') || e.target.closest?.('.removeSegment'))) return;
-            activateSegmentForServices(seg);
-        });
-
-        document.addEventListener('click', function (e) {
-            const btn = e.target && (e.target.id === 'addCityPlan' ? e.target : e.target.closest ? e.target.closest('#addCityPlan') : null);
-            if (!btn) return;
-
-            const master = getMasterCities();
-            if (!master.length) {
-                alert('Please select cities in the master list first.');
-                return;
-            }
-
-            addSegmentRow({});
-        });
-
-        document.addEventListener('click', function (e) {
-            const rm = e.target && (e.target.classList && e.target.classList.contains('removeSegment') ? e.target : e.target.closest ? e.target.closest('.removeSegment') : null);
-            if (!rm) return;
-            const seg = rm.closest('.segment');
-            if (seg) seg.remove();
-            if (_activeSegmentEl && seg === _activeSegmentEl) {
-                _activeSegmentEl = null;
-                moveServicesBundleToHome();
-                setServicesBundleVisible(false);
-                setServicesHintVisible(getCityTypeMode() === 'multi');
-            }
-            updateCityHiddenField();
-        });
-
-        // Initialize on load with saved mode
-        document.addEventListener('DOMContentLoaded', function () {
-            setCityTypeMode(getCityTypeMode());
-            // Pre-populate multi-city segment rows from DB (tour->city field)
-            if (getCityTypeMode() === 'multi') {
-                const parsed = parseSegmentsFromDbCity(DB_CITY_RAW);
-                if (parsed && parsed.length) {
-                    // Ensure master list has at least these cities selected
-                    selectMasterCities(parsed.map(p => p.city));
-                    const wrap = document.getElementById('segmentsWrapper');
-                    if (wrap) wrap.innerHTML = '';
-                    segmentIndex = 0;
-                    // Create one row per saved stay
-                    for (const p of parsed) {
-                        addSegmentRow(p);
-                    }
-                    applySegmentDateLimits();
-                }
-            }
-            updateCityHiddenField();
-
-            // If multi-city and first segment is valid, auto-activate it so services grid is immediately visible.
-            if (getCityTypeMode() === 'multi') {
-                const first = document.querySelector('#segmentsWrapper .segment');
-                if (first) activateSegmentForServices(first);
-            } else {
-                setServicesHintVisible(false);
-                setServicesBundleVisible(true);
-                moveServicesBundleToHome();
-            }
-
-            // Guest section is already rendered after services in the template.
-
-            // If main tour dates change, re-validate the currently active segment (or show hint).
-            const sEl = document.getElementById('start_date');
-            const eEl = document.getElementById('end_date');
-            const onMainDateChange = function () {
-                applySegmentDateLimits();
-                if (getCityTypeMode() !== 'multi') return;
-                if (_activeSegmentEl) {
-                    activateSegmentForServices(_activeSegmentEl);
-                } else {
-                    setServicesBundleVisible(false);
-                    setServicesHintVisible(true);
-                    moveServicesBundleToHome();
-                }
-            };
-            if (sEl) sEl.addEventListener('change', onMainDateChange);
-            if (eEl) eEl.addEventListener('change', onMainDateChange);
-        });
-    })();
 </script>
 @endsection
 
