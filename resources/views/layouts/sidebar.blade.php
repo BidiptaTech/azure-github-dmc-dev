@@ -641,7 +641,7 @@
                         @endif
 
                     <!-- Zones (hard-coded link under Product Configuration) -->
-                    @if(Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
+                    @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
                     <li class="menu-item @if(Request::is('zones')) active @endif">
                         <a href="{{ route('zones.index') }}" class="menu-link" title="Zones">
                                 <div data-i18n="Zones" class="menu-tooltip">
