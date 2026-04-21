@@ -198,6 +198,11 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y cancelled-bookings-page">
+    @include('bookings.partials.booking-type-tabs', [
+        'type' => 'tours',
+        'toursUrl' => route('bookings.cancelled'),
+        'packagesUrl' => route('package-bookings.cancelled'),
+    ])
     <!-- Header -->
     <!-- Compact Header + Stats Bar -->
     <div class="new-enq-header-bar p-3 mb-3">
