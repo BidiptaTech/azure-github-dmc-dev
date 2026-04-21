@@ -34,6 +34,122 @@ use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
 
 class CommonHelper
 {
+    /**
+     * Safely normalize a JSON field into an array.
+     *
+     * @param mixed $value
+     * @return array<mixed>
+     */
+    public static function normalizeJsonArray($value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_object($value)) {
+            return (array) $value;
+        }
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+        return [];
+    }
+
+    /**
+     * Load package booking services JSON by booking_id (+ optional dmc scope).
+     *
+     * Returns normalized arrays for:
+     * selected_hotels, selected_attractions, selected_restaurants, arrival_data, departure_data, travel_dates
+     *
+     * @param string $bookingId e.g. PB00239
+     * @param int|string|null $packageId
+     * @param int|string|null $dmcId
+     * @return array<string, mixed>
+     */
+    public static function getPackageBookingServices(string $bookingId, $packageId = null, $dmcId = null): array
+    {
+        $q = \App\Models\PackageBooking::query()->where('booking_id', $bookingId);
+        if ($packageId !== null && $packageId !== '') {
+            $q->where('package_id', $packageId);
+        }
+        if ($dmcId !== null && $dmcId !== '' && \Illuminate\Support\Facades\Schema::hasColumn('package_bookings', 'dmc_id')) {
+            $q->where('dmc_id', (int) $dmcId);
+        }
+        $b = $q->first();
+        if (!$b) {
+            return [
+                'travel_dates' => [],
+                'selected_hotels' => [],
+                'selected_attractions' => [],
+                'selected_restaurants' => [],
+                'arrival_data' => [],
+                'departure_data' => [],
+            ];
+        }
+
+        return [
+            'travel_dates' => self::normalizeJsonArray($b->travel_dates),
+            'selected_hotels' => self::normalizeJsonArray($b->selected_hotels),
+            'selected_attractions' => self::normalizeJsonArray($b->selected_attractions),
+            'selected_restaurants' => self::normalizeJsonArray($b->selected_restaurants),
+            'arrival_data' => self::normalizeJsonArray($b->arrival_data),
+            'departure_data' => self::normalizeJsonArray($b->departure_data),
+        ];
+    }
+
+    /**
+     * Calculate package booking "actual amount" for negotiation.
+     *
+     * Includes:
+     * - Hotels: sum(base_price)
+     * - Attractions: base_price + guide.price + (transfer ? transfer_price : 0)
+     * - Restaurants: sum(base_price)
+     * - Arrival vehicles: sum(selected_price) if present else unit_price*qty
+     * - Departure vehicles: sum(selected_price) if present else unit_price*qty
+     */
+    public static function calculatePackageBookingActualAmount(string $bookingId, $packageId = null, $dmcId = null): float
+    {
+        $services = self::getPackageBookingServices($bookingId, $packageId, $dmcId);
+        $sum = 0.0;
+
+        foreach (($services['selected_hotels'] ?? []) as $h) {
+            $sum += (float) ($h['base_price'] ?? 0);
+        }
+
+        foreach (($services['selected_attractions'] ?? []) as $a) {
+            $sum += (float) ($a['base_price'] ?? 0);
+            $sum += (float) (data_get($a, 'guide.price') ?? 0);
+            if (!empty($a['transfer'])) {
+                $sum += (float) ($a['transfer_price'] ?? 0);
+            }
+        }
+
+        foreach (($services['selected_restaurants'] ?? []) as $r) {
+            $sum += (float) ($r['base_price'] ?? 0);
+            if (!empty($r['transfer'])) {
+                $sum += (float) ($r['transfer_price'] ?? 0);
+            }
+        }
+
+        $arrival = $services['arrival_data'] ?? [];
+        if (!empty($arrival) && (bool) ($arrival['enabled'] ?? true)) {
+            foreach (($arrival['vehicles'] ?? []) as $v) {
+                $sum += (float) ($v['selected_price'] ?? ((float) ($v['unit_price'] ?? 0) * (int) ($v['qty'] ?? 1)));
+            }
+        }
+
+        $departure = $services['departure_data'] ?? [];
+        if (!empty($departure) && (bool) ($departure['enabled'] ?? true)) {
+            foreach (($departure['vehicles'] ?? []) as $v) {
+                $sum += (float) ($v['selected_price'] ?? ((float) ($v['unit_price'] ?? 0) * (int) ($v['qty'] ?? 1)));
+            }
+        }
+
+        return round($sum, 2);
+    }
     /*
     * Get User Data Based on IP Address .
     * Date 14-10-2024
@@ -5131,5 +5247,88 @@ class CommonHelper
         
 
         return $country->currency ?? 'SGD';
+    }
+
+    /**
+     * Negotiated package price excluding tax: latest DMC (OM) counter-offer amount, else computed package total.
+     *
+     * @param float $approxActual From calculatePackageBookingActualAmount()
+     * @param \Illuminate\Support\Collection|array<int, mixed> $bookingComments PackageInquiryComment models for the booking
+     */
+    public static function packageNegotiatedPriceExclTax(float $approxActual, $bookingComments): float
+    {
+        $comments = collect($bookingComments)->sortByDesc('created_at')->values();
+        $latestOm = $comments->first(function ($c) {
+            return strtolower((string) (data_get($c, 'sender_type') ?? '')) === 'om';
+        });
+        $om = (float) (data_get($latestOm, 'amount') ?? 0);
+
+        return $om > 0 ? $om : $approxActual;
+    }
+
+    /**
+     * Tax breakdown for package_bookings.taxes JSON (same rules as package/booking-list).
+     *
+     * @param float $baseAmount Excl. tax (negotiated package amount)
+     * @param mixed $taxesJson package_bookings.taxes
+     * @param array<string, mixed> $bookingDetails decoded booking_details
+     * @return array{breakdown: array<string, float>, total_tax: float, persons: int, days: int}
+     */
+    public static function calculatePackageBookingTaxBreakdown(float $baseAmount, $taxesJson, array $bookingDetails = []): array
+    {
+        $persons = (int) (data_get($bookingDetails, 'adult_count') ?? data_get($bookingDetails, 'adult') ?? 0)
+            + (int) (data_get($bookingDetails, 'child_count') ?? data_get($bookingDetails, 'child') ?? 0);
+        $itinerary = data_get($bookingDetails, 'itinerary');
+        $days = (! empty($itinerary) && is_array($itinerary)) ? count($itinerary) : 1;
+        $taxesArr = self::normalizeJsonArray($taxesJson);
+        $computedById = [];
+        $breakdown = [];
+        $totalTax = 0.0;
+        foreach ($taxesArr as $tax) {
+            if (! is_array($tax)) {
+                continue;
+            }
+            $taxId = $tax['tax_id'] ?? null;
+            $taxName = $tax['tax_name'] ?? 'Tax';
+            $taxType = strtolower((string) ($tax['tax_type'] ?? 'percentage'));
+            $taxValue = (float) ($tax['tax_value'] ?? 0);
+            $calculateOn = $tax['calculate_on'] ?? 'total';
+            $ifFixed = $tax['if_fixed'] ?? null;
+            $baseForThis = $baseAmount;
+            if (is_numeric($calculateOn)) {
+                $refId = (int) $calculateOn;
+                $refAmount = $computedById[$refId] ?? 0;
+                $baseForThis = $baseAmount + $refAmount;
+            } elseif (strtolower((string) $calculateOn) === 'total') {
+                $baseForThis = $baseAmount;
+            }
+            $amount = 0.0;
+            if ($taxType === 'percentage') {
+                $amount = ($baseForThis * $taxValue) / 100;
+            } else {
+                if ($ifFixed === 'person' || $ifFixed === 'per_person') {
+                    $amount = $taxValue * max(0, $persons);
+                } elseif ($ifFixed === 'per_tour_per_day') {
+                    $amount = $taxValue * max(1, $days);
+                } elseif ($ifFixed === 'per_person_per_day') {
+                    $amount = $taxValue * max(0, $persons) * max(1, $days);
+                } else {
+                    $amount = $taxValue;
+                }
+            }
+            $amount = ceil($amount);
+            $breakdown[$taxName] = ($breakdown[$taxName] ?? 0) + $amount;
+            if ($taxId !== null) {
+                $computedById[$taxId] = ($computedById[$taxId] ?? 0) + $amount;
+            }
+            $totalTax += $amount;
+        }
+
+        return [
+            'breakdown' => $breakdown,
+            'total_tax' => $totalTax,
+            'persons' => $persons,
+            'days' => $days,
+        ];
     }
 }
