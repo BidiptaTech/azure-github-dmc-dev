@@ -46,6 +46,7 @@ class Zone extends Model
         'status',
         'zone_id',
         'dmc_id',
+        'created_by',
         'deleted_at',
     ];
 
