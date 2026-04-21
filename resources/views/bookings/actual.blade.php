@@ -550,6 +550,11 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y actual-bookings-page">
+    @include('bookings.partials.booking-type-tabs', [
+        'type' => 'tours',
+        'toursUrl' => route('bookings.actual'),
+        'packagesUrl' => route('package-bookings.actual'),
+    ])
     <!-- Compact Header + Stats Bar -->
     @php
         $totalRevenue = 0;
