@@ -4,8 +4,30 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
+    @php
+        $currentZoneType = request()->query('zone_type');
+        $allowedZoneTypes = ['Hotel', 'Restaurant', 'Attraction'];
+        $currentZoneType = in_array($currentZoneType, $allowedZoneTypes, true) ? $currentZoneType : null;
+
+        $currentSort = request()->query('sort', 'updated_at');
+        $currentDir = strtolower(request()->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $sortIcon = function (string $key) use ($currentSort, $currentDir) {
+            if ($currentSort !== $key) return '';
+            return $currentDir === 'asc' ? ' <i class="ri-arrow-up-line"></i>' : ' <i class="ri-arrow-down-line"></i>';
+        };
+        $sortLink = function (string $key) use ($currentSort, $currentDir) {
+            $nextDir = ($currentSort === $key && $currentDir === 'asc') ? 'desc' : 'asc';
+            return request()->fullUrlWithQuery(['sort' => $key, 'direction' => $nextDir]);
+        };
+    @endphp
+
     <h4 class="fw-bold py-3 mb-4">
-        <span class="text-muted fw-light">Zone /</span> Zone List
+        <span class="text-muted fw-light">Zone /</span>
+        Zone List
+        @if($currentZoneType)
+            <span class="text-muted fw-light">/</span> {{ $currentZoneType }}
+        @endif
     </h4>
 
     <!-- Display flash message -->
@@ -32,7 +54,35 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5>Zones</h5>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h5 class="mb-0">
+                    Zones
+                    @if($currentZoneType)
+                        <span class="badge bg-label-primary ms-2">{{ $currentZoneType }}</span>
+                    @else
+                        <span class="badge bg-label-secondary ms-2">All</span>
+                    @endif
+                </h5>
+
+                <div class="btn-group ms-0 ms-md-3" role="group" aria-label="Zone type filter">
+                    <a href="{{ request()->fullUrlWithQuery(['zone_type' => null]) }}"
+                       class="btn btn-sm {{ $currentZoneType ? 'btn-outline-secondary' : 'btn-secondary' }}">
+                        All
+                    </a>
+                    <a href="{{ request()->fullUrlWithQuery(['zone_type' => 'Hotel']) }}"
+                       class="btn btn-sm {{ $currentZoneType === 'Hotel' ? 'btn-success' : 'btn-outline-success' }}">
+                        Hotel
+                    </a>
+                    <a href="{{ request()->fullUrlWithQuery(['zone_type' => 'Restaurant']) }}"
+                       class="btn btn-sm {{ $currentZoneType === 'Restaurant' ? 'btn-warning' : 'btn-outline-warning' }}">
+                        Restaurant
+                    </a>
+                    <a href="{{ request()->fullUrlWithQuery(['zone_type' => 'Attraction']) }}"
+                       class="btn btn-sm {{ $currentZoneType === 'Attraction' ? 'btn-info' : 'btn-outline-info' }}">
+                        Attraction
+                    </a>
+                </div>
+            </div>
             <a href="{{ route('zones.create') }}" class="btn btn-primary">Add New Zone</a>
         </div>
         <div class="card-body">
@@ -41,10 +91,22 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Zone Name</th>
-                            <th>Zone Type</th>
+                            <th>
+                                <a href="{{ $sortLink('zone_name') }}" class="text-body text-decoration-none">
+                                    Zone Name{!! $sortIcon('zone_name') !!}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ $sortLink('zone_type') }}" class="text-body text-decoration-none">
+                                    Zone Type{!! $sortIcon('zone_type') !!}
+                                </a>
+                            </th>
                             <th>City</th>
-                            <th>Status</th>
+                            <th>
+                                <a href="{{ $sortLink('status') }}" class="text-body text-decoration-none">
+                                    Status{!! $sortIcon('status') !!}
+                                </a>
+                            </th>
                             @if(auth()->user()->role_id == 11)
                             <th>Zone</th>
                             @endif
@@ -116,6 +178,13 @@
                                             </div>
                                             <form action="{{ route('zones.settings', $zone->zone_id) }}" method="POST">
                                                 @csrf
+                                                @php
+                                                    // Admin assignments are stored under a DMC context. By default we use DMC id = 1.
+                                                    $adminDmcId = 1;
+                                                @endphp
+                                                @if((int) (auth()->user()->userId ?? 0) === 1)
+                                                    <input type="hidden" name="dmc_id" value="{{ $adminDmcId }}">
+                                                @endif
                                                 <div class="modal-body p-4" style="height: 60vh; overflow-y: auto;">
                                                     <div class="modal-body-content">
                                                         @if($zone->zone_type == 'Hotel')
@@ -130,13 +199,19 @@
                                                             <div class="row g-3 mt-3">
                                                                 @php
                                                                     $user = auth()->user();
+                                                                    $isAdminUser = (int) ($user->userId ?? 0) === 1;
                                                                     $activeHotels = $hotels->filter(function ($hotel) use ($user) {
-                                                                        return $hotel->status == 1 && in_array($user->userId, (array) $hotel->dmc_id);
+                                                                        if (($hotel->status ?? 0) != 1) return false;
+                                                                        // Admin should see all active hotels in the modal.
+                                                                        if ((int) ($user->userId ?? 0) === 1) return true;
+                                                                        return in_array($user->userId, (array) $hotel->dmc_id);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeHotels as $hotel)
                                                                     @php
-                                                                        $currentZoneForThisDmc = $hotel->getZoneForDmc($user->userId);
+                                                                        // Admin: show assignments stored under adminDmcId so checkboxes reflect saved state.
+                                                                        $effectiveDmcId = $isAdminUser ? $adminDmcId : $user->userId;
+                                                                        $currentZoneForThisDmc = $hotel->getZoneForDmc($effectiveDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -160,7 +235,8 @@
                                                                 
                                                                 @php
                                                                     $availableHotels = $activeHotels->filter(function($h) use ($zone, $user) { 
-                                                                        $currentZone = $h->getZoneForDmc($user->userId);
+                                                                        $effectiveDmcId = ((int) ($user->userId ?? 0) === 1) ? 1 : $user->userId;
+                                                                        $currentZone = $h->getZoneForDmc($effectiveDmcId);
                                                                         return is_null($currentZone) || $currentZone == $zone->zone_id; 
                                                                     });
                                                                 @endphp
@@ -187,13 +263,18 @@
                                                             <div class="row g-3 mt-3">
                                                                 @php
                                                                     $user = auth()->user();
+                                                                    $isAdminUser = (int) ($user->userId ?? 0) === 1;
                                                                     $activeAttractions = $attractions->filter(function ($attraction) use ($user) {
-                                                                        return $attraction->status == 1 && in_array($user->userId, (array) $attraction->dmc_id);
+                                                                        if (($attraction->status ?? 0) != 1) return false;
+                                                                        // Admin should see all active attractions in the modal.
+                                                                        if ((int) ($user->userId ?? 0) === 1) return true;
+                                                                        return in_array($user->userId, (array) $attraction->dmc_id);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeAttractions as $attraction)
                                                                     @php
-                                                                        $currentZoneForThisDmc = $attraction->getZoneForDmc($user->userId);
+                                                                        $effectiveDmcId = $isAdminUser ? $adminDmcId : $user->userId;
+                                                                        $currentZoneForThisDmc = $attraction->getZoneForDmc($effectiveDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -217,7 +298,8 @@
                                                                 
                                                                 @php
                                                                     $availableAttractions = $activeAttractions->filter(function($a) use ($zone, $user) { 
-                                                                        $currentZone = $a->getZoneForDmc($user->userId);
+                                                                        $effectiveDmcId = ((int) ($user->userId ?? 0) === 1) ? 1 : $user->userId;
+                                                                        $currentZone = $a->getZoneForDmc($effectiveDmcId);
                                                                         return is_null($currentZone) || $currentZone == $zone->zone_id; 
                                                                     });
                                                                 @endphp
@@ -244,13 +326,18 @@
                                                             <div class="row g-3 mt-3">
                                                                 @php
                                                                     $user = auth()->user();
+                                                                    $isAdminUser = (int) ($user->userId ?? 0) === 1;
                                                                     $activeRestaurants = $restaurants->filter(function ($restaurant) use ($user) {
-                                                                        return $restaurant->status == 1 && in_array($user->userId, (array) $restaurant->dmc_id);
+                                                                        if (($restaurant->status ?? 0) != 1) return false;
+                                                                        // Admin should see all active restaurants in the modal.
+                                                                        if ((int) ($user->userId ?? 0) === 1) return true;
+                                                                        return in_array($user->userId, (array) $restaurant->dmc_id);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeRestaurants as $restaurant)
                                                                     @php
-                                                                        $currentZoneForThisDmc = $restaurant->getZoneForDmc($user->userId);
+                                                                        $effectiveDmcId = $isAdminUser ? $adminDmcId : $user->userId;
+                                                                        $currentZoneForThisDmc = $restaurant->getZoneForDmc($effectiveDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -274,7 +361,8 @@
                                                                 
                                                                 @php
                                                                     $availableRestaurants = $activeRestaurants->filter(function($r) use ($zone, $user) { 
-                                                                        $currentZone = $r->getZoneForDmc($user->userId);
+                                                                        $effectiveDmcId = ((int) ($user->userId ?? 0) === 1) ? 1 : $user->userId;
+                                                                        $currentZone = $r->getZoneForDmc($effectiveDmcId);
                                                                         return is_null($currentZone) || $currentZone == $zone->zone_id; 
                                                                     });
                                                                 @endphp
