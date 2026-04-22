@@ -93,6 +93,17 @@
         color: #fff;
     }
 
+    .restaurant-detail-title {
+        font-weight: 700;
+        font-size: 12.5px;
+        color: #1e293b;
+    }
+
+    .restaurant-detail-meta {
+        font-size: 11.5px;
+        color: #64748b;
+    }
+
     /* Table shell */
     .table-shell {
         padding: 1rem 1.25rem 1.25rem;
@@ -511,8 +522,16 @@
                         @foreach($restaurants as $key => $restaurant)
                             <tr>
                                 <td class="col-no">{{ ++$key }}</td>
-                                <td class="col-name">
-                                    <span class="fw-semibold">{{ $restaurant->name }}</span>
+
+                                <td class="col-details">
+                                    <div class="d-flex flex-column gap-1">
+                                        <span class="restaurant-detail-title">
+                                            <i class="ri-restaurant-line text-primary me-1"></i>{{ $restaurant->name ?? 'N/A' }}
+                                        </span>
+                                        <small class="restaurant-detail-meta">
+                                            <i class="ri-map-pin-line me-1"></i>{{ $restaurant->country ?: 'N/A' }}, {{ $restaurant->city ?: 'N/A' }}
+                                        </small>
+                                    </div>
                                 </td>
 
                                 @php

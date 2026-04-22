@@ -441,6 +441,9 @@
                                     <small class="hotel-detail-meta">
                                         <i class="ri-mail-line me-1"></i>{{ $hotel->email ?: 'N/A' }}
                                     </small>
+                                    <small class="hotel-detail-meta">
+                                        <i class="ri-map-pin-line me-1"></i>{{ $hotel->country ?: 'N/A' }}, {{ $hotel->city ?: 'N/A' }}
+                                    </small>
                                 </div>
                             </td>
 

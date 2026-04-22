@@ -17,6 +17,7 @@ use App\Helpers\CommonHelper;
 use App\Models\Country;
 use App\Models\City;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 
 class AttractionController extends Controller
 {
@@ -685,10 +686,57 @@ class AttractionController extends Controller
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
-        // Get all available attractions
-        $allAttractions = Attraction::where('status', 1)
-                                   ->orderBy('created_at', 'desc')
-                                   ->get();
+        // Resolve Master DMC for this user (to read multiple countries from master record)
+        $masterDmcId = $user->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $dmcUser = User::where('userId', $dmc_id)->first();
+            $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        }
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $user->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (! $candidate) break;
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmc_id)->first();
+        $masterDmcCountries = [];
+        if ($masterDmc && !empty($masterDmc->country)) {
+            $masterDmcCountries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        // Get all available attractions (Travclicks/platform + Master DMC countries)
+        $allAttractionsQuery = Attraction::where('status', 1)->orderBy('created_at', 'desc');
+        if (Schema::hasColumn('attractions', 'user_type')) {
+            $allAttractionsQuery->where('user_type', 1);
+        }
+        if (!empty($masterDmcCountries) && Schema::hasColumn('attractions', 'country')) {
+            $allAttractionsQuery->whereIn('country', $masterDmcCountries);
+        }
+
+        $allAttractions = $allAttractionsQuery->get();
+
+        // Country dropdown should show only countries that actually exist in the Travclicks results
+        $allowedCountries = $allAttractions
+            ->pluck('country')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
         
         // Filter attractions that are selected by the current DMC
         $selectedAttractions = $allAttractions->filter(function($attraction) use ($dmc_id) {
@@ -700,7 +748,7 @@ class AttractionController extends Controller
             return !$attraction->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.attractions', compact('availableAttractions', 'selectedAttractions'));
+        return view('services.attractions', compact('availableAttractions', 'selectedAttractions', 'allowedCountries'));
     }
 
     /**
