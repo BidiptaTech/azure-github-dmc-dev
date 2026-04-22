@@ -45,7 +45,7 @@ class PackageBooking extends Model
     /**
      * Get the package associated with the booking
      */
-    public function package()
+    public function packageInfo()
     {
         return $this->belongsTo(Package::class, 'package_id', 'package_id');
     }

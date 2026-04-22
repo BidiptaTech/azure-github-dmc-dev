@@ -217,9 +217,17 @@ class MiscellaneousItemController extends Controller
         // Handle selected items and prices
         if ($request->has('selected_items')) {
             foreach ($request->selected_items as $itemId => $data) {
-                MiscellaneousPrice::updateOrCreate(
-                    ['mis_id' => $itemId, 'dmc_id' => $dmc_id],
-                    [
+                $price = MiscellaneousPrice::withTrashed()
+                    ->where('mis_id', $itemId)
+                    ->where('dmc_id', $dmc_id)
+                    ->first();
+
+                if ($price) {
+                    if ($price->trashed()) {
+                        $price->restore();
+                    }
+
+                    $price->update([
                         'adult_price' => $data['adult_price'] ?? 0,
                         'child_price' => $data['child_price'] ?? 0,
                         'infant_price' => $data['infant_price'] ?? 0,
@@ -227,13 +235,29 @@ class MiscellaneousItemController extends Controller
                         'child_cost' => 0,
                         'infant_cost' => 0,
                         'status' => 1
-                    ]
-                );
+                    ]);
+                } else {
+                    MiscellaneousPrice::create([
+                        'mis_id' => $itemId,
+                        'dmc_id' => $dmc_id,
+                        'adult_price' => $data['adult_price'] ?? 0,
+                        'child_price' => $data['child_price'] ?? 0,
+                        'infant_price' => $data['infant_price'] ?? 0,
+                        'adult_cost' => 0,  // Cost fields not required
+                        'child_cost' => 0,
+                        'infant_cost' => 0,
+                        'status' => 1
+                    ]);
+                }
             }
         }
 
         // Remove unselected items
         if ($request->has('removed_items')) {
+            MiscellaneousPrice::where('dmc_id', $dmc_id)
+                ->whereIn('mis_id', $request->removed_items)
+                ->update(['status' => 0]);
+
             MiscellaneousPrice::where('dmc_id', $dmc_id)
                 ->whereIn('mis_id', $request->removed_items)
                 ->delete();
@@ -310,9 +334,39 @@ class MiscellaneousItemController extends Controller
                 ], 404);
             }
             
-            $price = MiscellaneousPrice::updateOrCreate(
-                ['mis_id' => $itemId, 'dmc_id' => $dmc_id],
-                [
+            $preserveExistingPrices = $request->boolean('preserve_existing_prices', false);
+            $price = MiscellaneousPrice::withTrashed()
+                ->where('mis_id', $itemId)
+                ->where('dmc_id', $dmc_id)
+                ->first();
+
+            $action = 'added';
+
+            if ($price) {
+                if ($price->trashed()) {
+                    $price->restore();
+                    $action = 'restored';
+                } else {
+                    $action = 'updated';
+                }
+
+                $price->status = 1;
+
+                // Preserve previous prices only when adding an item back from Available list.
+                if (!$preserveExistingPrices) {
+                    $price->adult_price = $request->adult_price ?? 0;
+                    $price->child_price = $request->child_price ?? 0;
+                    $price->infant_price = $request->infant_price ?? 0;
+                    $price->adult_cost = 0;
+                    $price->child_cost = 0;
+                    $price->infant_cost = 0;
+                }
+
+                $price->save();
+            } else {
+                $price = MiscellaneousPrice::create([
+                    'mis_id' => $itemId,
+                    'dmc_id' => $dmc_id,
                     'adult_price' => $request->adult_price ?? 0,
                     'child_price' => $request->child_price ?? 0,
                     'infant_price' => $request->infant_price ?? 0,
@@ -320,8 +374,8 @@ class MiscellaneousItemController extends Controller
                     'child_cost' => 0,
                     'infant_cost' => 0,
                     'status' => 1
-                ]
-            );
+                ]);
+            }
 
             \Log::info('Item added successfully', [
                 'item_id' => $itemId,
@@ -331,7 +385,10 @@ class MiscellaneousItemController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Miscellaneous item added successfully!',
+                'message' => $action === 'restored'
+                    ? 'Miscellaneous item restored with previous prices.'
+                    : 'Miscellaneous item added successfully!',
+                'action' => $action,
                 'data' => [
                     'item_id' => $itemId,
                     'dmc_id' => $dmc_id,
@@ -379,11 +436,15 @@ class MiscellaneousItemController extends Controller
             
             MiscellaneousPrice::where('mis_id', $itemId)
                 ->where('dmc_id', $dmc_id)
+                ->update(['status' => 0]);
+
+            MiscellaneousPrice::where('mis_id', $itemId)
+                ->where('dmc_id', $dmc_id)
                 ->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Miscellaneous item removed successfully!'
+                'message' => 'Miscellaneous item removed successfully. You can add it again to restore previous prices.'
             ]);
 
         } catch (\Exception $e) {

@@ -588,6 +588,11 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
+    @include('bookings.partials.booking-type-tabs', [
+        'type' => 'tours',
+        'toursUrl' => route('bookings.confirmed'),
+        'packagesUrl' => route('package-bookings.confirmed'),
+    ])
     <!-- Compact Header + Stats Bar -->
     <div class="new-enq-header-bar p-3 mb-3">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">

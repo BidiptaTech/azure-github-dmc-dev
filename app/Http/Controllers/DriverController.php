@@ -261,11 +261,11 @@ class DriverController extends Controller
             return redirect()->route('driver.approval', ['driver' => $driver->driver_id])
                 ->with('error', 'Driver Declined successfully');
         } elseif ($isSaved) {
-            LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+            // LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
             return redirect()->route('driver.approval', ['driver' => $driver->driver_id])
                 ->with('success', 'Driver Approved successfully');
         } else {
-            LogActivityService::log('edit_driver_failed', 'App\Models\Driver', $driver->driver_id, $driver);
+            // LogActivityService::log('edit_driver_failed', 'App\Models\Driver', $driver->driver_id, $driver);
             return redirect()->route('driver.approval')->with('error', 'Failed to approve driver');
         }
     }
@@ -482,7 +482,7 @@ class DriverController extends Controller
                 
                 $deletedDriver->update($updateData);
         
-                LogActivityService::log('restore_driver', 'App\Models\Driver', $deletedDriver->id, $deletedDriver);
+                // LogActivityService::log('restore_driver', 'App\Models\Driver', $deletedDriver->id, $deletedDriver);
         
                 // if (in_array($auth_user->role_id, [11, 4, 3, 35, 76, 111])) {
                 //     return view('drivers.thankyou');
@@ -525,7 +525,7 @@ class DriverController extends Controller
             $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
         
             if ($driver->save()) {
-                LogActivityService::log('create_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+                // LogActivityService::log('create_driver', 'App\Models\Driver', $driver->driver_id, $driver);
         
                 // Send credentials email if email is provided
                 if ($driver->email && $plainPassword) {
@@ -543,7 +543,7 @@ class DriverController extends Controller
         
                 return redirect()->route('driver.index')->with('success', 'Driver added successfully!');
             } else {
-                LogActivityService::log('create_driver_failed', 'App\Models\Driver', $driverId, 'An error occurred while saving the driver details.');
+                // LogActivityService::log('create_driver_failed', 'App\Models\Driver', $driverId, 'An error occurred while saving the driver details.');
                 return redirect()->back()->with('error', 'An error occurred while saving the driver details.');
             }
     }
@@ -668,7 +668,7 @@ class DriverController extends Controller
         $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
 
         if ($driver->save()) {
-            LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+            // LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
 
             // Send credentials email if email is provided
             if ($driver->email && $plainPassword) {
@@ -681,7 +681,7 @@ class DriverController extends Controller
             }
             return redirect()->route('driver.index')->with('success', 'Driver updated successfully!');
         } else {
-            LogActivityService::log('edit_driver_failed', 'App\Models\driver', $driver_max_id,'An error occurred while saving the driver details.');
+            // LogActivityService::log('edit_driver_failed', 'App\Models\driver', $driver_max_id,'An error occurred while saving the driver details.');
             return redirect()->back()
                 ->with('error', 'An error occurred while saving the driver details.');
         }

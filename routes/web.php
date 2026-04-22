@@ -60,6 +60,7 @@ use App\Http\Controllers\EditTourController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\TodaysBookingsController;
+use App\Http\Controllers\PackageBookingTemplatesController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
@@ -616,6 +617,8 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/confirm-payment', [PackageController::class, 'confirmPayment'])->name('package.confirm-payment');
         Route::post('/package-booking/{booking_id}/approve-payment', [PackageController::class, 'approvePayment'])->name('package.approve-payment');
         Route::post('/package-booking/{booking_id}/decline-payment', [PackageController::class, 'declinePayment'])->name('package.decline-payment');
+        Route::post('/package-booking/{booking_id}/update-payment', [PackageController::class, 'updatePayment'])->name('package.update-payment');
+        Route::post('/package-booking/{booking_id}/delete-payment', [PackageController::class, 'deletePayment'])->name('package.delete-payment');
         Route::post('/package-booking/{booking_id}/cancel-booking', [PackageController::class, 'cancelBooking'])->name('package.cancel-booking');
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
@@ -953,6 +956,17 @@ Route::get('/clear', function () {
             Route::get('/bookings/today', [TodaysBookingsController::class, 'index'])->name('bookings.today');
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
+            
+            // Package Booking Management Routes (status templates)
+            Route::get('/package-bookings/new-enquiries', [PackageBookingTemplatesController::class, 'newEnquiries'])->name('package-bookings.new-enquiries');
+            Route::get('/package-bookings/follow-ups', [PackageBookingTemplatesController::class, 'followUps'])->name('package-bookings.follow-ups');
+            Route::get('/package-bookings/confirmed', [PackageBookingTemplatesController::class, 'confirmed'])->name('package-bookings.confirmed');
+            Route::get('/package-bookings/definite', [PackageBookingTemplatesController::class, 'definite'])->name('package-bookings.definite');
+            Route::get('/package-bookings/actual', [PackageBookingTemplatesController::class, 'actual'])->name('package-bookings.actual');
+            Route::get('/package-bookings/cancelled', [PackageBookingTemplatesController::class, 'cancelled'])->name('package-bookings.cancelled');
+            Route::post('/package-bookings/agent-negotiation', [PackageBookingTemplatesController::class, 'agentNegotiation'])->name('package-bookings.agent-negotiation');
+            Route::post('/package-bookings/update-negotiation', [PackageBookingTemplatesController::class, 'updateNegotiation'])->name('package-bookings.update-negotiation');
+            Route::post('/package-bookings/cancel/{bookingId}', [PackageBookingTemplatesController::class, 'cancelBooking'])->name('package-bookings.cancel');
             Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
             Route::post('/bookings/process-order-refund', [BookingsController::class, 'processOrderRefund'])->name('bookings.process-order-refund');
             Route::post('/bookings/process-order-refund-by-order', [BookingsController::class, 'processOrderRefundByOrder'])->name('bookings.process-order-refund-by-order');

@@ -126,12 +126,41 @@
             <span class="menu-header-text" data-i18n="Bookings">Bookings</span>
         </li>
         
-        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative') || Request::is('predefined-package-booking-list') || Request::is('enquirylist') || Request::is('custom-packages/*')) open active @endif">
+        <li class="menu-item @if((Request::is('bookings/*') && !Request::is('bookings/tentative')) || Request::is('package-bookings/*') || Request::is('predefined-package-booking-list') || Request::is('enquirylist') || Request::is('custom-packages/*')) open active @endif">
             <a href="#" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
                 <div data-i18n="Bookings">Bookings</div>
             </a>
             <ul class="menu-sub">
+                @php
+                    $isPackageBookingView = Request::is('package-bookings/*');
+                    $sidebarCounts = $isPackageBookingView ? ($packageBookingCounts ?? []) : ($bookingCounts ?? []);
+                    $routeFor = function (string $key) use ($isPackageBookingView) {
+                        if ($isPackageBookingView) {
+                            return match ($key) {
+                                'new_enquiries' => route('package-bookings.new-enquiries'),
+                                'follow_ups' => route('package-bookings.follow-ups'),
+                                'confirmed' => route('package-bookings.confirmed'),
+                                'definite' => route('package-bookings.definite'),
+                                'actual' => route('package-bookings.actual'),
+                                'cancelled' => route('package-bookings.cancelled'),
+                                default => '#',
+                            };
+                        }
+                        return match ($key) {
+                            'new_enquiries' => route('bookings.new-enquiries'),
+                            'follow_ups' => route('bookings.follow-ups'),
+                            'confirmed' => route('bookings.confirmed'),
+                            'definite' => route('bookings.definite'),
+                            'actual' => route('bookings.actual'),
+                            'cancelled' => route('bookings.cancelled'),
+                            default => '#',
+                        };
+                    };
+                    $activeFor = function (string $toursPath, string $pkgPath) use ($isPackageBookingView) {
+                        return $isPackageBookingView ? Request::is($pkgPath) : Request::is($toursPath);
+                    };
+                @endphp
                 @if(in_array(auth()->user()->role_id, [1, 2, 11, 33,  12, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
                     <li class="menu-item @if(Request::is('enquirylist') && !Request::is('enquiries*')) active @endif">
                         <a href="{{ route('enquirylist.index') }}" class="menu-link">
@@ -139,57 +168,57 @@
                         </a>
                     </li>
                 
-                    <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
-                        <a href="{{ route('bookings.new-enquiries') }}" class="menu-link">
+                    <li class="menu-item @if($activeFor('bookings/new-enquiries', 'package-bookings/new-enquiries')) active @endif">
+                        <a href="{{ $routeFor('new_enquiries') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center w-100">
                                 <span data-i18n="Enquiries">Enquiries</span>
-                                @if(isset($bookingCounts) && $bookingCounts['new_enquiries'] > 0)
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['new_enquiries'] }}</span>
+                                @if(($sidebarCounts['new_enquiries'] ?? 0) > 0)
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['new_enquiries'] }}</span>
                                 @endif
                             </div>
                         </a>
                     </li>
                     <!-- Show Booking -->
-                    <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
-                        <a href="{{ route('bookings.follow-ups') }}" class="menu-link">
+                    <li class="menu-item @if($activeFor('bookings/follow-ups', 'package-bookings/follow-ups')) active @endif">
+                        <a href="{{ $routeFor('follow_ups') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Follow Ups">Follow Ups</span>
-                                @if(isset($bookingCounts) && $bookingCounts['follow_ups'] > 0)
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['follow_ups'] }}</span>
+                                @if(($sidebarCounts['follow_ups'] ?? 0) > 0)
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['follow_ups'] }}</span>
                                 @endif
                             </div>
                         </a>
                     </li>
                 @endif
                 @if(in_array(auth()->user()->role_id, [1,2,11,12,26,33,34,36,37,38,49,50,51,52,53,64,65,66,67,68,69,70,71,72,73,80,81,87,89,90,96,98,99,105,107,108,114,116,117,123,124,125,126,127,128,129,131,132,133,134,135,136,137,138]))
-                    <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
-                        <a href="{{ route('bookings.confirmed') }}" class="menu-link">
+                    <li class="menu-item @if($activeFor('bookings/confirmed', 'package-bookings/confirmed')) active @endif">
+                        <a href="{{ $routeFor('confirmed') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Confirmed">Confirmed</span>
-                                @if(isset($bookingCounts) && $bookingCounts['confirmed'] > 0) 
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['confirmed'] }}</span>
+                                @if(($sidebarCounts['confirmed'] ?? 0) > 0) 
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['confirmed'] }}</span>
                                 @endif
                             </div>
                         </a>
                     </li>
                 
-                    <li class="menu-item @if(Request::is('bookings/definite')) active @endif">
-                        <a href="{{ route('bookings.definite') }}" class="menu-link">
+                    <li class="menu-item @if($activeFor('bookings/definite', 'package-bookings/definite')) active @endif">
+                        <a href="{{ $routeFor('definite') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Definite">Definite</span>
-                                @if(isset($bookingCounts) && $bookingCounts['definite'] > 0)
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['definite'] }}</span>
+                                @if(($sidebarCounts['definite'] ?? 0) > 0)
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['definite'] }}</span>
                                 @endif
                             </div>
                         </a>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
-                        <a href="{{ route('bookings.actual') }}" class="menu-link">
+                    <li class="menu-item @if($activeFor('bookings/actual', 'package-bookings/actual')) active @endif">
+                        <a href="{{ $routeFor('actual') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Actual">Actual</span>
-                                @if(isset($bookingCounts) && $bookingCounts['actual'] > 0)
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['actual'] }}</span>
+                                @if(($sidebarCounts['actual'] ?? 0) > 0)
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['actual'] }}</span>
                                 @endif
                             </div>
                         </a>
@@ -205,17 +234,17 @@
                             </div>
                         </a>
                         <ul class="menu-sub"> --}}
-                            <li class="menu-item @if(Request::is('bookings/cancelled')) active @endif">
-                                <a href="{{ route('bookings.cancelled') }}" class="menu-link">
+                            <li class="menu-item @if($activeFor('bookings/cancelled', 'package-bookings/cancelled')) active @endif">
+                                <a href="{{ $routeFor('cancelled') }}" class="menu-link">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Cancelled">Cancelled</span>
-                                        @if(isset($bookingCounts) && $bookingCounts['cancelled'] > 0)
-                                            <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['cancelled'] }}</span>
+                                        @if(($sidebarCounts['cancelled'] ?? 0) > 0)
+                                            <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['cancelled'] }}</span>
                                         @endif
                                     </div>
                                 </a>
                             </li>
-                            <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
+                            <li class="menu-item @if(!$isPackageBookingView && Request::is('bookings/refunds')) active @endif" @if($isPackageBookingView) style="display:none;" @endif>
                                 <a href="{{ route('bookings.refunds') }}" class="menu-link">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Refunds">Refunds</span>
@@ -641,7 +670,7 @@
                         @endif
 
                     <!-- Zones (hard-coded link under Product Configuration) -->
-                    @if(Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
+                    @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
                     <li class="menu-item @if(Request::is('zones')) active @endif">
                         <a href="{{ route('zones.index') }}" class="menu-link" title="Zones">
                                 <div data-i18n="Zones" class="menu-tooltip">

@@ -573,6 +573,11 @@
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { right: 32px; }
 </style>
 <div class="container-xxl flex-grow-1 container-p-y">
+    @include('bookings.partials.booking-type-tabs', [
+        'type' => 'tours',
+        'toursUrl' => route('bookings.new-enquiries'),
+        'packagesUrl' => route('package-bookings.new-enquiries'),
+    ])
     <!-- Compact Header + Stats Bar -->
     <div class="new-enq-header-bar p-3 mb-3">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
