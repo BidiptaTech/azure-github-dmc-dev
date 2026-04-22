@@ -585,7 +585,7 @@ Route::get('/clear', function () {
                 Route::get('/guides/{city}', [PackageController::class, 'getGuidesByCity'])->name('guides-by-city');
                 // City → Restaurant
                 Route::get('/restaurants/{city}', [PackageController::class, 'getRestaurantsByCity'])->name('restaurants-by-city');
-                Route::get('/restaurant-meals/{restaurantId}', [PackageController::class, 'getMealsByRestaurant'])->name('restaurant-meals');
+                Route::get('/restaurant-meals-in-package/{restaurantId}', [PackageController::class, 'getMealsByRestaurant'])->name('restaurant-meals');
                 // City → Transport
                 Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity'])->name('transport-by-city');
                 Route::get('/ports-by-country/{country}', [PackageController::class, 'getPortsByCountry'])->name('ports-by-country');

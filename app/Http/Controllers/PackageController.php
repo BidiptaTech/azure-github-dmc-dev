@@ -556,7 +556,7 @@ class PackageController extends Controller
      */
     public function getHotelsByCity($city)
     {
-        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city','main_image']);
+        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city','main_image', 'weekend_days']);
         return response()->json($hotels);
     }
 
@@ -623,10 +623,16 @@ class PackageController extends Controller
             2 => 'Set Menu',
             3 => 'A la carte',
         ];
+        try {
+            $restaurantId = Crypt::decrypt($restaurantId);
+        } catch (\Throwable $e) {
+            // Support plain numeric ids from package definition UI.
+            $restaurantId = is_numeric($restaurantId) ? (int) $restaurantId : 0;
+        }
 
         $meals = Meal::where('restaurant_id', $restaurantId)
             ->orderBy('type')
-            ->get(['id', 'meal_id', 'restaurant_id', 'type', 'adult_price', 'child_price']);
+            ->get(['id', 'meal_id', 'restaurant_id', 'type', 'item_type', 'adult_price', 'child_price']);
 
         $rows = $meals->map(function ($m) use ($typeMap) {
             $typeInt = (int) ($m->type ?? 0);
@@ -796,7 +802,7 @@ class PackageController extends Controller
             'category' => 'required|string|max:255',
             'duration_days' => 'required|integer|min:1',
             'description' => 'nullable|string',
-            'price_adult' => 'required|numeric|min:0',
+            'price_adult' => 'nullable|numeric|min:0',
             'price_senior' => 'nullable|numeric|min:0',
             'price_child' => 'nullable|numeric|min:0',
             'start_date' => 'required|date',
@@ -880,128 +886,49 @@ class PackageController extends Controller
                 'vehicles' => is_array($decodedDepartureVehicles) ? $decodedDepartureVehicles : [],
             ];
 
-            // If price_data was not sent (or is empty), compute it from optional selections
-            // Shape: [{ name: string, type: string, price: number }]
+            // price_data is built on the frontend and only carries four keys:
+            //   total_price, markup_type, markup_amount, final_price
+            // Accept it as-is and recompute final_price server-side so the stored
+            // value is tamper-proof even if the hidden field is edited.
             $decodedPriceData = is_string($priceData) ? (json_decode($priceData, true) ?: []) : ($priceData ?: []);
-            if (!is_array($decodedPriceData) || count($decodedPriceData) === 0) {
-                $computedPriceData = [];
-
-                $toPrice = function ($v) {
-                    if ($v === null || $v === '') return 0;
-                    $n = is_numeric($v) ? (float) $v : (float) (is_string($v) ? preg_replace('/[^0-9.\-]/', '', $v) : 0);
-                    return is_nan($n) ? 0 : $n;
-                };
-
-                foreach ($decodedHotels as $h) {
-                    if (!empty($h['optional'])) {
-                        $computedPriceData[] = [
-                            'name' => $h['hotel_name'] ?? $h['name'] ?? '',
-                            'type' => 'Hotel (Optional)',
-                            'price' => $toPrice($h['optional_price'] ?? $h['base_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($h['addon'])) {
-                        $computedPriceData[] = [
-                            'name' => $h['hotel_name'] ?? $h['name'] ?? '',
-                            'type' => 'Hotel (Add-on)',
-                            'price' => $toPrice($h['addon_price'] ?? $h['base_price'] ?? 0),
-                        ];
-                    }
-                }
-                foreach ($decodedAttractions as $a) {
-                    if (!empty($a['optional'])) {
-                        $computedPriceData[] = [
-                            'name' => $a['name'] ?? '',
-                            'type' => 'Attraction (Optional)',
-                            'price' => $toPrice($a['optional_price'] ?? $a['base_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($a['addon'])) {
-                        $computedPriceData[] = [
-                            'name' => $a['name'] ?? '',
-                            'type' => 'Attraction (Add-on)',
-                            'price' => $toPrice($a['addon_price'] ?? $a['base_price'] ?? 0),
-                        ];
-                    }
-                }
-                foreach ($decodedRestaurants as $r) {
-                    if (!empty($r['optional'])) {
-                        $computedPriceData[] = [
-                            'name' => $r['restaurant_name'] ?? $r['name'] ?? '',
-                            'type' => 'Restaurant (Optional)',
-                            'price' => $toPrice($r['optional_price'] ?? $r['base_price'] ?? $r['adult_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($r['addon'])) {
-                        $computedPriceData[] = [
-                            'name' => $r['restaurant_name'] ?? $r['name'] ?? '',
-                            'type' => 'Restaurant (Add-on)',
-                            'price' => $toPrice($r['addon_price'] ?? $r['base_price'] ?? $r['adult_price'] ?? 0),
-                        ];
-                    }
-                }
-                foreach ($decodedIndependentGuides as $g) {
-                    if (!empty($g['optional'])) {
-                        $computedPriceData[] = [
-                            'name' => $g['name'] ?? '',
-                            'type' => 'Guide (Optional)',
-                            'price' => $toPrice($g['optional_price'] ?? $g['base_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($g['addon'])) {
-                        $computedPriceData[] = [
-                            'name' => $g['name'] ?? '',
-                            'type' => 'Guide (Add-on)',
-                            'price' => $toPrice($g['addon_price'] ?? $g['base_price'] ?? 0),
-                        ];
-                    }
-                }
-                foreach ($decodedLocalTransfers as $t) {
-                    if (!empty($t['optional'])) {
-                        $label = trim(($t['pickup_label'] ?? '') . ' → ' . ($t['dropoff_label'] ?? ''));
-                        $computedPriceData[] = [
-                            'name' => $label,
-                            'type' => 'Transfer (Optional)',
-                            'price' => $toPrice($t['optional_price'] ?? $t['base_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($t['addon'])) {
-                        $label = trim(($t['pickup_label'] ?? '') . ' → ' . ($t['dropoff_label'] ?? ''));
-                        $computedPriceData[] = [
-                            'name' => $label,
-                            'type' => 'Transfer (Add-on)',
-                            'price' => $toPrice($t['addon_price'] ?? $t['base_price'] ?? 0),
-                        ];
-                    }
-                }
-
-                $decodedPriceData = $computedPriceData;
+            if (!is_array($decodedPriceData)) {
+                $decodedPriceData = [];
             }
 
-            // Always persist total/markup metadata in price_data JSON for package definition pricing context.
-            $decodedPriceData = array_values(array_filter($decodedPriceData, function ($row) {
-                if (!is_array($row)) return false;
-                $type = $row['type'] ?? '';
-                return !in_array($type, ['Summary', 'Markup'], true);
-            }));
+            $totalPriceNum = ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice))
+                ? (float) $totalPrice
+                : (isset($decodedPriceData['total_price']) && is_numeric($decodedPriceData['total_price']) ? (float) $decodedPriceData['total_price'] : 0.0);
+            $markupAmountNum = ($markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount))
+                ? (float) $markupAmount
+                : (isset($decodedPriceData['markup_amount']) && is_numeric($decodedPriceData['markup_amount']) ? (float) $decodedPriceData['markup_amount'] : 0.0);
+            $markupTypeClean = !empty($markupType) ? $markupType : ($decodedPriceData['markup_type'] ?? null);
 
-            if ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice)) {
-                $decodedPriceData[] = [
-                    'name' => 'Total Price',
-                    'type' => !empty($markupType) ? ucfirst($markupType) : 'Summary',
-                    'price' => (float) $totalPrice,
-                ];
-            }
+            // Round UP to the nearest multiple of 5 for both total and final price.
+            $ceilToFive = function ($n) {
+                $num = (float) $n;
+                if (!is_finite($num) || $num <= 0) return 0.0;
+                return ceil($num / 5) * 5;
+            };
+            $totalPriceNum = $ceilToFive($totalPriceNum);
 
-            if (!empty($markupType) && $markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount)) {
-                $decodedPriceData[] = [
-                    'name' => 'Markup',
-                    'type' => 'Markup',
-                    'price' => 0,
-                    'markup_type' => $markupType,
-                    'markup_amount' => (float) $markupAmount,
-                ];
+            // Final price rule (applied to the ceil-rounded total):
+            //   flat       => final = total + markupAmount
+            //   percentage => final = total + (total * markupAmount / 100)
+            //   none       => final = total
+            $finalPriceNum = $totalPriceNum;
+            if ($markupTypeClean === 'flat') {
+                $finalPriceNum = $totalPriceNum + $markupAmountNum;
+            } elseif ($markupTypeClean === 'percentage') {
+                $finalPriceNum = $totalPriceNum + ($totalPriceNum * $markupAmountNum / 100);
             }
+            $finalPriceNum = $ceilToFive($finalPriceNum);
+
+            $decodedPriceData = [
+                'total_price' => round($totalPriceNum, 2),
+                'markup_type' => $markupTypeClean ?: null,
+                'markup_amount' => $markupTypeClean ? round($markupAmountNum, 2) : null,
+                'final_price' => round($finalPriceNum, 2),
+            ];
 
             $definitionData = [
                 'hotels' => $decodedHotels,
@@ -1039,9 +966,9 @@ class PackageController extends Controller
                 'duration_days' => $validated['duration_days'],
                 'package_type' => 'definition',
                 'description' => $validated['description'] ?? '',
-                'price_adult' => $validated['price_adult'],
-                'price_senior' => $validated['price_senior'] ?? 0,
-                'price_child' => $validated['price_child'] ?? 0,
+                'price_adult' => $validated['price_adult'] ?? null,
+                'price_senior' => $validated['price_senior'] ?? null,
+                'price_child' => $validated['price_child'] ?? null,
                 'child_max_age' => $validated['child_max_age'] ?? null,
                 'start_date' => $validated['start_date'],
                 'expire_date' => $validated['expiry_date'],

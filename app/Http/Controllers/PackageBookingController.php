@@ -95,14 +95,13 @@ class PackageBookingController extends Controller
         $validated = $request->validate([
             'travel_start_date' => 'required|date',
             'travel_end_date' => 'required|date|after_or_equal:travel_start_date',
-            'adult_count' => 'required|integer|min:1',
-            'child_count' => 'nullable|integer|min:0',
+            'pax_count' => 'required|integer|min:1',
         ]);
 
         $startDate = Carbon::parse($validated['travel_start_date'])->startOfDay();
         $endDate = Carbon::parse($validated['travel_end_date'])->startOfDay();
         $durationDays = $startDate->diffInDays($endDate) + 1;
-        $totalPax = (int) $validated['adult_count'] + (int) ($validated['child_count'] ?? 0);
+        $totalPax = (int) $validated['pax_count'];
 
         $packages = Package::query()
             ->whereDate('start_date', '<=', $startDate->toDateString())
@@ -175,6 +174,7 @@ class PackageBookingController extends Controller
                 'price_adult' => (float) ($package->price_adult ?? 0),
                 'price_child' => (float) ($package->price_child ?? 0),
                 'duration_days' => (int) ($package->duration_days ?? 1),
+                'price_data' => $this->parseJsonField($package->price_data),
             ],
         ]);
     }
@@ -279,8 +279,7 @@ class PackageBookingController extends Controller
             'package_id' => 'required|string',
             'travel_start_date' => 'required|date',
             'travel_end_date' => 'required|date|after_or_equal:travel_start_date',
-            'adult_count' => 'required|integer|min:1',
-            'child_count' => 'nullable|integer|min:0',
+            'pax_count' => 'required|integer|min:1',
             'agent_id' => 'nullable',
             'selected_hotels' => 'nullable|string',
             'selected_attractions' => 'nullable|string',
@@ -290,6 +289,7 @@ class PackageBookingController extends Controller
             'departure_data' => 'nullable|string',
             'transfer_data' => 'nullable|string',
             'supplementary_data' => 'nullable|string',
+            'price_data' => 'nullable|string',
             'notes' => 'nullable|string',
         ]);
 
@@ -306,10 +306,9 @@ class PackageBookingController extends Controller
         $departureData = $this->parseJsonField($validated['departure_data'] ?? '{}');
         $transferData = $this->parseJsonField($validated['transfer_data'] ?? '[]');
         $supplementaryData = $this->parseJsonField($validated['supplementary_data'] ?? '{}');
+        $clientPriceData = $this->parseJsonField($validated['price_data'] ?? '{}');
 
-        $adultCount = (int) ($validated['adult_count'] ?? 0);
-        $childCount = (int) ($validated['child_count'] ?? 0);
-        $totalPax = $adultCount + $childCount;
+        $totalPax = (int) ($validated['pax_count'] ?? 0);
 
         $startDate = Carbon::parse($validated['travel_start_date'])->startOfDay();
         $endDate = Carbon::parse($validated['travel_end_date'])->startOfDay();
@@ -318,8 +317,36 @@ class PackageBookingController extends Controller
             return back()->withInput()->with('error', 'Selected package does not match the chosen date duration. Start date: '.$package->start_date.' End date: '.$package->expire_date.' Selected start date: '.$startDate.' Selected end date: '.$endDate);
         }
 
-        $totalPrice = ($adultCount * (float) ($package->price_adult ?? 0))
-            + ($childCount * (float) ($package->price_child ?? 0));
+        $ceilToFive = function ($n) {
+            $num = (float) $n;
+            if (!is_finite($num)) {
+                return 0.0;
+            }
+            return (float) (ceil($num / 5) * 5);
+        };
+
+        $packagePriceData = $this->parseJsonField($package->price_data ?? '{}');
+        $markupType = strtolower((string) ($packagePriceData['markup_type'] ?? 'flat'));
+        $markupAmount = (float) ($packagePriceData['markup_amount'] ?? 0);
+
+        $clientTotal = (float) ($clientPriceData['total_price'] ?? 0);
+        $totalPrice = $ceilToFive($clientTotal);
+
+        if ($markupAmount > 0) {
+            $finalRaw = $markupType === 'percentage'
+                ? ($totalPrice + ($totalPrice * $markupAmount / 100))
+                : ($totalPrice + $markupAmount);
+        } else {
+            $finalRaw = $totalPrice;
+        }
+        $finalPrice = $ceilToFive($finalRaw);
+
+        $priceDataPayload = [
+            'total_price' => $totalPrice,
+            'final_price' => $finalPrice,
+            'markup_type' => $markupType,
+            'markup_amount' => $markupAmount,
+        ];
 
         $itineraryDates = [];
         for ($i = 0; $i < $duration; $i++) {
@@ -346,10 +373,12 @@ class PackageBookingController extends Controller
             }
 
             $bookingDetails = [
-                'adult_count' => $adultCount,
-                'child_count' => $childCount,
+                'pax_count' => $totalPax,
                 'total_pax' => $totalPax,
                 'total_price' => $totalPrice,
+                'final_price' => $finalPrice,
+                'markup_type' => $markupType,
+                'markup_amount' => $markupAmount,
                 'currency' => 'SGD',
                 'itinerary' => $itineraryDates,
                 'notes' => $validated['notes'] ?? '',
@@ -368,6 +397,7 @@ class PackageBookingController extends Controller
             PackageBooking::create([
                 'booking_id' => $bookingId,
                 'package_id' => $package->package_id,
+                'total_price' => $priceDataPayload,
                 'booking_details' => $bookingDetails,
                 'travel_dates' => $travelDates,
                 'selected_hotels' => $selectedHotels,
@@ -379,6 +409,7 @@ class PackageBookingController extends Controller
                 'transfer_data' => $transferData,
                 'supplementary_data' => $supplementaryData,
                 'status' => '1',
+                'booking_status' => 'New Enquiry',
                 'booked_by' => $user?->userId,
                 'agent_id' => $validated['agent_id'] ?: null,
                 'dmc_id' => $dmcId,
