@@ -99,11 +99,18 @@
                             </div>
                         </div>
                     </div>
+                    @php
+                        $priceDataRaw = $package->price_data ?? null;
+                        $priceDataArr = is_string($priceDataRaw) ? (json_decode($priceDataRaw, true) ?: []) : (is_array($priceDataRaw) ? $priceDataRaw : []);
+                        $finalPrice = isset($priceDataArr['final_price']) && is_numeric($priceDataArr['final_price'])
+                            ? (float) $priceDataArr['final_price']
+                            : (is_numeric($package->price_adult) ? (float) $package->price_adult : 0);
+                    @endphp
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="text-primary">
                                 <div class="small">From SGD</div>
-                                <div class="h4 mb-0">${{ number_format($package->price_adult, 2) }}</div>
+                                <div class="h4 mb-0">${{ number_format($finalPrice, 2) }}</div>
                             </div>
                             <span class="badge bg-{{ $package->status == '1' ? 'success' : ($package->status == '0' ? 'warning' : 'secondary') }}">
                                 {{ ucfirst($package->status == '1' ? 'Active' : ($package->status == '0' ? 'Draft' : 'Inactive')) }}
