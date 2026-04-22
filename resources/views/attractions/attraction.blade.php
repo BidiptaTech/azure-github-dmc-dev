@@ -93,6 +93,17 @@
         color: #fff;
     }
 
+    .attraction-detail-title {
+        font-weight: 700;
+        font-size: 12.5px;
+        color: #1e293b;
+    }
+
+    .attraction-detail-meta {
+        font-size: 11.5px;
+        color: #64748b;
+    }
+
     /* Table polish */
     .table-shell {
         padding: 1rem 1.25rem 1.25rem;
@@ -473,8 +484,16 @@
                         @foreach($attractions as $key => $attraction)
                             <tr>
                                 <td>{{ ++$key }}</td>
-                                <td>
-                                    <span class="fw-semibold">{{ $attraction->name ?? 'N/A' }}</span>
+
+                                <td class="col-details">
+                                    <div class="d-flex flex-column gap-1">
+                                        <span class="attraction-detail-title">
+                                            <i class="ri-map-2-line text-primary me-1"></i>{{ $attraction->name ?? 'N/A' }}
+                                        </span>
+                                        <small class="attraction-detail-meta">
+                                            <i class="ri-map-pin-line me-1"></i>{{ $attraction->country ?: 'N/A' }}, {{ $attraction->location ?: 'N/A' }}
+                                        </small>
+                                    </div>
                                 </td>
                                 @php
                                     $roleId = auth()->user()->role_id;
