@@ -630,14 +630,29 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.hide();
     });
 
-    // Prime Country dropdown from DOM data (unique countries)
+    // Prime Country dropdown from server-allowed list (Master DMC countries / Created DMC country)
+    // Fallback: if not provided, derive from DOM hotel cards (unique countries).
     const countrySelect = document.getElementById('countrySelect');
     const hotelItems = document.querySelectorAll('.hotel-item');
+
+    const allowedCountriesFromServer = @json($allowedCountries ?? []);
+    const normalizedAllowed = Array.isArray(allowedCountriesFromServer)
+        ? allowedCountriesFromServer
+            .map(c => String(c || '').trim())
+            .filter(Boolean)
+            .map(c => c.toLowerCase())
+        : [];
+
     const countrySet = new Set();
-    hotelItems.forEach(item => {
-        const c = item.getAttribute('data-country');
-        if (c) countrySet.add(c);
-    });
+    if (normalizedAllowed.length > 0) {
+        normalizedAllowed.forEach(c => countrySet.add(c));
+    } else {
+        hotelItems.forEach(item => {
+            const c = item.getAttribute('data-country');
+            if (c) countrySet.add(c);
+        });
+    }
+
     Array.from(countrySet).sort().forEach(country => {
         const opt = document.createElement('option');
         opt.value = country;
@@ -645,10 +660,13 @@ document.addEventListener('DOMContentLoaded', function() {
         countrySelect.appendChild(opt);
     });
 
-    // Default to user's country if exists
-    if (defaultCountry && Array.from(countrySet).includes(defaultCountry)) {
+    // Only auto-filter to user's country when there's a single option.
+    // Otherwise show all Master DMC countries by default.
+    if (defaultCountry && countrySet.size === 1 && Array.from(countrySet).includes(defaultCountry)) {
         countrySelect.value = defaultCountry;
         onCountryChange();
+    } else {
+        applyFilters();
     }
 
     // Initialize hotel count and apply initial filters

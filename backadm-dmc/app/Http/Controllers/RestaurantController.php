@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash; 
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
 
 
 class RestaurantController extends Controller
@@ -906,10 +907,57 @@ class RestaurantController extends Controller
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
-        // Get all available restaurants
-        $allRestaurants = Restaurant::where('status', 1)
-                                   ->orderBy('name', 'asc')
-                                   ->get();
+        // Resolve Master DMC for this user (to read multiple countries from master record)
+        $masterDmcId = $user->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $dmcUser = User::where('userId', $dmc_id)->first();
+            $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        }
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $user->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (! $candidate) break;
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmc_id)->first();
+        $masterDmcCountries = [];
+        if ($masterDmc && !empty($masterDmc->country)) {
+            $masterDmcCountries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        // Get all available restaurants (Travclicks/platform + Master DMC countries)
+        $allRestaurantsQuery = Restaurant::where('status', 1)->orderBy('name', 'asc');
+        if (Schema::hasColumn('restaurants', 'user_type')) {
+            $allRestaurantsQuery->where('user_type', 1);
+        }
+        if (!empty($masterDmcCountries) && Schema::hasColumn('restaurants', 'country')) {
+            $allRestaurantsQuery->whereIn('country', $masterDmcCountries);
+        }
+
+        $allRestaurants = $allRestaurantsQuery->get();
+
+        // Country dropdown should show only countries that actually exist in the Travclicks results
+        $allowedCountries = $allRestaurants
+            ->pluck('country')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
         
         // Filter restaurants that are selected by the current DMC
         $selectedRestaurants = $allRestaurants->filter(function($restaurant) use ($dmc_id) {
@@ -921,7 +969,7 @@ class RestaurantController extends Controller
             return !$restaurant->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.restaurants', compact('availableRestaurants', 'selectedRestaurants'));
+        return view('services.restaurants', compact('availableRestaurants', 'selectedRestaurants', 'allowedCountries'));
     }
 
     /**
