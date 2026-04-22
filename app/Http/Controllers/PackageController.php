@@ -1077,7 +1077,9 @@ class PackageController extends Controller
             }
 
             // Include the package and agent relationships to access package and agent details
-            $query = PackageBooking::with(['package', 'agent'])
+            // NOTE: relationship renamed to `packageInfo` in PackageBooking model to avoid
+            // collision with the JSON-cast `package` column on some environments.
+            $query = PackageBooking::with(['packageInfo', 'agent'])
             ->where('dmc_id', $dmc_id);
             
             // For finance roles, only show bookings with payment_details
@@ -1087,7 +1089,7 @@ class PackageController extends Controller
             
             $bookings = $query->orderBy('created_at', 'desc')->get();
         }else{
-            $bookings = PackageBooking::with(['package', 'agent'])
+            $bookings = PackageBooking::with(['packageInfo', 'agent'])
             ->orderBy('created_at', 'desc')
             ->get();
         }
