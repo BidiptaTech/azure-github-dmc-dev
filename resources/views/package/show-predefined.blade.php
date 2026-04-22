@@ -581,13 +581,51 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
+                        @php
+                            $priceDataRaw = $package->price_data ?? null;
+                            $priceDataArr = is_string($priceDataRaw) ? (json_decode($priceDataRaw, true) ?: []) : (is_array($priceDataRaw) ? $priceDataRaw : []);
+                            $pdTotal = isset($priceDataArr['total_price']) && is_numeric($priceDataArr['total_price']) ? (float) $priceDataArr['total_price'] : null;
+                            $pdMarkupType = $priceDataArr['markup_type'] ?? null;
+                            $pdMarkupAmount = isset($priceDataArr['markup_amount']) && is_numeric($priceDataArr['markup_amount']) ? (float) $priceDataArr['markup_amount'] : null;
+                            $pdFinal = isset($priceDataArr['final_price']) && is_numeric($priceDataArr['final_price']) ? (float) $priceDataArr['final_price'] : null;
+                        @endphp
+
+                        @if($pdTotal !== null)
+                        <div class="mb-2">
                             <div class="d-flex justify-content-between align-items-center">
-                                <span>Adult Price:</span>
-                                <span class="h5 text-primary mb-0">SGD {{ number_format($package->price_adult, 2) }}</span>
+                                <span class="text-muted">Total Price:</span>
+                                <span class="h6 mb-0">SGD {{ number_format($pdTotal, 2) }}</span>
                             </div>
                         </div>
-                        
+                        @endif
+
+                        @if($pdMarkupType && $pdMarkupAmount !== null)
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">
+                                    Markup
+                                    <small class="text-capitalize">({{ $pdMarkupType }})</small>:
+                                </span>
+                                <span class="h6 text-warning mb-0">
+                                    @if($pdMarkupType === 'percentage')
+                                        {{ rtrim(rtrim(number_format($pdMarkupAmount, 2), '0'), '.') }}%
+                                    @else
+                                        SGD {{ number_format($pdMarkupAmount, 2) }}
+                                    @endif
+                                </span>
+                            </div>
+                        </div>
+                        @endif
+
+                        <div class="mb-3 pt-2 border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">Final Price:</span>
+                                <span class="h5 text-primary mb-0">
+                                    SGD {{ number_format($pdFinal !== null ? $pdFinal : (is_numeric($package->price_adult) ? (float) $package->price_adult : 0), 2) }}
+                                </span>
+                            </div>
+                        </div>
+
                         @if($package->price_senior)
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center">

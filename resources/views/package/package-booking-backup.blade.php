@@ -32,8 +32,12 @@
                             <input type="date" class="form-control" id="travel_end_date" name="travel_end_date" required min="{{ date('Y-m-d') }}" value="{{ old('travel_end_date') }}">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label">Pax <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="pax_count" name="pax_count" min="1" value="{{ old('pax_count', 2) }}" required>
+                            <label class="form-label">Adults <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="adult_count" name="adult_count" min="1" value="{{ old('adult_count', 2) }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Children</label>
+                            <input type="number" class="form-control" id="child_count" name="child_count" min="0" value="{{ old('child_count', 0) }}">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Agency</label>
@@ -151,7 +155,6 @@
             <input type="hidden" name="departure_data" id="departure_data_input">
             <input type="hidden" name="transfer_data" id="transfer_data_input">
             <input type="hidden" name="supplementary_data" id="supplementary_data_input">
-            <input type="hidden" name="price_data" id="price_data_input">
 
             <div class="d-flex justify-content-end gap-2 mt-4">
                 <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary">Cancel</a>
@@ -191,28 +194,12 @@
         let transfers = [];
         let selectedPackageCity = '';
         let selectedHotelDates = {};
-        let selectedPackagePriceData = {};
-        let lastPricingTotals = { total_price: 0, final_price: 0, markup_type: 'flat', markup_amount: 0 };
-
-        function ceilToFive(n) {
-            const num = parseFloat(n);
-            if (!isFinite(num) || isNaN(num)) return 0;
-            return Math.ceil(num / 5) * 5;
-        }
-
-        function computeFinalPrice(total, markupType, markupAmount) {
-            const t = parseFloat(total) || 0;
-            const amt = parseFloat(markupAmount) || 0;
-            if (!amt) return t;
-            if (String(markupType || '').toLowerCase() === 'percentage') {
-                return t + (t * amt / 100);
-            }
-            return t + amt;
-        }
+        let bedOptionsBySourceBedId = {};
 
         const prefilledPackageId = @json($prefilledPackageId ?? null);
         const filterUrl = @json(route('packages.booking.filter'));
         const detailUrlTemplate = @json(route('packages.booking.details', ['packageId' => '__PACKAGE_ID__']));
+        const bedOptionsUrl = @json(route('packages.booking.bed-options'));
 
         const packageSelect = document.getElementById('package_select');
         const packageFilterMessage = document.getElementById('packageFilterMessage');
@@ -227,7 +214,8 @@
 
         const startDateEl = document.getElementById('travel_start_date');
         const endDateEl = document.getElementById('travel_end_date');
-        const paxEl = document.getElementById('pax_count');
+        const adultsEl = document.getElementById('adult_count');
+        const childrenEl = document.getElementById('child_count');
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
         function esc(v) { return String(v || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -303,11 +291,22 @@
         }
 
         function bindServiceBookingPaxInputs(container, listRef, sectionKey) {
-            container.querySelectorAll('.service-booking-pax[data-section="' + sectionKey + '"]').forEach(inp => {
+            container.querySelectorAll('.service-booking-adults[data-section="' + sectionKey + '"]').forEach(inp => {
                 inp.addEventListener('input', function () {
                     const index = parseInt(this.getAttribute('data-index') || '-1', 10);
                     if (index < 0 || !listRef[index]) return;
-                    listRef[index].booking_pax = Math.max(0, parseInt(this.value || '0', 10) || 0);
+                    listRef[index].booking_adults = Math.max(0, parseInt(this.value || '0', 10) || 0);
+                    if (sectionKey === 'attractions') renderAttractions();
+                    else if (sectionKey === 'restaurants') renderRestaurants();
+                    renderPricingSummary();
+                    syncHidden();
+                });
+            });
+            container.querySelectorAll('.service-booking-children[data-section="' + sectionKey + '"]').forEach(inp => {
+                inp.addEventListener('input', function () {
+                    const index = parseInt(this.getAttribute('data-index') || '-1', 10);
+                    if (index < 0 || !listRef[index]) return;
+                    listRef[index].booking_children = Math.max(0, parseInt(this.value || '0', 10) || 0);
                     if (sectionKey === 'attractions') renderAttractions();
                     else if (sectionKey === 'restaurants') renderRestaurants();
                     renderPricingSummary();
@@ -458,6 +457,72 @@
             return 0;
         }
 
+        function getHotelTotalRooms(hotel) {
+            const rooms = Array.isArray(hotel && hotel.rooms) ? hotel.rooms : [];
+            return rooms.reduce((sum, room) => sum + Math.max(1, parseInt(room && room.quantity, 10) || 1), 0);
+        }
+
+        function ensureHotelOccupancyDistribution(hotel) {
+            if (!hotel) return { single: 0, double: 0, triple: 0, total_rooms: 0 };
+
+            const totalRooms = getHotelTotalRooms(hotel);
+            let single = Math.max(0, parseInt(hotel.single_occupancy_rooms, 10) || 0);
+            let double = Math.max(0, parseInt(hotel.double_occupancy_rooms, 10) || 0);
+            let triple = Math.max(0, parseInt(hotel.triple_occupancy_rooms, 10) || 0);
+
+            const hasAnyStoredValue = (single + double + triple) > 0;
+            if (!hasAnyStoredValue) {
+                single = 0;
+                double = totalRooms;
+                triple = 0;
+            }
+
+            if (single > totalRooms) single = totalRooms;
+            if (triple > totalRooms - single) triple = totalRooms - single;
+            double = totalRooms - single - triple;
+
+            hotel.single_occupancy_rooms = single;
+            hotel.double_occupancy_rooms = double;
+            hotel.triple_occupancy_rooms = triple;
+            hotel.total_rooms = totalRooms;
+
+            return {
+                single: single,
+                double: double,
+                triple: triple,
+                total_rooms: totalRooms
+            };
+        }
+
+        function getRoomExtraBedKey(hotelIndex, roomIndex) {
+            return String(hotelIndex) + '_' + String(roomIndex);
+        }
+
+        function collectSourceBedIds(hotelsListRaw) {
+            const ids = [];
+            (hotelsListRaw || []).forEach(h => {
+                const rooms = Array.isArray(h && h.rooms) ? h.rooms : [];
+                rooms.forEach(r => {
+                    if (r && r.extra_bed === true && r.bed_id != null && String(r.bed_id).trim() !== '') {
+                        ids.push(String(r.bed_id).trim());
+                    }
+                });
+            });
+            return Array.from(new Set(ids));
+        }
+
+        async function ensureBedOptionsLoaded(hotelsListRaw) {
+            const bedIds = collectSourceBedIds(hotelsListRaw);
+            if (bedIds.length === 0) {
+                bedOptionsBySourceBedId = {};
+                return;
+            }
+            const params = new URLSearchParams({ bed_ids: bedIds.join(',') });
+            const response = await fetch(bedOptionsUrl + '?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const data = await response.json();
+            bedOptionsBySourceBedId = (response.ok && data && data.success && data.options) ? data.options : {};
+        }
+
         function renderHotels() {
             if (!Array.isArray(hotels) || hotels.length === 0) {
                 hotelsList.innerHTML = '<div class="text-muted small">No hotels selected</div>';
@@ -465,6 +530,7 @@
             }
             hotelsList.innerHTML = hotels.map((h, idx) => {
                 const rooms = Array.isArray(h.rooms) ? h.rooms : [];
+                const occupancy = ensureHotelOccupancyDistribution(h);
                 const nightBreakdown = getHotelNightBreakdown(h, idx);
                 const availableDates = getTravelDateRange();
                 const hotelDateKey = getHotelDateKey(h, idx);
@@ -486,12 +552,56 @@
                         + '</div>'
                         + '<div class="small text-muted mt-1">Selected: ' + esc(nightBreakdown.selected_dates.length) + ' / ' + esc(maxAllowedNights) + ' night(s)</div>';
                 const roomsHtml = rooms.length
-                    ? rooms.map(r => {
-                        return '<div class="d-flex align-items-center gap-2 mt-1 py-1 border-bottom">'
-                            + '<div class="small fw-semibold">' + esc(r.room_type_name || 'Room') + '</div>'
+                    ? rooms.map((r, roomIdx) => {
+                        const mainQty = parseInt(r.quantity, 10) > 0 ? parseInt(r.quantity, 10) : 1;
+                        const base = ''
+                            + '<div class="d-flex align-items-center justify-content-between gap-2 mt-1 py-1 border-bottom">'
+                            +   '<div class="small fw-semibold">' + esc(r.room_type_name || 'Room') + '</div>'
+                            +   '<div class="d-flex align-items-center gap-1 flex-shrink-0">'
+                            +     '<label class="small text-muted mb-0">Qty</label>'
+                            +     '<input type="number" min="1" step="1" value="' + mainQty + '" class="form-control form-control-sm hotel-main-room-qty" style="width:70px; min-height:30px;" data-hotel-index="' + idx + '" data-room-index="' + roomIdx + '">'
+                            +   '</div>'
                             + '</div>';
+                        if (!(r && r.extra_bed === true)) return base;
+
+                        const sourceBedId = String((r.bed_id != null ? r.bed_id : '')).trim();
+                        const selectId = 'extra_bed_type_' + getRoomExtraBedKey(idx, roomIdx);
+                        const options = sourceBedId !== '' ? (bedOptionsBySourceBedId[sourceBedId] || []) : [];
+                        const selectedType = r.extra_bed_type || '';
+
+                        const fallbackOption = (selectedType && !options.some(opt => (opt.room_type || '') === selectedType))
+                            ? ['<option value="' + esc(selectedType) + '" selected>' + esc(selectedType) + '</option>']
+                            : [];
+                        const optionHtml = ['<option value="">Select extra bed type</option>']
+                            .concat(fallbackOption)
+                            .concat(options.map(opt => {
+                                const value = opt.room_type || '';
+                                const label = (opt.room_type || 'Bed') + (opt.extra_bed ? ' (Extra Bed)' : '');
+                                const selected = value === selectedType ? ' selected' : '';
+                                return '<option value="' + esc(value) + '"' + selected + '>' + esc(label) + '</option>';
+                            }))
+                            .join('');
+
+                        const extraUi = ''
+                            + '<div class="row g-2 mt-1 p-2 rounded bg-label-primary">'
+                            +   '<div class="col-12">'
+                            +     '<label class="form-label small mb-1">Extra Bed Type</label>'
+                            +     '<select id="' + selectId + '" class="form-select form-select-sm hotel-extra-bed-type" data-hotel-index="' + idx + '" data-room-index="' + roomIdx + '" data-bed-id="' + esc(sourceBedId) + '">' + optionHtml + '</select>'
+                            +   '</div>'
+                            + '</div>';
+                        return base + extraUi;
                     }).join('')
                     : '<div class="small text-muted">No room details</div>';
+                const occupancyHtml = occupancy.total_rooms > 1
+                    ? '<div class="col-md-12"><div class="border rounded p-2 bg-label-secondary">'
+                        + '<div class="small fw-semibold mb-2">Room Occupancy Distribution (Total Rooms: ' + esc(occupancy.total_rooms) + ')</div>'
+                        + '<div class="row g-2">'
+                        + '<div class="col-md-4"><label class="form-label small mb-1">Single</label><input type="number" min="0" max="' + esc(occupancy.total_rooms) + '" class="form-control form-control-sm hotel-occupancy-input" data-hotel-index="' + idx + '" data-field="single" value="' + esc(occupancy.single) + '"></div>'
+                        + '<div class="col-md-4"><label class="form-label small mb-1">Double</label><input type="number" min="0" max="' + esc(occupancy.total_rooms) + '" class="form-control form-control-sm hotel-occupancy-input" data-hotel-index="' + idx + '" data-field="double" value="' + esc(occupancy.double) + '"></div>'
+                        + '<div class="col-md-4"><label class="form-label small mb-1">Triple</label><input type="number" min="0" max="' + esc(occupancy.total_rooms) + '" class="form-control form-control-sm hotel-occupancy-input" data-hotel-index="' + idx + '" data-field="triple" value="' + esc(occupancy.triple) + '"></div>'
+                        + '</div>'
+                        + '</div></div>'
+                    : '';
                 const isSelectable = isOptional(h) || !!(h && h.addon === true);
                 const selectMode = isOptional(h) ? 'optional' : ((h && h.addon === true) ? 'addon' : '');
                 const optionalCheckbox = isSelectable
@@ -506,14 +616,89 @@
                     + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(h) + optionalCheckbox + '</div></div>'
                     + '<div class="row g-2">'
                     + '<div class="col-md-3"><div class="text-muted small">City</div><div>' + esc(h.city || selectedPackageCity || '-') + '</div></div>'
-                    + '<div class="col-md-3"><div class="text-muted small">Nights</div><div>' + esc(nightBreakdown.nights) + '</div></div>'
+                    + '<div class="col-md-3"><div class="text-muted small">Nights</div><div>' + esc(nightBreakdown.nights) + '</div><div class="small text-muted">Weekday: ' + esc(nightBreakdown.weekday_nights) + ' / Weekend: ' + esc(nightBreakdown.weekend_nights) + '</div></div>'
                     + '<div class="col-md-12"><div class="text-muted small">Stay Dates</div>' + dateStripHtml + '</div>'
                     + '<div class="col-md-4"><div class="text-muted small">Rooms</div>' + roomsHtml + '</div>'
                     + '<div class="col-md-2"><div class="text-muted small">Total Price</div><div>' + esc(money(hotelTotal(h, idx))) + '</div></div>'
+                    + occupancyHtml
                     + '</div></div>';
             }).join('');
             bindSelectableCheckboxes(hotelsList, hotels, 'hotels');
+            bindHotelExtraBedInputs();
             bindHotelDateBoxes();
+        }
+
+        function bindHotelExtraBedInputs() {
+            hotelsList.querySelectorAll('.hotel-main-room-qty').forEach(inp => {
+                inp.addEventListener('input', function () {
+                    const hIdx = parseInt(this.getAttribute('data-hotel-index') || '-1', 10);
+                    const rIdx = parseInt(this.getAttribute('data-room-index') || '-1', 10);
+                    if (hIdx < 0 || rIdx < 0 || !hotels[hIdx] || !Array.isArray(hotels[hIdx].rooms) || !hotels[hIdx].rooms[rIdx]) return;
+                    const qty = parseInt(this.value || '1', 10);
+                    hotels[hIdx].rooms[rIdx].quantity = qty > 0 ? qty : 1;
+                    if (qty <= 0) this.value = '1';
+                    ensureHotelOccupancyDistribution(hotels[hIdx]);
+                    renderHotels();
+                    renderPricingSummary();
+                    syncHidden();
+                });
+            });
+
+            hotelsList.querySelectorAll('.hotel-extra-bed-type').forEach(sel => {
+                sel.addEventListener('change', function () {
+                    const hIdx = parseInt(this.getAttribute('data-hotel-index') || '-1', 10);
+                    const rIdx = parseInt(this.getAttribute('data-room-index') || '-1', 10);
+                    if (hIdx < 0 || rIdx < 0 || !hotels[hIdx] || !Array.isArray(hotels[hIdx].rooms) || !hotels[hIdx].rooms[rIdx]) return;
+                    hotels[hIdx].rooms[rIdx].extra_bed_type = this.value || '';
+                    syncHidden();
+                });
+            });
+
+            hotelsList.querySelectorAll('.hotel-occupancy-input').forEach(inp => {
+                inp.addEventListener('change', function () {
+                    const hIdx = parseInt(this.getAttribute('data-hotel-index') || '-1', 10);
+                    const field = this.getAttribute('data-field') || '';
+                    if (hIdx < 0 || !hotels[hIdx]) return;
+
+                    const hotel = hotels[hIdx];
+                    const current = ensureHotelOccupancyDistribution(hotel);
+                    const totalRooms = current.total_rooms;
+                    if (totalRooms <= 1) return;
+
+                    const entered = Math.max(0, Math.min(totalRooms, parseInt(this.value || '0', 10) || 0));
+                    let single = current.single;
+                    let double = current.double;
+                    let triple = current.triple;
+
+                    if (field === 'single') {
+                        single = entered;
+                        if (triple > totalRooms - single) triple = totalRooms - single;
+                        double = totalRooms - single - triple;
+                    } else if (field === 'triple') {
+                        triple = entered;
+                        if (single > totalRooms - triple) single = totalRooms - triple;
+                        double = totalRooms - single - triple;
+                    } else if (field === 'double') {
+                        double = entered;
+                        let remaining = totalRooms - double;
+                        if (remaining < 0) {
+                            double = totalRooms;
+                            remaining = 0;
+                        }
+                        if (single > remaining) single = remaining;
+                        triple = remaining - single;
+                    }
+
+                    hotel.single_occupancy_rooms = Math.max(0, single);
+                    hotel.double_occupancy_rooms = Math.max(0, double);
+                    hotel.triple_occupancy_rooms = Math.max(0, triple);
+                    hotel.total_rooms = totalRooms;
+
+                    renderHotels();
+                    renderPricingSummary();
+                    syncHidden();
+                });
+            });
         }
 
         function bindHotelDateBoxes() {
@@ -561,7 +746,8 @@
             attractionsList.innerHTML = attractions.map((a, idx) => {
                 const guide = a.guide || {};
                 const languages = Array.isArray(guide.languages) ? guide.languages.join(', ') : '-';
-                const bp = getResolvedServiceBookingPax(a);
+                const ba = getResolvedServiceBookingAdults(a);
+                const bc = getResolvedServiceBookingChildren(a);
                 const isSelectable = isOptional(a) || !!(a && a.addon === true);
                 const selectMode = isOptional(a) ? 'optional' : ((a && a.addon === true) ? 'addon' : '');
                 const optionalCheckbox = isSelectable
@@ -570,11 +756,6 @@
                         '<label class="form-check-label small mb-0">Select</label>' +
                       '</div>'
                     : '';
-                const hasTransfer = !!a.transfer;
-                const transferBlock = hasTransfer
-                    ? '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>' + esc(a.vehicle_name || '-') + ' / ' + esc(a.transfer_type || '-') + '</div></div>'
-                      + '<div class="col-md-12"><div class="text-muted small">Pickup -> Dropoff</div><div style="font-size: 0.8rem;">' + esc(a.pickup_name || '-') + ' -> ' + esc(a.dropoff_name || '-') + '</div></div>'
-                    : '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>No</div></div>';
                 return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
                     + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
                     + esc(a.name || 'Attraction') + '</div>'
@@ -582,9 +763,11 @@
                     + '<div class="row g-2">'
                     + '<div class="col-md-4"><div class="text-muted small">Location</div><div>' + esc(a.location || selectedPackageCity || '-') + '</div></div>'
                     + '<div class="col-md-4"><div class="text-muted small">Guide</div><div>' + esc(guide.name || '-') + '</div><div class="small text-muted">' + esc(languages) + '</div></div>'
-                    + transferBlock
-                    + '<div class="col-md-2"><label class="form-label small mb-1">Pax</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-pax" data-section="attractions" data-index="' + idx + '" value="' + esc(bp) + '"></div>'
-                    + '<div class="col-md-6"><div class="text-muted small">Total Price</div><div>' + esc(money(attractionTotal(a))) + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>' + esc(a.vehicle_name || '-') + ' / ' + esc(a.transfer_type || '-') + '</div></div>'
+                    + '<div class="col-md-12"><div class="text-muted small">Pickup -> Dropoff</div><div style="font-size: 0.8rem;">' + esc(a.pickup_name || '-') + ' -> ' + esc(a.dropoff_name || '-') + '</div></div>'
+                    + '<div class="col-md-2"><label class="form-label small mb-1">Adults</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-adults" data-section="attractions" data-index="' + idx + '" value="' + esc(ba) + '"></div>'
+                    + '<div class="col-md-2"><label class="form-label small mb-1">Children</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-children" data-section="attractions" data-index="' + idx + '" value="' + esc(bc) + '"></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Total Price</div><div>' + esc(money(attractionTotal(a))) + '</div></div>'
                     + '</div></div>';
             }).join('');
             bindSelectableCheckboxes(attractionsList, attractions, 'attractions');
@@ -597,8 +780,12 @@
                 return;
             }
             restaurantsList.innerHTML = restaurants.map((r, idx) => {
-                const mealBadges = r.meal_type_label ? formatBadge(r.meal_type_label, 'bg-info') : '';
-                const bp = getResolvedServiceBookingPax(r);
+                const meals = Array.isArray(r.selected_meals) ? r.selected_meals : [];
+                const mealBadges = meals.length
+                    ? meals.map(m => formatBadge(m, 'bg-info')).join(' ')
+                    : '<span class="text-muted small">No meals</span>';
+                const ba = getResolvedServiceBookingAdults(r);
+                const bc = getResolvedServiceBookingChildren(r);
                 const isSelectable = isOptional(r) || !!(r && r.addon === true);
                 const selectMode = isOptional(r) ? 'optional' : ((r && r.addon === true) ? 'addon' : '');
                 const optionalCheckbox = isSelectable
@@ -607,21 +794,18 @@
                         '<label class="form-check-label small mb-0">Select</label>' +
                       '</div>'
                     : '';
-                const hasTransfer = !!r.transfer;
-                const transferBlock = hasTransfer
-                    ? '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>Yes</div></div>'
-                      + '<div class="col-md-3"><div class="text-muted small">Pickup</div><div>' + esc(r.pickup_name || '-') + '</div></div>'
-                      + '<div class="col-md-3"><div class="text-muted small">Dropoff</div><div>' + esc(r.dropoff_name || '-') + '</div></div>'
-                    : '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>No</div></div>';
                 return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
                     + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
                     + esc(r.restaurant_name || r.name || 'Restaurant') + '</div>'
                     + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(r) + optionalCheckbox + '</div></div>'
                     + '<div class="row g-2">'
                     + '<div class="col-md-4"><div class="text-muted small">Meals</div><div>' + mealBadges + '</div></div>'
-                    + transferBlock
-                    + '<div class="col-md-2"><label class="form-label small mb-1">Pax</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-pax" data-section="restaurants" data-index="' + idx + '" value="' + esc(bp) + '"></div>'
-                    + '<div class="col-md-6"><div class="text-muted small">Total Price</div><div>' + esc(money(restaurantTotal(r))) + '</div></div>'
+                    + '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>' + esc(r.transfer ? 'Yes' : 'No') + '</div></div>'
+                    + '<div class="col-md-3"><div class="text-muted small">Pickup</div><div>' + esc(r.pickup_name || '-') + '</div></div>'
+                    + '<div class="col-md-3"><div class="text-muted small">Dropoff</div><div>' + esc(r.dropoff_name || '-') + '</div></div>'
+                    + '<div class="col-md-2"><label class="form-label small mb-1">Adults</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-adults" data-section="restaurants" data-index="' + idx + '" value="' + esc(ba) + '"></div>'
+                    + '<div class="col-md-2"><label class="form-label small mb-1">Children</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-children" data-section="restaurants" data-index="' + idx + '" value="' + esc(bc) + '"></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Total Price</div><div>' + esc(money(restaurantTotal(r))) + '</div></div>'
                     + '</div></div>';
             }).join('');
             bindSelectableCheckboxes(restaurantsList, restaurants, 'restaurants');
@@ -637,52 +821,12 @@
             const departureBadge = departureEnabled ? formatBadge('Enabled', 'bg-success') : formatBadge('Disabled', 'bg-secondary');
             const arrivalVehicles = Array.isArray(arrivalData.vehicles) ? arrivalData.vehicles : [];
             const departureVehicles = Array.isArray(departureData.vehicles) ? departureData.vehicles : [];
-
-            // Build per-vehicle rows with Qty + Pax inputs. Pax cap = seating_capacity.
-            // Price rule:
-            //   private -> unit_price * qty        (pax NOT multiplied)
-            //   shared  -> unit_price * qty * pax
-            const renderVehicleRows = (vehicles, sectionKey) => {
-                if (!vehicles.length) return '<div class="text-muted small">-</div>';
-                return vehicles.map((v, idx) => {
-                    const type = (v.selected_transfer_type || 'private').toLowerCase();
-                    const typeBadge = type === 'shared'
-                        ? formatBadge('Shared', 'bg-info')
-                        : formatBadge('Private', 'bg-primary');
-                    const seatCap = parseInt(v.seating_capacity, 10) || 0;
-                    const qty = getResolvedVehicleBookingQty(v);
-                    const pax = getResolvedVehicleBookingPax(v);
-                    const unit = getVehicleUnitPrice(v);
-                    const total = transferVehicleTotal(v);
-                    const paxMaxAttr = seatCap > 0 ? (' max="' + seatCap + '"') : '';
-                    const capacityNote = seatCap > 0
-                        ? 'Max ' + seatCap + ' pax / vehicle.'
-                        : '';
-                    const formulaNote = type === 'shared'
-                        ? 'Shared: unit × qty × pax.'
-                        : 'Private: unit × qty (pax not multiplied).';
-                    return '<div class="border rounded p-2 mb-2 bg-white" data-vehicle-card="' + sectionKey + '-' + idx + '">'
-                        + '<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">'
-                        + '<div><span class="fw-semibold">' + esc(v.vehicle_name || v.vehicle_id || 'Vehicle') + '</span>'
-                        + (v.vehicle_type ? ' <span class="text-muted small">(' + esc(v.vehicle_type) + ')</span>' : '')
-                        + ' ' + typeBadge
-                        + ' <span class="text-muted small ms-1">Unit: ' + esc(money(unit)) + '</span>'
-                        + '</div>'
-                        + '<div class="small"><strong>Total:</strong> <span class="vehicle-total-display">' + esc(money(total)) + '</span></div>'
-                        + '</div>'
-                        + '<div class="row g-2">'
-                        + '<div class="col-md-3"><label class="form-label small mb-1">Qty</label>'
-                        + '<input type="number" min="1" step="1" class="form-control form-control-sm ' + sectionKey + '-vehicle-qty" data-idx="' + idx + '" value="' + esc(qty) + '"></div>'
-                        + '<div class="col-md-3"><label class="form-label small mb-1">Pax</label>'
-                        + '<input type="number" min="0" step="1"' + paxMaxAttr + ' class="form-control form-control-sm ' + sectionKey + '-vehicle-pax" data-idx="' + idx + '" value="' + esc(pax) + '"></div>'
-                        + '<div class="col-md-6 small text-muted align-self-end">'
-                        + formulaNote
-                        + (capacityNote ? ' ' + capacityNote : '')
-                        + '</div>'
-                        + '</div>'
-                        + '</div>';
-                }).join('');
-            };
+            const arrPax = arrivalDepartureBookingPax(arrivalData);
+            const depPax = arrivalDepartureBookingPax(departureData);
+            const arrAd = getResolvedArrivalDepartureAdults(arrivalData);
+            const arrCh = getResolvedArrivalDepartureChildren(arrivalData);
+            const depAd = getResolvedArrivalDepartureAdults(departureData);
+            const depCh = getResolvedArrivalDepartureChildren(departureData);
 
             arrivalSummary.innerHTML = '<div class="border rounded p-3 mb-2">'
                 + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">Arrival</div>'
@@ -690,9 +834,14 @@
                 + '<div class="row g-2">'
                 + '<div class="col-6"><div class="text-muted small">Pickup Port</div><div>' + esc(arrivalData.pickup_port_name || arrivalData.pickup_port_id || '-') + '</div></div>'
                 + '<div class="col-6"><div class="text-muted small">Dropoff Hotel</div><div>' + esc(arrivalData.dropoff_hotel_name || arrivalData.dropoff_hotel_id || '-') + '</div></div>'
-                + '<div class="col-12"><div class="text-muted small mb-1">Vehicles</div>'
-                + renderVehicleRows(arrivalVehicles, 'arrival')
-                + '</div>'
+                + '<div class="col-12"><div class="text-muted small">Pax for this transfer</div><div class="row g-2 mt-1">'
+                + '<div class="col-md-2"><label class="form-label small mb-1">Adults</label><input type="number" min="0" step="1" class="form-control form-control-sm arrival-booking-adults" value="' + esc(arrAd) + '"></div>'
+                + '<div class="col-md-2"><label class="form-label small mb-1">Children</label><input type="number" min="0" step="1" class="form-control form-control-sm arrival-booking-children" value="' + esc(arrCh) + '"></div>'
+                + '<div class="col-md-8 small text-muted align-self-end">Pricing uses adults + children for this arrival (total pax: ' + esc(arrPax) + ').</div>'
+                + '</div></div>'
+                + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">'
+                + (arrivalVehicles.map(v => esc(v.vehicle_name || v.vehicle_id) + ' (Qty: ' + numVal(v.qty || 0) + ', Total: ' + money(transferVehicleTotal(v, arrPax)) + ')').join(', ') || '-')
+                + '</div></div>'
                 + '</div></div>';
 
             departureSummary.innerHTML = '<div class="border rounded p-3 mb-2">'
@@ -701,9 +850,14 @@
                 + '<div class="row g-2">'
                 + '<div class="col-6"><div class="text-muted small">Pickup Hotel</div><div>' + esc(departureData.pickup_hotel_name || departureData.pickup_hotel_id || '-') + '</div></div>'
                 + '<div class="col-6"><div class="text-muted small">Dropoff Port</div><div>' + esc(departureData.dropoff_port_name || departureData.dropoff_port_id || '-') + '</div></div>'
-                + '<div class="col-12"><div class="text-muted small mb-1">Vehicles</div>'
-                + renderVehicleRows(departureVehicles, 'departure')
-                + '</div>'
+                + '<div class="col-12"><div class="text-muted small">Pax for this transfer</div><div class="row g-2 mt-1">'
+                + '<div class="col-md-2"><label class="form-label small mb-1">Adults</label><input type="number" min="0" step="1" class="form-control form-control-sm departure-booking-adults" value="' + esc(depAd) + '"></div>'
+                + '<div class="col-md-2"><label class="form-label small mb-1">Children</label><input type="number" min="0" step="1" class="form-control form-control-sm departure-booking-children" value="' + esc(depCh) + '"></div>'
+                + '<div class="col-md-8 small text-muted align-self-end">Pricing uses adults + children for this departure (total pax: ' + esc(depPax) + ').</div>'
+                + '</div></div>'
+                + '<div class="col-12"><div class="text-muted small">Vehicles</div><div class="small">'
+                + (departureVehicles.map(v => esc(v.vehicle_name || v.vehicle_id) + ' (Qty: ' + numVal(v.qty || 0) + ', Total: ' + money(transferVehicleTotal(v, depPax)) + ')').join(', ') || '-')
+                + '</div></div>'
                 + '</div></div>';
         }
 
@@ -712,88 +866,67 @@
             return isNaN(n) ? 0 : n;
         }
 
-        /** Booking basics: pax count (from main form). */
-        function getPaxCount() {
-            const pax = parseInt(paxEl && paxEl.value ? paxEl.value : '0', 10);
-            const p = isNaN(pax) ? 0 : pax;
-            return Math.max(0, p);
+        /** Booking basics: adults (from main form). */
+        function getAdultCount() {
+            const adults = parseInt(adultsEl && adultsEl.value ? adultsEl.value : '0', 10);
+            const a = isNaN(adults) ? 0 : adults;
+            return Math.max(0, a);
+        }
+
+        /** Booking basics: children (from main form). */
+        function getChildCount() {
+            const children = parseInt(childrenEl && childrenEl.value ? childrenEl.value : '0', 10);
+            const c = isNaN(children) ? 0 : children;
+            return Math.max(0, c);
         }
 
         /**
-         * Hotel charging rule: pax rounded UP to the next even number.
-         * Examples: 2 -> 2, 3 -> 4, 4 -> 4, 5 -> 6, 6 -> 6, ...
-         * Rationale: one room fits 2 persons; a 3rd person needs another room,
-         * and that extra room is billed as two persons.
+         * Hotel pricing uses adults only (children do not consume room slots here).
+         * Non-hotel services use per-booking adults/children via getServiceBookingPax / arrivalDepartureBookingPax.
          */
-        function getEffectiveHotelPax() {
-            const pax = getPaxCount();
-            if (pax <= 0) return 0;
-            return pax % 2 === 0 ? pax : pax + 1;
+        function getTotalPax() {
+            return getAdultCount();
         }
 
-        /**
-         * Per-head price stored in the package definition.
-         * Prefers final_price / total_price (new field) and falls back to base_price for older data.
-         */
-        function getServicePerHeadPrice(item) {
-            if (!item) return 0;
-            if (item.final_price != null && item.final_price !== '' && !isNaN(parseFloat(item.final_price))) {
-                return parseFloat(item.final_price);
-            }
-            if (item.total_price != null && item.total_price !== '' && !isNaN(parseFloat(item.total_price))) {
-                return parseFloat(item.total_price);
-            }
-            return numVal(item.base_price);
-        }
-
-        function getResolvedServiceBookingPax(item) {
-            if (item && item.booking_pax != null && String(item.booking_pax).trim() !== '') {
-                const v = parseInt(item.booking_pax, 10);
+        function getResolvedServiceBookingAdults(item) {
+            if (item && item.booking_adults != null && String(item.booking_adults).trim() !== '') {
+                const v = parseInt(item.booking_adults, 10);
                 if (!isNaN(v) && v >= 0) return v;
             }
-            return getPaxCount();
+            return getAdultCount();
         }
 
-        /** Pax for this attraction/restaurant booking (per-service input, falls back to main pax). */
+        function getResolvedServiceBookingChildren(item) {
+            if (item && item.booking_children != null && String(item.booking_children).trim() !== '') {
+                const v = parseInt(item.booking_children, 10);
+                if (!isNaN(v) && v >= 0) return v;
+            }
+            return getChildCount();
+        }
+
+        /** Sum of adults + children for this attraction/restaurant booking (per-service inputs). */
         function getServiceBookingPax(item) {
-            return getResolvedServiceBookingPax(item);
+            return getResolvedServiceBookingAdults(item) + getResolvedServiceBookingChildren(item);
         }
 
-        /** Resolve a vehicle's booking qty (falls back to the qty stored at package definition time, then 1). */
-        function getResolvedVehicleBookingQty(vehicle) {
-            if (vehicle && vehicle.booking_qty != null && String(vehicle.booking_qty).trim() !== '') {
-                const v = parseInt(vehicle.booking_qty, 10);
-                if (!isNaN(v) && v > 0) return v;
+        function getResolvedArrivalDepartureAdults(data) {
+            if (data && data.booking_adults != null && String(data.booking_adults).trim() !== '') {
+                const v = parseInt(data.booking_adults, 10);
+                if (!isNaN(v) && v >= 0) return v;
             }
-            const q = parseInt(vehicle && vehicle.qty, 10);
-            return !isNaN(q) && q > 0 ? q : 1;
+            return getAdultCount();
         }
 
-        /**
-         * Resolve a vehicle's booking pax, capped at its seating_capacity.
-         * Falls back to the main Pax input when `booking_pax` hasn't been set yet.
-         */
-        function getResolvedVehicleBookingPax(vehicle) {
-            const seatCap = parseInt(vehicle && vehicle.seating_capacity, 10) || 0;
-            let pax;
-            if (vehicle && vehicle.booking_pax != null && String(vehicle.booking_pax).trim() !== '') {
-                pax = parseInt(vehicle.booking_pax, 10);
-                if (isNaN(pax) || pax < 0) pax = getPaxCount();
-            } else {
-                pax = getPaxCount();
+        function getResolvedArrivalDepartureChildren(data) {
+            if (data && data.booking_children != null && String(data.booking_children).trim() !== '') {
+                const v = parseInt(data.booking_children, 10);
+                if (!isNaN(v) && v >= 0) return v;
             }
-            if (seatCap > 0 && pax > seatCap) pax = seatCap;
-            if (pax < 0) pax = 0;
-            return pax;
+            return getChildCount();
         }
 
-        /** Per-vehicle unit price (prefers stored unit_price, else private/shared price by type). */
-        function getVehicleUnitPrice(vehicle) {
-            if (!vehicle) return 0;
-            const unit = numVal(vehicle.unit_price);
-            if (unit > 0) return unit;
-            const type = (vehicle.selected_transfer_type || 'private').toLowerCase();
-            return type === 'shared' ? numVal(vehicle.shared_price) : numVal(vehicle.private_price);
+        function arrivalDepartureBookingPax(data) {
+            return getResolvedArrivalDepartureAdults(data) + getResolvedArrivalDepartureChildren(data);
         }
 
         function money(v) {
@@ -831,6 +964,24 @@
                 cursor.setDate(cursor.getDate() + 1);
             }
             return dates;
+        }
+
+        function normalizeWeekendDays(weekendDaysRaw) {
+            if (Array.isArray(weekendDaysRaw)) {
+                return weekendDaysRaw.map(v => String(v || '').trim()).filter(Boolean);
+            }
+            if (typeof weekendDaysRaw === 'string') {
+                const trimmed = weekendDaysRaw.trim();
+                if (!trimmed) return [];
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) {
+                        return parsed.map(v => String(v || '').trim()).filter(Boolean);
+                    }
+                } catch (e) {}
+                return trimmed.split(',').map(v => v.trim()).filter(Boolean);
+            }
+            return [];
         }
 
         function getHotelDateKey(hotel, indexHint) {
@@ -872,10 +1023,42 @@
 
         function getHotelNightBreakdown(hotel, indexHint) {
             const selectedDates = ensureHotelDateSelection(hotel, indexHint);
+            const weekendDays = normalizeWeekendDays(hotel && hotel.weekend_days);
+            const weekendDaySet = new Set(weekendDays);
+            let weekendNights = 0;
+            let weekdayNights = 0;
+
+            selectedDates.forEach(dateStr => {
+                const dt = parseIsoDate(dateStr);
+                if (!dt) return;
+                const dayName = dayNames[dt.getDay()];
+                if (weekendDaySet.has(dayName)) weekendNights += 1;
+                else weekdayNights += 1;
+            });
+
             return {
                 nights: selectedDates.length,
+                weekend_nights: weekendNights,
+                weekday_nights: weekdayNights,
+                weekend_days: weekendDays,
                 selected_dates: selectedDates
             };
+        }
+
+        function getRoomNightRate(room, isWeekend) {
+            const weekday = numVal(room && room.weekday_price);
+            const weekend = numVal(room && room.weekend_price);
+            if (isWeekend) return weekend > 0 ? weekend : weekday;
+            return weekday > 0 ? weekday : weekend;
+        }
+
+        function minVal(list) {
+            if (!Array.isArray(list) || list.length === 0) return 0;
+            let m = list[0];
+            for (let i = 1; i < list.length; i++) {
+                if (list[i] < m) m = list[i];
+            }
+            return m;
         }
 
         function serviceStatus(item) {
@@ -885,77 +1068,103 @@
             return '-';
         }
 
-        /**
-         * Hotel line total = per-night per-head price × selected nights × effective hotel pax.
-         *
-         * The per-head price from the backend is defined for the hotel's default nights
-         * (hotel.nights). We derive a per-night per-head rate so that when the user deselects
-         * dates in the strip, the price scales down proportionally (and scales back up if they
-         * re-select nights, capped at maxAllowedNights = min(hotel.nights, travel range)).
-         *
-         * effective hotel pax = pax rounded UP to the next even number.
-         * Rationale: one room fits 2 persons; a 3rd person needs another room,
-         * and that extra room is billed as two persons.
-         */
         function hotelTotal(item, indexHint) {
             if (!item) return 0;
-            // Night breakdown also ensures the selected-dates side-effect is in sync.
+            const rooms = Array.isArray(item.rooms) ? item.rooms : [];
+            if (rooms.length === 0) return numVal(item.base_price);
+
+            // Expand by room.quantity.
+            // Then allocate:
+            // - first `single` slots => single occupancy (excluded from hotel total)
+            // - remaining slots => charged in hotel C/O pricing.
+            //
+            // Important: to match the "effective pax = total_pax - single_occupancy_rooms" rule,
+            // we cap the number of remaining slots we charge using global pax count.
+            const expandedRooms = [];
+            rooms.forEach(roomLine => {
+                const qty = Math.max(1, parseInt(roomLine && roomLine.quantity, 10) || 1);
+                for (let i = 0; i < qty; i++) expandedRooms.push(roomLine || {});
+            });
+
+            const occupancy = ensureHotelOccupancyDistribution(item);
+            const singleCount = Math.max(0, parseInt(occupancy.single, 10) || 0);
+            const clampedSingleCount = Math.min(singleCount, expandedRooms.length);
+            const effectivePax = Math.max(0, getTotalPax() - singleCount);
+            const remainingSlotsAvailable = Math.max(0, expandedRooms.length - clampedSingleCount);
+            const paxSlotsToCharge = Math.min(effectivePax, remainingSlotsAvailable);
+
             const breakdown = getHotelNightBreakdown(item, indexHint);
-            const perHead = getServicePerHeadPrice(item);
-            if (perHead <= 0) return 0;
-            const defaultNights = getDefaultHotelNights(item);
-            if (defaultNights <= 0) return 0;
-            const selectedNights = Math.max(0, breakdown.nights);
-            if (selectedNights <= 0) return 0;
-            const perNightPerHead = perHead / defaultNights;
-            return perNightPerHead * selectedNights * getEffectiveHotelPax();
+            let total = 0;
+            for (let i = clampedSingleCount; i < clampedSingleCount + paxSlotsToCharge; i++) {
+                const room = expandedRooms[i];
+                const weekdayRate = getRoomNightRate(room, false);
+                const weekendRate = getRoomNightRate(room, true);
+                total += (breakdown.weekday_nights * weekdayRate) + (breakdown.weekend_nights * weekendRate);
+            }
+            return total;
         }
 
-        /**
-         * Attraction line total = per-head price × booking pax.
-         * Prefers the final_price stored at definition time; falls back to base + guide + transfer
-         * so older package payloads without final_price still work.
-         */
+        function getHotelSingleOccupancyExtraTotal(hotel, indexHint) {
+            if (!hotel) return 0;
+            const rooms = Array.isArray(hotel.rooms) ? hotel.rooms : [];
+            if (rooms.length === 0) return 0;
+
+            const expandedRooms = [];
+            rooms.forEach(roomLine => {
+                const qty = Math.max(1, parseInt(roomLine && roomLine.quantity, 10) || 1);
+                for (let i = 0; i < qty; i++) expandedRooms.push(roomLine || {});
+            });
+
+            const occupancy = ensureHotelOccupancyDistribution(hotel);
+            const singleCount = Math.max(0, parseInt(occupancy.single, 10) || 0);
+            if (singleCount <= 0 || expandedRooms.length === 0) return 0;
+
+            const clampedSingleCount = Math.min(singleCount, expandedRooms.length);
+            const breakdown = getHotelNightBreakdown(hotel, indexHint);
+
+            // Single occupancy: exclude from hotelTotal, then add 2x (double price) here.
+            let total = 0;
+            for (let i = 0; i < clampedSingleCount; i++) {
+                const room = expandedRooms[i];
+                const weekdayRate = getRoomNightRate(room, false);
+                const weekendRate = getRoomNightRate(room, true);
+                const baseRoomTotal = (breakdown.weekday_nights * weekdayRate) + (breakdown.weekend_nights * weekendRate);
+                total += baseRoomTotal * 2;
+            }
+            return total;
+        }
+
         function attractionTotal(item) {
-            if (!item) return 0;
-            let perPax = getServicePerHeadPrice(item);
-            if (perPax <= 0) {
-                perPax = numVal(item.base_price)
-                    + numVal(item.guide ? item.guide.price : 0)
-                    + numVal(item.transfer_price);
-            }
+            const perPax = numVal(item && item.base_price)
+                + numVal(item && item.guide ? item.guide.price : 0)
+                + numVal(item && item.transfer_price);
             return perPax * getServiceBookingPax(item);
         }
 
-        /**
-         * Restaurant line total = per-head price × booking pax.
-         * Prefers the final_price stored at definition time; falls back to base + transfer for older data.
-         */
         function restaurantTotal(item) {
-            if (!item) return 0;
-            let perPax = getServicePerHeadPrice(item);
-            if (perPax <= 0) {
-                perPax = numVal(item.base_price) + numVal(item.transfer_price);
-            }
+            const perPax = numVal(item && item.base_price) + numVal(item && item.transfer_price);
             return perPax * getServiceBookingPax(item);
         }
 
-        /**
-         * Vehicle line total.
-         *   private -> unit_price * booking_qty                 (pax not multiplied)
-         *   shared  -> unit_price * booking_qty * booking_pax   (pax multiplied)
-         * booking_qty / booking_pax fall back to definition qty and main-form pax.
-         */
-        function transferVehicleTotal(vehicle) {
-            if (!vehicle) return 0;
-            const unit = getVehicleUnitPrice(vehicle);
-            if (unit <= 0) return 0;
-            const qty = getResolvedVehicleBookingQty(vehicle);
-            const type = (vehicle.selected_transfer_type || 'private').toLowerCase();
-            if (type === 'shared') {
-                return unit * qty * getResolvedVehicleBookingPax(vehicle);
-            }
-            return unit * qty;
+        function transferVehicleBaseTotal(vehicle) {
+            const selected = numVal(vehicle && vehicle.selected_price);
+            if (selected > 0) return selected;
+            return numVal(vehicle && vehicle.qty) * numVal(vehicle && vehicle.unit_price);
+        }
+
+        /** Vehicle line total × pax for this arrival/departure booking. */
+        function transferVehicleTotal(vehicle, paxForBooking) {
+            const pax = Math.max(0, numVal(paxForBooking));
+            return transferVehicleBaseTotal(vehicle) * pax;
+        }
+
+        function getHotelRoomUnitPrice(room) {
+            return numVal(room && (room.weekend_price != null ? room.weekend_price : room.weekday_price));
+        }
+
+        function getHotelRoomExtraBedPrice(room) {
+            const directPrice = room && (room.extra_bed_price != null ? room.extra_bed_price : room.extra_bed_rate);
+            return numVal(directPrice);
         }
 
         function buildSupplementaryData(tourStartDate) {
@@ -971,10 +1180,57 @@
                         base_price: total,
                         selected_price: total,
                         nights: breakdown.nights,
+                        weekday_nights: breakdown.weekday_nights,
+                        weekend_nights: breakdown.weekend_nights,
                         hotel_booking_dates: breakdown.selected_dates,
+                        weekend_days: normalizeWeekendDays(h.weekend_days),
                         tour_start_date: tourStartDate
                     };
                 });
+
+            const hotelSingleOccupancy = [];
+            (hotels || []).forEach((h, hotelIdx) => {
+                if (!h || !(h.compulsory === true || h.selected === true)) return;
+                const rooms = Array.isArray(h.rooms) ? h.rooms : [];
+                const singleCount = Math.max(0, parseInt(h.single_occupancy_rooms, 10) || 0);
+                if (singleCount <= 0 || rooms.length === 0) return;
+
+                const breakdown = getHotelNightBreakdown(h, hotelIdx);
+
+                const expandedRooms = [];
+                rooms.forEach(room => {
+                    const qty = Math.max(1, parseInt(room && room.quantity, 10) || 1);
+                    for (let i = 0; i < qty; i++) {
+                        expandedRooms.push(room || {});
+                    }
+                });
+
+                const roomLines = expandedRooms.slice(0, singleCount).map(room => {
+                    const weekdayRate = getRoomNightRate(room, false);
+                    const weekendRate = getRoomNightRate(room, true);
+                    const basePrice = (breakdown.weekday_nights * weekdayRate) + (breakdown.weekend_nights * weekendRate);
+                    const singlePrice = basePrice * 2; // Only double price for single rooms
+                    return {
+                        room_type: room.room_type_name || room.room_type || 'Room',
+                        bed_type: room.bed_type || 'N/A',
+                        base_price: basePrice,
+                        single_occupancy_price: singlePrice,
+                        extra_bed_type: room.extra_bed_type || '',
+                        extra_bed_price: room.extra_bed === true ? getHotelRoomExtraBedPrice(room) : 0
+                    };
+                });
+
+                hotelSingleOccupancy.push({
+                    hotel_id: h.hotel_id || h.id || null,
+                    hotel_name: h.hotel_name || h.name || 'Hotel',
+                    service_type: 'single_occupancy',
+                    single_occupancy_room_count: roomLines.length,
+                    rooms: roomLines,
+                    total_single_occupancy_price: roomLines.reduce((sum, line) => sum + numVal(line.single_occupancy_price), 0),
+                    total_extra_bed_price: roomLines.reduce((sum, line) => sum + numVal(line.extra_bed_price), 0),
+                    tour_start_date: tourStartDate
+                });
+            });
 
             const attractionAddons = (attractions || [])
                 .filter(a => a && a.addon === true && a.selected === true)
@@ -982,7 +1238,8 @@
                     attraction_id: a.attraction_id || a.id || null,
                     attraction_name: a.name || 'Attraction',
                     service_type: 'addon',
-                    booking_pax: getResolvedServiceBookingPax(a),
+                    booking_adults: getResolvedServiceBookingAdults(a),
+                    booking_children: getResolvedServiceBookingChildren(a),
                     pricing: {
                         base_price: numVal(a.base_price),
                         guide_price: numVal(a.guide && a.guide.price),
@@ -998,7 +1255,8 @@
                     restaurant_id: r.restaurant_id || r.id || null,
                     restaurant_name: r.restaurant_name || r.name || 'Restaurant',
                     service_type: 'addon',
-                    booking_pax: getResolvedServiceBookingPax(r),
+                    booking_adults: getResolvedServiceBookingAdults(r),
+                    booking_children: getResolvedServiceBookingChildren(r),
                     pricing: {
                         base_price: numVal(r.base_price),
                         transfer_price: numVal(r.transfer_price),
@@ -1010,7 +1268,7 @@
             return {
                 hotel: {
                     addons: hotelAddons,
-                    single_occupancy: []
+                    single_occupancy: hotelSingleOccupancy
                 },
                 attraction: {
                     addons: attractionAddons
@@ -1054,16 +1312,18 @@
                 addon: !!(r && r.addon === true),
             }));
 
+            const arrPaxSum = arrivalDepartureBookingPax(arrivalData);
+            const depPaxSum = arrivalDepartureBookingPax(departureData);
             const arrivalRows = Array.isArray(arrivalData && arrivalData.vehicles) ? arrivalData.vehicles.map(v => ({
                 name: 'Arrival - ' + (v.vehicle_name || v.vehicle_id || 'Vehicle'),
                 status: 'Compulsory',
-                total: transferVehicleTotal(v),
+                total: transferVehicleTotal(v, arrPaxSum),
                 selected: true,
             })) : [];
             const departureRows = Array.isArray(departureData && departureData.vehicles) ? departureData.vehicles.map(v => ({
                 name: 'Departure - ' + (v.vehicle_name || v.vehicle_id || 'Vehicle'),
                 status: 'Compulsory',
-                total: transferVehicleTotal(v),
+                total: transferVehicleTotal(v, depPaxSum),
                 selected: true,
             })) : [];
 
@@ -1073,6 +1333,14 @@
                 .concat(restaurantRows.map(r => ({ section: 'Restaurant', ...r })))
                 .concat(arrivalRows.map(r => ({ section: 'Arrival', ...r })))
                 .concat(departureRows.map(r => ({ section: 'Departure', ...r })));
+
+            const singleOccupancyExtraTotal = (hotels || []).reduce((sum, h, idx) => {
+                if (!h) return sum;
+                // Mirror buildSupplementaryData filter: compulsory OR selected
+                if (!(h.compulsory === true || h.selected === true)) return sum;
+                if ((h.single_occupancy_rooms || 0) <= 0) return sum;
+                return sum + getHotelSingleOccupancyExtraTotal(h, idx);
+            }, 0);
 
             const selectedHotelAddonsTotal = (hotels || []).reduce((sum, h, idx) => {
                 if (!h) return sum;
@@ -1103,53 +1371,23 @@
                 if (row.status === 'Compulsory') return sum + row.total;
                 if ((row.status === 'Optional' || row.status === 'Add-on') && row.selected === true) return sum + row.total;
                 return sum;
-            }, 0);
-
-            const markupType = String((selectedPackagePriceData && selectedPackagePriceData.markup_type) || 'flat').toLowerCase();
-            const markupAmount = parseFloat((selectedPackagePriceData && selectedPackagePriceData.markup_amount) || 0) || 0;
-            const totalPriceRounded = ceilToFive(grandTotal);
-            const finalPriceRaw = computeFinalPrice(grandTotal, markupType, markupAmount);
-            const finalPriceRounded = ceilToFive(finalPriceRaw);
-
-            lastPricingTotals = {
-                total_price: totalPriceRounded,
-                final_price: finalPriceRounded,
-                markup_type: markupType,
-                markup_amount: markupAmount
-            };
-
-            const priceDataInput = document.getElementById('price_data_input');
-            if (priceDataInput) {
-                priceDataInput.value = JSON.stringify({
-                    total_price: totalPriceRounded,
-                    final_price: finalPriceRounded,
-                    markup_type: markupType,
-                    markup_amount: markupAmount
-                });
-            }
+            }, 0) + singleOccupancyExtraTotal;
 
             if (allRows.length === 0) {
                 pricingSummary.innerHTML = '<div class="text-muted small">No pricing data available.</div>';
                 return;
             }
 
-            const markupLabel = markupAmount > 0
-                ? (markupType === 'percentage'
-                    ? ('Markup: ' + esc(markupAmount) + '%')
-                    : ('Markup: ' + esc(money(markupAmount)) + ' (flat)'))
-                : 'Markup: None';
-
             pricingSummary.innerHTML =
                 '<div class="row g-2 small">'
                 + '<div class="col-md-6"><div class="border rounded p-2"><strong>Hotel:</strong> C ' + esc(money(sectionTotals.Hotel.compulsory)) + ' / O ' + esc(money(sectionTotals.Hotel.optional)) + '</div></div>'
                 + '<div class="col-md-6"><div class="border rounded p-2"><strong>Hotel Add-ons (selected):</strong> ' + esc(money(selectedHotelAddonsTotal)) + '</div></div>'
+                + '<div class="col-md-6"><div class="border rounded p-2"><strong>Single Occupancy Extra:</strong> ' + esc(money(singleOccupancyExtraTotal)) + '</div></div>'
                 + '<div class="col-md-6"><div class="border rounded p-2"><strong>Attraction:</strong> C ' + esc(money(sectionTotals.Attraction.compulsory)) + ' / O ' + esc(money(sectionTotals.Attraction.optional)) + ' / A ' + esc(money(sectionTotals.Attraction.addon)) + '</div></div>'
                 + '<div class="col-md-6"><div class="border rounded p-2"><strong>Restaurant:</strong> C ' + esc(money(sectionTotals.Restaurant.compulsory)) + ' / O ' + esc(money(sectionTotals.Restaurant.optional)) + ' / A ' + esc(money(sectionTotals.Restaurant.addon)) + '</div></div>'
                 + '<div class="col-md-6"><div class="border rounded p-2"><strong>Arrival:</strong> C ' + esc(money(sectionTotals.Arrival.compulsory)) + ' / O ' + esc(money(sectionTotals.Arrival.optional)) + ' / A ' + esc(money(sectionTotals.Arrival.addon)) + '</div></div>'
                 + '<div class="col-md-6"><div class="border rounded p-2"><strong>Departure:</strong> C ' + esc(money(sectionTotals.Departure.compulsory)) + ' / O ' + esc(money(sectionTotals.Departure.optional)) + ' / A ' + esc(money(sectionTotals.Departure.addon)) + '</div></div>'
-                + '<div class="col-md-4"><div class="border rounded p-2 bg-light"><strong>Total Price:</strong> ' + esc(money(totalPriceRounded)) + '</div></div>'
-                + '<div class="col-md-4"><div class="border rounded p-2 bg-light"><strong>' + esc(markupLabel) + '</strong></div></div>'
-                + '<div class="col-md-4"><div class="border rounded p-2 bg-primary text-white"><strong>Final Price:</strong> ' + esc(money(finalPriceRounded)) + '</div></div>'
+                + '<div class="col-md-4"><div class="border rounded p-2 bg-light"><strong>Grand Total:</strong> ' + esc(money(grandTotal)) + '</div></div>'
                 + '</div>';
         }
 
@@ -1182,7 +1420,10 @@
                     return {
                         ...h,
                         nights: breakdown.nights,
+                        weekday_nights: breakdown.weekday_nights,
+                        weekend_nights: breakdown.weekend_nights,
                         hotel_booking_dates: breakdown.selected_dates,
+                        weekend_days: normalizeWeekendDays(h.weekend_days),
                         base_price: computedTotal,
                         tour_start_date: tourStartDate
                     };
@@ -1228,8 +1469,7 @@
             transfers = [];
             selectedPackageCity = '';
             selectedHotelDates = {};
-            selectedPackagePriceData = {};
-            lastPricingTotals = { total_price: 0, final_price: 0, markup_type: 'flat', markup_amount: 0 };
+            bedOptionsBySourceBedId = {};
             packageDetailsSection.style.display = 'none';
             createBookingBtn.disabled = true;
             selectedPackageIdInput.value = '';
@@ -1262,6 +1502,7 @@
                     selectedHotelDates[key] = h.hotel_booking_dates.slice();
                 }
             });
+            await ensureBedOptionsLoaded(hotels);
             attractions = initSectionSelections(Array.isArray(pkg.selected_attractions) ? pkg.selected_attractions : [], 'attractions');
             guides = initOptionalSelections(Array.isArray(pkg.selected_guides) ? pkg.selected_guides : []);
             restaurants = initSectionSelections(Array.isArray(pkg.selected_restaurants) ? pkg.selected_restaurants : [], 'restaurants');
@@ -1269,7 +1510,6 @@
             departureData = pkg.departure_data || {};
             transfers = initOptionalSelections(Array.isArray(pkg.transfer_data) ? pkg.transfer_data : []);
             selectedPackageCity = pkg.city || '';
-            selectedPackagePriceData = (pkg && pkg.price_data && typeof pkg.price_data === 'object') ? pkg.price_data : {};
 
             document.getElementById('arrivalEnabled').value = arrivalData && arrivalData.enabled ? '1' : '0';
             document.getElementById('arrivalPickupPortId').value = arrivalData && arrivalData.pickup_port_id ? arrivalData.pickup_port_id : '';
@@ -1308,7 +1548,7 @@
         }
 
         function allFilterInputsReady() {
-            return startDateEl.value && endDateEl.value && parseInt(paxEl.value || '0', 10) > 0;
+            return startDateEl.value && endDateEl.value && parseInt(adultsEl.value || '0', 10) > 0 && childrenEl.value !== '';
         }
 
         async function fetchFilteredPackages() {
@@ -1324,7 +1564,8 @@
             const params = new URLSearchParams({
                 travel_start_date: startDateEl.value,
                 travel_end_date: endDateEl.value,
-                pax_count: paxEl.value || '0'
+                adult_count: adultsEl.value || '0',
+                child_count: childrenEl.value || '0'
             });
 
             packageFilterMessage.textContent = 'Loading matching packages...';
@@ -1357,7 +1598,7 @@
         ['arrivalEnabled', 'arrivalPickupPortId', 'arrivalDropoffHotelId', 'departureEnabled', 'departurePickupHotelId', 'departureDropoffPortId']
             .forEach(id => document.getElementById(id).addEventListener('change', syncHidden));
 
-        [startDateEl, endDateEl, paxEl, document.getElementById('agent_id')].forEach(el => {
+        [startDateEl, endDateEl, adultsEl, childrenEl, document.getElementById('agent_id')].forEach(el => {
             el.addEventListener('change', fetchFilteredPackages);
         });
 
@@ -1380,58 +1621,25 @@
         (function bindArrivalDeparturePaxDelegation() {
             const section = document.getElementById('packageDetailsSection');
             if (!section) return;
-
-            // Map an input element to its owning vehicle object (if any) and the field to mutate.
-            // Returns null when the input is not a vehicle qty/pax field.
-            function resolveVehicleField(t) {
-                if (!t || !t.classList) return null;
-                const cls = t.classList;
-                let list = null;
-                let field = null;
-                if (cls.contains('arrival-vehicle-qty')) { list = arrivalData.vehicles; field = 'booking_qty'; }
-                else if (cls.contains('arrival-vehicle-pax')) { list = arrivalData.vehicles; field = 'booking_pax'; }
-                else if (cls.contains('departure-vehicle-qty')) { list = departureData.vehicles; field = 'booking_qty'; }
-                else if (cls.contains('departure-vehicle-pax')) { list = departureData.vehicles; field = 'booking_pax'; }
-                else return null;
-                if (!Array.isArray(list)) return null;
-                const idx = parseInt(t.getAttribute('data-idx') || '-1', 10);
-                if (isNaN(idx) || idx < 0 || !list[idx]) return null;
-                return { vehicle: list[idx], field };
-            }
-
-            // On `input`: update the data model live and refresh the pricing summary & hidden
-            // payloads, but DO NOT re-render the arrival/departure cards (that would steal focus).
-            // We update the "Total" display in place for the active vehicle card.
             section.addEventListener('input', function (e) {
-                const resolved = resolveVehicleField(e.target);
-                if (!resolved) return;
-                const { vehicle, field } = resolved;
-                const raw = parseInt(e.target.value || '0', 10);
-                if (field === 'booking_qty') {
-                    vehicle.booking_qty = !isNaN(raw) && raw > 0 ? raw : 1;
-                } else {
-                    let pax = !isNaN(raw) && raw >= 0 ? raw : 0;
-                    const cap = parseInt(vehicle.seating_capacity, 10) || 0;
-                    if (cap > 0 && pax > cap) pax = cap;
-                    vehicle.booking_pax = pax;
+                const t = e.target;
+                if (t.classList.contains('arrival-booking-adults')) {
+                    arrivalData.booking_adults = Math.max(0, parseInt(t.value || '0', 10) || 0);
+                    renderPricingSummary();
+                    syncHidden();
+                } else if (t.classList.contains('arrival-booking-children')) {
+                    arrivalData.booking_children = Math.max(0, parseInt(t.value || '0', 10) || 0);
+                    renderPricingSummary();
+                    syncHidden();
+                } else if (t.classList.contains('departure-booking-adults')) {
+                    departureData.booking_adults = Math.max(0, parseInt(t.value || '0', 10) || 0);
+                    renderPricingSummary();
+                    syncHidden();
+                } else if (t.classList.contains('departure-booking-children')) {
+                    departureData.booking_children = Math.max(0, parseInt(t.value || '0', 10) || 0);
+                    renderPricingSummary();
+                    syncHidden();
                 }
-                const card = e.target.closest('[data-vehicle-card]');
-                if (card) {
-                    const totalEl = card.querySelector('.vehicle-total-display');
-                    if (totalEl) totalEl.textContent = money(transferVehicleTotal(vehicle));
-                }
-                renderPricingSummary();
-                syncHidden();
-            });
-
-            // On `change` (blur): rebuild the arrival/departure cards so that any clamped value
-            // (e.g. pax capped to seating_capacity) is reflected back into the inputs.
-            section.addEventListener('change', function (e) {
-                const resolved = resolveVehicleField(e.target);
-                if (!resolved) return;
-                renderArrivalDeparture();
-                renderPricingSummary();
-                syncHidden();
             });
         })();
 
