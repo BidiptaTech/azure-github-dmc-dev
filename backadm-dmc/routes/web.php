@@ -605,6 +605,8 @@ Route::get('/clear', function () {
         Route::get('/packages/booking/details/{packageId}', [\App\Http\Controllers\PackageBookingController::class, 'packageDetails'])->name('packages.booking.details');
         Route::post('/packages/booking', [\App\Http\Controllers\PackageBookingController::class, 'store'])->name('packages.booking.store');
         Route::get('/package-booking/{booking_id}/details', [\App\Http\Controllers\PackageBookingController::class, 'showBookingDetails'])->name('package.booking.details');
+        Route::get('/package-booking/{booking_id}/edit', [\App\Http\Controllers\PackageBookingController::class, 'edit'])->name('package.booking.edit');
+        Route::post('/package-booking/{booking_id}/update', [\App\Http\Controllers\PackageBookingController::class, 'update'])->name('package.booking.update');
         Route::get('/packages/booking/bed-options', [\App\Http\Controllers\PackageBookingController::class, 'bedOptions'])->name('packages.booking.bed-options');
         Route::post('/package-booking/{booking_id}/update-service-date', [\App\Http\Controllers\PackageBookingController::class, 'updateServiceTourDate'])->name('package.booking.update-service-date');
         Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
