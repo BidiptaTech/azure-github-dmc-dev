@@ -736,6 +736,11 @@
                                         <a href="{{ route('package.booking.details', $booking->booking_id) }}" class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="View details">
                                             <i class="ri-eye-line"></i>
                                         </a>
+                                        @if(!in_array($booking->status, ['5', '6', '7']))
+                                            <a href="{{ route('package.booking.edit', $booking->booking_id) }}" class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Edit / add available add-ons">
+                                                <i class="ri-edit-2-line"></i>
+                                            </a>
+                                        @endif
                                         @if(in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 131, 132, 134, 135, 137, 138]) && !in_array($booking->status, ['5', '6', '7']))
                                             <a href="javascript:void(0);" class="action-icon-badge" style="--action-color: #16a34a;" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}" data-tooltip="Add Payment">
                                                 <i class="ri-add-line"></i>
