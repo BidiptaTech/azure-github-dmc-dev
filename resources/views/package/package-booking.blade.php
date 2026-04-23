@@ -151,6 +151,7 @@
             <input type="hidden" name="departure_data" id="departure_data_input">
             <input type="hidden" name="transfer_data" id="transfer_data_input">
             <input type="hidden" name="supplementary_data" id="supplementary_data_input">
+            <input type="hidden" name="available_addons" id="available_addons_input">
             <input type="hidden" name="price_data" id="price_data_input">
 
             <div class="d-flex justify-content-end gap-2 mt-4">
@@ -1216,6 +1217,22 @@
             document.getElementById('departure_data_input').value = JSON.stringify(departureData || {});
             document.getElementById('transfer_data_input').value = JSON.stringify(transfersPayload);
             document.getElementById('supplementary_data_input').value = JSON.stringify(buildSupplementaryData(tourStartDate));
+
+            // Track unselected add-ons (so they can be enabled during edit after booking).
+            // Stored in a separate column `available_addons` on package_bookings.
+            const isUnselectedAddon = (item) => !!(item && item.addon === true && item.selected !== true);
+            const availableAddonsPayload = {
+                hotels: (hotels || [])
+                    .filter(isUnselectedAddon)
+                    .map(h => ({ ...h, selected: false, tour_start_date: tourStartDate })),
+                attractions: (attractions || [])
+                    .filter(isUnselectedAddon)
+                    .map(a => ({ ...a, selected: false, tour_start_date: tourStartDate })),
+                restaurants: (restaurants || [])
+                    .filter(isUnselectedAddon)
+                    .map(r => ({ ...r, selected: false, tour_start_date: tourStartDate })),
+            };
+            document.getElementById('available_addons_input').value = JSON.stringify(availableAddonsPayload);
         }
 
         function resetPackageDetailsUI() {
