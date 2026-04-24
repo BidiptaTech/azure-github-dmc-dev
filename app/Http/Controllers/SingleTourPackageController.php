@@ -1241,7 +1241,8 @@ class SingleTourPackageController extends Controller
             'tourDays',
             'cities',
             'UserDmc',
-            'multiRestaurants'
+            'multiRestaurants',
+            'agencies'
         ));
     }
 

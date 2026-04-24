@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Zone extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * The primary key for the model.
@@ -45,6 +46,8 @@ class Zone extends Model
         'status',
         'zone_id',
         'dmc_id',
+        'created_by',
+        'deleted_at',
     ];
 
     public function cities()

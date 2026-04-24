@@ -13,9 +13,32 @@ use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 
 class ZoneController extends Controller
 {
+    /**
+     * Remove a single {dmc_id, zone_id} assignment from a model's zone_assignments array.
+     */
+    private function removeZoneAssignmentForDmc($model, int $dmcId, $zoneId): void
+    {
+        $assignments = $model->zone_assignments ?? [];
+        $zoneIdStr = (string) $zoneId;
+
+        $assignments = array_values(array_filter($assignments, function ($assignment) use ($dmcId, $zoneIdStr) {
+            if (!is_array($assignment)) {
+                return true;
+            }
+            $aDmc = isset($assignment['dmc_id']) ? (int) $assignment['dmc_id'] : null;
+            $aZone = isset($assignment['zone_id']) ? (string) $assignment['zone_id'] : '';
+            // Keep everything that is NOT the exact pair {dmc_id, zone_id}
+            return !($aDmc === $dmcId && $aZone === $zoneIdStr);
+        }));
+
+        $model->zone_assignments = $assignments;
+        $model->save();
+    }
+
     /**
      * Resolve the DMC ID for the given user based on role hierarchy
      * This mirrors the conditions used in index() for filtering zones.
@@ -46,6 +69,23 @@ class ZoneController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * City name from the DMC profile used to scope zone lists (e.g. Singapore DMC only sees Singapore zones).
+     * Uses the resolved parent DMC when the current user is team/staff; otherwise the logged-in user's city.
+     */
+    private function dmcHomeCityName(User $user): ?string
+    {
+        $dmcId = $this->resolveDmcIdForUser($user);
+        if ($dmcId) {
+            $dmcUser = User::where('userId', $dmcId)->first();
+            $name = $dmcUser->city ?? null;
+        } else {
+            $name = $user->city ?? null;
+        }
+        $name = is_string($name) ? trim($name) : '';
+        return $name !== '' ? $name : null;
     }
 
     /**
@@ -99,53 +139,96 @@ class ZoneController extends Controller
     /**
      * Display a listing of zones.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
-        if ($user->role_id == 4) {
-            $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
-            $zones = Zone::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
-        } elseif ($user->role_id == 3) {
-            $zones = Zone::orderBy('updated_at', 'desc')->get();
-        } elseif (in_array($user->role_id, [1, 2, 23])) {
-            $zones = Zone::orderBy('updated_at', 'desc')->get();
-        }
-        elseif ($user->role_id == 10) {
-            $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $zones = Zone::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
-        }
-         elseif ($user->role_id == 11 || $user->role_id == 20) {
-            $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
-        }
-        elseif(in_array($user->role_id, [25, 62, 110])){
-            if($user->role_id == 25){
-                $master_dmc_id = $user->created_by;
+
+        // Build the base query first (so we can apply filters/sorting consistently).
+        $zonesQuery = Zone::query();
+
+        // Admin (userId == 1) sees ONLY admin-created master zones.
+        // Everyone else keeps legacy role-based zone filtering.
+        if ((int) ($user->userId ?? 0) === 1) {
+            $zonesQuery->whereNull('dmc_id');
+            if (Schema::hasColumn('zones', 'created_by')) {
+                $zonesQuery->where('created_by', 1);
             }
-            elseif($user->role_id == 62){
-                $product_head = User::where('userId', $user->created_by)->first();
-                $master_dmc_id = $product_head->created_by;
+        } else {
+            // For all non-admin users:
+            // show Master Zones (admin-created global zones) + the user's legacy DMC zones.
+            $zonesQuery->where(function ($q) use ($user) {
+                // Master zones always visible
+                $q->whereNull('dmc_id')->orWhere('dmc_id', 0)->orWhere('dmc_id', '0');
+
+                // Legacy DMC zones (keep existing behavior)
+                if ($user->role_id == 4) {
+                    $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
+                    $q->orWhereIn('dmc_id', $dmc_ids);
+                } elseif ($user->role_id == 10) {
+                    $dmc_ids = User::where('master_dmc_id', $user->userId)->pluck('userId')->toArray();
+                    $q->orWhereIn('dmc_id', $dmc_ids);
+                } elseif ($user->role_id == 11 || $user->role_id == 20) {
+                    $q->orWhere('dmc_id', $user->userId);
+                } elseif (in_array($user->role_id, [25, 62, 110], true)) {
+                    if($user->role_id == 25){
+                        $master_dmc_id = $user->created_by;
+                    }
+                    elseif($user->role_id == 62){
+                        $product_head = User::where('userId', $user->created_by)->first();
+                        $master_dmc_id = $product_head->created_by;
+                    }
+                    else { // 110
+                        $product_manager = User::where('userId', $user->created_by)->first();
+                        $product_head = User::where('userId', $product_manager->created_by)->first();
+                        $master_dmc_id = $product_head->created_by;
+                    }
+
+                    $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->pluck('userId')->toArray();
+                    $q->orWhereIn('dmc_id', $dmc_ids);
+                } elseif (in_array($user->role_id, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
+                    $q->orWhere('dmc_id', $user->created_by);
+                } elseif ($user->role_id == 76 || $user->role_id == 139) {
+                    $product_head = User::where('userId', $user->created_by)->first();
+                    $q->orWhere('dmc_id', $product_head->created_by);
+                } elseif ($user->role_id == 111 || $user->role_id == 140) {
+                    $product_manager = User::where('userId', $user->created_by)->first();
+                    $product_head = User::where('userId', $product_manager->created_by)->first();
+                    $q->orWhere('dmc_id', $product_head->created_by);
+                }
+            });
+        }
+
+        // Non-admin: only list zones in the DMC's home city (zone.city is city_id; user.city is city name).
+        if ((int) ($user->userId ?? 0) !== 1) {
+            $homeCityName = $this->dmcHomeCityName($user);
+            if ($homeCityName !== null) {
+                $cityIds = City::query()
+                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($homeCityName, 'UTF-8')])
+                    ->pluck('city_id');
+                if ($cityIds->isNotEmpty()) {
+                    $zonesQuery->whereIn('city', $cityIds);
+                } else {
+                    // Profile city set but not found in cities master — do not show other regions' zones.
+                    $zonesQuery->whereRaw('0 = 1');
+                }
             }
-            elseif($user->role_id == 110){
-                $product_manager = User::where('userId', $user->created_by)->first();
-                $product_head = User::where('userId', $product_manager->created_by)->first();
-                $master_dmc_id = $product_head->created_by;
-            }
-            
-            $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $zones = Zone::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
-        } 
-        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
-        elseif($user->role_id == 76 || $user->role_id == 139){
-            $product_head = User::where('userId', $user->created_by)->first();
-            $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
+
+        // Optional filter by zone type (used by UI tabs: Hotel/Restaurant/Attraction/All).
+        $zoneType = trim((string) $request->query('zone_type', ''));
+        $allowedTypes = ['Hotel', 'Restaurant', 'Attraction'];
+        if ($zoneType !== '' && in_array($zoneType, $allowedTypes, true)) {
+            $zonesQuery->where('zone_type', $zoneType);
         }
-        elseif($user->role_id == 111 || $user->role_id == 140){
-            $product_manager = User::where('userId', $user->created_by)->first();
-            $product_head = User::where('userId', $product_manager->created_by)->first();
-            $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
+
+        // Optional sorting (preserved in UI when switching sort).
+        $sort = (string) $request->query('sort', 'updated_at');
+        $direction = strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSorts = ['zone_name', 'zone_type', 'status', 'updated_at'];
+        if (!in_array($sort, $allowedSorts, true)) {
+            $sort = 'updated_at';
         }
+        $zones = $zonesQuery->orderBy($sort, $direction)->get();
 
         $hotels = Hotel::all();
         $attractions = Attraction::all();
@@ -165,7 +248,11 @@ class ZoneController extends Controller
      */
     public function create()
     {
-        $city = City::where('country', Auth::user()->country)->get();
+        if ((int) (Auth::user()->userId ?? 0) === 1) {
+            $city = City::orderBy('name')->get();
+        } else {
+            $city = City::where('country', Auth::user()->country)->orderBy('name')->get();
+        }
         return view('zones.create', compact('city'));
     }
     
@@ -199,13 +286,21 @@ class ZoneController extends Controller
         if (!isset($data['zone_id'])) {
             $data['zone_id'] = $zoneId;
         }
-        // Determine DMC ID using the same conditions as index()
-        $data['dmc_id'] = $this->resolveDmcIdForUser(Auth::user());
-        
-        if(!$data['dmc_id']){
-            return redirect()->back()
-            ->withErrors(['dmc_id' => 'DMC ID not found'])
-            ->withInput();
+        // If admin (userId == 1) creates the zone, store it as a master zone.
+        if ((int) (Auth::user()->userId ?? 0) === 1) {
+            $data['dmc_id'] = null;
+            if (Schema::hasColumn('zones', 'created_by')) {
+                $data['created_by'] = Auth::user()->userId; // = 1
+            }
+        } else {
+            // Determine DMC ID using the same conditions as index()
+            $data['dmc_id'] = $this->resolveDmcIdForUser(Auth::user());
+            
+            if(!$data['dmc_id']){
+                return redirect()->back()
+                ->withErrors(['dmc_id' => 'DMC ID not found'])
+                ->withInput();
+            }
         }
         
         $zone = Zone::create($data);
@@ -232,7 +327,11 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
-        $city = City::where('country', Auth::user()->country)->get();
+        if ((int) (Auth::user()->userId ?? 0) === 1) {
+            $city = City::orderBy('name')->get();
+        } else {
+            $city = City::where('country', Auth::user()->country)->orderBy('name')->get();
+        }
         return view('zones.edit', compact('zone', 'city'));
     }
 
@@ -280,25 +379,62 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
-        
-        // Remove zone assignments from associated hotels, attractions, and restaurants
-        if ($zone->zone_type == 'Hotel') {
-            $hotels = Hotel::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
-            foreach ($hotels as $hotel) {
-                $hotel->removeZoneAssignment($zoneId);
-            }
-        } elseif ($zone->zone_type == 'Attraction') {
-            $attractions = Attraction::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
-            foreach ($attractions as $attraction) {
-                $attraction->removeZoneAssignment($zoneId);
-            }
-        } elseif ($zone->zone_type == 'Restaurant') {
-            $restaurants = Restaurant::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
-            foreach ($restaurants as $restaurant) {
-                $restaurant->removeZoneAssignment($zoneId);
+        if (!$zone) {
+            return redirect()->route('zones.index')
+                ->with('success', 'Zone deleted successfully');
+        }
+
+        // Remove assignments for the DMC performing the delete (this is what user expects).
+        // Do NOT rely on $zone->dmc_id because it can be stored as JSON/array and cast to 0.
+        $currentDmcId = (int) ($this->resolveDmcIdForUser(Auth::user()) ?? 0);
+        if (!$currentDmcId) {
+            // Fallback: attempt to parse zone dmc_id if present
+            $zd = $zone->dmc_id ?? null;
+            if (is_array($zd)) {
+                $currentDmcId = (int) ($zd[0] ?? 0);
+            } elseif (is_string($zd)) {
+                $decoded = json_decode($zd, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $currentDmcId = (int) ($decoded[0] ?? 0);
+                } elseif (is_numeric($zd)) {
+                    $currentDmcId = (int) $zd;
+                }
+            } elseif (is_numeric($zd)) {
+                $currentDmcId = (int) $zd;
             }
         }
         
+        // Remove zone assignments from associated hotels, attractions, and restaurants
+        // NOTE:
+        // In some DB rows zone_assignments JSON can have mixed string/integer types
+        // causing whereJsonContains matches to fail. Use model helpers instead.
+        if ($currentDmcId && $zone->zone_type == 'Hotel') {
+            $hotels = Hotel::whereNotNull('zone_assignments')->get();
+            foreach ($hotels as $hotel) {
+                $assignedZone = $hotel->getZoneForDmc($currentDmcId);
+                if ((string) ($assignedZone ?? '') === (string) $zoneId) {
+                    $hotel->setZoneForDmc($currentDmcId, null);
+                }
+            }
+        } elseif ($currentDmcId && $zone->zone_type == 'Attraction') {
+            $attractions = Attraction::whereNotNull('zone_assignments')->get();
+            foreach ($attractions as $attraction) {
+                $assignedZone = $attraction->getZoneForDmc($currentDmcId);
+                if ((string) ($assignedZone ?? '') === (string) $zoneId) {
+                    $attraction->setZoneForDmc($currentDmcId, null);
+                }
+            }
+        } elseif ($currentDmcId && $zone->zone_type == 'Restaurant') {
+            $restaurants = Restaurant::whereNotNull('zone_assignments')->get();
+            foreach ($restaurants as $restaurant) {
+                $assignedZone = $restaurant->getZoneForDmc($currentDmcId);
+                if ((string) ($assignedZone ?? '') === (string) $zoneId) {
+                    $restaurant->setZoneForDmc($currentDmcId, null);
+                }
+            }
+        }
+        
+        // Soft delete the zone (uses deleted_at column)
         $zone->delete();
 
         return redirect()->route('zones.index')

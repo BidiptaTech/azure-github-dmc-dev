@@ -8,6 +8,8 @@
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<!-- Date Range Picker CSS (Travel Dates) -->
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <style>
     #toast-container { z-index: 999999 !important; }
     #toast-container.toast-top-right { top: 70px; right: 12px; }
@@ -23,6 +25,55 @@
     #toast-container .toast-error { background-color: #dc3545 !important; background-image: none !important; }
     #toast-container .toast-info { background-color: #17a2b8 !important; background-image: none !important; }
     #toast-container .toast-warning { background-color: #ffc107 !important; color: #212529 !important; background-image: none !important; }
+
+    /* Select2 (bootstrap-5 theme) - make multi-city picker match modern inputs */
+    #multiCityControls .select2-container--bootstrap-5 .select2-selection {
+        border-radius: 8px !important;
+        border: 1px solid #dee2e6 !important;
+        min-height: 40px !important;
+        box-shadow: none !important;
+        font-size: 0.9rem;
+        background: #fff;
+    }
+    /* Compact header spacing */
+    .tour-header-compact .form-label { margin-bottom: 0.35rem !important; }
+    .tour-header-compact .form-control,
+    .tour-header-compact .form-select,
+    .tour-header-compact .select2-container--bootstrap-5 .select2-selection {
+        height: 40px;
+    }
+
+    /* Make City fields a bit taller (single + multi master) */
+    #agencyAgentCityRow #singleCityField .form-select,
+    #agencyAgentCityRow #multiCityMasterField .form-select {
+        height: 46px !important;
+    }
+    #agencyAgentCityRow #multiCityMasterField .select2-container--bootstrap-5 .select2-selection {
+        min-height: 46px !important;
+        height: auto !important; /* allow multi-select chips */
+    }
+    #agencyAgentCityRow #multiCityMasterField .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+        padding-top: 0.35rem !important;
+        padding-bottom: 0.35rem !important;
+    }
+    #multiCityControls .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+        padding: 0.25rem 0.5rem !important;
+    }
+    #multiCityControls .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+        border-radius: 6px;
+        border: 1px solid #cfd6ff;
+        background: #eef2ff;
+        color: #2f3a8f;
+        margin-top: 0.2rem;
+    }
+    #multiCityControls .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+        color: #2f3a8f;
+    }
+    #multiCityControls .select2-container--bootstrap-5 .select2-selection:focus,
+    #multiCityControls .select2-container--bootstrap-5.select2-container--focus .select2-selection {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 0.15rem rgba(102, 126, 234, 0.15) !important;
+    }
 </style>
 @section('content')
     @php
@@ -421,6 +472,11 @@
             white-space: nowrap;
         }
 
+        .tour-toggle input:disabled + label {
+            cursor: not-allowed;
+            opacity: 0.75;
+        }
+
         .tour-toggle .slider {
             position: absolute;
             top: 4px;
@@ -473,6 +529,11 @@
             white-space: nowrap;
         }
 
+        .city-toggle input:disabled + label {
+            cursor: not-allowed;
+            opacity: 0.75;
+        }
+
         .city-toggle .slider {
             position: absolute;
             top: 4px;
@@ -502,6 +563,92 @@
             border-radius: 10px;
         }
 
+        /* Segment row: make it cleaner + consistent */
+        #segmentsWrapper .segment {
+            background: #fff;
+            border: 1px solid #e9ecef !important;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.06) !important;
+            overflow: hidden;
+        }
+        #segmentsWrapper .segment:hover {
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10) !important;
+            transform: translateY(-1px);
+            transition: box-shadow 180ms ease, transform 180ms ease;
+        }
+        #segmentsWrapper .segment .segment-topbar {
+            border-left: 4px solid rgba(102, 126, 234, 0.9);
+            background: linear-gradient(180deg, rgba(102, 126, 234, 0.06), rgba(118, 75, 162, 0.02));
+        }
+        #segmentsWrapper .segment .segment-field-label {
+            font-size: 0.72rem;
+            color: #6c757d;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+        #segmentsWrapper .segment .segment-control {
+            height: 40px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+            font-size: 0.85rem;
+            background: #fff;
+        }
+        /* Segment City uses Select2; force same visual size as date inputs */
+        #segmentsWrapper .segment .select2-container--bootstrap-5 .select2-selection {
+            height: 40px !important;
+            min-height: 40px !important;
+            border-radius: 10px !important;
+            border: 1px solid #dee2e6 !important;
+            font-size: 0.85rem !important;
+            padding: 0 10px !important; /* horizontal only */
+            display: flex !important;
+            align-items: center !important;
+            background: #fff !important;
+            box-sizing: border-box !important;
+        }
+        #segmentsWrapper .segment .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            padding: 0 !important;
+            height: 40px !important;
+            display: flex !important;
+            align-items: center !important;
+            line-height: 40px !important;
+        }
+        #segmentsWrapper .segment .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+            height: 40px !important;
+        }
+        /* Hide Select2 clear "x" so City matches date fields */
+        #segmentsWrapper .segment .select2-container--bootstrap-5 .select2-selection__clear {
+            display: none !important;
+        }
+        #segmentsWrapper .segment .segment-actions .btn {
+            height: 40px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            padding: 0 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        #segmentsWrapper .segment .segment-actions .btn i {
+            font-size: 1rem;
+            line-height: 1;
+        }
+        #segmentsWrapper .segment .segment-actions .btn.btn-success,
+        #segmentsWrapper .segment .segment-actions .btn.btn-outline-success {
+            box-shadow: 0 2px 10px rgba(40, 167, 69, 0.14);
+        }
+        #segmentsWrapper .segment .segment-actions .btn.btn-danger,
+        #segmentsWrapper .segment .segment-actions .btn.btn-outline-danger {
+            box-shadow: 0 2px 10px rgba(220, 53, 69, 0.10);
+        }
+        @media (max-width: 576px) {
+            #segmentsWrapper .segment .segment-actions .btn {
+                width: 100%;
+            }
+        }
+
         #segmentsWrapper .segment .segment-header > div {
             border-radius: 10px;
         }
@@ -518,14 +665,74 @@
             background: #f8f9fa;
         }
 
-        /* Add 20px left/right margin to service grids (hotel/arrival/attraction/guide/restaurant/transport) */
+        /* Keep accordions full-width (match Hotel + Arrival headers) */
         .excel-form #servicesAccordion,
         .excel-form .day-services,
         .excel-form .service-section,
         .excel-form #customerAccordion,
         .excel-form #additionalGuestsAccordion {
-            margin-left: 20px;
-            margin-right: 20px;
+            margin-left: 0;
+            margin-right: 0;
+        }
+
+        /* Multi-city action row polish (Add City Plan + Update button) */
+        #multiCityControls .multi-city-actions {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        #multiCityControls .multi-city-actions .mc-left {
+            /* spacer for true centering */
+        }
+        #multiCityControls .multi-city-actions .mc-center {
+            justify-self: center;
+        }
+        #multiCityControls .multi-city-actions .mc-right {
+            justify-self: end;
+        }
+        #multiCityControls .multi-city-actions .btn {
+            height: 36px;
+            border-radius: 10px;
+            padding: 0 14px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            line-height: 1;
+        }
+        #multiCityControls .multi-city-actions #tourInfoActions {
+            border-top: none !important;
+            padding-top: 0 !important;
+            margin-top: 0 !important;
+            gap: 10px !important;
+        }
+        #multiCityControls .multi-city-actions #tourInfoActions .modern-update-btn {
+            height: 36px !important;
+            padding: 0 14px !important;
+            border-radius: 10px !important;
+            font-size: 0.82rem !important;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.25) !important;
+        }
+        #multiCityControls .multi-city-actions #tourInfoActions #tour_info_feedback {
+            margin-right: 4px;
+        }
+        @media (max-width: 576px) {
+            #multiCityControls .multi-city-actions {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            #multiCityControls .multi-city-actions > * {
+                flex: 1 1 100%;
+            }
+            #multiCityControls .multi-city-actions .btn,
+            #multiCityControls .multi-city-actions #tourInfoActions .modern-update-btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
 
         /* Toggle Label Styling */
@@ -851,7 +1058,12 @@
         @endif
 
 
-        <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}" data-update-info-url="{{ isset($tour) ? route('single-tour-package.update-info', $tour->tour_id) : '' }}" data-update-guests-url="{{ isset($tour) ? route('single-tour-package.update-guests', $tour->tour_id) : '' }}">
+        <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}"
+              data-update-info-url="{{ isset($tour) ? route('single-tour-package.update-info', $tour->tour_id) : '' }}"
+              data-update-city-url="{{ isset($tour) ? route('single-tour-package.update-city-plans', $tour->tour_id) : '' }}"
+              data-remove-city-url="{{ isset($tour) ? route('single-tour-package.remove-city-plan', $tour->tour_id) : '' }}"
+              data-clear-services-url="{{ isset($tour) ? route('single-tour-package.clear-services', $tour->tour_id) : '' }}"
+              data-update-guests-url="{{ isset($tour) ? route('single-tour-package.update-guests', $tour->tour_id) : '' }}">
             @csrf
             
             <!-- Tour Configuration (no accordion) -->
@@ -864,7 +1076,10 @@
                                     <i class="ri-settings-3-line" style="font-size: 1.1rem; color: #ffffff;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold" style="font-size: 1rem; letter-spacing: -0.01em; color: #ffffff;">Tour Configuration</h6>
+                                    <h6 class="mb-0 fw-bold" style="font-size: 1rem; letter-spacing: -0.01em; color: #ffffff;">
+                                        Tour Configuration
+                                        <span class="ms-1" style="font-weight: 800; color: #ffffff;">({{ $tour->display_id ?? 'N/A' }})</span>
+                                    </h6>
                                     <small style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">Update tour type and package details</small>
                                 </div>
                             </div>
@@ -872,25 +1087,29 @@
                             <div class="d-flex align-items-center ms-3">
                                 <div class="tour-type-wrapper" style="min-width: 220px;">
                                     <div class="tour-toggle">
-                                        <input type="radio" name="tour_type" id="fit" value="FIT" {{ (old('tour_type', $tour->tour_type ?? 'FIT') === 'FIT') ? 'checked' : '' }}>
+                                        <input type="radio" name="tour_type" id="fit" value="FIT" {{ (old('tour_type', $tour->tour_type ?? 'FIT') === 'FIT') ? 'checked' : '' }} disabled>
                                         <label for="fit">FIT</label>
 
-                                        <input type="radio" name="tour_type" id="group" value="GROUP" {{ (old('tour_type', $tour->tour_type ?? 'FIT') === 'GROUP') ? 'checked' : '' }}>
+                                        <input type="radio" name="tour_type" id="group" value="GROUP" {{ (old('tour_type', $tour->tour_type ?? 'FIT') === 'GROUP') ? 'checked' : '' }} disabled>
                                         <label for="group">GROUP</label>
 
                                         <span class="slider"></span>
                                     </div>
+                                    {{-- Disabled radios don't submit; keep current tour_type --}}
+                                    <input type="hidden" name="tour_type" value="{{ old('tour_type', $tour->tour_type ?? 'FIT') }}">
                                 </div>
                                 <div class="ms-3" style="min-width: 240px;">
                                     <div class="city-toggle">
-                                        <input type="radio" name="city_type" id="city_mode_single" value="single" {{ (old('city_type', $tour->city_type ?? 'single') === 'single') ? 'checked' : '' }}>
+                                        <input type="radio" name="city_type" id="city_mode_single" value="single" {{ (old('city_type', $tour->city_type ?? 'single') === 'single') ? 'checked' : '' }} disabled>
                                         <label for="city_mode_single">Single City</label>
 
-                                        <input type="radio" name="city_type" id="city_mode_multi" value="multi" {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'checked' : '' }}>
+                                        <input type="radio" name="city_type" id="city_mode_multi" value="multi" {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'checked' : '' }} disabled>
                                         <label for="city_mode_multi">Multi City</label>
 
                                         <span class="slider"></span>
                                     </div>
+                                    {{-- Disabled radios don't submit; keep current city_type --}}
+                                    <input type="hidden" name="city_type" value="{{ old('city_type', $tour->city_type ?? 'single') }}">
                                 </div>
                             </div>
                         </div>
@@ -909,68 +1128,62 @@
                                     return trim($c);
                                 }, $tourCities);
                                 $tourSingleCityNormalized = !empty($tourCitiesNormalized) ? $tourCitiesNormalized[0] : '';
+
+                                // Tour table may not store agency_id; derive from selected agent where possible.
+                                $selectedAgencyId = old('agency_id')
+                                    ?? ($tour->agency_id ?? null)
+                                    ?? (isset($agents) ? optional($agents->firstWhere('agent_id', $tour->agent_id ?? null))->agency_id : null);
                             @endphp
 
-                            <!-- Reference Number - top single section -->
-                            <div class="row g-3 mb-2">
-                                <div class="col-md-6">
+                            <div class="row g-2 align-items-start tour-header-compact">
+                                <!-- Reference Number -->
+                                <div class="col-md-4">
                                     <label for="reference_number" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-hashtag me-1" style="color: #667eea;"></i>Reference Number
                                     </label>
                                     <input type="text" name="reference_number" id="reference_number" class="form-control modern-input" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number', $tour->reference_id ?? '') }}" readonly>
                                 </div>
-                                <div class="col-md-6"></div>
-                            </div>
 
-                            <div class="row g-3">
-                                <!-- Tour ID -->
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-hashtag me-1" style="color: #667eea;"></i>Tour ID
-                                    </label>
-                                    <input type="text" class="form-control modern-input" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
-                                    <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
-                                    
-                                    <!-- DMC Information -->
-                                    <input type="hidden" id="dmc_id" name="dmc_id" value="{{ $finalDmcId }}">
-                                    <input type="hidden" id="current_user_id" name="current_user_id" value="{{ $currentUserId }}">
-                                    <input type="hidden" id="current_user_role" name="current_user_role" value="{{ $currentUserRole }}">
-                                    <input type="hidden" id="created_by" name="created_by" value="{{ $createdBy }}">
-                                    <input type="hidden" id="is_point_to_point" name="is_point_to_point" value="{{ $isPointToPoint ? 1 : 0 }}">
-                                </div>
+                                <input type="hidden" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}">
+                                <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
+
+                                <!-- DMC Information -->
+                                <input type="hidden" id="dmc_id" name="dmc_id" value="{{ $finalDmcId }}">
+                                <input type="hidden" id="current_user_id" name="current_user_id" value="{{ $currentUserId }}">
+                                <input type="hidden" id="current_user_role" name="current_user_role" value="{{ $currentUserRole }}">
+                                <input type="hidden" id="created_by" name="created_by" value="{{ $createdBy }}">
+                                <input type="hidden" id="is_point_to_point" name="is_point_to_point" value="{{ $isPointToPoint ? 1 : 0 }}">
 
                                 <!-- Country (hidden; used by JS + update) -->
                                 <input type="hidden" name="user_country" id="user_country" value="{{ $tour->destination ?? '' }}">
 
                                 <!-- Travel Dates -->
-                                <div class="col-md-3">
+                                <div class="col-md-4">
                                     <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Travel Dates
                                     </label>
-                                    <div class="row g-2">
-                                        <div class="col-6">
-                                            <input type="date" class="form-control modern-input" name="start_date" id="start_date" 
-                                                value="{{ 
-                                                    $tour->check_in_time 
-                                                        ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
-                                                        : '' 
-                                                }}"
-                                                min="{{ date('Y-m-d') }}">
-                                        </div>
-                                        <div class="col-6">
-                                            <input type="date" class="form-control modern-input" name="end_date" id="end_date" 
-                                                value="{{ 
-                                                    $tour->check_out_time 
-                                                        ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
-                                                        : '' 
-                                                }}"
-                                                min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}">
-                                        </div>
-                                    </div>
+                                    <input type="text" class="form-control modern-input" id="travel_dates_range" autocomplete="off"
+                                        placeholder="Select dates" style="height: 40px;" readonly>
+
+                                    {{-- Keep original fields for submission + JS dependencies --}}
+                                    <input type="date" class="form-control modern-input d-none" name="start_date" id="start_date"
+                                        value="{{
+                                            $tour->check_in_time
+                                                ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
+                                                : ''
+                                        }}"
+                                        min="{{ date('Y-m-d') }}">
+                                    <input type="date" class="form-control modern-input d-none" name="end_date" id="end_date"
+                                        value="{{
+                                            $tour->check_out_time
+                                                ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
+                                                : ''
+                                        }}"
+                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}">
                                 </div>
 
                                 <!-- Guests -->
-                                <div class="col-md-3">
+                                <div class="col-md-4">
                                     <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-group-line me-1" style="color: #667eea;"></i>Guests
                                     </label>
@@ -1010,8 +1223,28 @@
                                     <input type="hidden" name="child_ages" id="child_ages" value="{{ $tour->child_ages ?? '' }}">
                                 </div>
 
+                                <!-- Agency / Agent moved to next row with City -->
+                            </div>
+
+                            <!-- Agency + Agent + City in same row (auto-compacts in multi-city) -->
+                            <div class="row g-2 mt-2 tour-header-compact" id="agencyAgentCityRow">
+                                <!-- Agency Company -->
+                                <div class="col-md-3" id="agencyCol">
+                                    <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-building-line me-1" style="color: #667eea;"></i>Agency Company
+                                    </label>
+                                    <select class="form-select modern-select" name="agency_id" id="agency_id">
+                                        <option value="">Choose agency...</option>
+                                        @foreach(($agencies ?? []) as $agnc)
+                                            <option value="{{ $agnc->agency_id }}" {{ (string) $selectedAgencyId === (string) $agnc->agency_id ? 'selected' : '' }}>
+                                                {{ $agnc->agency_name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
                                 <!-- Agent -->
-                                <div class="col-md-2">
+                                <div class="col-md-3" id="agentCol">
                                     <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-user-star-line me-1" style="color: #667eea;"></i>Agent
                                     </label>
@@ -1024,11 +1257,9 @@
                                         @endforeach
                                     </select>
                                 </div>
-                            </div>
 
-                            <!-- City section (below tour details) -->
-                            <div class="row g-3 mt-2" id="singleCityField">
-                                <div class="col-md-6">
+                                <!-- City (single-city mode only) -->
+                                <div class="col-md-4" id="singleCityField">
                                     <label for="single_city" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-map-pin-line me-1" style="color: #667eea;"></i>City
                                     </label>
@@ -1043,36 +1274,39 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-6"></div>
+
+                                <!-- Master cities (multi-city mode only) -->
+                                <div class="col-md-6 d-none" id="multiCityMasterField">
+                                    <label for="multi_cities" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-map-pin-add-line me-1" style="color: #667eea;"></i>Select Cities (Master List)
+                                    </label>
+                                    <select id="multi_cities" class="form-select modern-select" multiple data-placeholder="Select cities..." style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;">
+                                        @foreach($cities as $city)
+                                            <option value="{{ $city->name }}"
+                                                data-country="{{ $city->country ?? '' }}"
+                                                {{ in_array($city->name, $tourCitiesNormalized ?? [], true) ? 'selected' : '' }}>
+                                                {{ $city->name }}{{ !empty($city->country) ? ' (' . $city->country . ')' : '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
+                                </div>
                             </div>
 
                             <input type="hidden" name="city" id="city" value="{{ old('city', $tour->city ?? '') }}">
 
                             {{-- Multi City master + planning (match create page design) --}}
                             <div id="multiCityControls" class="mt-2 d-none">
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <label for="multi_cities" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.78rem;">
-                                            <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
-                                        </label>
-                                        <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;">
-                                            @foreach($cities as $city)
-                                                <option value="{{ $city->name }}"
-                                                    data-country="{{ $city->country ?? '' }}"
-                                                    {{ in_array($city->name, $tourCitiesNormalized ?? [], true) ? 'selected' : '' }}>
-                                                    {{ $city->name }}{{ !empty($city->country) ? ' (' . $city->country . ')' : '' }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
-                                    </div>
-                                    <div class="col-md-6"></div>
-                                </div>
-
                                 <!-- Actions should sit on top of the city-plan date grid -->
-                                <div class="d-flex justify-content-end align-items-center gap-2 mt-2">
-                                    <button type="button" id="addCityPlan" class="btn btn-primary btn-sm" style="height: 34px;">Add City Plan</button>
-                                    <div id="multiCityActionsSlot"></div>
+                                <div class="multi-city-actions">
+                                    <div class="mc-left"></div>
+                                    <div class="mc-center" id="multiCityActionsSlot"></div>
+                                    <div class="mc-right">
+                                        <button type="button" id="addCityPlan" class="btn btn-primary">
+                                            <i class="ri-add-line"></i>
+                                            Add City Plan
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div class="mt-2">
@@ -1106,6 +1340,239 @@
         </form>
         <!-- End of main tour information form -->
         
+        <!-- Combined Guest Information Section (Lead Guest + Additional Guests) -->
+        <div id="guestInfoSection">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <!-- Customer Information Section (always show when editing tour so Lead Guest can be added/updated) -->
+                    @php $customer_info = $customer_info ?? []; @endphp
+                    @if(isset($tour))
+                        <div class="accordion mb-4" id="customerAccordion">
+                            <div class="accordion-item border-0">
+                                <div class="card shadow-sm border-0">
+                                    <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem; margin-right: 20px; margin-left: 20px;">
+                                        <div class="d-flex align-items-center">
+                                            <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                <i class="ri-user-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Lead Guest information</h6>
+                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; display:block; margin-top:2px;">Manage customer details and contact information</small>
+                                            </div>
+                                        </div>
+                                        <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
+                                    </div>
+                                    <div id="customerInformationSection" class="collapse" data-bs-parent="#customerAccordion">
+                                        <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem; margin-right: 15px; margin-left: 15px;">
+                                            <div class="row g-2">
+                                                <div class="col-md-2">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                                    <select
+                                                        class="form-select form-select-sm"
+                                                        id="customerSalutation"
+                                                        name="customer_salutation"
+                                                        style="font-size: 0.85rem;"
+                                                    >
+                                                        <option value="">Select</option>
+                                                        <option value="Mr" {{ ($customer_info['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                        <option value="Mrs" {{ ($customer_info['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                        <option value="Ms" {{ ($customer_info['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                        <option value="Miss" {{ ($customer_info['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                        <option value="Dr" {{ ($customer_info['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
+                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
+                                                    @php
+                                                        $tourCountryForCode = $countries->firstWhere('name', $tour->destination ?? '');
+                                                        $defaultCountryCode = $customer_info['countryCode'] ?? ($tourCountryForCode->country_code ?? '');
+                                                    @endphp
+                                                    <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
+                                                        <option value="">Select</option>
+                                                        @foreach($countries as $country)
+                                                            @if(!empty($country->country_code))
+                                                                <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
+                                                    <input type="tel" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 1</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 2</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">State</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
+                                                    <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
+                                                </div>
+                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                    <div class="col-md-6">
+                                                        <label class="form-label mb-1" style="font-size: 0.8rem;">
+                                                            <i class="ri-lock-password-line me-1"></i>App Password
+                                                        </label>
+                                                        <div class="d-flex gap-1">
+                                                            <input type="password" class="form-control form-control-sm" id="customerAppPassword" name="customer_app_password" placeholder="Enter app password" autocomplete="new-password" style="font-size: 0.85rem; flex: 1;">
+                                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                                <i class="ri-eye-off-line"></i>
+                                                            </button>
+                                                            <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                                <i class="ri-key-line me-1"></i>Generate
+                                                            </button>
+                                                        </div>
+                                                        <small class="text-muted" style="font-size: 0.7rem;">Credentials email is sent to the lead guest only when Email and App Password are set and you save.</small>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Additional Guests Section -->
+                    <div class="accordion mb-4" id="additionalGuestsAccordion">
+                        <div class="accordion-item border-0">
+                            <div class="card shadow-sm border-0">
+                                <div class="card-header text-white d-flex justify-content-between align-items-center collapsed" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="false" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem; margin-right: 20px; margin-left: 20px;">
+                                    <div class="d-flex align-items-center">
+                                        <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px; ">
+                                            <i class="ri-group-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Additional Guest(s)</h6>
+                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">
+                                                Add guest details up to the tour pax (Adults + Children)
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
+                                </div>
+                                <div id="additionalGuestsSection" class="collapse" data-bs-parent="#additionalGuestsAccordion">
+                                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                        <div class="mb-3 text-end">
+                                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addNewGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                                <i class="ri-add-line me-1"></i>Add Guest
+                                            </button>
+                                        </div>
+                                        <div id="additionalGuestsContainer">
+                                            @if(!empty($additionalGuests))
+                                                @foreach($additionalGuests as $index => $guest)
+                                                    <div class="card mb-3 border shadow-sm guest-card" data-guest-index="{{ $index }}">
+                                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                            <h6 class="mb-0 fw-semibold">
+                                                                <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
+                                                            </h6>
+                                                            <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="{{ $index }}" title="Remove Guest">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                        <div class="card-body" style="margin-top:10px">
+                                                            <div class="row g-3">
+                                                                <div class="col-md-2">
+                                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                                                    <select
+                                                                        class="form-select form-select-sm guest-salutation"
+                                                                        name="additional_guests[{{ $index }}][salutation]"
+                                                                        style="font-size: 0.85rem;"
+                                                                    >
+                                                                        <option value="">Select</option>
+                                                                        <option value="Mr" {{ ($guest['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                                        <option value="Mrs" {{ ($guest['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                                        <option value="Ms" {{ ($guest['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                                        <option value="Miss" {{ ($guest['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                                        <option value="Dr" {{ ($guest['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="form-label fw-semibold">Name</label>
+                                                                    <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="form-label fw-semibold">Passport No.</label>
+                                                                    <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="form-label fw-semibold">Passport Expiry</label>
+                                                                    <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
+                                                                </div>
+                                                                <div class="col-md-4">
+                                                                    <label class="form-label fw-semibold">Contact No.</label>
+                                                                    <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                                                </div>
+                                                                <div class="col-md-4">
+                                                                    <label class="form-label fw-semibold">Email</label>
+                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
+                                                                </div>
+                                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                                    <div class="col-md-4">
+                                                                        <label class="form-label fw-semibold"><i class="ri-lock-password-line me-1"></i>App Password</label>
+                                                                        <div class="d-flex gap-1">
+                                                                            <input type="password" class="form-control guest-app-password" name="additional_guests[{{ $index }}][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
+                                                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                                                <i class="ri-eye-off-line"></i>
+                                                                            </button>
+                                                                            <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                                                <i class="ri-key-line me-1"></i>Generate
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="text-muted small mb-3 p-3 bg-light rounded">
+                                                    <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="mt-3 small" id="guestLimitInfo" style="padding: 10px; background: #e7f3ff; border-radius: 6px; border: 1px solid #b3d9ff;">
+                                            <i class="ri-information-line me-1"></i>
+                                            Maximum <span id="maxAdditionalGuests">0</span> additional guest(s) can be added based on total pax (Adults + Children): <span id="totalPaxCount">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Save Changes Button -->
+                    <div class="d-flex justify-content-end mt-4 pt-3">
+                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; height: 35px; padding: 0 10px; margin-right: 20px; margin-left: 20px;">
+                            <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
+                            <i class="ri-save-3-line"></i>
+                            <span>Save Guest Changes</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
             <!-- Service Action Buttons -->
 
             <!-- Hotel Accommodation Section -->
@@ -1227,7 +1694,13 @@
                                     $hotelSupplement = ($hotelInfo['supplement'] ?? $hotelInfo['is_supplement'] ?? false);
                                 @endphp
                                 <div class="col-12 mb-4">
-                                    <div class="border border-warning rounded-3 p-4 shadow-sm hotel-edit-form" data-update-url="{{ route('edit-tour.update-hotel', $hotelOrder->booking_id) }}">
+                                    <div
+                                        class="border border-warning rounded-3 p-4 shadow-sm hotel-edit-form"
+                                        data-update-url="{{ route('edit-tour.update-hotel', $hotelOrder->booking_id) }}"
+                                        data-service-start="{{ $checkInValue }}"
+                                        data-service-end="{{ $checkOutValue }}"
+                                        data-service-city="{{ $hotelDetails['location'] ?? '' }}"
+                                    >
                                         @csrf
                                         <input type="hidden" name="type" value="hotel">
                                         <input type="hidden" name="hotel_id" id="hotel_id_{{ $hotelOrder->booking_id }}" value="{{ $hotelId }}">
@@ -2625,7 +3098,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div>
-                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; border-radius: 8px 8px 0 0; transition: all 0.3s ease; margin-left: 20px; margin-right: 20px;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
                                     <i class="ri-login-circle-line fs-4"></i>
@@ -2650,6 +3123,15 @@
                                         $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickup'] ?? ($transportData['exitpickup'] ?? '');
                                         $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoff'] ?? ($transportData['exitdropoff'] ?? '');
                                         $pickupTime = $transportData['entrytime'] ?? $transportData['time'] ?? '';
+                                        $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
+                                        $pickupDate = '';
+                                        if ($pickupDateRaw) {
+                                            try {
+                                                $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                            } catch (\Exception $exception) {
+                                                $pickupDate = $pickupDateRaw;
+                                            }
+                                        }
                                         $vehicleName = $transportData['vehicles_name'] ?? '';
                                         $vehicleType = $transportData['type'] ?? '';
                                         $passengers = $transportData['passengers'] ?? '';
@@ -2658,7 +3140,7 @@
                                         $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                         $arrivalFlightNo = $transportData['arrival_flight_no'] ?? '';
                                     @endphp
-                                    <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="entry_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                    <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-service-date="{{ $pickupDate }}" data-form-type="entry_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                         @csrf
                                         <input type="hidden" name="type" value="entry_port">
                                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -2901,7 +3383,7 @@
                             <!-- All Attractions Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-ticket-line fs-4"></i>
@@ -2924,7 +3406,15 @@
                                                 $payload = isset($attractionData[0]) ? $attractionData[0] : $attractionData;
                                             }
                                             $attractionName = $payload['AttractionName'] ?? 'N/A';
-                                            $bookingDate = $payload['bookingDate'] ?? '';
+                                            $bookingDateRaw = $payload['bookingDate'] ?? '';
+                                            $bookingDate = '';
+                                            if ($bookingDateRaw) {
+                                                try {
+                                                    $bookingDate = \Carbon\Carbon::parse($bookingDateRaw)->format('Y-m-d');
+                                                } catch (\Exception $exception) {
+                                                    $bookingDate = $bookingDateRaw;
+                                                }
+                                            }
                                             $timeSlot = $payload['visitTime'] ?? 'N/A';
                                             $ticket = $payload['ticketName'] ?? 'N/A';
                                             $adultCount = $payload['adultCount'] ?? 0;
@@ -2984,7 +3474,7 @@
                                             $attractionRemarks = $payload['remarks'] ?? $attractionNotes ?? '';
                                             $attractionSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-service-date="{{ $bookingDate }}" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="attraction">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -3518,7 +4008,7 @@
                             <!-- All Guides Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div >
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-user-star-line fs-4"></i>
@@ -3575,7 +4065,7 @@
                                             $guideRemarks = $payload['remarks'] ?? $guideNotes ?? '';
                                             $guideSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-service-date="{{ $pickupDate }}" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="guide">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -3736,7 +4226,7 @@
                             <!-- All Restaurant Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-restaurant-2-line fs-4"></i>
@@ -3759,7 +4249,15 @@
                                                 $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
                                             }
                                             $restaurantName = $payload['restaurantName'] ?? 'N/A';
-                                            $bookingDate = $payload['bookingDate'] ?? '';
+                                            $bookingDateRaw = $payload['bookingDate'] ?? '';
+                                            $bookingDate = '';
+                                            if ($bookingDateRaw) {
+                                                try {
+                                                    $bookingDate = \Carbon\Carbon::parse($bookingDateRaw)->format('Y-m-d');
+                                                } catch (\Exception $exception) {
+                                                    $bookingDate = $bookingDateRaw;
+                                                }
+                                            }
                                             $mealType = $payload['mealType'] ?? '';
                                             $mealSpecificType = $payload['mealSpecificType'] ?? '';
                                             $timeSlot = $payload['visitTime'] ?? '';
@@ -3803,7 +4301,7 @@
                                             $restaurantRemarks = $payload['remarks'] ?? $restaurantNotes ?? '';
                                             $restaurantSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-service-date="{{ $bookingDate }}" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="restaurant">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4116,7 +4614,7 @@
                             <!-- Other Transport Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-car-line fs-4"></i>
@@ -4161,7 +4659,7 @@
                                                     $transportRemarks = $transportData['remarks'] ?? $notes;
                                                     $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                 @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_hourly" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-service-date="{{ $pickupDate }}" data-form-type="travel_hourly" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
                                                     <input type="hidden" name="type" value="travel_hourly">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4287,7 +4785,7 @@
                                                     $transportRemarks = $transportData['remarks'] ?? $notes;
                                                     $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                 @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_point" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-service-date="{{ $pickupDate }}" data-form-type="travel_point" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
                                                     <input type="hidden" name="type" value="travel_point">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4443,6 +4941,7 @@
                                                 @endphp
                                                 <form
                                                     class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form"
+                                                    data-service-date="{{ $pickupDate }}"
                                                     data-form-type="local_transport"
                                                     data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}"
                                                     data-booking-id="{{ $order->booking_id }}"
@@ -4682,7 +5181,7 @@
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-logout-circle-line fs-4"></i>
@@ -4715,8 +5214,17 @@
                                                     $transportRemarks = $transportData['remarks'] ?? '';
                                                     $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
                                                     $departureFlightNo = $transportData['departure_flight_no'] ?? '';
+                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
+                                                    $pickupDate = '';
+                                                    if ($pickupDateRaw) {
+                                                        try {
+                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                        } catch (\Exception $exception) {
+                                                            $pickupDate = $pickupDateRaw;
+                                                        }
+                                                    }
                                                 @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="exit_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-service-date="{{ $pickupDate }}" data-form-type="exit_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
                                                     <input type="hidden" name="type" value="exit_port">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4931,239 +5439,6 @@
 
             </div>
             <!-- /#segmentServicesBundle -->
-
-                            <!-- Combined Guest Information Section (Lead Guest + Additional Guests in same grid) -->
-                            <div id="guestInfoSection">
-                            <div class="row mb-4">
-                                <div class="col-12">
-                                    <!-- Customer Information Section (always show when editing tour so Lead Guest can be added/updated) -->
-                                    @php $customer_info = $customer_info ?? []; @endphp
-                                    @if(isset($tour))
-                                    <div class="accordion mb-4" id="customerAccordion">
-                                        <div class="accordion-item border-0">
-                                            <div class="card shadow-sm border-0">
-                                                <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem;">
-                                                    <div class="d-flex align-items-center">
-                                                        <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                            <i class="ri-user-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                        </div>
-                                                        <div>
-                                                            <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Lead Guest information</h6>
-                                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">Manage customer details and contact information</small>
-                                                        </div>
-                                                    </div>
-                                                    <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
-                                                </div>
-                                                <div id="customerInformationSection" class="collapse" data-bs-parent="#customerAccordion">
-                                                    <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
-                                                        <div class="row g-2">
-                                                            <div class="col-md-2">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
-                                                                <select 
-                                                                    class="form-select form-select-sm" 
-                                                                    id="customerSalutation" 
-                                                                    name="customer_salutation"
-                                                                    style="font-size: 0.85rem;"
-                                                                >
-                                                                    <option value="">Select</option>
-                                                                    <option value="Mr" {{ ($customer_info['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
-                                                                    <option value="Mrs" {{ ($customer_info['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
-                                                                    <option value="Ms" {{ ($customer_info['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
-                                                                    <option value="Miss" {{ ($customer_info['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
-                                                                    <option value="Dr" {{ ($customer_info['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
-                                                                <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" style="font-size: 0.85rem;">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
-                                                                <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" style="font-size: 0.85rem;">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
-                                                                @php
-                                                                    $tourCountryForCode = $countries->firstWhere('name', $tour->destination ?? '');
-                                                                    $defaultCountryCode = $customer_info['countryCode'] ?? ($tourCountryForCode->country_code ?? '');
-                                                                @endphp
-                                                                <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
-                                                                    <option value="">Select</option>
-                                                                    @foreach($countries as $country)
-                                                                        @if(!empty($country->country_code))
-                                                                            <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
-                                                                        @endif
-                                                                    @endforeach
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
-                                                                <input type="tel" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}" style="font-size: 0.85rem;">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 1</label>
-                                                                <input type="text" class="form-control form-control-sm" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}" style="font-size: 0.85rem;">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 2</label>
-                                                                <input type="text" class="form-control form-control-sm" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}" style="font-size: 0.85rem;">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">State</label>
-                                                                <input type="text" class="form-control form-control-sm" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}" style="font-size: 0.85rem;">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
-                                                                <input type="text" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}" style="font-size: 0.85rem;">
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
-                                                                <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
-                                                            </div>
-                                                            @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
-                                                            <div class="col-md-6">
-                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">
-                                                                    <i class="ri-lock-password-line me-1"></i>App Password
-                                                                </label>
-                                                                <div class="d-flex gap-1">
-                                                                    <input type="password" class="form-control form-control-sm" id="customerAppPassword" name="customer_app_password" placeholder="Enter app password" autocomplete="new-password" style="font-size: 0.85rem; flex: 1;">
-                                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
-                                                                        <i class="ri-eye-off-line"></i>
-                                                                    </button>
-                                                                    <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
-                                                                        <i class="ri-key-line me-1"></i>Generate
-                                                                    </button>
-                                                                </div>
-                                                                <small class="text-muted" style="font-size: 0.7rem;">Credentials email is sent to the lead guest only when Email and App Password are set and you save.</small>
-                                                            </div>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                            </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    @endif
-
-                                    <!-- Additional Guests Section -->
-                                    <div class="accordion mb-4" id="additionalGuestsAccordion">
-                                        <div class="accordion-item border-0">
-                                            <div class="card shadow-sm border-0">
-                                                <div class="card-header text-white d-flex justify-content-between align-items-center collapsed" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="false" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem;">
-                                                    <div class="d-flex align-items-center">
-                                                        <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                            <i class="ri-group-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                        </div>
-                                                        <div>
-                                                            <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Additional Guest(s)</h6>
-                                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">
-                                                                Add guest details up to the tour pax (Adults + Children)
-                                                            </small>
-                                                        </div>
-                                                    </div>
-                                                    <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
-                                                </div>
-                                                <div id="additionalGuestsSection" class="collapse" data-bs-parent="#additionalGuestsAccordion">
-                                                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                                        <div class="mb-3 text-end">
-                                                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addNewGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                                <i class="ri-add-line me-1"></i>Add Guest
-                                                            </button>
-                                                        </div>
-                                                        <div id="additionalGuestsContainer">
-                                                            @if(!empty($additionalGuests))
-                                                                @foreach($additionalGuests as $index => $guest)
-                                                                    <div class="card mb-3 border shadow-sm guest-card" data-guest-index="{{ $index }}">
-                                                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                                                            <h6 class="mb-0 fw-semibold">
-                                                                                <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
-                                                                            </h6>
-                                                                            <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="{{ $index }}" title="Remove Guest">
-                                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                                            </button>
-                                                                        </div>
-                                                                        <div class="card-body" style="margin-top:10px">
-                                                                            <div class="row g-3">
-                                                                            <div class="col-md-2">
-                                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
-                                                                                <select 
-                                                                                    class="form-select form-select-sm guest-salutation" 
-                                                                                    name="additional_guests[{{ $index }}][salutation]"
-                                                                                    style="font-size: 0.85rem;"
-                                                                                >
-                                                                                    <option value="">Select</option>
-                                                                                    <option value="Mr" {{ ($guest['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
-                                                                                    <option value="Mrs" {{ ($guest['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
-                                                                                    <option value="Ms" {{ ($guest['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
-                                                                                    <option value="Miss" {{ ($guest['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
-                                                                                    <option value="Dr" {{ ($guest['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
-                                                                                </select>
-                                                                            </div>
-                                                                                <div class="col-md-3">
-                                                                                    <label class="form-label fw-semibold">Name</label>
-                                                                                    <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
-                                                                                </div>
-                                                                                <div class="col-md-3">
-                                                                                    <label class="form-label fw-semibold">Passport No.</label>
-                                                                                    <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
-                                                                                </div>
-                                                                                <div class="col-md-3">
-                                                                                    <label class="form-label fw-semibold">Passport Expiry</label>
-                                                                                    <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
-                                                                                </div>
-                                                                                <div class="col-md-4">
-                                                                                    <label class="form-label fw-semibold">Contact No.</label>
-                                                                                    <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
-                                                                                </div>
-                                                                                <div class="col-md-4">
-                                                                                    <label class="form-label fw-semibold">Email</label>
-                                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
-                                                                                </div>
-                                                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
-                                                                                <div class="col-md-4">
-                                                                                    <label class="form-label fw-semibold"><i class="ri-lock-password-line me-1"></i>App Password</label>
-                                                                                    <div class="d-flex gap-1">
-                                                                                        <input type="password" class="form-control guest-app-password" name="additional_guests[{{ $index }}][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
-                                                                                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
-                                                                                            <i class="ri-eye-off-line"></i>
-                                                                                        </button>
-                                                                                        <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
-                                                                                            <i class="ri-key-line me-1"></i>Generate
-                                                                                        </button>
-                                                                                    </div>
-                                                                                </div>
-                                                                                @endif
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                @endforeach
-                                                            @else
-                                                                <div class="text-muted small mb-3 p-3 bg-light rounded">
-                                                                    <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
-                                                                </div>
-                                                            @endif
-                                                        </div>
-                                                        <div class="mt-3 small" id="guestLimitInfo" style="padding: 10px; background: #e7f3ff; border-radius: 6px; border: 1px solid #b3d9ff;">
-                                                            <i class="ri-information-line me-1"></i>
-                                                            Maximum <span id="maxAdditionalGuests">0</span> additional guest(s) can be added based on total pax (Adults + Children): <span id="totalPaxCount">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Save Changes Button -->
-                                    <div class="d-flex justify-content-end mt-4 pt-3">
-                                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; height: 35px; padding: 0 10px; margin-left: 20px; margin-right: 20px;">
-                                            <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
-                                            <i class="ri-save-3-line"></i>
-                                            <span>Save Guest Changes</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
                             <script>
                                 // Get total pax from tour data
                                 const totalPax = {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }};
@@ -8368,6 +8643,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- Moment.js (required by daterangepicker) -->
+<script src="https://cdn.jsdelivr.net/npm/moment@2.30.1/min/moment.min.js"></script>
+<!-- Date Range Picker JS -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script>
     // Initialize toastr with default options
     if (typeof toastr !== 'undefined') {
@@ -10765,9 +11044,100 @@
     $(document).ready(function() {
         initializeAllSelect2();
         initializeTravelDateValidation();
+        initializeTravelDateRangePicker();
         initializeInlineTransportToggles();
         initializeTransportDynamicFeatures();
     });
+
+    function initializeTravelDateRangePicker() {
+        const rangeInput = document.getElementById('travel_dates_range');
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+
+        if (!rangeInput || !startDateInput || !endDateInput) return;
+
+        // If the date-range picker library isn't present, fall back to showing the two native date inputs.
+        if (typeof $ === 'undefined' || !$.fn || typeof $.fn.daterangepicker === 'undefined' || typeof moment === 'undefined') {
+            rangeInput.classList.add('d-none');
+            startDateInput.classList.remove('d-none');
+            endDateInput.classList.remove('d-none');
+            return;
+        }
+
+        const DISPLAY_FORMAT = 'MMM DD, YYYY';
+        const VALUE_FORMAT = 'YYYY-MM-DD';
+
+        function safeParseYmd(v) {
+            const m = moment((v || '').toString().trim(), VALUE_FORMAT, true);
+            return m.isValid() ? m : null;
+        }
+
+        function syncDisplayFromHidden() {
+            const s = safeParseYmd(startDateInput.value);
+            const e = safeParseYmd(endDateInput.value);
+            if (!s || !e) {
+                rangeInput.value = '';
+                return;
+            }
+            rangeInput.value = `${s.format(DISPLAY_FORMAT)} - ${e.format(DISPLAY_FORMAT)}`;
+        }
+
+        function setHiddenAndNotify(startMoment, endMoment) {
+            const s = startMoment.clone().startOf('day');
+            const e = endMoment.clone().startOf('day');
+            startDateInput.value = s.format(VALUE_FORMAT);
+            endDateInput.value = e.format(VALUE_FORMAT);
+
+            // Trigger existing validation + downstream logic (min/max, segment date limits, etc.)
+            startDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+            endDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+            if (typeof applySegmentDateLimits === 'function') {
+                try { applySegmentDateLimits(); } catch (e) { /* ignore */ }
+            }
+        }
+
+        // Derive initial range from hidden fields (server values) or default to today.
+        const today = moment().startOf('day');
+        const initialStart = safeParseYmd(startDateInput.value) || today;
+        const initialEnd = safeParseYmd(endDateInput.value) || initialStart;
+        const minDate = initialStart && initialStart.isValid() && initialStart.isBefore(today) ? initialStart : today;
+
+        $(rangeInput).daterangepicker({
+            autoUpdateInput: false,
+            showDropdowns: true,
+            linkedCalendars: false,
+            alwaysShowCalendars: true,
+            opens: 'left',
+            startDate: initialStart,
+            endDate: initialEnd,
+            minDate: minDate,
+            locale: {
+                format: DISPLAY_FORMAT,
+                applyLabel: 'Apply',
+                cancelLabel: 'Clear'
+            }
+        });
+
+        $(rangeInput).on('apply.daterangepicker', function(ev, picker) {
+            setHiddenAndNotify(picker.startDate, picker.endDate);
+            syncDisplayFromHidden();
+        });
+
+        $(rangeInput).on('cancel.daterangepicker', function() {
+            rangeInput.value = '';
+            startDateInput.value = '';
+            endDateInput.value = '';
+            startDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+            endDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+            if (typeof applySegmentDateLimits === 'function') {
+                try { applySegmentDateLimits(); } catch (e) { /* ignore */ }
+            }
+        });
+
+        // Ensure hidden values are normalized + display is correct on load.
+        setHiddenAndNotify(initialStart, initialEnd);
+        syncDisplayFromHidden();
+    }
 
     // Initialize travel date validation
     function initializeTravelDateValidation() {
@@ -11613,6 +11983,29 @@
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
+
+        // Multi-city: if a city plan (segment) is active, default to that stay range
+        let effectiveStartDate = startDate;
+        let effectiveEndDate = endDate;
+        let effectiveCityText = '';
+        try {
+            const modeEl = document.querySelector('input[name="city_type"]:checked');
+            const mode = modeEl && modeEl.value ? modeEl.value : 'single';
+            if (mode === 'multi') {
+                const bundle = document.getElementById('segmentServicesBundle');
+                const seg = bundle ? bundle.closest('.segment') : null;
+                const segStart = seg ? (seg.querySelector('.start-date')?.value || '').trim() : '';
+                const segEnd = seg ? (seg.querySelector('.end-date')?.value || '').trim() : '';
+                if (segStart && segEnd) {
+                    effectiveStartDate = segStart;
+                    effectiveEndDate = segEnd;
+                }
+                const citySel = seg ? seg.querySelector('.city-select') : null;
+                effectiveCityText = citySel && citySel.selectedOptions && citySel.selectedOptions[0]
+                    ? (citySel.selectedOptions[0].textContent || '').trim()
+                    : (citySel && citySel.value ? citySel.value : '');
+            }
+        } catch (e) { /* ignore */ }
         
         if (!tourId) {
             showNotification('Tour ID is required', 'error');
@@ -11632,20 +12025,20 @@
             
             if (modalTourId) modalTourId.value = tourId;
             if (modalUserCountry) modalUserCountry.value = country;
-            if (modalTourDates) modalTourDates.textContent = `${startDate} to ${endDate}`;
+            if (modalTourDates) modalTourDates.textContent = `${effectiveCityText ? (effectiveCityText + ' · ') : ''}${effectiveStartDate} to ${effectiveEndDate}`;
             // Set date range constraints - with null checks
             const checkInDate = document.getElementById('check_in_date');
             const checkOutDate = document.getElementById('check_out_date');
             
             if (checkInDate && checkOutDate) {
-                checkInDate.min = startDate;
-                checkInDate.max = endDate;
-                checkOutDate.min = startDate;
-                checkOutDate.max = endDate;
+                checkInDate.min = effectiveStartDate;
+                checkInDate.max = effectiveEndDate;
+                checkOutDate.min = effectiveStartDate;
+                checkOutDate.max = effectiveEndDate;
                 
                 // Set default dates
-                checkInDate.value = startDate;
-                checkOutDate.value = endDate;
+                checkInDate.value = effectiveStartDate;
+                checkOutDate.value = effectiveEndDate;
             }
             
         // Initialize modal functionality
@@ -11678,14 +12071,45 @@
     function showAttractionSelectionModal(tourId, country, startDate, endDate) {
         console.log('showAttractionSelectionModal called with:', { tourId, country, startDate, endDate });
         
+        // Multi-city: if a city plan (segment) is active, default to that stay range and first date
+        let effectiveStartDate = startDate;
+        let effectiveEndDate = endDate;
+        let effectiveCityText = '';
+        try {
+            const modeEl = document.querySelector('input[name="city_type"]:checked');
+            const mode = modeEl && modeEl.value ? modeEl.value : 'single';
+            if (mode === 'multi') {
+                const bundle = document.getElementById('segmentServicesBundle');
+                const seg = bundle ? bundle.closest('.segment') : null;
+                const segStart = seg ? (seg.querySelector('.start-date')?.value || '').trim() : '';
+                const segEnd = seg ? (seg.querySelector('.end-date')?.value || '').trim() : '';
+                if (segStart && segEnd) {
+                    effectiveStartDate = segStart;
+                    effectiveEndDate = segEnd;
+                }
+                const citySel = seg ? seg.querySelector('.city-select') : null;
+                effectiveCityText = citySel && citySel.selectedOptions && citySel.selectedOptions[0]
+                    ? (citySel.selectedOptions[0].textContent || '').trim()
+                    : (citySel && citySel.value ? citySel.value : '');
+            }
+        } catch (e) { /* ignore */ }
+
         // Populate modal with tour data
-        document.getElementById('modal_attraction_tour_dates').textContent = `${startDate} to ${endDate}`;
+        document.getElementById('modal_attraction_tour_dates').textContent = `${effectiveCityText ? (effectiveCityText + ' · ') : ''}${effectiveStartDate} to ${effectiveEndDate}`;
         document.getElementById('modal_attraction_destination').textContent = `${country}`;
         // City display removed
         const attractionSupplementEl = document.getElementById('modal_attraction_supplement');
         if (attractionSupplementEl) attractionSupplementEl.checked = false;
         const attractionRemarksEl = document.getElementById('modal_attraction_remarks');
         if (attractionRemarksEl) attractionRemarksEl.value = '';
+
+        // Set visit date range + default to the first day of the active stay range
+        const visitDateInput = document.getElementById('modal_attraction_visit_date');
+        if (visitDateInput && effectiveStartDate && effectiveEndDate) {
+            visitDateInput.min = effectiveStartDate;
+            visitDateInput.max = effectiveEndDate;
+            visitDateInput.value = effectiveStartDate;
+        }
         
         // Show modal
         const modalElement = document.getElementById('attractionSelectionModal');
@@ -11845,9 +12269,23 @@
             confirmBtn.addEventListener('click', confirmAttractionSelection);
         }
         
-        // Set date restrictions and default value
-        const startDate = document.getElementById('start_date').value;
-        const endDate = document.getElementById('end_date').value;
+        // Set date restrictions and default value (single-city uses tour range; multi-city uses active stay range)
+        let startDate = document.getElementById('start_date').value;
+        let endDate = document.getElementById('end_date').value;
+        try {
+            const modeEl = document.querySelector('input[name="city_type"]:checked');
+            const mode = modeEl && modeEl.value ? modeEl.value : 'single';
+            if (mode === 'multi') {
+                const bundle = document.getElementById('segmentServicesBundle');
+                const seg = bundle ? bundle.closest('.segment') : null;
+                const segStart = seg ? (seg.querySelector('.start-date')?.value || '').trim() : '';
+                const segEnd = seg ? (seg.querySelector('.end-date')?.value || '').trim() : '';
+                if (segStart && segEnd) {
+                    startDate = segStart;
+                    endDate = segEnd;
+                }
+            }
+        } catch (e) { /* ignore */ }
         
         if (startDate && endDate && visitDateSelect) {
             visitDateSelect.min = startDate;
@@ -21760,6 +22198,60 @@
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Edit page initialized');
         
+        function normalizeCityText(s) {
+            return (s || '').toString().trim().replace(/\s*\([^)]*\)\s*$/, '').trim();
+        }
+
+        function getCurrentCityMode() {
+            const el = document.querySelector('input[name="city_type"]:checked');
+            return el && el.value ? el.value : 'single';
+        }
+
+        function getActiveSegmentCityValue() {
+            try {
+                const bundle = document.getElementById('segmentServicesBundle');
+                const seg = bundle ? bundle.closest('.segment') : null;
+                const citySel = seg ? seg.querySelector('.city-select') : null;
+                return citySel && citySel.value ? citySel.value : '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function getSingleCityValue() {
+            const sc = document.getElementById('single_city');
+            if (sc && sc.value) return sc.value;
+            const hidden = document.getElementById('city');
+            return hidden && hidden.value ? normalizeCityText(hidden.value.split(',')[0] || '') : '';
+        }
+
+        function getCityForModalAutoFill() {
+            const mode = getCurrentCityMode();
+            if (mode === 'multi') {
+                const active = getActiveSegmentCityValue();
+                if (active) return active;
+            }
+            return getSingleCityValue();
+        }
+
+        function setSelectToCity(selectEl, cityValue) {
+            if (!selectEl || !cityValue) return false;
+            const desired = normalizeCityText(cityValue);
+            const opts = Array.from(selectEl.options || []);
+            const exact = opts.find(o => normalizeCityText(o.value) === desired) || opts.find(o => normalizeCityText(o.textContent) === desired);
+            if (exact) {
+                selectEl.value = exact.value;
+                return true;
+            }
+            // fallback: prefix match
+            const pref = opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
+            if (pref) {
+                selectEl.value = pref.value;
+                return true;
+            }
+            return false;
+        }
+
         // Check if Bootstrap is properly loaded
         if (typeof bootstrap === 'undefined') {
             console.error('Bootstrap JS is not loaded properly!');
@@ -21775,6 +22267,43 @@
                     initializeMealPlansForExistingData();
                 }, 100);
             }
+        });
+
+        // Auto-populate City in "Add More" modals (single-city or active multi-city stay)
+        document.addEventListener('shown.bs.modal', function (e) {
+            const modal = e && e.target ? e.target : null;
+            if (!modal) return;
+
+            const city = getCityForModalAutoFill();
+            if (!city) return;
+
+            const selectIds = [
+                'modal_city_select',                 // Hotel modal
+                'modal_guide_city_select',           // Guide modal
+                'modal_restaurant_city_select',      // Restaurant modal
+                'modal_attraction_city_select',      // Attraction modal
+                'modal_entryport_transport_city',    // Arrival transport modal
+                'modal_local_transfer_city',         // Local transfer modal
+                'modal_exitport_transport_city'      // Departure transport modal
+            ];
+
+            selectIds.forEach(function (id) {
+                const sel = modal.querySelector('#' + id);
+                if (!sel) return;
+                const changed = setSelectToCity(sel, city);
+                if (changed) {
+                    try {
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    } catch (e) { /* ignore */ }
+                }
+            });
+
+            // Keep hidden city inputs in sync (some modals use hidden fields too)
+            const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city'];
+            hiddenIds.forEach(function (id) {
+                const h = modal.querySelector('#' + id);
+                if (h) h.value = city;
+            });
         });
         
         // Add passenger validation for local transfer
@@ -24566,6 +25095,42 @@
         }
     }
 
+    // Persist current city plans to DB (tours.city)
+    async function persistCityPlansNow() {
+        const form = document.getElementById('singleTourPackageForm');
+        if (!form) throw new Error('Form not found');
+        const url = form.dataset.updateCityUrl;
+        if (!url) throw new Error('City save URL not found');
+
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+        if (!csrfToken) throw new Error('CSRF token not found');
+
+        try { if (typeof updateCityHiddenField === 'function') updateCityHiddenField(); } catch (e) { /* ignore */ }
+        const city = (document.getElementById('city') || {}).value || '';
+        const cityType =
+            (document.querySelector('input[name="city_type"]:checked') || {}).value ||
+            (document.querySelector('input[type="hidden"][name="city_type"]') || {}).value ||
+            'single';
+
+        const fd = new FormData();
+        fd.append('city', city);
+        fd.append('city_type', cityType);
+
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            body: fd
+        });
+        const txt = await resp.text();
+        let data = {};
+        try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+        if (!resp.ok || !data.success) {
+            throw new Error((data && data.message) ? data.message : 'Failed to save city plans');
+        }
+        return data;
+    }
+
     async function UpdateTourInformation(event) {
         event.preventDefault();
         
@@ -24577,6 +25142,7 @@
         }
         
         const url = form.dataset.updateInfoUrl;
+        const clearServicesUrl = form.dataset.clearServicesUrl || '';
         const feedback = document.getElementById('tour_info_feedback');
         const spinner = document.getElementById('tour_info_spinner');
         const submitButton = event.target.closest('button');
@@ -24610,6 +25176,7 @@
         const maleCountEl = document.getElementById('male_count');
         const femaleCountEl = document.getElementById('female_count');
         const agentIdEl = document.getElementById('agent_id');
+        const agencyIdEl = document.getElementById('agency_id');
         
         formData.append('display_id', displayIdEl ? displayIdEl.value || '' : '');
         formData.append('user_country', userCountryEl ? userCountryEl.value : '');
@@ -24621,6 +25188,7 @@
         formData.append('male', maleCountEl ? maleCountEl.value : '0');
         formData.append('female', femaleCountEl ? femaleCountEl.value : '0');
         formData.append('agent_id', agentIdEl ? agentIdEl.value : '');
+        formData.append('agency_id', agencyIdEl ? agencyIdEl.value : '');
         const referenceNumberEl = document.getElementById('reference_number');
         formData.append('reference_number', referenceNumberEl ? referenceNumberEl.value || '' : '');
         
@@ -24645,6 +25213,62 @@
         }
         
         formData.append('child_ages', childAges);
+
+        // If tour date range changed, clear all services first (with explicit confirmation).
+        try {
+            const sNow = (startDateEl && startDateEl.value) ? String(startDateEl.value).trim() : '';
+            const eNow = (endDateEl && endDateEl.value) ? String(endDateEl.value).trim() : '';
+            const sOrig = (startDateEl && startDateEl.dataset && typeof startDateEl.dataset.original !== 'undefined')
+                ? String(startDateEl.dataset.original || '').trim()
+                : sNow;
+            const eOrig = (endDateEl && endDateEl.dataset && typeof endDateEl.dataset.original !== 'undefined')
+                ? String(endDateEl.dataset.original || '').trim()
+                : eNow;
+
+            const changedDates = !!(sNow && eNow && (sNow !== sOrig || eNow !== eOrig));
+            if (changedDates && !window.__clearedServicesForTourDateChange) {
+                const msg =
+                    `You changed the travel date range:\n\n` +
+                    `Old: ${sOrig} → ${eOrig}\n` +
+                    `New: ${sNow} → ${eNow}\n\n` +
+                    `To keep bookings consistent, ALL existing services (hotels, attractions, guides, restaurants, transport) will be deleted.\n\n` +
+                    `Do you want to continue?`;
+                if (!window.confirm(msg)) {
+                    if (feedback) {
+                        feedback.textContent = 'Update cancelled (date change not confirmed).';
+                        feedback.classList.add('text-danger');
+                    }
+                    return;
+                }
+                if (!clearServicesUrl) {
+                    throw new Error('Clear services URL not found');
+                }
+
+                const resp = await fetch(clearServicesUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+                });
+                const txt = await resp.text();
+                let data = {};
+                try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+                if (!resp.ok || !data.success) {
+                    throw new Error((data && data.message) ? data.message : 'Failed to clear services');
+                }
+
+                window.__clearedServicesForTourDateChange = true;
+                if (startDateEl && startDateEl.dataset) startDateEl.dataset.original = sNow;
+                if (endDateEl && endDateEl.dataset) endDateEl.dataset.original = eNow;
+
+                if (typeof showToastr === 'function') {
+                    const c = (data.data && typeof data.data.deleted_orders_count !== 'undefined') ? data.data.deleted_orders_count : null;
+                    showToastr('success', c !== null ? `Services cleared (${c} order(s) deleted).` : 'Services cleared.');
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            if (typeof showToastr === 'function') showToastr('error', err && err.message ? err.message : 'Failed to clear services for date change.');
+            return;
+        }
 
         // Collect main guest data (same structure as create form)
         const mainGuestData = {
@@ -25126,6 +25750,13 @@
         const SERVICES_BUNDLE_ID = 'segmentServicesBundle';
         const SERVICES_HINT_ID = 'multiCityServicesHint';
         let _activeSegmentEl = null;
+    // Track original main tour dates so we can detect date-range edits reliably
+    try {
+        const sEl = document.getElementById('start_date');
+        const eEl = document.getElementById('end_date');
+        if (sEl && sEl.dataset && typeof sEl.dataset.original === 'undefined') sEl.dataset.original = (sEl.value || '').trim();
+        if (eEl && eEl.dataset && typeof eEl.dataset.original === 'undefined') eEl.dataset.original = (eEl.value || '').trim();
+    } catch (e) { /* ignore */ }
 
         function normalizeCityValue(raw) {
             // "Singapore (Singapore)" -> "Singapore"
@@ -25265,8 +25896,15 @@
             const isMulti = mode === 'multi';
             const mc = document.getElementById('multiCityControls');
             const sc = document.getElementById('singleCityField');
+            const mcMaster = document.getElementById('multiCityMasterField');
+            const agencyCol = document.getElementById('agencyCol');
+            const agentCol = document.getElementById('agentCol');
             if (mc) mc.classList.toggle('d-none', !isMulti);
             if (sc) sc.classList.toggle('d-none', isMulti);
+            if (mcMaster) mcMaster.classList.toggle('d-none', !isMulti);
+
+            // No stretching needed: in multi-city we show master cities in the 6-col slot.
+
             updateCityHiddenField();
 
             // Move the "Update Tour Information" action row to sit near the segment date grid in multi-city mode.
@@ -25319,6 +25957,14 @@
 
         // Segments builder (edit: pre-populate from DB city field)
         let segmentIndex = 0;
+        // DB-backed city plans: used to hide "+" for already-saved plans
+        let __dbCityPlanKeys = new Set();
+        function toPlanKey(cityDisplayOrValue, startISO, endISO) {
+            const c = (cityDisplayOrValue || '').toString().trim();
+            const s = normalizeDateToISO(startISO);
+            const e = normalizeDateToISO(endISO);
+            return `${c}|${s}|${e}`;
+        }
         function getMasterCities() {
             const mc = document.getElementById('multi_cities');
             if (!mc) return [];
@@ -25354,47 +26000,68 @@
             if (!wrap) return;
 
             const segmentHTML = `
-                <div class="card mt-2 segment border-0 shadow-sm" data-index="${segmentIndex}" style="border-radius: 10px;">
-                    <div class="card-body py-2 px-2 position-relative">
-                        <div class="row g-2">
-                            <div class="col-md-5">
-                                <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">City (this stay)</label>
-                                <select class="form-select form-select-sm city-select" name="segments[${segmentIndex}][city]" style="height: 32px;">
+                <div class="card mt-2 segment" data-index="${segmentIndex}">
+                    <div class="card-body p-3 position-relative segment-topbar">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-md-4">
+                                <div class="segment-field-label">City (this stay)</div>
+                                <select class="form-select city-select segment-control" name="segments[${segmentIndex}][city]">
                                     ${buildSegmentOptions(master)}
                                 </select>
                             </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Stay from</label>
-                                <input type="date" class="form-control form-control-sm start-date" name="segments[${segmentIndex}][start_date]" style="height: 32px;" title="Must be on or after main tour start">
+                            <div class="col-6 col-md-3">
+                                <div class="segment-field-label">Stay from</div>
+                                <input type="date" class="form-control start-date segment-control" name="segments[${segmentIndex}][start_date]" title="Must be on or after main tour start">
                             </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Stay until</label>
-                                <input type="date" class="form-control form-control-sm end-date" name="segments[${segmentIndex}][end_date]" style="height: 32px;" title="Must be on or before main tour end">
+                            <div class="col-6 col-md-3">
+                                <div class="segment-field-label">Stay until</div>
+                                <input type="date" class="form-control end-date segment-control" name="segments[${segmentIndex}][end_date]" title="Must be on or before main tour end">
                             </div>
 
-                            <div class="col-md-1 d-flex align-items-end justify-content-end">
-                                <button type="button"
-                                    class="btn btn-danger btn-sm removeSegment"
-                                    title="Remove plan"
-                                    style="height: 32px; width: 100%; border-radius: 8px;">
+                            <div class="col-12 col-md-2 segment-actions d-flex gap-2 justify-content-end">
+                                <button type="button" class="btn btn-outline-success addSegmentToDb" title="Add this city plan">
+                                    <i class="ri-add-line"></i>
+                                    <span class="d-inline d-md-none">Add</span>
+                                    <span class="d-none d-md-inline">Add</span>
+                                </button>
+                                <button type="button" class="btn btn-outline-primary editSavedSegment d-none" title="Edit this city plan">
+                                    <i class="ri-edit-line"></i>
+                                    <span class="d-inline d-md-none">Edit</span>
+                                    <span class="d-none d-md-inline">Edit</span>
+                                </button>
+                                <button type="button" class="btn btn-primary updateSavedSegment d-none"
+                                        title="Update this city plan"
+                                        style="width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;">
+                                    <i class="ri-save-line"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary cancelSavedSegment d-none"
+                                        title="Cancel"
+                                        style="width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;">
                                     <i class="ri-close-line"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger removeSegment" title="Remove this city plan row">
+                                    <i class="ri-close-line"></i>
+                                    <span>Remove</span>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="segment-header mt-2 d-none">
+                        <div class="segment-header mt-2">
                             <div class="d-flex align-items-center justify-content-between px-2 py-1 rounded"
-                                 style="background:#f8f9fa;border:1px solid #e9ecef;pointer-events:none;">
+                                 role="button"
+                                 data-bs-toggle="collapse"
+                                 data-bs-target="#segmentBodyCollapse_${segmentIndex}"
+                                 aria-expanded="false"
+                                 aria-controls="segmentBodyCollapse_${segmentIndex}"
+                                 style="background:#f8f9fa;border:1px solid #e9ecef;cursor:pointer;">
                                 <div class="d-flex flex-column">
                                     <div class="fw-semibold segment-title" style="font-size:0.78rem;color:#495057;"></div>
                                     <div class="text-muted segment-range" style="font-size:0.75rem;"></div>
                                 </div>
                                 <button class="btn btn-sm btn-outline-secondary segment-body-toggle"
                                         type="button"
-                                        data-bs-toggle="collapse"
-                                        data-bs-target="#segmentBodyCollapse_${segmentIndex}"
                                         aria-expanded="false"
                                         aria-controls="segmentBodyCollapse_${segmentIndex}"
                                         style="height:26px;line-height:1;padding:0 8px;border-radius:8px;pointer-events:auto;">
@@ -25440,16 +26107,352 @@
                 if (endEl) endEl.value = prefill.end;
             }
             applySegmentDateLimits();
+
+            // If this row already exists in DB (or is prefilled from DB), hide "+" and lock it.
+            try {
+                const citySel = seg.querySelector('.city-select');
+                const cityInp = seg.querySelector('.city-input');
+                const startEl = seg.querySelector('.start-date');
+                const endEl = seg.querySelector('.end-date');
+                const addBtn = seg.querySelector('.addSegmentToDb');
+                const editBtn = seg.querySelector('.editSavedSegment');
+                const updBtn = seg.querySelector('.updateSavedSegment');
+                const cancelBtn = seg.querySelector('.cancelSavedSegment');
+
+                const cityText = (prefill && prefill.cityDisplay)
+                    ? (prefill.cityDisplay || '').toString().trim()
+                    : (citySel && citySel.selectedOptions && citySel.selectedOptions[0]
+                        ? (citySel.selectedOptions[0].textContent || '').trim()
+                        : (cityInp ? (cityInp.value || '').trim() : ''));
+
+                const key = toPlanKey(cityText, startEl ? startEl.value : '', endEl ? endEl.value : '');
+                const isDbSaved = !!(prefill && prefill.cityDisplay && prefill.start && prefill.end) ||
+                                 (__dbCityPlanKeys && __dbCityPlanKeys.has(key));
+
+                if (isDbSaved) {
+                    seg.dataset.saved = '1';
+                    if (addBtn) addBtn.classList.add('d-none');
+                    if (editBtn) editBtn.classList.remove('d-none');
+                    if (citySel) citySel.disabled = true;
+                    if (cityInp) cityInp.disabled = true;
+                    if (startEl) startEl.disabled = true;
+                    if (endEl) endEl.disabled = true;
+                    seg.dataset.originalCityDisplay = cityText || '';
+                    seg.dataset.originalStart = startEl ? (startEl.value || '') : '';
+                    seg.dataset.originalEnd = endEl ? (endEl.value || '') : '';
+                    if (cancelBtn) cancelBtn.classList.add('d-none');
+                    if (updBtn) updBtn.classList.add('d-none');
+                    seg.dataset.editing = '0';
+                } else {
+                    seg.dataset.saved = seg.dataset.saved || '0';
+                }
+            } catch (e) { /* ignore */ }
         }
+
+        function setSavedSegmentEditMode(seg, isEditing) {
+            if (!seg) return;
+            const citySel = seg.querySelector('.city-select');
+            const startEl = seg.querySelector('.start-date');
+            const endEl = seg.querySelector('.end-date');
+            const editBtn = seg.querySelector('.editSavedSegment');
+            const updBtn = seg.querySelector('.updateSavedSegment');
+            const cancelBtn = seg.querySelector('.cancelSavedSegment');
+            // City must always stay locked for saved rows (only dates can be edited)
+            if (citySel) citySel.disabled = true;
+            if (startEl) startEl.disabled = !isEditing;
+            if (endEl) endEl.disabled = !isEditing;
+            if (editBtn) editBtn.classList.toggle('d-none', isEditing);
+            if (updBtn) updBtn.classList.toggle('d-none', !isEditing);
+            if (cancelBtn) cancelBtn.classList.toggle('d-none', !isEditing);
+            try { seg.dataset.editing = isEditing ? '1' : '0'; } catch (e) { /* ignore */ }
+        }
+
+        // Edit saved segment (unlock fields)
+        document.addEventListener('click', function (e) {
+            const btn = e.target && (e.target.classList?.contains('editSavedSegment') ? e.target : e.target.closest?.('.editSavedSegment'));
+            if (!btn) return;
+            const seg = btn.closest('.segment');
+            if (!seg || seg.dataset.saved !== '1') return;
+            e.preventDefault();
+            e.stopPropagation();
+            setSavedSegmentEditMode(seg, true);
+        });
+
+        // Cancel edit (revert)
+        document.addEventListener('click', function (e) {
+            const btn = e.target && (e.target.classList?.contains('cancelSavedSegment') ? e.target : e.target.closest?.('.cancelSavedSegment'));
+            if (!btn) return;
+            const seg = btn.closest('.segment');
+            if (!seg || seg.dataset.saved !== '1') return;
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const citySel = seg.querySelector('.city-select');
+                const startEl = seg.querySelector('.start-date');
+                const endEl = seg.querySelector('.end-date');
+                const wanted = String(seg.dataset.originalCityDisplay || '').trim();
+                if (citySel && wanted) {
+                    const opt = Array.from(citySel.options).find(o => (o.text || '').trim() === wanted) ||
+                                Array.from(citySel.options).find(o => ((o.text || '').trim()).startsWith(wanted)) ||
+                                Array.from(citySel.options).find(o => normalizeCityValue((o.text || '').trim()) === normalizeCityValue(wanted));
+                    if (opt) citySel.value = opt.value;
+                }
+                if (startEl) startEl.value = String(seg.dataset.originalStart || '');
+                if (endEl) endEl.value = String(seg.dataset.originalEnd || '');
+                updateSegmentHeaderFromInputs(seg);
+                activateSegmentForServices(seg);
+                updateCityHiddenField();
+            } catch (err) { /* ignore */ }
+            setSavedSegmentEditMode(seg, false);
+        });
+
+        // Update saved segment (confirm + clear services + persist city plans)
+        document.addEventListener('click', function (e) {
+            const btn = e.target && (e.target.classList?.contains('updateSavedSegment') ? e.target : e.target.closest?.('.updateSavedSegment'));
+            if (!btn) return;
+            const seg = btn.closest('.segment');
+            if (!seg || seg.dataset.saved !== '1') return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            (async () => {
+                try {
+                    // Only allow update while in edit mode
+                    if (String(seg.dataset.editing || '0') !== '1') return;
+
+                    const form = document.getElementById('singleTourPackageForm');
+                    const clearServicesUrl = form && form.dataset ? (form.dataset.clearServicesUrl || '') : '';
+                    if (!clearServicesUrl) throw new Error('Clear services URL not found');
+
+                    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+                    if (!csrfToken) throw new Error('CSRF token not found');
+
+                    const citySel = seg.querySelector('.city-select');
+                    const startEl = seg.querySelector('.start-date');
+                    const endEl = seg.querySelector('.end-date');
+                    const cityDisplay = citySel && citySel.selectedOptions && citySel.selectedOptions[0]
+                        ? (citySel.selectedOptions[0].textContent || '').trim()
+                        : '';
+                    const st = normalizeDateToISO((startEl && startEl.value ? startEl.value : '').trim());
+                    const en = normalizeDateToISO((endEl && endEl.value ? endEl.value : '').trim());
+                    if (!citySel || !citySel.value || !st || !en) {
+                        if (typeof showToastr === 'function') showToastr('error', 'Please select City, Stay from, and Stay until.');
+                        return;
+                    }
+                    if (!isWithinMainRange(st, en)) {
+                        if (typeof showToastr === 'function') showToastr('error', 'Stay dates must be within the main tour date range.');
+                        return;
+                    }
+                    if (segmentHasOverlap(seg)) {
+                        if (typeof showToastr === 'function') showToastr('error', 'These dates overlap another city plan.');
+                        return;
+                    }
+
+                    const oCity = String(seg.dataset.originalCityDisplay || '').trim();
+                    const oSt = String(seg.dataset.originalStart || '').trim();
+                    const oEn = String(seg.dataset.originalEnd || '').trim();
+                    const changed = (oCity !== (cityDisplay || '').trim()) || (oSt !== st) || (oEn !== en);
+                    if (!changed) {
+                        setSavedSegmentEditMode(seg, false);
+                        return;
+                    }
+
+                    const msg =
+                        `You changed this city plan:\n\n` +
+                        `Old: ${oCity || '—'} [${oSt} → ${oEn}]\n` +
+                        `New: ${cityDisplay || '—'} [${st} → ${en}]\n\n` +
+                        `To keep bookings consistent, ALL existing services (hotels, attractions, guides, restaurants, transport) will be deleted.\n\n` +
+                        `Do you want to continue?`;
+                    if (!window.confirm(msg)) return;
+
+                    // Clear all services (soft delete all orders)
+                    const r1 = await fetch(clearServicesUrl, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+                    });
+                    const t1 = await r1.text();
+                    let d1 = {};
+                    try { d1 = t1 ? JSON.parse(t1) : {}; } catch (e) { d1 = {}; }
+                    if (!r1.ok || !d1.success) throw new Error((d1 && d1.message) ? d1.message : 'Failed to clear services');
+
+                    // Persist updated city plans (updates tours.city string)
+                    try { updateCityHiddenField(); } catch (e) { /* ignore */ }
+                    await persistCityPlansNow();
+
+                    // Update saved keys + originals
+                    try {
+                        const oldKey = toPlanKey(oCity, oSt, oEn);
+                        const newKey = toPlanKey(cityDisplay || citySel.value, st, en);
+                        if (__dbCityPlanKeys && __dbCityPlanKeys.delete) __dbCityPlanKeys.delete(oldKey);
+                        if (__dbCityPlanKeys && __dbCityPlanKeys.add) __dbCityPlanKeys.add(newKey);
+                    } catch (e) { /* ignore */ }
+
+                    seg.dataset.originalCityDisplay = (cityDisplay || '').trim();
+                    seg.dataset.originalStart = st;
+                    seg.dataset.originalEnd = en;
+                    setSavedSegmentEditMode(seg, false);
+
+                    if (typeof showToastr === 'function') showToastr('success', 'City plan updated.');
+                } catch (err) {
+                    console.error(err);
+                    if (typeof showToastr === 'function') showToastr('error', err && err.message ? err.message : 'Failed to update city plan.');
+                }
+            })();
+        });
 
         function isWithinMainRange(start, end) {
             // Minimal validation: must be within tour start/end and start <= end.
             const main = getMainTourRange();
-            if (!main.start || !main.end || !start || !end) return false;
-            if (start > end) return false;
-            if (start < main.start) return false;
-            if (end > main.end) return false;
+            const s = normalizeDateToISO(start);
+            const e = normalizeDateToISO(end);
+            const ms = normalizeDateToISO(main.start);
+            const me = normalizeDateToISO(main.end);
+            if (!ms || !me || !s || !e) return false;
+            if (s > e) return false;
+            if (s < ms) return false;
+            if (e > me) return false;
             return true;
+        }
+
+        function normalizeDateToISO(v) {
+            const raw = (v || '').toString().trim();
+            if (!raw) return '';
+            if (typeof moment === 'undefined') {
+                // Best-effort: already ISO
+                return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : raw;
+            }
+            const m = moment(raw, ['YYYY-MM-DD', 'DD-MM-YYYY', 'DD/MM/YYYY'], true);
+            return m.isValid() ? m.format('YYYY-MM-DD') : '';
+        }
+
+        function rangesOverlap(aStart, aEnd, bStart, bEnd) {
+            const as = normalizeDateToISO(aStart);
+            const ae = normalizeDateToISO(aEnd);
+            const bs = normalizeDateToISO(bStart);
+            const be = normalizeDateToISO(bEnd);
+            if (!as || !ae || !bs || !be) return false;
+            return as <= be && ae >= bs;
+        }
+
+        function segmentHasOverlap(seg) {
+            const startEl = seg.querySelector('.start-date');
+            const endEl = seg.querySelector('.end-date');
+            const start = normalizeDateToISO(startEl && startEl.value ? startEl.value : '');
+            const end = normalizeDateToISO(endEl && endEl.value ? endEl.value : '');
+            if (!start || !end) return false;
+
+            const others = Array.from(document.querySelectorAll('#segmentsWrapper .segment'))
+                .filter(s => s !== seg)
+                .map(s => ({
+                    start: normalizeDateToISO(s.querySelector('.start-date')?.value || ''),
+                    end: normalizeDateToISO(s.querySelector('.end-date')?.value || ''),
+                }))
+                .filter(r => r.start && r.end);
+
+            return others.some(r => rangesOverlap(start, end, r.start, r.end));
+        }
+
+        function enforceNoOverlapForSegment(seg, changedEl = null) {
+            // Do not modify "booked" (saved) rows; only enforce on new/editable ones.
+            if (seg && seg.dataset && seg.dataset.saved === '1') return;
+            if (!seg) return;
+            if (!segmentHasOverlap(seg)) return;
+
+            const startEl = seg.querySelector('.start-date');
+            const endEl = seg.querySelector('.end-date');
+            if (changedEl && changedEl.classList && changedEl.classList.contains('start-date')) {
+                if (startEl) startEl.value = '';
+            } else if (changedEl && changedEl.classList && changedEl.classList.contains('end-date')) {
+                if (endEl) endEl.value = '';
+            } else {
+                if (startEl) startEl.value = '';
+                if (endEl) endEl.value = '';
+            }
+
+            if (typeof showToastr === 'function') {
+                showToastr('error', 'These dates are already booked in another city plan. Please choose different dates.');
+            }
+        }
+
+        function updateSegmentHeaderFromInputs(seg) {
+            try {
+                const header = seg.querySelector('.segment-header');
+                const title = seg.querySelector('.segment-title');
+                const range = seg.querySelector('.segment-range');
+                const citySel = seg.querySelector('.city-select');
+                const startEl = seg.querySelector('.start-date');
+                const endEl = seg.querySelector('.end-date');
+
+                const cityText = citySel && citySel.selectedOptions && citySel.selectedOptions[0]
+                    ? (citySel.selectedOptions[0].textContent || '').trim()
+                    : '';
+                const start = startEl ? (startEl.value || '').trim() : '';
+                const end = endEl ? (endEl.value || '').trim() : '';
+
+                if (title) title.textContent = cityText || 'City (this stay)';
+                if (range) {
+                    if (start && end) {
+                        if (typeof moment !== 'undefined') {
+                            const ms = moment(start, 'YYYY-MM-DD');
+                            const me = moment(end, 'YYYY-MM-DD');
+                            range.textContent = (ms.isValid() && me.isValid())
+                                ? (ms.format('DD MMM YYYY') + ' - ' + me.format('DD MMM YYYY'))
+                                : (start + ' → ' + end);
+                        } else {
+                            range.textContent = start + ' → ' + end;
+                        }
+                    } else {
+                        range.textContent = 'Select stay dates';
+                    }
+                }
+                if (header) header.classList.remove('d-none');
+            } catch (e) { /* ignore */ }
+        }
+
+        function clearServiceDateFilter() {
+            try {
+                document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-date], #' + SERVICES_BUNDLE_ID + ' [data-service-start]').forEach(function (el) {
+                    el.classList.remove('d-none');
+                });
+            } catch (e) { /* ignore */ }
+        }
+
+        function applyServiceDateFilter(segStart, segEnd, segCity) {
+            if (!segStart || !segEnd) return;
+            try {
+                const wantCity = normalizeCityValue(segCity || '').toLowerCase();
+                const segS = normalizeDateToISO(segStart);
+                const segE = normalizeDateToISO(segEnd);
+                if (!segS || !segE) return;
+
+                // Single-date services
+                document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-date]').forEach(function (el) {
+                    const d = (el.getAttribute('data-service-date') || '').trim();
+                    if (!d) return; // if unknown date, keep visible
+                    const di = normalizeDateToISO(d);
+                    if (!di) return;
+                    const ok = di >= segS && di <= segE;
+                    el.classList.toggle('d-none', !ok);
+                });
+
+                // Range services (hotels): show if overlaps the segment range
+                document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-start][data-service-end]').forEach(function (el) {
+                    const s = (el.getAttribute('data-service-start') || '').trim();
+                    const e = (el.getAttribute('data-service-end') || '').trim();
+                    if (!s || !e) return;
+                    const si = normalizeDateToISO(s);
+                    const ei = normalizeDateToISO(e);
+                    if (!si || !ei) return;
+                    const ok = si <= segE && ei >= segS;
+                    let cityOk = true;
+                    const cAttr = (el.getAttribute('data-service-city') || '').trim();
+                    if (wantCity && cAttr) {
+                        cityOk = normalizeCityValue(cAttr).toLowerCase() === wantCity;
+                    }
+                    el.classList.toggle('d-none', !(ok && cityOk));
+                });
+            } catch (e) { /* ignore */ }
         }
 
         function activateSegmentForServices(seg) {
@@ -25457,6 +26460,7 @@
             if (mode !== 'multi') return;
             const bundle = getServicesBundleEl();
             if (!bundle) return;
+            const wasActive = (_activeSegmentEl === seg);
 
             const citySel = seg.querySelector('.city-select');
             const startEl = seg.querySelector('.start-date');
@@ -25488,6 +26492,7 @@
                 setServicesBundleVisible(false);
                 setServicesHintVisible(true);
                 moveServicesBundleToHome();
+                clearServiceDateFilter();
                 _activeSegmentEl = null;
                 return;
             }
@@ -25512,9 +26517,10 @@
             if (header) header.classList.remove('d-none');
             if (banner) banner.classList.remove('d-none');
 
-            // Ensure collapse is open for UX
+            // Ensure collapse is open only on first activation.
+            // If user is closing it, we must not force it open again.
             const collapse = seg.querySelector('.segment-body-collapse');
-            if (collapse) {
+            if (collapse && !wasActive) {
                 collapse.classList.add('show');
                 const tgl = seg.querySelector('.segment-body-toggle');
                 if (tgl) tgl.setAttribute('aria-expanded', 'true');
@@ -25527,6 +26533,10 @@
             setServicesBundleVisible(true);
             setServicesHintVisible(false);
             _activeSegmentEl = seg;
+
+            // Filter services to segment date range (e.g. 26–30 Apr shows only services in that range)
+            clearServiceDateFilter();
+            applyServiceDateFilter(start, end, citySel.value);
 
             applySegmentStayDateBadges(start, end);
 
@@ -25550,7 +26560,13 @@
             if (!t) return;
             if (t.classList && (t.classList.contains('city-select') || t.classList.contains('start-date') || t.classList.contains('end-date'))) {
                 const seg = t.closest ? t.closest('.segment') : null;
-                if (seg) activateSegmentForServices(seg);
+                if (seg) {
+                    if (t.classList.contains('start-date') || t.classList.contains('end-date')) {
+                        enforceNoOverlapForSegment(seg, t);
+                    }
+                    updateSegmentHeaderFromInputs(seg);
+                    activateSegmentForServices(seg);
+                }
                 updateCityHiddenField();
             }
         });
@@ -25561,7 +26577,45 @@
             if (!seg) return;
             // Do not steal clicks from remove button
             if (e.target && (e.target.classList?.contains('removeSegment') || e.target.closest?.('.removeSegment'))) return;
+            // Do not steal clicks from the segment collapse (date range accordion) toggle.
+            // Otherwise: user clicks "close" -> this handler re-activates and forces it open again.
+            if (e.target && (e.target.closest?.('.segment-header') || e.target.closest?.('.segment-body-toggle') || e.target.closest?.('[data-bs-toggle="collapse"]'))) return;
             activateSegmentForServices(seg);
+        });
+
+        // When clicking the date-range accordion bar, also activate services for that stay.
+        // This makes the behavior match "All services for this stay".
+        document.addEventListener('click', function (e) {
+            const headerBtn = e.target && (e.target.closest ? e.target.closest('#segmentsWrapper .segment-header [data-bs-target]') : null);
+            if (!headerBtn) return;
+            const seg = headerBtn.closest('.segment');
+            if (!seg) return;
+            // Don't fight the user's intent if they are closing an already-active segment.
+            const collapse = seg.querySelector('.segment-body-collapse');
+            const isOpen = !!(collapse && collapse.classList.contains('show'));
+            if (_activeSegmentEl !== seg && !isOpen) {
+                activateSegmentForServices(seg);
+            }
+        });
+
+        // Make sure the mini arrow button doesn't double-toggle (it sits inside a clickable collapse header).
+        document.addEventListener('click', function (e) {
+            const btn = e.target && (e.target.classList?.contains('segment-body-toggle') ? e.target : e.target.closest?.('.segment-body-toggle'));
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const seg = btn.closest('.segment');
+            const collapse = seg ? seg.querySelector('.segment-body-collapse') : null;
+            if (!collapse) return;
+            try {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                    const inst = bootstrap.Collapse.getInstance(collapse) || new bootstrap.Collapse(collapse, { toggle: false });
+                    if (collapse.classList.contains('show')) inst.hide();
+                    else inst.show();
+                } else {
+                    collapse.classList.toggle('show');
+                }
+            } catch (e) { /* ignore */ }
         });
 
         document.addEventListener('click', function (e) {
@@ -25581,14 +26635,136 @@
             const rm = e.target && (e.target.classList && e.target.classList.contains('removeSegment') ? e.target : e.target.closest ? e.target.closest('.removeSegment') : null);
             if (!rm) return;
             const seg = rm.closest('.segment');
-            if (seg) seg.remove();
-            if (_activeSegmentEl && seg === _activeSegmentEl) {
-                _activeSegmentEl = null;
-                moveServicesBundleToHome();
-                setServicesBundleVisible(false);
-                setServicesHintVisible(getCityTypeMode() === 'multi');
-            }
-            updateCityHiddenField();
+            if (!seg) return;
+
+            (async () => {
+                try {
+                    const isSaved = seg.dataset && seg.dataset.saved === '1';
+                    const citySel = seg.querySelector('.city-select');
+                    const startEl = seg.querySelector('.start-date');
+                    const endEl = seg.querySelector('.end-date');
+                    const cityDisplay = citySel && citySel.selectedOptions && citySel.selectedOptions[0]
+                        ? (citySel.selectedOptions[0].textContent || '').trim()
+                        : '';
+                    const st = normalizeDateToISO((startEl && startEl.value ? startEl.value : '').trim());
+                    const en = normalizeDateToISO((endEl && endEl.value ? endEl.value : '').trim());
+
+                    // If it's already saved in DB, call backend to remove it + soft delete services
+                    if (isSaved) {
+                        const form = document.getElementById('singleTourPackageForm');
+                        const url = form && form.dataset ? form.dataset.removeCityUrl : '';
+                        if (!url) throw new Error('Remove URL not found');
+                        if (!st || !en) throw new Error('Stay dates not found');
+
+                        // Confirm: removing a saved city plan also removes services for this date range
+                        const confirmMsg =
+                            `Remove this city plan${cityDisplay ? ` (${cityDisplay})` : ''}?\n\n` +
+                            `This will also remove (soft delete) ALL services booked between:\n${st} → ${en}\n\n` +
+                            `Do you want to continue?`;
+                        if (!window.confirm(confirmMsg)) return;
+
+                        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+                        if (!csrfToken) throw new Error('CSRF token not found');
+
+                        const fd = new FormData();
+                        fd.append('city_display', cityDisplay);
+                        fd.append('start', st);
+                        fd.append('end', en);
+
+                        const resp = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                            body: fd
+                        });
+                        const txt = await resp.text();
+                        let data = {};
+                        try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+                        if (!resp.ok || !data.success) {
+                            throw new Error((data && data.message) ? data.message : 'Failed to remove city plan');
+                        }
+                        // Also update hidden city field to reflect DB update and local UI
+                        try {
+                            if (typeof __dbCityPlanKeys !== 'undefined' && __dbCityPlanKeys && __dbCityPlanKeys.delete) {
+                                __dbCityPlanKeys.delete(toPlanKey(cityDisplay, st, en));
+                            }
+                        } catch (e) { /* ignore */ }
+                        if (typeof showToastr === 'function') {
+                            const dc = (data.data && typeof data.data.deleted_services_count !== 'undefined') ? data.data.deleted_services_count : null;
+                            showToastr('success', dc !== null ? `City plan removed. ${dc} service(s) removed.` : 'City plan removed.');
+                        }
+                    } else {
+                        // Not saved yet: just remove from UI
+                        if (typeof showToastr === 'function') showToastr('success', 'City plan removed.');
+                    }
+
+                    seg.remove();
+                    if (_activeSegmentEl && seg === _activeSegmentEl) {
+                        _activeSegmentEl = null;
+                        moveServicesBundleToHome();
+                        setServicesBundleVisible(false);
+                        setServicesHintVisible(getCityTypeMode() === 'multi');
+                    }
+                    updateCityHiddenField();
+                } catch (err) {
+                    console.error(err);
+                    if (typeof showToastr === 'function') showToastr('error', err && err.message ? err.message : 'Failed to remove city plan.');
+                }
+            })();
+        });
+
+        // Add segment row to DB city string (button next to remove ×)
+        document.addEventListener('click', function (e) {
+            const addBtn = e.target && (e.target.classList && e.target.classList.contains('addSegmentToDb') ? e.target : e.target.closest ? e.target.closest('.addSegmentToDb') : null);
+            if (!addBtn) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            const seg = addBtn.closest ? addBtn.closest('.segment') : null;
+            if (!seg) return;
+
+            (async () => {
+                try {
+                    // Validate this row has city + start + end
+                    const citySel = seg.querySelector('.city-select');
+                    const cityInp = seg.querySelector('.city-input');
+                    const startEl = seg.querySelector('.start-date');
+                    const endEl = seg.querySelector('.end-date');
+                    const cityVal = (citySel && citySel.value ? citySel.value : (cityInp && cityInp.value ? cityInp.value : '')).trim();
+                    const st = normalizeDateToISO((startEl && startEl.value ? startEl.value : '').trim());
+                    const en = normalizeDateToISO((endEl && endEl.value ? endEl.value : '').trim());
+                    if (!cityVal || !st || !en) {
+                        if (typeof showToastr === 'function') showToastr('error', 'Please select City, Stay from, and Stay until.');
+                        return;
+                    }
+                    if (segmentHasOverlap(seg)) {
+                        if (typeof showToastr === 'function') showToastr('error', 'These dates are already booked in another city plan.');
+                        return;
+                    }
+
+                    // Ensure hidden city string is updated (will include all rows, including this one)
+                    try { if (typeof updateCityHiddenField === 'function') updateCityHiddenField(); } catch (e) { /* ignore */ }
+                    // Persist immediately
+                    await persistCityPlansNow();
+                    // Mark this row as saved: hide "+" and lock fields (and remember it for reload-like behavior)
+                    try {
+                        seg.dataset.saved = '1';
+                        if (addBtn) addBtn.classList.add('d-none');
+                        if (citySel) citySel.disabled = true;
+                        if (cityInp) cityInp.disabled = true;
+                        if (startEl) startEl.disabled = true;
+                        if (endEl) endEl.disabled = true;
+                        const cityText = citySel && citySel.selectedOptions && citySel.selectedOptions[0]
+                            ? (citySel.selectedOptions[0].textContent || '').trim()
+                            : (cityInp ? (cityInp.value || '').trim() : '');
+                        __dbCityPlanKeys.add(toPlanKey(cityText, st, en));
+                    } catch (e) { /* ignore */ }
+                    if (typeof showToastr === 'function') showToastr('success', 'City plan saved to database.');
+                } catch (err) {
+                    console.error(err);
+                    if (typeof showToastr === 'function') showToastr('error', err && err.message ? err.message : 'Failed to save city plan.');
+                }
+            })();
         });
 
         // Initialize on load with saved mode
@@ -25598,6 +26774,12 @@
             if (getCityTypeMode() === 'multi') {
                 const parsed = parseSegmentsFromDbCity(DB_CITY_RAW);
                 if (parsed && parsed.length) {
+                    // Build DB key set so "+" is hidden for existing saved plans (even after reload)
+                    try {
+                        __dbCityPlanKeys = new Set(parsed
+                            .filter(p => p && p.cityDisplay && p.start && p.end)
+                            .map(p => toPlanKey(p.cityDisplay, p.start, p.end)));
+                    } catch (e) { __dbCityPlanKeys = new Set(); }
                     // Ensure master list has at least these cities selected
                     selectMasterCities(parsed.map(p => p.city));
                     const wrap = document.getElementById('segmentsWrapper');
@@ -25608,6 +26790,8 @@
                         addSegmentRow(p);
                     }
                     applySegmentDateLimits();
+                    // Populate the mini header for all rows immediately
+                    document.querySelectorAll('#segmentsWrapper .segment').forEach(updateSegmentHeaderFromInputs);
                 }
             }
             updateCityHiddenField();
@@ -25615,7 +26799,10 @@
             // If multi-city and first segment is valid, auto-activate it so services grid is immediately visible.
             if (getCityTypeMode() === 'multi') {
                 const first = document.querySelector('#segmentsWrapper .segment');
-                if (first) activateSegmentForServices(first);
+                if (first) {
+                    updateSegmentHeaderFromInputs(first);
+                    activateSegmentForServices(first);
+                }
             } else {
                 setServicesHintVisible(false);
                 setServicesBundleVisible(true);

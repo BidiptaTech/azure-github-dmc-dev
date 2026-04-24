@@ -444,7 +444,8 @@
     .rounded-logo {
         width: 46px;
         height: 46px;
-        object-fit: cover;
+        object-fit: contain;
+       
         border-radius: 50%; /* Makes it a perfect circle */
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2),
                     inset 0 0 10px rgba(255, 255, 255, 0.2); /* 3D inner & outer */
@@ -648,9 +649,9 @@
 
     /* Active menu item badge styling */
     .menu-item.active .menu-link .badge {
-        background-color: rgba(255, 255, 255, 0.9) !important;
-        color: #dc3545 !important;
-        border-color: rgba(255, 255, 255, 0.5);
+        background-color: #dc3545 !important;
+        color: #ffffff !important;
+        border-color: #dc3545 !important;
     }
 
     /* Submenu badge styling */
@@ -2318,6 +2319,11 @@
                             <li class="menu-item @if(Request::is('itinerary_settings.pdf')) active @endif">
                                 <a href="{{ route('itinerary_settings.pdf') }}" class="menu-link">
                                     <div data-i18n="Itinerary Settings">Itinerary Settings</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('quotation_settings.pdf')) active @endif">
+                                <a href="{{ route('quotation_settings.pdf') }}" class="menu-link">
+                                    <div data-i18n="Quotation Settings">Quotation Settings</div>
                                 </a>
                             </li>
                         @endif

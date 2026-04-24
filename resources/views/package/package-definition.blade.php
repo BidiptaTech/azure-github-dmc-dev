@@ -171,6 +171,12 @@
                                                     <option value="">Select room type</option>
                                                 </select>
                                             </div>
+                                            <div class="flex-grow-1" style="min-width: 140px;">
+                                                <label class="form-label small mb-0">Bed Type</label>
+                                                <select class="form-select form-select-sm" id="definition-bed-type-select">
+                                                    <option value="">Select bed type</option>
+                                                </select>
+                                            </div>
                                             <div style="width: 70px;">
                                                 <label class="form-label small mb-0">Qty</label>
                                                 <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1">
@@ -200,10 +206,24 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3 h-100 hotel-attraction-box">
                                 <h6 class="fw-semibold mb-2 text-success"><i class="ri-map-pin-line me-1"></i>Attraction</h6>
-                                <label class="form-label small mb-1">Select Attraction</label>
-                                <select class="form-select form-select-sm w-100 mb-2" id="definition-attraction-select">
-                                    <option value="">Select City First</option>
-                                </select>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small mb-1">Select Attraction</label>
+                                        <select class="form-select form-select-sm w-100" id="definition-attraction-select">
+                                            <option value="">Select City First</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small mb-1">Select Ticket</label>
+                                        <select class="form-select form-select-sm w-100" id="definition-attraction-ticket-select">
+                                            <option value="">Select attraction first</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small mb-1">Adult Price</label>
+                                        <input type="text" class="form-control form-control-sm w-100" id="definition-attraction-ticket-adult-price" value="—" readonly>
+                                    </div>
+                                </div>
                                 <div id="definition-attraction-config" style="display: none;">
                                     <div class="bg-success-subtle rounded p-2 mb-2">
                                         <h6 class="small fw-semibold mb-1">Guide & transfer</h6>
@@ -215,10 +235,31 @@
                                                 </div>
                                             </div>
                                             <div class="col-12" id="definition-attraction-config-guide-wrap" style="display: none;">
-                                                <label class="form-label small mb-0">Select guide</label>
-                                                <select class="form-select form-select-sm" id="definition-attraction-config-guide">
-                                                    <option value="">Select guide</option>
-                                                </select>
+                                                <div class="row g-2">
+                                                    <div class="col-12 col-md-6">
+                                                        <label class="form-label small mb-0">Select guide</label>
+                                                        <select class="form-select form-select-sm" id="definition-attraction-config-guide">
+                                                            <option value="">Select guide</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-12 col-md-3">
+                                                        <label class="form-label small mb-0">Hour</label>
+                                                        <select class="form-select form-select-sm" id="definition-attraction-config-guide-hour">
+                                                            <option value="">Select hour</option>
+                                                            <option value="hourly">1 Hour</option>
+                                                            <option value="two_hour">2 Hours</option>
+                                                            <option value="four_hour">4 Hours</option>
+                                                            <option value="six_hour">6 Hours</option>
+                                                            <option value="eight_hour">8 Hours</option>
+                                                            <option value="ten_hour">10 Hours</option>
+                                                            <option value="twelve_hour">12 Hours</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-12 col-md-3">
+                                                        <label class="form-label small mb-0">Guide Price</label>
+                                                        <input type="text" class="form-control form-control-sm" id="definition-attraction-config-guide-price" value="—" readonly>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div class="col-12">
                                                 <div class="form-check form-check-inline">
@@ -239,6 +280,11 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label small mb-0">Dropoff (e.g. attraction)</label>
                                                         <select class="form-select form-select-sm" id="definition-attraction-config-dropoff"><option value="">—</option></select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small mb-0">Transfer Price</label>
+                                                        <input type="number" class="form-control form-control-sm" id="definition-attraction-config-transfer-price" min="0" step="0.01" value="0">
+                                                        <small class="text-muted">Auto-fetched from zone mapping (editable).</small>
                                                     </div>
                                                 </div>
                                                 <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="private" id="definition-attr-transfer-private"><label class="form-check-label small" for="definition-attr-transfer-private">Private</label></div>
@@ -264,7 +310,7 @@
             <!-- Restaurants & Guide: two side-by-side boxes (same as Hotels & Attractions) -->
             <div class="card mb-4">
                 <div class="card-header bg-light py-2">
-                    <h5 class="mb-0"><i class="ri-restaurant-line me-2 text-warning"></i><i class="ri-user-voice-line me-2 text-info"></i>Restaurants & Guide</h5>
+                    <h5 class="mb-0"><i class="ri-restaurant-line me-2 text-warning"></i><i class="ri-user-voice-line me-2 text-info"></i>Restaurants</h5>
                 </div>
                 <div class="card-body py-3">
                     <div class="row g-3">
@@ -278,19 +324,17 @@
                                 </select>
                                 <div id="definition-restaurant-config" style="display: none;">
                                     <div id="definition-restaurant-meals-wrap" class="bg-warning-subtle rounded p-2 mb-2" style="display: none;">
-                                        <h6 class="small fw-semibold mb-1">Meals</h6>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            <div class="form-check form-check-inline mb-0" id="definition-rest-meal-breakfast-wrap" style="display: none;">
-                                                <input class="form-check-input" type="checkbox" id="definition-restaurant-meal-breakfast" value="breakfast">
-                                                <label class="form-check-label small" for="definition-restaurant-meal-breakfast">Breakfast</label>
+                                        <h6 class="small fw-semibold mb-1">Meal</h6>
+                                        <div class="row g-2 align-items-end">
+                                            <div class="col-md-7">
+                                                <label class="form-label small mb-0">Type</label>
+                                                <select class="form-select form-select-sm" id="definition-restaurant-meal-type-select">
+                                                    <option value="">Select meal type</option>
+                                                </select>
                                             </div>
-                                            <div class="form-check form-check-inline mb-0" id="definition-rest-meal-lunch-wrap" style="display: none;">
-                                                <input class="form-check-input" type="checkbox" id="definition-restaurant-meal-lunch" value="lunch">
-                                                <label class="form-check-label small" for="definition-restaurant-meal-lunch">Lunch</label>
-                                            </div>
-                                            <div class="form-check form-check-inline mb-0" id="definition-rest-meal-dinner-wrap" style="display: none;">
-                                                <input class="form-check-input" type="checkbox" id="definition-restaurant-meal-dinner" value="dinner">
-                                                <label class="form-check-label small" for="definition-restaurant-meal-dinner">Dinner</label>
+                                            <div class="col-md-5">
+                                                <label class="form-label small mb-0">Adult Price</label>
+                                                <input type="text" class="form-control form-control-sm" id="definition-restaurant-meal-adult-price" value="—" readonly>
                                             </div>
                                         </div>
                                     </div>
@@ -314,6 +358,11 @@
                                                         <label class="form-label small mb-0">Dropoff (restaurant)</label>
                                                         <select class="form-select form-select-sm" id="definition-restaurant-config-dropoff"><option value="">—</option></select>
                                                     </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small mb-0">Transfer Price</label>
+                                                        <input type="number" class="form-control form-control-sm" id="definition-restaurant-config-transfer-price" min="0" step="0.01" value="0">
+                                                        <small class="text-muted">Auto-fetched from zone mapping (editable).</small>
+                                                    </div>
                                                 </div>
                                                 <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="private" id="definition-rest-transfer-private"><label class="form-check-label small" for="definition-rest-transfer-private">Private</label></div>
                                                 <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="shared" id="definition-rest-transfer-shared"><label class="form-check-label small" for="definition-rest-transfer-shared">Shared</label></div>
@@ -329,7 +378,7 @@
                             </div>
                         </div>
                         <!-- Guide box (col-md-6) -->
-                        <div class="col-md-6">
+                        <!-- <div class="col-md-6">
                             <div class="border rounded p-3 h-100 hotel-attraction-box">
                                 <h6 class="fw-semibold mb-2 text-info"><i class="ri-user-voice-line me-1"></i>Guide</h6>
                                 <label class="form-label small mb-1">Select Guide</label>
@@ -359,7 +408,7 @@
                                     <div id="definition-guides-list" class="mt-1" style="display: none;"></div>
                                 </div>
                             </div>
-                        </div>
+                        </div> -->
                     </div>
                     <input type="hidden" name="selected_restaurants" id="definition-restaurants-input" value="[]">
                     <input type="hidden" name="definition_independent_guide" id="definition-independent-guide-input" value="[]">
@@ -412,6 +461,22 @@
                                                 </select>
                                                 <button type="button" class="btn btn-info btn-sm" id="arrival-add-vehicle-btn"><i class="ri-add-line"></i> Add</button>
                                             </div>
+                                            <div class="row g-2 mb-1">
+                                                <div class="col-md-7">
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="arrival_transfer_type" id="arrival-transfer-private" value="private" checked>
+                                                        <label class="form-check-label small" for="arrival-transfer-private">Private</label>
+                                                    </div>
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="arrival_transfer_type" id="arrival-transfer-shared" value="shared">
+                                                        <label class="form-check-label small" for="arrival-transfer-shared">Shared</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <label class="form-label small mb-0">Price</label>
+                                                    <input type="number" class="form-control form-control-sm" id="arrival-transfer-price-input" min="0" step="0.01" value="0">
+                                                </div>
+                                            </div>
                                             <div id="arrival-chosen-vehicles" class="small mt-1"></div>
                                         </div>
                                     </div>
@@ -457,6 +522,22 @@
                                                 </select>
                                                 <button type="button" class="btn btn-warning btn-sm" id="departure-add-vehicle-btn"><i class="ri-add-line"></i> Add</button>
                                             </div>
+                                            <div class="row g-2 mb-1">
+                                                <div class="col-md-7">
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="departure_transfer_type" id="departure-transfer-private" value="private" checked>
+                                                        <label class="form-check-label small" for="departure-transfer-private">Private</label>
+                                                    </div>
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="departure_transfer_type" id="departure-transfer-shared" value="shared">
+                                                        <label class="form-check-label small" for="departure-transfer-shared">Shared</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <label class="form-label small mb-0">Price</label>
+                                                    <input type="number" class="form-control form-control-sm" id="departure-transfer-price-input" min="0" step="0.01" value="0">
+                                                </div>
+                                            </div>
                                             <div id="departure-chosen-vehicles" class="small mt-1"></div>
                                         </div>
                                     </div>
@@ -475,8 +556,36 @@
                 </div>
             </div>
 
+            <div class="card mb-4">
+                <div class="card-header bg-light py-2">
+                    <h5 class="mb-0"><i class="ri-money-dollar-circle-line me-2 text-success"></i>Price & Markup</h5>
+                </div>
+                <div class="card-body py-3">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Total Price</label>
+                            <input type="number" class="form-control" id="definition-total-price" name="total_price" readonly value="0" step="0.01" min="0">
+                            <small class="text-muted">Sum of hotels, attractions, restaurants, arrival and departure.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Markup Type</label>
+                            <select class="form-select" id="definition-markup-type" name="markup_type">
+                                <option value="">Select type</option>
+                                <option value="percentage">Percentage</option>
+                                <option value="flat">Flat</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Markup Amount</label>
+                            <input type="number" class="form-control" id="definition-markup-amount" name="markup_amount" value="0" step="0.01" min="0">
+                            <small class="text-muted">For percentage, enter % value. For flat, enter amount.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Transport: Local Transfer (pickup & dropoff = hotels, attractions, restaurants, ports; dropoff excludes selected pickup) -->
-            <div class="card mb-5">
+            <!-- <div class="card mb-5">
                 <div class="card-header bg-light">
                     <h5 class="mb-0"><i class="ri-car-line me-2 text-secondary"></i>Transport</h5>
                 </div>
@@ -521,39 +630,33 @@
                     </div>
                     <input type="hidden" name="local_transfers" id="local-transfers-hidden" value="[]">
                 </div>
-            </div>
+            </div> -->
 
-            <!-- Optional services aggregated price data (JSON) -->
             <input type="hidden" name="price_data" id="price-data-hidden" value="[]">
-
-            <!-- Optional Services Summary: list and total (shown when any optional service exists) -->
-            <div class="card mb-4 border-success border-opacity-25" id="optional-services-summary-card" style="display: none;">
-                <div class="card-header bg-success-subtle py-2">
-                    <h5 class="mb-0"><i class="ri-price-tag-3-line me-2 text-success"></i>Optional Services – Price Summary</h5>
+            <div class="card mb-4" id="optional-services-summary-card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="ri-price-tag-3-line me-2 text-primary"></i>Optional &amp; Add-On Services – Price Summary</h5>
                 </div>
-                <div class="card-body">
-                    <p class="text-muted small mb-3">Add-on services marked as optional and their prices. Total is the sum of all optional service prices.</p>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle mb-0" id="optional-services-summary-table">
+                <div class="card-body py-3">
+                    <p class="text-muted small mb-2">Listed prices come from services you marked as <strong>Optional</strong> or <strong>Add-On</strong> below.</p>
+                    <div id="optional-services-summary-empty" class="alert alert-secondary py-2 small mb-0"><i class="ri-information-line me-1"></i>No optional or add-on priced lines yet. Mark a service as Optional or Add-On to include it here.</div>
+                    <div id="optional-services-summary-table-wrap" class="table-responsive mt-2" style="display: none;">
+                        <table class="table table-sm table-bordered mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="text-nowrap">#</th>
                                     <th>Service</th>
-                                    <th class="text-nowrap">Type</th>
-                                    <th class="text-end text-nowrap">Price</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Price</th>
                                 </tr>
                             </thead>
                             <tbody id="optional-services-summary-tbody"></tbody>
-                            <tfoot class="table-light fw-semibold">
-                                <tr>
-                                    <td colspan="3" class="text-end">Total (optional services)</td>
-                                    <td class="text-end" id="optional-services-total-cell">—</td>
+                            <tfoot>
+                                <tr class="fw-semibold">
+                                    <td colspan="2">Total</td>
+                                    <td class="text-end" id="optional-services-total">—</td>
                                 </tr>
                             </tfoot>
                         </table>
-                    </div>
-                    <div id="optional-services-summary-empty" class="alert alert-light border text-muted py-3 mb-0 mt-2 text-center" style="display: none;">
-                        <i class="ri-information-line me-1"></i>No optional services added yet. Mark any hotel, attraction, restaurant, guide or transfer as <strong>Optional</strong> to see their prices from the database here.
                     </div>
                 </div>
             </div>
@@ -604,6 +707,8 @@
 <script>
 $(document).ready(function() {
     const baseUrl = '{{ url("/") }}';
+    const fetchAttractionTransferPricingUrl = '{{ route("fetch-attraction-transfer-pricing") }}';
+    const fetchRestaurantTransferPricingUrl = '{{ route("fetch-restaurant-transfer-pricing") }}';
 
     $('#country-select, #city-select').select2();
     $('#definition-hotel-select').select2({ placeholder: 'Select hotel' });
@@ -639,6 +744,7 @@ $(document).ready(function() {
         allHotelsForLocalTransfer = [];
         allAttractionsForLocalTransfer = [];
         allRestaurantsForLocalTransfer = [];
+        restaurantMealsByRestaurant = {};
         if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
         if (typeof definitionGuides !== 'undefined') { definitionGuides = []; if (typeof updateDefinitionGuidesInput === 'function') updateDefinitionGuidesInput(); if (typeof renderChosenGuides === 'function') renderChosenGuides(); }
         if (!country) return;
@@ -671,6 +777,7 @@ $(document).ready(function() {
     let definitionHotels = [];
     let definitionAttractions = [];
     let definitionRestaurants = [];
+    let restaurantMealsByRestaurant = {};
     let vehiclesByCity = [];
     let guidesByCity = [];
 
@@ -709,6 +816,7 @@ $(document).ready(function() {
         $.get(baseUrl + '/restaurants/' + encodeURIComponent(city), function(response) {
             const list = response.restaurants || response;
             allRestaurantsForLocalTransfer = Array.isArray(list) ? list : [];
+            restaurantMealsByRestaurant = {};
             const sel = $('#definition-restaurant-select');
             sel.empty().append('<option value="">Select Restaurant</option>');
             allRestaurantsForLocalTransfer.forEach(function(r) {
@@ -761,18 +869,22 @@ $(document).ready(function() {
 
     let definitionPendingRooms = [];
     let definitionRoomTypesByHotel = [];
+    let definitionBedsByRoom = [];
 
     // Hotel → Room types (AJAX): populate Room Type select
     $('#definition-hotel-select').on('change', function() {
         const hotelId = $(this).val();
         const wrapper = $('#definition-rooms-wrapper');
         const roomTypeSelect = $('#definition-room-type-select');
+        const bedTypeSelect = $('#definition-bed-type-select');
         roomTypeSelect.empty().append('<option value="">Select room type</option>');
+        bedTypeSelect.empty().append('<option value="">Select bed type</option>');
         definitionPendingRooms = [];
         renderDefinitionPendingRooms();
         if (!hotelId) {
             wrapper.hide();
             definitionRoomTypesByHotel = [];
+            definitionBedsByRoom = [];
             return;
         }
         $.get(baseUrl + '/room-types-by-hotel/' + encodeURIComponent(hotelId), function(res) {
@@ -790,14 +902,43 @@ $(document).ready(function() {
         });
     });
 
+    // Room type -> Bed types (AJAX): populate Bed Type select
+    $('#definition-room-type-select').on('change', function() {
+        const roomId = $(this).val();
+        const bedTypeSelect = $('#definition-bed-type-select');
+        bedTypeSelect.empty().append('<option value="">Select bed type</option>');
+        definitionBedsByRoom = [];
+        if (!roomId) return;
+
+        $.get(baseUrl + '/beds-by-room/' + encodeURIComponent(roomId), function(res) {
+            const beds = Array.isArray(res.beds) ? res.beds : [];
+            definitionBedsByRoom = beds;
+            if (beds.length === 0) {
+                bedTypeSelect.append('<option value="" disabled>No bed types found</option>');
+                return;
+            }
+            beds.forEach(function(b) {
+                const label = b.room_type || 'Bed';
+                const opt = new Option(label, label);
+                $(opt).attr('data-extra-bed', b.extra_bed ? 1 : 0);
+                $(opt).attr('data-extra-bed-type', b.extra_bed_type);
+                $(opt).attr('data-bed-id', b.bed_id);
+                bedTypeSelect.append(opt);
+            });
+        });
+    });
+
     function renderDefinitionPendingRooms() {
         const el = $('#definition-pending-rooms');
         el.empty();
         if (definitionPendingRooms.length === 0) return;
         definitionPendingRooms.forEach(function(r, i) {
+            const weekendLabel = r.weekend_price != null && !isNaN(parseFloat(r.weekend_price))
+                ? ' · Weekend: ' + formatOptionalPrice(r.weekend_price)
+                : '';
             el.append(`
                 <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1 mb-1 bg-white small">
-                    <span>${escapeHtml(r.room_type_name)} × ${r.quantity}</span>
+                    <span>${escapeHtml(r.room_type_name)} · ${escapeHtml(r.bed_type || 'N/A')} × ${r.quantity}${weekendLabel}</span>
                     <button type="button" class="btn btn-link btn-sm p-0 text-danger definition-pending-room-remove" data-i="${i}" title="Remove"><i class="ri-close-line"></i></button>
                 </div>
             `);
@@ -816,16 +957,259 @@ $(document).ready(function() {
             return;
         }
         const roomTypeName = $('#definition-room-type-select').find('option:selected').text();
+        const bedType = $('#definition-bed-type-select').val();
+        if (!bedType) {
+            alert('Please select a bed type.');
+            return;
+        }
+        const extraBed = parseInt($('#definition-bed-type-select option:selected').attr('data-extra-bed') || '0', 10) === 1;
+        const extraBedType = $('#definition-bed-type-select option:selected').attr('data-extra-bed-type');
+        const bedId = $('#definition-bed-type-select option:selected').attr('data-bed-id');
         const qty = parseInt($('#definition-room-type-qty').val(), 10) || 1;
         if (qty < 1) return;
-        definitionPendingRooms.push({ room_type_id: roomTypeId, room_type_name: roomTypeName, quantity: qty });
+        const selectedRoomObj = (definitionRoomTypesByHotel || []).find(function(x) { return (x.id || x.room_id) == roomTypeId; });
+        const weekendPrice = selectedRoomObj && selectedRoomObj.weekend_price != null && selectedRoomObj.weekend_price !== ''
+            ? parseFloat(selectedRoomObj.weekend_price)
+            : null;
+        definitionPendingRooms.push({
+            room_type_id: roomTypeId,
+            room_type_name: roomTypeName,
+            bed_type: bedType,
+            extra_bed: extraBed,
+            quantity: qty,
+            extra_bed_type: extraBedType,
+            bed_id: bedId,
+            weekend_price: weekendPrice
+        });
         renderDefinitionPendingRooms();
         $('#definition-room-type-qty').val(1);
     });
 
     function formatOptionalPrice(val) {
         if (val === '' || val == null || isNaN(parseFloat(val))) return '—';
-        return '₹' + parseFloat(val).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return 'SGD ' + parseFloat(val).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    function numPriceVal(v) {
+        if (v === '' || v == null) return 0;
+        const n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+    }
+    function minFinite(nums) {
+        if (!nums || nums.length === 0) return 0;
+        let m = nums[0];
+        for (let i = 1; i < nums.length; i++) {
+            if (nums[i] < m) m = nums[i];
+        }
+        return m;
+    }
+    /** First hotel/restaurant sets allowed modes for rows 2+: 'compulsory' | 'optional' | 'addon' | null */
+    function getFirstServiceTrack(list) {
+        if (!list || list.length === 0) return null;
+        const f = list[0];
+        if (f.optional === true) return 'optional';
+        if (f.addon === true) return 'addon';
+        return 'compulsory';
+    }
+    function normalizeHotelModesByFirst() {
+        if (!definitionHotels || definitionHotels.length <= 1) return;
+        const track = getFirstServiceTrack(definitionHotels);
+        if (track === 'addon') return;
+        for (let i = 1; i < definitionHotels.length; i++) {
+            const h = definitionHotels[i];
+            if (track === 'compulsory') {
+                if (h.optional === true) {
+                    h.optional = false;
+                    h.compulsory = true;
+                    h.addon = false;
+                    h.optional_price = '';
+                    h.addon_price = '';
+                }
+            } else if (track === 'optional') {
+                if (h.compulsory === true || (!h.optional && !h.addon)) {
+                    h.compulsory = false;
+                    h.optional = true;
+                    h.addon = false;
+                    if ((h.optional_price === '' || h.optional_price == null) && h.base_price != null && h.base_price !== '') {
+                        h.optional_price = h.base_price;
+                    }
+                    h.addon_price = '';
+                }
+            }
+        }
+    }
+    function normalizeRestaurantModesByFirst() {
+        if (!definitionRestaurants || definitionRestaurants.length <= 1) return;
+        const track = getFirstServiceTrack(definitionRestaurants);
+        if (track === 'addon') return;
+        for (let i = 1; i < definitionRestaurants.length; i++) {
+            const r = definitionRestaurants[i];
+            if (track === 'compulsory') {
+                if (r.optional === true) {
+                    r.optional = false;
+                    r.compulsory = true;
+                    r.addon = false;
+                    r.optional_price = '';
+                    r.addon_price = '';
+                }
+            } else if (track === 'optional') {
+                if (r.compulsory === true || (!r.optional && !r.addon)) {
+                    r.compulsory = false;
+                    r.optional = true;
+                    r.addon = false;
+                    if ((r.optional_price === '' || r.optional_price == null) && r.base_price != null && r.base_price !== '') {
+                        r.optional_price = r.base_price;
+                    }
+                    r.addon_price = '';
+                }
+            }
+        }
+    }
+    /** Package total for hotels: sum compulsory + min optional; add-on ignored. */
+    function computeHotelsTotalForPackage() {
+        let compulsorySum = 0;
+        const opts = [];
+        (definitionHotels || []).forEach(function(h) {
+            if (h.addon === true) return;
+            const p = numPriceVal(h.base_price);
+            if (h.optional === true) opts.push(p);
+            else compulsorySum += p;
+        });
+        return compulsorySum + (opts.length ? minFinite(opts) : 0);
+    }
+    function restaurantLinePriceForTotal(r) {
+        const base = numPriceVal(r && r.base_price);
+        const transfer = (r && r.transfer) ? numPriceVal(r.transfer_price) : 0;
+        return base + transfer;
+    }
+    function computeRestaurantsTotalForPackage() {
+        let compulsorySum = 0;
+        const opts = [];
+        (definitionRestaurants || []).forEach(function(r) {
+            if (r.addon === true) return;
+            const p = restaurantLinePriceForTotal(r);
+            if (r.optional === true) opts.push(p);
+            else compulsorySum += p;
+        });
+        return compulsorySum + (opts.length ? minFinite(opts) : 0);
+    }
+    function attractionLineTotal(a) {
+        const base = numPriceVal(a && a.base_price);
+        const guide = numPriceVal(a && a.guide ? a.guide.price : 0);
+        const transfer = (a && a.transfer) ? numPriceVal(a.transfer_price) : 0;
+        return base + guide + transfer;
+    }
+    /**
+     * Attractions: add-on ignored for package total.
+     * Only compulsory: sum all compulsory line totals.
+     * Only optional: minimum among optional line totals.
+     * Both compulsory and optional: sum(compulsory) + min(optional).
+     */
+    function computeAttractionsTotalForPackage() {
+        const compTotals = [];
+        const optTotals = [];
+        (definitionAttractions || []).forEach(function(a) {
+            if (a.addon === true) return;
+            const t = attractionLineTotal(a);
+            if (a.optional === true) optTotals.push(t);
+            else compTotals.push(t);
+        });
+        if (compTotals.length && optTotals.length) {
+            let sumComp = 0;
+            compTotals.forEach(function(x) { sumComp += x; });
+            return sumComp + minFinite(optTotals);
+        }
+        if (compTotals.length) {
+            let s = 0;
+            compTotals.forEach(function(x) { s += x; });
+            return s;
+        }
+        if (optTotals.length) return minFinite(optTotals);
+        return 0;
+    }
+    function updateDefinitionTotalsAndMarkup() {
+        const hotelsTotal = computeHotelsTotalForPackage();
+        const attractionsTotal = computeAttractionsTotalForPackage();
+        const restaurantsTotal = computeRestaurantsTotalForPackage();
+
+        const arrivalTotal = (arrivalChosenVehicles || []).reduce(function(sum, v) {
+            return sum + numPriceVal(v && v.selected_price);
+        }, 0);
+        const departureTotal = (departureChosenVehicles || []).reduce(function(sum, v) {
+            return sum + numPriceVal(v && v.selected_price);
+        }, 0);
+
+        const subtotal = hotelsTotal + attractionsTotal + restaurantsTotal + arrivalTotal + departureTotal;
+        $('#definition-total-price').val(subtotal.toFixed(2));
+    }
+    function renderOptionalServicesSummary() {
+        function trimStr(s) { return (s || '').trim(); }
+        const lines = [];
+        function pushLine(name, type, rawPrice, fallback) {
+            const p = numPriceVal(rawPrice !== '' && rawPrice != null ? rawPrice : fallback);
+            if (p > 0 && name) lines.push({ name: String(name), type: type, price: p });
+        }
+        (definitionHotels || []).forEach(function(h) {
+            const n = h.hotel_name || h.name || '';
+            if (h.optional) pushLine(n, 'Hotel (Optional)', h.optional_price, h.base_price);
+            if (h.addon) pushLine(n, 'Hotel (Add-on)', h.addon_price, h.base_price);
+        });
+        (definitionAttractions || []).forEach(function(a) {
+            const n = a.name || '';
+            if (a.optional) pushLine(n, 'Attraction (Optional)', a.optional_price, a.base_price);
+            if (a.addon) pushLine(n, 'Attraction (Add-on)', a.addon_price, a.base_price);
+        });
+        (definitionRestaurants || []).forEach(function(r) {
+            const n = r.restaurant_name || r.name || '';
+            if (r.optional) pushLine(n, 'Restaurant (Optional)', r.optional_price, r.base_price);
+            if (r.addon) pushLine(n, 'Restaurant (Add-on)', r.addon_price, r.base_price);
+        });
+        (definitionGuides || []).forEach(function(g) {
+            const n = g.name || '';
+            if (g.optional) pushLine(n, 'Guide (Optional)', g.optional_price, g.base_price);
+            if (g.addon) pushLine(n, 'Guide (Add-on)', g.addon_price, g.base_price);
+        });
+        (localTransfersList || []).forEach(function(t) {
+            const n = trimStr((t.pickup_label || '') + ' → ' + (t.dropoff_label || ''));
+            if (t.optional) pushLine(n || 'Transfer', 'Transfer (Optional)', t.optional_price, t.base_price);
+            if (t.addon) pushLine(n || 'Transfer', 'Transfer (Add-on)', t.addon_price, t.base_price);
+        });
+        const tbody = $('#optional-services-summary-tbody');
+        const emptyEl = $('#optional-services-summary-empty');
+        const wrap = $('#optional-services-summary-table-wrap');
+        const totalEl = $('#optional-services-total');
+        tbody.empty();
+        if (lines.length === 0) {
+            emptyEl.show();
+            wrap.hide();
+            totalEl.text('—');
+            $('#price-data-hidden').val('[]');
+            return;
+        }
+        emptyEl.hide();
+        wrap.show();
+        let sum = 0;
+        lines.forEach(function(row) {
+            sum += row.price;
+            tbody.append(
+                '<tr><td>' + escapeHtml(row.name) + '</td><td>' + escapeHtml(row.type) + '</td><td class="text-end">' + formatOptionalPrice(row.price) + '</td></tr>'
+            );
+        });
+        totalEl.text(formatOptionalPrice(sum));
+        const payload = lines.map(function(x) {
+            return { name: x.name, type: x.type, price: x.price };
+        });
+        const markupType = $('#definition-markup-type').val();
+        const markupAmount = numPriceVal($('#definition-markup-amount').val());
+        if (markupType && markupAmount > 0) {
+            payload.push({
+                name: 'Markup',
+                type: 'Markup',
+                price: 0,
+                markup_type: markupType,
+                markup_amount: markupAmount
+            });
+        }
+        $('#price-data-hidden').val(JSON.stringify(payload));
     }
     function escapeHtml(str) {
         if (!str) return '';
@@ -852,18 +1236,29 @@ $(document).ready(function() {
             alert('Please set number of nights to at least 1.');
             return;
         }
-        // Optional price from DB: sum (room weekday_price * quantity) * nights
+        // Base price from DB: sum (room weekend_price * quantity) * nights
         let dbPrice = 0;
         rooms.forEach(function(r) {
             const rt = (definitionRoomTypesByHotel || []).find(function(x) { return (x.id || x.room_id) == r.room_type_id; });
-            if (rt && (rt.weekday_price != null || rt.weekend_price != null)) {
-                const p = parseFloat(rt.weekday_price || rt.weekend_price || 0) || 0;
+            if (rt && (rt.weekend_price != null || rt.weekday_price != null)) {
+                const p = parseFloat(rt.weekend_price || rt.weekday_price || 0) || 0;
                 dbPrice += p * (parseInt(r.quantity, 10) || 1);
             }
         });
         dbPrice = dbPrice * nights;
         const hotelBasePrice = dbPrice > 0 ? dbPrice : '';
-        definitionHotels.push({ hotel_id: hotelId, hotel_name: hotelName, nights, rooms, compulsory: false, optional: false, optional_price: hotelBasePrice, base_price: hotelBasePrice });
+        definitionHotels.push({
+            hotel_id: hotelId,
+            hotel_name: hotelName,
+            nights,
+            rooms,
+            compulsory: true,
+            optional: false,
+            addon: false,
+            optional_price: '',
+            addon_price: '',
+            base_price: hotelBasePrice
+        });
         updateDefinitionHotelsInput();
         renderChosenHotels();
         resetDefinitionHotelForm();
@@ -873,6 +1268,8 @@ $(document).ready(function() {
         $('#definition-hotel-select').val('').trigger('change.select2');
         $('#definition-rooms-wrapper').hide();
         $('#definition-room-type-select').empty().append('<option value="">Select room type</option>');
+        $('#definition-bed-type-select').empty().append('<option value="">Select bed type</option>');
+        definitionBedsByRoom = [];
         definitionPendingRooms = [];
         renderDefinitionPendingRooms();
         $('#definition-room-type-qty').val(1);
@@ -887,18 +1284,49 @@ $(document).ready(function() {
             placeholder.show().html('<div class="alert alert-info py-3 mb-0 d-flex align-items-center"><i class="ri-information-line me-2 fs-5"></i><span>No hotels selected yet. Choose your hotels above and click <strong>Add</strong>.</span></div>');
             listEl.hide().empty();
             countEl.text('0');
+            renderOptionalServicesSummary();
             return;
         }
+        normalizeHotelModesByFirst();
+        updateDefinitionHotelsInput();
+        const hotelTrack = getFirstServiceTrack(definitionHotels);
         placeholder.hide();
         countEl.text(definitionHotels.length);
         listEl.show().empty();
         definitionHotels.forEach(function(entry, idx) {
-            const roomsText = entry.rooms.map(function(r) { return r.room_type_name + ' × ' + r.quantity; }).join(', ');
-            const isCompulsory = entry.compulsory === true;
+            const roomsText = entry.rooms.map(function(r) {
+                return r.room_type_name + ' (' + (r.bed_type || 'N/A') + ') × ' + r.quantity;
+            }).join(', ');
+            const isCompulsory = entry.compulsory === true || (!entry.optional && !entry.addon);
             const isOptional = entry.optional === true;
-            const optPriceRaw = entry.optional_price != null && entry.optional_price !== '' ? entry.optional_price : (entry.base_price != null && entry.base_price !== '' ? entry.base_price : '');
+            const isAddon = entry.addon === true;
+            const baseRaw = entry.base_price != null && entry.base_price !== '' ? entry.base_price : '';
+            const baseP = baseRaw !== '' ? parseFloat(baseRaw) : '';
+            const optPriceRaw = entry.optional_price != null && entry.optional_price !== '' ? entry.optional_price : '';
             const optPrice = optPriceRaw !== '' ? parseFloat(optPriceRaw) : '';
-            const priceDisplay = isOptional && optPrice !== '' && !isNaN(optPrice) ? '<span class="badge bg-primary ms-2 optional-price-badge">' + formatOptionalPrice(optPrice) + '</span>' : '';
+            const addonPriceRaw = entry.addon_price != null && entry.addon_price !== '' ? entry.addon_price : '';
+            const addonPrice = addonPriceRaw !== '' ? parseFloat(addonPriceRaw) : '';
+            let priceDisplay = '';
+            if (isOptional && optPrice !== '' && !isNaN(optPrice)) {
+                priceDisplay = '<span class="badge bg-primary ms-2 optional-price-badge">Optional: ' + formatOptionalPrice(optPrice) + '</span>';
+            } else if (isAddon && addonPrice !== '' && !isNaN(addonPrice)) {
+                priceDisplay = '<span class="badge bg-secondary ms-2 optional-price-badge">Add-on: ' + formatOptionalPrice(addonPrice) + '</span>';
+            } else if (baseP !== '' && !isNaN(baseP)) {
+                priceDisplay = '<span class="badge bg-primary-subtle text-primary ms-2 optional-price-badge">Weekend: ' + formatOptionalPrice(baseP) + '</span>';
+            }
+            const showAllModes = idx === 0 || hotelTrack === 'addon';
+            const showCompulsory = showAllModes || hotelTrack === 'compulsory';
+            const showOptional = showAllModes || hotelTrack === 'optional';
+            const radioCompulsory = showCompulsory ? `
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input chosen-hotel-mode" type="radio" name="hotel-mode-${idx}" id="hotel-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="hotel-comp-${idx}">Compulsory</label>
+                                </div>` : '';
+            const radioOptional = showOptional ? `
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input chosen-hotel-mode" type="radio" name="hotel-mode-${idx}" id="hotel-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="hotel-opt-${idx}">Optional</label>
+                                </div>` : '';
             listEl.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
                     <div class="card-body py-2 px-3">
@@ -910,14 +1338,12 @@ $(document).ready(function() {
                                     <small class="text-muted">${entry.nights} night(s) · ${escapeHtml(roomsText)}</small>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                ${radioCompulsory}
+                                ${radioOptional}
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input chosen-hotel-compulsory" type="checkbox" id="hotel-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
-                                    <label class="form-check-label small" for="hotel-comp-${idx}">Compulsory</label>
-                                </div>
-                                <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input chosen-hotel-optional" type="checkbox" id="hotel-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
-                                    <label class="form-check-label small" for="hotel-opt-${idx}">Optional</label>
+                                    <input class="form-check-input chosen-hotel-mode" type="radio" name="hotel-mode-${idx}" id="hotel-addon-${idx}" data-idx="${idx}" value="addon" ${isAddon ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="hotel-addon-${idx}">Add-On</label>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-chosen-hotel" data-idx="${idx}" title="Remove">
                                     <i class="ri-delete-bin-line"></i>
@@ -934,37 +1360,31 @@ $(document).ready(function() {
             updateDefinitionHotelsInput();
             renderChosenHotels();
         });
-        $('.chosen-hotel-compulsory').on('change', function() {
+        $('.chosen-hotel-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#hotel-opt-' + idx).prop('checked', false);
-                if (definitionHotels[idx]) { definitionHotels[idx].optional = false; definitionHotels[idx].optional_price = ''; }
-            }
-            if (definitionHotels[idx]) definitionHotels[idx].compulsory = $(this).is(':checked');
-            updateDefinitionHotelsInput();
-            renderChosenHotels();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        });
-        $('.chosen-hotel-optional').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#hotel-comp-' + idx).prop('checked', false);
-                if (definitionHotels[idx]) {
-                    definitionHotels[idx].compulsory = false;
-                    if ((definitionHotels[idx].optional_price === '' || definitionHotels[idx].optional_price == null) && definitionHotels[idx].base_price != null && definitionHotels[idx].base_price !== '') {
-                        definitionHotels[idx].optional_price = definitionHotels[idx].base_price;
-                    }
+            const mode = $(this).val();
+            const h = definitionHotels[idx];
+            if (h) {
+                h.compulsory = mode === 'compulsory';
+                h.optional = mode === 'optional';
+                h.addon = mode === 'addon';
+                if (mode === 'optional') {
+                    if ((h.optional_price === '' || h.optional_price == null) && h.base_price != null && h.base_price !== '') h.optional_price = h.base_price;
+                    h.addon_price = '';
+                } else if (mode === 'addon') {
+                    if ((h.addon_price === '' || h.addon_price == null) && h.base_price != null && h.base_price !== '') h.addon_price = h.base_price;
+                    h.optional_price = '';
+                } else {
+                    h.optional_price = '';
+                    h.addon_price = '';
                 }
-            } else {
-                if (definitionHotels[idx]) definitionHotels[idx].optional_price = '';
             }
-            if (definitionHotels[idx]) definitionHotels[idx].optional = $(this).is(':checked');
             updateDefinitionHotelsInput();
             renderChosenHotels();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
         });
         refreshTransferHotelDropdowns();
-        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        renderOptionalServicesSummary();
+        updateDefinitionTotalsAndMarkup();
     }
 
     function refreshTransferHotelDropdowns() {
@@ -986,16 +1406,37 @@ $(document).ready(function() {
     $('#definition-attraction-select').on('change', function() {
         const val = $(this).val();
         const configEl = $('#definition-attraction-config');
+        const ticketSel = $('#definition-attraction-ticket-select');
+        const ticketAdultPriceEl = $('#definition-attraction-ticket-adult-price');
+        ticketSel.empty().append('<option value="">Select ticket</option>');
+        ticketAdultPriceEl.val('—');
         if (!val) {
             configEl.hide();
+            ticketSel.empty().append('<option value="">Select attraction first</option>');
             return;
         }
+        $.get(baseUrl + '/tickets-by-attraction/' + encodeURIComponent(val), function(res) {
+            const tickets = Array.isArray(res.tickets) ? res.tickets : [];
+            if (tickets.length === 0) {
+                ticketSel.append('<option value="" disabled>No tickets found</option>');
+                return;
+            }
+            tickets.forEach(function(t) {
+                const ticketId = t.ticket_id || t.id;
+                const label = t.name || ('Ticket ' + ticketId);
+                const opt = new Option(label, ticketId);
+                $(opt).data('ticket-data', t);
+                ticketSel.append(opt);
+            });
+        });
         configEl.show();
         const guideSel = $('#definition-attraction-config-guide');
         guideSel.empty().append('<option value="">Select guide</option>');
         guidesByCity.forEach(function(g) {
             guideSel.append(new Option(g.name, g.guide_id));
         });
+        $('#definition-attraction-config-guide-hour').val('');
+        $('#definition-attraction-config-guide-price').val('—');
         const vehicleSel = $('#definition-attraction-config-vehicle');
         vehicleSel.empty().append('<option value="">Select vehicle</option>');
         vehiclesByCity.forEach(function(v) {
@@ -1007,9 +1448,56 @@ $(document).ready(function() {
         $('#definition-attraction-config-vehicle-wrap').hide();
         $('#definition-attr-transfer-private').prop('checked', true);
     });
+
+    $('#definition-attraction-ticket-select').on('change', function() {
+        const ticketOpt = $(this).find('option:selected');
+        const ticketData = ticketOpt.data('ticket-data') || null;
+        const adultPrice = ticketData && ticketData.adult_price != null && ticketData.adult_price !== ''
+            ? parseFloat(ticketData.adult_price)
+            : null;
+        $('#definition-attraction-ticket-adult-price').val(adultPrice != null && !isNaN(adultPrice) ? formatOptionalPrice(adultPrice) : '—');
+    });
     $('#definition-attraction-config-need-guide').on('change', function() {
         const checked = $(this).is(':checked');
         $('#definition-attraction-config-guide-wrap').toggle(checked);
+        if (!checked) {
+            $('#definition-attraction-config-guide').val('');
+            $('#definition-attraction-config-guide-hour').val('');
+            $('#definition-attraction-config-guide-price').val('—');
+        }
+    });
+
+    function updateAttractionGuidePrice() {
+        const guideId = $('#definition-attraction-config-guide').val();
+        const hourKey = $('#definition-attraction-config-guide-hour').val();
+        const g = guideId ? guidesByCity.find(function(x) { return x.guide_id == guideId; }) : null;
+        if (!g || !hourKey) {
+            $('#definition-attraction-config-guide-price').val('—');
+            return;
+        }
+        const priceKey = hourKey === 'hourly' ? 'hourly_price' : (hourKey + '_price');
+        const price = g[priceKey] != null && g[priceKey] !== '' ? parseFloat(g[priceKey]) : null;
+        $('#definition-attraction-config-guide-price').val(price != null && !isNaN(price) ? formatOptionalPrice(price) : '—');
+    }
+
+    $('#definition-attraction-config-guide').on('change', function() {
+        const guideId = $(this).val();
+        const g = guideId ? guidesByCity.find(function(x) { return x.guide_id == guideId; }) : null;
+        const hourSel = $('#definition-attraction-config-guide-hour');
+        hourSel.find('option').each(function() {
+            const key = $(this).val();
+            if (!key) { $(this).prop('disabled', false); return; }
+            if (!g) { $(this).prop('disabled', true); return; }
+            const priceKey = key === 'hourly' ? 'hourly_price' : (key + '_price');
+            const hasPrice = g[priceKey] != null && g[priceKey] !== '' && !isNaN(parseFloat(g[priceKey]));
+            $(this).prop('disabled', !hasPrice);
+        });
+        if (!g) hourSel.val('');
+        updateAttractionGuidePrice();
+    });
+
+    $('#definition-attraction-config-guide-hour').on('change', function() {
+        updateAttractionGuidePrice();
     });
     $('#definition-attraction-config-transfer').on('change', function() {
         const checked = $(this).is(':checked');
@@ -1035,8 +1523,63 @@ $(document).ready(function() {
             } else {
                 dropoffSel.append('<option value="">—</option>');
             }
+            $('#definition-attraction-config-transfer-price').val('0');
+            fetchDefinitionAttractionTransferPrice();
+        } else {
+            $('#definition-attraction-config-transfer-price').val('0');
         }
     });
+
+    function fetchDefinitionAttractionTransferPrice() {
+        const transferEnabled = $('#definition-attraction-config-transfer').is(':checked');
+        if (!transferEnabled) return;
+
+        const vehicleId = $('#definition-attraction-config-vehicle').val();
+        const attractionId = $('#definition-attraction-select').val();
+        const pickupValue = $('#definition-attraction-config-pickup').val();
+        const transferTypeRaw = $('input[name="definition_attr_transfer_type"]:checked').val() || 'private';
+        if (!vehicleId || !attractionId || !pickupValue) {
+            $('#definition-attraction-config-transfer-price').val('0');
+            return;
+        }
+
+        const pickupParts = String(pickupValue).split('_');
+        if (pickupParts.length < 2) {
+            $('#definition-attraction-config-transfer-price').val('0');
+            return;
+        }
+        const pickupTypeMap = { hotel: 'Hotel', attraction: 'Attraction', restaurant: 'Restaurant' };
+        const pickupLocationType = pickupTypeMap[pickupParts[0]] || '';
+        const pickupLocationId = pickupParts.slice(1).join('_');
+        const transferType = transferTypeRaw === 'shared' ? 'Shared' : 'Private';
+        if (!pickupLocationType || !pickupLocationId) {
+            $('#definition-attraction-config-transfer-price').val('0');
+            return;
+        }
+
+        $.ajax({
+            url: fetchAttractionTransferPricingUrl,
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                vehicle_id: vehicleId,
+                attraction_id: attractionId,
+                pickup_location_id: pickupLocationId,
+                pickup_location_type: pickupLocationType,
+                transfer_type: transferType,
+                transfer_way: 'One Way'
+            },
+            success: function(res) {
+                const p = res && res.success ? parseFloat(res.price || 0) : 0;
+                $('#definition-attraction-config-transfer-price').val(!isNaN(p) && p > 0 ? p.toFixed(2) : '0');
+            },
+            error: function() {
+                $('#definition-attraction-config-transfer-price').val('0');
+            }
+        });
+    }
+    $('#definition-attraction-config-vehicle, #definition-attraction-config-pickup').on('change', fetchDefinitionAttractionTransferPrice);
+    $('input[name="definition_attr_transfer_type"]').on('change', fetchDefinitionAttractionTransferPrice);
 
     // Attractions: Add = current selection + config; preview = strip like hotel
     $('#definition-attraction-add-btn').on('click', function() {
@@ -1046,31 +1589,67 @@ $(document).ready(function() {
             alert('Please select an attraction.');
             return;
         }
+        const ticketOpt = $('#definition-attraction-ticket-select').find('option:selected');
+        const ticketId = $('#definition-attraction-ticket-select').val();
+        const ticketData = ticketOpt.data('ticket-data') || null;
         const needGuide = $('#definition-attraction-config-need-guide').is(':checked');
         const guideId = needGuide ? $('#definition-attraction-config-guide').val() : '';
+        const guideHourKey = needGuide ? ($('#definition-attraction-config-guide-hour').val() || '') : '';
         const g = guideId ? guidesByCity.find(x => x.guide_id == guideId) : null;
+        const durationLabels = { hourly: '1 Hour', two_hour: '2 Hours', four_hour: '4 Hours', six_hour: '6 Hours', eight_hour: '8 Hours', ten_hour: '10 Hours', twelve_hour: '12 Hours' };
+        const guidePriceKey = guideHourKey ? (guideHourKey === 'hourly' ? 'hourly_price' : (guideHourKey + '_price')) : '';
+        const guidePrice = (g && guidePriceKey && g[guidePriceKey] != null && g[guidePriceKey] !== '') ? parseFloat(g[guidePriceKey]) : null;
+        if (needGuide && (!guideId || !guideHourKey)) {
+            alert('Please select guide and hour.');
+            return;
+        }
         const transfer = $('#definition-attraction-config-transfer').is(':checked');
         const vehicleId = $('#definition-attraction-config-vehicle').val();
         const v = vehiclesByCity.find(x => x.vehicle_id == vehicleId);
         const transferType = $('input[name="definition_attr_transfer_type"]:checked').val() || 'private';
+        const transferPriceRaw = $('#definition-attraction-config-transfer-price').val();
+        const transferPrice = transfer ? (isNaN(parseFloat(transferPriceRaw)) ? 0 : parseFloat(transferPriceRaw)) : 0;
         const pickupId = $('#definition-attraction-config-pickup').val();
         const pickupName = $('#definition-attraction-config-pickup').find('option:selected').text();
         const dropoffVal = $('#definition-attraction-config-dropoff').val();
         const dropoffName = $('#definition-attraction-config-dropoff').find('option:selected').text();
-        const attrPrice = (data.adult_price != null && data.adult_price !== '') ? parseFloat(data.adult_price) : '';
+        let attrPrice = '';
+        if (ticketData && ticketData.adult_price != null && ticketData.adult_price !== '') {
+            attrPrice = parseFloat(ticketData.adult_price);
+        } else if (data.adult_price != null && data.adult_price !== '') {
+            attrPrice = parseFloat(data.adult_price);
+        }
         definitionAttractions.push({
             attraction_id: data.attraction_id,
             name: data.name,
             location: data.location,
             image: data.image || '',
-            compulsory: false,
+            compulsory: true,
             optional: false,
-            optional_price: attrPrice,
+            addon: false,
+            optional_price: '',
+            addon_price: '',
             base_price: attrPrice,
-            guide: g ? { id: g.guide_id, name: g.name, languages: g.languages, contact_no: g.contact_no } : null,
+            ticket_id: ticketId || null,
+            ticket_name: ticketData ? (ticketData.name || null) : null,
+            ticket: ticketData ? {
+                id: ticketData.id || null,
+                ticket_id: ticketData.ticket_id || ticketId || null,
+                name: ticketData.name || null
+            } : null,
+            guide: g ? {
+                id: g.guide_id,
+                name: g.name,
+                languages: g.languages,
+                contact_no: g.contact_no,
+                duration_key: guideHourKey || null,
+                duration_label: guideHourKey ? (durationLabels[guideHourKey] || null) : null,
+                price: guidePrice != null && !isNaN(guidePrice) ? guidePrice : null
+            } : null,
             transfer: transfer,
             vehicle_id: v ? v.vehicle_id : null,
             vehicle_name: v ? v.name : null,
+            transfer_price: transferPrice,
             transfer_type: transferType,
             pickup_id: pickupId || null,
             pickup_name: pickupName || null,
@@ -1080,6 +1659,8 @@ $(document).ready(function() {
         updateDefinitionAttractionsInput();
         renderDefinitionAttractions();
         $('#definition-attraction-select').val('').trigger('change');
+        $('#definition-attraction-ticket-select').empty().append('<option value="">Select attraction first</option>');
+        $('#definition-attraction-ticket-adult-price').val('—');
         $('#definition-attraction-config').hide();
     });
 
@@ -1090,27 +1671,47 @@ $(document).ready(function() {
         if (definitionAttractions.length === 0) {
             emptyEl.show();
             container.hide();
+            renderOptionalServicesSummary();
             return;
         }
         emptyEl.hide();
         container.show();
         definitionAttractions.forEach(function(a, idx) {
+            const basePriceNum = a.base_price != null && a.base_price !== '' && !isNaN(parseFloat(a.base_price)) ? parseFloat(a.base_price) : 0;
+            const guidePriceNum = a.guide && a.guide.price != null && !isNaN(parseFloat(a.guide.price)) ? parseFloat(a.guide.price) : 0;
+            const transferPriceNum = a.transfer && a.transfer_price != null && !isNaN(parseFloat(a.transfer_price)) ? parseFloat(a.transfer_price) : 0;
+            const totalPriceNum = basePriceNum + guidePriceNum + transferPriceNum;
+
             const parts = [];
-            if (a.guide && a.guide.name) parts.push('<i class="ri-user-line me-1" title="Guide"></i>' + escapeHtml(a.guide.name));
+            if (a.ticket_name) parts.push('<i class="ri-coupon-3-line me-1" title="Ticket"></i>' + escapeHtml(a.ticket_name));
+            if (a.guide && a.guide.name) {
+                const guideMeta = [];
+                if (a.guide.duration_label) guideMeta.push(a.guide.duration_label);
+                if (a.guide.price != null && !isNaN(parseFloat(a.guide.price))) guideMeta.push(formatOptionalPrice(a.guide.price));
+                const guideText = guideMeta.length ? (a.guide.name + ' (' + guideMeta.join(', ') + ')') : a.guide.name;
+                parts.push('<i class="ri-user-line me-1" title="Guide"></i>' + escapeHtml(guideText));
+            }
             if (a.transfer) {
                 if (a.vehicle_name) parts.push('<i class="ri-car-line me-1" title="Vehicle"></i>' + escapeHtml(a.vehicle_name));
                 parts.push('Transfer: ' + (a.transfer_type === 'shared' ? 'Shared' : 'Private'));
+                if (a.transfer_price != null && !isNaN(parseFloat(a.transfer_price))) parts.push('Price: ' + formatOptionalPrice(a.transfer_price));
                 const pickupName = a.pickup_name || a.pickup_hotel_name;
                 if (pickupName && a.dropoff_name) parts.push(escapeHtml(pickupName) + ' → ' + escapeHtml(a.dropoff_name));
                 else if (pickupName) parts.push(escapeHtml(pickupName) + ' → —');
                 else if (a.dropoff_name) parts.push('— → ' + escapeHtml(a.dropoff_name));
             }
+            parts.push('<span class="fw-semibold">Total: ' + formatOptionalPrice(totalPriceNum) + '</span>');
             const summaryHtml = parts.length ? parts.join(' <span class="text-muted">·</span> ') : '—';
-            const isCompulsory = a.compulsory === true;
+            const isCompulsory = a.compulsory === true || (!a.optional && !a.addon);
             const isOptional = a.optional === true;
-            const optPriceRawA = a.optional_price != null && a.optional_price !== '' ? a.optional_price : (a.base_price != null && a.base_price !== '' ? a.base_price : '');
+            const isAddonA = a.addon === true;
+            const baseRawA = a.base_price != null && a.base_price !== '' ? a.base_price : '';
+            const basePA = baseRawA !== '' ? parseFloat(baseRawA) : '';
+            const optPriceRawA = a.optional_price != null && a.optional_price !== '' ? a.optional_price : '';
             const optPriceA = optPriceRawA !== '' ? parseFloat(optPriceRawA) : '';
-            const priceDisplay = isOptional && optPriceA !== '' && !isNaN(optPriceA) ? '<span class="badge bg-success ms-2 optional-price-badge">' + formatOptionalPrice(optPriceA) + '</span>' : '';
+            const addonPriceRawA = a.addon_price != null && a.addon_price !== '' ? a.addon_price : '';
+            const addonPriceA = addonPriceRawA !== '' ? parseFloat(addonPriceRawA) : '';
+            const totalBadge = '<span class="badge bg-success ms-2">Total: ' + formatOptionalPrice(totalPriceNum) + '</span>';
             container.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
                     <div class="card-body py-2 px-3">
@@ -1118,18 +1719,22 @@ $(document).ready(function() {
                             <div class="d-flex align-items-center gap-2 flex-grow-1">
                                 <span class="badge bg-success-subtle text-success rounded-circle p-2"><i class="ri-map-pin-line"></i></span>
                                 <div>
-                                    <strong class="d-block">${escapeHtml(a.name)}${priceDisplay}</strong>
+                                    <strong class="d-block">${escapeHtml(a.name)}${totalBadge}</strong>
                                     <small class="text-muted">${summaryHtml}</small>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-attraction-compulsory" type="checkbox" id="attr-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <input class="form-check-input def-attraction-mode" type="radio" name="attr-mode-${idx}" id="attr-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
                                     <label class="form-check-label small" for="attr-comp-${idx}">Compulsory</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-attraction-optional" type="checkbox" id="attr-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <input class="form-check-input def-attraction-mode" type="radio" name="attr-mode-${idx}" id="attr-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
                                     <label class="form-check-label small" for="attr-opt-${idx}">Optional</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-attraction-mode" type="radio" name="attr-mode-${idx}" id="attr-addon-${idx}" data-idx="${idx}" value="addon" ${isAddonA ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="attr-addon-${idx}">Add-On</label>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-def-attraction" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                             </div>
@@ -1144,36 +1749,30 @@ $(document).ready(function() {
             renderDefinitionAttractions();
             updateDefinitionAttractionsInput();
         });
-        $('.def-attraction-compulsory').on('change', function() {
+        $('.def-attraction-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#attr-opt-' + idx).prop('checked', false);
-                if (definitionAttractions[idx]) { definitionAttractions[idx].optional = false; definitionAttractions[idx].optional_price = ''; }
-            }
-            if (definitionAttractions[idx]) definitionAttractions[idx].compulsory = $(this).is(':checked');
-            updateDefinitionAttractionsInput();
-            renderDefinitionAttractions();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        });
-        $('.def-attraction-optional').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#attr-comp-' + idx).prop('checked', false);
-                if (definitionAttractions[idx]) {
-                    definitionAttractions[idx].compulsory = false;
-                    if ((definitionAttractions[idx].optional_price === '' || definitionAttractions[idx].optional_price == null) && definitionAttractions[idx].base_price != null && definitionAttractions[idx].base_price !== '') {
-                        definitionAttractions[idx].optional_price = definitionAttractions[idx].base_price;
-                    }
+            const mode = $(this).val();
+            const a = definitionAttractions[idx];
+            if (a) {
+                a.compulsory = mode === 'compulsory';
+                a.optional = mode === 'optional';
+                a.addon = mode === 'addon';
+                if (mode === 'optional') {
+                    if ((a.optional_price === '' || a.optional_price == null) && a.base_price != null && a.base_price !== '') a.optional_price = a.base_price;
+                    a.addon_price = '';
+                } else if (mode === 'addon') {
+                    if ((a.addon_price === '' || a.addon_price == null) && a.base_price != null && a.base_price !== '') a.addon_price = a.base_price;
+                    a.optional_price = '';
+                } else {
+                    a.optional_price = '';
+                    a.addon_price = '';
                 }
-            } else {
-                if (definitionAttractions[idx]) definitionAttractions[idx].optional_price = '';
             }
-            if (definitionAttractions[idx]) definitionAttractions[idx].optional = $(this).is(':checked');
             updateDefinitionAttractionsInput();
             renderDefinitionAttractions();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
         });
-        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        renderOptionalServicesSummary();
+        updateDefinitionTotalsAndMarkup();
     }
 
     function updateDefinitionAttractionsInput() {
@@ -1181,27 +1780,37 @@ $(document).ready(function() {
         if (typeof refreshLocalTransferPickupDropoff === 'function') refreshLocalTransferPickupDropoff();
     }
 
-    // Restaurant select: show config panel, meal checkboxes (by availability), and populate vehicle
+    // Restaurant select: show config panel, load meal types, and populate vehicle
     $('#definition-restaurant-select').on('change', function() {
         const val = $(this).val();
         const configEl = $('#definition-restaurant-config');
+        const mealsWrap = $('#definition-restaurant-meals-wrap');
+        const mealTypeSel = $('#definition-restaurant-meal-type-select');
+        const mealAdultPriceEl = $('#definition-restaurant-meal-adult-price');
+        mealTypeSel.empty().append('<option value="">Select meal type</option>');
+        mealAdultPriceEl.val('—');
         if (!val) {
             configEl.hide();
-            $('#definition-restaurant-meals-wrap').hide();
+            mealsWrap.hide();
             return;
         }
         configEl.show();
-        const rest = allRestaurantsForLocalTransfer.find(function(r) { return r.restaurant_id == val || r.restaurant_id === val; });
-        const mealsWrap = $('#definition-restaurant-meals-wrap');
-        $('#definition-restaurant-meal-breakfast, #definition-restaurant-meal-lunch, #definition-restaurant-meal-dinner').prop('checked', false);
-        if (rest && (rest.breakfast_available == 1 || rest.lunch_available == 1 || rest.dinner_available == 1)) {
+        $.get(baseUrl + '/restaurant-meals/' + encodeURIComponent(val), function(res) {
+            const meals = Array.isArray(res.meals) ? res.meals : [];
+            restaurantMealsByRestaurant[String(val)] = meals;
+            if (meals.length === 0) {
+                mealTypeSel.append('<option value="" disabled>No meal types found</option>');
+                mealsWrap.hide();
+                return;
+            }
+            meals.forEach(function(m) {
+                const label = m.type_label || ('Type ' + (m.type || ''));
+                const opt = new Option(label, m.type);
+                $(opt).data('meal-data', m);
+                mealTypeSel.append(opt);
+            });
             mealsWrap.show();
-            $('#definition-rest-meal-breakfast-wrap').toggle(rest.breakfast_available == 1);
-            $('#definition-rest-meal-lunch-wrap').toggle(rest.lunch_available == 1);
-            $('#definition-rest-meal-dinner-wrap').toggle(rest.dinner_available == 1);
-        } else {
-            mealsWrap.hide();
-        }
+        });
         const vehicleSel = $('#definition-restaurant-config-vehicle');
         vehicleSel.empty().append('<option value="">Select vehicle</option>');
         vehiclesByCity.forEach(function(v) {
@@ -1210,6 +1819,13 @@ $(document).ready(function() {
         $('#definition-restaurant-config-transfer').prop('checked', false);
         $('#definition-restaurant-config-vehicle-wrap').hide();
         $('#definition-rest-transfer-private').prop('checked', true);
+    });
+
+    $('#definition-restaurant-meal-type-select').on('change', function() {
+        const opt = $(this).find('option:selected');
+        const meal = opt.data('meal-data') || null;
+        const adult = meal && meal.adult_price != null && meal.adult_price !== '' ? parseFloat(meal.adult_price) : null;
+        $('#definition-restaurant-meal-adult-price').val(adult != null && !isNaN(adult) ? formatOptionalPrice(adult) : '—');
     });
     $('#definition-restaurant-config-transfer').on('change', function() {
         const checked = $(this).is(':checked');
@@ -1235,10 +1851,65 @@ $(document).ready(function() {
             } else {
                 dropoffSel.append('<option value="">—</option>');
             }
+            $('#definition-restaurant-config-transfer-price').val('0');
+            fetchDefinitionRestaurantTransferPrice();
+        } else {
+            $('#definition-restaurant-config-transfer-price').val('0');
         }
     });
 
-    // Restaurants: Add = current selection + config + selected meals; preview = strip like hotel
+    function fetchDefinitionRestaurantTransferPrice() {
+        const transferEnabled = $('#definition-restaurant-config-transfer').is(':checked');
+        if (!transferEnabled) return;
+
+        const vehicleId = $('#definition-restaurant-config-vehicle').val();
+        const restaurantId = $('#definition-restaurant-select').val();
+        const pickupValue = $('#definition-restaurant-config-pickup').val();
+        const transferTypeRaw = $('input[name="definition_rest_transfer_type"]:checked').val() || 'private';
+        if (!vehicleId || !restaurantId || !pickupValue) {
+            $('#definition-restaurant-config-transfer-price').val('0');
+            return;
+        }
+
+        const pickupParts = String(pickupValue).split('_');
+        if (pickupParts.length < 2) {
+            $('#definition-restaurant-config-transfer-price').val('0');
+            return;
+        }
+        const pickupTypeMap = { hotel: 'Hotel', attraction: 'Attraction', restaurant: 'Restaurant' };
+        const pickupLocationType = pickupTypeMap[pickupParts[0]] || '';
+        const pickupLocationId = pickupParts.slice(1).join('_');
+        const transferType = transferTypeRaw === 'shared' ? 'Shared' : 'Private';
+        if (!pickupLocationType || !pickupLocationId) {
+            $('#definition-restaurant-config-transfer-price').val('0');
+            return;
+        }
+
+        $.ajax({
+            url: fetchRestaurantTransferPricingUrl,
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                vehicle_id: vehicleId,
+                restaurant_id: restaurantId,
+                pickup_location_id: pickupLocationId,
+                pickup_location_type: pickupLocationType,
+                transfer_type: transferType,
+                transfer_way: 'One Way'
+            },
+            success: function(res) {
+                const p = res && res.success ? parseFloat(res.price || 0) : 0;
+                $('#definition-restaurant-config-transfer-price').val(!isNaN(p) && p > 0 ? p.toFixed(2) : '0');
+            },
+            error: function() {
+                $('#definition-restaurant-config-transfer-price').val('0');
+            }
+        });
+    }
+    $('#definition-restaurant-config-vehicle, #definition-restaurant-config-pickup').on('change', fetchDefinitionRestaurantTransferPrice);
+    $('input[name="definition_rest_transfer_type"]').on('change', fetchDefinitionRestaurantTransferPrice);
+
+    // Restaurants: Add = current selection + config + selected meal type; preview = strip like hotel
     $('#definition-restaurant-add-btn').on('click', function() {
         const id = $('#definition-restaurant-select').val();
         const name = $('#definition-restaurant-select').find('option:selected').text();
@@ -1246,32 +1917,44 @@ $(document).ready(function() {
             alert('Please select a restaurant.');
             return;
         }
-        const selectedMeals = [];
-        if ($('#definition-restaurant-meal-breakfast').is(':checked')) selectedMeals.push('breakfast');
-        if ($('#definition-restaurant-meal-lunch').is(':checked')) selectedMeals.push('lunch');
-        if ($('#definition-restaurant-meal-dinner').is(':checked')) selectedMeals.push('dinner');
+        const mealTypeVal = $('#definition-restaurant-meal-type-select').val();
+        const mealTypeOpt = $('#definition-restaurant-meal-type-select').find('option:selected');
+        const selectedMeal = mealTypeOpt.data('meal-data') || null;
+        const knownMeals = restaurantMealsByRestaurant[String(id)] || [];
+        if (knownMeals.length > 0 && !selectedMeal) {
+            alert('Please select a meal type.');
+            return;
+        }
         const transfer = $('#definition-restaurant-config-transfer').is(':checked');
         const vehicleId = $('#definition-restaurant-config-vehicle').val();
         const v = vehiclesByCity.find(x => x.vehicle_id == vehicleId);
         const transferType = $('input[name="definition_rest_transfer_type"]:checked').val() || 'private';
+        const transferPriceRaw = $('#definition-restaurant-config-transfer-price').val();
+        const transferPrice = transfer ? (isNaN(parseFloat(transferPriceRaw)) ? 0 : parseFloat(transferPriceRaw)) : 0;
         const pickupId = $('#definition-restaurant-config-pickup').val();
         const pickupName = $('#definition-restaurant-config-pickup').find('option:selected').text();
         const dropoffVal = $('#definition-restaurant-config-dropoff').val();
         const dropoffName = $('#definition-restaurant-config-dropoff').find('option:selected').text();
-        const rest = allRestaurantsForLocalTransfer.find(function(r) { return r.restaurant_id == id || r.restaurant_id === id; });
-        const restPrice = rest && (rest.lunch_price != null || rest.bf_price != null || rest.dinner_price != null)
-            ? parseFloat(rest.lunch_price || rest.bf_price || rest.dinner_price || 0) : '';
+        const restPrice = selectedMeal && selectedMeal.adult_price != null
+            ? parseFloat(selectedMeal.adult_price || 0) : '';
         definitionRestaurants.push({
             restaurant_id: id,
             restaurant_name: name,
-            compulsory: false,
+            compulsory: true,
             optional: false,
-            optional_price: restPrice,
+            addon: false,
+            optional_price: '',
+            addon_price: '',
             base_price: restPrice,
-            selected_meals: selectedMeals,
+            selected_meals: mealTypeVal ? [String(mealTypeVal)] : [],
+            meal_type: selectedMeal ? (selectedMeal.type || null) : null,
+            meal_type_label: selectedMeal ? (selectedMeal.type_label || null) : null,
+            meal_adult_price: selectedMeal && selectedMeal.adult_price != null ? parseFloat(selectedMeal.adult_price) : null,
+            meal_child_price: selectedMeal && selectedMeal.child_price != null ? parseFloat(selectedMeal.child_price) : null,
             transfer: transfer,
             vehicle_id: v ? v.vehicle_id : null,
             vehicle_name: v ? v.name : null,
+            transfer_price: transferPrice,
             transfer_type: transferType,
             pickup_id: pickupId || null,
             pickup_name: pickupName || null,
@@ -1291,29 +1974,54 @@ $(document).ready(function() {
         if (definitionRestaurants.length === 0) {
             emptyEl.show();
             container.hide();
+            renderOptionalServicesSummary();
             return;
         }
+        normalizeRestaurantModesByFirst();
+        updateDefinitionRestaurantsInput();
+        const restaurantTrack = getFirstServiceTrack(definitionRestaurants);
         emptyEl.hide();
         container.show();
         definitionRestaurants.forEach(function(r, idx) {
+            const restaurantPriceNum = r.base_price != null && r.base_price !== '' && !isNaN(parseFloat(r.base_price)) ? parseFloat(r.base_price) : 0;
+            const transferPriceNum = r.transfer && r.transfer_price != null && !isNaN(parseFloat(r.transfer_price)) ? parseFloat(r.transfer_price) : 0;
+            const totalPriceNum = restaurantPriceNum + transferPriceNum;
+
             const parts = [];
-            if (r.selected_meals && r.selected_meals.length) {
-                parts.push('<i class="ri-restaurant-2-line me-1" title="Meals"></i>' + r.selected_meals.map(function(m) { return m.charAt(0).toUpperCase() + m.slice(1); }).join(', '));
+            if (r.meal_type_label) {
+                parts.push('<i class="ri-restaurant-2-line me-1" title="Meal Type"></i>' + escapeHtml(r.meal_type_label));
+            }
+            if (r.meal_adult_price != null && !isNaN(parseFloat(r.meal_adult_price))) {
+                parts.push('Adult: ' + formatOptionalPrice(r.meal_adult_price));
             }
             if (r.transfer) {
                 if (r.vehicle_name) parts.push('<i class="ri-car-line me-1" title="Vehicle"></i>' + escapeHtml(r.vehicle_name));
                 parts.push('Transfer: ' + (r.transfer_type === 'shared' ? 'Shared' : 'Private'));
+                if (r.transfer_price != null && !isNaN(parseFloat(r.transfer_price))) parts.push('Price: ' + formatOptionalPrice(r.transfer_price));
                 const pickupName = r.pickup_name || r.pickup_hotel_name;
                 if (pickupName && r.dropoff_name) parts.push(escapeHtml(pickupName) + ' → ' + escapeHtml(r.dropoff_name));
                 else if (pickupName) parts.push(escapeHtml(pickupName) + ' → —');
                 else if (r.dropoff_name) parts.push('— → ' + escapeHtml(r.dropoff_name));
             }
+            parts.push('<span class="fw-semibold">Total: ' + formatOptionalPrice(totalPriceNum) + '</span>');
             const summaryHtml = parts.length ? parts.join(' <span class="text-muted">·</span> ') : '—';
-            const isCompulsory = r.compulsory === true;
+            const isCompulsory = r.compulsory === true || (!r.optional && !r.addon);
             const isOptional = r.optional === true;
-            const optPriceRawR = r.optional_price != null && r.optional_price !== '' ? r.optional_price : (r.base_price != null && r.base_price !== '' ? r.base_price : '');
-            const optPriceR = optPriceRawR !== '' ? parseFloat(optPriceRawR) : '';
-            const priceDisplay = isOptional && optPriceR !== '' && !isNaN(optPriceR) ? '<span class="badge bg-warning text-dark ms-2 optional-price-badge">' + formatOptionalPrice(optPriceR) + '</span>' : '';
+            const isAddonR = r.addon === true;
+            const totalBadge = '<span class="badge bg-warning text-dark ms-2">Total: ' + formatOptionalPrice(totalPriceNum) + '</span>';
+            const showAllRestModes = idx === 0 || restaurantTrack === 'addon';
+            const showRestCompulsory = showAllRestModes || restaurantTrack === 'compulsory';
+            const showRestOptional = showAllRestModes || restaurantTrack === 'optional';
+            const restRadioCompulsory = showRestCompulsory ? `
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-restaurant-mode" type="radio" name="rest-mode-${idx}" id="rest-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="rest-comp-${idx}">Compulsory</label>
+                                </div>` : '';
+            const restRadioOptional = showRestOptional ? `
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-restaurant-mode" type="radio" name="rest-mode-${idx}" id="rest-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="rest-opt-${idx}">Optional</label>
+                                </div>` : '';
             container.append(`
                 <div class="card mb-2 border shadow-sm chosen-hotel-card" data-idx="${idx}">
                     <div class="card-body py-2 px-3">
@@ -1321,18 +2029,16 @@ $(document).ready(function() {
                             <div class="d-flex align-items-center gap-2 flex-grow-1">
                                 <span class="badge bg-warning-subtle text-warning rounded-circle p-2"><i class="ri-restaurant-line"></i></span>
                                 <div>
-                                    <strong class="d-block">${escapeHtml(r.restaurant_name)}${priceDisplay}</strong>
+                                    <strong class="d-block">${escapeHtml(r.restaurant_name)}${totalBadge}</strong>
                                     <small class="text-muted">${summaryHtml}</small>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                ${restRadioCompulsory}
+                                ${restRadioOptional}
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-restaurant-compulsory" type="checkbox" id="rest-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
-                                    <label class="form-check-label small" for="rest-comp-${idx}">Compulsory</label>
-                                </div>
-                                <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-restaurant-optional" type="checkbox" id="rest-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
-                                    <label class="form-check-label small" for="rest-opt-${idx}">Optional</label>
+                                    <input class="form-check-input def-restaurant-mode" type="radio" name="rest-mode-${idx}" id="rest-addon-${idx}" data-idx="${idx}" value="addon" ${isAddonR ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="rest-addon-${idx}">Add-On</label>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-def-restaurant" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                             </div>
@@ -1347,36 +2053,30 @@ $(document).ready(function() {
             renderDefinitionRestaurants();
             updateDefinitionRestaurantsInput();
         });
-        $('.def-restaurant-compulsory').on('change', function() {
+        $('.def-restaurant-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#rest-opt-' + idx).prop('checked', false);
-                if (definitionRestaurants[idx]) { definitionRestaurants[idx].optional = false; definitionRestaurants[idx].optional_price = ''; }
-            }
-            if (definitionRestaurants[idx]) definitionRestaurants[idx].compulsory = $(this).is(':checked');
-            updateDefinitionRestaurantsInput();
-            renderDefinitionRestaurants();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        });
-        $('.def-restaurant-optional').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#rest-comp-' + idx).prop('checked', false);
-                if (definitionRestaurants[idx]) {
-                    definitionRestaurants[idx].compulsory = false;
-                    if ((definitionRestaurants[idx].optional_price === '' || definitionRestaurants[idx].optional_price == null) && definitionRestaurants[idx].base_price != null && definitionRestaurants[idx].base_price !== '') {
-                        definitionRestaurants[idx].optional_price = definitionRestaurants[idx].base_price;
-                    }
+            const mode = $(this).val();
+            const r = definitionRestaurants[idx];
+            if (r) {
+                r.compulsory = mode === 'compulsory';
+                r.optional = mode === 'optional';
+                r.addon = mode === 'addon';
+                if (mode === 'optional') {
+                    if ((r.optional_price === '' || r.optional_price == null) && r.base_price != null && r.base_price !== '') r.optional_price = r.base_price;
+                    r.addon_price = '';
+                } else if (mode === 'addon') {
+                    if ((r.addon_price === '' || r.addon_price == null) && r.base_price != null && r.base_price !== '') r.addon_price = r.base_price;
+                    r.optional_price = '';
+                } else {
+                    r.optional_price = '';
+                    r.addon_price = '';
                 }
-            } else {
-                if (definitionRestaurants[idx]) definitionRestaurants[idx].optional_price = '';
             }
-            if (definitionRestaurants[idx]) definitionRestaurants[idx].optional = $(this).is(':checked');
             updateDefinitionRestaurantsInput();
             renderDefinitionRestaurants();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
         });
-        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        renderOptionalServicesSummary();
+        updateDefinitionTotalsAndMarkup();
     }
 
     function updateDefinitionRestaurantsInput() {
@@ -1432,6 +2132,17 @@ $(document).ready(function() {
     let localTransferChosenVehicles = [];
     let localTransfersList = [];
 
+    /** Match API vehicle row to select value (string/number/id aliases). */
+    function findLocalTransferVehicleBySelectValue(vehicles, val) {
+        if (val == null || val === '' || !Array.isArray(vehicles)) return null;
+        const s = String(val);
+        return vehicles.find(function(x) {
+            if (!x) return false;
+            const id = x.vehicle_id != null ? x.vehicle_id : x.id;
+            return String(id) === s;
+        }) || null;
+    }
+
     $(document).ready(function() {
         refreshLocalTransferPickupDropoff();
     });
@@ -1470,12 +2181,15 @@ $(document).ready(function() {
                 zone_status: 1
             },
             success: function(res) {
-                localTransferVehiclesByZone = res.vehicles || [];
+                localTransferVehiclesByZone = Array.isArray(res.vehicles) ? res.vehicles : [];
                 const sel = $('#local-transfer-vehicle-select');
                 sel.empty().append('<option value="">Select vehicle</option>');
                 localTransferVehiclesByZone.forEach(function(v) {
+                    const vid = v.vehicle_id != null ? v.vehicle_id : v.id;
                     const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
-                    sel.append(new Option(name, v.vehicle_id));
+                    const opt = new Option(name, vid);
+                    $(opt).data('vehicle-row', v);
+                    sel.append(opt);
                 });
                 $('#local-transfer-vehicle-wrap').show();
             },
@@ -1489,12 +2203,17 @@ $(document).ready(function() {
     $('#local-transfer-add-vehicle-btn').on('click', function() {
         const val = $('#local-transfer-vehicle-select').val();
         if (!val) return;
-        const v = localTransferVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
+        let v = findLocalTransferVehicleBySelectValue(localTransferVehiclesByZone, val);
+        if (!v) {
+            const opt = $('#local-transfer-vehicle-select').find('option:selected');
+            v = opt.data('vehicle-row');
+        }
         if (!v) return;
-        if (localTransferChosenVehicles.some(function(x) { return x.vehicle_id == val; })) return;
+        const vid = v.vehicle_id != null ? v.vehicle_id : v.id;
+        if (localTransferChosenVehicles.some(function(x) { return String(x.vehicle_id) === String(vid); })) return;
         const priv = parseFloat(v.private_price) || 0;
         const shared = parseFloat(v.shared_price) || 0;
-        localTransferChosenVehicles.push({ vehicle_id: v.vehicle_id, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type, private_price: priv, shared_price: shared });
+        localTransferChosenVehicles.push({ vehicle_id: vid, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type, private_price: priv, shared_price: shared });
         const html = localTransferChosenVehicles.map(function(x, i) {
             return '<span class="badge bg-secondary me-1 mb-1">' + (x.vehicle_name || '') + (x.vehicle_type ? ' (' + x.vehicle_type + ')' : '') + ' <a href="#" class="text-white local-transfer-remove-vehicle" data-idx="' + i + '">×</a></span>';
         }).join('');
@@ -1519,7 +2238,25 @@ $(document).ready(function() {
         const fromItem = list.find(function(x) { return x.value === pickupVal; });
         const toItem = list.find(function(x) { return x.value === dropoffVal; });
         if (!fromItem || !toItem) return;
-        const transferPrice = localTransferChosenVehicles.reduce(function(sum, v) {
+        let vehiclesSnapshot = localTransferChosenVehicles.slice();
+        const pendingVal = $('#local-transfer-vehicle-select').val();
+        if (pendingVal) {
+            const already = vehiclesSnapshot.some(function(x) { return String(x.vehicle_id) === String(pendingVal); });
+            if (!already) {
+                let pv = findLocalTransferVehicleBySelectValue(localTransferVehiclesByZone, pendingVal);
+                if (!pv) {
+                    const opt = $('#local-transfer-vehicle-select').find('option:selected');
+                    pv = opt.data('vehicle-row');
+                }
+                if (pv) {
+                    const pvid = pv.vehicle_id != null ? pv.vehicle_id : pv.id;
+                    const priv = parseFloat(pv.private_price) || 0;
+                    const shared = parseFloat(pv.shared_price) || 0;
+                    vehiclesSnapshot.push({ vehicle_id: pvid, vehicle_name: pv.vehicle_name || pv.name, vehicle_type: pv.vehicle_type, private_price: priv, shared_price: shared });
+                }
+            }
+        }
+        const transferPrice = vehiclesSnapshot.reduce(function(sum, v) {
             return sum + (parseFloat(v.private_price) || parseFloat(v.shared_price) || 0);
         }, 0);
         const transferBasePrice = transferPrice > 0 ? transferPrice : '';
@@ -1532,10 +2269,12 @@ $(document).ready(function() {
             dropoff_label: toItem.label,
             dropoff_type: toItem.type,
             dropoff_zone_id: toItem.zoneId,
-            vehicles: localTransferChosenVehicles.slice(),
-            compulsory: false,
+            vehicles: vehiclesSnapshot,
+            compulsory: true,
             optional: false,
-            optional_price: transferBasePrice,
+            addon: false,
+            optional_price: '',
+            addon_price: '',
             base_price: transferBasePrice
         });
         localTransferChosenVehicles = [];
@@ -1550,56 +2289,65 @@ $(document).ready(function() {
         if (localTransfersList.length === 0) {
             $('#local-transfer-empty').show();
             $('#local-transfer-list').hide().empty();
+            renderOptionalServicesSummary();
             return;
         }
         $('#local-transfer-empty').hide();
         const html = localTransfersList.map(function(t, i) {
             const vList = (t.vehicles || []).map(function(v) { return (v.vehicle_name || '') + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : ''); }).join(', ');
-            const isCompulsory = t.compulsory === true;
+            const isCompulsory = t.compulsory === true || (!t.optional && !t.addon);
             const isOptional = t.optional === true;
-            const optPriceRawT = t.optional_price != null && t.optional_price !== '' ? t.optional_price : (t.base_price != null && t.base_price !== '' ? t.base_price : '');
+            const isAddonT = t.addon === true;
+            const baseRawT = t.base_price != null && t.base_price !== '' ? t.base_price : '';
+            const basePT = baseRawT !== '' ? parseFloat(baseRawT) : '';
+            const optPriceRawT = t.optional_price != null && t.optional_price !== '' ? t.optional_price : '';
             const optPriceT = optPriceRawT !== '' ? parseFloat(optPriceRawT) : '';
-            const priceDisplay = isOptional && optPriceT !== '' && !isNaN(optPriceT) ? ' <span class="badge bg-secondary optional-price-badge">' + formatOptionalPrice(optPriceT) + '</span>' : '';
+            const addonPriceRawT = t.addon_price != null && t.addon_price !== '' ? t.addon_price : '';
+            const addonPriceT = addonPriceRawT !== '' ? parseFloat(addonPriceRawT) : '';
+            let priceDisplay = '';
+            if (isOptional && optPriceT !== '' && !isNaN(optPriceT)) {
+                priceDisplay = ' <span class="badge bg-secondary optional-price-badge">Optional: ' + formatOptionalPrice(optPriceT) + '</span>';
+            } else if (isAddonT && addonPriceT !== '' && !isNaN(addonPriceT)) {
+                priceDisplay = ' <span class="badge bg-dark optional-price-badge">Add-on: ' + formatOptionalPrice(addonPriceT) + '</span>';
+            } else if (basePT !== '' && !isNaN(basePT)) {
+                priceDisplay = ' <span class="badge bg-light text-dark optional-price-badge">' + formatOptionalPrice(basePT) + '</span>';
+            }
             return '<div class="border rounded p-2 mb-2 small">' +
                 '<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">' +
                 '<div class="flex-grow-1">' +
                 (t.pickup_label || '') + ' → ' + (t.dropoff_label || '') + priceDisplay + (vList ? ' <span class="text-muted">(' + vList + ')</span>' : '') +
                 '</div>' +
-                '<div class="d-flex align-items-center gap-3">' +
-                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-compulsory" type="checkbox" id="lt-comp-' + i + '" data-idx="' + i + '" ' + (isCompulsory ? 'checked' : '') + '><label class="form-check-label small" for="lt-comp-' + i + '">Compulsory</label></div>' +
-                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-optional" type="checkbox" id="lt-opt-' + i + '" data-idx="' + i + '" ' + (isOptional ? 'checked' : '') + '><label class="form-check-label small" for="lt-opt-' + i + '">Optional</label></div>' +
+                '<div class="d-flex align-items-center gap-2 flex-wrap">' +
+                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-comp-' + i + '" data-idx="' + i + '" value="compulsory" ' + (isCompulsory ? 'checked' : '') + '><label class="form-check-label small" for="lt-comp-' + i + '">Compulsory</label></div>' +
+                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-opt-' + i + '" data-idx="' + i + '" value="optional" ' + (isOptional ? 'checked' : '') + '><label class="form-check-label small" for="lt-opt-' + i + '">Optional</label></div>' +
+                '<div class="form-check form-check-inline mb-0"><input class="form-check-input local-transfer-mode" type="radio" name="lt-mode-' + i + '" id="lt-addon-' + i + '" data-idx="' + i + '" value="addon" ' + (isAddonT ? 'checked' : '') + '><label class="form-check-label small" for="lt-addon-' + i + '">Add-On</label></div>' +
                 '<button type="button" class="btn btn-outline-danger btn-sm local-transfer-remove" data-idx="' + i + '"><i class="ri-delete-bin-line"></i></button>' +
                 '</div></div></div>';
         }).join('');
         $('#local-transfer-list').html(html).show();
-        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        renderOptionalServicesSummary();
     }
 
-    $(document).on('change', '.local-transfer-compulsory', function() {
+    $(document).on('change', '.local-transfer-mode', function() {
         const idx = parseInt($(this).data('idx'), 10);
-        if (localTransfersList[idx]) {
-            localTransfersList[idx].compulsory = $(this).is(':checked');
-            if ($(this).is(':checked')) { localTransfersList[idx].optional = false; localTransfersList[idx].optional_price = ''; }
-            renderLocalTransfersList();
-            $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        }
-    });
-    $(document).on('change', '.local-transfer-optional', function() {
-        const idx = parseInt($(this).data('idx'), 10);
-        if (localTransfersList[idx]) {
-            localTransfersList[idx].optional = $(this).is(':checked');
-            if ($(this).is(':checked')) {
-                localTransfersList[idx].compulsory = false;
-                if ((localTransfersList[idx].optional_price === '' || localTransfersList[idx].optional_price == null) && localTransfersList[idx].base_price != null && localTransfersList[idx].base_price !== '') {
-                    localTransfersList[idx].optional_price = localTransfersList[idx].base_price;
-                }
+        const mode = $(this).val();
+        const t = localTransfersList[idx];
+        if (t) {
+            t.compulsory = mode === 'compulsory';
+            t.optional = mode === 'optional';
+            t.addon = mode === 'addon';
+            if (mode === 'optional') {
+                if ((t.optional_price === '' || t.optional_price == null) && t.base_price != null && t.base_price !== '') t.optional_price = t.base_price;
+                t.addon_price = '';
+            } else if (mode === 'addon') {
+                if ((t.addon_price === '' || t.addon_price == null) && t.base_price != null && t.base_price !== '') t.addon_price = t.base_price;
+                t.optional_price = '';
             } else {
-                localTransfersList[idx].optional_price = '';
+                t.optional_price = '';
+                t.addon_price = '';
             }
             renderLocalTransfersList();
             $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
         }
     });
 
@@ -1609,7 +2357,6 @@ $(document).ready(function() {
         localTransfersList.splice(idx, 1);
         renderLocalTransfersList();
         $('#local-transfers-hidden').val(JSON.stringify(localTransfersList));
-        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
     });
 
     // Independent guides: multiple with Compulsory/Optional (mutually exclusive)
@@ -1637,9 +2384,11 @@ $(document).ready(function() {
             name: data.name,
             languages: data.languages || [],
             contact_no: data.contact_no || '',
-            compulsory: false,
+            compulsory: true,
             optional: false,
-            optional_price: guidePrice,
+            addon: false,
+            optional_price: '',
+            addon_price: '',
             base_price: guidePrice,
             duration_key: durationKey || 'hourly',
             duration_label: durationLabel
@@ -1659,19 +2408,32 @@ $(document).ready(function() {
             emptyEl.show();
             listEl.hide().empty();
             countEl.text('0');
+            renderOptionalServicesSummary();
             return;
         }
         emptyEl.hide();
         countEl.text(definitionGuides.length);
         listEl.show().empty();
         definitionGuides.forEach(function(g, idx) {
-            const isCompulsory = g.compulsory === true;
+            const isCompulsory = g.compulsory === true || (!g.optional && !g.addon);
             const isOptional = g.optional === true;
+            const isAddonG = g.addon === true;
             const langText = g.languages && g.languages.length ? ' (' + g.languages.join(', ') + ')' : '';
             const durationText = g.duration_label ? ' <span class="text-muted">·</span> ' + escapeHtml(g.duration_label) : '';
-            const optPriceRawG = g.optional_price != null && g.optional_price !== '' ? g.optional_price : (g.base_price != null && g.base_price !== '' ? g.base_price : '');
+            const baseRawG = g.base_price != null && g.base_price !== '' ? g.base_price : '';
+            const basePG = baseRawG !== '' ? parseFloat(baseRawG) : '';
+            const optPriceRawG = g.optional_price != null && g.optional_price !== '' ? g.optional_price : '';
             const optPriceG = optPriceRawG !== '' ? parseFloat(optPriceRawG) : '';
-            const priceDisplay = isOptional && optPriceG !== '' && !isNaN(optPriceG) ? '<span class="badge bg-info ms-2 optional-price-badge">' + formatOptionalPrice(optPriceG) + '</span>' : '';
+            const addonPriceRawG = g.addon_price != null && g.addon_price !== '' ? g.addon_price : '';
+            const addonPriceG = addonPriceRawG !== '' ? parseFloat(addonPriceRawG) : '';
+            let priceDisplay = '';
+            if (isOptional && optPriceG !== '' && !isNaN(optPriceG)) {
+                priceDisplay = '<span class="badge bg-info ms-2 optional-price-badge">Optional: ' + formatOptionalPrice(optPriceG) + '</span>';
+            } else if (isAddonG && addonPriceG !== '' && !isNaN(addonPriceG)) {
+                priceDisplay = '<span class="badge bg-secondary ms-2 optional-price-badge">Add-on: ' + formatOptionalPrice(addonPriceG) + '</span>';
+            } else if (basePG !== '' && !isNaN(basePG)) {
+                priceDisplay = '<span class="badge bg-info-subtle text-info ms-2 optional-price-badge">' + formatOptionalPrice(basePG) + '</span>';
+            }
             listEl.append(`
                 <div class="card mb-2 border shadow-sm" data-idx="${idx}">
                     <div class="card-body py-2 px-3">
@@ -1683,14 +2445,18 @@ $(document).ready(function() {
                                     <small class="text-muted">${escapeHtml(langText)}${durationText}</small>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-guide-compulsory" type="checkbox" id="guide-comp-${idx}" data-idx="${idx}" ${isCompulsory ? 'checked' : ''}>
+                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-comp-${idx}" data-idx="${idx}" value="compulsory" ${isCompulsory ? 'checked' : ''}>
                                     <label class="form-check-label small" for="guide-comp-${idx}">Compulsory</label>
                                 </div>
                                 <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input def-guide-optional" type="checkbox" id="guide-opt-${idx}" data-idx="${idx}" ${isOptional ? 'checked' : ''}>
+                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-opt-${idx}" data-idx="${idx}" value="optional" ${isOptional ? 'checked' : ''}>
                                     <label class="form-check-label small" for="guide-opt-${idx}">Optional</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input def-guide-mode" type="radio" name="guide-mode-${idx}" id="guide-addon-${idx}" data-idx="${idx}" value="addon" ${isAddonG ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="guide-addon-${idx}">Add-On</label>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-def-guide" data-idx="${idx}" title="Remove"><i class="ri-delete-bin-line"></i></button>
                             </div>
@@ -1705,109 +2471,33 @@ $(document).ready(function() {
             renderChosenGuides();
             updateDefinitionGuidesInput();
         });
-        $('.def-guide-compulsory').on('change', function() {
+        $('.def-guide-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#guide-opt-' + idx).prop('checked', false);
-                if (definitionGuides[idx]) { definitionGuides[idx].optional = false; definitionGuides[idx].optional_price = ''; }
-            }
-            if (definitionGuides[idx]) definitionGuides[idx].compulsory = $(this).is(':checked');
-            updateDefinitionGuidesInput();
-            renderChosenGuides();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
-        });
-        $('.def-guide-optional').on('change', function() {
-            const idx = parseInt($(this).data('idx'));
-            if ($(this).is(':checked')) {
-                $('#guide-comp-' + idx).prop('checked', false);
-                if (definitionGuides[idx]) {
-                    definitionGuides[idx].compulsory = false;
-                    if ((definitionGuides[idx].optional_price === '' || definitionGuides[idx].optional_price == null) && definitionGuides[idx].base_price != null && definitionGuides[idx].base_price !== '') {
-                        definitionGuides[idx].optional_price = definitionGuides[idx].base_price;
-                    }
+            const mode = $(this).val();
+            const g = definitionGuides[idx];
+            if (g) {
+                g.compulsory = mode === 'compulsory';
+                g.optional = mode === 'optional';
+                g.addon = mode === 'addon';
+                if (mode === 'optional') {
+                    if ((g.optional_price === '' || g.optional_price == null) && g.base_price != null && g.base_price !== '') g.optional_price = g.base_price;
+                    g.addon_price = '';
+                } else if (mode === 'addon') {
+                    if ((g.addon_price === '' || g.addon_price == null) && g.base_price != null && g.base_price !== '') g.addon_price = g.base_price;
+                    g.optional_price = '';
+                } else {
+                    g.optional_price = '';
+                    g.addon_price = '';
                 }
-            } else {
-                if (definitionGuides[idx]) definitionGuides[idx].optional_price = '';
             }
-            if (definitionGuides[idx]) definitionGuides[idx].optional = $(this).is(':checked');
             updateDefinitionGuidesInput();
             renderChosenGuides();
-            if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
         });
-        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
+        renderOptionalServicesSummary();
     }
 
     function updateDefinitionGuidesInput() {
         $('#definition-independent-guide-input').val(JSON.stringify(definitionGuides));
-    }
-
-    // Optional Services Summary: collect all optional items and render table + total
-    function renderOptionalServicesSummary() {
-        const items = [];
-        (definitionHotels || []).forEach(function(h) {
-            if (h.optional === true) {
-                const price = parseOptionalPrice(h.optional_price);
-                items.push({ name: h.hotel_name || '', type: 'Hotel', price: price });
-            }
-        });
-        (definitionAttractions || []).forEach(function(a) {
-            if (a.optional === true) {
-                const price = parseOptionalPrice(a.optional_price);
-                items.push({ name: a.name || '', type: 'Attraction', price: price });
-            }
-        });
-        (definitionRestaurants || []).forEach(function(r) {
-            if (r.optional === true) {
-                const price = parseOptionalPrice(r.optional_price);
-                items.push({ name: r.restaurant_name || '', type: 'Restaurant', price: price });
-            }
-        });
-        (definitionGuides || []).forEach(function(g) {
-            if (g.optional === true) {
-                const price = parseOptionalPrice(g.optional_price);
-                items.push({ name: g.name || '', type: 'Guide', price: price });
-            }
-        });
-        (localTransfersList || []).forEach(function(t) {
-            if (t.optional === true) {
-                const price = parseOptionalPrice(t.optional_price);
-                const label = (t.pickup_label || '') + ' → ' + (t.dropoff_label || '');
-                items.push({ name: label, type: 'Transfer', price: price });
-            }
-        });
-        function parseOptionalPrice(v) {
-            if (v === '' || v == null) return 0;
-            const n = parseFloat(v);
-            return isNaN(n) ? 0 : n;
-        }
-        const card = $('#optional-services-summary-card');
-        const tbody = $('#optional-services-summary-tbody');
-        const totalCell = $('#optional-services-total-cell');
-        const emptyEl = $('#optional-services-summary-empty');
-        const tableWrap = $('#optional-services-summary-table').closest('.table-responsive');
-        if (items.length === 0) {
-            card.hide();
-            tbody.empty();
-            totalCell.text('—');
-            $('#price-data-hidden').val('[]');
-            return;
-        }
-        emptyEl.hide();
-        tableWrap.show();
-        let total = 0;
-        tbody.empty();
-        items.forEach(function(row, i) {
-            total += row.price;
-            tbody.append(
-                '<tr><td class="text-muted">' + (i + 1) + '</td><td>' + escapeHtml(row.name) + '</td><td><span class="badge bg-light text-dark">' + escapeHtml(row.type) + '</span></td><td class="text-end">' + formatOptionalPrice(row.price) + '</td></tr>'
-            );
-        });
-        totalCell.text(formatOptionalPrice(total));
-        card.show();
-
-        // Persist the same array to backend (packages.price_data as JSON)
-        // Shape: [{ name: string, type: string, price: number }]
-        $('#price-data-hidden').val(JSON.stringify(items));
     }
 
     // Arrival Pickup: toggle config, sync hidden; Search vehicle → show vehicle dropdown
@@ -1841,17 +2531,76 @@ $(document).ready(function() {
     let departureVehiclesByZone = [];
     const fetchVehiclesByZonesUrl = '{{ route("fetch-vehicles-by-zones") }}';
 
+    function formatTransferVehiclePricing(v) {
+        const privatePrice = v && v.private_price != null && !isNaN(parseFloat(v.private_price)) ? parseFloat(v.private_price) : 0;
+        const sharedPrice = v && v.shared_price != null && !isNaN(parseFloat(v.shared_price)) ? parseFloat(v.shared_price) : 0;
+        return {
+            private_price: privatePrice,
+            shared_price: sharedPrice,
+            label: 'Private: ' + formatOptionalPrice(privatePrice) + ' | Shared: ' + formatOptionalPrice(sharedPrice)
+        };
+    }
+
     function renderChosenVehiclesList(list, containerId) {
         const el = $('#' + containerId);
         el.empty();
         list.forEach(function(v, idx) {
+            const selectedType = (v.selected_transfer_type || '').toLowerCase();
+            const qty = selectedType === 'private'
+                ? Math.max(1, parseInt(v.qty != null ? v.qty : 1, 10) || 1)
+                : 1;
+            const unitPrice = v.unit_price != null && !isNaN(parseFloat(v.unit_price))
+                ? parseFloat(v.unit_price)
+                : (v.selected_price != null && !isNaN(parseFloat(v.selected_price)) ? parseFloat(v.selected_price) : 0);
+            const totalPrice = selectedType === 'private' ? (unitPrice * qty) : unitPrice;
+            v.qty = qty;
+            v.unit_price = unitPrice;
+            v.selected_price = totalPrice;
+            const selectedPrice = v.selected_price != null && !isNaN(parseFloat(v.selected_price)) ? parseFloat(v.selected_price) : null;
+            const selectedBadge = selectedType
+                ? '<span class="badge bg-secondary ms-1">' + (selectedType === 'shared' ? 'Shared' : 'Private') + (selectedPrice != null ? ': ' + formatOptionalPrice(selectedPrice) : '') + '</span>'
+                : '';
+            const qtyInput = selectedType === 'private'
+                ? '<span class="d-inline-flex align-items-center gap-1 me-1"><input type="number" min="1" step="1" class="form-control form-control-sm transfer-vehicle-qty-input" style="width:62px;" data-list="' + containerId + '" data-idx="' + idx + '" value="' + qty + '"><span class="fw-semibold text-muted">×</span></span>'
+                : '';
             el.append(`
                 <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1 mb-1 bg-white small">
-                    <span>${escapeHtml(v.vehicle_name)}${v.vehicle_type ? ' (' + escapeHtml(v.vehicle_type) + ')' : ''}</span>
+                    <span>
+                        ${qtyInput}
+                        ${escapeHtml(v.vehicle_name)}${v.vehicle_type ? ' (' + escapeHtml(v.vehicle_type) + ')' : ''}
+                        ${selectedBadge}
+                    </span>
                     <button type="button" class="btn btn-link btn-sm p-0 text-danger transfer-vehicle-remove" data-list="${containerId}" data-idx="${idx}" title="Remove"><i class="ri-close-line"></i></button>
                 </div>
             `);
         });
+        updateDefinitionTotalsAndMarkup();
+    }
+
+    function updateArrivalTransferPriceInput() {
+        const val = $('#arrival-vehicle-select').val();
+        const selectedType = $('input[name="arrival_transfer_type"]:checked').val() || 'private';
+        if (!val) {
+            $('#arrival-transfer-price-input').val('0');
+            return;
+        }
+        const v = arrivalVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
+        const pricing = formatTransferVehiclePricing(v || {});
+        const p = selectedType === 'shared' ? pricing.shared_price : pricing.private_price;
+        $('#arrival-transfer-price-input').val((p || 0).toFixed(2));
+    }
+
+    function updateDepartureTransferPriceInput() {
+        const val = $('#departure-vehicle-select').val();
+        const selectedType = $('input[name="departure_transfer_type"]:checked').val() || 'private';
+        if (!val) {
+            $('#departure-transfer-price-input').val('0');
+            return;
+        }
+        const v = departureVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
+        const pricing = formatTransferVehiclePricing(v || {});
+        const p = selectedType === 'shared' ? pricing.shared_price : pricing.private_price;
+        $('#departure-transfer-price-input').val((p || 0).toFixed(2));
     }
 
     $(document).on('click', '.transfer-vehicle-remove', function() {
@@ -1864,6 +2613,28 @@ $(document).ready(function() {
         } else {
             departureChosenVehicles.splice(idx, 1);
             renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
+            $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles));
+        }
+    });
+
+    $(document).on('input change', '.transfer-vehicle-qty-input', function() {
+        const listName = $(this).data('list');
+        const idx = parseInt($(this).data('idx'), 10);
+        const qtyVal = Math.max(1, parseInt($(this).val(), 10) || 1);
+        const list = listName === 'arrival-chosen-vehicles' ? arrivalChosenVehicles : departureChosenVehicles;
+        if (!Array.isArray(list) || !list[idx]) return;
+        const item = list[idx];
+        if ((item.selected_transfer_type || '').toLowerCase() !== 'private') return;
+        const unitPrice = item.unit_price != null && !isNaN(parseFloat(item.unit_price))
+            ? parseFloat(item.unit_price)
+            : (item.selected_price != null && !isNaN(parseFloat(item.selected_price)) ? parseFloat(item.selected_price) : 0);
+        item.qty = qtyVal;
+        item.unit_price = unitPrice;
+        item.selected_price = unitPrice * qtyVal;
+        renderChosenVehiclesList(list, listName);
+        if (listName === 'arrival-chosen-vehicles') {
+            $('#arrival-vehicles-hidden').val(JSON.stringify(arrivalChosenVehicles));
+        } else {
             $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles));
         }
     });
@@ -1892,10 +2663,13 @@ $(document).ready(function() {
                 const sel = $('#arrival-vehicle-select');
                 sel.empty().append('<option value="">Select vehicle</option>');
                 arrivalVehiclesByZone.forEach(function(v) {
-                    const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
+                    const pricing = formatTransferVehiclePricing(v);
+                    const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '') + ' - ' + pricing.label;
                     sel.append(new Option(name, v.vehicle_id));
                 });
                 $('#arrival-vehicle-select-wrap').show();
+                $('#arrival-transfer-private').prop('checked', true);
+                updateArrivalTransferPriceInput();
             },
             error: function(xhr) {
                 const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No vehicles found for this route (zone).';
@@ -1928,10 +2702,13 @@ $(document).ready(function() {
                 const sel = $('#departure-vehicle-select');
                 sel.empty().append('<option value="">Select vehicle</option>');
                 departureVehiclesByZone.forEach(function(v) {
-                    const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
+                    const pricing = formatTransferVehiclePricing(v);
+                    const name = (v.vehicle_name || v.name) + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '') + ' - ' + pricing.label;
                     sel.append(new Option(name, v.vehicle_id));
                 });
                 $('#departure-vehicle-select-wrap').show();
+                $('#departure-transfer-private').prop('checked', true);
+                updateDepartureTransferPriceInput();
             },
             error: function(xhr) {
                 const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'No vehicles found for this route (zone).';
@@ -1946,7 +2723,21 @@ $(document).ready(function() {
         const v = arrivalVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
         if (!v) return;
         if (arrivalChosenVehicles.some(function(x) { return x.vehicle_id == val; })) return;
-        arrivalChosenVehicles.push({ vehicle_id: v.vehicle_id, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type });
+        const pricing = formatTransferVehiclePricing(v);
+        const selectedType = $('input[name="arrival_transfer_type"]:checked').val() || 'private';
+        const manualPrice = parseFloat($('#arrival-transfer-price-input').val());
+        const selectedPrice = !isNaN(manualPrice) ? manualPrice : (selectedType === 'shared' ? pricing.shared_price : pricing.private_price);
+        arrivalChosenVehicles.push({
+            vehicle_id: v.vehicle_id,
+            vehicle_name: v.vehicle_name || v.name,
+            vehicle_type: v.vehicle_type,
+            private_price: pricing.private_price,
+            shared_price: pricing.shared_price,
+            selected_transfer_type: selectedType,
+            unit_price: selectedPrice,
+            qty: selectedType === 'private' ? 1 : 1,
+            selected_price: selectedPrice
+        });
         renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
         $('#arrival-vehicles-hidden').val(JSON.stringify(arrivalChosenVehicles));
     });
@@ -1957,10 +2748,30 @@ $(document).ready(function() {
         const v = departureVehiclesByZone.find(function(x) { return x.vehicle_id == val; });
         if (!v) return;
         if (departureChosenVehicles.some(function(x) { return x.vehicle_id == val; })) return;
-        departureChosenVehicles.push({ vehicle_id: v.vehicle_id, vehicle_name: v.vehicle_name || v.name, vehicle_type: v.vehicle_type });
+        const pricing = formatTransferVehiclePricing(v);
+        const selectedType = $('input[name="departure_transfer_type"]:checked').val() || 'private';
+        const manualPrice = parseFloat($('#departure-transfer-price-input').val());
+        const selectedPrice = !isNaN(manualPrice) ? manualPrice : (selectedType === 'shared' ? pricing.shared_price : pricing.private_price);
+        departureChosenVehicles.push({
+            vehicle_id: v.vehicle_id,
+            vehicle_name: v.vehicle_name || v.name,
+            vehicle_type: v.vehicle_type,
+            private_price: pricing.private_price,
+            shared_price: pricing.shared_price,
+            selected_transfer_type: selectedType,
+            unit_price: selectedPrice,
+            qty: selectedType === 'private' ? 1 : 1,
+            selected_price: selectedPrice
+        });
         renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
         $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles));
     });
+
+    $('#arrival-vehicle-select').on('change', updateArrivalTransferPriceInput);
+    $('input[name="arrival_transfer_type"]').on('change', updateArrivalTransferPriceInput);
+    $('#departure-vehicle-select').on('change', updateDepartureTransferPriceInput);
+    $('input[name="departure_transfer_type"]').on('change', updateDepartureTransferPriceInput);
+    $('#definition-markup-type, #definition-markup-amount').on('change input', updateDefinitionTotalsAndMarkup);
 
     // Form submit: build full JSON for selected_hotels, selected_attractions, selected_restaurants
     $('#package-definition-form').on('submit', function(e) {
@@ -1970,6 +2781,8 @@ $(document).ready(function() {
             return false;
         }
         $('#main-image-required-msg').addClass('d-none');
+        updateDefinitionTotalsAndMarkup();
+        renderOptionalServicesSummary();
         // Hotels: full data with id/name for API compatibility
         const selectedHotelsPayload = definitionHotels.map(function(h) {
             return {
@@ -1981,7 +2794,10 @@ $(document).ready(function() {
                 rooms: h.rooms,
                 compulsory: !!h.compulsory,
                 optional: !!h.optional,
-                optional_price: h.optional_price != null && h.optional_price !== '' ? parseFloat(h.optional_price) : null
+                addon: !!h.addon,
+                optional_price: h.optional_price != null && h.optional_price !== '' ? parseFloat(h.optional_price) : null,
+                addon_price: h.addon_price != null && h.addon_price !== '' ? parseFloat(h.addon_price) : null,
+                base_price: h.base_price != null && h.base_price !== '' ? parseFloat(h.base_price) : null
             };
         });
         // Attractions: full data including guide, transfer, pickup/dropoff, compulsory
@@ -1994,11 +2810,18 @@ $(document).ready(function() {
                 image: a.image || '',
                 compulsory: !!a.compulsory,
                 optional: !!a.optional,
+                addon: !!a.addon,
                 optional_price: a.optional_price != null && a.optional_price !== '' ? parseFloat(a.optional_price) : null,
+                addon_price: a.addon_price != null && a.addon_price !== '' ? parseFloat(a.addon_price) : null,
+                base_price: a.base_price != null && a.base_price !== '' ? parseFloat(a.base_price) : null,
+                ticket_id: a.ticket_id || null,
+                ticket_name: a.ticket_name || null,
+                ticket: a.ticket || null,
                 guide: a.guide || null,
                 transfer: !!a.transfer,
                 vehicle_id: a.vehicle_id || null,
                 vehicle_name: a.vehicle_name || null,
+                transfer_price: a.transfer_price != null && a.transfer_price !== '' ? parseFloat(a.transfer_price) : 0,
                 transfer_type: a.transfer_type || 'private',
                 pickup_id: a.pickup_id || null,
                 pickup_name: a.pickup_name || null,
@@ -2015,11 +2838,19 @@ $(document).ready(function() {
                 restaurant_name: r.restaurant_name,
                 compulsory: !!r.compulsory,
                 optional: !!r.optional,
+                addon: !!r.addon,
                 optional_price: r.optional_price != null && r.optional_price !== '' ? parseFloat(r.optional_price) : null,
+                addon_price: r.addon_price != null && r.addon_price !== '' ? parseFloat(r.addon_price) : null,
+                base_price: r.base_price != null && r.base_price !== '' ? parseFloat(r.base_price) : null,
                 selected_meals: r.selected_meals || [],
+                meal_type: r.meal_type || null,
+                meal_type_label: r.meal_type_label || null,
+                adult_price: r.meal_adult_price != null && r.meal_adult_price !== '' ? parseFloat(r.meal_adult_price) : null,
+                child_price: r.meal_child_price != null && r.meal_child_price !== '' ? parseFloat(r.meal_child_price) : null,
                 transfer: !!r.transfer,
                 vehicle_id: r.vehicle_id || null,
                 vehicle_name: r.vehicle_name || null,
+                transfer_price: r.transfer_price != null && r.transfer_price !== '' ? parseFloat(r.transfer_price) : 0,
                 transfer_type: r.transfer_type || 'private',
                 pickup_id: r.pickup_id || null,
                 pickup_name: r.pickup_name || null,
@@ -2047,15 +2878,15 @@ $(document).ready(function() {
                 contact_no: g.contact_no || '',
                 compulsory: !!g.compulsory,
                 optional: !!g.optional,
+                addon: !!g.addon,
                 optional_price: g.optional_price != null && g.optional_price !== '' ? parseFloat(g.optional_price) : null,
+                addon_price: g.addon_price != null && g.addon_price !== '' ? parseFloat(g.addon_price) : null,
+                base_price: g.base_price != null && g.base_price !== '' ? parseFloat(g.base_price) : null,
                 duration_key: g.duration_key || 'hourly',
                 duration_label: g.duration_label || ''
             };
         });
         $('#definition-independent-guide-input').val(JSON.stringify(selectedGuidesPayload));
-
-        // Ensure price_data is set even if the summary card isn't visible
-        if (typeof renderOptionalServicesSummary === 'function') renderOptionalServicesSummary();
     });
 
     // Main image preview
@@ -2075,6 +2906,9 @@ $(document).ready(function() {
     });
     // Gallery (simple)
     $('#gallery-drop-area').on('click', function() { $('#gallery_images').click(); });
+
+    renderOptionalServicesSummary();
+    updateDefinitionTotalsAndMarkup();
 });
 </script>
 @endsection
@@ -2099,3 +2933,5 @@ $(document).ready(function() {
 .hotel-attraction-box .form-select-sm, .hotel-attraction-box .form-control-sm { min-height: 36px; }
 </style>
 @endsection
+
+

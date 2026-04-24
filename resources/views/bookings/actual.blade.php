@@ -5009,9 +5009,9 @@
                                 onchange="updatePaymentAmountEnhanced({{ $tour->tour_id }}, this.value)"
                                 required>
                                 <option value="">Select Currency</option>
-                                @foreach(\App\Models\Setting::getCurrencyCodes() as $currency)
-                                    <option value="{{ $currency }}" {{ $currency == 'SGD' ? 'selected' : '' }}>
-                                        {{ $currency }}
+                                @foreach(\App\Models\Setting::getCurrencyCodes() as $currencyCode)
+                                    <option value="{{ $currencyCode }}" {{ $currencyCode == ($currency ?? 'SGD') ? 'selected' : '' }}>
+                                        {{ $currencyCode }}
                                     </option>
                                 @endforeach
                             </select>
@@ -5043,7 +5043,7 @@
                                 <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light">1 {{ $currency }} =</span>
+                                <span class="input-group-text bg-light">1 {{ $currency ?? 'SGD' }} =</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
                                     id="exchange_rate{{ $tour->tour_id }}" 
@@ -5052,7 +5052,7 @@
                                     min="0" 
                                     step="0.0001"
                                     oninput="recalculateFromExchangeRate({{ $tour->tour_id }})">
-                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">{{ $currency }}</span>
+                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">{{ $currency ?? 'SGD' }}</span>
                             </div>
                             <div class="mt-1">
                                 <small class="text-success" id="exchangeRateSource{{ $tour->tour_id }}">
@@ -5068,7 +5068,7 @@
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">{{ $currency }}</span>
+                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">{{ $currency ?? 'SGD' }}</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
                                     id="payment_amount{{ $tour->tour_id }}" 
@@ -5084,7 +5084,7 @@
                             <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
                                 <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Amount in {{ $currency }}: {{ number_format(round($remainingAmount), 2) }}
+                                    Amount in {{ $currency ?? 'SGD' }}: {{ number_format(round($remainingAmount), 2) }}
                                 </small>
                             </div>
                             <div class="mt-1">
@@ -22640,7 +22640,7 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     const currencySymbol = document.getElementById(`currencySymbol${tourId}`);
     const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
     
-    if (selectedCurrency && selectedCurrency !== 'SGD') {
+    if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
         exchangeRateSection.style.display = 'block';
         exchangeRateCurrency.textContent = selectedCurrency;
         currencySymbol.textContent = selectedCurrency;
@@ -22651,7 +22651,7 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     } else {
         exchangeRateSection.style.display = 'none';
         exchangeRateInput.value = '1.00';
-        currencySymbol.textContent = 'SGD';
+        currencySymbol.textContent = window.bookingCurrency;
         conversionInfoContainer.style.display = 'none';
     }
 }
@@ -22709,11 +22709,11 @@ function validatePaymentAmountInput(tourId) {
     }
     
     // Calculate equivalent SGD amount
-    const equivalentSGD = selectedCurrency === 'SGD' ? paymentAmount : (paymentAmount / exchangeRate);
+    const equivalentSGD = selectedCurrency === window.bookingCurrency ? paymentAmount : (paymentAmount / exchangeRate);
     
     if (equivalentSGD > maxSGDAmount) {
         validationError.style.display = 'block';
-        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} SGD)`;
+        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} ${window.bookingCurrency})`;
         document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
     } else {
         validationError.style.display = 'none';
@@ -22721,10 +22721,10 @@ function validatePaymentAmountInput(tourId) {
     }
     
     // Update conversion info
-    if (selectedCurrency !== 'SGD') {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in SGD: ${equivalentSGD.toFixed(2)}`;
+    if (selectedCurrency !== window.bookingCurrency) {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${window.bookingCurrency}: ${equivalentSGD.toFixed(2)}`;
     } else {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} SGD`;
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} ${window.bookingCurrency}`;
     }
 }
 
@@ -22890,11 +22890,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
             }
             
-            // Reset currency selection to SGD
+            // Reset currency selection to base DMC currency
             const currencySelect = form.querySelector('select[name="currency"]');
             if (currencySelect) {
-                currencySelect.value = 'SGD';
-                updatePaymentAmountEnhanced(tourId, 'SGD');
+                currencySelect.value = window.bookingCurrency;
+                updatePaymentAmountEnhanced(tourId, window.bookingCurrency);
             }
         });
     });
@@ -26806,7 +26806,7 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
     const selectedSource = getSelectedRateSource(tourId);
     
-    if (selectedCurrency && selectedCurrency !== 'SGD') {
+    if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
         exchangeRateSection.style.display = 'block';
         exchangeRateCurrency.textContent = selectedCurrency;
         currencySymbol.textContent = selectedCurrency;
@@ -26819,7 +26819,7 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     } else {
         exchangeRateSection.style.display = 'none';
         exchangeRateInput.value = 1.00;
-        currencySymbol.textContent = 'SGD';
+        currencySymbol.textContent = window.bookingCurrency;
         conversionInfoContainer.style.display = 'none';
     }
 }
@@ -26841,7 +26841,7 @@ function setRateSourceLabel(tourId, label) {
 
 function fetchExchangeRate(currency, tourId) {
     // This would normally call your exchange rate API
-    fetch(`/get-exchange-rate?from=SGD&to=${currency}`)
+    fetch(`/get-exchange-rate?from=${encodeURIComponent(window.bookingCurrency)}&to=${encodeURIComponent(currency)}`)
         .then(response => response.json())
         .then(data => {
             const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
@@ -26922,7 +26922,7 @@ function applyRateSourceSelection(tourId, source) {
     const sources = window.paymentRateSources[tourId] || {};
 
     if (source === 'live') {
-        if (selectedCurrency && selectedCurrency !== 'SGD') {
+        if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
             exchangeRateInput.value = '1.00';
             setRateSourceLabel(tourId, 'API Rate');
             fetchExchangeRate(selectedCurrency, tourId);
@@ -26964,11 +26964,11 @@ function recalculateFromExchangeRate(tourId) {
     const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value) || 0;
     const remainingAmount = parseFloat(document.getElementById(`amount${tourId}`).value) || 0;
     
-    const equivalentSGD = paymentAmount / exchangeRate;
+    const equivalentBase = paymentAmount / exchangeRate;
     const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
     
     if (conversionInfo) {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in {{ $currency }}: ${equivalentSGD.toFixed(2)}`;
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${window.bookingCurrency}: ${equivalentBase.toFixed(2)}`;
     }
     
     validatePaymentAmountInput(tourId);
@@ -26991,11 +26991,11 @@ function validatePaymentAmountInput(tourId) {
     }
     
     // Calculate equivalent SGD amount
-    const equivalentSGD = selectedCurrency === 'SGD' ? paymentAmount : (paymentAmount / exchangeRate);
+    const equivalentSGD = selectedCurrency === window.bookingCurrency ? paymentAmount : (paymentAmount / exchangeRate);
     
     if (equivalentSGD > maxSGDAmount) {
         validationError.style.display = 'block';
-        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} SGD)`;
+        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} ${window.bookingCurrency})`;
         document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
     } else {
         validationError.style.display = 'none';
@@ -27003,10 +27003,10 @@ function validatePaymentAmountInput(tourId) {
     }
     
     // Update conversion info
-    if (selectedCurrency !== 'SGD') {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in {{ $currency }}: ${equivalentSGD.toFixed(2)}`;
+    if (selectedCurrency !== window.bookingCurrency) {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${window.bookingCurrency}: ${equivalentSGD.toFixed(2)}`;
     } else {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} SGD`;
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} ${window.bookingCurrency}`;
     }
 }
 
@@ -27421,10 +27421,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reset currency selection to SGD
             const currencySelect = document.getElementById(`currency${tourId}`);
             if (currencySelect) {
-                currencySelect.value = 'SGD';
+                currencySelect.value = window.bookingCurrency;
                 const liveEl = document.getElementById(`rateSourceLive${tourId}`);
                 if (liveEl) liveEl.checked = true;
-                updatePaymentAmountEnhanced(tourId, 'SGD');
+                updatePaymentAmountEnhanced(tourId, window.bookingCurrency);
             }
             
             // Hide validation errors

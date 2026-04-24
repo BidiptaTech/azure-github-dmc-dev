@@ -286,7 +286,10 @@
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 @if(request()->has('zone_mapping'))
-                    Map Zones for Vehicle
+                    <span class="d-flex align-items-center flex-wrap gap-2">
+                        <span>Map Zones for Vehicle</span>
+                        <span class="fw-bold text-primary">{{ $vehicle->vehicle_name }}</span>
+                    </span>
                 @else
                     Edit Vehicle Details
                 @endif
@@ -1036,7 +1039,7 @@
                         <div id="to_zone_description" class="mt-2 zone-description d-none">
                             <div class="card">
                                 <div class="card-body bg-light p-3">
-                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Restaurant</span>: <span id="to_zone_name_label"></span></h6>
+                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Hotel</span>: <span id="to_zone_name_label"></span></h6>
                                     <p class="card-text" id="to_zone_description_text"></p>
                                 </div>
                             </div>

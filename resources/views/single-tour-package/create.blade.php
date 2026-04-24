@@ -593,6 +593,37 @@
             border: 1px solid #e9ecef;
             background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
         }
+        /* Blue shade line on left (same as edit form) */
+        #segmentsWrapper .segment .segment-topbar {
+            border-left: 4px solid rgba(102, 126, 234, 0.9);
+        }
+        /* Segment City uses Select2; force same visual size as date inputs (40px) */
+        #segmentsWrapper .segment .select2-container--default .select2-selection--single {
+            height: 40px !important;
+            min-height: 40px !important;
+            border-radius: 10px !important;
+            border: 1px solid #dee2e6 !important;
+            font-size: 0.85rem !important;
+            display: flex !important;
+            align-items: center !important;
+            padding: 0 10px !important;
+            box-sizing: border-box !important;
+            background: #fff !important;
+        }
+        #segmentsWrapper .segment .select2-container--default .select2-selection--single .select2-selection__rendered {
+            padding: 0 !important;
+            height: 40px !important;
+            display: flex !important;
+            align-items: center !important;
+            line-height: 40px !important;
+        }
+        #segmentsWrapper .segment .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 40px !important;
+        }
+        /* Hide clear "x" inside segment City select */
+        #segmentsWrapper .segment .select2-container--default .select2-selection--single .select2-selection__clear {
+            display: none !important;
+        }
         #segmentsWrapper .segment .segment-header > div {
             background: linear-gradient(90deg, rgba(102, 126, 234, 0.22) 0%, rgba(118, 75, 162, 0.18) 100%) !important;
             border-color: rgba(102, 126, 234, 0.35) !important;
@@ -6723,31 +6754,32 @@
 
                 const segmentHTML = `
                 <div class="card mt-2 segment border-0 shadow-sm" data-index="${segmentIndex}" style="border-radius: 10px;">
-                    <div class="card-body py-2 px-2 position-relative">
+                    <div class="card-body py-2 px-2 position-relative segment-topbar">
                         <div class="row g-2">
                             <div class="col-md-5">
                                 <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">City (this stay)</label>
-                                <select class="form-select form-select-sm city-select" name="segments[${segmentIndex}][city]" style="height: 32px;">
+                                <select class="form-select form-select-sm city-select" name="segments[${segmentIndex}][city]" style="height: 40px;">
                                     <option value="">Select city...</option>
                                 </select>
                             </div>
 
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Stay from</label>
-                                <input type="date" class="form-control form-control-sm start-date" name="segments[${segmentIndex}][start_date]" style="height: 32px;" title="Must be on or after main tour start">
+                                <input type="date" class="form-control form-control-sm start-date" name="segments[${segmentIndex}][start_date]" style="height: 40px;" title="Must be on or after main tour start">
                             </div>
 
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.72rem;">Stay until</label>
-                                <input type="date" class="form-control form-control-sm end-date" name="segments[${segmentIndex}][end_date]" style="height: 32px;" title="Must be on or before main tour end">
+                                <input type="date" class="form-control form-control-sm end-date" name="segments[${segmentIndex}][end_date]" style="height: 40px;" title="Must be on or before main tour end">
                             </div>
 
                             <div class="col-md-1 d-flex align-items-end justify-content-end">
                                 <button type="button"
-                                    class="btn btn-danger btn-sm removeSegment"
+                                    class="btn btn-outline-danger btn-sm removeSegment d-flex align-items-center justify-content-center gap-1"
                                     title="Remove plan"
-                                    style="height: 32px; width: 100%; border-radius: 8px;">
+                                    style="height: 40px; width: 100%; border-radius: 10px; padding: 0 10px;">
                                     <i class="ri-close-line"></i>
+                                    <span style="font-size:0.72rem;">Remove</span>
                                 </button>
                             </div>
                         </div>
@@ -6821,6 +6853,12 @@
                 const end = $segment.find('.end-date').val();
                 let segmentCityLabelForAjax = '';
 
+                // Avoid toast spam when we restore a previous valid range
+                if ($segment.data('suppressSegmentDateCheck')) {
+                    $segment.data('suppressSegmentDateCheck', false);
+                    return;
+                }
+
                 if (!(city && start && end)) {
                     if ($('input[name="city_mode"]:checked').val() === 'multi') {
                         $segment.find('.segment-services-banner').addClass('d-none');
@@ -6834,6 +6872,80 @@
                         }
                     }
                     return;
+                }
+
+                // Block overlapping city stays (hotel-night logic). Allow only boundary touch:
+                // e.g. City A 10→12 and City B 12→14 is OK, but B 11→14 is NOT.
+                // We treat stays as [start, end) so checkout day (end) can be shared.
+                if (typeof moment !== 'undefined') {
+                    const curIdx = String($segment.data('index') || '');
+                    if (!window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+
+                    const ms = moment(start, 'YYYY-MM-DD', true);
+                    const me = moment(end, 'YYYY-MM-DD', true);
+                    if (ms.isValid() && me.isValid()) {
+                        let overlaps = false;
+
+                        $('#segmentsWrapper .segment').each(function () {
+                            const $o = $(this);
+                            const oIdx = String($o.data('index') || '');
+                            if (!oIdx || oIdx === curIdx) return;
+
+                            const oStart = $o.find('.start-date').val();
+                            const oEnd = $o.find('.end-date').val();
+                            if (!(oStart && oEnd)) return;
+
+                            const os = moment(oStart, 'YYYY-MM-DD', true);
+                            const oe = moment(oEnd, 'YYYY-MM-DD', true);
+                            if (!os.isValid() || !oe.isValid()) return;
+
+                            // overlap if start < otherEnd AND end > otherStart (end exclusive)
+                            if (ms.isBefore(oe, 'day') && me.isAfter(os, 'day')) {
+                                overlaps = true;
+                            }
+                        });
+
+                        if (overlaps) {
+                            const prev = window.__segmentLastValidRange[curIdx];
+                            const msg = 'City stays cannot overlap. You can only share the same date for checkout/check-in (end = next start).';
+
+                            if (typeof showNotification === 'function') {
+                                // Show only once for the same invalid attempt.
+                                try {
+                                    const toastKey = `${curIdx}|${start}|${end}`;
+                                    const now = Date.now();
+                                    const last = window.__segmentOverlapToastLast || {};
+                                    if (last.key !== toastKey || !last.ts || (now - last.ts) > 2500) {
+                                        showNotification(msg, 'error');
+                                        window.__segmentOverlapToastLast = { key: toastKey, ts: now };
+                                    }
+                                } catch (e) {
+                                    showNotification(msg, 'error');
+                                }
+                            }
+
+                            // Restore last valid dates (or clear end date if none)
+                            $segment.data('suppressSegmentDateCheck', true);
+                            if (prev && prev.start && prev.end) {
+                                $segment.find('.start-date').val(prev.start);
+                                $segment.find('.end-date').val(prev.end);
+                            } else {
+                                $segment.find('.end-date').val('');
+                            }
+
+                            $segment.find('.service-grid').html(
+                                '<div class="alert alert-danger mb-0"><strong>City stays cannot overlap.</strong> Only checkout/check-in on the same date is allowed.</div>'
+                            );
+                            $segment.find('.segment-services-banner').addClass('d-none');
+                            const $bundleBad = $('#segmentServicesBundle');
+                            if ($bundleBad.length && $segment.find('#segmentServicesBundle').length) {
+                                $('#servicesAccordionHome').after($bundleBad);
+                            }
+                            clearMultiSegmentStayContext();
+                            refreshGlobalServicesVisibility();
+                            return;
+                        }
+                    }
                 }
 
                 if (!isWithinMainRange(start, end)) {
@@ -6850,6 +6962,15 @@
                     refreshGlobalServicesVisibility();
                     return;
                 }
+
+                // Save last valid range for restore on overlap attempt
+                try {
+                    const idxStore = String($segment.data('index') || '');
+                    if (idxStore) {
+                        if (!window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                        window.__segmentLastValidRange[idxStore] = { start: start, end: end };
+                    }
+                } catch (e) { /* ignore */ }
 
                 // Show city/date header and place services UI under this segment (Multi City)
                 if ($('input[name="city_mode"]:checked').val() === 'multi') {
@@ -14550,8 +14671,11 @@
             
             const startNight = Math.min(...nightNumbers);
             const endNight = Math.max(...nightNumbers);
-            const checkInDate = moment(tourStartDate).add(startNight-1, 'days');
-            const checkOutDate = moment(tourStartDate).add(endNight, 'days');
+            // IMPORTANT: in multi-city mode, hotel nights are relative to the active segment stay start
+            // (window.multiSegmentStayRange.start). Using tourStartDate here causes wrong ranges to be stored.
+            const __hotelPlanStart = getHotelNightPlanStart();
+            const checkInDate = moment(__hotelPlanStart).add(startNight-1, 'days');
+            const checkOutDate = moment(__hotelPlanStart).add(endNight, 'days');
             
             // Get bed information if available
             const bedInfo = window.selectedBedInfo || {};

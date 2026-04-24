@@ -12,55 +12,51 @@
     <div class="layout-container">
         <!-- Menu -->
         <aside id="layout-menu" class="layout-menu layout-menu1 menu-vertical menu bg-menu-theme">
-            <div class="app-brand demo ">
-                <a href="{{ route('dashboard') }}" class="app-brand-link">
+            <div class="app-brand demo">
+                @php
+                $currentUser = Auth::user();
+                $brandUser = $currentUser;
+
+                // Resolve DMC branding for hierarchical roles (sales/finance/product/ops etc.).
+                if ($currentUser) {
+                    $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                    if (!empty($dmcId)) {
+                        $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                        if ($dmcUser) {
+                            $brandUser = $dmcUser;
+                        }
+                    }
+                }
+
+                $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
+                $masterName = \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] ?? 'Dashboard';
+
+                $brandName = trim((string) ($brandUser->company_name ?? ''));
+                if ($brandName === '') {
+                    $brandName = $masterName;
+                }
+
+                $brandLogo = trim((string) ($brandUser->logo ?? ''));
+                if ($brandLogo === '') {
+                    $brandLogo = $masterLogo;
+                }
+
+                if ($brandLogo !== '' && !preg_match('/^(https?:\/\/|data:image\/)/i', $brandLogo)) {
+                    $brandLogo = asset(ltrim($brandLogo, '/'));
+                }
+                @endphp
+                <a href="{{ route('dashboard') }}" class="app-brand-link" title="{{ $brandName }}">
                     <span class="app-brand-logo demo">
-                        @php
-                        $currentUser = Auth::user();
-                        $brandUser = $currentUser;
-
-                        // Resolve DMC branding for hierarchical roles (sales/finance/product/ops etc.).
-                        if ($currentUser) {
-                            $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
-                            if (!empty($dmcId)) {
-                                $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
-                                if ($dmcUser) {
-                                    $brandUser = $dmcUser;
-                                }
-                            }
-                        }
-
-                        $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
-                        $masterName = \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] ?? 'Dashboard';
-
-                        $brandName = trim((string) ($brandUser->company_name ?? ''));
-                        if ($brandName === '') {
-                            $brandName = $masterName;
-                        }
-
-                        $brandLogo = trim((string) ($brandUser->logo ?? ''));
-                        if ($brandLogo === '') {
-                            $brandLogo = $masterLogo;
-                        }
-
-                        if ($brandLogo !== '' && !preg_match('/^(https?:\/\/|data:image\/)/i', $brandLogo)) {
-                            $brandLogo = asset(ltrim($brandLogo, '/'));
-                        }
-                        @endphp
-                        <div class="logo-icon">
-                            <img src="{{ $brandLogo }}" class="logo-img rounded-logo" alt="Logo">
-                        </div>
-                        {{-- <div class="logo-name flex-grow-1">
-                            <h5 class="mb-0 text-white">
-                                {{ \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] }}</h5>
-                        </div> --}}
+                        <span class="sidebar-brand-logo-box" aria-hidden="true">
+                            <img src="{{ $brandLogo }}" class="logo-img rounded-logo" alt="">
+                        </span>
                     </span>
-                    <span class="app-brand-text demo menu-text fw-semibold ms-2">
-                        <span class="small-brand-text" title="{{ $brandName }}">{{ $brandName }}</span>
+                    <span class="app-brand-text demo menu-text">
+                        <span class="sidebar-brand-name">{{ $brandName }}</span>
                     </span>
                 </a>
-                <a href="javascript:void(0);" class="layout-menu-toggle menu-link7 text-large ms-auto" style="right: -25px;">
-                    <i class="menu-icon tf-icons ri-menu-fold-line" style="margin-left: 10px"></i>
+                <a href="javascript:void(0);" class="layout-menu-toggle sidebar-menu-toggle" aria-label="Toggle navigation">
+                    <i class="menu-icon tf-icons ri-menu-fold-line"></i>
                 </a>
             </div>
             <div class="menu-inner-shadow"></div>
@@ -111,6 +107,13 @@
                     <span class="badge-lite">Lite</span>
                 </a>
             </li> 
+
+            <li class="menu-item @if(Request::is('packages/booking/create')) active @endif" style="position: relative;">
+                <a href="{{ route('packages.booking.create') }}" class="menu-link">
+                    <i class="menu-icon tf-icons ri-route-line"></i>
+                    <div data-i18n="Create Package Booking">Create Package Booking</div>
+                </a>
+            </li>
         @endif
 
         <!-- End Tour -->
@@ -638,7 +641,7 @@
                         @endif
 
                     <!-- Zones (hard-coded link under Product Configuration) -->
-                    @if(Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
+                    @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
                     <li class="menu-item @if(Request::is('zones')) active @endif">
                         <a href="{{ route('zones.index') }}" class="menu-link" title="Zones">
                                 <div data-i18n="Zones" class="menu-tooltip">
@@ -707,33 +710,42 @@
                 @endif --}}
                 <!-- End Predefined Packages Booking List -->
             @endif
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,36,37,38,126,127,128, 129, 130, 134, 135, 136, 138]))
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
                 </li>
-                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*')) open active @endif">
+                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*') || Request::is('booking-list/daily-arrival')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-bar-chart-box-line"></i>
                         <div data-i18n="Reports">Reports</div>
                     </a>
                     <ul class="menu-sub">
-                        <li class="menu-item @if(Request::is('reports/sales-revenue')) active @endif">
-                            <a href="{{ route('reports.sales-revenue') }}" class="menu-link">
-                                
-                                <div data-i18n="Sales & Revenue">Sales & Revenue</div>
-                            </a>
-                        </li>
-                        <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
-                            <a href="{{ route('reports.ledger') }}" class="menu-link">
-                                <div data-i18n="Ledger">Ledger</div>
-                            </a>
-                        </li>
+                        @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
+                            <li class="menu-item @if(Request::is('reports/sales-revenue')) active @endif">
+                                <a href="{{ route('reports.sales-revenue') }}" class="menu-link">
+                                    
+                                    <div data-i18n="Sales & Revenue">Sales & Revenue</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
+                                <a href="{{ route('reports.ledger') }}" class="menu-link">
+                                    <div data-i18n="Ledger">Ledger</div>
+                                </a>
+                            </li>
+                        @endif
                         {{-- <li class="menu-item @if(Request::is('reports/balance-sheet')) active @endif">
                             <a href="{{ route('reports.balance-sheet') }}" class="menu-link">
                                 <div data-i18n="Balance Sheet & P&L">Balance Sheet & P&L</div>
                             </a>
                         </li> --}}
+                        @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))
+                            <li class="menu-item @if(Request::is('booking-list/daily-arrival')) active @endif">
+                                <a href="{{ route('booking-list.daily-arrival') }}" class="menu-link">
+                                    <div data-i18n="Daily Arrival">Daily Arrival</div>
+                                </a>
+                            </li>
+                        @endif
                     </ul>
                 </li>
                 <!-- End Reports -->
@@ -1383,15 +1395,14 @@
                                     <div data-i18n="Itinerary Settings">Itinerary Settings</div>
                                 </a>
                             </li>
-                        @endif
-
-                        @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))
-                            <li class="menu-item @if(Request::is('booking-list/daily-arrival')) active @endif">
-                                <a href="{{ route('booking-list.daily-arrival') }}" class="menu-link">
-                                    <div data-i18n="Daily Arrival">Daily Arrival</div>
+                            <li class="menu-item @if(Request::is('quotation_settings.pdf')) active @endif">
+                                <a href="{{ route('quotation_settings.pdf') }}" class="menu-link">
+                                    <div data-i18n="Quotation Settings">Quotation Settings</div>
                                 </a>
                             </li>
                         @endif
+
+                        
                     </ul>
                 </li>
                 @endif

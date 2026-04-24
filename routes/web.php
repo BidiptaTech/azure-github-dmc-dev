@@ -204,6 +204,9 @@ Route::get('/clear', function () {
             Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
             Route::post('/single-tour-package/orders/{order}/update', [SingleTourPackageController::class, 'updateServiceOrder'])->name('single-tour-package.orders.update');
             Route::post('/single-tour-package/{tour}/info', [EditTourController::class, 'updateTour'])->name('single-tour-package.update-info');
+            Route::post('/single-tour-package/{tour}/city-plans', [EditTourController::class, 'updateCityPlans'])->name('single-tour-package.update-city-plans');
+            Route::post('/single-tour-package/{tour}/city-plans/remove', [EditTourController::class, 'removeCityPlan'])->name('single-tour-package.remove-city-plan');
+            Route::post('/single-tour-package/{tour}/services/clear', [EditTourController::class, 'clearTourServices'])->name('single-tour-package.clear-services');
             Route::post('/single-tour-package/{tour}/guests', [EditTourController::class, 'updateGuests'])->name('single-tour-package.update-guests');
             // Service update routes via EditTourController
             Route::post('/edit-tour/hotel/{order}', [EditTourController::class, 'updateHotel'])->name('edit-tour.update-hotel');
@@ -312,6 +315,10 @@ Route::get('/clear', function () {
             // PDF generation route (used by preview iframe and direct download)
             Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
                 ->name('tour.itinerary.pdf');
+
+            // Temporarily store edited “quotation_information” for preview + PDF
+            Route::post('/tour/{tourId}/quotation-info', [\App\Http\Controllers\QuotationController::class, 'storeQuotationInfo'])
+                ->name('tour.quotation.info');
 
             Route::get('/tour/{encryptedTourId}/email-preview', function ($encryptedTourId) {
                 try {
@@ -554,6 +561,8 @@ Route::get('/clear', function () {
                 // Country → City
                 Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity'])->name('hotel-city');
                 Route::get('/room-types-by-hotel/{hotelId}', [PackageController::class, 'getRoomTypesByHotel'])->name('room-types-by-hotel');
+                Route::get('/beds-by-room/{roomId}', [PackageController::class, 'getBedsByRoom'])->name('beds-by-room');
+                Route::get('/tickets-by-attraction/{attractionId}', [PackageController::class, 'getTicketsByAttraction'])->name('tickets-by-attraction');
 
                 Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
                 Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
@@ -580,6 +589,7 @@ Route::get('/clear', function () {
                 Route::get('/guides/{city}', [PackageController::class, 'getGuidesByCity'])->name('guides-by-city');
                 // City → Restaurant
                 Route::get('/restaurants/{city}', [PackageController::class, 'getRestaurantsByCity'])->name('restaurants-by-city');
+                Route::get('/restaurant-meals/{restaurantId}', [PackageController::class, 'getMealsByRestaurant'])->name('restaurant-meals');
                 // City → Transport
                 Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity'])->name('transport-by-city');
                 Route::get('/ports-by-country/{country}', [PackageController::class, 'getPortsByCountry'])->name('ports-by-country');
@@ -590,9 +600,19 @@ Route::get('/clear', function () {
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
         // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
+        Route::get('/packages/booking/create/{package_id?}', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create');
+        Route::get('/packages/{package_id}/booking', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create.legacy');
+        Route::get('/packages/booking/filter', [\App\Http\Controllers\PackageBookingController::class, 'filterPackages'])->name('packages.booking.filter');
+        Route::get('/packages/get-agents-by-agency', [\App\Http\Controllers\PackageBookingController::class, 'getAgentsByAgency'])
+        ->name('packages.getAgentsByAgency');
+        Route::get('/packages/booking/details/{packageId}', [\App\Http\Controllers\PackageBookingController::class, 'packageDetails'])->name('packages.booking.details');
+        Route::post('/packages/booking', [\App\Http\Controllers\PackageBookingController::class, 'store'])->name('packages.booking.store');
+        Route::get('/package-booking/{booking_id}/details', [\App\Http\Controllers\PackageBookingController::class, 'showBookingDetails'])->name('package.booking.details');
+        Route::get('/packages/booking/bed-options', [\App\Http\Controllers\PackageBookingController::class, 'bedOptions'])->name('packages.booking.bed-options');
+        Route::post('/package-booking/{booking_id}/update-service-date', [\App\Http\Controllers\PackageBookingController::class, 'updateServiceTourDate'])->name('package.booking.update-service-date');
+        Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
         Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
-        Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         // Legacy route for backward compatibility
         Route::get('/package', [PackageController::class, 'index'])->name('package');
         Route::get('/predefined-package-booking-list', [PackageController::class, 'predefinedPackageBookingList'])->name('predefined.package.booking.list');
@@ -634,6 +654,7 @@ Route::get('/clear', function () {
         Route::get('/reports/get-filtered-data', [ReportController::class, 'getFilteredData'])->name('reports.get-filtered-data');
         Route::post('/countries/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle-status');
         Route::post('/countries/update-remitance-exchange', [CountryController::class, 'updateRemitanceAndExchange'])->name('countries.update-remitance-exchange');
+        Route::post('/countries/delete-remitance-exchange', [CountryController::class, 'deleteRemitanceAndExchange'])->name('countries.delete-remitance-exchange');
         Route::get('get-dmc-countries/{id}', [ReportController::class, 'getDmcCountries'])->name('get.dmc.countries');
         Route::get('get-master-dmc-countries/{id}', [ReportController::class, 'getMasterDmcCountries'])->name('get.master.dmc.countries');
         Route::get('/get-master-dmc', [ReportController::class, 'getMasterDmc'])->name('get.master.dmc');
@@ -668,6 +689,7 @@ Route::get('/clear', function () {
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
+        Route::post('users/update-booking-type', [UserController::class, 'updateBookingType'])->name('users.update.booking-type');
         
         // Country and City API routes
         Route::get('/get-cities-name-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
@@ -1198,6 +1220,14 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/itinerary_settings/{id}/edit', [BookingListController::class, 'editItinerarySettings'])->name('itinerary_settings.edit');
         Route::match(['put', 'post'], '/itinerary_settings/{id}/update', [BookingListController::class, 'updateItinerarySettings'])->name('itinerary_settings.update_route');
         Route::delete('/itinerary_settings/{id}', [BookingListController::class, 'deleteItinerarySettings'])->name('itinerary_settings.delete');
+
+        // Quotation Settings routes
+        Route::get('/quotation_settings.pdf', [BookingListController::class, 'quotationSettings'])->name('quotation_settings.pdf');
+        Route::post('/quotation_settings.pdf', [BookingListController::class, 'saveQuotationSettings'])->name('quotation_settings.save');
+        Route::get('/quotation_settings/fetch', [BookingListController::class, 'fetchQuotationSettings'])->name('quotation_settings.fetch');
+        Route::get('/quotation_settings/{id}/edit', [BookingListController::class, 'editQuotationSettings'])->name('quotation_settings.edit');
+        Route::match(['put', 'post'], '/quotation_settings/{id}/update', [BookingListController::class, 'updateQuotationSettings'])->name('quotation_settings.update_route');
+        Route::delete('/quotation_settings/{id}', [BookingListController::class, 'deleteQuotationSettings'])->name('quotation_settings.delete');
     });
 
     //authentication check for manager (route can access admin & manager)
