@@ -25750,6 +25750,8 @@
         const SERVICES_BUNDLE_ID = 'segmentServicesBundle';
         const SERVICES_HINT_ID = 'multiCityServicesHint';
         let _activeSegmentEl = null;
+        const __fetchAgentsByAgencyUrl = @json(route('fetch-agents-by-agency'));
+        let __agencyAgentWired = false;
     // Track original main tour dates so we can detect date-range edits reliably
     try {
         const sEl = document.getElementById('start_date');
@@ -25768,6 +25770,96 @@
             const el = document.querySelector('input[name="city_type"]:checked');
             return el && el.value ? el.value : 'single';
         }
+
+        // Agency -> Agent dependency (Agent dropdown options depend on Agency Company)
+        function wireAgencyAgentDependencyOnce() {
+            if (__agencyAgentWired) return;
+            __agencyAgentWired = true;
+            const agencyEl = document.getElementById('agency_id');
+            const agentEl = document.getElementById('agent_id');
+            if (!agencyEl || !agentEl) return;
+
+            const setLoading = function (text) {
+                const msg = text || 'Loading agents...';
+                agentEl.innerHTML = `<option value="">${msg}</option>`;
+                agentEl.value = '';
+                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(agentEl);
+            };
+
+            const loadAgents = async function (keepCurrentSelection = true) {
+                const agencyId = (agencyEl.value || '').toString().trim();
+                // On initial load, keep selected agent; on agency change, clear it.
+                const prevAgent = keepCurrentSelection ? (agentEl.value || '').toString().trim() : '';
+
+                if (!agencyId) {
+                    // No agency selected: clear agent
+                    agentEl.value = '';
+                    if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(agentEl);
+                    return;
+                }
+
+                setLoading('Loading agents...');
+                try {
+                    const url = `${__fetchAgentsByAgencyUrl}?agency_id=${encodeURIComponent(agencyId)}`;
+                    const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    const txt = await resp.text();
+                    let data = {};
+                    try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {}; }
+                    if (!resp.ok || !data.success || !Array.isArray(data.agents)) {
+                        throw new Error((data && data.message) ? data.message : 'Failed to load agents');
+                    }
+
+                    agentEl.innerHTML =
+                        '<option value="">Select agent</option>' +
+                        data.agents.map(function (a) {
+                            const id = String(a.agent_id || '').replace(/"/g, '&quot;');
+                            const name = String(a.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            return `<option value="${id}">${name}</option>`;
+                        }).join('');
+
+                    const stillValid = !!(prevAgent && data.agents.some(a => String(a.agent_id) === String(prevAgent)));
+                    agentEl.value = stillValid ? prevAgent : '';
+
+                    if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(agentEl);
+                    if (prevAgent && !stillValid) {
+                        if (typeof showToastr === 'function') showToastr('info', 'Agent list updated for selected agency. Please choose an agent.');
+                        else if (typeof showNotification === 'function') showNotification('Agent list updated for selected agency. Please choose an agent.', 'info');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    agentEl.innerHTML = '<option value="">Select agent</option>';
+                    agentEl.value = '';
+                    if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(agentEl);
+                    if (typeof showToastr === 'function') showToastr('error', 'Unable to load agents for this agency.');
+                    else if (typeof showNotification === 'function') showNotification('Unable to load agents for this agency.', 'error');
+                }
+            };
+
+            // On agency change -> reload agents
+            const onAgencyChange = function () {
+                // Immediately clear agent selection so UI reflects dependency
+                try {
+                    agentEl.value = '';
+                    if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(agentEl);
+                } catch (e) { /* ignore */ }
+                loadAgents(false);
+            };
+            agencyEl.addEventListener('change', onAgencyChange);
+
+            // Select2 sometimes fires select2:select without native change in some setups
+            try {
+                if (window.jQuery) {
+                    window.jQuery(agencyEl).on('select2:select select2:clear', function () {
+                        onAgencyChange();
+                    });
+                }
+            } catch (e) { /* ignore */ }
+
+            // Also allow manual refresh (in case Select2 initializes later)
+            try { loadAgents(true); } catch (e) { /* ignore */ }
+        }
+
+        try { wireAgencyAgentDependencyOnce(); } catch (e) { /* ignore */ }
 
         function getServicesBundleEl() {
             return document.getElementById(SERVICES_BUNDLE_ID);

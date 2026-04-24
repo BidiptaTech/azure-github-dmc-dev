@@ -3238,11 +3238,65 @@ class HotelController extends Controller
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
+        // We want Master DMC countries' hotels that are added from Travclicks.
+        // Important: for role_id=11 (DMC user), $dmc_id is the DMC id, not the Master DMC.
+        // Resolve the Master DMC via master_dmc_id, or by walking created_by chain until role_id=3.
+        $masterDmcId = $user->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $dmcUser = User::where('userId', $dmc_id)->first();
+            $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        }
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $user->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (! $candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        // Fall back to current DMC id if we cannot resolve a master
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmc_id)->first();
+        $masterDmcCountries = [];
+        if ($masterDmc && !empty($masterDmc->country)) {
+            $masterDmcCountries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
         // Get all available hotels
-        $allHotels = Hotel::where('status', 1)
-                          ->with(['category'])
-                          ->orderBy('name', 'asc')
-                          ->get();
+        $allHotelsQuery = Hotel::where('status', 1)
+            // Hotels added from Travclicks are treated as platform/admin hotels
+            ->where('user_type', 1)
+            ->with(['category'])
+            ->orderBy('name', 'asc');
+
+        if (!empty($masterDmcCountries)) {
+            $allHotelsQuery->whereIn('country', $masterDmcCountries);
+        }
+
+        $allHotels = $allHotelsQuery->get();
+
+        // Country dropdown should show only countries that actually have Travclicks hotels
+        // within the Master DMC allowed countries.
+        $allowedCountries = $allHotels
+            ->pluck('country')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
         
         // Filter hotels that are selected by the current DMC
         $selectedHotels = $allHotels->filter(function($hotel) use ($dmc_id) {
@@ -3254,7 +3308,7 @@ class HotelController extends Controller
             return !$hotel->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.hotels', compact('availableHotels', 'selectedHotels'));
+        return view('services.hotels', compact('availableHotels', 'selectedHotels', 'allowedCountries'));
     }
 
     /**

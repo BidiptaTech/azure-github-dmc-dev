@@ -33,8 +33,11 @@ class PackageBooking extends Model
         'transfer_data' => 'json',
         'arrival_data' => 'json',
         'departure_data' => 'json',
+        'supplementary_data' => 'json',
+        'available_addons' => 'json',
         'payment_details' => 'json',
         'taxes' => 'json',
+        'total_price' => 'json',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
 
@@ -43,7 +46,7 @@ class PackageBooking extends Model
     /**
      * Get the package associated with the booking
      */
-    public function package()
+    public function packageInfo()
     {
         return $this->belongsTo(Package::class, 'package_id', 'package_id');
     }

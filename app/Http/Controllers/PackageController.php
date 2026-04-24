@@ -556,7 +556,7 @@ class PackageController extends Controller
      */
     public function getHotelsByCity($city)
     {
-        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city','main_image']);
+        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city','main_image', 'weekend_days']);
         return response()->json($hotels);
     }
 
@@ -623,10 +623,16 @@ class PackageController extends Controller
             2 => 'Set Menu',
             3 => 'A la carte',
         ];
+        try {
+            $restaurantId = Crypt::decrypt($restaurantId);
+        } catch (\Throwable $e) {
+            // Support plain numeric ids from package definition UI.
+            $restaurantId = is_numeric($restaurantId) ? (int) $restaurantId : 0;
+        }
 
         $meals = Meal::where('restaurant_id', $restaurantId)
             ->orderBy('type')
-            ->get(['id', 'meal_id', 'restaurant_id', 'type', 'adult_price', 'child_price']);
+            ->get(['id', 'meal_id', 'restaurant_id', 'type', 'item_type', 'adult_price', 'child_price']);
 
         $rows = $meals->map(function ($m) use ($typeMap) {
             $typeInt = (int) ($m->type ?? 0);
@@ -689,6 +695,7 @@ class PackageController extends Controller
      */
     public function getRoomTypesByHotel($hotelId)
     {
+        
         $rooms = Room::where('hotel_id', $hotelId)
             ->get([
                 'room_id',
@@ -698,6 +705,8 @@ class PackageController extends Controller
                 'no_of_room',
                 'weekday_price',
                 'weekend_price',
+                'double_weekday_price',
+                'double_weekend_price',
                 'dimension',
                 'breakfast',
                 'breakfast_included',
@@ -715,8 +724,8 @@ class PackageController extends Controller
                 'name'         => $room->room_type ?: ('Room ' . ($room->room_id ?? $room->id)),
                 'room_type'    => $room->room_type,
                 'no_of_room'   => $room->no_of_room,
-                'weekday_price'=> $room->weekday_price,
-                'weekend_price'=> $room->weekend_price,
+                'weekday_price'=> ceil(($room->double_weekday_price)/2),
+                'weekend_price'=> ceil(($room->double_weekend_price)/2),
                 'dimension'    => $room->dimension,
                 'breakfast'    => $room->breakfast,
                 'breakfast_included' => $room->breakfast_included,
@@ -793,7 +802,7 @@ class PackageController extends Controller
             'category' => 'required|string|max:255',
             'duration_days' => 'required|integer|min:1',
             'description' => 'nullable|string',
-            'price_adult' => 'required|numeric|min:0',
+            'price_adult' => 'nullable|numeric|min:0',
             'price_senior' => 'nullable|numeric|min:0',
             'price_child' => 'nullable|numeric|min:0',
             'start_date' => 'required|date',
@@ -877,128 +886,49 @@ class PackageController extends Controller
                 'vehicles' => is_array($decodedDepartureVehicles) ? $decodedDepartureVehicles : [],
             ];
 
-            // If price_data was not sent (or is empty), compute it from optional selections
-            // Shape: [{ name: string, type: string, price: number }]
+            // price_data is built on the frontend and only carries four keys:
+            //   total_price, markup_type, markup_amount, final_price
+            // Accept it as-is and recompute final_price server-side so the stored
+            // value is tamper-proof even if the hidden field is edited.
             $decodedPriceData = is_string($priceData) ? (json_decode($priceData, true) ?: []) : ($priceData ?: []);
-            if (!is_array($decodedPriceData) || count($decodedPriceData) === 0) {
-                $computedPriceData = [];
-
-                $toPrice = function ($v) {
-                    if ($v === null || $v === '') return 0;
-                    $n = is_numeric($v) ? (float) $v : (float) (is_string($v) ? preg_replace('/[^0-9.\-]/', '', $v) : 0);
-                    return is_nan($n) ? 0 : $n;
-                };
-
-                foreach ($decodedHotels as $h) {
-                    if (!empty($h['optional'])) {
-                        $computedPriceData[] = [
-                            'name' => $h['hotel_name'] ?? $h['name'] ?? '',
-                            'type' => 'Hotel (Optional)',
-                            'price' => $toPrice($h['optional_price'] ?? $h['base_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($h['addon'])) {
-                        $computedPriceData[] = [
-                            'name' => $h['hotel_name'] ?? $h['name'] ?? '',
-                            'type' => 'Hotel (Add-on)',
-                            'price' => $toPrice($h['addon_price'] ?? $h['base_price'] ?? 0),
-                        ];
-                    }
-                }
-                foreach ($decodedAttractions as $a) {
-                    if (!empty($a['optional'])) {
-                        $computedPriceData[] = [
-                            'name' => $a['name'] ?? '',
-                            'type' => 'Attraction (Optional)',
-                            'price' => $toPrice($a['optional_price'] ?? $a['base_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($a['addon'])) {
-                        $computedPriceData[] = [
-                            'name' => $a['name'] ?? '',
-                            'type' => 'Attraction (Add-on)',
-                            'price' => $toPrice($a['addon_price'] ?? $a['base_price'] ?? 0),
-                        ];
-                    }
-                }
-                foreach ($decodedRestaurants as $r) {
-                    if (!empty($r['optional'])) {
-                        $computedPriceData[] = [
-                            'name' => $r['restaurant_name'] ?? $r['name'] ?? '',
-                            'type' => 'Restaurant (Optional)',
-                            'price' => $toPrice($r['optional_price'] ?? $r['base_price'] ?? $r['adult_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($r['addon'])) {
-                        $computedPriceData[] = [
-                            'name' => $r['restaurant_name'] ?? $r['name'] ?? '',
-                            'type' => 'Restaurant (Add-on)',
-                            'price' => $toPrice($r['addon_price'] ?? $r['base_price'] ?? $r['adult_price'] ?? 0),
-                        ];
-                    }
-                }
-                foreach ($decodedIndependentGuides as $g) {
-                    if (!empty($g['optional'])) {
-                        $computedPriceData[] = [
-                            'name' => $g['name'] ?? '',
-                            'type' => 'Guide (Optional)',
-                            'price' => $toPrice($g['optional_price'] ?? $g['base_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($g['addon'])) {
-                        $computedPriceData[] = [
-                            'name' => $g['name'] ?? '',
-                            'type' => 'Guide (Add-on)',
-                            'price' => $toPrice($g['addon_price'] ?? $g['base_price'] ?? 0),
-                        ];
-                    }
-                }
-                foreach ($decodedLocalTransfers as $t) {
-                    if (!empty($t['optional'])) {
-                        $label = trim(($t['pickup_label'] ?? '') . ' → ' . ($t['dropoff_label'] ?? ''));
-                        $computedPriceData[] = [
-                            'name' => $label,
-                            'type' => 'Transfer (Optional)',
-                            'price' => $toPrice($t['optional_price'] ?? $t['base_price'] ?? 0),
-                        ];
-                    }
-                    if (!empty($t['addon'])) {
-                        $label = trim(($t['pickup_label'] ?? '') . ' → ' . ($t['dropoff_label'] ?? ''));
-                        $computedPriceData[] = [
-                            'name' => $label,
-                            'type' => 'Transfer (Add-on)',
-                            'price' => $toPrice($t['addon_price'] ?? $t['base_price'] ?? 0),
-                        ];
-                    }
-                }
-
-                $decodedPriceData = $computedPriceData;
+            if (!is_array($decodedPriceData)) {
+                $decodedPriceData = [];
             }
 
-            // Always persist total/markup metadata in price_data JSON for package definition pricing context.
-            $decodedPriceData = array_values(array_filter($decodedPriceData, function ($row) {
-                if (!is_array($row)) return false;
-                $type = $row['type'] ?? '';
-                return !in_array($type, ['Summary', 'Markup'], true);
-            }));
+            $totalPriceNum = ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice))
+                ? (float) $totalPrice
+                : (isset($decodedPriceData['total_price']) && is_numeric($decodedPriceData['total_price']) ? (float) $decodedPriceData['total_price'] : 0.0);
+            $markupAmountNum = ($markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount))
+                ? (float) $markupAmount
+                : (isset($decodedPriceData['markup_amount']) && is_numeric($decodedPriceData['markup_amount']) ? (float) $decodedPriceData['markup_amount'] : 0.0);
+            $markupTypeClean = !empty($markupType) ? $markupType : ($decodedPriceData['markup_type'] ?? null);
 
-            if ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice)) {
-                $decodedPriceData[] = [
-                    'name' => 'Total Price',
-                    'type' => !empty($markupType) ? ucfirst($markupType) : 'Summary',
-                    'price' => (float) $totalPrice,
-                ];
-            }
+            // Round UP to the nearest multiple of 5 for both total and final price.
+            $ceilToFive = function ($n) {
+                $num = (float) $n;
+                if (!is_finite($num) || $num <= 0) return 0.0;
+                return ceil($num / 5) * 5;
+            };
+            $totalPriceNum = $ceilToFive($totalPriceNum);
 
-            if (!empty($markupType) && $markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount)) {
-                $decodedPriceData[] = [
-                    'name' => 'Markup',
-                    'type' => 'Markup',
-                    'price' => 0,
-                    'markup_type' => $markupType,
-                    'markup_amount' => (float) $markupAmount,
-                ];
+            // Final price rule (applied to the ceil-rounded total):
+            //   flat       => final = total + markupAmount
+            //   percentage => final = total + (total * markupAmount / 100)
+            //   none       => final = total
+            $finalPriceNum = $totalPriceNum;
+            if ($markupTypeClean === 'flat') {
+                $finalPriceNum = $totalPriceNum + $markupAmountNum;
+            } elseif ($markupTypeClean === 'percentage') {
+                $finalPriceNum = $totalPriceNum + ($totalPriceNum * $markupAmountNum / 100);
             }
+            $finalPriceNum = $ceilToFive($finalPriceNum);
+
+            $decodedPriceData = [
+                'total_price' => round($totalPriceNum, 2),
+                'markup_type' => $markupTypeClean ?: null,
+                'markup_amount' => $markupTypeClean ? round($markupAmountNum, 2) : null,
+                'final_price' => round($finalPriceNum, 2),
+            ];
 
             $definitionData = [
                 'hotels' => $decodedHotels,
@@ -1036,9 +966,9 @@ class PackageController extends Controller
                 'duration_days' => $validated['duration_days'],
                 'package_type' => 'definition',
                 'description' => $validated['description'] ?? '',
-                'price_adult' => $validated['price_adult'],
-                'price_senior' => $validated['price_senior'] ?? 0,
-                'price_child' => $validated['price_child'] ?? 0,
+                'price_adult' => $validated['price_adult'] ?? null,
+                'price_senior' => $validated['price_senior'] ?? null,
+                'price_child' => $validated['price_child'] ?? null,
                 'child_max_age' => $validated['child_max_age'] ?? null,
                 'start_date' => $validated['start_date'],
                 'expire_date' => $validated['expiry_date'],
@@ -1147,7 +1077,9 @@ class PackageController extends Controller
             }
 
             // Include the package and agent relationships to access package and agent details
-            $query = PackageBooking::with(['package', 'agent'])
+            // NOTE: relationship renamed to `packageInfo` in PackageBooking model to avoid
+            // collision with the JSON-cast `package` column on some environments.
+            $query = PackageBooking::with(['packageInfo', 'agent'])
             ->where('dmc_id', $dmc_id);
             
             // For finance roles, only show bookings with payment_details
@@ -1157,7 +1089,7 @@ class PackageController extends Controller
             
             $bookings = $query->orderBy('created_at', 'desc')->get();
         }else{
-            $bookings = PackageBooking::with(['package', 'agent'])
+            $bookings = PackageBooking::with(['packageInfo', 'agent'])
             ->orderBy('created_at', 'desc')
             ->get();
         }
@@ -1181,43 +1113,47 @@ class PackageController extends Controller
                 'payment_amount' => 'required|numeric|min:0.01',
                 'payment_date' => 'required|date',
                 'payment_type' => 'required|string',
-                'transaction_id' => 'required|string',
+                'transaction_id' => 'nullable|string|max:255',
+                'remarks' => 'nullable|string|max:2000',
+                'currency' => 'nullable|string|max:10',
             ]);
             
             // Find the booking by ID
             $booking = PackageBooking::where('booking_id', $booking_id)->first();
             
-            if (!$booking) {
-                return redirect()->route('predefined.package.booking.list')
-                    ->with('error', 'Booking not found.');
+            if (! $booking) {
+                return redirect()->back()->with('error', 'Booking not found.');
             }
-            
+
             // Prepare payment details for JSON storage
             $paymentDetails = [
                 'payment_amount' => $request->payment_amount,
                 'payment_date' => $request->payment_date,
                 'payment_type' => $request->payment_type,
-                'transaction_id' => $request->transaction_id,
+                'transaction_id' => $request->filled('transaction_id') ? (string) $request->transaction_id : '',
+                'remarks' => $request->filled('remarks') ? (string) $request->remarks : null,
+                'currency' => $request->filled('currency') ? (string) $request->currency : null,
                 'status' => 0, // 0 = pending approval
                 'created_at' => now()->toDateTimeString(),
-                'updated_at' => now()->toDateTimeString()
+                'updated_at' => now()->toDateTimeString(),
             ];
-            
+
             // Get existing payment details or initialize empty array
-            $existingPaymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
+            $existingPaymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
             
             // Add new payment to existing payments (for multiple payments support)
             $existingPaymentDetails[] = $paymentDetails;
             
             // Update booking with payment details in JSON format
-            $booking->payment_details = json_encode($existingPaymentDetails);
+            $booking->payment_details = $existingPaymentDetails;
             $booking->save();
-            
-            return redirect()->route('predefined.package.booking.list')
+
+            return redirect()
+                ->back()
                 ->with('success', 'Payment details saved successfully.');
-                
         } catch (\Exception $e) {
-            return redirect()->route('predefined.package.booking.list')
+            return redirect()
+                ->back()
                 ->with('error', 'Failed to save payment details: ' . $e->getMessage());
         }
     }
@@ -1245,12 +1181,12 @@ class PackageController extends Controller
                 ], 404);
             }
 
-            $paymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
-            
-            if (!isset($paymentDetails[$request->payment_index])) {
+            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
+
+            if (! isset($paymentDetails[$request->payment_index])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payment not found.'
+                    'message' => 'Payment not found.',
                 ], 404);
             }
 
@@ -1259,13 +1195,19 @@ class PackageController extends Controller
             $paymentDetails[$request->payment_index]['approved_at'] = now()->toDateTimeString();
             $paymentDetails[$request->payment_index]['approved_by'] = Auth::user()->userId;
 
-            $booking->payment_details = json_encode($paymentDetails);
-            $booking->status = 2;
+            $booking->payment_details = $paymentDetails;
+            // Move Confirmed -> Definite on first approved payment (packages flow).
+            // Do NOT change status if already Definite (or other statuses).
+            $statusColumn = \Illuminate\Support\Facades\Schema::hasColumn('package_bookings', 'booking_status') ? 'booking_status' : 'status';
+            $currentStatus = (string) (data_get($booking, $statusColumn) ?? '');
+            if ($statusColumn === 'booking_status' && $currentStatus === 'Confirmed') {
+                $booking->{$statusColumn} = 'Definite';
+            }
             $booking->save();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Payment approved successfully.'
+                'message' => 'Payment approved successfully.',
             ]);
 
         } catch (\Exception $e) {
@@ -1288,7 +1230,7 @@ class PackageController extends Controller
         try {
             $request->validate([
                 'payment_index' => 'required|integer|min:0',
-                'decline_reason' => 'required|string|max:500',
+                'decline_reason' => 'required|string|min:10|max:500',
             ]);
 
             $booking = PackageBooking::where('booking_id', $booking_id)->first();
@@ -1300,12 +1242,12 @@ class PackageController extends Controller
                 ], 404);
             }
 
-            $paymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
-            
-            if (!isset($paymentDetails[$request->payment_index])) {
+            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
+
+            if (! isset($paymentDetails[$request->payment_index])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payment not found.'
+                    'message' => 'Payment not found.',
                 ], 404);
             }
 
@@ -1315,19 +1257,99 @@ class PackageController extends Controller
             $paymentDetails[$request->payment_index]['declined_by'] = Auth::user()->userId;
             $paymentDetails[$request->payment_index]['decline_reason'] = $request->decline_reason;
 
-            $booking->payment_details = json_encode($paymentDetails);
+            $booking->payment_details = $paymentDetails;
             $booking->save();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Payment declined successfully.'
+                'message' => 'Payment declined successfully.',
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to decline payment: ' . $e->getMessage()
+                'message' => 'Failed to decline payment: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Update a pending package payment entry (same JSON shape as addPayment).
+     */
+    public function updatePayment(Request $request, string $booking_id)
+    {
+        try {
+            $request->validate([
+                'payment_index' => 'required|integer|min:0',
+                'payment_amount' => 'required|numeric|min:0.01',
+                'payment_date' => 'required|date',
+                'payment_type' => 'required|string',
+                'transaction_id' => 'nullable|string|max:255',
+            ]);
+
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
+            if (! $booking) {
+                return response()->json(['success' => false, 'message' => 'Booking not found.'], 404);
+            }
+
+            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
+            $idx = (int) $request->input('payment_index');
+            if (! isset($paymentDetails[$idx])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found.'], 404);
+            }
+            if ((int) ($paymentDetails[$idx]['status'] ?? 0) !== 0) {
+                return response()->json(['success' => false, 'message' => 'Only pending payments can be edited.'], 422);
+            }
+
+            $paymentDetails[$idx]['payment_amount'] = (float) $request->payment_amount;
+            $paymentDetails[$idx]['payment_date'] = $request->payment_date;
+            $paymentDetails[$idx]['payment_type'] = $request->payment_type;
+            $paymentDetails[$idx]['transaction_id'] = $request->filled('transaction_id') ? (string) $request->transaction_id : '';
+            $paymentDetails[$idx]['updated_at'] = now()->toDateTimeString();
+
+            $booking->payment_details = $paymentDetails;
+            $booking->save();
+
+            return response()->json(['success' => true, 'message' => 'Payment updated successfully.']);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to update payment: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Delete a pending package payment entry.
+     */
+    public function deletePayment(Request $request, string $booking_id)
+    {
+        try {
+            $request->validate([
+                'payment_index' => 'required|integer|min:0',
+            ]);
+
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
+            if (! $booking) {
+                return response()->json(['success' => false, 'message' => 'Booking not found.'], 404);
+            }
+
+            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
+            $idx = (int) $request->input('payment_index');
+            if (! isset($paymentDetails[$idx])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found.'], 404);
+            }
+            if ((int) ($paymentDetails[$idx]['status'] ?? 0) !== 0) {
+                return response()->json(['success' => false, 'message' => 'Only pending payments can be deleted.'], 422);
+            }
+
+            array_splice($paymentDetails, $idx, 1);
+            $booking->payment_details = array_values($paymentDetails);
+            $booking->save();
+
+            return response()->json(['success' => true, 'message' => 'Payment removed successfully.']);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to delete payment: ' . $e->getMessage()], 500);
         }
     }
 

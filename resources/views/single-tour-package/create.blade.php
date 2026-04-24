@@ -6907,7 +6907,7 @@
 
                         if (overlaps) {
                             const prev = window.__segmentLastValidRange[curIdx];
-                            const msg = 'City stays cannot overlap. You can only share the same date for checkout/check-in (end = next start).';
+                            const msg = 'These dates overlap another city plan.';
 
                             if (typeof showNotification === 'function') {
                                 // Show only once for the same invalid attempt.
@@ -6934,7 +6934,7 @@
                             }
 
                             $segment.find('.service-grid').html(
-                                '<div class="alert alert-danger mb-0"><strong>City stays cannot overlap.</strong> Only checkout/check-in on the same date is allowed.</div>'
+                                '<div class="alert alert-danger mb-0"><strong>These dates overlap another city plan.</strong> Only checkout/check-in on the same date is allowed.</div>'
                             );
                             $segment.find('.segment-services-banner').addClass('d-none');
                             const $bundleBad = $('#segmentServicesBundle');
