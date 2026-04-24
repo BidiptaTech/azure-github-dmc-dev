@@ -21,6 +21,300 @@ use App\Mail\DmcMail;
 class EditTourController extends Controller
 {
     /**
+     * Update only city plans (city_type + city string) for a tour.
+     * Used by multi-city "+" buttons to persist immediately.
+     */
+    public function updateCityPlans(Request $request, $tour)
+    {
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        $validated = $request->validate([
+            'city_type' => 'nullable|string|in:single,multi',
+            'city' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            if (array_key_exists('city_type', $validated) && !empty($validated['city_type'])) {
+                $tour->city_type = $validated['city_type'];
+            }
+            if (array_key_exists('city', $validated)) {
+                $tour->city = $validated['city'] ?: null;
+            }
+
+            $saved = $tour->save();
+            if (!$saved) {
+                throw new \Exception('Failed to save city plans.');
+            }
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'City plans saved.',
+                'data' => [
+                    'city_type' => $tour->city_type,
+                    'city' => $tour->city,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Failed to update city plans', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to save city plans right now.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove a saved multi-city plan (city + date range) and soft-delete all services
+     * that fall within that removed stay date range.
+     *
+     * This is used by the red "×" button in multi-city mode to ensure:
+     * - the row is removed from the UI
+     * - the `tours.city` string is updated (plan removed)
+     * - services are soft-deleted (or removed from multi-service orders) for that stay range
+     */
+    public function removeCityPlan(Request $request, $tour)
+    {
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        $validated = $request->validate([
+            'city_display' => 'nullable|string',
+            'start' => 'required|date_format:Y-m-d',
+            'end' => 'required|date_format:Y-m-d|after_or_equal:start',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $start = Carbon::createFromFormat('Y-m-d', $validated['start'])->startOfDay();
+            $end = Carbon::createFromFormat('Y-m-d', $validated['end'])->startOfDay();
+            $cityDisplay = isset($validated['city_display']) ? trim((string) $validated['city_display']) : '';
+
+            // 1) Remove plan from tours.city string
+            $originalCity = (string) ($tour->city ?? '');
+            $newCity = $this->removeCityPlanFromCityString($originalCity, $cityDisplay, $start->format('Y-m-d'), $end->format('Y-m-d'));
+            $tour->city = $newCity !== '' ? $newCity : null;
+            $tour->city_type = $tour->city ? 'multi' : ($tour->city_type ?: 'single');
+            $tour->save();
+
+            // 2) Soft-delete services within removed stay date range
+            $affected = $this->getServicesWithinDateRange($tour->tour_id, $start, $end);
+            $deletedCount = 0;
+            if (!empty($affected)) {
+                $deletedCount = count($affected);
+                $this->deleteServicesByIndexOrOrder($affected);
+            }
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'City plan removed.',
+                'data' => [
+                    'tour_id' => $tour->tour_id,
+                    'city' => $tour->city,
+                    'deleted_services_count' => $deletedCount,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Failed to remove city plan', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to remove city plan right now.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Clear (soft delete) ALL services (orders) for a tour.
+     * Used when the tour date range is edited to avoid inconsistent bookings.
+     */
+    public function clearTourServices(Request $request, $tour)
+    {
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        try {
+            DB::beginTransaction();
+
+            $orders = Order::where('tour_id', $tour->tour_id)->get();
+            $deletedCount = 0;
+            foreach ($orders as $order) {
+                // Soft delete whole order (services are stored in order->data)
+                $order->delete();
+                $deletedCount++;
+            }
+
+            DB::commit();
+
+            try {
+                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour->tour_id);
+            } catch (\Throwable $e) {
+                // ignore
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Services cleared.',
+                'data' => [
+                    'tour_id' => $tour->tour_id,
+                    'deleted_orders_count' => $deletedCount,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Failed to clear tour services', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to clear services right now.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function removeCityPlanFromCityString(string $raw, string $cityDisplay, string $start, string $end): string
+    {
+        $s = (string) $raw;
+        $out = [];
+        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/';
+
+        // Split by commas at top-level (simple format in DB)
+        $parts = array_values(array_filter(array_map('trim', explode(',', $s))));
+        foreach ($parts as $p) {
+            if (preg_match($re, $p, $m)) {
+                $cDisp = trim((string) ($m[1] ?? ''));
+                $st = trim((string) ($m[2] ?? ''));
+                $en = trim((string) ($m[3] ?? ''));
+                $isTarget = ($st === $start && $en === $end);
+                if ($cityDisplay !== '') {
+                    $isTarget = $isTarget && ($cDisp === $cityDisplay);
+                }
+                if ($isTarget) {
+                    continue; // drop it
+                }
+                $out[] = "{$cDisp} [{$st}→{$en}]";
+            } else {
+                // Keep anything that doesn't match the expected segment pattern
+                $out[] = $p;
+            }
+        }
+        return implode(', ', $out);
+    }
+
+    /**
+     * Collect services whose booking dates fall within the given inclusive range.
+     * We rely on non-overlapping city plans; date range uniquely identifies the segment.
+     */
+    private function getServicesWithinDateRange($tourId, Carbon $startDate, Carbon $endDate): array
+    {
+        $affected = [];
+        $orders = Order::where('tour_id', $tourId)->get();
+        $start = $startDate->copy()->startOfDay();
+        $end = $endDate->copy()->startOfDay();
+
+        foreach ($orders as $order) {
+            $serviceData = $order->data;
+            if (empty($serviceData) || !is_array($serviceData)) continue;
+
+            $serviceArray = isset($serviceData[0]) ? $serviceData : [$serviceData];
+            foreach ($serviceArray as $index => $service) {
+                if (!is_array($service)) continue;
+                $dates = $this->extractServiceDates($service, $order->type);
+                if (empty($dates)) continue;
+
+                $inRange = false;
+                foreach ($dates as $d) {
+                    try {
+                        $dt = Carbon::parse($d)->startOfDay();
+                        if ($dt->betweenIncluded($start, $end)) {
+                            $inRange = true;
+                            break;
+                        }
+                    } catch (\Throwable $e) {
+                        continue;
+                    }
+                }
+                if ($inRange) {
+                    $affected[] = [
+                        'order_id' => $order->booking_id,
+                        'type' => $order->type,
+                        'name' => $this->getServiceName($order->type, $service),
+                        'index' => $index,
+                    ];
+                }
+            }
+        }
+
+        return $affected;
+    }
+
+    /**
+     * Soft-delete whole orders or remove indexed entries from multi-service orders.
+     * (Shared behavior with deleteServicesOutsideDateRange but generalized.)
+     */
+    private function deleteServicesByIndexOrOrder(array $affectedServices): void
+    {
+        $servicesByOrder = [];
+        foreach ($affectedServices as $service) {
+            $orderId = $service['order_id'];
+            if (!isset($servicesByOrder[$orderId])) $servicesByOrder[$orderId] = [];
+            $servicesByOrder[$orderId][] = $service;
+        }
+
+        $tourIdsWithSoftDeletes = [];
+        foreach ($servicesByOrder as $orderId => $services) {
+            try {
+                $order = Order::where('booking_id', $orderId)->first();
+                if (!$order) continue;
+
+                $serviceData = $order->data;
+                if (empty($serviceData) || !is_array($serviceData)) continue;
+
+                if (isset($serviceData[0])) {
+                    $indexesToDelete = array_map(fn ($s) => $s['index'], $services);
+                    rsort($indexesToDelete);
+                    foreach ($indexesToDelete as $idx) {
+                        if (isset($serviceData[$idx])) unset($serviceData[$idx]);
+                    }
+                    $serviceData = array_values($serviceData);
+                    if (empty($serviceData)) {
+                        $order->delete();
+                        $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
+                    } else {
+                        $order->data = $serviceData;
+                        $order->save();
+                    }
+                } else {
+                    $order->delete();
+                    $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
+                }
+            } catch (\Throwable $e) {
+                Log::error('Failed to soft delete services for removed city plan', [
+                    'order_id' => $orderId ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        foreach (array_unique($tourIdsWithSoftDeletes) as $tid) {
+            CommonHelper::maybeRevertTourStatusToNewEnquiry($tid);
+        }
+    }
+
+    /**
      * Update tour information.
      */
     public function updateTour(Request $request, $tour)
@@ -105,6 +399,36 @@ class EditTourController extends Controller
             $tour->female_count = $validated['female'];
             $tour->agent_id = $validated['agent_id'];
             $tour->child_ages = !empty($validated['child_ages']) ? $validated['child_ages'] : null;
+
+            // If tour date range changed, ensure multi-city plans still fit within the new tour range.
+            // Any city plan that is not fully contained in [checkIn, checkOut] is removed from tours.city,
+            // and its services are soft-deleted so city/date + services stay consistent.
+            if ($datesChanged && !empty($tour->city)) {
+                $pruned = $this->pruneCityPlansToRange((string) $tour->city, $checkIn, $checkOut);
+                if (!empty($pruned['removed'])) {
+                    foreach ($pruned['removed'] as $seg) {
+                        try {
+                            $segStart = Carbon::createFromFormat('Y-m-d', $seg['start'])->startOfDay();
+                            $segEnd = Carbon::createFromFormat('Y-m-d', $seg['end'])->startOfDay();
+                            $affected = $this->getServicesWithinDateRange($tour->tour_id, $segStart, $segEnd);
+                            if (!empty($affected)) {
+                                $this->deleteServicesByIndexOrOrder($affected);
+                                $deletedServicesCount += count($affected);
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning('Failed pruning services for removed city plan', [
+                                'tour_id' => $tour->tour_id ?? null,
+                                'segment' => $seg ?? null,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+                }
+                $tour->city = !empty($pruned['city']) ? $pruned['city'] : null;
+                if (empty($tour->city)) {
+                    $tour->city_type = 'single';
+                }
+            }
             
             $saved = $tour->save();
             
@@ -152,6 +476,51 @@ class EditTourController extends Controller
                 'error' => config('app.debug') ? $exception->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Keep only city plans fully contained inside the new tour range.
+     * Returns ['city' => string, 'removed' => array<['cityDisplay'=>..., 'start'=>..., 'end'=>...]>]
+     */
+    private function pruneCityPlansToRange(string $raw, Carbon $tourStart, Carbon $tourEnd): array
+    {
+        $s = (string) $raw;
+        $parts = array_values(array_filter(array_map('trim', explode(',', $s))));
+        $kept = [];
+        $removed = [];
+        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/';
+
+        $ts = $tourStart->copy()->startOfDay();
+        $te = $tourEnd->copy()->startOfDay();
+
+        foreach ($parts as $p) {
+            if (!preg_match($re, $p, $m)) {
+                // Not a dated segment; keep as-is
+                $kept[] = $p;
+                continue;
+            }
+            $cityDisplay = trim((string) ($m[1] ?? ''));
+            $start = trim((string) ($m[2] ?? ''));
+            $end = trim((string) ($m[3] ?? ''));
+            try {
+                $ss = Carbon::createFromFormat('Y-m-d', $start)->startOfDay();
+                $ee = Carbon::createFromFormat('Y-m-d', $end)->startOfDay();
+                $fits = $ss->gte($ts) && $ee->lte($te);
+                if ($fits) {
+                    $kept[] = "{$cityDisplay} [{$start}→{$end}]";
+                } else {
+                    $removed[] = ['cityDisplay' => $cityDisplay, 'start' => $start, 'end' => $end];
+                }
+            } catch (\Throwable $e) {
+                // If parsing fails, keep it (don't risk data loss)
+                $kept[] = $p;
+            }
+        }
+
+        return [
+            'city' => implode(', ', $kept),
+            'removed' => $removed,
+        ];
     }
 
     /**
