@@ -556,8 +556,26 @@ class PackageController extends Controller
      */
     public function getHotelsByCity($city)
     {
-        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city','main_image', 'weekend_days']);
-        return response()->json($hotels);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            // dmc_id in hotels is stored as a JSON array e.g. [16,18,11,4,64,157]
+            $hotels = \App\Models\Hotel::where('city', $city)
+                ->where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
+                ->get(['hotel_unique_id', 'name', 'city', 'main_image', 'weekend_days']);
+
+            return response()->json($hotels);
+        } catch (\Throwable $e) {
+            Log::error('getHotelsByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch hotels.'], 500);
+        }
     }
 
     /**
@@ -565,8 +583,26 @@ class PackageController extends Controller
      */
     public function getAttractionsByCity($city)
     {
-        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location', 'master_image', 'adult_price', 'child_price']);
-        return response()->json($attractions);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            // dmc_id in attractions is stored as a JSON array e.g. [11,4,157]
+            $attractions = \App\Models\Attraction::where('location', $city)
+                ->where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
+                ->get(['attraction_id', 'name', 'location', 'master_image', 'adult_price', 'child_price']);
+
+            return response()->json($attractions);
+        } catch (\Throwable $e) {
+            Log::error('getAttractionsByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch attractions.'], 500);
+        }
     }
 
     /**
@@ -574,33 +610,50 @@ class PackageController extends Controller
      */
     public function getGuidesByCity($city)
     {
-        $guides = \App\Models\Guide::where('city', $city)
-            ->with(['languages' => function ($query) {
-                $query->select('guide_id', 'language'); // columns in guide_language table
-            }])
-            ->get(['guide_id', 'name', 'contact_no', 'city', 'status', 'hourly_price', 'two_hour_price', 'four_hour_price', 'six_hour_price', 'eight_hour_price', 'ten_hour_price', 'twelve_hour_price', 'night_surcharge', 'night_start_time', 'night_end_time']);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
 
-        // Map to flatten language strings if needed
-        $guides->transform(function ($guide) {
-            return [
-                'guide_id'   => $guide->guide_id,
-                'name'       => $guide->name,
-                'contact_no' => $guide->contact_no,
-                'languages'  => $guide->languages->pluck('language')->toArray(),
-                'hourly_price' => $guide->hourly_price ?? null,
-                'two_hour_price' => $guide->two_hour_price ?? null,
-                'four_hour_price' => $guide->four_hour_price ?? null,
-                'six_hour_price' => $guide->six_hour_price ?? null,
-                'eight_hour_price' => $guide->eight_hour_price ?? null,
-                'ten_hour_price' => $guide->ten_hour_price ?? null,
-                'twelve_hour_price' => $guide->twelve_hour_price ?? null,
-                'night_surcharge' => $guide->night_surcharge ?? null,
-                'night_start_time' => $guide->night_start_time ?? null,
-                'night_end_time' => $guide->night_end_time ?? null,
-            ];
-        });
+            $guides = \App\Models\Guide::where('city', $city)
+                ->where('dmc_id', (int) $dmc_id)
+                ->with(['languages' => function ($query) {
+                    $query->select('guide_id', 'language');
+                }])
+                ->get([
+                    'guide_id', 'name', 'contact_no', 'city', 'status',
+                    'hourly_price', 'two_hour_price', 'four_hour_price',
+                    'six_hour_price', 'eight_hour_price', 'ten_hour_price',
+                    'twelve_hour_price', 'night_surcharge',
+                    'night_start_time', 'night_end_time',
+                ]);
 
-        return response()->json($guides);
+            $guides->transform(function ($guide) {
+                return [
+                    'guide_id'          => $guide->guide_id,
+                    'name'              => $guide->name,
+                    'contact_no'        => $guide->contact_no,
+                    'languages'         => $guide->languages->pluck('language')->toArray(),
+                    'hourly_price'      => $guide->hourly_price ?? null,
+                    'two_hour_price'    => $guide->two_hour_price ?? null,
+                    'four_hour_price'   => $guide->four_hour_price ?? null,
+                    'six_hour_price'    => $guide->six_hour_price ?? null,
+                    'eight_hour_price'  => $guide->eight_hour_price ?? null,
+                    'ten_hour_price'    => $guide->ten_hour_price ?? null,
+                    'twelve_hour_price' => $guide->twelve_hour_price ?? null,
+                    'night_surcharge'   => $guide->night_surcharge ?? null,
+                    'night_start_time'  => $guide->night_start_time ?? null,
+                    'night_end_time'    => $guide->night_end_time ?? null,
+                ];
+            });
+
+            return response()->json($guides);
+        } catch (\Throwable $e) {
+            Log::error('getGuidesByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch guides.'], 500);
+        }
     }
 
     /**
@@ -608,8 +661,26 @@ class PackageController extends Controller
      */
     public function getRestaurantsByCity($city)
     {
-        $restaurants = Restaurant::where('city', $city)->get(['restaurant_id', 'name', 'city', 'cuisine', 'bf_price', 'lunch_price', 'dinner_price', 'breakfast_available', 'lunch_available', 'dinner_available']);
-        return response()->json(['restaurants' => $restaurants]);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            // dmc_id in restaurants is stored as a JSON array e.g. [4,11,111]
+            $restaurants = Restaurant::where('city', $city)
+                ->where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
+                ->get(['restaurant_id', 'name', 'city', 'cuisine', 'bf_price', 'lunch_price', 'dinner_price', 'breakfast_available', 'lunch_available', 'dinner_available']);
+
+            return response()->json(['restaurants' => $restaurants]);
+        } catch (\Throwable $e) {
+            Log::error('getRestaurantsByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch restaurants.'], 500);
+        }
     }
 
     /**
@@ -618,36 +689,49 @@ class PackageController extends Controller
      */
     public function getMealsByRestaurant($restaurantId)
     {
-        $typeMap = [
-            1 => 'Buffet',
-            2 => 'Set Menu',
-            3 => 'A la carte',
-        ];
         try {
-            $restaurantId = Crypt::decrypt($restaurantId);
-        } catch (\Throwable $e) {
-            // Support plain numeric ids from package definition UI.
-            $restaurantId = is_numeric($restaurantId) ? (int) $restaurantId : 0;
-        }
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
 
-        $meals = Meal::where('restaurant_id', $restaurantId)
-            ->orderBy('type')
-            ->get(['id', 'meal_id', 'restaurant_id', 'type', 'item_type', 'adult_price', 'child_price']);
+            // Support both encrypted and plain numeric ids from the UI.
+            try {
+                $restaurantId = Crypt::decrypt($restaurantId);
+            } catch (\Throwable $e) {
+                $restaurantId = is_numeric($restaurantId) ? (int) $restaurantId : 0;
+            }
 
-        $rows = $meals->map(function ($m) use ($typeMap) {
-            $typeInt = (int) ($m->type ?? 0);
-            return [
-                'id' => $m->id,
-                'meal_id' => $m->meal_id ?? $m->id,
-                'restaurant_id' => $m->restaurant_id,
-                'type' => $typeInt,
-                'type_label' => $typeMap[$typeInt] ?? ('Type ' . $typeInt),
-                'adult_price' => $m->adult_price != null ? (float) $m->adult_price : null,
-                'child_price' => $m->child_price != null ? (float) $m->child_price : null,
+            $typeMap = [
+                1 => 'Buffet',
+                2 => 'Set Menu',
+                3 => 'A la carte',
             ];
-        })->values();
 
-        return response()->json(['meals' => $rows]);
+            $meals = Meal::where('restaurant_id', $restaurantId)
+                ->where('dmc_id', (int) $dmc_id)
+                ->orderBy('type')
+                ->get(['id', 'meal_id', 'restaurant_id', 'type', 'item_type', 'adult_price', 'child_price']);
+
+            $rows = $meals->map(function ($m) use ($typeMap) {
+                $typeInt = (int) ($m->type ?? 0);
+                return [
+                    'id' => $m->id,
+                    'meal_id' => $m->meal_id ?? $m->id,
+                    'restaurant_id' => $m->restaurant_id,
+                    'type' => $typeInt,
+                    'type_label' => $typeMap[$typeInt] ?? ('Type ' . $typeInt),
+                    'adult_price' => $m->adult_price !== null ? (float) $m->adult_price : null,
+                    'child_price' => $m->child_price !== null ? (float) $m->child_price : null,
+                ];
+            })->values();
+
+            return response()->json(['meals' => $rows]);
+        } catch (\Throwable $e) {
+            Log::error('getMealsByRestaurant failed: ' . $e->getMessage(), ['restaurant_id' => $restaurantId]);
+            return response()->json(['error' => 'Failed to fetch meals.'], 500);
+        }
     }
 
     /**
@@ -667,13 +751,21 @@ class PackageController extends Controller
      */
     public function getTransportByCity($city)
     {
-        $user = Auth::user();
-        $dmc_id = CommonHelper::getDmcId($user);
-        if($dmc_id){
-            $transport = Vehicle::where('city', $city)->where('dmc_id', $dmc_id)->get(['vehicle_id', 'vehicle_name as name', 'city', 'vehicle_type', 'base_price']);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            $transport = Vehicle::where('city', $city)
+                ->where('dmc_id', (int) $dmc_id)
+                ->get(['vehicle_id', 'vehicle_name as name', 'city', 'vehicle_type', 'base_price']);
+
             return response()->json($transport);
-        }else{
-            return response()->json(['error' => 'You are not authorized to view this page.']);
+        } catch (\Throwable $e) {
+            Log::error('getTransportByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch transport.'], 500);
         }
     }
 
@@ -695,50 +787,58 @@ class PackageController extends Controller
      */
     public function getRoomTypesByHotel($hotelId)
     {
-        
-        $rooms = Room::where('hotel_id', $hotelId)
-            ->get([
-                'room_id',
-                'id',
-                'hotel_id',
-                'room_type',
-                'no_of_room',
-                'weekday_price',
-                'weekend_price',
-                'double_weekday_price',
-                'double_weekend_price',
-                'dimension',
-                'breakfast',
-                'breakfast_included',
-                'lunch',
-                'dinner',
-                'master_image',
-                'features',
-            ]);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
 
-        // Map to same shape as before for frontend (id, name) + extra room fields
-        $roomTypes = $rooms->map(function ($room) {
-            return [
-                'id'           => $room->room_id ?? $room->id,
-                'room_id'      => $room->room_id ?? $room->id,
-                'name'         => $room->room_type ?: ('Room ' . ($room->room_id ?? $room->id)),
-                'room_type'    => $room->room_type,
-                'no_of_room'   => $room->no_of_room,
-                'weekday_price'=> ceil(($room->double_weekday_price)/2),
-                'weekend_price'=> ceil(($room->double_weekend_price)/2),
-                'dimension'    => $room->dimension,
-                'breakfast'    => $room->breakfast,
-                'breakfast_included' => $room->breakfast_included,
-                'lunch'        => $room->lunch,
-                'lunch_included'=> $room->lunch_included,
-                'dinner'       => $room->dinner,
-                'dinner_included'=> $room->dinner_included,
-                'master_image' => $room->master_image,
-                'features'     => $room->features,
-            ];
-        });
+            $rooms = Room::where('hotel_id', $hotelId)
+                ->where('created_by', $dmc_id)
+                ->get([
+                    'room_id',
+                    'id',
+                    'hotel_id',
+                    'room_type',
+                    'no_of_room',
+                    'weekday_price',
+                    'weekend_price',
+                    'double_weekday_price',
+                    'double_weekend_price',
+                    'dimension',
+                    'breakfast',
+                    'breakfast_included',
+                    'lunch',
+                    'dinner',
+                    'master_image',
+                    'features',
+                ]);
 
-        return response()->json(['room_types' => $roomTypes]);
+            $roomTypes = $rooms->map(function ($room) {
+                return [
+                    'id'                 => $room->room_id ?? $room->id,
+                    'room_id'            => $room->room_id ?? $room->id,
+                    'name'               => $room->room_type ?: ('Room ' . ($room->room_id ?? $room->id)),
+                    'room_type'          => $room->room_type,
+                    'no_of_room'         => $room->no_of_room,
+                    'weekday_price'      => ceil(((float) $room->double_weekday_price) / 2),
+                    'weekend_price'      => ceil(((float) $room->double_weekend_price) / 2),
+                    'dimension'          => $room->dimension,
+                    'breakfast'          => $room->breakfast,
+                    'breakfast_included' => $room->breakfast_included,
+                    'lunch'              => $room->lunch,
+                    'dinner'             => $room->dinner,
+                    'master_image'       => $room->master_image,
+                    'features'           => $room->features,
+                ];
+            });
+
+            return response()->json(['room_types' => $roomTypes]);
+        } catch (\Throwable $e) {
+            Log::error('getRoomTypesByHotel failed: ' . $e->getMessage(), ['hotel_id' => $hotelId]);
+            return response()->json(['error' => 'Failed to fetch room types.'. $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -747,25 +847,38 @@ class PackageController extends Controller
      */
     public function getBedsByRoom($roomId)
     {
-        $beds = Bed::where('room_id', $roomId)->get();
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
 
-        $bedTypes = $beds->map(function ($bed) {
-            return [
-                'room_type' => (string) ($bed->room_type ?? ''),
-                'extra_bed' => (int) ($bed->extra_bed ?? 0) === 1,
-                'bed_id' => (int) ($bed->bed_id ?? 0),
-                'extra_bed_type' => (string) ($bed->extra_bed_type ?? ''),
-            ];
-        })
-        ->filter(function ($bed) {
-            return $bed['room_type'] !== '';
-        })
-        ->unique(function ($bed) {
-            return strtolower($bed['room_type']) . '|' . ($bed['extra_bed'] ? '1' : '0');
-        })
-        ->values();
+            $beds = Bed::where('room_id', $roomId)
+                ->where('dmc_id', $dmc_id)
+                ->get();
 
-        return response()->json(['beds' => $bedTypes]);
+            $bedTypes = $beds->map(function ($bed) {
+                return [
+                    'room_type' => (string) ($bed->room_type ?? ''),
+                    'extra_bed' => (int) ($bed->extra_bed ?? 0) === 1,
+                    'bed_id' => (int) ($bed->bed_id ?? 0),
+                    'extra_bed_type' => (string) ($bed->extra_bed_type ?? ''),
+                ];
+            })
+            ->filter(function ($bed) {
+                return $bed['room_type'] !== '';
+            })
+            ->unique(function ($bed) {
+                return strtolower($bed['room_type']) . '|' . ($bed['extra_bed'] ? '1' : '0');
+            })
+            ->values();
+
+            return response()->json(['beds' => $bedTypes]);
+        } catch (\Throwable $e) {
+            Log::error('getBedsByRoom failed: ' . $e->getMessage(), ['room_id' => $roomId]);
+            return response()->json(['error' => 'Failed to fetch beds.'], 500);
+        }
     }
 
     /**
@@ -773,20 +886,32 @@ class PackageController extends Controller
      */
     public function getTicketsByAttraction($attractionId)
     {
-        $tickets = Ticket::where('attraction_id', $attractionId)
-            ->where('status', 1)
-            ->orderBy('name')
-            ->get([
-                'id',
-                'ticket_id',
-                'name',
-                'adult_price',
-                'child_price',
-                'senior_adult_price',
-                'attraction_id',
-            ]);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
 
-        return response()->json(['tickets' => $tickets]);
+            $tickets = Ticket::where('attraction_id', $attractionId)
+                ->where('dmc_id', (int) $dmc_id)
+                ->where('status', 1)
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'ticket_id',
+                    'name',
+                    'adult_price',
+                    'child_price',
+                    'senior_adult_price',
+                    'attraction_id',
+                ]);
+
+            return response()->json(['tickets' => $tickets]);
+        } catch (\Throwable $e) {
+            Log::error('getTicketsByAttraction failed: ' . $e->getMessage(), ['attraction_id' => $attractionId]);
+            return response()->json(['error' => 'Failed to fetch tickets.'], 500);
+        }
     }
 
     /**
