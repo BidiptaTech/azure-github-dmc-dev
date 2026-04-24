@@ -65,6 +65,7 @@ use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
+use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -204,6 +205,9 @@ Route::get('/clear', function () {
             Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
             Route::post('/single-tour-package/orders/{order}/update', [SingleTourPackageController::class, 'updateServiceOrder'])->name('single-tour-package.orders.update');
             Route::post('/single-tour-package/{tour}/info', [EditTourController::class, 'updateTour'])->name('single-tour-package.update-info');
+            Route::post('/single-tour-package/{tour}/city-plans', [EditTourController::class, 'updateCityPlans'])->name('single-tour-package.update-city-plans');
+            Route::post('/single-tour-package/{tour}/city-plans/remove', [EditTourController::class, 'removeCityPlan'])->name('single-tour-package.remove-city-plan');
+            Route::post('/single-tour-package/{tour}/services/clear', [EditTourController::class, 'clearTourServices'])->name('single-tour-package.clear-services');
             Route::post('/single-tour-package/{tour}/guests', [EditTourController::class, 'updateGuests'])->name('single-tour-package.update-guests');
             // Service update routes via EditTourController
             Route::post('/edit-tour/hotel/{order}', [EditTourController::class, 'updateHotel'])->name('edit-tour.update-hotel');
@@ -682,6 +686,8 @@ Route::get('/clear', function () {
         Route::get('/drivers/search', [GuideController::class, 'search'])->name('drivers.search');
         
         Route::get('/get-cities', [OperationalCountryController::class, 'getCities'])->name('getCities');
+        Route::get('/ajax/cities', [CityController::class, 'ajaxCities'])->name('ajax.cities');
+        Route::get('/get-services', [ServiceController::class, 'getServices'])->name('getServices');
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
