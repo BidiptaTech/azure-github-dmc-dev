@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Http\Controllers;
-
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Facility;
@@ -25,6 +23,7 @@ use App\Mail\DmcMail;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class GuideController extends Controller
 {
@@ -356,96 +355,123 @@ class GuideController extends Controller
     */
     public function store(Request $request)
     {
-        // Validate the incoming request data
-        $validated = $request->validate([
-            'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
-            'guide_gender' => 'required|in:Male,Female,Other',
-            'name' => 'required|string|max:255',
-            'contact_no' => 'required|string|min:8|max:15',
-            'email' => 'required|email|unique:guides,email',
-            'license_no' => 'required|string',
-            'license_exp_date' => 'required|date',
-            'experience' => 'required|numeric',
-            'service_type' => 'required|integer',
-            'guide_age' => 'required',
-            'wp_number' => 'required|numeric',
-            'about' => 'required|string',
-            'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
-            'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
-            'day_rate' => 'nullable|numeric',
-            'night_surcharge' => 'nullable|numeric',
-            'night_start_time' => 'nullable|date_format:H:i',
-            'night_end_time' => 'nullable|date_format:H:i',
-            'hourly_price' => 'nullable|numeric',
-            'two_hour_price' => 'nullable|numeric',
-            'four_hour_price' => 'nullable|numeric',
-            'six_hour_price' => 'nullable|numeric',
-            'eight_hour_price' => 'nullable|numeric',
-            'ten_hour_price' => 'nullable|numeric',
-            'twelve_hour_price' => 'nullable|numeric',
-            'languages' => 'required|array',
-            'language_proficiency' => 'required|array',
-        ]);
-    
-        // Generate unique guide ID
-        $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
-        $guide_max_id = $lastGuide->guide_id ?? 0;
-        $guideId = CommonHelper::createId($guide_max_id);
-    
-        while (Guide::where('guide_id', $guideId)->exists()) {
-            $guideId = CommonHelper::createId($guideId);
-        }
-    
-        // Process license image
-        $licenseImage = '';
-        if ($request->hasFile('license_image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('license_image'));
-            if (!empty($pathData['master_value'])) {
-                $licenseImage = $pathData['master_value'];
-            }
-        }
-    
-        // Process guide image
-        $guideImage = '';
-        if ($request->hasFile('master_image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('master_image'));
-            if (!empty($pathData['master_value'])) {
-                $guideImage = $pathData['master_value'];
-            }
-        }
+        try {
+            // Some roles must select a DMC (admin-like flows)
+            $auth_user = Auth::user();
+            $dmcRequiredRoles = [1, 2, 4, 23];
 
-        $auth_user = Auth::user();
-        if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
-            $dmc_id = $auth_user->userId;
-            $status = 1;
-        } elseif($auth_user->role_id == 4){
-            $dmc_id = $request->dmc;
-            $status = 1;
-        } elseif($auth_user->role_id == 23){
-            $dmc_id = $request->dmc;
-            $status = 1;
-        } elseif($auth_user->role_id == 1 || $auth_user->role_id == 2){
-            $dmc_id = $request->dmc;
-            $status = 1;
-        } elseif(auth()->user()->role_id ==35 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138){
-            $userdmc = User::where('userId', auth()->user()->created_by)->first();
-            $dmc_id = $userdmc->userId;
-            $status = 1;
-        } elseif(auth()->user()->role_id == 75 || auth()->user()->role_id == 139){
-            $user_product_head = User::where('userId', auth()->user()->created_by)->first();
-            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $dmc_id = $user_product_head_dmc->userId;
-            $status = 1;
-        } elseif(auth()->user()->role_id == 102 || auth()->user()->role_id == 140){
-            $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
-            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $dmc_id = $user_product_head_dmc->userId;
-            $status = 1;
-        } else{
-            $dmc_id = $request->dmc;
-            $status = 1;
-        }
+            // If the email belongs to a soft-deleted guide, show a clear message
+            $trashedByEmail = Guide::onlyTrashed()
+                ->where('email', $request->input('email'))
+                ->first();
+            if ($trashedByEmail) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'email' => 'This email is already used by a deleted (archived) guide. Please restore that guide or use another email.',
+                    ]);
+            }
+
+            // Validate the incoming request data
+            $validated = $request->validate([
+                'dmc' => in_array($auth_user->role_id, $dmcRequiredRoles, true) ? 'required' : 'nullable',
+                'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
+                'guide_gender' => 'required|in:Male,Female,Other',
+                'name' => 'required|string|max:255',
+                'contact_no' => 'required|string|min:8|max:15',
+                // Unique among NON-deleted guides; deleted ones are handled above with a custom message
+                'email' => [
+                    'required',
+                    'email',
+                    Rule::unique('guides', 'email')->whereNull('deleted_at'),
+                ],
+                'license_no' => 'required|string',
+                'license_exp_date' => 'required|date',
+                'experience' => 'required|numeric',
+                'service_type' => 'required|integer',
+                'guide_age' => 'required',
+                'wp_number' => 'required|numeric',
+                'about' => 'required|string',
+                'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+                'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+                'day_rate' => 'nullable|numeric',
+                'night_surcharge' => 'nullable|numeric',
+                'night_start_time' => 'nullable|date_format:H:i',
+                'night_end_time' => 'nullable|date_format:H:i',
+                'hourly_price' => 'nullable|numeric',
+                'two_hour_price' => 'nullable|numeric',
+                'four_hour_price' => 'nullable|numeric',
+                'six_hour_price' => 'nullable|numeric',
+                'eight_hour_price' => 'nullable|numeric',
+                'ten_hour_price' => 'nullable|numeric',
+                'twelve_hour_price' => 'nullable|numeric',
+                'languages' => 'required|array',
+                'language_proficiency' => 'required|array',
+            ]);
+    
+            return DB::transaction(function () use ($request, $validated, $auth_user) {
+                // Generate unique guide ID
+                $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
+                $guide_max_id = $lastGuide->guide_id ?? 0;
+                $guideId = CommonHelper::createId($guide_max_id);
+            
+                while (Guide::where('guide_id', $guideId)->exists()) {
+                    $guideId = CommonHelper::createId($guideId);
+                }
+            
+                // Process license image
+                $licenseImage = '';
+                if ($request->hasFile('license_image')) {
+                    $pathData = CommonHelper::image_path('file_storage', $request->file('license_image'));
+                    if (!empty($pathData['master_value'])) {
+                        $licenseImage = $pathData['master_value'];
+                    }
+                }
+                if (!$licenseImage) {
+                    return redirect()->back()->withInput()->with('error', 'License image upload failed. Please try again.');
+                }
+            
+                // Process guide image
+                $guideImage = '';
+                if ($request->hasFile('master_image')) {
+                    $pathData = CommonHelper::image_path('file_storage', $request->file('master_image'));
+                    if (!empty($pathData['master_value'])) {
+                        $guideImage = $pathData['master_value'];
+                    }
+                }
+                if (!$guideImage) {
+                    return redirect()->back()->withInput()->with('error', 'Profile image upload failed. Please try again.');
+                }
+
+                if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
+                    $dmc_id = $auth_user->userId;
+                    $status = 1;
+                } elseif ($auth_user->role_id == 4 || $auth_user->role_id == 23 || $auth_user->role_id == 1 || $auth_user->role_id == 2) {
+                    $dmc_id = $validated['dmc'] ?? null;
+                    $status = 1;
+                } elseif (in_array($auth_user->role_id, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
+                    $userdmc = User::where('userId', $auth_user->created_by)->first();
+                    $dmc_id = $userdmc ? $userdmc->userId : null;
+                    $status = 1;
+                } elseif (in_array($auth_user->role_id, [75, 139], true)) {
+                    $user_product_head = User::where('userId', $auth_user->created_by)->first();
+                    $user_product_head_dmc = $user_product_head ? User::where('userId', $user_product_head->created_by)->first() : null;
+                    $dmc_id = $user_product_head_dmc ? $user_product_head_dmc->userId : null;
+                    $status = 1;
+                } elseif (in_array($auth_user->role_id, [102, 140], true)) {
+                    $user_product_manager = User::where('userId', $auth_user->created_by)->first();
+                    $user_product_head = $user_product_manager ? User::where('userId', $user_product_manager->created_by)->first() : null;
+                    $user_product_head_dmc = $user_product_head ? User::where('userId', $user_product_head->created_by)->first() : null;
+                    $dmc_id = $user_product_head_dmc ? $user_product_head_dmc->userId : null;
+                    $status = 1;
+                } else {
+                    $dmc_id = $validated['dmc'] ?? null;
+                    $status = 1;
+                }
+
+                if (!$dmc_id) {
+                    return redirect()->back()->withInput()->with('error', 'DMC is missing. Please select a DMC and try again.');
+                }
 
         // Check for existing active guide with same license for this DMC
         $existingGuide = Guide::where([
@@ -570,7 +596,7 @@ class GuideController extends Controller
         $guide->ten_hour_price = $validated['ten_hour_price'];
         $guide->twelve_hour_price = $validated['twelve_hour_price'];
         $guide->status = $status;
-        $guide->dmc_id = $dmc_id ?? 0;
+        $guide->dmc_id = $dmc_id;
         $guide->is_active = $request->input('guide_status') == 1 ? 1 : 0;
         $guide->created_by = $auth_user->userId;
         $save = $guide->save();
@@ -607,7 +633,26 @@ class GuideController extends Controller
 
             return redirect()->route('guide.index')->with('success', 'Guide details added successfully!');
         } else {
-            return redirect()->route('guide.index')->with('error', 'Failed to add guide details.');
+            return redirect()->back()->withInput()->with('error', 'Failed to add guide details. Please try again.');
+        }
+            });
+        } catch (ValidationException $e) {
+            // Let Laravel handle validation errors (field messages will be available in $errors on the view)
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Guide create failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'role_id' => Auth::user() ? Auth::user()->role_id : null,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $publicMessage = 'Something went wrong while saving the guide. Please try again.';
+            if (config('app.debug')) {
+                $publicMessage .= ' Error: ' . $e->getMessage();
+            }
+
+            return redirect()->back()->withInput()->with('error', $publicMessage);
         }
     }
 
