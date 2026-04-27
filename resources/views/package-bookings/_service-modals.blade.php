@@ -27,10 +27,17 @@
                                 $city = $h['city'] ?? '';
                                 $nights = (int) ($h['nights'] ?? 0);
                                 $start = $h['tour_start_date'] ?? null;
-                                $finalPrice = $h['base_price'] ?? null; // user: base_price is final price
-                                $isCompulsory = (int)($h['compulsory'] ?? 0) === 1;
-                                $isOptional = (int)($h['optional'] ?? 0) === 1;
-                                $isAddon = (int)($h['addon'] ?? 0) === 1;
+                                $bookingDates = (is_array($h['hotel_booking_dates'] ?? null) ? $h['hotel_booking_dates'] : []);
+                                $firstBookingDate = !empty($bookingDates) ? \Carbon\Carbon::parse($bookingDates[0]) : null;
+                                $lastBookingDate = !empty($bookingDates) ? \Carbon\Carbon::parse($bookingDates[count($bookingDates)-1]) : null;
+
+                                // Prefer new JSON pricing keys; keep fallbacks for old stored rows
+                                $finalPrice = $h['total_price'] ?? $h['final_price'] ?? $h['base_price'] ?? null;
+
+                                // JSON now uses booleans; keep int fallback support
+                                $isCompulsory = (bool) ($h['compulsory'] ?? false);
+                                $isOptional = (bool) ($h['optional'] ?? false);
+                                $isAddon = (bool) ($h['addon'] ?? false);
                             @endphp
 
                             <div class="border rounded p-3 mb-3">
@@ -43,6 +50,12 @@
                                             @endif
                                             @if($start)
                                                 <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($start)->format('d M Y') }}</span>
+                                            @endif
+                                            @if($firstBookingDate && $lastBookingDate)
+                                                <span class="badge bg-label-primary">
+                                                    <i class="ri-date-range-line me-1"></i>
+                                                    Hotel dates: {{ $firstBookingDate->format('d M Y') }} → {{ $lastBookingDate->format('d M Y') }}
+                                                </span>
                                             @endif
                                             @if($nights > 0)
                                                 <span class="badge bg-label-primary"><i class="ri-moon-line me-1"></i>{{ $nights }} nights</span>
@@ -75,7 +88,8 @@
                                                         <th style="min-width: 120px;">Bed Type</th>
                                                         <th style="width: 90px;">Qty</th>
                                                         <th style="width: 120px;">Extra Bed</th>
-                                                        <th style="width: 140px;">Price</th>
+                                                        <th style="width: 150px;">Weekday Price</th>
+                                                        <th style="width: 150px;">Weekend Price</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -90,6 +104,9 @@
                                                                 @else
                                                                     No
                                                                 @endif
+                                                            </td>
+                                                            <td>
+                                                                {{ isset($r['weekday_price']) ? number_format((float)$r['weekday_price'], 2) : '—' }}
                                                             </td>
                                                             <td>
                                                                 {{ isset($r['weekend_price']) ? number_format((float)$r['weekend_price'], 2) : '—' }}
@@ -129,34 +146,42 @@
                                 $guidePrice = (float) (data_get($a, 'guide.price') ?? 0);
                                 $transferEnabled = !empty($a['transfer']);
                                 $transferPrice = $transferEnabled ? (float) ($a['transfer_price'] ?? 0) : 0.0;
-                                $final = $base + $guidePrice + $transferPrice;
+                                $final = (float) ($a['total_price'] ?? $a['final_price'] ?? ($base + $guidePrice + $transferPrice));
                                 $attractionTotal += $final;
-                                $isCompulsory = (int)($a['compulsory'] ?? 0) === 1;
-                                $isOptional = (int)($a['optional'] ?? 0) === 1;
-                                $isAddon = (int)($a['addon'] ?? 0) === 1;
+                                $isCompulsory = (bool) ($a['compulsory'] ?? false);
+                                $isOptional = (bool) ($a['optional'] ?? false);
+                                $isAddon = (bool) ($a['addon'] ?? false);
+                                $image = $a['image'] ?? null;
                             @endphp
 
                             <div class="border rounded p-3 mb-3">
                                 <div class="d-flex justify-content-between align-items-start gap-3">
                                     <div class="min-w-0">
-                                        <div class="fw-semibold text-dark">{{ $name }}</div>
-                                        <div class="d-flex flex-wrap gap-2 mt-1">
-                                            @if($location !== '')
-                                                <span class="badge bg-label-info"><i class="ri-map-pin-line me-1"></i>{{ $location }}</span>
+                                        <div class="d-flex align-items-start gap-3">
+                                            @if(!empty($image))
+                                                <img src="{{ $image }}" alt="{{ $name }}" class="rounded border" style="width: 88px; height: 64px; object-fit: cover;">
                                             @endif
-                                            @if($start)
-                                                <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($start)->format('d M Y') }}</span>
-                                            @endif
-                                            @if(!empty($a['ticket_name']))
-                                                <span class="badge bg-label-primary">Ticket: {{ $a['ticket_name'] }}</span>
-                                            @endif
-                                            @if($isCompulsory)
-                                                <span class="badge bg-label-success">Compulsory</span>
-                                            @elseif($isOptional)
-                                                <span class="badge bg-label-warning">Optional</span>
-                                            @elseif($isAddon)
-                                                <span class="badge bg-label-dark">Addon</span>
-                                            @endif
+                                            <div class="min-w-0">
+                                                <div class="fw-semibold text-dark">{{ $name }}</div>
+                                                <div class="d-flex flex-wrap gap-2 mt-1">
+                                                    @if($location !== '')
+                                                        <span class="badge bg-label-info"><i class="ri-map-pin-line me-1"></i>{{ $location }}</span>
+                                                    @endif
+                                                    @if($start)
+                                                        <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($start)->format('d M Y') }}</span>
+                                                    @endif
+                                                    @if(!empty($a['ticket_name']))
+                                                        <span class="badge bg-label-primary">Ticket: {{ $a['ticket_name'] }}</span>
+                                                    @endif
+                                                    @if($isCompulsory)
+                                                        <span class="badge bg-label-success">Compulsory</span>
+                                                    @elseif($isOptional)
+                                                        <span class="badge bg-label-warning">Optional</span>
+                                                    @elseif($isAddon)
+                                                        <span class="badge bg-label-dark">Addon</span>
+                                                    @endif
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="text-end flex-shrink-0">
@@ -172,6 +197,12 @@
                                         <div class="border rounded p-2 h-100 bg-light">
                                             <small class="text-muted d-block">Attraction Price</small>
                                             <div class="fw-semibold">{{ number_format($base, 2) }}</div>
+                                            @if(isset($a['adult_price']) || isset($a['child_price']))
+                                                <small class="text-muted d-block mt-1">
+                                                    Adult: {{ isset($a['adult_price']) ? number_format((float) $a['adult_price'], 2) : '—' }}
+                                                    · Child: {{ isset($a['child_price']) ? number_format((float) $a['child_price'], 2) : '—' }}
+                                                </small>
+                                            @endif
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -181,6 +212,11 @@
                                                 {{ $guideName ? $guideName : '—' }}
                                                 <span class="text-muted">{{ $guidePrice > 0 ? '(' . number_format($guidePrice, 2) . ')' : '' }}</span>
                                             </div>
+                                            @if(!empty(data_get($a, 'guide.languages')))
+                                                <small class="text-muted d-block">
+                                                    Languages: {{ implode(', ', (array) data_get($a, 'guide.languages')) }}
+                                                </small>
+                                            @endif
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -197,6 +233,7 @@
                                                 <small class="text-muted d-block">
                                                     {{ ($a['pickup_name'] ?? '') }} → {{ ($a['dropoff_name'] ?? '') }}
                                                 </small>
+                                                <small class="text-muted d-block">{{ $a['transfer_type'] ?? '' }}</small>
                                             @endif
                                         </div>
                                     </div>
@@ -234,11 +271,12 @@
                                 $childPrice = $r['child_price'] ?? null;
                                 $transferEnabled = !empty($r['transfer']);
                                 $transferPrice = $transferEnabled ? (float) ($r['transfer_price'] ?? 0) : 0.0;
-                                $final = $base + $transferPrice; // base_price is final restaurant price + optional transfer
+                                $final = (float) ($r['total_price'] ?? $r['final_price'] ?? ($base + $transferPrice));
                                 $restaurantTotal += $final;
-                                $isCompulsory = (int)($r['compulsory'] ?? 0) === 1;
-                                $isOptional = (int)($r['optional'] ?? 0) === 1;
-                                $isAddon = (int)($r['addon'] ?? 0) === 1;
+                                $isCompulsory = (bool) ($r['compulsory'] ?? false);
+                                $isOptional = (bool) ($r['optional'] ?? false);
+                                $isAddon = (bool) ($r['addon'] ?? false);
+                                $selectedMeals = (is_array($r['selected_meals'] ?? null) ? $r['selected_meals'] : []);
                             @endphp
 
                             <div class="border rounded p-3 mb-3">
@@ -248,6 +286,9 @@
                                         <div class="d-flex flex-wrap gap-2 mt-1">
                                             @if($mealLabel !== '')
                                                 <span class="badge bg-label-warning"><i class="ri-restaurant-line me-1"></i>{{ $mealLabel }}</span>
+                                            @endif
+                                            @if(!empty($selectedMeals))
+                                                <span class="badge bg-label-secondary">Meals: {{ implode(', ', array_map('strval', $selectedMeals)) }}</span>
                                             @endif
                                             @if($start)
                                                 <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($start)->format('d M Y') }}</span>
@@ -332,15 +373,45 @@
                         @php
                             $enabled = (bool) ($arr['enabled'] ?? true);
                             $arrTotal = 0.0;
+                            $pickupPortName = $arr['pickup_port_name'] ?? null;
+                            $dropoffHotelName = $arr['dropoff_hotel_name'] ?? null;
+
+                            // Pre-calc total for header display
+                            $arrHeaderTotal = 0.0;
+                            if ($enabled && !empty($arr['vehicles']) && is_array($arr['vehicles'])) {
+                                foreach ($arr['vehicles'] as $v0) {
+                                    $qty0 = (int) ($v0['qty'] ?? 1);
+                                    $unit0 = (float) ($v0['unit_price'] ?? 0);
+                                    $selected0 = (float) ($v0['selected_price'] ?? ($unit0 * $qty0));
+                                    $arrHeaderTotal += $selected0;
+                                }
+                            }
                         @endphp
 
-                        <div class="d-flex flex-wrap gap-2 mb-3">
-                            <span class="badge bg-label-success">Enabled: {{ $enabled ? 'Yes' : 'No' }}</span>
-                            <span class="badge bg-label-success">Pickup Port ID: {{ $arr['pickup_port_id'] ?? '—' }}</span>
-                            <span class="badge bg-label-success">Dropoff Hotel ID: {{ $arr['dropoff_hotel_id'] ?? '—' }}</span>
-                            @if(!empty($arr['tour_start_date']))
-                                <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($arr['tour_start_date'])->format('d M Y') }}</span>
-                            @endif
+                        <div class="border rounded p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div class="min-w-0">
+                                    <div class="fw-semibold text-dark">Arrival Transfer</div>
+                                    <div class="d-flex flex-wrap gap-2 mt-1">
+                                        <span class="badge {{ $enabled ? 'bg-label-success' : 'bg-label-secondary' }}">
+                                            Enabled: {{ $enabled ? 'Yes' : 'No' }}
+                                        </span>
+                                        @if(!empty($arr['tour_start_date']))
+                                            <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($arr['tour_start_date'])->format('d M Y') }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="mt-2 text-muted">
+                                        <div><span class="fw-semibold">Pickup:</span> {{ $pickupPortName ?: ($arr['pickup_port_id'] ?? '—') }}</div>
+                                        <div><span class="fw-semibold">Dropoff:</span> {{ $dropoffHotelName ?: ($arr['dropoff_hotel_id'] ?? '—') }}</div>
+                                    </div>
+                                </div>
+                                <div class="text-end flex-shrink-0">
+                                    <small class="text-muted d-block">Total</small>
+                                    <div class="fw-bold text-success" style="font-size: 1.05rem;">
+                                        {{ $enabled ? number_format($arrHeaderTotal, 2) : number_format(0, 2) }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         @if($enabled && !empty($arr['vehicles']) && is_array($arr['vehicles']))
@@ -403,15 +474,45 @@
                         @php
                             $enabled = (bool) ($dep['enabled'] ?? true);
                             $depTotal = 0.0;
+                            $pickupHotelName = $dep['pickup_hotel_name'] ?? null;
+                            $dropoffPortName = $dep['dropoff_port_name'] ?? null;
+
+                            // Pre-calc total for header display
+                            $depHeaderTotal = 0.0;
+                            if ($enabled && !empty($dep['vehicles']) && is_array($dep['vehicles'])) {
+                                foreach ($dep['vehicles'] as $v0) {
+                                    $qty0 = (int) ($v0['qty'] ?? 1);
+                                    $unit0 = (float) ($v0['unit_price'] ?? 0);
+                                    $selected0 = (float) ($v0['selected_price'] ?? ($unit0 * $qty0));
+                                    $depHeaderTotal += $selected0;
+                                }
+                            }
                         @endphp
 
-                        <div class="d-flex flex-wrap gap-2 mb-3">
-                            <span class="badge bg-label-secondary">Enabled: {{ $enabled ? 'Yes' : 'No' }}</span>
-                            <span class="badge bg-label-secondary">Pickup Hotel ID: {{ $dep['pickup_hotel_id'] ?? '—' }}</span>
-                            <span class="badge bg-label-secondary">Dropoff Port ID: {{ $dep['dropoff_port_id'] ?? '—' }}</span>
-                            @if(!empty($dep['tour_start_date']))
-                                <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($dep['tour_start_date'])->format('d M Y') }}</span>
-                            @endif
+                        <div class="border rounded p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div class="min-w-0">
+                                    <div class="fw-semibold text-dark">Departure Transfer</div>
+                                    <div class="d-flex flex-wrap gap-2 mt-1">
+                                        <span class="badge bg-label-secondary">
+                                            Enabled: {{ $enabled ? 'Yes' : 'No' }}
+                                        </span>
+                                        @if(!empty($dep['tour_start_date']))
+                                            <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($dep['tour_start_date'])->format('d M Y') }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="mt-2 text-muted">
+                                        <div><span class="fw-semibold">Pickup:</span> {{ $pickupHotelName ?: ($dep['pickup_hotel_id'] ?? '—') }}</div>
+                                        <div><span class="fw-semibold">Dropoff:</span> {{ $dropoffPortName ?: ($dep['dropoff_port_id'] ?? '—') }}</div>
+                                    </div>
+                                </div>
+                                <div class="text-end flex-shrink-0">
+                                    <small class="text-muted d-block">Total</small>
+                                    <div class="fw-bold text-secondary" style="font-size: 1.05rem;">
+                                        {{ $enabled ? number_format($depHeaderTotal, 2) : number_format(0, 2) }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         @if($enabled && !empty($dep['vehicles']) && is_array($dep['vehicles']))

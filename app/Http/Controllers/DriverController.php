@@ -312,11 +312,17 @@ class DriverController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        if(in_array($authuser->role_id, [11, 35, 76, 111, 139, 140])){
-            $userCountry = User::where('userId', $authuser->userId)->first()->country;
-            $cities = City::where('country', $userCountry)->get();
-        }
-        else{
+        if (in_array($authuser->role_id, [11, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140])) {
+            // For product/multi-product roles, the user's own country may not be set;
+            // use the parent DMC's country when available.
+            $countryOwnerUserId = $authuser->userId;
+            if (in_array($authuser->role_id, [35, 130, 132, 133, 135, 136, 137, 138, 76, 111, 139, 140]) && !empty($authuser->created_by)) {
+                $countryOwnerUserId = $authuser->created_by;
+            }
+
+            $userCountry = optional(User::where('userId', $countryOwnerUserId)->first())->country ?? '';
+            $cities = $userCountry ? City::where('country', $userCountry)->get() : [];
+        } else {
             $userCountry = '';
             $cities = [];
         }
