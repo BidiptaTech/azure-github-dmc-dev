@@ -519,9 +519,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($restaurants as $key => $restaurant)
+                        @foreach($restaurants as $restaurant)
                             <tr>
-                                <td class="col-no">{{ ++$key }}</td>
+                                <td class="col-no">{{ $loop->iteration }}</td>
 
                                 <td class="col-details">
                                     <div class="d-flex flex-column gap-1">
