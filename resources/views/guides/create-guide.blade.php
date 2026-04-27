@@ -1,3 +1,4 @@
+
 @extends('layouts.layout')
 @section('content')
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
@@ -179,6 +180,20 @@
                         <div>
                             <h6 class="mb-2 fw-semibold text-danger">Please fix the following errors:</h6>
                             <ul class="mb-0 ps-3"><li class="small">{{ session('error') }}</li></ul>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+                        <div>
+                            <h6 class="mb-2 fw-semibold text-danger">Please fix the following errors:</h6>
+                            <ul class="mb-0 ps-3">
+                                <li class="small">{{ $errors->first() }}</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
@@ -1303,7 +1318,13 @@ $(document).ready(function() {
     licenseDropArea.addEventListener('drop', (e) => {
         e.preventDefault();
         licenseDropArea.style.backgroundColor = 'white';
-        licenseHandleFiles(e.dataTransfer.files);
+        // Ensure dropped files are actually submitted with the form
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+            const dt = new DataTransfer();
+            Array.from(e.dataTransfer.files).forEach((file) => dt.items.add(file));
+            licenseFileInput.files = dt.files;
+        }
+        licenseHandleFiles(licenseFileInput.files);
     });
 
     // Handle file input change
@@ -1430,7 +1451,13 @@ $(document).ready(function() {
     masterDropArea.addEventListener('drop', (e) => {
         e.preventDefault();
         masterDropArea.style.backgroundColor = 'white';
-        masterHandleFiles(e.dataTransfer.files);
+        // Ensure dropped files are actually submitted with the form
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+            const dt = new DataTransfer();
+            Array.from(e.dataTransfer.files).forEach((file) => dt.items.add(file));
+            masterFileInput.files = dt.files;
+        }
+        masterHandleFiles(masterFileInput.files);
     });
 
     // Handle file input change
@@ -1533,43 +1560,10 @@ $(document).ready(function() {
     }
 </script>
 <script>
-    document.getElementById('addmore').addEventListener('click', function() {
-        // Get the container that holds the language and proficiency fields
-        const container = document.getElementById('language-container');
-
-        // Clone the language and proficiency fields
-        const languageField = container.querySelector('.language-fields').cloneNode(true);
-        const proficiencyField = container.querySelector('.proficiency-fields').cloneNode(true);
-
-        // Clear the values for the new fields
-        languageField.querySelector('input').value = '';
-        proficiencyField.querySelector('select').value = '';
-
-        // Create a remove button and append it to the language fields
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.classList.add('btn', 'btn-danger', 'remove-btn');
-        removeButton.textContent = 'Remove';
-
-        // Create a div to hold both language fields and the remove button
-        const fieldsWrapper = document.createElement('div');
-        fieldsWrapper.classList.add('d-flex', 'justify-content-between', 'align-items-center');
-
-        // Append the language field and proficiency field to the wrapper
-        fieldsWrapper.appendChild(languageField);
-        fieldsWrapper.appendChild(proficiencyField);
-        fieldsWrapper.appendChild(removeButton);
-
-        // Append the wrapper to the container
-        container.appendChild(fieldsWrapper);
-
-        // Add event listener for remove button
-        removeButton.addEventListener('click', function() {
-            // Remove the entire wrapper when remove is clicked
-            fieldsWrapper.remove();
-        });
-    });
-</script> 
+    // Note: there is already a working "Add More" implementation above.
+    // This older block referenced `.language-fields` / `.proficiency-fields` which don't exist
+    // and could throw runtime JS errors, so it is intentionally disabled.
+</script>
 
 <script>
     $(document).ready(function() {
