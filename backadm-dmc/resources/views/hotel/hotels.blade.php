@@ -427,9 +427,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($hotels as $key => $hotel)
+                        @foreach ($hotels as $hotel)
                         <tr>
-                            <td class="col-no">{{ ++$key }}</td>
+                            <td class="col-no">{{ $loop->iteration }}</td>
                             <td class="col-details">
                                 <div class="d-flex flex-column gap-1">
                                     <span class="hotel-detail-title">
