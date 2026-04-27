@@ -501,20 +501,36 @@
                         '<label class="form-check-label small mb-0">Select</label>' +
                       '</div>'
                     : '';
+
+                const numRooms = getHotelNumRooms(h);
+                const numSingle = getHotelSingleRooms(h);
+                const numDouble = getHotelDoubleRooms(h);
+                const occupancyHtml = numRooms > 1
+                    ? '<div class="col-md-1"><label class="form-label small text-muted mb-1">Single</label>'
+                        + '<input type="number" min="0" max="' + esc(numRooms) + '" step="1" class="form-control form-control-sm hotel-single-rooms" data-index="' + idx + '" value="' + esc(numSingle) + '"></div>'
+                      + '<div class="col-md-1"><label class="form-label small text-muted mb-1">Double</label>'
+                        + '<input type="number" min="0" max="' + esc(numRooms) + '" step="1" class="form-control form-control-sm hotel-double-rooms" data-index="' + idx + '" value="' + esc(numDouble) + '"></div>'
+                    : '';
+
                 return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
                     + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
                     + esc(h.hotel_name || h.name || 'Hotel') + '</div>'
                     + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(h) + optionalCheckbox + '</div></div>'
                     + '<div class="row g-2">'
-                    + '<div class="col-md-3"><div class="text-muted small">City</div><div>' + esc(h.city || selectedPackageCity || '-') + '</div></div>'
-                    + '<div class="col-md-3"><div class="text-muted small">Nights</div><div>' + esc(nightBreakdown.nights) + '</div></div>'
-                    + '<div class="col-md-12"><div class="text-muted small">Stay Dates</div>' + dateStripHtml + '</div>'
-                    + '<div class="col-md-4"><div class="text-muted small">Rooms</div>' + roomsHtml + '</div>'
+                    + '<div class="col-md-2"><div class="text-muted small">City</div><div>' + esc(h.city || selectedPackageCity || '-') + '</div></div>'
+                    + '<div class="col-md-2"><div class="text-muted small">Nights</div><div>' + esc(nightBreakdown.nights) + '</div></div>'
+                    + '<div class="col-md-2"><label class="form-label small text-muted mb-1">No. of Rooms</label>'
+                    + '<input type="number" min="1" max="' + esc(getMaxHotelRooms()) + '" step="1" class="form-control form-control-sm hotel-num-rooms" data-index="' + idx + '" value="' + esc(numRooms) + '">'
+                    + '<div class="form-text small">Max ' + esc(getMaxHotelRooms()) + ' (pax)</div></div>'
+                    + occupancyHtml
                     + '<div class="col-md-2"><div class="text-muted small">Total Price</div><div>' + esc(money(hotelTotal(h, idx))) + '</div></div>'
+                    + '<div class="col-md-12"><div class="text-muted small">Stay Dates</div>' + dateStripHtml + '</div>'
+                    + '<div class="col-md-12"><div class="text-muted small">Room Types</div>' + roomsHtml + '</div>'
                     + '</div></div>';
             }).join('');
             bindSelectableCheckboxes(hotelsList, hotels, 'hotels');
             bindHotelDateBoxes();
+            bindHotelRoomInputs();
         }
 
         function bindHotelDateBoxes() {
@@ -547,6 +563,71 @@
                         }
                     });
 
+                    renderHotels();
+                    renderPricingSummary();
+                    syncHidden();
+                });
+            });
+        }
+
+        /**
+         * Wire up the per-hotel "No. of Rooms / Single / Double" inputs.
+         * - Changing total rooms clamps single rooms and recomputes double = total - single.
+         * - Changing single recomputes double = total - single (and vice versa) so the two
+         *   counts always sum to the total rooms (rooms must be exactly one occupancy type).
+         * - Re-renders the hotel card so the occupancy inputs appear/disappear when total
+         *   crosses 1.
+         */
+        function bindHotelRoomInputs() {
+            hotelsList.querySelectorAll('.hotel-num-rooms').forEach(inp => {
+                inp.addEventListener('change', function () {
+                    const idx = parseInt(this.getAttribute('data-index') || '-1', 10);
+                    if (idx < 0 || !hotels[idx]) return;
+                    const cap = getMaxHotelRooms();
+                    let v = parseInt(this.value || '1', 10);
+                    if (isNaN(v) || v < 1) v = 1;
+                    if (v > cap) v = cap;
+                    // Keep current single, derive double = total - single, then auto-top-up.
+                    const oldSingle = parseInt(hotels[idx].num_single_rooms || 0, 10) || 0;
+                    hotels[idx].num_rooms = v;
+                    hotels[idx].num_single_rooms = Math.min(Math.max(0, oldSingle), v);
+                    applyHotelRoomConsistency(hotels[idx]);
+                    renderHotels();
+                    renderPricingSummary();
+                    syncHidden();
+                });
+            });
+
+            hotelsList.querySelectorAll('.hotel-single-rooms').forEach(inp => {
+                inp.addEventListener('change', function () {
+                    const idx = parseInt(this.getAttribute('data-index') || '-1', 10);
+                    if (idx < 0 || !hotels[idx]) return;
+                    const total = getHotelNumRooms(hotels[idx]);
+                    let v = parseInt(this.value || '0', 10);
+                    if (isNaN(v) || v < 0) v = 0;
+                    if (v > total) v = total;
+                    hotels[idx].num_single_rooms = v;
+                    // Keep total fixed; helper resets double = total - single, then tops up
+                    // additional double rooms (growing total) if pax can't be seated.
+                    applyHotelRoomConsistency(hotels[idx]);
+                    renderHotels();
+                    renderPricingSummary();
+                    syncHidden();
+                });
+            });
+
+            hotelsList.querySelectorAll('.hotel-double-rooms').forEach(inp => {
+                inp.addEventListener('change', function () {
+                    const idx = parseInt(this.getAttribute('data-index') || '-1', 10);
+                    if (idx < 0 || !hotels[idx]) return;
+                    const total = getHotelNumRooms(hotels[idx]);
+                    let v = parseInt(this.value || '0', 10);
+                    if (isNaN(v) || v < 0) v = 0;
+                    if (v > total) v = total;
+                    // Helper recomputes double from single, so encode the desired double
+                    // count by adjusting single = total - desired_double.
+                    hotels[idx].num_single_rooms = Math.max(0, total - v);
+                    applyHotelRoomConsistency(hotels[idx]);
                     renderHotels();
                     renderPricingSummary();
                     syncHidden();
@@ -848,6 +929,114 @@
             return Math.max(0, Math.min(getDefaultHotelNights(hotel), Math.max(0, availableDatesCount || 0)));
         }
 
+        /** Maximum rooms allowed for any hotel = main-form pax (rooms cannot exceed pax). */
+        function getMaxHotelRooms() {
+            return Math.max(1, getPaxCount());
+        }
+
+        /**
+         * Number of rooms the user wants to book for this hotel.
+         * Capped at pax (rooms cannot exceed pax) and floored at 1.
+         */
+        function getHotelNumRooms(hotel) {
+            const cap = getMaxHotelRooms();
+            if (hotel && hotel.num_rooms != null && String(hotel.num_rooms).trim() !== '') {
+                const v = parseInt(hotel.num_rooms, 10);
+                if (!isNaN(v) && v > 0) return Math.min(v, cap);
+            }
+            return 1;
+        }
+
+        /** Number of single-occupancy rooms (capped at total rooms). */
+        function getHotelSingleRooms(hotel) {
+            const total = getHotelNumRooms(hotel);
+            if (hotel && hotel.num_single_rooms != null && String(hotel.num_single_rooms).trim() !== '') {
+                const v = parseInt(hotel.num_single_rooms, 10);
+                if (!isNaN(v) && v >= 0) return Math.min(v, total);
+            }
+            return 0;
+        }
+
+        /** Number of double-occupancy rooms = total rooms - single rooms. Default: all rooms double. */
+        function getHotelDoubleRooms(hotel) {
+            return Math.max(0, getHotelNumRooms(hotel) - getHotelSingleRooms(hotel));
+        }
+
+        /**
+         * Reconcile a hotel's room/occupancy fields so that:
+         *   1. single + double === total              (rooms must be exactly one occupancy type)
+         *   2. 2 * double + single >= pax             (every guest has a bed)
+         *   3. total <= pax                           (a room must hold at least 1 guest)
+         *
+         * If the current split can't seat everyone, we grow the booking with *double* rooms
+         * (the default occupancy type per spec). A 1-guest deficit still adds a full double
+         * room because we can't half-book a room. Caller is responsible for re-rendering.
+         */
+        function applyHotelRoomConsistency(hotel) {
+            if (!hotel) return;
+            const pax = getPaxCount();
+            const cap = getMaxHotelRooms();
+
+            let total = parseInt(hotel.num_rooms, 10);
+            if (isNaN(total) || total < 1) total = 1;
+            if (total > cap) total = cap;
+
+            let single = parseInt(hotel.num_single_rooms, 10);
+            if (isNaN(single) || single < 0) single = 0;
+            if (single > total) single = total;
+
+            let dbl = Math.max(0, total - single);
+
+            const capacity = 2 * dbl + single;
+            if (pax > 0 && capacity < pax) {
+                const deficit = pax - capacity;
+                const addDoubles = Math.ceil(deficit / 2);
+                dbl += addDoubles;
+                total += addDoubles;
+            }
+
+            // Defensive cap-clamp; with the math above this branch only runs on bad input.
+            if (total > cap) {
+                const overflow = total - cap;
+                dbl = Math.max(0, dbl - overflow);
+                total = single + dbl;
+            }
+
+            hotel.num_rooms = total;
+            hotel.num_single_rooms = single;
+            hotel.num_double_rooms = dbl;
+        }
+
+        /**
+         * Initialise room-occupancy defaults on each hotel object.
+         * - num_rooms defaults to ceil(pax/2) so the natural starting state matches "2 per room".
+         * - num_single_rooms defaults to 0 (all rooms double by default).
+         * - num_double_rooms always derives from num_rooms - num_single_rooms.
+         */
+        function initHotelRoomDefaults(list) {
+            if (!Array.isArray(list)) return [];
+            const cap = getMaxHotelRooms();
+            return list.map(h => {
+                if (!h) return h;
+                const parsedRooms = parseInt(h.num_rooms, 10);
+                if (h.num_rooms == null || isNaN(parsedRooms) || parsedRooms <= 0) {
+                    const pax = getPaxCount();
+                    h.num_rooms = Math.max(1, Math.min(cap, Math.ceil(pax / 2)));
+                } else {
+                    h.num_rooms = Math.min(cap, parsedRooms);
+                }
+                const parsedSingle = parseInt(h.num_single_rooms, 10);
+                if (h.num_single_rooms == null || isNaN(parsedSingle) || parsedSingle < 0) {
+                    h.num_single_rooms = 0;
+                } else {
+                    h.num_single_rooms = Math.min(parsedSingle, h.num_rooms);
+                }
+                h.num_double_rooms = Math.max(0, h.num_rooms - h.num_single_rooms);
+                applyHotelRoomConsistency(h);
+                return h;
+            });
+        }
+
         function orderedUniqueDates(list, availableDates) {
             const set = new Set(Array.isArray(list) ? list : []);
             return (availableDates || []).filter(d => set.has(d));
@@ -887,29 +1076,40 @@
         }
 
         /**
-         * Hotel line total = per-night per-head price × selected nights × effective hotel pax.
-         *
-         * The per-head price from the backend is defined for the hotel's default nights
-         * (hotel.nights). We derive a per-night per-head rate so that when the user deselects
-         * dates in the strip, the price scales down proportionally (and scales back up if they
-         * re-select nights, capped at maxAllowedNights = min(hotel.nights, travel range)).
-         *
-         * effective hotel pax = pax rounded UP to the next even number.
-         * Rationale: one room fits 2 persons; a 3rd person needs another room,
-         * and that extra room is billed as two persons.
+         * Hotel line total uses a per-night, per-room formula that is independent of pax:
+         *   total = Σ (over selected nights) of [(price * 2 * num_double) + (price * 2 * num_single)]
+         * where `price` is the room's weekend_price on weekend days (per hotel.weekend_days)
+         * and weekday_price otherwise. Single/double counts are user-configurable on each hotel
+         * card; by default all rooms are double-occupancy.
          */
         function hotelTotal(item, indexHint) {
             if (!item) return 0;
-            // Night breakdown also ensures the selected-dates side-effect is in sync.
             const breakdown = getHotelNightBreakdown(item, indexHint);
-            const perHead = getServicePerHeadPrice(item);
-            if (perHead <= 0) return 0;
-            const defaultNights = getDefaultHotelNights(item);
-            if (defaultNights <= 0) return 0;
-            const selectedNights = Math.max(0, breakdown.nights);
-            if (selectedNights <= 0) return 0;
-            const perNightPerHead = perHead / defaultNights;
-            return perNightPerHead * selectedNights * getEffectiveHotelPax();
+            const selectedDates = breakdown.selected_dates;
+            if (!selectedDates.length) return 0;
+
+            const rooms = Array.isArray(item.rooms) ? item.rooms : [];
+            if (!rooms.length) return 0;
+
+            // Use the first room type's prices as the hotel's room rate.
+            const room = rooms[0] || {};
+            const weekendPrice = numVal(room.weekend_price);
+            const weekdayPrice = numVal(room.weekday_price);
+            const weekendDays = Array.isArray(item.weekend_days) ? item.weekend_days : [];
+
+            const numSingle = getHotelSingleRooms(item);
+            const numDouble = getHotelDoubleRooms(item);
+            if (numSingle + numDouble <= 0) return 0;
+
+            let total = 0;
+            selectedDates.forEach(dateStr => {
+                const dt = parseIsoDate(dateStr);
+                if (!dt) return;
+                const dayName = dayNames[dt.getDay()];
+                const price = weekendDays.includes(dayName) ? weekendPrice : weekdayPrice;
+                total += (price * 2 * numDouble) + (price * 2 * numSingle);
+            });
+            return total;
         }
 
         /**
@@ -1266,6 +1466,7 @@
 
         async function applyPackageData(pkg) {
             hotels = initSectionSelections(Array.isArray(pkg.selected_hotels) ? pkg.selected_hotels : [], 'hotels');
+            hotels = initHotelRoomDefaults(hotels);
             selectedHotelDates = {};
             const incomingHotelDates = (pkg && pkg.hotel_booking_dates && typeof pkg.hotel_booking_dates === 'object')
                 ? pkg.hotel_booking_dates
