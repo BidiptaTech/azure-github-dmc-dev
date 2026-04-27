@@ -93,6 +93,11 @@
         color: #fff;
     }
 
+    .vehicle-detail-meta {
+        font-size: 11.5px;
+        color: #64748b;
+    }
+
     /* Table shell */
     .table-shell {
         padding: 1rem 1.25rem 1.25rem;
@@ -401,7 +406,10 @@
                         <tr>
                             <td class="col-no">{{ ++$key }}</td>
                             <td class="col-name">
-                                <span class="fw-semibold">{{ $vehicle->vehicle_name }}</span>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-semibold">{{ $vehicle->vehicle_name }}</span>
+                                    <small class="vehicle-detail-meta"><i class="ri-map-pin-line me-1" style="font-size: 12px;"></i>{{ $vehicle->city ?? 'N/A' }}</small>
+                                </div>
                             </td>
                             <td class="col-dmc">{{ $vehicle->dmc ? $vehicle->dmc->company_name : 'N/A' }}</td>
                             <td class="col-type">{{ $vehicle->vehicle_type }}</td>

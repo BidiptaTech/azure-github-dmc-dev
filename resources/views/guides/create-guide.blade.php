@@ -314,7 +314,7 @@
                                     </select>
                                 @else
                                     <input type="text" class="form-control" id="country" onchange="validateDriverAge(document.getElementById('driver_age'))" 
-                                    value="{{in_array(auth()->user()->role_id, [11, 35, 75, 102, 139, 140]) ? $userCountry : ''}}"
+                                    value="{{in_array(auth()->user()->role_id, [11, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? $userCountry : ''}}"
                                         placeholder="{{ auth()->user()->role_id == 11 ? 'Your country' : 'Select DMC First' }}" 
                                         name="country" required 
                                         {{ auth()->user()->role_id == 11 ? 'readonly' : 'readonly' }}>
@@ -331,7 +331,7 @@
                                 @php
                                     $roleId = auth()->user()->role_id;
                                     $placeholder = 'Select Country First';
-                                    $isDmcWithCities = in_array($roleId, [11, 35, 75, 102, 139, 140]) && isset($cities) && count($cities) > 0;
+                                    $isDmcWithCities = in_array($roleId, [11, 35, 75, 130, 132, 133, 135, 136, 137, 138, 102, 139, 140]) && isset($cities) && count($cities) > 0;
                                 @endphp
                                 
                                 <select name="city" id="citySelect" class="form-control" required {{ !$isDmcWithCities ? 'disabled' : '' }}>
@@ -951,7 +951,7 @@ $(document).ready(function() {
         
         // Initialize Select2 for city (disabled until country is selected)
         @php
-            $isDmcWithCities = in_array(auth()->user()->role_id, [11, 35, 75, 102, 139, 140]) && isset($cities) && count($cities) > 0;
+            $isDmcWithCities = in_array(auth()->user()->role_id, [11, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140]) && isset($cities) && count($cities) > 0;
         @endphp
         $('#citySelect').select2({
             placeholder: "Select Country First",

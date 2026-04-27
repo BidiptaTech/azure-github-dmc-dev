@@ -481,9 +481,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($attractions as $key => $attraction)
+                        @foreach($attractions as $attraction)
                             <tr>
-                                <td>{{ ++$key }}</td>
+                                <td>{{ $loop->iteration }}</td>
 
                                 <td class="col-details">
                                     <div class="d-flex flex-column gap-1">
