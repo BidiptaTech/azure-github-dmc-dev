@@ -801,7 +801,9 @@ class CityController extends Controller
         $cities = City::query()
             ->whereIn('country', $countryNames)
             ->when($q !== '', function ($query) use ($q) {
-                $query->where('name', 'like', '%' . $q . '%');
+                // Case-insensitive match regardless of DB collation.
+                $needle = mb_strtolower($q, 'UTF-8');
+                $query->whereRaw('LOWER(name) LIKE ?', ['%' . $needle . '%']);
             })
             ->orderBy('name')
             ->get(['city_id', 'name', 'country']);
