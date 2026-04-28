@@ -7,7 +7,11 @@
             <h4 class="mb-0">Edit Package Booking</h4>
             <small class="text-muted">Booking ID: <strong>{{ $booking->booking_id }}</strong></small>
         </div>
-        <a href="{{ route('package.booking.details', $booking->booking_id) }}" class="btn btn-sm btn-outline-secondary">
+        @php
+            $returnUrl = request()->get('return_url');
+            $backUrl = !empty($returnUrl) ? $returnUrl : route('package.booking.details', $booking->booking_id);
+        @endphp
+        <a href="{{ $backUrl }}" class="btn btn-sm btn-outline-secondary">
             <i class="ri-arrow-left-line me-1"></i>Back to details
         </a>
     </div>

@@ -7,11 +7,15 @@
     @php
         $details = is_array($b->booking_details ?? null) ? ($b->booking_details ?? []) : (is_string($b->booking_details ?? null) ? (json_decode($b->booking_details, true) ?: []) : []);
         $approxActual = (float) \App\Helpers\CommonHelper::calculatePackageBookingActualAmount((string) $b->booking_id, $b->package_id ?? null, $b->dmc_id ?? null);
+        $priceData = is_array($b->total_price ?? null) ? ($b->total_price ?? []) : (is_string($b->total_price ?? null) ? (json_decode($b->total_price, true) ?: []) : []);
+        $storedTotal = (float) ($priceData['total_price'] ?? 0);
+        $storedFinal = (float) ($priceData['final_price'] ?? 0);
+        $storedBaseForUi = $storedFinal > 0 ? $storedFinal : ($storedTotal > 0 ? $storedTotal : $approxActual);
         $bookingComments = ($packageComments ?? collect([]))
             ->where('booking_id', $b->booking_id)
             ->sortByDesc('created_at')
             ->values();
-        $agentNegotiationBaseline = \App\Helpers\CommonHelper::packageNegotiatedPriceExclTax($approxActual, $bookingComments);
+        $agentNegotiationBaseline = (float) \App\Helpers\CommonHelper::packageNegotiatedPriceExclTax($storedBaseForUi, $bookingComments);
         $taxResult = \App\Helpers\CommonHelper::calculatePackageBookingTaxBreakdown(
             (float) $agentNegotiationBaseline,
             $b->taxes ?? [],

@@ -737,7 +737,7 @@
                                             <i class="ri-eye-line"></i>
                                         </a>
                                         @if(!in_array($booking->status, ['5', '6', '7']))
-                                            <a href="{{ route('package.booking.edit', $booking->booking_id) }}" class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Edit / add available add-ons">
+                                            <a href="{{ route('package.booking.edit', $booking->booking_id) . '?return_url=' . urlencode(url()->full()) }}" class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Edit / add available add-ons">
                                                 <i class="ri-edit-2-line"></i>
                                             </a>
                                         @endif

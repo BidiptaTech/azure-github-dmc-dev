@@ -26,25 +26,26 @@
             @if($__showPayments)
             <col style="width:11%">
             @endif
+            <col style="width:10%">
         </colgroup>
         <thead class="table-light">
             <tr>
-                <th>#</th>
-                <th>Booking Details</th>
-                <th>Package Details</th>
-                <th>Created</th>
-                <th>Agent</th>
+                <th class="th-tooltip" data-tooltip="#">#</th>
+                <th class="th-tooltip" data-tooltip="Booking Details">Booking Details</th>
+                <th class="th-tooltip" data-tooltip="Package Details">Package Details</th>
+                <th class="th-tooltip" data-tooltip="Created">Created</th>
+                <th class="th-tooltip" data-tooltip="Agent">Agent</th>
                 @if($__showBookingStatus)
-                <th>Booking status</th>
+                <th class="th-tooltip" data-tooltip="Booking status">Booking status</th>
                 @endif
-                <th>Services</th>
+                <th class="th-tooltip" data-tooltip="Services">Services</th>
                 @if($__showNegotiation)
-                <th>Negotiation</th>
+                <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
                 @endif
                 @if($__showPayments)
-                <th>Payments</th>
+                <th class="th-tooltip" data-tooltip="Payments">Payments</th>
                 @endif
-                <th>Actions</th>
+                <th class="th-tooltip" data-tooltip="Actions">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -77,6 +78,10 @@
                     $priceChild = (float) ($b->packageInfo?->price_child ?? 0);
                     // Negotiation "Actual Amount" should be based on selected services totals (hotels/attractions/restaurants/transfers)
                     $approxActual = (float) \App\Helpers\CommonHelper::calculatePackageBookingActualAmount((string) $b->booking_id, $b->package_id ?? null, $b->dmc_id ?? null);
+                    $priceData = is_array($b->total_price ?? null) ? ($b->total_price ?? []) : (is_string($b->total_price ?? null) ? (json_decode($b->total_price, true) ?: []) : []);
+                    $storedTotal = (float) ($priceData['total_price'] ?? 0);
+                    $storedFinal = (float) ($priceData['final_price'] ?? 0);
+                    $storedBaseForUi = $storedFinal > 0 ? $storedFinal : ($storedTotal > 0 ? $storedTotal : $approxActual);
 
                     $latestOmComment = $bookingComments->first(function ($c) {
                         return strtolower((string) ($c->sender_type ?? '')) === 'om';
@@ -85,7 +90,7 @@
                         return strtolower((string) ($c->sender_type ?? '')) === 'agent';
                     });
                     // DMC/OM counter-offer (or package total) = reference for agent modal & payment base excl. tax.
-                    $agentNegotiationBaseline = \App\Helpers\CommonHelper::packageNegotiatedPriceExclTax($approxActual, $bookingComments);
+                    $agentNegotiationBaseline = \App\Helpers\CommonHelper::packageNegotiatedPriceExclTax($storedBaseForUi, $bookingComments);
                     $lastAgentOfferAmount = $latestAgentComment?->amount ?? '';
                     $lastAgentRemark = (string) ($latestAgentComment?->comment ?? '');
 
@@ -248,7 +253,7 @@
                                         class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
                                         data-booking-id="{{ $b->booking_id }}"
                                         data-display-id="{{ e($b->booking_id ?? '') }}"
-                                        data-actual="{{ $agentNegotiationBaseline }}"
+                                        data-actual="{{ $storedBaseForUi }}"
                                         data-last-amount="{{ $lastAgentOfferAmount }}"
                                         data-last-comment="{{ e($lastAgentRemark) }}"
                                         data-booking-status="{{ e((string) $statusValue) }}"
@@ -267,9 +272,9 @@
                                         class="btn btn-sm btn-warning negotiation-btn"
                                         data-booking-id="{{ $b->booking_id }}"
                                         data-package-inquiry-id="{{ $inquiryIdForUpdate }}"
-                                        data-price="{{ $negLastAmount !== '' ? $negLastAmount : $approxActual }}"
-                                        data-actual="{{ $approxActual }}"
-                                        data-discount="{{ max(0, $approxActual - (float)($negLastAmount !== '' ? $negLastAmount : $approxActual)) }}"
+                                        data-price="{{ $negLastAmount !== '' ? $negLastAmount : $storedBaseForUi }}"
+                                        data-actual="{{ $storedBaseForUi }}"
+                                        data-discount="{{ max(0, $storedBaseForUi - (float)($negLastAmount !== '' ? $negLastAmount : $storedBaseForUi)) }}"
                                         data-comment="{{ e((string) $negLastRemark) }}"
                                         onclick="openPackageNegotiationUpdateModal(this)"
                                         {{ $hasAgentComment ? '' : 'disabled' }}
@@ -322,16 +327,25 @@
                         </div>
                     </td>
                     @endif
-                    <td class="align-top">
+                    <td class="align-top col-actions">
                         <div class="d-flex flex-column gap-2">
-                            @if($isPipelineStatus)
-                                <button type="button" class="btn btn-sm btn-outline-success" onclick="packageConfirmBooking('{{ $b->booking_id }}', {{ json_encode((float) $agentNegotiationBaseline) }})">
-                                    <i class="ri-check-line me-1"></i> Confirm Package
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <a href="{{ route('package.booking.edit', $b->booking_id) . '?return_url=' . urlencode(url()->full()) }}"
+                                   class="action-icon-badge"
+                                   style="--action-color: #7c3aed;"
+                                   data-tooltip="Edit / add available add-ons">
+                                    <i class="ri-edit-2-line"></i>
+                                </a>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <button type="button"
+                                        class="action-icon-badge"
+                                        style="--action-color: #dc2626;"
+                                        data-tooltip="Cancel Package"
+                                        onclick="packageCancelBooking('{{ $b->booking_id }}')">
+                                    <i class="ri-delete-bin-line"></i>
                                 </button>
-                            @endif
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="packageCancelBooking('{{ $b->booking_id }}')">
-                                <i class="ri-delete-bin-line me-1"></i> Cancel Package
-                            </button>
+                            </div>
                         </div>
                     </td>
                 </tr>

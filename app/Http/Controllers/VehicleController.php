@@ -28,6 +28,47 @@ use Illuminate\Support\Facades\Crypt;
 
 class VehicleController extends Controller
 {
+    /**
+     * Resolve the "effective" DMC userId for the current user.
+     * For non-DMC roles that operate under a DMC via created_by chains,
+     * this returns the parent DMC id so UI can show the same cities/drivers as DMC.
+     */
+    private function resolveDmcIdForUser(?User $user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $roleId = (int) ($user->role_id ?? 0);
+        $userId = (int) ($user->userId ?? 0);
+        $createdBy = (int) ($user->created_by ?? 0);
+
+        // DMC (and role 20 in this controller) maps to self
+        if (in_array($roleId, [11, 20], true)) {
+            return $userId ?: null;
+        }
+
+        // Product Head / Multi product levels -> parent DMC is direct created_by
+        if (in_array($roleId, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
+            return $createdBy ?: null;
+        }
+
+        // Product level (PM) -> created_by points to Product Head -> created_by is DMC
+        if (in_array($roleId, [76, 139], true)) {
+            $productHead = $createdBy ? User::where('userId', $createdBy)->first() : null;
+            return (int) ($productHead?->created_by ?? 0) ?: null;
+        }
+
+        // Level above (APM) -> created_by (PM) -> created_by (PH) -> created_by (DMC)
+        if (in_array($roleId, [111, 140], true)) {
+            $productManager = $createdBy ? User::where('userId', $createdBy)->first() : null;
+            $productHead = ($productManager?->created_by) ? User::where('userId', $productManager->created_by)->first() : null;
+            return (int) ($productHead?->created_by ?? 0) ?: null;
+        }
+
+        return null;
+    }
+
     /*
     * Display a listing of the Category.
     * Date 06-11-2024
@@ -100,7 +141,12 @@ class VehicleController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
         $authuser = auth()->user();
-        $cities = City::where('country', $authuser->country)->get();
+        $resolvedDmcId = $this->resolveDmcIdForUser($authuser);
+        $resolvedDmcCountry = null;
+        if ($resolvedDmcId) {
+            $resolvedDmcCountry = User::where('userId', $resolvedDmcId)->value('country');
+        }
+        $cities = City::where('country', $resolvedDmcCountry ?: $authuser->country)->get();
 
         if($authuser->role_id == 4){
             $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
@@ -142,11 +188,11 @@ class VehicleController extends Controller
                 $zones = Zone::where('dmc_id', $vehicle->dmc_id)->get();
                 $ports = Port::where('country', $dmc_country)->get();
                 
-                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports'));
+                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId'));
             }
         }
         
-        return view('vehicles.add-vehicle', compact('dmcs', 'cities'));
+        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId'));
         // return view('vehicles.add-vehicle', compact('dmcs', 'cities'));
     }
 
@@ -156,45 +202,17 @@ class VehicleController extends Controller
         $dmc_id = $request->country_name;
         $drivers = collect(); // Default empty
 
-        if ($user->role_id == 11 || $user->role_id == 20) {
-            // DMC sees their own drivers
+        $roleId = (int) ($user->role_id ?? 0);
+        $effectiveDmcId = $this->resolveDmcIdForUser($user);
+
+        // For DMC-scoped roles, always show the same driver set as the DMC.
+        if ($effectiveDmcId && in_array($roleId, [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 139, 111, 140], true)) {
             $drivers = Driver::where('status', 1)
-                ->where('dmc_id', $user->userId)
+                ->where('dmc_id', $effectiveDmcId)
                 ->orderByDesc('updated_at')
                 ->get();
-
-        } elseif ($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138) {
-            // Product Head sees own and APMs they created
-            $createdByIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
-            $createdByIds[] = $user->userId;
-
-            $drivers = Driver::where('status', 1)
-                ->where('dmc_id', $dmc_id)
-                ->whereIn('created_by', $createdByIds)
-                ->orderByDesc('updated_at')
-                ->get();
-
-        } elseif ($user->role_id == 76 || $user->role_id == 139) {
-            // Product Manager sees APMs they created and self
-            $apmIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
-            $createdByIds = array_merge($apmIds, [$user->userId]);
-
-            $drivers = Driver::where('status', 1)
-                ->where('dmc_id', $dmc_id)
-                ->whereIn('created_by', $createdByIds)
-                ->orderByDesc('updated_at')
-                ->get();
-
-        } elseif ($user->role_id == 111 || $user->role_id == 140) {
-            // APM sees only own drivers
-            $drivers = Driver::where('status', 1)
-                ->where('dmc_id', $dmc_id)
-                ->where('created_by', $user->userId)
-                ->orderByDesc('updated_at')
-                ->get();
-
         } else {
-            // Admins or others
+            // Admins or other roles: keep existing behavior based on selected DMC
             $drivers = Driver::where('status', 1)
                 ->where('dmc_id', $dmc_id)
                 ->orderByDesc('updated_at')

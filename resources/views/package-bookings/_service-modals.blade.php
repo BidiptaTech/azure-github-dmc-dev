@@ -31,8 +31,9 @@
                                 $firstBookingDate = !empty($bookingDates) ? \Carbon\Carbon::parse($bookingDates[0]) : null;
                                 $lastBookingDate = !empty($bookingDates) ? \Carbon\Carbon::parse($bookingDates[count($bookingDates)-1]) : null;
 
-                                // Prefer new JSON pricing keys; keep fallbacks for old stored rows
-                                $finalPrice = $h['total_price'] ?? $h['final_price'] ?? $h['base_price'] ?? null;
+                                // Hotel total price must come from selected_hotels JSON `base_price`
+                                // (keep fallbacks for older stored rows)
+                                $hotelTotalPrice = $h['base_price'] ?? $h['total_price'] ?? $h['final_price'] ?? null;
 
                                 // JSON now uses booleans; keep int fallback support
                                 $isCompulsory = (bool) ($h['compulsory'] ?? false);
@@ -70,9 +71,9 @@
                                         </div>
                                     </div>
                                     <div class="text-end flex-shrink-0">
-                                        <small class="text-muted d-block">Final Price</small>
+                                        <small class="text-muted d-block">Hotel Total Price</small>
                                         <div class="fw-bold text-primary" style="font-size: 1.05rem;">
-                                            {{ $finalPrice !== null ? number_format((float)$finalPrice, 2) : '—' }}
+                                            {{ $hotelTotalPrice !== null ? number_format((float) $hotelTotalPrice, 2) : '—' }}
                                         </div>
                                     </div>
                                 </div>
