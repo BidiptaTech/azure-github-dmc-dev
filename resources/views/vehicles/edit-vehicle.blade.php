@@ -456,7 +456,7 @@
                             <div class="col-md-3 mb-3">
                                 <label for="city_tour_guides" class="form-label"><strong>No of Guides</strong><span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" name="city_tour_guides" id="city_tour_guides"
-                                    placeholder="Enter No of Guides" value="{{ $vehicle->city_tour_guides }}">
+                                    placeholder="Enter No of Guides" value="{{ $vehicle->city_tour_guides }}" required>
                                 @error('city_tour_guides')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -572,7 +572,7 @@
                                         <!-- Night Cost per KM Below 10 -->
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cost_per_km_below_10" class="form-label"><strong>Cost per KM Below 10km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_km_below_10" value="{{ $vehicle->night_cost_per_km_below_10 }}" placeholder="Enter Cost for night" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated" name="night_cost_per_km_below_10" value="{{ $vehicle->night_cost_per_km_below_10 }}" placeholder="Enter Cost for night" required>
                                             @error('night_cost_per_km_below_10')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                             @enderror
@@ -581,7 +581,7 @@
                                         <!-- Night Cost per KM 10 to 25 -->
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10km to 25km)</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_km_10_to_25" value="{{ $vehicle->night_cost_per_km_10_to_25 }}" placeholder="Enter Cost for night" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated" name="night_cost_per_km_10_to_25" value="{{ $vehicle->night_cost_per_km_10_to_25 }}" placeholder="Enter Cost for night" required>
                                             @error('night_cost_per_km_10_to_25')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                             @enderror
@@ -590,7 +590,7 @@
                                         <!-- Night Cost per KM Above 25 -->
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cost_per_km_above_25" class="form-label"><strong>Cost per KM Above 25km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_km_above_25" value="{{ $vehicle->night_cost_per_km_above_25 }}" placeholder="Enter Cost for night" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated" name="night_cost_per_km_above_25" value="{{ $vehicle->night_cost_per_km_above_25 }}" placeholder="Enter Cost for night" required>
                                             @error('night_cost_per_km_above_25')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                             @enderror
@@ -599,7 +599,7 @@
                                         <!-- Cost per Hour(Night) -->
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cost_per_hour" class="form-label"><strong>Cost per Hour</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_hour" value="{{ $vehicle->night_cost_per_hour }}" placeholder="Enter Cost" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated" name="night_cost_per_hour" value="{{ $vehicle->night_cost_per_hour }}" placeholder="Enter Cost" required>
                                             @error('night_cost_per_hour')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                             @enderror
@@ -608,7 +608,7 @@
                                         <!-- Cancel Cost -->
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cancel_cost" class="form-label"><strong>Cancel Cost</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cancel_cost" value="{{ $vehicle->night_cancel_cost }}" placeholder="Enter Cancel Cost" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated" name="night_cancel_cost" value="{{ $vehicle->night_cancel_cost }}" placeholder="Enter Cancel Cost" required>
                                             @error('night_cancel_cost')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                             @enderror
@@ -2256,6 +2256,131 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFieldVisibility(this.value);
     });
 });
+</script>
+
+<script>
+function initNightChargeAutoPopulate() {
+    // Styling (same idea as Guides "Rates" auto-calculated fields)
+    if (!document.getElementById('auto-calculated-style')) {
+        const style = document.createElement('style');
+        style.id = 'auto-calculated-style';
+        style.textContent = `
+            .auto-calculated {
+                background-color: #f8f9fa !important;
+                border-left: 3px solid #17a2b8 !important;
+                transition: all 0.2s ease;
+            }
+            .auto-calculated:focus {
+                background-color: #fff !important;
+                border-left-color: #007bff !important;
+            }
+            .auto-calculated.value-updated {
+                animation: highlightUpdate 0.8s ease-in-out;
+            }
+            @keyframes highlightUpdate {
+                0% { background-color: #e8f7ff; }
+                100% { background-color: #f8f9fa; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // IMPORTANT: edit page contains duplicate IDs `taxi_day_charges` / `taxi_night_charges`
+    // for sharable blocks (commented now) and private block. Always target the FIRST ones.
+    const dayScope = document.querySelectorAll('#taxi_day_charges')[0] || document;
+    const nightScope = document.querySelectorAll('#taxi_night_charges')[0] || document;
+
+    const nightBaseEl = nightScope.querySelector('input[name="night_base_price"]') || document.querySelector('input[name="night_base_price"]');
+    const pairs = [
+        { day: 'cost_per_km_below_10', night: 'night_cost_per_km_below_10' },
+        { day: 'cost_per_km_10_to_25', night: 'night_cost_per_km_10_to_25' },
+        { day: 'cost_per_km_above_25', night: 'night_cost_per_km_above_25' },
+        { day: 'cost_per_hour', night: 'night_cost_per_hour' },
+        { day: 'cancel_cost', night: 'night_cancel_cost' },
+    ];
+
+    const getNum = (el) => {
+        if (!el) return null;
+        const v = (el.value ?? '').toString().trim();
+        if (v === '') return null;
+        const n = Number.parseFloat(v);
+        return Number.isFinite(n) ? n : null;
+    };
+
+    const format = (n) => (Math.round(n * 100) / 100).toFixed(2);
+
+    const compute = (dayVal, nightBaseVal) => {
+        if (dayVal === null) return null;
+        const base = nightBaseVal ?? 0;
+        return dayVal + base;
+    };
+
+    const initAutoFlags = () => {
+        pairs.forEach(({ day, night }) => {
+            const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+            if (!nightEl) return;
+
+            // Edit screen requirement: always keep night prices synced to (day + night_base)
+            // unless the user manually edits a specific night field in this session.
+            nightEl.dataset.auto = '1';
+            nightEl.classList.add('auto-calculated');
+        });
+    };
+
+    const recalcNight = () => {
+        const nightBaseVal = getNum(nightBaseEl) ?? 0;
+        pairs.forEach(({ day, night }) => {
+            const dayEl = dayScope.querySelector(`input[name="${day}"]`);
+            const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+            if (!dayEl || !nightEl) return;
+            if ((nightEl.dataset.auto ?? '1') !== '1') return;
+
+            const dayVal = getNum(dayEl);
+            const computed = compute(dayVal, nightBaseVal);
+            nightEl.value = computed === null ? '' : format(computed);
+
+            // visual feedback for auto updates
+            nightEl.classList.add('auto-calculated');
+            nightEl.classList.add('value-updated');
+            setTimeout(() => nightEl.classList.remove('value-updated'), 800);
+
+            // Do not dispatch synthetic input events here; it can mark fields as "manual"
+            // and stop further auto-syncing.
+        });
+    };
+
+    // Mark a night field as manual when user edits it
+    pairs.forEach(({ night }) => {
+        const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+        if (!nightEl) return;
+        nightEl.addEventListener('input', function (e) {
+            if (e && e.isTrusted === false) return; // ignore programmatic updates
+            this.dataset.auto = '0';
+            this.classList.remove('auto-calculated');
+        });
+    });
+
+    // Recalc when day values or night base change
+    const bindRecalc = (name, scopeEl) => {
+        const el = (scopeEl || document).querySelector(`input[name="${name}"]`);
+        if (!el) return;
+        el.addEventListener('input', () => recalcNight());
+        el.addEventListener('change', () => recalcNight());
+    };
+
+    bindRecalc('night_base_price', nightScope);
+    pairs.forEach(({ day }) => bindRecalc(day, dayScope));
+
+    // On edit screen: show DB values first on initial load.
+    // Auto-recalculate only after user changes Day charges or Night Base Price.
+    initAutoFlags();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNightChargeAutoPopulate);
+} else {
+    initNightChargeAutoPopulate();
+}
 </script>
 
 
