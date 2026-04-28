@@ -2340,7 +2340,7 @@
                             (toZones || [])
                                 .slice()
                                 .filter(z => String(z.zone_id))
-                                .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
+                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
                                 .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
                         }
 
@@ -2524,7 +2524,7 @@
                             (toZones || [])
                                 .slice()
                                 .filter(z => String(z.zone_id))
-                                .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
+                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
                                 .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
                         }
 
