@@ -12,6 +12,32 @@ use Illuminate\Support\Facades\Schema;
 
 class PackageBookingTemplatesController extends Controller
 {
+    /**
+     * Normalize package_bookings.total_price into a pricing array.
+     *
+     * Expected shape:
+     * { total_price: number, final_price: number, markup_type: string, markup_amount: number }
+     */
+    private function getPriceData(PackageBooking $booking): array
+    {
+        $raw = $booking->total_price ?? null;
+        $data = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?: []) : []);
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Persist pricing JSON to package_bookings.total_price in the required format.
+     */
+    private function setPriceData(PackageBooking $booking, array $priceData): void
+    {
+        $booking->total_price = [
+            'total_price' => (float) ($priceData['total_price'] ?? 0),
+            'final_price' => (float) ($priceData['final_price'] ?? 0),
+            'markup_type' => (string) ($priceData['markup_type'] ?? 'flat'),
+            'markup_amount' => (float) ($priceData['markup_amount'] ?? 0),
+        ];
+        $booking->save();
+    }
     private function statusColumn(): string
     {
         return Schema::hasColumn('package_bookings', 'booking_status') ? 'booking_status' : 'status';
@@ -252,6 +278,21 @@ class PackageBookingTemplatesController extends Controller
             if ($activeEnquiry) {
                 $activeEnquiry->update(['status' => 2]);
             }
+
+            // Keep the booking pricing JSON aligned with the last confirmed negotiation amount.
+            // This ensures payment screens always show the latest negotiated final price.
+            if (!is_null($amountCandidate) && $amountCandidate > 0) {
+                $priceData = $this->getPriceData($booking);
+                $existingTotal = (float) ($priceData['total_price'] ?? 0);
+                if ($existingTotal <= 0) {
+                    $existingTotal = (float) ($validated['actual_amount'] ?? 0);
+                }
+                $this->setPriceData($booking, array_merge($priceData, [
+                    'total_price' => $existingTotal,
+                    'final_price' => (float) $amountCandidate,
+                ]));
+            }
+
             $this->setBookingStatus(
                 $booking,
                 'Confirmed',
@@ -299,6 +340,18 @@ class PackageBookingTemplatesController extends Controller
         }
 
         $newNegotiated = (float) $validated['price'];
+
+        // Update package_bookings.total_price JSON in the required format.
+        // total_price is the booking's base total; final_price is the latest negotiated amount.
+        $priceData = $this->getPriceData($booking);
+        $existingTotal = (float) ($priceData['total_price'] ?? 0);
+        if ($existingTotal <= 0) {
+            $existingTotal = (float) ($validated['actual_amount'] ?? 0);
+        }
+        $this->setPriceData($booking, array_merge($priceData, [
+            'total_price' => $existingTotal,
+            'final_price' => $newNegotiated,
+        ]));
 
         $row = PackageInquiryComment::create([
             'package_inquiry_id' => $newInquiryId,
