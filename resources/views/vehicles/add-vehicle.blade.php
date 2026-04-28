@@ -242,13 +242,13 @@
                                 <label for="city_name" class="form-label"><strong><i class="ri-map-pin-line"></i> City Name</strong><span class="text-danger">*</span></label>
                                 @php
                                     $roleId = auth()->user()->role_id;
-                                    $placeholder = $roleId == 11 ? 'Select City' : 'Select DMC First';
+                                    $placeholder = in_array($roleId, [11, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111, 139, 140]) ? 'Select City' : 'Select DMC First';
                                 @endphp
 
                                 <select name="city_name" id="city_name" class="form-control" required>
                                     <option value="">{{ $placeholder }}</option>
 
-                                    @if(in_array($roleId, [11, 35, 76, 111, 139, 140]))
+                                    @if(in_array($roleId, [11, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111, 139, 140]))
                                         @foreach($cities as $city)
                                             <option value="{{ $city->name }}">{{ $city->name }}</option>
                                         @endforeach
@@ -1008,30 +1008,9 @@ function updateMoreBadge() {
 }
 </script>
 
-@php
-    $currentUser = auth()->user();
-    $userRoleId = $currentUser->role_id;
-    $resolvedDmcId = '';
-
-    if ($userRoleId == 11) {
-        $resolvedDmcId = $currentUser->userId;
-    } elseif ($userRoleId == 35) {
-        $resolvedDmcId = \App\Models\User::where('userId', $currentUser->userId)->value('created_by');
-    } elseif ($userRoleId == 76 || $userRoleId == 139) {
-        $pm = \App\Models\User::where('userId', $currentUser->userId)->first();
-        $ph = \App\Models\User::where('userId', $pm?->created_by)->first();
-        $resolvedDmcId = $ph?->created_by;
-    } elseif ($userRoleId == 111 || $userRoleId == 140) {
-        $apm = \App\Models\User::where('userId', $currentUser->userId)->first();
-        $pm = \App\Models\User::where('userId', $apm?->created_by)->first();
-        $ph = \App\Models\User::where('userId', $pm?->created_by)->first();
-        $resolvedDmcId = $ph?->created_by;
-    }
-@endphp
-
 <script>
     $(document).ready(function () {
-        const dmcId = "{{ $resolvedDmcId }}";
+        const dmcId = "{{ $resolvedDmcId ?? '' }}";
 
         // Auto-load drivers if user role resolves DMC directly
         if (dmcId) {
