@@ -480,7 +480,7 @@ class VehicleController extends Controller
         // Check if we're in the zone mapping tab
         if (request()->has('zone_mapping')) {
             // Get zones based on the vehicle's DMC
-            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->get();
+            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->orwhere('dmc_id',null)->get();
             
             // Get ports for the DMC country
             $ports = Port::where('country', $dmc_country)->get();
@@ -791,28 +791,37 @@ class VehicleController extends Controller
                     ->first();
 
                 if ($mapping) {
-                    // If soft deleted, restore it
+                    // Do not restore soft-deleted mappings.
+                    // If a record exists in trash, permanently delete and recreate
+                    // so we never reuse an old mapping_id value.
                     if ($mapping->trashed()) {
-                        $mapping->restore();
+                        $mapping->forceDelete();
+
+                        $newMapping = VehicleZoneMapping::create([
+                            'vehicle_id' => $vehicleId,
+                            'from_zone_id' => $fromZoneId,
+                            'to_zone_id' => $toZoneId,
+                            'from_zone_type' => $fromZoneType,
+                            'to_zone_type' => $toZoneType,
+                            'private_price' => $privatePrice,
+                            'shared_price' => $sharedPrice,
+                        ]);
+
+                        if (empty($newMapping->mapping_id)) {
+                            $newMapping->update(['mapping_id' => (string) $newMapping->id]);
+                        }
+                    } else {
+                        // Update prices and types
+                        $mapping->update([
+                            'private_price' => $privatePrice,
+                            'shared_price' => $sharedPrice,
+                            'from_zone_type' => $fromZoneType,
+                            'to_zone_type' => $toZoneType,
+                        ]);
                     }
-                    // Update prices and types
-                    $mapping->update([
-                        'private_price' => $privatePrice,
-                        'shared_price' => $sharedPrice,
-                        'from_zone_type' => $fromZoneType,
-                        'to_zone_type' => $toZoneType,
-                    ]);
                 } else {
-                    // Generate a new mapping_id
-                    $lastMapping = VehicleZoneMapping::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $mapping_max_id = $lastMapping->mapping_id ?? 0;
-                    $mappingId = \App\Helpers\CommonHelper::createId($mapping_max_id);
-                    while (VehicleZoneMapping::where('mapping_id', $mappingId)->exists()) {
-                        $mappingId = \App\Helpers\CommonHelper::createId($mappingId);
-                    }
-                    // Create new mapping
-                    VehicleZoneMapping::create([
-                        'mapping_id' => $mappingId,
+                    // Create new mapping (use DB id as unique stable identifier)
+                    $newMapping = VehicleZoneMapping::create([
                         'vehicle_id' => $vehicleId,
                         'from_zone_id' => $fromZoneId,
                         'to_zone_id' => $toZoneId,
@@ -821,6 +830,9 @@ class VehicleController extends Controller
                         'private_price' => $privatePrice,
                         'shared_price' => $sharedPrice,
                     ]);
+                    if (empty($newMapping->mapping_id)) {
+                        $newMapping->update(['mapping_id' => (string) $newMapping->id]);
+                    }
                 }
             }
         }
@@ -846,7 +858,7 @@ class VehicleController extends Controller
         ]);
         
         // Check both active and trashed records
-        $mapping = VehicleZoneMapping::where('vehicle_id', $validated['vehicle_id'])
+        $mapping = VehicleZoneMapping::withTrashed()->where('vehicle_id', $validated['vehicle_id'])
             ->where('from_zone_id', $validated['from_zone_id'])
             ->where('to_zone_id', $validated['to_zone_id'])
             ->where('from_zone_type', $validated['from_zone_type'])
@@ -856,7 +868,8 @@ class VehicleController extends Controller
             return response()->json([
                 'exists' => true,
                 'was_deleted' => $mapping->trashed(),
-                'mapping_id' => $mapping->mapping_id
+                // Always return a unique id (primary key)
+                'mapping_id' => (string) $mapping->id
             ]);
         }
         
@@ -892,17 +905,27 @@ class VehicleController extends Controller
 
             if ($existingMapping) {
                 if ($existingMapping->trashed()) {
-                    // Restore the soft-deleted mapping
-                    $existingMapping->restore();
-                    $existingMapping->update([
+                    // Do not restore soft-deleted mappings.
+                    // Permanently delete and recreate to keep a unique id.
+                    $existingMapping->forceDelete();
+
+                    $mapping = VehicleZoneMapping::create([
+                        'vehicle_id' => $vehicleId,
+                        'from_zone_id' => $fromZoneId,
+                        'to_zone_id' => $toZoneId,
                         'from_zone_type' => $fromZoneType,
                         'to_zone_type' => $toZoneType,
+                        'private_price' => 0,
+                        'shared_price' => 0
                     ]);
-                    
+                    if (empty($mapping->mapping_id)) {
+                        $mapping->update(['mapping_id' => (string) $mapping->id]);
+                    }
+
                     return response()->json([
                         'success' => true,
-                        'mapping_id' => $existingMapping->mapping_id,
-                        'message' => 'Mapping restored successfully'
+                        'mapping_id' => (string) $mapping->id,
+                        'message' => 'Mapping recreated successfully'
                     ]);
                 } else {
                     // Mapping already exists and is active
@@ -913,17 +936,8 @@ class VehicleController extends Controller
                 }
             }
 
-            // Generate mapping_id
-            $lastMapping = VehicleZoneMapping::withTrashed()->orderBy('created_at', 'desc')->first();
-            $mapping_max_id = $lastMapping->mapping_id ?? 0;
-            $mappingId = \App\Helpers\CommonHelper::createId($mapping_max_id);
-            while (VehicleZoneMapping::where('mapping_id', $mappingId)->exists()) {
-                $mappingId = \App\Helpers\CommonHelper::createId($mappingId);
-            }
-
             // Create new mapping
             $mapping = VehicleZoneMapping::create([
-                'mapping_id' => $mappingId,
                 'vehicle_id' => $vehicleId,
                 'from_zone_id' => $fromZoneId,
                 'to_zone_id' => $toZoneId,
@@ -932,10 +946,13 @@ class VehicleController extends Controller
                 'private_price' => 0,
                 'shared_price' => 0
             ]);
+            if (empty($mapping->mapping_id)) {
+                $mapping->update(['mapping_id' => (string) $mapping->id]);
+            }
 
             return response()->json([
                 'success' => true,
-                'mapping_id' => $mapping->mapping_id,
+                'mapping_id' => (string) $mapping->id,
                 'message' => 'Mapping added successfully'
             ]);
         } catch (\Exception $e) {

@@ -357,13 +357,8 @@ class ZoneController extends Controller
         }
 
         // Update zone
-        $data = $request->all();
-        $data['dmc_id'] = $this->resolveDmcIdForUser(Auth::user()) ?? null;
-        // if(!$data['dmc_id']){
-        //     return redirect()->back()
-        //     ->withErrors(['dmc_id' => 'DMC ID not found'])
-        //     ->withInput();
-        // }
+        // Update ONLY validated fields; keep existing dmc_id untouched.
+        $data = $validator->validated();
         
         $zone->update($data);
 
