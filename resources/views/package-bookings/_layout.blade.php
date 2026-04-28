@@ -10,6 +10,74 @@
     .new-enq-stat-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
     .new-enq-stat-item .stat-value { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
     .new-enq-stat-item .stat-label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; margin-top: 0.15rem; }
+
+    /* Compact table styles (match Tours tables) */
+    #packageBookingsTable {
+        font-size: 0.875rem;
+        table-layout: fixed;
+        width: 100%;
+        margin-bottom: 0;
+        background-color: #fff;
+    }
+    #packageBookingsTable thead th {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: #f8f9fa;
+    }
+    #packageBookingsTable tbody td {
+        padding: 0.5rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+        background-color: #fff;
+    }
+    #packageBookingsTable tbody tr {
+        height: auto;
+        min-height: 50px;
+    }
+    /* Actions column: soft-badge style */
+    #packageBookingsTable td.col-actions {
+        white-space: nowrap;
+        overflow: visible !important;
+    }
+    #packageBookingsTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        text-decoration: none;
+    }
+    #packageBookingsTable .action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        color: inherit;
+    }
+    #packageBookingsTable .action-icon-badge i {
+        font-size: 1rem;
+        color: var(--action-color, #475569);
+        line-height: 1;
+    }
+    #packageBookingsTable button.action-icon-badge {
+        appearance: none;
+        -webkit-appearance: none;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    #packageBookingsTable button.action-icon-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
 </style>
 
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -416,6 +484,65 @@
         $('#pkgExportPrint').on('click', function() { pkgTable.button('.buttons-print').trigger(); });
     }
 
+    // Body-level tooltip (same UX as Tours tables)
+    let pkgTooltipsInitialized = false;
+    function initPkgTooltips() {
+        if (pkgTooltipsInitialized) return;
+        if (typeof $ === 'undefined') return;
+        pkgTooltipsInitialized = true;
+
+        const $globalTooltip = $('#pkg-global-tooltip');
+        const $tip = $globalTooltip.length
+            ? $globalTooltip
+            : $('<div id="pkg-global-tooltip"></div>').css({
+                position: 'fixed',
+                zIndex: 9999,
+                padding: '8px 10px',
+                background: '#0f172a',
+                color: '#fff',
+                borderRadius: '8px',
+                fontSize: '12px',
+                maxWidth: '280px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.18)',
+                display: 'none',
+                pointerEvents: 'none',
+                lineHeight: '1.2'
+            }).appendTo('body');
+
+        const showAt = (el, text) => {
+            if (!text) return;
+            const rect = el.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top - 10;
+            $tip.text(text).css({
+                left: Math.max(10, Math.min(window.innerWidth - 10, x)) + 'px',
+                top: Math.max(10, y) + 'px',
+                transform: 'translate(-50%, -100%)'
+            }).show();
+        };
+        const hide = () => $tip.hide();
+
+        // Use delegated events so it works after DataTables redraws
+        $(document).on('mouseenter', '#packageBookingsTable .action-icon-badge', function() {
+            const text = $(this).attr('data-tooltip') || $(this).attr('title') || '';
+            if (!text) return;
+            showAt(this, text);
+        });
+        $(document).on('mouseleave', '#packageBookingsTable .action-icon-badge', hide);
+
+        $(document).on('mouseenter', '#packageBookingsTable thead .th-tooltip', function() {
+            const text = $(this).attr('data-tooltip') || $(this).attr('title') || '';
+            if (!text) return;
+            showAt(this, text);
+        });
+        $(document).on('mouseleave', '#packageBookingsTable thead .th-tooltip', hide);
+    }
+
+    // Ensure tooltip bindings are attached after DOM is ready
+    document.addEventListener('DOMContentLoaded', function () {
+        initPkgTooltips();
+    });
+
     function resetPackageFilters() {
         const s = document.getElementById('pkgSearchInput');
         const a = document.getElementById('pkgAgentFilter');
@@ -480,11 +607,24 @@
             amountInput.removeAttribute('max');
         }
 
-        if (Number.isFinite(lastAgentNum) && lastAgentNum > 0) {
+        // Default the amount field to the current/max amount (editable downwards).
+        // Users can enter less, but should not exceed the max.
+        if (Number.isFinite(ceiling) && ceiling > 0) {
+            amountInput.value = String(ceiling);
+        } else if (Number.isFinite(lastAgentNum) && lastAgentNum > 0) {
             amountInput.value = String(lastAgentNum);
         } else {
             amountInput.value = '';
         }
+
+        // Clamp to max on input (extra safety beyond HTML max attribute)
+        amountInput.oninput = function () {
+            const max = parseFloat(this.getAttribute('max') || '0');
+            const v = parseFloat(this.value || '0');
+            if (max > 0 && Number.isFinite(v) && v > max) {
+                this.value = String(max);
+            }
+        };
         document.getElementById('pkgAgentRemark').value = '';
         document.getElementById('pkgAgentWarning').classList.add('d-none');
         document.getElementById('pkgAgentRemarkError').classList.add('d-none');
