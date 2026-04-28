@@ -1228,36 +1228,6 @@
 
                             <!-- Agency + Agent + City in same row (auto-compacts in multi-city) -->
                             <div class="row g-2 mt-2 tour-header-compact" id="agencyAgentCityRow">
-                                <!-- Agency Company -->
-                                <div class="col-md-3" id="agencyCol">
-                                    <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-building-line me-1" style="color: #667eea;"></i>Agency Company
-                                    </label>
-                                    <select class="form-select modern-select" name="agency_id" id="agency_id">
-                                        <option value="">Choose agency...</option>
-                                        @foreach(($agencies ?? []) as $agnc)
-                                            <option value="{{ $agnc->agency_id }}" {{ (string) $selectedAgencyId === (string) $agnc->agency_id ? 'selected' : '' }}>
-                                                {{ $agnc->agency_name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <!-- Agent -->
-                                <div class="col-md-3" id="agentCol">
-                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-user-star-line me-1" style="color: #667eea;"></i>Agent
-                                    </label>
-                                    <select class="form-select modern-select" name="agent_id" id="agent_id">
-                                        <option value="">Select agent</option>
-                                        @foreach($agents as $agent)
-                                            <option value="{{ $agent->agent_id }}" {{ ($tour->agent_id ?? null) == $agent->agent_id ? 'selected' : '' }}>
-                                                {{ $agent->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
                                 <!-- City (single-city mode only) -->
                                 <div class="col-md-4" id="singleCityField">
                                     <label for="single_city" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
@@ -1290,6 +1260,35 @@
                                         @endforeach
                                     </select>
                                     <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
+                                </div>
+                                <!-- Agency Company -->
+                                <div class="col-md-4" id="agencyCol">
+                                    <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-building-line me-1" style="color: #667eea;"></i>Agency Company
+                                    </label>
+                                    <select class="form-select modern-select" name="agency_id" id="agency_id">
+                                        <option value="">Choose agency...</option>
+                                        @foreach(($agencies ?? []) as $agnc)
+                                            <option value="{{ $agnc->agency_id }}" {{ (string) $selectedAgencyId === (string) $agnc->agency_id ? 'selected' : '' }}>
+                                                {{ $agnc->agency_name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <!-- Agent -->
+                                <div class="col-md-2" id="agentCol">
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-user-star-line me-1" style="color: #667eea;"></i>Agency Contact
+                                    </label>
+                                    <select class="form-select modern-select" name="agent_id" id="agent_id">
+                                        <option value="">Select agency contact</option>
+                                        @foreach($agents as $agent)
+                                            <option value="{{ $agent->agent_id }}" {{ ($tour->agent_id ?? null) == $agent->agent_id ? 'selected' : '' }}>
+                                                {{ $agent->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
                                 </div>
                             </div>
 
