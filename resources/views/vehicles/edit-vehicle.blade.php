@@ -1571,6 +1571,13 @@
 </script>
 <script>
     $(document).ready(function() {
+        // Driver dropdown (search + select)
+        $('#driver').select2({
+            placeholder: "Search and Select Driver",
+            allowClear: true,
+            width: '100%'
+        });
+
         $('#city_name').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
