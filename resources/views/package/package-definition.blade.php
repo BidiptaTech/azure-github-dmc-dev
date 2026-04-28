@@ -161,7 +161,7 @@
                                             </div>
                                             <div style="width: 70px;">
                                                 <label class="form-label small mb-0">Qty</label>
-                                                <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1">
+                                                <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1" readonly>
                                             </div>
                                             <button type="button" class="btn btn-outline-primary btn-sm" id="definition-room-add-line"><i class="ri-add-line me-1"></i>Add room</button>
                                         </div>
