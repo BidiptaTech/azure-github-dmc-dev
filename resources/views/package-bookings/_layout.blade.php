@@ -14,10 +14,14 @@
     /* Compact table styles (match Tours tables) */
     #packageBookingsTable {
         font-size: 0.875rem;
-        table-layout: fixed;
         width: 100%;
         margin-bottom: 0;
         background-color: #fff;
+    }
+
+    /* Let DataTables Responsive handle small screens */
+    #packageBookingsTable {
+        table-layout: auto;
     }
     #packageBookingsTable thead th {
         padding: 0.5rem 0.5rem;
@@ -42,7 +46,9 @@
     #packageBookingsTable td.col-actions {
         white-space: nowrap;
         overflow: visible !important;
+        min-width: 140px;
     }
+    #packageBookingsTable th:last-child { min-width: 140px; }
     #packageBookingsTable .action-icon-badge {
         display: inline-flex;
         align-items: center;
@@ -78,7 +84,30 @@
         background: #f1f5f9;
         border-color: #cbd5e1;
     }
+
+    /* DataTables footer alignment (info + pagination) */
+    .dataTables_wrapper .dataTables_info {
+        padding-top: 0.75rem !important;
+        font-size: 0.8125rem;
+        color: #64748b;
+    }
+    .dataTables_wrapper .dataTables_paginate {
+        padding-top: 0.5rem !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.25rem 0.6rem !important;
+        margin: 0 0.1rem !important;
+        border-radius: 0.5rem !important;
+    }
+
+    /* Ensure SweetAlert is always above Bootstrap modals */
+    .swal2-container {
+        z-index: 20000 !important;
+    }
 </style>
+
+{{-- Ensure SweetAlert2 is available for professional prompts --}}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <div class="container-xxl flex-grow-1 container-p-y">
     @include('bookings.partials.booking-type-tabs', [
@@ -202,6 +231,7 @@
                 'showBookingStatusColumn' => !empty($showBookingStatusColumn),
                 'showPackagePaymentColumn' => !empty($showPackagePaymentColumn),
                 'showNegotiationColumn' => array_key_exists('showNegotiationColumn', get_defined_vars()) ? (bool) $showNegotiationColumn : true,
+                'hideEditAction' => !empty($hideEditAction),
             ])
         </div>
     </div>
@@ -364,7 +394,9 @@
     function pkgAlert(options) {
         // SweetAlert2 is used in Tours; Package pages may not always include it.
         if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
-            return Swal.fire(options);
+            const openModal = document.querySelector('.modal.show');
+            const target = openModal || document.body;
+            return Swal.fire({ target, ...options });
         }
         const title = options?.title ? String(options.title) : 'Notice';
         const text = options?.text ? String(options.text) : '';
@@ -381,7 +413,9 @@
 
     function pkgConfirm(options) {
         if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
-            return Swal.fire({ showCancelButton: true, ...options });
+            const openModal = document.querySelector('.modal.show');
+            const target = openModal || document.body;
+            return Swal.fire({ target, showCancelButton: true, ...options });
         }
         const title = options?.title ? String(options.title) : 'Are you sure?';
         const text = options?.text ? String(options.text) : '';
@@ -419,8 +453,9 @@
 
         pkgTable = $('#packageBookingsTable').DataTable({
             dom: 'lrtip',
-            responsive: false,
-            scrollX: true,
+            responsive: true,
+            scrollX: false,
+            autoWidth: false,
             buttons: [
                 { extend: 'copy', className: 'buttons-copy' },
                 { extend: 'csv', className: 'buttons-csv' },
@@ -434,6 +469,16 @@
             ],
             pageLength: 10,
             lengthMenu: [[10,25,50,100,-1],[10,25,50,100,"All"]]
+        });
+
+        // Ensure columns are aligned (especially when scrollX is off)
+        setTimeout(function () {
+            try { pkgTable.columns.adjust(); } catch (e) {}
+        }, 50);
+
+        $(window).on('resize.pkgTable', function () {
+            if (!pkgTable) return;
+            try { pkgTable.columns.adjust(); } catch (e) {}
         });
 
         // External search
@@ -756,6 +801,98 @@
         });
     }
 
+    function packageProcessRefund(bookingId) {
+        pkgConfirm({
+            title: 'Process refund?',
+            text: 'This will mark the package booking as Refunded and record refund details.',
+            icon: 'warning',
+            confirmButtonColor: '#16a34a',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, process refund',
+            cancelButtonText: 'Not now'
+        }).then(async (result) => {
+            if (!result.isConfirmed) return;
+
+            let formValues = null;
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                const res = await Swal.fire({
+                    title: 'Refund details',
+                    html: `
+                        <div class="text-start">
+                            <label class="form-label">Refund mode</label>
+                            <select id="swal_refund_mode" class="form-select mb-2">
+                                <option value="">Select</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Card Refund">Card Refund</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Credit Note">Credit Note</option>
+                            </select>
+                            <label class="form-label">Refund reference</label>
+                            <input id="swal_refund_reference" class="form-control mb-2" placeholder="Transaction / reference ID (optional)">
+                            <label class="form-label">Remark</label>
+                            <textarea id="swal_refund_remark" class="form-control" rows="3" placeholder="Internal note (optional)"></textarea>
+                        </div>
+                    `,
+                    focusConfirm: false,
+                    showCancelButton: true,
+                    confirmButtonText: 'Submit refund',
+                    confirmButtonColor: '#16a34a',
+                    cancelButtonText: 'Cancel',
+                    preConfirm: () => {
+                        const refund_mode = document.getElementById('swal_refund_mode').value;
+                        const refund_reference = document.getElementById('swal_refund_reference').value;
+                        const remark = document.getElementById('swal_refund_remark').value;
+                        return { refund_mode, refund_reference, remark };
+                    }
+                });
+                formValues = res?.value || null;
+            } else {
+                // fallback (should be rare now that SweetAlert2 is injected)
+                const refund_mode = prompt('Refund mode (optional):', '') || '';
+                const refund_reference = prompt('Refund reference (optional):', '') || '';
+                const remark = prompt('Remark (optional):', '') || '';
+                formValues = { refund_mode, refund_reference, remark };
+            }
+
+            if (!formValues) return;
+
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    title: 'Processing...',
+                    text: 'Please wait while we update the booking.',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+            }
+
+            fetch("{{ route('package-bookings.process-refund') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    booking_id: bookingId,
+                    refund_mode: formValues.refund_mode,
+                    refund_reference: formValues.refund_reference,
+                    remark: formValues.remark
+                })
+            })
+            .then(r => r.json().then(j => ({ ok: r.ok, json: j })))
+            .then(({ ok, json }) => {
+                if (ok && json?.success) {
+                    pkgAlert({ title: 'Refund updated', text: json.message || 'Refund processed successfully.', icon: 'success' })
+                        .then(() => window.location.reload());
+                } else {
+                    const msg = json?.message || 'Failed to process refund.';
+                    pkgAlert({ title: 'Error', text: msg, icon: 'error' });
+                }
+            })
+            .catch(() => pkgAlert({ title: 'Error', text: 'Failed to process refund.', icon: 'error' }));
+        });
+    }
+
     function packageConfirmBooking(bookingId, agreedActualAmount) {
         pkgConfirm({
             title: 'Confirm this booking?',
@@ -807,7 +944,7 @@
         return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
     }
 
-    function pkgApprovePackagePayment(bookingId, paymentIndex) {
+    function pkgApprovePackagePayment(bookingId, paymentIndex, ev) {
         pkgConfirm({
             title: 'Approve payment?',
             text: 'This will mark the payment as verified.',
@@ -838,12 +975,53 @@
         });
     }
 
-    function pkgDeclinePackagePayment(bookingId, paymentIndex) {
-        const reason = window.prompt('Decline reason (min 10 characters):');
-        if (!reason || reason.trim().length < 10) {
-            pkgAlert({ title: 'Reason required', text: 'Please enter at least 10 characters.', icon: 'warning' });
-            return;
-        }
+    function pkgDeclinePackagePayment(bookingId, paymentIndex, ev) {
+        // Use SweetAlert input so it doesn't appear behind modals
+        pkgConfirm({
+            title: 'Reject payment?',
+            text: 'Please provide a decline reason (min 10 characters).',
+            icon: 'warning',
+            confirmButtonText: 'Reject',
+            confirmButtonColor: '#dc2626',
+            cancelButtonText: 'Cancel',
+            input: 'textarea',
+            inputPlaceholder: 'Enter decline reason...',
+            inputAttributes: { 'aria-label': 'Decline reason' },
+            preConfirm: (value) => {
+                const v = String(value || '').trim();
+                if (v.length < 10) {
+                    if (typeof Swal !== 'undefined') Swal.showValidationMessage('Please enter at least 10 characters.');
+                    return false;
+                }
+                return v;
+            }
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            const reason = String(result.value || '').trim();
+            if (reason.length < 10) return;
+
+            fetch(`{{ url('/package-booking') }}/${encodeURIComponent(bookingId)}/decline-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': pkgCsrf(),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ payment_index: paymentIndex, decline_reason: reason })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data?.success) {
+                    pkgAlert({ title: 'Payment rejected', text: data.message || 'The payment was rejected successfully.', icon: 'success', timer: 1800, showConfirmButton: false }).then(() => location.reload());
+                } else {
+                    pkgAlert({ title: 'Error', text: data?.message || 'Failed.', icon: 'error' });
+                }
+            })
+            .catch(() => pkgAlert({ title: 'Error', text: 'Request failed.', icon: 'error' }));
+        });
+
+        return;
+
         fetch(`{{ url('/package-booking') }}/${encodeURIComponent(bookingId)}/decline-payment`, {
             method: 'POST',
             headers: {
@@ -865,13 +1043,86 @@
     }
 
     function pkgOpenEditPackagePayment(bookingId, rowId, paymentIndex, btn) {
-        document.getElementById('pkgEditPayIdx' + rowId).value = String(paymentIndex);
-        document.getElementById('pkgEditPayAmt' + rowId).value = btn.getAttribute('data-amt') || '';
-        document.getElementById('pkgEditPayDate' + rowId).value = btn.getAttribute('data-pdate') || '';
-        document.getElementById('pkgEditPayType' + rowId).value = (btn.getAttribute('data-ptype') || 'cash').toLowerCase();
-        document.getElementById('pkgEditPayTxn' + rowId).value = btn.getAttribute('data-txn') || '';
-        const el = document.getElementById('pkgEditPaymentModal' + rowId);
-        if (el) new bootstrap.Modal(el).show();
+        // Keep Payment History modal open; edit via SweetAlert form (no nested Bootstrap modals)
+        const amt0 = btn?.getAttribute('data-amt') || '';
+        const dt0 = btn?.getAttribute('data-pdate') || '';
+        const typ0 = (btn?.getAttribute('data-ptype') || 'cash').toLowerCase();
+        const txn0 = btn?.getAttribute('data-txn') || '';
+
+        pkgConfirm({
+            title: 'Edit payment',
+            icon: 'info',
+            confirmButtonText: 'Save',
+            confirmButtonColor: '#2563eb',
+            cancelButtonText: 'Cancel',
+            html: `
+                <div class="text-start">
+                    <label class="form-label mb-1">Amount</label>
+                    <input id="swal_pkg_pay_amt" type="number" step="0.01" min="0.01" class="form-control mb-2" value="${String(amt0).replace(/"/g,'&quot;')}">
+                    <label class="form-label mb-1">Date</label>
+                    <input id="swal_pkg_pay_date" type="date" class="form-control mb-2" value="${String(dt0).replace(/"/g,'&quot;')}">
+                    <label class="form-label mb-1">Mode</label>
+                    <select id="swal_pkg_pay_type" class="form-select mb-2">
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="online">Bank transfer</option>
+                    </select>
+                    <label class="form-label mb-1">Transaction ID</label>
+                    <input id="swal_pkg_pay_txn" type="text" class="form-control" value="${String(txn0).replace(/"/g,'&quot;')}">
+                </div>
+            `,
+            didOpen: () => {
+                const sel = document.getElementById('swal_pkg_pay_type');
+                if (sel) sel.value = typ0 || 'cash';
+            },
+            preConfirm: () => {
+                const amt = parseFloat(document.getElementById('swal_pkg_pay_amt')?.value || '0');
+                const dt = document.getElementById('swal_pkg_pay_date')?.value || '';
+                const typ = document.getElementById('swal_pkg_pay_type')?.value || '';
+                const txn = document.getElementById('swal_pkg_pay_txn')?.value || '';
+                if (!amt || amt <= 0) {
+                    if (typeof Swal !== 'undefined') Swal.showValidationMessage('Please enter a valid amount.');
+                    return false;
+                }
+                if (!dt) {
+                    if (typeof Swal !== 'undefined') Swal.showValidationMessage('Please select a date.');
+                    return false;
+                }
+                if (!typ) {
+                    if (typeof Swal !== 'undefined') Swal.showValidationMessage('Please select a payment mode.');
+                    return false;
+                }
+                return { amt, dt, typ, txn };
+            }
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            const v = result.value || {};
+            fetch(`{{ url('/package-booking') }}/${encodeURIComponent(bookingId)}/update-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': pkgCsrf(),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    payment_index: parseInt(paymentIndex, 10),
+                    payment_amount: parseFloat(v.amt),
+                    payment_date: v.dt,
+                    payment_type: v.typ,
+                    transaction_id: v.txn
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data?.success) {
+                    pkgAlert({ title: 'Payment updated', text: data.message || 'The payment was updated successfully.', icon: 'success', timer: 1800, showConfirmButton: false }).then(() => location.reload());
+                } else {
+                    pkgAlert({ title: 'Error', text: data?.message || 'Failed.', icon: 'error' });
+                }
+            })
+            .catch(() => pkgAlert({ title: 'Error', text: 'Request failed.', icon: 'error' }));
+        });
     }
 
     function pkgSubmitEditPackagePayment(bookingId, rowId) {
@@ -906,7 +1157,7 @@
         .catch(() => pkgAlert({ title: 'Error', text: 'Request failed.', icon: 'error' }));
     }
 
-    function pkgDeletePackagePayment(bookingId, paymentIndex) {
+    function pkgDeletePackagePayment(bookingId, paymentIndex, ev) {
         pkgConfirm({
             title: 'Delete this payment?',
             text: 'Only pending payments can be removed.',

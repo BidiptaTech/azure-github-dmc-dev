@@ -298,8 +298,8 @@
                                                     <div class="d-flex flex-column gap-1">
                                                         @if($canFinancePkgPayment)
                                                             <div class="d-flex gap-1 justify-content-center">
-                                                                <button type="button" class="btn btn-sm btn-outline-success px-2" title="Approve" onclick="pkgApprovePackagePayment('{{ $b->booking_id }}', {{ (int) $index }})"><i class="ri-check-line"></i></button>
-                                                                <button type="button" class="btn btn-sm btn-outline-danger px-2" title="Reject" onclick="pkgDeclinePackagePayment('{{ $b->booking_id }}', {{ (int) $index }})"><i class="ri-close-line"></i></button>
+                                                                <button type="button" class="btn btn-sm btn-outline-success px-2" title="Approve" onclick="pkgApprovePackagePayment('{{ $b->booking_id }}', {{ (int) $index }}, event)"><i class="ri-check-line"></i></button>
+                                                                <button type="button" class="btn btn-sm btn-outline-danger px-2" title="Reject" onclick="pkgDeclinePackagePayment('{{ $b->booking_id }}', {{ (int) $index }}, event)"><i class="ri-close-line"></i></button>
                                                             </div>
                                                         @endif
                                                         @if($canAddPkgPayment)
@@ -314,7 +314,7 @@
                                                                     data-txn="{{ e((string) ($payment['transaction_id'] ?? '')) }}"
                                                                     onclick="pkgOpenEditPackagePayment('{{ $b->booking_id }}', {{ $b->id }}, {{ (int) $index }}, this)"
                                                                 ><i class="ri-edit-line"></i></button>
-                                                                <button type="button" class="btn btn-sm btn-outline-danger px-2" title="Delete" onclick="pkgDeletePackagePayment('{{ $b->booking_id }}', {{ (int) $index }})"><i class="ri-delete-bin-line"></i></button>
+                                                                <button type="button" class="btn btn-sm btn-outline-danger px-2" title="Delete" onclick="pkgDeletePackagePayment('{{ $b->booking_id }}', {{ (int) $index }}, event)"><i class="ri-delete-bin-line"></i></button>
                                                             </div>
                                                         @endif
                                                     </div>

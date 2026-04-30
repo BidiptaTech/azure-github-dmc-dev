@@ -972,9 +972,11 @@ Route::get('/clear', function () {
             Route::get('/package-bookings/definite', [PackageBookingTemplatesController::class, 'definite'])->name('package-bookings.definite');
             Route::get('/package-bookings/actual', [PackageBookingTemplatesController::class, 'actual'])->name('package-bookings.actual');
             Route::get('/package-bookings/cancelled', [PackageBookingTemplatesController::class, 'cancelled'])->name('package-bookings.cancelled');
+            Route::get('/package-bookings/refunds', [PackageBookingTemplatesController::class, 'refunds'])->name('package-bookings.refunds');
             Route::post('/package-bookings/agent-negotiation', [PackageBookingTemplatesController::class, 'agentNegotiation'])->name('package-bookings.agent-negotiation');
             Route::post('/package-bookings/update-negotiation', [PackageBookingTemplatesController::class, 'updateNegotiation'])->name('package-bookings.update-negotiation');
             Route::post('/package-bookings/cancel/{bookingId}', [PackageBookingTemplatesController::class, 'cancelBooking'])->name('package-bookings.cancel');
+            Route::post('/package-bookings/process-refund', [PackageBookingTemplatesController::class, 'processRefund'])->name('package-bookings.process-refund');
             Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
             Route::post('/bookings/process-order-refund', [BookingsController::class, 'processOrderRefund'])->name('bookings.process-order-refund');
             Route::post('/bookings/process-order-refund-by-order', [BookingsController::class, 'processOrderRefundByOrder'])->name('bookings.process-order-refund-by-order');
