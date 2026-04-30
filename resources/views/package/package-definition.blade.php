@@ -161,7 +161,7 @@
                                             </div>
                                             <div style="width: 70px;">
                                                 <label class="form-label small mb-0">Qty</label>
-                                                <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1">
+                                                <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1" readonly>
                                             </div>
                                             <button type="button" class="btn btn-outline-primary btn-sm" id="definition-room-add-line"><i class="ri-add-line me-1"></i>Add room</button>
                                         </div>
@@ -753,6 +753,7 @@ $(document).ready(function() {
                 const opt = new Option(label, label);
                 $(opt).attr('data-extra-bed', b.extra_bed ? 1 : 0);
                 $(opt).attr('data-extra-bed-type', b.extra_bed_type);
+                $(opt).attr('data-extra-bed-price', b.extra_bed_price != null ? b.extra_bed_price : 0);
                 $(opt).attr('data-bed-id', b.bed_id);
                 bedTypeSelect.append(opt);
             });
@@ -795,6 +796,10 @@ $(document).ready(function() {
         }
         const extraBed = parseInt($('#definition-bed-type-select option:selected').attr('data-extra-bed') || '0', 10) === 1;
         const extraBedType = $('#definition-bed-type-select option:selected').attr('data-extra-bed-type');
+        const extraBedPriceRaw = $('#definition-bed-type-select option:selected').attr('data-extra-bed-price');
+        const extraBedPrice = extraBedPriceRaw != null && extraBedPriceRaw !== '' && !isNaN(parseFloat(extraBedPriceRaw))
+            ? parseFloat(extraBedPriceRaw)
+            : 0;
         const bedId = $('#definition-bed-type-select option:selected').attr('data-bed-id');
         const qty = parseInt($('#definition-room-type-qty').val(), 10) || 1;
         if (qty < 1) return;
@@ -812,6 +817,7 @@ $(document).ready(function() {
             extra_bed: extraBed,
             quantity: qty,
             extra_bed_type: extraBedType,
+            extra_bed_price: extraBedPrice,
             bed_id: bedId,
             weekend_price: weekendPrice,
             weekday_price: weekdayPrice

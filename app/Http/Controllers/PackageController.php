@@ -159,8 +159,8 @@ class PackageController extends Controller
             'price_child' => 'nullable|numeric|min:0',
             'start_date' => 'required|date',
             'expiry_date' => 'required|date|after:start_date',
-            'main_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
-            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'main_image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'inclusions' => 'nullable|string',
             'exclusions' => 'nullable|string',
             'terms_conditions' => 'nullable|string',
@@ -864,6 +864,7 @@ class PackageController extends Controller
                     'extra_bed' => (int) ($bed->extra_bed ?? 0) === 1,
                     'bed_id' => (int) ($bed->bed_id ?? 0),
                     'extra_bed_type' => (string) ($bed->extra_bed_type ?? ''),
+                    'extra_bed_price' => (float) ($bed->extra_bed_price ?? 0),
                 ];
             })
             ->filter(function ($bed) {
