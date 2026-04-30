@@ -73,7 +73,7 @@
 
     /* Select2 Custom Styling for Bootstrap 5 Integration */
     .select2-container--default .select2-selection--single {
-        height: 100% !important;
+        height: 40px !important;
         border: 1px solid #d9dee3 !important;
         border-radius: 0.375rem !important;
         padding: 0.375rem 0.75rem !important;
@@ -88,8 +88,13 @@
     }
 
     .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px !important;
+        height: 40px !important;
         right: 5px !important;
+    }
+
+    /* Ensure Select2 takes full width inside Bootstrap grid */
+    .select2-container {
+        width: 100% !important;
     }
 
     .select2-container--default .select2-selection--single:hover {
@@ -128,6 +133,25 @@
     .select2-container--default .select2-search--dropdown .select2-search__field:focus {
         border-color: #696cff !important;
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+    }
+
+    #language-container .proficiency-select,
+    #language-container .language-select {
+        height: 40px;
+    }
+
+    #language-container .proficiency-select {
+        padding-top: 0.375rem;
+        padding-bottom: 0.375rem;
+        line-height: 1.5;
+    }
+
+    #language-container .remove-language {
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
     }
 
     /* Auto-calculated field styles */
@@ -403,10 +427,10 @@
                             <div id="guide_language" class="col-md-12 mb-3">
                                 <fieldset>
                                     <h5 class="card-title mb-3">Languages & Proficiency</h5>
-                                    <div class="row" id="language-container">
+                                    <div id="language-container">
                                         @if(old('languages'))
                                             @foreach(old('languages') as $index => $language)
-                                                <div class="language-row d-flex mb-3">
+                                                <div class="language-row row g-2 mb-3 align-items-end">
                                                     <!-- Languages Dropdown -->
                                                     <div class="col-md-5">
                                                         <label for="languages" class="form-label"><strong>Languages</strong>
@@ -424,7 +448,7 @@
                                                     </div>
                                             
                                                     <!-- Language Proficiency Dropdown -->
-                                                    <div class="col-md-5 ms-2">
+                                                    <div class="col-md-5">
                                                         <label for="language_proficiency" class="form-label"><strong>Proficiency</strong>
                                                             <span class="text-danger">*</span>
                                                         </label>
@@ -442,13 +466,13 @@
                                                     </div>
                                             
                                                     <!-- Remove Button (Hidden for First Row) -->
-                                                    <div class="col-md-1 mb-2 d-flex align-items-end">
+                                                    <div class="col-md-2 d-flex align-items-end">
                                                         <button type="button" class="btn btn-danger remove-language {{ $index == 0 ? 'd-none' : '' }}">Remove</button>
                                                     </div>
                                                 </div>
                                             @endforeach
                                         @else
-                                            <div class="language-row d-flex mb-3">
+                                            <div class="language-row row g-2 mb-3 align-items-end">
                                                 <!-- Languages Dropdown -->
                                                 <div class="col-md-5">
                                                     <label for="languages" class="form-label"><strong>Languages</strong>
@@ -466,7 +490,7 @@
                                                 </div>
                                         
                                                 <!-- Language Proficiency Dropdown -->
-                                                <div class="col-md-5 ms-2">
+                                                <div class="col-md-5">
                                                     <label for="language_proficiency" class="form-label"><strong>Proficiency</strong>
                                                         <span class="text-danger">*</span>
                                                     </label>
@@ -484,7 +508,7 @@
                                                 </div>
                                         
                                                 <!-- Remove Button (Hidden for First Row) -->
-                                                <div class="col-md-1 mb-2 d-flex align-items-end">
+                                                <div class="col-md-2 d-flex align-items-end">
                                                     <button type="button" class="btn btn-danger remove-language d-none">Remove</button>
                                                 </div>
                                             </div>
@@ -492,8 +516,11 @@
                                     </div>
                             
                                     <!-- Add More Button -->
-                                    <div class="col-md-2 mb-2 d-flex align-items-end">
-                                        <button type="button" id="addmore" class="btn btn-primary">Add More</button>
+                                    <div class="row">
+                                        <div class="col-md-5">
+                                            <button type="button" id="addmore" class="btn btn-primary">Add More</button>
+                                        </div>
+                                        <div class="col-md-7"></div>
                                     </div>
                                 </fieldset>
                             </div>
@@ -784,6 +811,19 @@ $(document).ready(function() {
 
 <script>
     $(document).ready(function() {
+        function initLanguageSelect2(scope) {
+            const $scope = scope ? $(scope) : $(document);
+            $scope.find('select.language-select').each(function () {
+                const $el = $(this);
+                if ($el.hasClass('select2-hidden-accessible')) return; // already initialized
+                $el.select2({
+                    placeholder: "Search and Select Language",
+                    allowClear: true,
+                    width: '100%'
+                });
+            });
+        }
+
         // Initialize Select2 for DMC dropdown
         $('#dmc').select2({
             placeholder: "Search and Select DMC",
@@ -799,6 +839,9 @@ $(document).ready(function() {
             width: '100%'
         });
         @endif
+
+        // Initialize Select2 for Languages dropdown(s)
+        initLanguageSelect2();
     });
 </script>
 
@@ -1235,10 +1278,11 @@ $(document).ready(function() {
     
         addMoreBtn.addEventListener("click", function () {
             const newRow = document.createElement("div");
-            newRow.classList.add("language-row", "d-flex", "mb-3");
+            newRow.classList.add("language-row", "row", "g-2", "mb-3", "align-items-end");
     
             newRow.innerHTML = `
                 <div class="col-md-5">
+                    <label class="form-label invisible"><strong>Languages</strong><span class="text-danger">*</span></label>
                     <select class="form-control language-select" name="languages[]" required>
                         <option value="">Select Language</option>
                         @foreach($languages as $c)
@@ -1247,7 +1291,8 @@ $(document).ready(function() {
                     </select>
                 </div>
     
-                <div class="col-md-5 ms-2">
+                <div class="col-md-5">
+                    <label class="form-label invisible"><strong>Proficiency</strong><span class="text-danger">*</span></label>
                     <select class="form-select proficiency-select" name="language_proficiency[]" required>
                         <option value="">Select</option>
                         <option value="Beginner">Beginner</option>
@@ -1258,12 +1303,20 @@ $(document).ready(function() {
                     </select>
                 </div>
     
-                <div class="col-md-2 ms-2 d-flex align-items-end">
+                <div class="col-md-2 d-flex align-items-end">
+                    <label class="form-label invisible">Remove</label>
                     <button type="button" class="btn btn-danger remove-language">Remove</button>
                 </div>
             `;
     
             languageContainer.appendChild(newRow);
+            if (window.jQuery && typeof $(newRow).find('.language-select').select2 === 'function') {
+                $(newRow).find('.language-select').select2({
+                    placeholder: "Search and Select Language",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
             updateRemoveButtons();
         });
     

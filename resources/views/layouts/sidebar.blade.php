@@ -144,6 +144,7 @@
                                 'definite' => route('package-bookings.definite'),
                                 'actual' => route('package-bookings.actual'),
                                 'cancelled' => route('package-bookings.cancelled'),
+                                'refunds' => route('package-bookings.refunds'),
                                 default => '#',
                             };
                         }
@@ -244,12 +245,12 @@
                                     </div>
                                 </a>
                             </li>
-                            <li class="menu-item @if(!$isPackageBookingView && Request::is('bookings/refunds')) active @endif" @if($isPackageBookingView) style="display:none;" @endif>
-                                <a href="{{ route('bookings.refunds') }}" class="menu-link">
+                            <li class="menu-item @if($activeFor('bookings/refunds', 'package-bookings/refunds')) active @endif">
+                                <a href="{{ $routeFor('refunds') }}" class="menu-link">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Refunds">Refunds</span>
-                                        @if(isset($bookingCounts) && $bookingCounts['refunds'] > 0)
-                                            <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['refunds'] }}</span>
+                                        @if(($sidebarCounts['refunds'] ?? 0) > 0)
+                                            <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['refunds'] }}</span>
                                         @endif
                                     </div>
                                 </a>

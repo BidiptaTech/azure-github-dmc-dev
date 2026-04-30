@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 
 class PackageBookingTemplatesController extends Controller
 {
@@ -173,6 +174,100 @@ class PackageBookingTemplatesController extends Controller
             'bookings' => $bookings,
             'statusColumn' => $statusColumn,
             'pageTitle' => 'Package Cancelled Bookings',
+        ]);
+    }
+
+    public function refunds()
+    {
+        $statusColumn = $this->statusColumn();
+        $bookings = $this->baseQuery()
+            ->whereIn($statusColumn, ['Refund - Pending', 'Refunded'])
+            ->get();
+
+        $bookingIds = $bookings->pluck('booking_id')->filter()->unique()->values();
+        $packageComments = $bookingIds->isEmpty()
+            ? collect([])
+            : PackageInquiryComment::whereIn('booking_id', $bookingIds->all())
+                ->whereNull('deleted_at')
+                ->orderByDesc('created_at')
+                ->get();
+
+        return view('package-bookings.refunds', [
+            'bookings' => $bookings,
+            'statusColumn' => $statusColumn,
+            'pageTitle' => 'Package Refunds',
+            'pageHeading' => 'Package Refunds',
+            'tableTitle' => 'Refunds List',
+            'showBookingStatusColumn' => true,
+            'showPackagePaymentColumn' => false,
+            'showNegotiationColumn' => false,
+            'packageComments' => $packageComments,
+        ]);
+    }
+
+    public function processRefund(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'booking_id' => 'required|string',
+            'refund_reference' => 'nullable|string|max:120',
+            'refund_mode' => 'nullable|string|max:50',
+            'remark' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid refund details provided.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $bookingId = (string) $request->booking_id;
+        $booking = PackageBooking::query()
+            ->where('booking_id', $bookingId)
+            ->first();
+        if (!$booking && is_numeric($bookingId)) {
+            $booking = PackageBooking::query()->where('id', (int) $bookingId)->first();
+        }
+        if (!$booking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Package booking not found.',
+            ], 404);
+        }
+        $statusColumn = $this->statusColumn();
+        $currentStatus = (string) (data_get($booking, $statusColumn) ?? '');
+
+        if (strcasecmp($currentStatus, 'Refund - Pending') !== 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This booking is not eligible for refund processing.',
+            ], 409);
+        }
+
+        $details = is_array($booking->booking_details ?? null) ? $booking->booking_details : (is_string($booking->booking_details ?? null) ? (json_decode($booking->booking_details, true) ?: []) : []);
+        $details['refund_details'] = [
+            'refunded_at' => Carbon::now()->toDateTimeString(),
+            'refunded_by' => Auth::user()?->name,
+            'refunded_by_user_id' => Auth::user()?->userId ?? Auth::user()?->id,
+            'refund_reference' => (string) ($request->refund_reference ?? ''),
+            'refund_mode' => (string) ($request->refund_mode ?? ''),
+            'remark' => (string) ($request->remark ?? ''),
+            'previous_status' => $currentStatus,
+        ];
+        $booking->booking_details = $details;
+
+        $booking->{$statusColumn} = 'Refunded';
+        if (Schema::hasColumn('package_bookings', 'package_status')) {
+            $booking->package_status = 'Refunded';
+        }
+        $booking->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Refund processed successfully.',
+            'booking_id' => $booking->booking_id,
+            'new_status' => 'Refunded',
         ]);
     }
 
