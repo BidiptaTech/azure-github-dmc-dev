@@ -4,47 +4,63 @@
     $__showBookingStatus = !empty($showBookingStatusColumn);
     $__showPayments = !empty($showPackagePaymentColumn);
     $__showNegotiation = array_key_exists('showNegotiationColumn', get_defined_vars()) ? (bool) $showNegotiationColumn : true;
+    $__hideEditAction = !empty($hideEditAction);
     $__pkgCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
 @endphp
 
 <div class="table-responsive">
     <table class="datatables-basic table table-bordered" id="packageBookingsTable">
         <colgroup>
-            <col style="width:3%">
-            <col style="width:16%">
-            <col style="width:18%">
-            <col style="width:16%">
-            <col style="width:14%">
-            <col style="width:14%">
-            @if($__showBookingStatus)
-            <col style="width:10%">
-            @endif
-            <col style="width:12%">
-            @if($__showNegotiation)
-            <col style="width:12%">
-            @endif
-            @if($__showPayments)
-            <col style="width:11%">
+            @if(!$__showNegotiation && !$__showPayments)
+                {{-- Refunds / compact tables --}}
+                <col style="width:3%">
+                <col style="width:18%">
+                <col style="width:20%">
+                <col style="width:14%">
+                <col style="width:12%">
+                @if($__showBookingStatus)
+                <col style="width:10%">
+                @endif
+                <col style="width:13%">
+                <col style="width:10%">
+            @else
+                {{-- Wide tables --}}
+                <col style="width:3%">
+                <col style="width:16%">
+                <col style="width:18%">
+                <col style="width:16%">
+                <col style="width:14%">
+                @if($__showBookingStatus)
+                <col style="width:10%">
+                @endif
+                <col style="width:12%">
+                @if($__showNegotiation)
+                <col style="width:12%">
+                @endif
+                @if($__showPayments)
+                <col style="width:11%">
+                @endif
+                <col style="width:10%">
             @endif
         </colgroup>
         <thead class="table-light">
             <tr>
-                <th>#</th>
-                <th>Booking Details</th>
-                <th>Package Details</th>
-                <th>Created</th>
-                <th>Agent</th>
+                <th class="th-tooltip" data-tooltip="#">#</th>
+                <th class="th-tooltip" data-tooltip="Booking Details">Booking Details</th>
+                <th class="th-tooltip" data-tooltip="Package Details">Package Details</th>
+                <th class="th-tooltip" data-tooltip="Created">Created</th>
+                <th class="th-tooltip" data-tooltip="Agent">Agent</th>
                 @if($__showBookingStatus)
-                <th>Booking status</th>
+                <th class="th-tooltip" data-tooltip="Booking status">Booking status</th>
                 @endif
-                <th>Services</th>
+                <th class="th-tooltip" data-tooltip="Services">Services</th>
                 @if($__showNegotiation)
-                <th>Negotiation</th>
+                <th class="th-tooltip" data-tooltip="Negotiation">Negotiation</th>
                 @endif
                 @if($__showPayments)
-                <th>Payments</th>
+                <th class="th-tooltip" data-tooltip="Payments">Payments</th>
                 @endif
-                <th>Actions</th>
+                <th class="th-tooltip" data-tooltip="Actions">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -77,6 +93,10 @@
                     $priceChild = (float) ($b->packageInfo?->price_child ?? 0);
                     // Negotiation "Actual Amount" should be based on selected services totals (hotels/attractions/restaurants/transfers)
                     $approxActual = (float) \App\Helpers\CommonHelper::calculatePackageBookingActualAmount((string) $b->booking_id, $b->package_id ?? null, $b->dmc_id ?? null);
+                    $priceData = is_array($b->total_price ?? null) ? ($b->total_price ?? []) : (is_string($b->total_price ?? null) ? (json_decode($b->total_price, true) ?: []) : []);
+                    $storedTotal = (float) ($priceData['total_price'] ?? 0);
+                    $storedFinal = (float) ($priceData['final_price'] ?? 0);
+                    $storedBaseForUi = $storedFinal > 0 ? $storedFinal : ($storedTotal > 0 ? $storedTotal : $approxActual);
 
                     $latestOmComment = $bookingComments->first(function ($c) {
                         return strtolower((string) ($c->sender_type ?? '')) === 'om';
@@ -85,7 +105,7 @@
                         return strtolower((string) ($c->sender_type ?? '')) === 'agent';
                     });
                     // DMC/OM counter-offer (or package total) = reference for agent modal & payment base excl. tax.
-                    $agentNegotiationBaseline = \App\Helpers\CommonHelper::packageNegotiatedPriceExclTax($approxActual, $bookingComments);
+                    $agentNegotiationBaseline = \App\Helpers\CommonHelper::packageNegotiatedPriceExclTax($storedBaseForUi, $bookingComments);
                     $lastAgentOfferAmount = $latestAgentComment?->amount ?? '';
                     $lastAgentRemark = (string) ($latestAgentComment?->comment ?? '');
 
@@ -248,7 +268,7 @@
                                         class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
                                         data-booking-id="{{ $b->booking_id }}"
                                         data-display-id="{{ e($b->booking_id ?? '') }}"
-                                        data-actual="{{ $agentNegotiationBaseline }}"
+                                        data-actual="{{ $storedBaseForUi }}"
                                         data-last-amount="{{ $lastAgentOfferAmount }}"
                                         data-last-comment="{{ e($lastAgentRemark) }}"
                                         data-booking-status="{{ e((string) $statusValue) }}"
@@ -267,9 +287,9 @@
                                         class="btn btn-sm btn-warning negotiation-btn"
                                         data-booking-id="{{ $b->booking_id }}"
                                         data-package-inquiry-id="{{ $inquiryIdForUpdate }}"
-                                        data-price="{{ $negLastAmount !== '' ? $negLastAmount : $approxActual }}"
-                                        data-actual="{{ $approxActual }}"
-                                        data-discount="{{ max(0, $approxActual - (float)($negLastAmount !== '' ? $negLastAmount : $approxActual)) }}"
+                                        data-price="{{ $negLastAmount !== '' ? $negLastAmount : $storedBaseForUi }}"
+                                        data-actual="{{ $storedBaseForUi }}"
+                                        data-discount="{{ max(0, $storedBaseForUi - (float)($negLastAmount !== '' ? $negLastAmount : $storedBaseForUi)) }}"
                                         data-comment="{{ e((string) $negLastRemark) }}"
                                         onclick="openPackageNegotiationUpdateModal(this)"
                                         {{ $hasAgentComment ? '' : 'disabled' }}
@@ -322,16 +342,43 @@
                         </div>
                     </td>
                     @endif
-                    <td class="align-top">
-                        <div class="d-flex flex-column gap-2">
-                            @if($isPipelineStatus)
-                                <button type="button" class="btn btn-sm btn-outline-success" onclick="packageConfirmBooking('{{ $b->booking_id }}', {{ json_encode((float) $agentNegotiationBaseline) }})">
-                                    <i class="ri-check-line me-1"></i> Confirm Package
+                    <td class="align-top col-actions">
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            @if(! $__hideEditAction)
+                                <a href="{{ route('package.booking.edit', $b->booking_id) . '?return_url=' . urlencode(url()->full()) }}"
+                                   class="action-icon-badge"
+                                   style="--action-color: #7c3aed; background:#f5f3ff; border-color:#ddd6fe;"
+                                   data-tooltip="Edit / add available add-ons">
+                                    <i class="ri-edit-2-line"></i>
+                                </a>
+                            @endif
+                            @if(strcasecmp((string) $statusValue, 'Refund - Pending') === 0)
+                                <button type="button"
+                                        class="action-icon-badge"
+                                        style="--action-color: #16a34a; background:#ecfdf5; border-color:#bbf7d0;"
+                                        data-tooltip="Process Refund"
+                                        onclick="packageProcessRefund('{{ $b->booking_id }}')">
+                                    <i class="ri-money-dollar-circle-line"></i>
                                 </button>
                             @endif
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="packageCancelBooking('{{ $b->booking_id }}')">
-                                <i class="ri-delete-bin-line me-1"></i> Cancel Package
-                            </button>
+                            @if(strcasecmp((string) $statusValue, 'Refunded') === 0)
+                                <span class="badge d-inline-flex align-items-center gap-1"
+                                      style="background:#ecfdf5;color:#166534;border:1px solid #bbf7d0;font-weight:600;padding:0.45rem 0.6rem;"
+                                      data-tooltip="Refunded"
+                                      aria-disabled="true">
+                                    <i class="ri-check-line"></i>
+                                    Refunded
+                                </span>
+                            @endif
+                            @if(strcasecmp((string) $statusValue, 'Refund - Pending') !== 0 && strcasecmp((string) $statusValue, 'Refunded') !== 0)
+                                <button type="button"
+                                        class="action-icon-badge"
+                                        style="--action-color: #dc2626; background:#fef2f2; border-color:#fecaca;"
+                                        data-tooltip="Cancel Package"
+                                        onclick="packageCancelBooking('{{ $b->booking_id }}')">
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
+                            @endif
                         </div>
                     </td>
                 </tr>

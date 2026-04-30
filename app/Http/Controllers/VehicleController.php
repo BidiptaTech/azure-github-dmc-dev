@@ -28,6 +28,47 @@ use Illuminate\Support\Facades\Crypt;
 
 class VehicleController extends Controller
 {
+    /**
+     * Resolve the "effective" DMC userId for the current user.
+     * For non-DMC roles that operate under a DMC via created_by chains,
+     * this returns the parent DMC id so UI can show the same cities/drivers as DMC.
+     */
+    private function resolveDmcIdForUser(?User $user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $roleId = (int) ($user->role_id ?? 0);
+        $userId = (int) ($user->userId ?? 0);
+        $createdBy = (int) ($user->created_by ?? 0);
+
+        // DMC (and role 20 in this controller) maps to self
+        if (in_array($roleId, [11, 20], true)) {
+            return $userId ?: null;
+        }
+
+        // Product Head / Multi product levels -> parent DMC is direct created_by
+        if (in_array($roleId, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
+            return $createdBy ?: null;
+        }
+
+        // Product level (PM) -> created_by points to Product Head -> created_by is DMC
+        if (in_array($roleId, [76, 139], true)) {
+            $productHead = $createdBy ? User::where('userId', $createdBy)->first() : null;
+            return (int) ($productHead?->created_by ?? 0) ?: null;
+        }
+
+        // Level above (APM) -> created_by (PM) -> created_by (PH) -> created_by (DMC)
+        if (in_array($roleId, [111, 140], true)) {
+            $productManager = $createdBy ? User::where('userId', $createdBy)->first() : null;
+            $productHead = ($productManager?->created_by) ? User::where('userId', $productManager->created_by)->first() : null;
+            return (int) ($productHead?->created_by ?? 0) ?: null;
+        }
+
+        return null;
+    }
+
     /*
     * Display a listing of the Category.
     * Date 06-11-2024
@@ -100,7 +141,12 @@ class VehicleController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
         $authuser = auth()->user();
-        $cities = City::where('country', $authuser->country)->get();
+        $resolvedDmcId = $this->resolveDmcIdForUser($authuser);
+        $resolvedDmcCountry = null;
+        if ($resolvedDmcId) {
+            $resolvedDmcCountry = User::where('userId', $resolvedDmcId)->value('country');
+        }
+        $cities = City::where('country', $resolvedDmcCountry ?: $authuser->country)->get();
 
         if($authuser->role_id == 4){
             $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
@@ -142,11 +188,11 @@ class VehicleController extends Controller
                 $zones = Zone::where('dmc_id', $vehicle->dmc_id)->get();
                 $ports = Port::where('country', $dmc_country)->get();
                 
-                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports'));
+                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId'));
             }
         }
         
-        return view('vehicles.add-vehicle', compact('dmcs', 'cities'));
+        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId'));
         // return view('vehicles.add-vehicle', compact('dmcs', 'cities'));
     }
 
@@ -156,45 +202,17 @@ class VehicleController extends Controller
         $dmc_id = $request->country_name;
         $drivers = collect(); // Default empty
 
-        if ($user->role_id == 11 || $user->role_id == 20) {
-            // DMC sees their own drivers
+        $roleId = (int) ($user->role_id ?? 0);
+        $effectiveDmcId = $this->resolveDmcIdForUser($user);
+
+        // For DMC-scoped roles, always show the same driver set as the DMC.
+        if ($effectiveDmcId && in_array($roleId, [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 139, 111, 140], true)) {
             $drivers = Driver::where('status', 1)
-                ->where('dmc_id', $user->userId)
+                ->where('dmc_id', $effectiveDmcId)
                 ->orderByDesc('updated_at')
                 ->get();
-
-        } elseif ($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138) {
-            // Product Head sees own and APMs they created
-            $createdByIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
-            $createdByIds[] = $user->userId;
-
-            $drivers = Driver::where('status', 1)
-                ->where('dmc_id', $dmc_id)
-                ->whereIn('created_by', $createdByIds)
-                ->orderByDesc('updated_at')
-                ->get();
-
-        } elseif ($user->role_id == 76 || $user->role_id == 139) {
-            // Product Manager sees APMs they created and self
-            $apmIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
-            $createdByIds = array_merge($apmIds, [$user->userId]);
-
-            $drivers = Driver::where('status', 1)
-                ->where('dmc_id', $dmc_id)
-                ->whereIn('created_by', $createdByIds)
-                ->orderByDesc('updated_at')
-                ->get();
-
-        } elseif ($user->role_id == 111 || $user->role_id == 140) {
-            // APM sees only own drivers
-            $drivers = Driver::where('status', 1)
-                ->where('dmc_id', $dmc_id)
-                ->where('created_by', $user->userId)
-                ->orderByDesc('updated_at')
-                ->get();
-
         } else {
-            // Admins or others
+            // Admins or other roles: keep existing behavior based on selected DMC
             $drivers = Driver::where('status', 1)
                 ->where('dmc_id', $dmc_id)
                 ->orderByDesc('updated_at')
@@ -480,7 +498,7 @@ class VehicleController extends Controller
         // Check if we're in the zone mapping tab
         if (request()->has('zone_mapping')) {
             // Get zones based on the vehicle's DMC
-            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->get();
+            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->orwhere('dmc_id',null)->get();
             
             // Get ports for the DMC country
             $ports = Port::where('country', $dmc_country)->get();
@@ -791,28 +809,37 @@ class VehicleController extends Controller
                     ->first();
 
                 if ($mapping) {
-                    // If soft deleted, restore it
+                    // Do not restore soft-deleted mappings.
+                    // If a record exists in trash, permanently delete and recreate
+                    // so we never reuse an old mapping_id value.
                     if ($mapping->trashed()) {
-                        $mapping->restore();
+                        $mapping->forceDelete();
+
+                        $newMapping = VehicleZoneMapping::create([
+                            'vehicle_id' => $vehicleId,
+                            'from_zone_id' => $fromZoneId,
+                            'to_zone_id' => $toZoneId,
+                            'from_zone_type' => $fromZoneType,
+                            'to_zone_type' => $toZoneType,
+                            'private_price' => $privatePrice,
+                            'shared_price' => $sharedPrice,
+                        ]);
+
+                        if (empty($newMapping->mapping_id)) {
+                            $newMapping->update(['mapping_id' => (string) $newMapping->id]);
+                        }
+                    } else {
+                        // Update prices and types
+                        $mapping->update([
+                            'private_price' => $privatePrice,
+                            'shared_price' => $sharedPrice,
+                            'from_zone_type' => $fromZoneType,
+                            'to_zone_type' => $toZoneType,
+                        ]);
                     }
-                    // Update prices and types
-                    $mapping->update([
-                        'private_price' => $privatePrice,
-                        'shared_price' => $sharedPrice,
-                        'from_zone_type' => $fromZoneType,
-                        'to_zone_type' => $toZoneType,
-                    ]);
                 } else {
-                    // Generate a new mapping_id
-                    $lastMapping = VehicleZoneMapping::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $mapping_max_id = $lastMapping->mapping_id ?? 0;
-                    $mappingId = \App\Helpers\CommonHelper::createId($mapping_max_id);
-                    while (VehicleZoneMapping::where('mapping_id', $mappingId)->exists()) {
-                        $mappingId = \App\Helpers\CommonHelper::createId($mappingId);
-                    }
-                    // Create new mapping
-                    VehicleZoneMapping::create([
-                        'mapping_id' => $mappingId,
+                    // Create new mapping (use DB id as unique stable identifier)
+                    $newMapping = VehicleZoneMapping::create([
                         'vehicle_id' => $vehicleId,
                         'from_zone_id' => $fromZoneId,
                         'to_zone_id' => $toZoneId,
@@ -821,6 +848,9 @@ class VehicleController extends Controller
                         'private_price' => $privatePrice,
                         'shared_price' => $sharedPrice,
                     ]);
+                    if (empty($newMapping->mapping_id)) {
+                        $newMapping->update(['mapping_id' => (string) $newMapping->id]);
+                    }
                 }
             }
         }
@@ -846,7 +876,7 @@ class VehicleController extends Controller
         ]);
         
         // Check both active and trashed records
-        $mapping = VehicleZoneMapping::where('vehicle_id', $validated['vehicle_id'])
+        $mapping = VehicleZoneMapping::withTrashed()->where('vehicle_id', $validated['vehicle_id'])
             ->where('from_zone_id', $validated['from_zone_id'])
             ->where('to_zone_id', $validated['to_zone_id'])
             ->where('from_zone_type', $validated['from_zone_type'])
@@ -856,7 +886,8 @@ class VehicleController extends Controller
             return response()->json([
                 'exists' => true,
                 'was_deleted' => $mapping->trashed(),
-                'mapping_id' => $mapping->mapping_id
+                // Always return a unique id (primary key)
+                'mapping_id' => (string) $mapping->id
             ]);
         }
         
@@ -892,17 +923,27 @@ class VehicleController extends Controller
 
             if ($existingMapping) {
                 if ($existingMapping->trashed()) {
-                    // Restore the soft-deleted mapping
-                    $existingMapping->restore();
-                    $existingMapping->update([
+                    // Do not restore soft-deleted mappings.
+                    // Permanently delete and recreate to keep a unique id.
+                    $existingMapping->forceDelete();
+
+                    $mapping = VehicleZoneMapping::create([
+                        'vehicle_id' => $vehicleId,
+                        'from_zone_id' => $fromZoneId,
+                        'to_zone_id' => $toZoneId,
                         'from_zone_type' => $fromZoneType,
                         'to_zone_type' => $toZoneType,
+                        'private_price' => 0,
+                        'shared_price' => 0
                     ]);
-                    
+                    if (empty($mapping->mapping_id)) {
+                        $mapping->update(['mapping_id' => (string) $mapping->id]);
+                    }
+
                     return response()->json([
                         'success' => true,
-                        'mapping_id' => $existingMapping->mapping_id,
-                        'message' => 'Mapping restored successfully'
+                        'mapping_id' => (string) $mapping->id,
+                        'message' => 'Mapping recreated successfully'
                     ]);
                 } else {
                     // Mapping already exists and is active
@@ -913,17 +954,8 @@ class VehicleController extends Controller
                 }
             }
 
-            // Generate mapping_id
-            $lastMapping = VehicleZoneMapping::withTrashed()->orderBy('created_at', 'desc')->first();
-            $mapping_max_id = $lastMapping->mapping_id ?? 0;
-            $mappingId = \App\Helpers\CommonHelper::createId($mapping_max_id);
-            while (VehicleZoneMapping::where('mapping_id', $mappingId)->exists()) {
-                $mappingId = \App\Helpers\CommonHelper::createId($mappingId);
-            }
-
             // Create new mapping
             $mapping = VehicleZoneMapping::create([
-                'mapping_id' => $mappingId,
                 'vehicle_id' => $vehicleId,
                 'from_zone_id' => $fromZoneId,
                 'to_zone_id' => $toZoneId,
@@ -932,10 +964,13 @@ class VehicleController extends Controller
                 'private_price' => 0,
                 'shared_price' => 0
             ]);
+            if (empty($mapping->mapping_id)) {
+                $mapping->update(['mapping_id' => (string) $mapping->id]);
+            }
 
             return response()->json([
                 'success' => true,
-                'mapping_id' => $mapping->mapping_id,
+                'mapping_id' => (string) $mapping->id,
                 'message' => 'Mapping added successfully'
             ]);
         } catch (\Exception $e) {

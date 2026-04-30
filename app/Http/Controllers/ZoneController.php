@@ -349,7 +349,7 @@ class ZoneController extends Controller
             'city' => 'required',
             'status' => 'required|integer',
         ]);
-
+        
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
@@ -357,14 +357,8 @@ class ZoneController extends Controller
         }
 
         // Update zone
-        $data = $request->all();
-        $data['dmc_id'] = $this->resolveDmcIdForUser(Auth::user());
-        
-        if(!$data['dmc_id']){
-            return redirect()->back()
-            ->withErrors(['dmc_id' => 'DMC ID not found'])
-            ->withInput();
-        }
+        // Update ONLY validated fields; keep existing dmc_id untouched.
+        $data = $validator->validated();
         
         $zone->update($data);
 

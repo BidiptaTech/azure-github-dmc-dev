@@ -158,6 +158,7 @@ class BookingCountServiceProvider extends ServiceProvider
             'definite' => $countFor('Definite'),
             'actual' => $countFor(['Actual', 'Complete']),
             'cancelled' => $cancelled,
+            'refunds' => $countFor(['Refund - Pending', 'Refunded']),
         ];
     }
 }

@@ -927,7 +927,7 @@
                                     <input type="hidden" name="child_ages" id="child_ages" value="[]">
                                 </div>
 
-                                <div class="col-md-2">
+                                <div class="col-md-4">
                                     <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-building-line me-1"></i>Agency Company
                                     </label>
@@ -942,10 +942,10 @@
                                 <!-- Agent Selection -->
                                 <div class="col-md-2">
                                     <label for="agent_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-user-star-line me-1"></i>Agent
+                                        <i class="ri-user-star-line me-1"></i>Agency Contact
                                     </label>
                                     <select name="agent_id" id="agent_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required>
-                                        <option value="">Choose agent...</option>
+                                        <option value="">Choose agency contact...</option>
                                         @foreach($agents as $agent)
                                             <option value="{{ $agent->agent_id }}">{{ $agent->name }}</option>
                                         @endforeach
@@ -6743,6 +6743,52 @@
             // Multi-city segments
             let segmentIndex = 0;
 
+            function updateAddCityPlanButtonState() {
+                const $btn = $('#addCityPlan');
+                if (!$btn.length) return;
+
+                const isNonEmpty = (v) => String(v ?? '').trim() !== '';
+
+                const startOk = isNonEmpty($('#start_date').val());
+                const endOk = isNonEmpty($('#end_date').val());
+                const datesOk = startOk && endOk;
+
+                const adults = parseInt(String($('#adults').val() ?? '0'), 10) || 0;
+                const children = parseInt(String($('#children').val() ?? '0'), 10) || 0;
+                const guestsOk = (adults + children) > 0;
+
+                const agencyOk = isNonEmpty($('#agency_id').val());
+                const agentOk = isNonEmpty($('#agent_id').val());
+
+                const mode = String($('input[name="city_mode"]:checked').val() || 'single');
+                const cityOk = (mode === 'multi')
+                    ? ((Array.isArray($('#multi_cities').val()) ? $('#multi_cities').val() : []) || []).length > 0
+                    : isNonEmpty($('#single_city').val());
+
+                const ok = datesOk && guestsOk && agencyOk && agentOk && cityOk;
+
+                $btn.prop('disabled', !ok);
+                $btn.attr('title', ok ? '' : 'Fill travel dates, guests, agency, agent, and city first.');
+            }
+            // Expose so other script blocks (date picker, etc.) can refresh state
+            window.updateAddCityPlanButtonState = updateAddCityPlanButtonState;
+
+            // Keep Add City Plan disabled until required fields filled
+            updateAddCityPlanButtonState();
+            $(document).on('change input', [
+                '#start_date',
+                '#end_date',
+                '#adults',
+                '#children',
+                '#agency_id',
+                '#agent_id',
+                '#single_city',
+                '#multi_cities',
+                'input[name="city_mode"]'
+            ].join(','), function () {
+                updateAddCityPlanButtonState();
+            });
+
             $('#addCityPlan').on('click', function () {
                 const master = getMasterCities();
                 if (!master.length) {
@@ -12389,6 +12435,12 @@
                 // Set hidden date fields
                 document.getElementById('start_date').value = newStartDate;
                 document.getElementById('end_date').value = newEndDate;
+                // Hidden fields are updated programmatically, so trigger listeners that depend on them.
+                $('#start_date').trigger('change');
+                $('#end_date').trigger('change');
+                if (typeof window.updateAddCityPlanButtonState === 'function') {
+                    window.updateAddCityPlanButtonState();
+                }
                 
                 // Update global variables
                 tourStartDate = newStartDate;
@@ -12552,6 +12604,11 @@
                     $(this).val('');
                     document.getElementById('start_date').value = '';
                     document.getElementById('end_date').value = '';
+                    $('#start_date').trigger('change');
+                    $('#end_date').trigger('change');
+                    if (typeof window.updateAddCityPlanButtonState === 'function') {
+                        window.updateAddCityPlanButtonState();
+                    }
                     tourStartDate = null;
                     tourEndDate = null;
                     tourNights = 0;

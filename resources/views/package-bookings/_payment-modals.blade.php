@@ -7,11 +7,15 @@
     @php
         $details = is_array($b->booking_details ?? null) ? ($b->booking_details ?? []) : (is_string($b->booking_details ?? null) ? (json_decode($b->booking_details, true) ?: []) : []);
         $approxActual = (float) \App\Helpers\CommonHelper::calculatePackageBookingActualAmount((string) $b->booking_id, $b->package_id ?? null, $b->dmc_id ?? null);
+        $priceData = is_array($b->total_price ?? null) ? ($b->total_price ?? []) : (is_string($b->total_price ?? null) ? (json_decode($b->total_price, true) ?: []) : []);
+        $storedTotal = (float) ($priceData['total_price'] ?? 0);
+        $storedFinal = (float) ($priceData['final_price'] ?? 0);
+        $storedBaseForUi = $storedFinal > 0 ? $storedFinal : ($storedTotal > 0 ? $storedTotal : $approxActual);
         $bookingComments = ($packageComments ?? collect([]))
             ->where('booking_id', $b->booking_id)
             ->sortByDesc('created_at')
             ->values();
-        $agentNegotiationBaseline = \App\Helpers\CommonHelper::packageNegotiatedPriceExclTax($approxActual, $bookingComments);
+        $agentNegotiationBaseline = (float) \App\Helpers\CommonHelper::packageNegotiatedPriceExclTax($storedBaseForUi, $bookingComments);
         $taxResult = \App\Helpers\CommonHelper::calculatePackageBookingTaxBreakdown(
             (float) $agentNegotiationBaseline,
             $b->taxes ?? [],
@@ -294,8 +298,8 @@
                                                     <div class="d-flex flex-column gap-1">
                                                         @if($canFinancePkgPayment)
                                                             <div class="d-flex gap-1 justify-content-center">
-                                                                <button type="button" class="btn btn-sm btn-outline-success px-2" title="Approve" onclick="pkgApprovePackagePayment('{{ $b->booking_id }}', {{ (int) $index }})"><i class="ri-check-line"></i></button>
-                                                                <button type="button" class="btn btn-sm btn-outline-danger px-2" title="Reject" onclick="pkgDeclinePackagePayment('{{ $b->booking_id }}', {{ (int) $index }})"><i class="ri-close-line"></i></button>
+                                                                <button type="button" class="btn btn-sm btn-outline-success px-2" title="Approve" onclick="pkgApprovePackagePayment('{{ $b->booking_id }}', {{ (int) $index }}, event)"><i class="ri-check-line"></i></button>
+                                                                <button type="button" class="btn btn-sm btn-outline-danger px-2" title="Reject" onclick="pkgDeclinePackagePayment('{{ $b->booking_id }}', {{ (int) $index }}, event)"><i class="ri-close-line"></i></button>
                                                             </div>
                                                         @endif
                                                         @if($canAddPkgPayment)
@@ -310,7 +314,7 @@
                                                                     data-txn="{{ e((string) ($payment['transaction_id'] ?? '')) }}"
                                                                     onclick="pkgOpenEditPackagePayment('{{ $b->booking_id }}', {{ $b->id }}, {{ (int) $index }}, this)"
                                                                 ><i class="ri-edit-line"></i></button>
-                                                                <button type="button" class="btn btn-sm btn-outline-danger px-2" title="Delete" onclick="pkgDeletePackagePayment('{{ $b->booking_id }}', {{ (int) $index }})"><i class="ri-delete-bin-line"></i></button>
+                                                                <button type="button" class="btn btn-sm btn-outline-danger px-2" title="Delete" onclick="pkgDeletePackagePayment('{{ $b->booking_id }}', {{ (int) $index }}, event)"><i class="ri-delete-bin-line"></i></button>
                                                             </div>
                                                         @endif
                                                     </div>
