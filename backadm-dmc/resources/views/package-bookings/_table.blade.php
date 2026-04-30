@@ -4,29 +4,44 @@
     $__showBookingStatus = !empty($showBookingStatusColumn);
     $__showPayments = !empty($showPackagePaymentColumn);
     $__showNegotiation = array_key_exists('showNegotiationColumn', get_defined_vars()) ? (bool) $showNegotiationColumn : true;
+    $__hideEditAction = !empty($hideEditAction);
     $__pkgCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
 @endphp
 
 <div class="table-responsive">
     <table class="datatables-basic table table-bordered" id="packageBookingsTable">
         <colgroup>
-            <col style="width:3%">
-            <col style="width:16%">
-            <col style="width:18%">
-            <col style="width:16%">
-            <col style="width:14%">
-            <col style="width:14%">
-            @if($__showBookingStatus)
-            <col style="width:10%">
+            @if(!$__showNegotiation && !$__showPayments)
+                {{-- Refunds / compact tables --}}
+                <col style="width:3%">
+                <col style="width:18%">
+                <col style="width:20%">
+                <col style="width:14%">
+                <col style="width:12%">
+                @if($__showBookingStatus)
+                <col style="width:10%">
+                @endif
+                <col style="width:13%">
+                <col style="width:10%">
+            @else
+                {{-- Wide tables --}}
+                <col style="width:3%">
+                <col style="width:16%">
+                <col style="width:18%">
+                <col style="width:16%">
+                <col style="width:14%">
+                @if($__showBookingStatus)
+                <col style="width:10%">
+                @endif
+                <col style="width:12%">
+                @if($__showNegotiation)
+                <col style="width:12%">
+                @endif
+                @if($__showPayments)
+                <col style="width:11%">
+                @endif
+                <col style="width:10%">
             @endif
-            <col style="width:12%">
-            @if($__showNegotiation)
-            <col style="width:12%">
-            @endif
-            @if($__showPayments)
-            <col style="width:11%">
-            @endif
-            <col style="width:10%">
         </colgroup>
         <thead class="table-light">
             <tr>
@@ -328,24 +343,42 @@
                     </td>
                     @endif
                     <td class="align-top col-actions">
-                        <div class="d-flex flex-column gap-2">
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            @if(! $__hideEditAction)
                                 <a href="{{ route('package.booking.edit', $b->booking_id) . '?return_url=' . urlencode(url()->full()) }}"
                                    class="action-icon-badge"
-                                   style="--action-color: #7c3aed;"
+                                   style="--action-color: #7c3aed; background:#f5f3ff; border-color:#ddd6fe;"
                                    data-tooltip="Edit / add available add-ons">
                                     <i class="ri-edit-2-line"></i>
                                 </a>
-                            </div>
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                            @endif
+                            @if(strcasecmp((string) $statusValue, 'Refund - Pending') === 0)
                                 <button type="button"
                                         class="action-icon-badge"
-                                        style="--action-color: #dc2626;"
+                                        style="--action-color: #16a34a; background:#ecfdf5; border-color:#bbf7d0;"
+                                        data-tooltip="Process Refund"
+                                        onclick="packageProcessRefund('{{ $b->booking_id }}')">
+                                    <i class="ri-money-dollar-circle-line"></i>
+                                </button>
+                            @endif
+                            @if(strcasecmp((string) $statusValue, 'Refunded') === 0)
+                                <span class="badge d-inline-flex align-items-center gap-1"
+                                      style="background:#ecfdf5;color:#166534;border:1px solid #bbf7d0;font-weight:600;padding:0.45rem 0.6rem;"
+                                      data-tooltip="Refunded"
+                                      aria-disabled="true">
+                                    <i class="ri-check-line"></i>
+                                    Refunded
+                                </span>
+                            @endif
+                            @if(strcasecmp((string) $statusValue, 'Refund - Pending') !== 0 && strcasecmp((string) $statusValue, 'Refunded') !== 0)
+                                <button type="button"
+                                        class="action-icon-badge"
+                                        style="--action-color: #dc2626; background:#fef2f2; border-color:#fecaca;"
                                         data-tooltip="Cancel Package"
                                         onclick="packageCancelBooking('{{ $b->booking_id }}')">
                                     <i class="ri-delete-bin-line"></i>
                                 </button>
-                            </div>
+                            @endif
                         </div>
                     </td>
                 </tr>
