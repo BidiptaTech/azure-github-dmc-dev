@@ -504,12 +504,20 @@
 
                 const numRooms = getHotelNumRooms(h);
                 const numSingle = getHotelSingleRooms(h);
+                const allowTriple = hotelAllowsTriple(h);
+                const numTriple = allowTriple ? getHotelTripleRooms(h) : 0;
                 const numDouble = getHotelDoubleRooms(h);
-                const occupancyHtml = numRooms > 1
+                const showOccupancy = numRooms > 1 || allowTriple;
+                const tripleHtml = allowTriple
+                    ? '<div class="col-md-1"><label class="form-label small text-muted mb-1">Triple</label>'
+                        + '<input type="number" min="0" max="' + esc(numRooms) + '" step="1" class="form-control form-control-sm hotel-triple-rooms" data-index="' + idx + '" value="' + esc(numTriple) + '"></div>'
+                    : '';
+                const occupancyHtml = showOccupancy
                     ? '<div class="col-md-1"><label class="form-label small text-muted mb-1">Single</label>'
                         + '<input type="number" min="0" max="' + esc(numRooms) + '" step="1" class="form-control form-control-sm hotel-single-rooms" data-index="' + idx + '" value="' + esc(numSingle) + '"></div>'
                       + '<div class="col-md-1"><label class="form-label small text-muted mb-1">Double</label>'
                         + '<input type="number" min="0" max="' + esc(numRooms) + '" step="1" class="form-control form-control-sm hotel-double-rooms" data-index="' + idx + '" value="' + esc(numDouble) + '"></div>'
+                      + tripleHtml
                     : '';
 
                 return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
@@ -621,12 +629,31 @@
                     const idx = parseInt(this.getAttribute('data-index') || '-1', 10);
                     if (idx < 0 || !hotels[idx]) return;
                     const total = getHotelNumRooms(hotels[idx]);
+                    const trip = getHotelTripleRooms(hotels[idx]);
                     let v = parseInt(this.value || '0', 10);
                     if (isNaN(v) || v < 0) v = 0;
                     if (v > total) v = total;
-                    // Helper recomputes double from single, so encode the desired double
-                    // count by adjusting single = total - desired_double.
-                    hotels[idx].num_single_rooms = Math.max(0, total - v);
+                    // Helper recomputes double from single+triple, so encode the desired double
+                    // count by adjusting single = total - desired_double - triple.
+                    hotels[idx].num_single_rooms = Math.max(0, total - v - trip);
+                    applyHotelRoomConsistency(hotels[idx]);
+                    renderHotels();
+                    renderPricingSummary();
+                    syncHidden();
+                });
+            });
+
+            hotelsList.querySelectorAll('.hotel-triple-rooms').forEach(inp => {
+                inp.addEventListener('change', function () {
+                    const idx = parseInt(this.getAttribute('data-index') || '-1', 10);
+                    if (idx < 0 || !hotels[idx]) return;
+                    const total = getHotelNumRooms(hotels[idx]);
+                    const single = getHotelSingleRooms(hotels[idx]);
+                    let v = parseInt(this.value || '0', 10);
+                    if (isNaN(v) || v < 0) v = 0;
+                    const maxTriple = Math.max(0, total - single);
+                    if (v > maxTriple) v = maxTriple;
+                    hotels[idx].num_triple_rooms = v;
                     applyHotelRoomConsistency(hotels[idx]);
                     renderHotels();
                     renderPricingSummary();
@@ -957,9 +984,35 @@
             return 0;
         }
 
-        /** Number of double-occupancy rooms = total rooms - single rooms. Default: all rooms double. */
+        /**
+         * Triple occupancy is only available on hotels whose room types include an
+         * extra-bed configuration (3rd guest sleeps on the rollaway).
+         */
+        function hotelAllowsTriple(hotel) {
+            if (!hotel || !Array.isArray(hotel.rooms)) return false;
+            return hotel.rooms.some(function (r) {
+                if (!r) return false;
+                const v = r.extra_bed;
+                return v === true || v === 1 || v === '1' || v === 'true';
+            });
+        }
+
+        /** Number of triple-occupancy rooms (only when extra_bed is allowed). */
+        function getHotelTripleRooms(hotel) {
+            if (!hotelAllowsTriple(hotel)) return 0;
+            const total = getHotelNumRooms(hotel);
+            const single = getHotelSingleRooms(hotel);
+            const remaining = Math.max(0, total - single);
+            if (hotel && hotel.num_triple_rooms != null && String(hotel.num_triple_rooms).trim() !== '') {
+                const v = parseInt(hotel.num_triple_rooms, 10);
+                if (!isNaN(v) && v >= 0) return Math.min(v, remaining);
+            }
+            return 0;
+        }
+
+        /** Number of double-occupancy rooms = total rooms - single rooms - triple rooms. Default: all rooms double. */
         function getHotelDoubleRooms(hotel) {
-            return Math.max(0, getHotelNumRooms(hotel) - getHotelSingleRooms(hotel));
+            return Math.max(0, getHotelNumRooms(hotel) - getHotelSingleRooms(hotel) - getHotelTripleRooms(hotel));
         }
 
         /**
@@ -976,6 +1029,7 @@
             if (!hotel) return;
             const pax = getPaxCount();
             const cap = getMaxHotelRooms();
+            const allowTriple = hotelAllowsTriple(hotel);
 
             let total = parseInt(hotel.num_rooms, 10);
             if (isNaN(total) || total < 1) total = 1;
@@ -985,9 +1039,13 @@
             if (isNaN(single) || single < 0) single = 0;
             if (single > total) single = total;
 
-            let dbl = Math.max(0, total - single);
+            let trip = allowTriple ? parseInt(hotel.num_triple_rooms, 10) : 0;
+            if (isNaN(trip) || trip < 0) trip = 0;
+            if (single + trip > total) trip = Math.max(0, total - single);
 
-            const capacity = 2 * dbl + single;
+            let dbl = Math.max(0, total - single - trip);
+
+            const capacity = 2 * dbl + single + 3 * trip;
             if (pax > 0 && capacity < pax) {
                 const deficit = pax - capacity;
                 const addDoubles = Math.ceil(deficit / 2);
@@ -999,12 +1057,13 @@
             if (total > cap) {
                 const overflow = total - cap;
                 dbl = Math.max(0, dbl - overflow);
-                total = single + dbl;
+                total = single + dbl + trip;
             }
 
             hotel.num_rooms = total;
             hotel.num_single_rooms = single;
             hotel.num_double_rooms = dbl;
+            hotel.num_triple_rooms = allowTriple ? trip : 0;
         }
 
         /**
@@ -1031,7 +1090,18 @@
                 } else {
                     h.num_single_rooms = Math.min(parsedSingle, h.num_rooms);
                 }
-                h.num_double_rooms = Math.max(0, h.num_rooms - h.num_single_rooms);
+                if (hotelAllowsTriple(h)) {
+                    const parsedTriple = parseInt(h.num_triple_rooms, 10);
+                    const tripCap = Math.max(0, h.num_rooms - h.num_single_rooms);
+                    if (h.num_triple_rooms == null || isNaN(parsedTriple) || parsedTriple < 0) {
+                        h.num_triple_rooms = 0;
+                    } else {
+                        h.num_triple_rooms = Math.min(parsedTriple, tripCap);
+                    }
+                } else {
+                    h.num_triple_rooms = 0;
+                }
+                h.num_double_rooms = Math.max(0, h.num_rooms - h.num_single_rooms - h.num_triple_rooms);
                 applyHotelRoomConsistency(h);
                 return h;
             });
@@ -1077,10 +1147,12 @@
 
         /**
          * Hotel line total uses a per-night, per-room formula that is independent of pax:
-         *   total = Σ (over selected nights) of [(price * 2 * num_double) + (price * 2 * num_single)]
+         *   total = Σ (over selected nights) of
+         *           [(price * 2 * num_double) + (price * 2 * num_single) + (price * 3 * num_triple)]
          * where `price` is the room's weekend_price on weekend days (per hotel.weekend_days)
          * and weekday_price otherwise. Single/double counts are user-configurable on each hotel
-         * card; by default all rooms are double-occupancy.
+         * card; by default all rooms are double-occupancy. Triple rooms are only available when
+         * the hotel's room type supports an extra bed.
          */
         function hotelTotal(item, indexHint) {
             if (!item) return 0;
@@ -1098,8 +1170,9 @@
             const weekendDays = Array.isArray(item.weekend_days) ? item.weekend_days : [];
 
             const numSingle = getHotelSingleRooms(item);
+            const numTriple = getHotelTripleRooms(item);
             const numDouble = getHotelDoubleRooms(item);
-            if (numSingle + numDouble <= 0) return 0;
+            if (numSingle + numDouble + numTriple <= 0) return 0;
 
             let total = 0;
             selectedDates.forEach(dateStr => {
@@ -1107,7 +1180,7 @@
                 if (!dt) return;
                 const dayName = dayNames[dt.getDay()];
                 const price = weekendDays.includes(dayName) ? weekendPrice : weekdayPrice;
-                total += (price * 2 * numDouble) + (price * 2 * numSingle);
+                total += (price * 2 * numDouble) + (price * 2 * numSingle) + (price * 3 * numTriple);
             });
             return total;
         }
