@@ -111,7 +111,7 @@
             <li class="menu-item @if(Request::is('packages/booking/create')) active @endif" style="position: relative;">
                 <a href="{{ route('packages.booking.create') }}" class="menu-link">
                     <i class="menu-icon tf-icons ri-route-line"></i>
-                    <div data-i18n="Create Package Booking">Create Package Booking</div>
+                    <div data-i18n="Prebuilt Packages">Prebuilt Packages</div>
                 </a>
             </li>
         @endif
@@ -155,6 +155,7 @@
                             'definite' => route('bookings.definite'),
                             'actual' => route('bookings.actual'),
                             'cancelled' => route('bookings.cancelled'),
+                            'refunds' => route('bookings.refunds'),
                             default => '#',
                         };
                     };
@@ -356,13 +357,13 @@
 
                 <!-- Products Section -->
                 <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Products">Products</span>
+                    <span class="menu-header-text" data-i18n="All Products">All Products</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*') || Request::is('default-values*'))  open active @endif">
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*')) open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
-                    <div data-i18n="Products">Products</div>
+                    <div data-i18n="All Products">All Products</div>
                 </a>
                 <ul class="menu-sub">
                     <!-- Packages -->
@@ -372,15 +373,7 @@
                     <div data-i18n="Packages">Packages</div>
                 </a>
                 <ul class="menu-sub"> --}}
-                    <li class="menu-item @if(Request::is('packages') && !Request::is('packaged-attractions*')) active @endif">
-                        <a href="{{ route('packages.index') }}" class="menu-link" title="Packages">
-                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
-                            <div data-i18n="Packages" class="menu-tooltip">
-                                <span class="menu-text-with-tooltip">Packages</span>
-                                <span class="tooltip-text">Packages</span>
-                            </div>
-                        </a>
-                    </li>
+                    
                     {{-- <li class="menu-item @if(Request::is('packages/create')) active @endif">
                         <a href="{{ route('packages.create') }}" class="menu-link">
                             <div data-i18n="Create Package" class="menu-tooltip">
@@ -616,9 +609,57 @@
                 </li>
                 @endif --}}
 
-                <!-- Product Configuration -->
-            
-                @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
+                <li class="menu-item @if(Request::is('packages') && !Request::is('packaged-attractions*')) active @endif">
+                    <a href="{{ route('packages.index') }}" class="menu-link" title="Prebuilt Fix Packages">
+                        {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
+                        <div data-i18n="Prebuilt Fix Packages" class="menu-tooltip">
+                            <span class="menu-text-with-tooltip">Prebuilt Fix Packages</span>
+                            <span class="tooltip-text">Prebuilt Fix Packages</span>
+                        </div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+
+                <!-- Predefined Packages Booking List -->
+                {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
+                    <li class="menu-header mt-5">
+                        <span class="menu-header-text" data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</span>
+                    </li>
+                    
+                    <li class="menu-item @if(Request::is('predefined-package-booking-list*')) open active @endif">
+                        <a href="#" class="menu-link menu-toggle">
+                        <i class="menu-icon tf-icons ri-suitcase-line" style="color: #1E90FF;"></i>
+
+                            <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
+                        </a>
+                        <ul class="menu-sub">
+                            <!-- Show Booking -->
+                            <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
+                                <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
+                                    <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                @endif --}}
+                <!-- End Predefined Packages Booking List -->
+            @endif
+
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,44,45,46,47,48,25,59,60,61,62,63,83,101,110,119, 35,74,75,76,77,78,84,93,102,111,120,130, 132, 133, 135, 136, 137, 138,139,140]))
+
+                <!-- Products Section -->
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Product Settings">Product Settings</span>
+                </li>
+
+            <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*') || Request::is('default-values*') || Request::is('services/*'))  open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
+                    <div data-i18n="Product Settings">Product Settings</div>
+                </a>
+                <ul class="menu-sub">
+                    @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
                 <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('default-values*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
                     <a href="#" class="menu-link menu-toggle" title="Product Configuration">
                         {{-- <i class="menu-icon tf-icons ri-function-line"></i> --}}
@@ -675,24 +716,86 @@
                     <li class="menu-item @if(Request::is('zones')) active @endif">
                         <a href="{{ route('zones.index') }}" class="menu-link" title="Zones">
                                 <div data-i18n="Zones" class="menu-tooltip">
-                                    <span class="menu-text-with-tooltip">Zones</span>
-                                    <span class="tooltip-text">Zones</span>
+                                    <span class="menu-text-with-tooltip">Zone Mapping</span>
+                                    <span class="tooltip-text">Zone Mapping</span>
                                 </div>
                             </a>
                         </li>
+                    @endif
 
+                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 35 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                     <!-- Default Value (same permissions as Zones) -->
                     <li class="menu-item @if(Request::is('default-values') || Request::is('default-values/*')) active @endif">
-                        <a href="{{ route('default-values.index') }}" class="menu-link" title="Default Value">
-                                <div data-i18n="Default Value" class="menu-tooltip">
-                                    <span class="menu-text-with-tooltip">Default Value</span>
-                                    <span class="tooltip-text">Default Value</span>
+                        <a href="{{ route('default-values.index') }}" class="menu-link" title="Default Product Mapping">
+                                <div data-i18n="Default Product Mapping" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Default Product Mapping</span>
+                                    <span class="tooltip-text">Default Product Mapping</span>
                                 </div>
-                            </a>
-                        </li>
+                        </a>
+                    </li>
                         @endif
-                    </ul>
-                </li>
+                </ul>
+            </li>
+
+                    <!-- Select Products (Services Management moved under Product Configuration) -->
+                    @php
+                        $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                    @endphp
+                    @if(in_array(Auth::user()->role_id, $allowedRoles))
+                        <li class="menu-item @if(Request::is('services/*')) open @endif">
+                            <a href="javascript:void(0);" class="menu-link menu-toggle" title="Select Products">
+                                <div data-i18n="Select Products">Select Products</div>
+                            </a>
+                            <ul class="menu-sub">
+                                @php
+                                    $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                                @endphp
+                                @if(in_array(Auth::user()->role_id, $allowedRoles))
+                                    <li class="menu-item @if(Request::is('services/hotels')) active @endif">
+                                        <a href="{{ route('services.hotels') }}" class="menu-link">
+                                            <div data-i18n="Hotels & Acco.">Hotels & Acco.</div>
+                                        </a>
+                                    </li>
+                                @endif
+
+                                @php
+                                    $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                                @endphp
+                                @if(in_array(Auth::user()->role_id, $allowedRoles))
+                                <li class="menu-item @if(Request::is('services/attractions')) active @endif">
+                                    <a href="{{ route('services.attractions') }}" class="menu-link">
+                                        <div data-i18n="Attractions">Attractions</div>
+                                    </a>
+                                </li>
+                                @endif
+
+                                @php
+                                    $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                                @endphp
+                                @if(in_array(Auth::user()->role_id, $allowedRoles))
+                                <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
+                                    <a href="{{ route('services.restaurants') }}" class="menu-link">
+                                        <div data-i18n="Restaurants & Dining">Restaurants & Dining</div>
+                                    </a>
+                                </li>
+                                @endif
+
+                                @php
+                                    $allowedRoles = [11, 35, 77, 78, 84, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                                @endphp
+                                @if(in_array(Auth::user()->role_id, $allowedRoles))
+                                <li class="menu-item @if(Request::is('services/miscellaneous')) active @endif">
+                                    <a href="{{ route('services.miscellaneous') }}" class="menu-link">
+                                        <div data-i18n="Miscellaneous">Miscellaneous</div>
+                                    </a>
+                                </li>
+                                @endif
+                            </ul>
+                        </li>
+                    @endif
+
+                    {{-- </ul>
+                </li> --}}
                 @endif
 
                 <!-- Ports -->
@@ -713,33 +816,11 @@
                     </ul>
                 </li>
                 @endif --}}
-                    </ul>
+                </ul>
                 </li>
-
-                <!-- Predefined Packages Booking List -->
-                {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
-                    <li class="menu-header mt-5">
-                        <span class="menu-header-text" data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</span>
-                    </li>
-                    
-                    <li class="menu-item @if(Request::is('predefined-package-booking-list*')) open active @endif">
-                        <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-suitcase-line" style="color: #1E90FF;"></i>
-
-                            <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
-                        </a>
-                        <ul class="menu-sub">
-                            <!-- Show Booking -->
-                            <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
-                                <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
-                                    <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                @endif --}}
-                <!-- End Predefined Packages Booking List -->
+                <!-- End Products Section -->
             @endif
+
             @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,36,37,38,126,127,128, 129, 130, 134, 135, 136, 138]))
               <!-- Reports -->
                 <li class="menu-header mt-5">
@@ -748,19 +829,19 @@
                 <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*') || Request::is('booking-list/daily-arrival')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-bar-chart-box-line"></i>
-                        <div data-i18n="Reports">Reports</div>
+                        <div data-i18n="Reports & Analytics">Reports & Analytics</div>
                     </a>
                     <ul class="menu-sub">
                         @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
                             <li class="menu-item @if(Request::is('reports/sales-revenue')) active @endif">
                                 <a href="{{ route('reports.sales-revenue') }}" class="menu-link">
                                     
-                                    <div data-i18n="Sales & Revenue">Sales & Revenue</div>
+                                    <div data-i18n="Sales & Revenue Report">Sales & Revenue Report</div>
                                 </a>
                             </li>
                             <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
                                 <a href="{{ route('reports.ledger') }}" class="menu-link">
-                                    <div data-i18n="Ledger">Ledger</div>
+                                    <div data-i18n="Ledger Report">Ledger Report</div>
                                 </a>
                             </li>
                         @endif
@@ -776,6 +857,96 @@
                                 </a>
                             </li>
                         @endif
+
+                        <li class="menu-item">
+                            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                <div data-i18n="Analytical Report (upcoming)">Analytical Report (upcoming)</div>
+                            </a>
+                            <ul class="menu-sub">
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Market Analysis">Market Analysis</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="TA Revenue Analysis">TA Revenue Analysis</div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="menu-item">
+                            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                <div data-i18n="Supplier Payables">Supplier Payables</div>
+                            </a>
+                            <ul class="menu-sub">
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Hotels & Accomodations">Hotels & Accomodations</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Attractions">Attractions</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Tour Guide">Tour Guide</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Drivers">Drivers</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Restaurants">Restaurants</div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="menu-item">
+                            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                <div data-i18n="P & L Report (Coming up)">P & L Report (Coming up)</div>
+                            </a>
+                            <ul class="menu-sub">
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Hotels & Accomodations">Hotels & Accomodations</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Attractions">Attractions</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Tour Guide">Tour Guide</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Drivers">Drivers</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Restaurants">Restaurants</div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="menu-item disabled">
+                            <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                <div data-i18n="Sales Report (Account Mgmt)">Sales Report (Account Mgmt)</div>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <!-- End Reports -->
@@ -982,83 +1153,7 @@
             @endif --}}
             <!-- End Zone -->
 
-            <!-- Services Management for DMC -->
-            @php
-                $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138, 35, 74, 77, 78, 84, 93, 120, 132, 133, 139, 140];
-            @endphp
-
-            @if(in_array(Auth::user()->role_id, $allowedRoles))
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Services Management">Services Management</span>
-                </li>
-
-                <li class="menu-item @if(Request::is('services/*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-service-line"></i>
-                        <div data-i18n="Services">Services</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <!-- DMC Hotels Selection -->
-                        @php
-                            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                            <li class="menu-item @if(Request::is('services/hotels')) active @endif">
-                                <a href="{{ route('services.hotels') }}" class="menu-link">
-                                    <div data-i18n="Select Hotels">Select Hotels</div>
-                                </a>
-                            </li>
-                        @endif 
-                        <!-- DMC Attractions Selection -->
-                        @php
-                            $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/attractions')) active @endif">
-                            <a href="{{ route('services.attractions') }}" class="menu-link">
-                                <div data-i18n="Select Attractions">Select Attractions</div>
-                            </a>
-                        </li>
-                        @endif
-                        
-                        <!-- DMC Restaurants Selection -->
-                        @php
-                            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
-                            <a href="{{ route('services.restaurants') }}" class="menu-link">
-                                <div data-i18n="Select Restaurants">Select Restaurants</div>
-                            </a>
-                        </li>
-                        @endif
-                        <!-- DMC Agencies Selection -->
-                        @php
-                            $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/agencies')) active @endif">
-                            <a href="{{ route('services.agencies') }}" class="menu-link">
-                                <div data-i18n="Select Agencies">Select Agencies</div>
-                            </a>
-                        </li>
-                        @endif
-                        
-                        <!-- DMC Miscellaneous Selection -->
-                        @php
-                            $allowedRoles = [11, 35, 77, 78, 84, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/miscellaneous')) active @endif">
-                            <a href="{{ route('services.miscellaneous') }}" class="menu-link">
-                                <div data-i18n="Select Miscellaneous">Select Miscellaneous</div>
-                            </a>
-                        </li>
-                        @endif
-                    </ul>
-                </li>
-            @endif
-            <!-- End Services Management -->
+            {{-- Services Management moved under Product Settings -> Product Configuration -> Select Products --}}
 
             <!-- Booking -->
             {{-- @if(auth()->user()->role_id == 21||auth()->user()->role_id == 26 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 
@@ -1153,7 +1248,7 @@
                     <span class="menu-header-text" data-i18n="Agency Management">Agency Management</span>
                 </li>
 
-                <li class="menu-item @if(Request::is('agency*')) open active @endif">
+                <li class="menu-item @if(Request::is('agencies*') || Request::is('agents*') || Request::is('services/agencies')) open active @endif">
                     <a href="javascript:void(0);" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-building-line"></i>
                         <div data-i18n="Agency Management">Agency Management</div>
@@ -1165,6 +1260,26 @@
                                 <div data-i18n="Agencies">Agencies</div>
                             </a>
                         </li>
+
+                        <!-- DMC Agencies Selection -->
+                        @php
+                            $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
+                        <li class="menu-item @if(Request::is('services/agencies')) active @endif">
+                            <a href="{{ route('services.agencies') }}" class="menu-link">
+                                <div data-i18n="Select Agencies">Select Agencies</div>
+                            </a>
+                        </li>
+                        @endif
+
+                        @if(hasPermission('view agent'))
+                        <li class="menu-item @if(Request::is('agents')) active @endif">
+                            <a href="{{ route('agents.index') }}" class="menu-link">
+                                <div data-i18n="Add Travel Agents">Add Travel Agents</div>
+                            </a>
+                        </li>
+                        @endif
 
                         <!-- Create Agency -->
                         <!-- <li class="menu-item @if(Request::is('agencies/create')) active @endif">
@@ -1254,11 +1369,11 @@
                 
                 <!-- User Role Management -->
                 @if( !( (auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123) || in_array(auth()->user()->role_id, [125, 127, 140]) ) )
-                @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent') || $auth_user->role_id == 124)
+                @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || $auth_user->role_id == 124)
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="User Management">User Management</span>
                 </li>
-                <li class="menu-item @if(Request::is('users*', 'agents*', 'roles*', 'features*')) open @endif">
+                <li class="menu-item @if(Request::is('users*', 'roles*', 'features*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-user-line"></i>
                         <div data-i18n="All Users">All Users</div>
@@ -1277,13 +1392,7 @@
                         @endif
                        
 
-                        @if(hasPermission('view agent'))
-                        <li class="menu-item @if(Request::is('agents')) active @endif">
-                            <a href="{{ route('agents.index') }}" class="menu-link">
-                                <div data-i18n="Travel Agents">Travel Agents</div>
-                            </a>
-                        </li>
-                        @endif
+                        
 
                         <!-- Registered Agents View -->
                          {{-- @if(auth()->user()->role_id == 20 || auth()->user()->role_id == 19 || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4)
@@ -1362,7 +1471,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1416,6 +1525,13 @@
                             <li class="menu-item @if(Request::is('app-management')) active @endif">
                                 <a href="{{ route('app-management.index') }}" class="menu-link">
                                     <div data-i18n="App Management Settings">App Management Settings</div>
+                                </a>
+                            </li>
+
+                            <!-- Guide Languages -->
+                            <li class="menu-item @if(Request::is('guide-languages*')) active @endif">
+                                <a href="{{ route('guide-languages.index') }}" class="menu-link">
+                                    <div data-i18n="Guide Languages">Guide Languages</div>
                                 </a>
                             </li>
                         @endif
