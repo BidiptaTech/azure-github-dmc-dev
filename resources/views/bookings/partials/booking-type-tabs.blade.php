@@ -9,12 +9,12 @@
     <ul class="nav nav-pills nav-fill">
         <li class="nav-item">
             <a class="nav-link {{ $type === 'tours' ? 'active' : '' }}" href="{{ $toursUrl }}">
-                <i class="ri-map-pin-line me-1"></i> Tours Booking
+                <i class="ri-map-pin-line me-1"></i> Custom Itenerary (FIT / Group)
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link {{ $type === 'packages' ? 'active' : '' }}" href="{{ $packagesUrl }}">
-                <i class="ri-box-3-line me-1"></i> Package Booking
+                <i class="ri-box-3-line me-1"></i> Package / Prebuilt
             </a>
         </li>
     </ul>
