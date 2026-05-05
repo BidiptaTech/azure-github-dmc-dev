@@ -437,7 +437,7 @@ class PackageBookingController extends Controller
             ]);
 
             DB::commit();
-            return redirect()->route('predefined.package.booking.list')
+            return redirect()->route('package-bookings.new-enquiries')
                 ->with('success', 'Package booking created successfully.');
         } catch (\Throwable $e) {
             DB::rollBack();
