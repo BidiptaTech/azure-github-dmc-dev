@@ -547,7 +547,14 @@ class PackageController extends Controller
      */
     public function getCitiesByCountry($country)
     {
-        $cities = \App\Models\City::where('country', $country)->get(['city_id', 'name']);
+        $countryClean = trim((string) $country);
+        $cities = \App\Models\City::query()
+            ->where(function ($q) use ($countryClean) {
+                $q->where('country', $countryClean)
+                  ->orWhereRaw('LOWER(country) = ?', [strtolower($countryClean)]);
+            })
+            ->orderBy('name')
+            ->get(['city_id', 'name']);
         return response()->json($cities);
     }
 
@@ -774,8 +781,73 @@ class PackageController extends Controller
      */
     public function createDefinition()
     {
-        $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        $countries = $this->getAllowedCountriesForPackageDefinition(Auth::user());
         return view('package.package-definition', compact('countries'));
+    }
+
+    /**
+     * Get allowed countries for package definition based on DMC -> Master DMC hierarchy.
+     */
+    private function getAllowedCountriesForPackageDefinition(User $user)
+    {
+        $defaultCountries = Country::where('is_active', 1)->orderBy('name')->get();
+        $dmcId = CommonHelper::getDmcId($user);
+        if (!$dmcId) {
+            return $defaultCountries;
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser || empty($dmcUser->created_by)) {
+            return $defaultCountries;
+        }
+
+        $masterDmcId = (int) $dmcUser->created_by;
+        // IMPORTANT: Countries must come from the Master DMC user row itself,
+        // not from all users created under that Master DMC.
+        $masterDmcUser = User::where('userId', $masterDmcId)->first();
+        if (!$masterDmcUser || empty($masterDmcUser->country)) {
+            return $defaultCountries;
+        }
+
+        $countryValues = collect([$masterDmcUser->country]);
+
+        $normalizedCountries = collect();
+        foreach ($countryValues as $rawCountry) {
+            if (!is_string($rawCountry) || trim($rawCountry) === '') {
+                continue;
+            }
+
+            $decoded = json_decode($rawCountry, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $parts = $decoded;
+            } else {
+                $parts = preg_split('/[,|]/', $rawCountry);
+            }
+
+            foreach ($parts as $part) {
+                $name = trim((string) $part);
+                if ($name !== '') {
+                    $normalizedCountries->push($name);
+                }
+            }
+        }
+
+        $countryNames = $normalizedCountries->map(fn ($name) => strtolower($name))
+            ->unique()
+            ->values();
+
+        if ($countryNames->isEmpty()) {
+            return $defaultCountries;
+        }
+
+        return Country::where('is_active', 1)
+            ->where(function ($query) use ($countryNames) {
+                foreach ($countryNames as $countryName) {
+                    $query->orWhereRaw('LOWER(name) = ?', [$countryName]);
+                }
+            })
+            ->orderBy('name')
+            ->get();
     }
 
     /**
@@ -924,7 +996,8 @@ class PackageController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'destination' => 'required|string|max:255',
-            'city' => 'required|string|max:255',
+            'city' => 'required|array|min:1',
+            'city.*' => 'required|string|max:255',
             'category' => 'required|string|max:255',
             'duration_days' => 'required|integer|min:1',
             'description' => 'nullable|string',
@@ -944,6 +1017,8 @@ class PackageController extends Controller
             'total_price' => 'nullable|numeric|min:0',
             'markup_type' => 'nullable|in:percentage,flat',
             'markup_amount' => 'nullable|numeric|min:0',
+            'day_wise_itinerary' => 'nullable|json',
+            'day_city_plan' => 'nullable|json',
         ]);
         } catch (Exception $e) {
             return back()->withInput()->withErrors(['error' => 'Failed to validate package definition. ' . $e->getMessage()]);
@@ -976,13 +1051,17 @@ class PackageController extends Controller
             $totalPrice = $request->input('total_price');
             $markupType = $request->input('markup_type');
             $markupAmount = $request->input('markup_amount');
+            $dayWiseItinerary = $request->input('day_wise_itinerary', '[]');
+            $dayCityPlan = $request->input('day_city_plan', '[]');
 
             // Decode main JSON payloads once so we can derive price_data server-side reliably.
             // This avoids depending on frontend JS to send price_data correctly.
             $decodedHotels = is_string($selectedHotels) ? (json_decode($selectedHotels, true) ?: []) : ($selectedHotels ?: []);
+            $selectedCities = array_values(array_filter((array) $request->input('city', [])));
+            $cityValue = implode(',', $selectedCities);
            
             foreach ($decodedHotels as &$hotel) {
-                $hotel['city'] = $request->input('city') ?? '';
+                $hotel['city'] = $cityValue;
             }
             unset($hotel);
             
@@ -993,6 +1072,12 @@ class PackageController extends Controller
             $decodedArrivalVehicles = json_decode($request->input('arrival_vehicles', '[]'), true) ?: [];
             
             $decodedDepartureVehicles = json_decode($request->input('departure_vehicles', '[]'), true) ?: [];
+            $decodedDayWiseItinerary = is_string($dayWiseItinerary)
+                ? (json_decode($dayWiseItinerary, true) ?: [])
+                : (is_array($dayWiseItinerary) ? $dayWiseItinerary : []);
+            $decodedDayCityPlan = is_string($dayCityPlan)
+                ? (json_decode($dayCityPlan, true) ?: [])
+                : (is_array($dayCityPlan) ? $dayCityPlan : []);
 
             // Persisted direct columns (JSON) for transfer/arrival/departure
             // transfer_data: local transfer list
@@ -1064,6 +1149,8 @@ class PackageController extends Controller
                 'departure_service' => (int) $request->input('departure_service', 0),
                 'independent_guide' => $decodedIndependentGuides,
                 'local_transfers' => $decodedLocalTransfers,
+                'day_city_plan' => $decodedDayCityPlan,
+                'day_wise_itinerary' => $decodedDayWiseItinerary,
                 'price_data' => $decodedPriceData,
                 'total_price' => ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice)) ? (float) $totalPrice : null,
                 'markup_type' => $markupType ?: null,
@@ -1087,7 +1174,7 @@ class PackageController extends Controller
                 'package_id' => $packageId,
                 'title' => $validated['title'],
                 'destination' => $validated['destination'],
-                'city' => $validated['city'],
+                'city' => $cityValue,
                 'category' => $validated['category'],
                 'duration_days' => $validated['duration_days'],
                 'package_type' => 'definition',
