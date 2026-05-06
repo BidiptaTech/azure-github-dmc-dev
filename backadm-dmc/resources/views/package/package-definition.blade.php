@@ -72,7 +72,7 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">City <span class="text-danger">*</span></label>
-                            <select class="form-select w-100 @error('city') is-invalid @enderror" id="city-select" name="city" required disabled>
+                            <select class="form-select w-100 @error('city') is-invalid @enderror" id="city-select" name="city[]" required multiple disabled>
                                 <option value="">Select Country First</option>
                             </select>
                             @error('city')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -128,8 +128,26 @@
                 </div>
             </div>
 
-            <!-- Hotels & Attractions: two side-by-side boxes -->
             <div class="card mb-4">
+                <div class="card-header bg-light py-2">
+                    <h5 class="mb-0"><i class="ri-calendar-event-line me-2 text-primary"></i>Day-wise City Planner</h5>
+                </div>
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <p class="text-muted small mb-0">Add city plans (city + day range). Services will open for selected city plan.</p>
+                        <button type="button" class="btn btn-sm btn-primary" id="definition-add-city-plan-btn">
+                            <i class="ri-add-line me-1"></i>Add City Plan
+                        </button>
+                    </div>
+                    <div id="definition-city-plan-list" class="row g-2"></div>
+                    <input type="hidden" name="day_city_plan" id="definition-day-city-plan" value="[]">
+                </div>
+            </div>
+
+            <div id="definition-city-plan-service-sections"></div>
+
+            <!-- Hotels & Attractions: two side-by-side boxes -->
+            <div class="card mb-4 definition-service-card">
                 <div class="card-header bg-light py-2">
                     <h5 class="mb-0"><i class="ri-hotel-line me-2 text-primary"></i><i class="ri-map-pin-line me-2 text-success"></i>Hotels & Attractions</h5>
                 </div>
@@ -170,6 +188,12 @@
                                             <div>
                                                 <label class="form-label small mb-0">Nights</label>
                                                 <input type="number" class="form-control form-control-sm" id="definition-nights" min="1" value="1" style="width: 70px;">
+                                            </div>
+                                            <div>
+                                                <label class="form-label small mb-0">Start Day</label>
+                                                <select class="form-select form-select-sm" id="definition-hotel-day" style="min-width: 120px;">
+                                                    <option value="1">Day 1</option>
+                                                </select>
                                             </div>
                                             <button type="button" class="btn btn-primary btn-sm" id="definition-hotel-add-btn"><i class="ri-add-line me-1"></i>Add</button>
                                         </div>
@@ -273,7 +297,15 @@
                                                 <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="shared" id="definition-attr-transfer-shared"><label class="form-check-label small" for="definition-attr-transfer-shared">Shared</label></div>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn btn-success btn-sm mt-1" id="definition-attraction-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                        <div class="d-flex align-items-end gap-2 mt-1 flex-wrap">
+                                            <div>
+                                                <label class="form-label small mb-0">Day</label>
+                                                <select class="form-select form-select-sm" id="definition-attraction-day" style="min-width: 120px;">
+                                                    <option value="1">Day 1</option>
+                                                </select>
+                                            </div>
+                                            <button type="button" class="btn btn-success btn-sm" id="definition-attraction-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="pt-2 border-top mt-2">
@@ -286,11 +318,12 @@
                     </div>
                     <input type="hidden" name="selected_hotels" id="definition-hotels-input" value="[]">
                     <input type="hidden" name="selected_attractions" id="definition-attractions-input" value="[]">
+                    <input type="hidden" name="day_wise_itinerary" id="definition-day-wise-itinerary" value="[]">
                 </div>
             </div>
 
             <!-- Restaurants & Guide: two side-by-side boxes (same as Hotels & Attractions) -->
-            <div class="card mb-4">
+            <div class="card mb-4 definition-service-card">
                 <div class="card-header bg-light py-2">
                     <h5 class="mb-0"><i class="ri-restaurant-line me-2 text-warning"></i><i class="ri-user-voice-line me-2 text-info"></i>Restaurants</h5>
                 </div>
@@ -349,7 +382,15 @@
                                                 <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="private" id="definition-rest-transfer-private"><label class="form-check-label small" for="definition-rest-transfer-private">Private</label></div>
                                                 <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="shared" id="definition-rest-transfer-shared"><label class="form-check-label small" for="definition-rest-transfer-shared">Shared</label></div>
                                             </div>
-                                        <button type="button" class="btn btn-warning btn-sm mt-1" id="definition-restaurant-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                        <div class="d-flex align-items-end gap-2 mt-1 flex-wrap">
+                                            <div>
+                                                <label class="form-label small mb-0">Day</label>
+                                                <select class="form-select form-select-sm" id="definition-restaurant-day" style="min-width: 120px;">
+                                                    <option value="1">Day 1</option>
+                                                </select>
+                                            </div>
+                                            <button type="button" class="btn btn-warning btn-sm" id="definition-restaurant-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="pt-2 border-top mt-2">
@@ -365,7 +406,7 @@
             </div>
 
             <!-- Transfers: Arrival (port → hotel) & Departure (hotel → port), search & choose vehicle -->
-            <div class="card mb-4">
+            <div class="card mb-4 definition-service-card">
                 <div class="card-header bg-light">
                     <h5 class="mb-0"><i class="ri-flight-land-line me-2 text-primary"></i>Arrival & Departure</h5>
                 </div>
@@ -589,7 +630,8 @@ $(document).ready(function() {
     const fetchRestaurantTransferPricingUrl = '{{ route("fetch-restaurant-transfer-pricing") }}';
     const restaurantMealsUrlTemplate = '{{ route("restaurant-meals", ["restaurantId" => "__RESTAURANT_ID__"]) }}';
 
-    $('#country-select, #city-select').select2();
+    $('#country-select').select2();
+    $('#city-select').select2({ placeholder: 'Select City(s)' });
     $('#definition-hotel-select').select2({ placeholder: 'Select hotel' });
     $('#definition-attraction-select').select2({ placeholder: 'Select attraction' });
     $('#definition-restaurant-select').select2({ placeholder: 'Select restaurant' });
@@ -604,60 +646,204 @@ $(document).ready(function() {
         }
     });
 
-    // Country → City
-    $('#country-select').on('change', function() {
-        const country = $(this).val();
-        const citySelect = $('#city-select');
-        citySelect.empty().prop('disabled', true);
-        $('#definition-hotel-select').empty().append('<option value="">Select City First</option>');
-        $('#definition-attraction-select').empty().append('<option value="">Select City First</option>');
-        $('#definition-attraction-config').hide();
-        $('#definition-restaurant-select').empty().append('<option value="">Select City First</option>');
-        $('#definition-restaurant-config').hide();
-        $('#definition-rooms-wrapper').hide();
-        $('#arrival-pickup-port').empty().append('<option value="">Select country first</option>');
-        $('#departure-dropoff-port').empty().append('<option value="">Select country first</option>');
-        portsByCountry = [];
-        restaurantMealsByRestaurant = {};
-        if (!country) return;
-        $.get(baseUrl + '/ports-by-country/' + encodeURIComponent(country), function(ports) {
-            portsByCountry = ports || [];
-            const arr = $('#arrival-pickup-port'), dep = $('#departure-dropoff-port');
-            arr.empty().append('<option value="">Select port</option>');
-            dep.empty().append('<option value="">Select port</option>');
-            portsByCountry.forEach(function(p) {
-                const portId = p.port_id || p.id;
-                const name = p.port_name || p.name;
-                if (portId && name) {
-                    arr.append(new Option(name, portId));
-                    dep.append(new Option(name, portId));
-                }
-            });
+    function getSelectedCities() {
+        const selected = $('#city-select').val();
+        return Array.isArray(selected) ? selected.filter(Boolean) : (selected ? [selected] : []);
+    }
+
+    function getPrimarySelectedCity() {
+        const cities = getSelectedCities();
+        return cities.length ? cities[0] : '';
+    }
+
+    let definitionCityPlans = [];
+    let activeCityPlanId = null;
+
+    function toggleServiceCards(show) {
+        $('.definition-service-card').toggle(!!show);
+    }
+
+    // Mount the single service editor into the active city-plan section.
+    // This avoids duplicating IDs/select2 instances while still rendering per-plan containers.
+    function mountServicesEditorToPlan(planId) {
+        const editor = $('#definition-services-editor');
+        const stash = $('#definition-services-editor-stash');
+        if (!editor.length || !stash.length) return;
+
+        if (!planId) {
+            stash.append(editor);
+            editor.addClass('d-none');
+            return;
+        }
+
+        const mount = $('#definition-city-plan-service-sections').find('[data-editor-mount="' + planId + '"]');
+        if (!mount.length) return;
+
+        mount.append(editor);
+        editor.removeClass('d-none');
+    }
+
+    function getActiveCityPlan() {
+        return definitionCityPlans.find(function(p) { return p.id === activeCityPlanId; }) || null;
+    }
+
+    function getDayCityPlanMap() {
+        const map = {};
+        definitionCityPlans.forEach(function(plan) {
+            const from = parseInt(plan.day_from, 10) || 1;
+            const to = parseInt(plan.day_to, 10) || from;
+            for (let day = from; day <= to; day++) {
+                map[day] = plan.city || '';
+            }
         });
-        citySelect.prop('disabled', false);
-        $.get(baseUrl + '/cities-by-country/' + encodeURIComponent(country), function(response) {
-            citySelect.empty().append('<option value="">Select City</option>');
-            response.forEach(function(c) { citySelect.append(new Option(c.name, c.name)); });
+        return map;
+    }
+
+    function normalizeCityPlansWithinDuration() {
+        const totalDays = parseInt($('input[name="duration_days"]').val(), 10) > 0
+            ? parseInt($('input[name="duration_days"]').val(), 10)
+            : 1;
+        definitionCityPlans = definitionCityPlans.map(function(plan) {
+            let from = Math.min(Math.max(parseInt(plan.day_from, 10) || 1, 1), totalDays);
+            let to = Math.min(Math.max(parseInt(plan.day_to, 10) || from, from), totalDays);
+            return Object.assign({}, plan, { day_from: from, day_to: to });
         });
-    });
+    }
 
-    let portsByCountry = [];
-    let definitionHotels = [];
-    let definitionAttractions = [];
-    let definitionRestaurants = [];
-    let restaurantMealsByRestaurant = {};
-    let hotelsByCity = [];
-    let vehiclesByCity = [];
-    let guidesByCity = [];
+    function renderDefinitionCityPlans() {
+        normalizeCityPlansWithinDuration();
+        const selectedCities = getSelectedCities();
+        const wrap = $('#definition-city-plan-list');
+        wrap.empty();
 
-    // City → Hotel, Attractions, Restaurants, Vehicles
-    $('#city-select').on('change', function() {
-        const city = $(this).val();
-        if (!city) return;
+        if (!definitionCityPlans.length) {
+            wrap.append('<div class="col-12"><div class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select multi city first, then click <strong>Add City Plan</strong>.</div></div>');
+        }
 
+        definitionCityPlans.forEach(function(plan) {
+            const options = selectedCities.length
+                ? selectedCities.map(function(city) {
+                    return '<option value="' + escapeHtml(city) + '" ' + (plan.city === city ? 'selected' : '') + '>' + escapeHtml(city) + '</option>';
+                }).join('')
+                : '<option value="">Select city first</option>';
+
+            wrap.append(
+                '<div class="col-md-6">' +
+                    '<div class="border rounded p-2 ' + (plan.id === activeCityPlanId ? 'border-primary bg-primary-subtle' : 'bg-light-subtle') + '">' +
+                        '<div class="d-flex justify-content-between align-items-center mb-2">' +
+                            '<span class="small fw-semibold">City Plan</span>' +
+                            '<div class="d-flex gap-1">' +
+                                '<button type="button" class="btn btn-sm ' + (plan.id === activeCityPlanId ? 'btn-primary' : 'btn-outline-primary') + ' definition-select-city-plan-btn" data-id="' + plan.id + '">Use</button>' +
+                                '<button type="button" class="btn btn-sm btn-outline-danger definition-remove-city-plan-btn" data-id="' + plan.id + '"><i class="ri-delete-bin-line"></i></button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="row g-2">' +
+                            '<div class="col-md-5">' +
+                                '<label class="form-label small mb-0">City</label>' +
+                                '<select class="form-select form-select-sm definition-city-plan-city" data-id="' + plan.id + '">' + options + '</select>' +
+                            '</div>' +
+                            '<div class="col-md-3">' +
+                                '<label class="form-label small mb-0">From</label>' +
+                                '<input type="number" min="1" class="form-control form-control-sm definition-city-plan-from" data-id="' + plan.id + '" value="' + plan.day_from + '">' +
+                            '</div>' +
+                            '<div class="col-md-3">' +
+                                '<label class="form-label small mb-0">To</label>' +
+                                '<input type="number" min="1" class="form-control form-control-sm definition-city-plan-to" data-id="' + plan.id + '" value="' + plan.day_to + '">' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+        });
+
+        $('#definition-day-city-plan').val(JSON.stringify(definitionCityPlans));
+        toggleServiceCards(!!getActiveCityPlan());
+        renderCityPlanServiceSections();
+    }
+
+    function renderCityPlanServiceSections() {
+        const container = $('#definition-city-plan-service-sections');
+        container.empty();
+        if (!definitionCityPlans.length) {
+            mountServicesEditorToPlan(null);
+            return;
+        }
+
+        definitionCityPlans.forEach(function(plan) {
+            const hotels = definitionHotels.filter(function(h) { return h.city_plan_id === plan.id; });
+            const attractions = definitionAttractions.filter(function(a) { return a.city_plan_id === plan.id; });
+            const restaurants = definitionRestaurants.filter(function(r) { return r.city_plan_id === plan.id; });
+            const transfer = getPlanTransferState(plan.id) || {};
+
+            const hotelList = hotels.length
+                ? hotels.map(function(h) { return '<li>' + escapeHtml(h.hotel_name || 'Hotel') + '</li>'; }).join('')
+                : '<li class="text-muted">No hotels</li>';
+            const attractionList = attractions.length
+                ? attractions.map(function(a) { return '<li>' + escapeHtml(a.name || 'Attraction') + ' (Day ' + (a.day || '-') + ')</li>'; }).join('')
+                : '<li class="text-muted">No attractions</li>';
+            const restaurantList = restaurants.length
+                ? restaurants.map(function(r) { return '<li>' + escapeHtml(r.restaurant_name || 'Restaurant') + ' (Day ' + (r.day || '-') + ')</li>'; }).join('')
+                : '<li class="text-muted">No restaurants</li>';
+            const arrivalText = transfer.arrival_enabled
+                ? ('Included (' + ((transfer.arrival_vehicles || []).length || 0) + ' vehicle(s))')
+                : 'Not included';
+            const departureText = transfer.departure_enabled
+                ? ('Included (' + ((transfer.departure_vehicles || []).length || 0) + ' vehicle(s))')
+                : 'Not included';
+
+            const isActive = plan.id === activeCityPlanId;
+            const collapseId = 'def-plan-editor-' + plan.id;
+            container.append(
+                '<div class="card mb-3 border-' + (isActive ? 'primary' : 'secondary') + '">' +
+                    '<div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">' +
+                        '<h6 class="mb-0">' + escapeHtml(plan.city || 'City') + ' (Day ' + plan.day_from + ' - ' + plan.day_to + ')</h6>' +
+                        '<div class="d-flex gap-2">' +
+                            '<button type="button" class="btn btn-sm ' + (isActive ? 'btn-primary' : 'btn-outline-primary') + ' definition-select-city-plan-btn" data-id="' + plan.id + '">' +
+                                (isActive ? 'Editing' : 'Edit Services') +
+                            '</button>' +
+                            '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="' + (isActive ? 'true' : 'false') + '">' +
+                                '<i class="ri-edit-2-line me-1"></i>Open Editor' +
+                            '</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="card-body py-3">' +
+                        '<div class="row g-2 mb-3">' +
+                            '<div class="col-md-6"><div class="border rounded p-2 h-100"><div class="fw-semibold small mb-1">Hotels</div><ul class="small mb-0 ps-3">' + hotelList + '</ul></div></div>' +
+                            '<div class="col-md-6"><div class="border rounded p-2 h-100"><div class="fw-semibold small mb-1">Attractions</div><ul class="small mb-0 ps-3">' + attractionList + '</ul></div></div>' +
+                            '<div class="col-md-6"><div class="border rounded p-2 h-100"><div class="fw-semibold small mb-1">Restaurants</div><ul class="small mb-0 ps-3">' + restaurantList + '</ul></div></div>' +
+                            '<div class="col-md-6"><div class="border rounded p-2 h-100"><div class="fw-semibold small mb-1">Arrival / Departure</div><div class="small">Arrival: ' + escapeHtml(arrivalText) + '</div><div class="small">Departure: ' + escapeHtml(departureText) + '</div></div></div>' +
+                        '</div>' +
+                        '<div class="border rounded p-3 bg-light-subtle">' +
+                            '<div data-itinerary="' + plan.id + '"></div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="' + collapseId + '" class="collapse ' + (isActive ? 'show' : '') + '">' +
+                        '<div class="card-body pt-0">' +
+                            '<div data-editor-mount="' + plan.id + '"></div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+        });
+
+        // Mount single editor into active plan (or stash if none)
+        if (activeCityPlanId) mountServicesEditorToPlan(activeCityPlanId);
+        else mountServicesEditorToPlan(null);
+
+        // Render itineraries for all city plans
+        definitionCityPlans.forEach(function(p) { renderDayWiseItinerary(p.id); });
+    }
+
+    function loadServicesForActivePlan() {
+        const plan = getActiveCityPlan();
+        if (!plan || !plan.city) {
+            return;
+        }
+
+        const city = plan.city;
         $.get(baseUrl + '/hotel-city/' + encodeURIComponent(city), function(response) {
             const hotels = Array.isArray(response) ? response : [];
-            hotelsByCity = hotels; 
+            hotelsByCity = hotels;
             const sel = $('#definition-hotel-select');
             sel.empty().append('<option value="">Select Hotel</option>');
             hotels.forEach(function(h) {
@@ -696,6 +882,225 @@ $(document).ready(function() {
         $.get(baseUrl + '/get-transport/' + encodeURIComponent(city), function(response) {
             vehiclesByCity = Array.isArray(response) ? response : [];
         });
+
+        loadTransferStateForActivePlan();
+        renderDefinitionDaySelectors();
+        refreshTransferHotelDropdowns();
+    }
+
+    // Country → City
+    $('#country-select').on('change', function() {
+        const country = $(this).val();
+        const citySelect = $('#city-select');
+        citySelect.empty().prop('disabled', true);
+        $('#definition-hotel-select').empty().append('<option value="">Select City First</option>');
+        $('#definition-attraction-select').empty().append('<option value="">Select City First</option>');
+        $('#definition-attraction-config').hide();
+        $('#definition-restaurant-select').empty().append('<option value="">Select City First</option>');
+        $('#definition-restaurant-config').hide();
+        $('#definition-rooms-wrapper').hide();
+        $('#arrival-pickup-port').empty().append('<option value="">Select country first</option>');
+        $('#departure-dropoff-port').empty().append('<option value="">Select country first</option>');
+        portsByCountry = [];
+        restaurantMealsByRestaurant = {};
+        definitionCityPlans = [];
+        activeCityPlanId = null;
+        renderDefinitionCityPlans();
+        if (!country) return;
+        $.get(baseUrl + '/ports-by-country/' + encodeURIComponent(country), function(ports) {
+            portsByCountry = ports || [];
+            const arr = $('#arrival-pickup-port'), dep = $('#departure-dropoff-port');
+            arr.empty().append('<option value="">Select port</option>');
+            dep.empty().append('<option value="">Select port</option>');
+            portsByCountry.forEach(function(p) {
+                const portId = p.port_id || p.id;
+                const name = p.port_name || p.name;
+                if (portId && name) {
+                    arr.append(new Option(name, portId));
+                    dep.append(new Option(name, portId));
+                }
+            });
+        });
+        citySelect.prop('disabled', false);
+        $.get(baseUrl + '/cities-by-country/' + encodeURIComponent(country), function(response) {
+            citySelect.empty();
+            response.forEach(function(c) { citySelect.append(new Option(c.name, c.name)); });
+            citySelect.val(null).trigger('change');
+        });
+    });
+
+    let portsByCountry = [];
+    let definitionHotels = [];
+    let definitionAttractions = [];
+    let definitionRestaurants = [];
+    let restaurantMealsByRestaurant = {};
+    let hotelsByCity = [];
+    let vehiclesByCity = [];
+    let guidesByCity = [];
+    let transferStateByPlan = {};
+
+    function getPlanTransferState(planId) {
+        if (!planId) return null;
+        if (!transferStateByPlan[planId]) {
+            transferStateByPlan[planId] = {
+                arrival_enabled: false,
+                departure_enabled: false,
+                arrival_pickup_port_id: '',
+                arrival_dropoff_hotel_id: '',
+                departure_pickup_hotel_id: '',
+                departure_dropoff_port_id: '',
+                arrival_vehicles: [],
+                departure_vehicles: []
+            };
+        }
+        return transferStateByPlan[planId];
+    }
+
+    function persistTransferStateForActivePlan() {
+        const activePlan = getActiveCityPlan();
+        if (!activePlan) return;
+        const state = getPlanTransferState(activePlan.id);
+        if (!state) return;
+        state.arrival_enabled = $('#arrival-pickup-def').is(':checked');
+        state.departure_enabled = $('#departure-service-def').is(':checked');
+        state.arrival_pickup_port_id = $('#arrival-pickup-port').val() || '';
+        state.arrival_dropoff_hotel_id = $('#arrival-dropoff-hotel').val() || '';
+        state.departure_pickup_hotel_id = $('#departure-pickup-hotel').val() || '';
+        state.departure_dropoff_port_id = $('#departure-dropoff-port').val() || '';
+        state.arrival_vehicles = Array.isArray(arrivalChosenVehicles) ? arrivalChosenVehicles.slice() : [];
+        state.departure_vehicles = Array.isArray(departureChosenVehicles) ? departureChosenVehicles.slice() : [];
+        transferStateByPlan[activePlan.id] = state;
+        renderCityPlanServiceSections();
+        refreshCityItinerary(activePlan.id);
+    }
+
+    function loadTransferStateForActivePlan() {
+        const activePlan = getActiveCityPlan();
+        if (!activePlan) {
+            arrivalChosenVehicles = [];
+            departureChosenVehicles = [];
+            renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
+            renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
+            return;
+        }
+        const state = getPlanTransferState(activePlan.id);
+        $('#arrival-pickup-def').prop('checked', !!state.arrival_enabled);
+        $('#departure-service-def').prop('checked', !!state.departure_enabled);
+        $('#arrival-pickup-config').toggle(!!state.arrival_enabled);
+        $('#departure-service-config').toggle(!!state.departure_enabled);
+        $('#arrival-pickup-port').val(state.arrival_pickup_port_id || '');
+        $('#arrival-dropoff-hotel').val(state.arrival_dropoff_hotel_id || '');
+        $('#departure-pickup-hotel').val(state.departure_pickup_hotel_id || '');
+        $('#departure-dropoff-port').val(state.departure_dropoff_port_id || '');
+        arrivalChosenVehicles = Array.isArray(state.arrival_vehicles) ? state.arrival_vehicles.slice() : [];
+        departureChosenVehicles = Array.isArray(state.departure_vehicles) ? state.departure_vehicles.slice() : [];
+        renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
+        renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
+        renderCityPlanServiceSections();
+    }
+
+    // City multi-select controls available city plans; services load by active plan city.
+    $('#city-select').on('change', function() {
+        const cities = getSelectedCities();
+        if (!cities.length) {
+            definitionCityPlans = [];
+            activeCityPlanId = null;
+        } else {
+            definitionCityPlans = definitionCityPlans.map(function(plan) {
+                const nextCity = cities.includes(plan.city) ? plan.city : cities[0];
+                return Object.assign({}, plan, { city: nextCity });
+            });
+        }
+        renderDefinitionCityPlans();
+        if (!cities.length) {
+            $('#definition-hotel-select').empty().append('<option value="">Select City First</option>');
+            $('#definition-attraction-select').empty().append('<option value="">Select City First</option>');
+            $('#definition-restaurant-select').empty().append('<option value="">Select City First</option>');
+            hotelsByCity = [];
+            guidesByCity = [];
+            vehiclesByCity = [];
+            return;
+        }
+        // Do not auto-open services; user must click "Use" on a city plan.
+    });
+
+    $('#definition-add-city-plan-btn').on('click', function() {
+        const cities = getSelectedCities();
+        if (!cities.length) {
+            alert('Please select at least one city first.');
+            return;
+        }
+        const totalDays = parseInt($('input[name="duration_days"]').val(), 10) > 0
+            ? parseInt($('input[name="duration_days"]').val(), 10)
+            : 1;
+        const lastTo = definitionCityPlans.length
+            ? Math.max.apply(null, definitionCityPlans.map(function(p) { return parseInt(p.day_to, 10) || 1; }))
+            : 0;
+        const from = Math.min(lastTo + 1, totalDays);
+        const to = from;
+        const id = 'plan_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        definitionCityPlans.push({ id: id, city: cities[0], day_from: from, day_to: to });
+        // Auto-open services for the new plan, but reset editor UI so it doesn't keep stale
+        // dropdown/config values from the previously active plan.
+        activeCityPlanId = id;
+        resetDefinitionHotelForm();
+        $('#definition-attraction-config').hide();
+        $('#definition-restaurant-config').hide();
+        $('#definition-attraction-ticket-select').empty().append('<option value="">Select attraction first</option>');
+        renderDefinitionCityPlans();
+        renderDefinitionDaySelectors();
+        loadServicesForActivePlan();
+        renderChosenHotels();
+        renderDefinitionAttractions();
+        renderDefinitionRestaurants();
+    });
+
+    $(document).on('click', '.definition-select-city-plan-btn', function() {
+        activeCityPlanId = $(this).data('id');
+        // Reset editor UI so we don't carry over stale dropdown/config state between city plans.
+        // Selected services are stored per-plan in arrays and will render correctly after switching.
+        resetDefinitionHotelForm();
+        $('#definition-attraction-config').hide();
+        $('#definition-restaurant-config').hide();
+        $('#definition-attraction-ticket-select').empty().append('<option value="">Select attraction first</option>');
+        renderDefinitionCityPlans();
+        renderDefinitionDaySelectors();
+        loadServicesForActivePlan();
+        renderChosenHotels();
+        renderDefinitionAttractions();
+        renderDefinitionRestaurants();
+    });
+
+    $(document).on('click', '.definition-remove-city-plan-btn', function() {
+        const id = $(this).data('id');
+        definitionCityPlans = definitionCityPlans.filter(function(p) { return p.id !== id; });
+        if (activeCityPlanId === id) {
+            activeCityPlanId = null;
+        }
+        renderDefinitionCityPlans();
+        renderDefinitionDaySelectors();
+        if (activeCityPlanId) loadServicesForActivePlan();
+        renderChosenHotels();
+        renderDefinitionAttractions();
+        renderDefinitionRestaurants();
+    });
+
+    $(document).on('change', '.definition-city-plan-city, .definition-city-plan-from, .definition-city-plan-to', function() {
+        const id = $(this).data('id');
+        definitionCityPlans = definitionCityPlans.map(function(plan) {
+            if (plan.id !== id) return plan;
+            return Object.assign({}, plan, {
+                city: $('.definition-city-plan-city[data-id="' + id + '"]').val() || '',
+                day_from: parseInt($('.definition-city-plan-from[data-id="' + id + '"]').val(), 10) || 1,
+                day_to: parseInt($('.definition-city-plan-to[data-id="' + id + '"]').val(), 10) || 1
+            });
+        });
+        normalizeCityPlansWithinDuration();
+        renderDefinitionCityPlans();
+        if (activeCityPlanId === id) {
+            loadServicesForActivePlan();
+            renderDefinitionDaySelectors();
+        }
     });
 
     let definitionPendingRooms = [];
@@ -1039,8 +1444,311 @@ $(document).ready(function() {
         return [];
     }
 
+    function getDurationDays() {
+        const raw = parseInt($('input[name="duration_days"]').val(), 10);
+        return !isNaN(raw) && raw > 0 ? raw : 1;
+    }
+
+    function clampDay(day) {
+        const total = getDurationDays();
+        const parsed = parseInt(day, 10) || 1;
+        return Math.min(Math.max(parsed, 1), total);
+    }
+
+    // ---------------- Day-wise itinerary (city-plan scoped) ----------------
+    function addServiceToDay(dayMap, day, service) {
+        if (!dayMap[day]) dayMap[day] = [];
+        const key = service && service.key
+            ? service.key
+            : ((service.type || 'service') + ':' + String(service.id || service.name || ''));
+        if (dayMap[day].some(function(x) { return x.key === key; })) return;
+        dayMap[day].push(Object.assign({ key: key }, service));
+    }
+
+    function removeServiceFromDay(dayMap, day, key) {
+        if (!dayMap[day]) return;
+        dayMap[day] = dayMap[day].filter(function(x) { return x.key !== key; });
+    }
+
+    function buildCityItinerary(planId) {
+        const plan = definitionCityPlans.find(function(p) { return p.id === planId; }) || null;
+        if (!plan) return [];
+        const fromDay = Math.max(1, parseInt(plan.day_from, 10) || 1);
+        const toDay = Math.min(getDurationDays(), parseInt(plan.day_to, 10) || fromDay);
+
+        const dayMap = {};
+        for (let d = fromDay; d <= toDay; d++) dayMap[d] = [];
+
+        // Arrival / Departure tied to plan boundary days
+        const transfer = getPlanTransferState(planId) || {};
+        if (transfer.arrival_enabled) {
+            addServiceToDay(dayMap, fromDay, {
+                type: 'arrival',
+                id: planId + ':arrival',
+                name: 'Arrival Pickup',
+                meta: (transfer.arrival_vehicles && transfer.arrival_vehicles.length)
+                    ? (transfer.arrival_vehicles.length + ' vehicle(s)')
+                    : ''
+            });
+        }
+        if (transfer.departure_enabled) {
+            addServiceToDay(dayMap, toDay, {
+                type: 'departure',
+                id: planId + ':departure',
+                name: 'Departure Transfer',
+                meta: (transfer.departure_vehicles && transfer.departure_vehicles.length)
+                    ? (transfer.departure_vehicles.length + ' vehicle(s)')
+                    : ''
+            });
+        }
+
+        // Hotels repeat across their stay days
+        (definitionHotels || [])
+            .filter(function(h) { return h.city_plan_id === planId; })
+            .forEach(function(h) {
+                const start = Math.max(fromDay, parseInt(h.start_day, 10) || fromDay);
+                const nights = Math.max(1, parseInt(h.nights, 10) || 1);
+                const end = Math.min(toDay, start + nights - 1);
+                for (let d = start; d <= end; d++) {
+                    addServiceToDay(dayMap, d, {
+                        type: 'hotel',
+                        id: h.hotel_id || h.hotel_name,
+                        name: 'Hotel: ' + (h.hotel_name || 'Hotel')
+                    });
+                }
+            });
+
+        // Attractions on selected day (with ticket/guide/transfer meta)
+        (definitionAttractions || [])
+            .filter(function(a) { return a.city_plan_id === planId; })
+            .forEach(function(a) {
+                const d = Math.min(toDay, Math.max(fromDay, parseInt(a.day, 10) || fromDay));
+                const meta = [];
+                if (a.ticket_name) meta.push('Ticket: ' + a.ticket_name);
+                if (a.guide && a.guide.name) meta.push('Guide: ' + a.guide.name);
+                if (a.transfer) {
+                    meta.push('Transfer: ' + (a.transfer_type === 'shared' ? 'Shared' : 'Private'));
+                    if (a.vehicle_name) meta.push('Vehicle: ' + a.vehicle_name);
+                }
+                addServiceToDay(dayMap, d, {
+                    type: 'attraction',
+                    id: a.attraction_id || a.name,
+                    name: 'Attraction: ' + (a.name || 'Attraction'),
+                    meta: meta.join(' · ')
+                });
+            });
+
+        // Restaurants on selected day (with meal/transfer meta)
+        (definitionRestaurants || [])
+            .filter(function(r) { return r.city_plan_id === planId; })
+            .forEach(function(r) {
+                const d = Math.min(toDay, Math.max(fromDay, parseInt(r.day, 10) || fromDay));
+                const meta = [];
+                if (r.meal_type_label) meta.push(r.meal_type_label);
+                if (r.transfer) {
+                    meta.push('Transfer: ' + (r.transfer_type === 'shared' ? 'Shared' : 'Private'));
+                    if (r.vehicle_name) meta.push('Vehicle: ' + r.vehicle_name);
+                }
+                addServiceToDay(dayMap, d, {
+                    type: 'restaurant',
+                    id: r.restaurant_id || r.restaurant_name,
+                    name: 'Restaurant: ' + (r.restaurant_name || 'Restaurant'),
+                    meta: meta.join(' · ')
+                });
+            });
+
+        const days = [];
+        for (let d = fromDay; d <= toDay; d++) {
+            days.push({ day: d, services: dayMap[d] || [] });
+        }
+        return days;
+    }
+
+    function renderDayWiseItinerary(planId) {
+        const wrap = $('[data-itinerary="' + planId + '"]');
+        if (!wrap.length) return;
+        const plan = definitionCityPlans.find(function(p) { return p.id === planId; }) || null;
+        if (!plan) return;
+        const days = buildCityItinerary(planId);
+
+        const accordId = 'itinerary-acc-' + String(planId).replace(/[^a-zA-Z0-9_-]/g, '');
+        const html = days.map(function(dayRow, idx) {
+            const hasServices = dayRow.services && dayRow.services.length > 0;
+            const collapseId = accordId + '-day-' + dayRow.day;
+            const show = hasServices && idx === 0; // open first non-empty day only
+            const summary = hasServices
+                ? dayRow.services.map(function(s) { return escapeHtml((s.name || '').replace(/^Hotel:\s*/,'H: ').replace(/^Attraction:\s*/,'A: ').replace(/^Restaurant:\s*/,'R: ')); }).slice(0, 3).join(' · ')
+                : 'No services selected';
+            const badge = hasServices
+                ? ('<span class="badge bg-primary-subtle text-primary border">' + dayRow.services.length + '</span>')
+                : ('<span class="badge bg-light text-muted border">0</span>');
+
+            const items = hasServices
+                ? dayRow.services.map(function(s) {
+                    const meta = s.meta ? ('<div class="def-it-meta">' + escapeHtml(s.meta) + '</div>') : '';
+                    return '<div class="def-it-item">' +
+                        '<div class="def-it-name">' + escapeHtml(s.name) + '</div>' +
+                        meta +
+                    '</div>';
+                }).join('')
+                : '<div class="small text-muted">No services selected</div>';
+
+            return (
+                '<div class="accordion-item def-it-day">' +
+                    '<h2 class="accordion-header" id="' + collapseId + '-h">' +
+                        '<button class="accordion-button ' + (show ? '' : 'collapsed') + ' def-it-btn" type="button" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="' + (show ? 'true' : 'false') + '" aria-controls="' + collapseId + '">' +
+                            '<div class="def-it-btn-left">' +
+                                '<span class="def-it-day-label">Day ' + dayRow.day + '</span>' +
+                                '<span class="def-it-summary">' + summary + '</span>' +
+                            '</div>' +
+                            '<div class="def-it-btn-right">' + badge + '</div>' +
+                        '</button>' +
+                    '</h2>' +
+                    '<div id="' + collapseId + '" class="accordion-collapse collapse ' + (show ? 'show' : '') + '" aria-labelledby="' + collapseId + '-h" data-bs-parent="#' + accordId + '">' +
+                        '<div class="accordion-body def-it-body">' + items + '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+        }).join('');
+
+        wrap.html(
+            '<div class="d-flex justify-content-between align-items-center mb-2">' +
+                '<div class="fw-semibold">Day-wise Itinerary</div>' +
+                '<div class="small text-muted">' + escapeHtml(plan.city || 'City') + ' (Day ' + plan.day_from + ' - ' + plan.day_to + ')</div>' +
+            '</div>' +
+            '<div class="def-itinerary-wrap">' +
+                '<div class="accordion def-it-accordion" id="' + accordId + '">' +
+                    html +
+                '</div>' +
+            '</div>'
+        );
+    }
+
+    function refreshCityItinerary(planId) {
+        if (!planId) return;
+        renderDayWiseItinerary(planId);
+    }
+
+    function renderDefinitionDaySelectors() {
+        const totalDays = getDurationDays();
+        const activePlan = getActiveCityPlan();
+        const startDay = activePlan ? Math.max(1, parseInt(activePlan.day_from, 10) || 1) : 1;
+        const endDay = activePlan ? Math.min(totalDays, parseInt(activePlan.day_to, 10) || totalDays) : totalDays;
+        const selectors = ['#definition-hotel-day', '#definition-attraction-day', '#definition-restaurant-day'];
+        selectors.forEach(function(selector) {
+            const el = $(selector);
+            if (!el.length) return;
+            const prev = parseInt(el.val(), 10) || startDay;
+            el.empty();
+            for (let day = startDay; day <= endDay; day++) {
+                el.append(new Option('Day ' + day, String(day)));
+            }
+            if (!el.find('option').length) {
+                el.append(new Option('Day 1', '1'));
+            }
+            const safeValue = Math.min(Math.max(prev, startDay), endDay);
+            el.val(String(safeValue > 0 ? safeValue : startDay));
+        });
+    }
+
+    function ensureActiveCityPlanForService() {
+        const plan = getActiveCityPlan();
+        if (!plan) {
+            alert('Please add and select a city plan first.');
+            return null;
+        }
+        if (!plan.city) {
+            alert('Please select a city in the active city plan.');
+            return null;
+        }
+        return plan;
+    }
+
+    function buildDefinitionDayWiseItineraryPayload() {
+        const totalDays = getDurationDays();
+        const cityPlan = getDayCityPlanMap();
+        const dayWise = [];
+        for (let day = 1; day <= totalDays; day++) {
+            dayWise.push({
+                day: day,
+                label: 'Day ' + day,
+                city: cityPlan[day] || '',
+                arrival_pickup: day === 1 ? ($('#arrival-pickup-def').is(':checked') ? 1 : 0) : 0,
+                departure_service: day === totalDays ? ($('#departure-service-def').is(':checked') ? 1 : 0) : 0,
+                hotels: [],
+                attractions: [],
+                restaurants: []
+            });
+        }
+
+        definitionCityPlans.forEach(function(plan) {
+            const state = getPlanTransferState(plan.id);
+            if (!state) return;
+            const fromDay = Math.max(1, parseInt(plan.day_from, 10) || 1);
+            const toDay = Math.min(totalDays, parseInt(plan.day_to, 10) || fromDay);
+            if (state.arrival_enabled && dayWise[fromDay - 1]) {
+                dayWise[fromDay - 1].arrival_pickup = 1;
+                dayWise[fromDay - 1].arrival_vehicles = state.arrival_vehicles || [];
+            }
+            if (state.departure_enabled && dayWise[toDay - 1]) {
+                dayWise[toDay - 1].departure_service = 1;
+                dayWise[toDay - 1].departure_vehicles = state.departure_vehicles || [];
+            }
+        });
+
+        definitionHotels.forEach(function(h) {
+            const startDay = clampDay(h.start_day);
+            const nights = parseInt(h.nights, 10) || 1;
+            const endDay = Math.min(totalDays, startDay + Math.max(nights, 1) - 1);
+            for (let day = startDay; day <= endDay; day++) {
+                if (day >= 1 && day <= totalDays) {
+                    dayWise[day - 1].hotels.push({
+                        hotel_id: h.hotel_id,
+                        hotel_name: h.hotel_name,
+                        nights: nights,
+                        base_price: h.base_price != null && h.base_price !== '' ? parseFloat(h.base_price) : 0
+                    });
+                }
+            }
+        });
+
+        definitionAttractions.forEach(function(a) {
+            const day = clampDay(a.day);
+            if (day >= 1 && day <= totalDays) {
+                dayWise[day - 1].attractions.push({
+                    attraction_id: a.attraction_id,
+                    name: a.name,
+                    base_price: a.base_price != null && a.base_price !== '' ? parseFloat(a.base_price) : 0
+                });
+            }
+        });
+
+        definitionRestaurants.forEach(function(r) {
+            const day = clampDay(r.day);
+            if (day >= 1 && day <= totalDays) {
+                dayWise[day - 1].restaurants.push({
+                    restaurant_id: r.restaurant_id,
+                    restaurant_name: r.restaurant_name,
+                    base_price: r.base_price != null && r.base_price !== '' ? parseFloat(r.base_price) : 0
+                });
+            }
+        });
+
+        return dayWise;
+    }
+
+    renderDefinitionDaySelectors();
+    renderDefinitionCityPlans();
+    toggleServiceCards(false);
+    $('input[name="duration_days"]').on('change input', function() {
+        renderDefinitionDaySelectors();
+        renderDefinitionCityPlans();
+    });
+
     // Add hotel entry to chosen list (uses pending rooms from select + Add room)
     $('#definition-hotel-add-btn').on('click', function() {
+        const activePlan = ensureActiveCityPlanForService();
+        if (!activePlan) return;
         const hotelId = $('#definition-hotel-select').val();
         const hotelName = $('#definition-hotel-select').find('option:selected').text();
         const hotelData = $('#definition-hotel-select').find('option:selected').data('hotel-data')
@@ -1048,6 +1756,8 @@ $(document).ready(function() {
             || null;
         const weekendDays = normalizeWeekendDays(hotelData ? hotelData.weekend_days : null);
         const nights = parseInt($('#definition-nights').val()) || 1;
+        const startDay = clampDay($('#definition-hotel-day').val());
+        const totalDays = getDurationDays();
         if (!hotelId) {
             alert('Please select a hotel.');
             return;
@@ -1059,6 +1769,21 @@ $(document).ready(function() {
         }
         if (nights < 1) {
             alert('Please set number of nights to at least 1.');
+            return;
+        }
+        if (startDay > totalDays) {
+            alert('Selected start day exceeds tour duration.');
+            return;
+        }
+        const planFrom = parseInt(activePlan.day_from, 10) || 1;
+        const planTo = parseInt(activePlan.day_to, 10) || planFrom;
+        if (startDay < planFrom || startDay > planTo) {
+            alert('Hotel start day must be inside selected city plan day range.');
+            return;
+        }
+        const stayEnd = startDay + Math.max(nights, 1) - 1;
+        if (stayEnd > planTo) {
+            alert('Hotel nights exceed selected city plan day range.');
             return;
         }
         // Base price from DB: sum (room weekend_price * quantity) * nights
@@ -1077,6 +1802,11 @@ $(document).ready(function() {
             hotel_name: hotelName,
             weekend_days: weekendDays,
             nights,
+            start_day: startDay,
+            city_plan_id: activePlan.id,
+            city_plan_city: activePlan.city,
+            city_day_from: planFrom,
+            city_day_to: planTo,
             rooms,
             compulsory: true,
             optional: false,
@@ -1106,7 +1836,11 @@ $(document).ready(function() {
         const placeholder = $('#definition-chosen-hotels');
         const listEl = $('#definition-chosen-hotels-list');
         const countEl = $('#definition-total-hotels-count');
-        if (definitionHotels.length === 0) {
+        const activePlan = getActiveCityPlan();
+        const hotelsToRender = definitionHotels
+            .map(function(entry, idx) { return { entry: entry, idx: idx }; })
+            .filter(function(row) { return !activePlan || row.entry.city_plan_id === activePlan.id; });
+        if (hotelsToRender.length === 0) {
             placeholder.show().html('<div class="alert alert-info py-3 mb-0 d-flex align-items-center"><i class="ri-information-line me-2 fs-5"></i><span>No hotels selected yet. Choose your hotels above and click <strong>Add</strong>.</span></div>');
             listEl.hide().empty();
             countEl.text('0');
@@ -1116,12 +1850,16 @@ $(document).ready(function() {
         updateDefinitionHotelsInput();
         const hotelTrack = getFirstServiceTrack(definitionHotels);
         placeholder.hide();
-        countEl.text(definitionHotels.length);
+        countEl.text(hotelsToRender.length);
         listEl.show().empty();
-        definitionHotels.forEach(function(entry, idx) {
+        hotelsToRender.forEach(function(row) {
+            const entry = row.entry;
+            const idx = row.idx;
             const roomsText = entry.rooms.map(function(r) {
                 return r.room_type_name + ' (' + (r.bed_type || 'N/A') + ') × ' + r.quantity;
             }).join(', ');
+            const stayFromDay = parseInt(entry.start_day, 10) || 1;
+            const stayUntilDay = stayFromDay + Math.max((parseInt(entry.nights, 10) || 1) - 1, 0);
             const isCompulsory = entry.compulsory === true || (!entry.optional && !entry.addon);
             const isOptional = entry.optional === true;
             const isAddon = entry.addon === true;
@@ -1170,7 +1908,7 @@ $(document).ready(function() {
                                 <span class="badge bg-primary-subtle text-primary rounded-circle p-2"><i class="ri-hotel-line"></i></span>
                                 <div>
                                     <strong class="d-block">${escapeHtml(entry.hotel_name)}${priceDisplay}</strong>
-                                    <small class="text-muted">${entry.nights} night(s) · ${escapeHtml(roomsText)}</small>
+                                    <small class="text-muted">Day ${stayFromDay} to Day ${stayUntilDay} · ${entry.nights} night(s) · ${escapeHtml(roomsText)}</small>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -1251,6 +1989,7 @@ $(document).ready(function() {
             if (badgeHtml) strong.append(badgeHtml);
             updateDefinitionHotelsInput();
             updateDefinitionTotalsAndMarkup();
+            if (activePlan) refreshCityItinerary(activePlan.id);
         });
         $('.hotel-calculated-price-input').on('change', function() {
             // Full re-render on blur so every derived label stays consistent
@@ -1258,13 +1997,18 @@ $(document).ready(function() {
         });
         refreshTransferHotelDropdowns();
         updateDefinitionTotalsAndMarkup();
+        renderCityPlanServiceSections();
+        if (activePlan) refreshCityItinerary(activePlan.id);
     }
 
     function refreshTransferHotelDropdowns() {
         const arrivalDropoff = $('#arrival-dropoff-hotel'), departurePickup = $('#departure-pickup-hotel');
         arrivalDropoff.empty().append('<option value="">Add hotels first</option>');
         departurePickup.empty().append('<option value="">Add hotels first</option>');
-        definitionHotels.forEach(function(h) {
+        const activePlan = getActiveCityPlan();
+        definitionHotels
+        .filter(function(h) { return !activePlan || h.city_plan_id === activePlan.id; })
+        .forEach(function(h) {
             arrivalDropoff.append(new Option(h.hotel_name, h.hotel_id));
             departurePickup.append(new Option(h.hotel_name, h.hotel_id));
         });
@@ -1455,6 +2199,8 @@ $(document).ready(function() {
 
     // Attractions: Add = current selection + config; preview = strip like hotel
     $('#definition-attraction-add-btn').on('click', function() {
+        const activePlan = ensureActiveCityPlanForService();
+        if (!activePlan) return;
         const opt = $('#definition-attraction-select').find('option:selected');
         const data = opt.data('attraction-data');
         if (!data || !opt.val()) {
@@ -1481,6 +2227,13 @@ $(document).ready(function() {
         const transferType = $('input[name="definition_attr_transfer_type"]:checked').val() || 'private';
         const transferPriceRaw = $('#definition-attraction-config-transfer-price').val();
         const transferPrice = transfer ? (isNaN(parseFloat(transferPriceRaw)) ? 0 : parseFloat(transferPriceRaw)) : 0;
+        const day = clampDay($('#definition-attraction-day').val());
+        const planFrom = parseInt(activePlan.day_from, 10) || 1;
+        const planTo = parseInt(activePlan.day_to, 10) || planFrom;
+        if (day < planFrom || day > planTo) {
+            alert('Attraction day must be inside selected city plan day range.');
+            return;
+        }
         const pickupId = $('#definition-attraction-config-pickup').val();
         const pickupName = $('#definition-attraction-config-pickup').find('option:selected').text();
         const dropoffVal = $('#definition-attraction-config-dropoff').val();
@@ -1531,6 +2284,9 @@ $(document).ready(function() {
             vehicle_name: v ? v.name : null,
             transfer_price: transferPrice,
             transfer_type: transferType,
+            day: day,
+            city_plan_id: activePlan.id,
+            city_plan_city: activePlan.city,
             pickup_id: pickupId || null,
             pickup_name: pickupName || null,
             dropoff_id: dropoffVal || null,
@@ -1548,14 +2304,20 @@ $(document).ready(function() {
         const emptyEl = $('#definition-attractions-empty');
         const container = $('#definition-attractions-list');
         container.empty();
-        if (definitionAttractions.length === 0) {
+        const activePlan = getActiveCityPlan();
+        const attractionsToRender = definitionAttractions
+            .map(function(entry, idx) { return { entry: entry, idx: idx }; })
+            .filter(function(row) { return !activePlan || row.entry.city_plan_id === activePlan.id; });
+        if (attractionsToRender.length === 0) {
             emptyEl.show();
             container.hide();
             return;
         }
         emptyEl.hide();
         container.show();
-        definitionAttractions.forEach(function(a, idx) {
+        attractionsToRender.forEach(function(row) {
+            const a = row.entry;
+            const idx = row.idx;
             const basePriceNum = a.base_price != null && a.base_price !== '' && !isNaN(parseFloat(a.base_price)) ? parseFloat(a.base_price) : 0;
             const guidePriceNum = a.guide && a.guide.price != null && !isNaN(parseFloat(a.guide.price)) ? parseFloat(a.guide.price) : 0;
             const transferPriceNum = a.transfer && a.transfer_price != null && !isNaN(parseFloat(a.transfer_price)) ? parseFloat(a.transfer_price) : 0;
@@ -1579,6 +2341,7 @@ $(document).ready(function() {
                 else if (pickupName) parts.push(escapeHtml(pickupName) + ' → —');
                 else if (a.dropoff_name) parts.push('— → ' + escapeHtml(a.dropoff_name));
             }
+            parts.push('Day ' + (parseInt(a.day, 10) || 1));
             parts.push('<span class="fw-semibold">Total: ' + formatOptionalPrice(totalPriceNum) + '</span>');
             const summaryHtml = parts.length ? parts.join(' <span class="text-muted">·</span> ') : '—';
             const isCompulsory = a.compulsory === true || (!a.optional && !a.addon);
@@ -1630,8 +2393,9 @@ $(document).ready(function() {
         $('.remove-def-attraction').on('click', function() {
             const idx = parseInt($(this).data('idx'));
             definitionAttractions.splice(idx, 1);
-            renderDefinitionAttractions();
             updateDefinitionAttractionsInput();
+            renderDefinitionAttractions();
+            if (activePlan) refreshCityItinerary(activePlan.id);
         });
         $('.def-attraction-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
@@ -1654,6 +2418,7 @@ $(document).ready(function() {
             }
             updateDefinitionAttractionsInput();
             renderDefinitionAttractions();
+            if (activePlan) refreshCityItinerary(activePlan.id);
         });
         $('.attraction-base-price-input').on('input', function() {
             const idx = parseInt($(this).data('idx'), 10);
@@ -1686,12 +2451,15 @@ $(document).ready(function() {
             }
             updateDefinitionAttractionsInput();
             updateDefinitionTotalsAndMarkup();
+            if (activePlan) refreshCityItinerary(activePlan.id);
         });
         $('.attraction-base-price-input').on('change', function() {
             // Full re-render on blur so sub-summary lines (guide/transfer/adult) stay in sync
             renderDefinitionAttractions();
         });
         updateDefinitionTotalsAndMarkup();
+        renderCityPlanServiceSections();
+        if (activePlan) refreshCityItinerary(activePlan.id);
     }
 
     function updateDefinitionAttractionsInput() {
@@ -1830,6 +2598,8 @@ $(document).ready(function() {
 
     // Restaurants: Add = current selection + config + selected meal type; preview = strip like hotel
     $('#definition-restaurant-add-btn').on('click', function() {
+        const activePlan = ensureActiveCityPlanForService();
+        if (!activePlan) return;
         const id = $('#definition-restaurant-select').val();
         const name = $('#definition-restaurant-select').find('option:selected').text();
         if (!id) {
@@ -1850,6 +2620,13 @@ $(document).ready(function() {
         const transferType = $('input[name="definition_rest_transfer_type"]:checked').val() || 'private';
         const transferPriceRaw = $('#definition-restaurant-config-transfer-price').val();
         const transferPrice = transfer ? (isNaN(parseFloat(transferPriceRaw)) ? 0 : parseFloat(transferPriceRaw)) : 0;
+        const day = clampDay($('#definition-restaurant-day').val());
+        const planFrom = parseInt(activePlan.day_from, 10) || 1;
+        const planTo = parseInt(activePlan.day_to, 10) || planFrom;
+        if (day < planFrom || day > planTo) {
+            alert('Restaurant day must be inside selected city plan day range.');
+            return;
+        }
         const pickupId = $('#definition-restaurant-config-pickup').val();
         const pickupName = $('#definition-restaurant-config-pickup').find('option:selected').text();
         const dropoffVal = $('#definition-restaurant-config-dropoff').val();
@@ -1875,6 +2652,9 @@ $(document).ready(function() {
             vehicle_name: v ? v.name : null,
             transfer_price: transferPrice,
             transfer_type: transferType,
+            day: day,
+            city_plan_id: activePlan.id,
+            city_plan_city: activePlan.city,
             pickup_id: pickupId || null,
             pickup_name: pickupName || null,
             dropoff_id: dropoffVal || null,
@@ -1890,7 +2670,11 @@ $(document).ready(function() {
         const emptyEl = $('#definition-restaurants-empty');
         const container = $('#definition-restaurants-list');
         container.empty();
-        if (definitionRestaurants.length === 0) {
+        const activePlan = getActiveCityPlan();
+        const restaurantsToRender = definitionRestaurants
+            .map(function(entry, idx) { return { entry: entry, idx: idx }; })
+            .filter(function(row) { return !activePlan || row.entry.city_plan_id === activePlan.id; });
+        if (restaurantsToRender.length === 0) {
             emptyEl.show();
             container.hide();
             return;
@@ -1900,7 +2684,9 @@ $(document).ready(function() {
         const restaurantTrack = getFirstServiceTrack(definitionRestaurants);
         emptyEl.hide();
         container.show();
-        definitionRestaurants.forEach(function(r, idx) {
+        restaurantsToRender.forEach(function(row) {
+            const r = row.entry;
+            const idx = row.idx;
             const restaurantPriceNum = r.base_price != null && r.base_price !== '' && !isNaN(parseFloat(r.base_price)) ? parseFloat(r.base_price) : 0;
             const transferPriceNum = r.transfer && r.transfer_price != null && !isNaN(parseFloat(r.transfer_price)) ? parseFloat(r.transfer_price) : 0;
             const totalPriceNum = restaurantPriceNum + transferPriceNum;
@@ -1921,6 +2707,7 @@ $(document).ready(function() {
                 else if (pickupName) parts.push(escapeHtml(pickupName) + ' → —');
                 else if (r.dropoff_name) parts.push('— → ' + escapeHtml(r.dropoff_name));
             }
+            parts.push('Day ' + (parseInt(r.day, 10) || 1));
             parts.push('<span class="fw-semibold">Total: ' + formatOptionalPrice(totalPriceNum) + '</span>');
             const summaryHtml = parts.length ? parts.join(' <span class="text-muted">·</span> ') : '—';
             const isCompulsory = r.compulsory === true || (!r.optional && !r.addon);
@@ -1973,8 +2760,9 @@ $(document).ready(function() {
         $('.remove-def-restaurant').on('click', function() {
             const idx = parseInt($(this).data('idx'));
             definitionRestaurants.splice(idx, 1);
-            renderDefinitionRestaurants();
             updateDefinitionRestaurantsInput();
+            renderDefinitionRestaurants();
+            if (activePlan) refreshCityItinerary(activePlan.id);
         });
         $('.def-restaurant-mode').on('change', function() {
             const idx = parseInt($(this).data('idx'));
@@ -1997,6 +2785,7 @@ $(document).ready(function() {
             }
             updateDefinitionRestaurantsInput();
             renderDefinitionRestaurants();
+            if (activePlan) refreshCityItinerary(activePlan.id);
         });
         $('.restaurant-base-price-input').on('input', function() {
             const idx = parseInt($(this).data('idx'), 10);
@@ -2028,12 +2817,15 @@ $(document).ready(function() {
             }
             updateDefinitionRestaurantsInput();
             updateDefinitionTotalsAndMarkup();
+            if (activePlan) refreshCityItinerary(activePlan.id);
         });
         $('.restaurant-base-price-input').on('change', function() {
             // Full re-render on blur so the "Adult: ..." summary line stays in sync
             renderDefinitionRestaurants();
         });
         updateDefinitionTotalsAndMarkup();
+        renderCityPlanServiceSections();
+        if (activePlan) refreshCityItinerary(activePlan.id);
     }
 
     function updateDefinitionRestaurantsInput() {
@@ -2051,6 +2843,7 @@ $(document).ready(function() {
             renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
             $('#arrival-vehicles-hidden').val('[]');
         }
+        persistTransferStateForActivePlan();
     });
     $('#departure-service-def').on('change', function() {
         const checked = $(this).is(':checked');
@@ -2062,6 +2855,7 @@ $(document).ready(function() {
             renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
             $('#departure-vehicles-hidden').val('[]');
         }
+        persistTransferStateForActivePlan();
     });
 
     // Transfer vehicles: multiple selection, zone-based search
@@ -2193,6 +2987,7 @@ $(document).ready(function() {
             renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
             $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles));
         }
+        persistTransferStateForActivePlan();
     });
 
     $(document).on('input change', '.transfer-vehicle-qty-input', function() {
@@ -2215,12 +3010,15 @@ $(document).ready(function() {
         } else {
             $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles));
         }
+        persistTransferStateForActivePlan();
     });
 
     $('#arrival-search-vehicle-btn').on('click', function() {
+        const activePlan = getActiveCityPlan();
+        if (!activePlan) { alert('Please select a city plan first.'); return; }
         const portId = $('#arrival-pickup-port').val();
         const hotelId = $('#arrival-dropoff-hotel').val();
-        const city = $('#city-select').val();
+        const city = activePlan.city || getPrimarySelectedCity();
         if (!portId || !hotelId) { alert('Select pickup port and dropoff hotel first.'); return; }
         if (!city) { alert('Select city first.'); return; }
         const btn = $(this).prop('disabled', true);
@@ -2257,9 +3055,11 @@ $(document).ready(function() {
     });
 
     $('#departure-search-vehicle-btn').on('click', function() {
+        const activePlan = getActiveCityPlan();
+        if (!activePlan) { alert('Please select a city plan first.'); return; }
         const hotelId = $('#departure-pickup-hotel').val();
         const portId = $('#departure-dropoff-port').val();
-        const city = $('#city-select').val();
+        const city = activePlan.city || getPrimarySelectedCity();
         if (!hotelId || !portId) { alert('Select pickup hotel and dropoff port first.'); return; }
         if (!city) { alert('Select city first.'); return; }
         const btn = $(this).prop('disabled', true);
@@ -2321,6 +3121,7 @@ $(document).ready(function() {
         });
         renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
         $('#arrival-vehicles-hidden').val(JSON.stringify(arrivalChosenVehicles));
+        persistTransferStateForActivePlan();
     });
 
     $('#departure-add-vehicle-btn').on('click', function() {
@@ -2349,6 +3150,7 @@ $(document).ready(function() {
         });
         renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
         $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles));
+        persistTransferStateForActivePlan();
     });
 
     $('#arrival-vehicle-select').on('change', function() {
@@ -2365,6 +3167,12 @@ $(document).ready(function() {
 
     // Form submit: build full JSON for selected_hotels, selected_attractions, selected_restaurants
     $('#package-definition-form').on('submit', function(e) {
+        if (!definitionCityPlans.length) {
+            alert('Please add at least one city plan before creating package.');
+            e.preventDefault();
+            return false;
+        }
+        persistTransferStateForActivePlan();
         if (!$(this).find('#main_image')[0].files || !$(this).find('#main_image')[0].files.length) {
             $('#main-image-required-msg').removeClass('d-none');
             e.preventDefault();
@@ -2394,6 +3202,11 @@ $(document).ready(function() {
                 optional_price: h.optional_price != null && h.optional_price !== '' ? parseFloat(h.optional_price) : null,
                 addon_price: h.addon_price != null && h.addon_price !== '' ? parseFloat(h.addon_price) : null,
                 base_price: basePriceNum,
+                start_day: clampDay(h.start_day),
+                city_plan_id: h.city_plan_id || null,
+                city_plan_city: h.city_plan_city || null,
+                city_day_from: h.city_day_from != null ? parseInt(h.city_day_from, 10) : null,
+                city_day_to: h.city_day_to != null ? parseInt(h.city_day_to, 10) : null,
                 // Hotels have no guide/transfer at definition time, so final price == base price
                 final_price: basePriceNum,
                 total_price: basePriceNum
@@ -2431,6 +3244,9 @@ $(document).ready(function() {
                 vehicle_name: a.vehicle_name || null,
                 transfer_price: transferPriceNum,
                 transfer_type: a.transfer_type || 'private',
+                day: clampDay(a.day),
+                city_plan_id: a.city_plan_id || null,
+                city_plan_city: a.city_plan_city || null,
                 pickup_id: a.pickup_id || null,
                 pickup_name: a.pickup_name || null,
                 dropoff_id: a.dropoff_id || null,
@@ -2466,6 +3282,9 @@ $(document).ready(function() {
                 vehicle_name: r.vehicle_name || null,
                 transfer_price: transferPriceNum,
                 transfer_type: r.transfer_type || 'private',
+                day: clampDay(r.day),
+                city_plan_id: r.city_plan_id || null,
+                city_plan_city: r.city_plan_city || null,
                 pickup_id: r.pickup_id || null,
                 pickup_name: r.pickup_name || null,
                 dropoff_id: r.dropoff_id || null,
@@ -2479,10 +3298,12 @@ $(document).ready(function() {
         $('#departure-service-hidden').val($('#departure-service-def').is(':checked') ? 1 : 0);
         $('#arrival-pickup-port-hidden').val($('#arrival-pickup-port').val() || '');
         $('#arrival-dropoff-hotel-hidden').val($('#arrival-dropoff-hotel').val() || '');
-        $('#arrival-vehicles-hidden').val(JSON.stringify(arrivalChosenVehicles || []));
+        $('#arrival-vehicles-hidden').val(JSON.stringify(transferStateByPlan || {}));
         $('#departure-pickup-hotel-hidden').val($('#departure-pickup-hotel').val() || '');
         $('#departure-dropoff-port-hidden').val($('#departure-dropoff-port').val() || '');
-        $('#departure-vehicles-hidden').val(JSON.stringify(departureChosenVehicles || []));
+        $('#departure-vehicles-hidden').val(JSON.stringify(transferStateByPlan || {}));
+        $('#definition-day-city-plan').val(JSON.stringify(getDayCityPlanMap()));
+        $('#definition-day-wise-itinerary').val(JSON.stringify(buildDefinitionDayWiseItineraryPayload()));
     });
 
     // Main image preview
@@ -2609,6 +3430,22 @@ $(document).ready(function() {
 .bg-warning-subtle { background-color: rgba(253, 126, 20, 0.1) !important; }
 .hotel-attraction-box { min-height: 280px; }
 .hotel-attraction-box .form-select-sm, .hotel-attraction-box .form-control-sm { min-height: 36px; }
+
+/* Compact Day-wise itinerary */
+.def-itinerary-wrap { max-height: 320px; overflow: auto; padding-right: 4px; }
+.def-it-accordion .accordion-item { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+.def-it-accordion .accordion-button { padding: 10px 12px; background: #fff; }
+.def-it-accordion .accordion-button:not(.collapsed) { background: rgba(105, 108, 255, 0.06); }
+.def-it-btn { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.def-it-btn-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.def-it-day-label { font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+.def-it-summary { font-size: 0.82rem; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+.def-it-btn-right .badge { font-size: 0.75rem; }
+.def-it-body { padding: 10px 12px; background: #fff; }
+.def-it-item { padding: 6px 0; border-bottom: 1px dashed #eef2f7; }
+.def-it-item:last-child { border-bottom: none; }
+.def-it-name { font-size: 0.85rem; font-weight: 600; color: #111827; }
+.def-it-meta { font-size: 0.78rem; color: #6b7280; }
 @media (max-width: 991.98px) {
     .hotel-attraction-box { min-height: auto; }
     .card-header { padding: 0.75rem 1rem; }
@@ -2619,6 +3456,7 @@ $(document).ready(function() {
     .select2-container--default .select2-selection--multiple { min-height: 38px; }
     .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px; font-size: 0.9rem; }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
+    .def-it-summary { max-width: 220px; }
 }
 </style>
 @endsection
