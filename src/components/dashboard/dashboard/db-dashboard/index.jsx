@@ -1433,6 +1433,8 @@ const DashboardLayout = () => {
                                 type={showCurrentPassword ? "text" : "password"}
                                 value={passwordData.currentPassword}
                                 onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                                autoComplete="new-password"
+                                name="manual-current-password"
                                 InputProps={{
                                   startAdornment: (
                                     <InputAdornment position="start">
@@ -1464,6 +1466,8 @@ const DashboardLayout = () => {
                                 type={showNewPassword ? "text" : "password"}
                                 value={passwordData.newPassword}
                                 onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                                autoComplete="new-password"
+                                name="manual-new-password"
                                 InputProps={{
                                   startAdornment: (
                                     <InputAdornment position="start">
@@ -1495,6 +1499,8 @@ const DashboardLayout = () => {
                                 type={showConfirmPassword ? "text" : "password"}
                                 value={passwordData.confirmPassword}
                                 onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                                autoComplete="new-password"
+                                name="manual-confirm-password"
                                 InputProps={{
                                   startAdornment: (
                                     <InputAdornment position="start">

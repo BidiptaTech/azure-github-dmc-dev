@@ -1234,10 +1234,7 @@ const ProjectDemo = () => {
                         lineHeight: 1.55,
                       }}
                     >
-                      &ldquo;Employees can easily find and book the most cost‑effective and
-                      convenient travel arrangements. The software&apos;s ability to consolidate
-                      various travel options into a single, easy‑to‑navigate platform has been a
-                      game changer for our team.&rdquo;
+                      &ldquo;Employees can quickly search and book travel options that are both affordable and convenient. The platform brings different travel services together in one simple and user-friendly system, making it much easier for our team to plan and manage their trips..&rdquo;
                     </Typography>
                     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, mt: 1 }}>
                       <Box
