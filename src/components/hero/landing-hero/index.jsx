@@ -20,12 +20,15 @@ import {
   LocationOn,
   Star,
   Favorite,
-  FavoriteBorder
+  FavoriteBorder,
+  Dashboard
 } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 
 const LandingHero = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -308,6 +311,31 @@ const LandingHero = () => {
                       }}
                     >
                       Watch Video
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      startIcon={<Dashboard />}
+                      onClick={() => navigate("/demo")}
+                      sx={{
+                        borderColor: 'white',
+                        color: 'white',
+                        px: { xs: 3, sm: 4 },
+                        py: { xs: 1.2, md: 1.5 },
+                        fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' },
+                        fontWeight: 'bold',
+                        borderRadius: '50px',
+                        borderWidth: '2px',
+                        transition: 'all 0.3s ease',
+                        minWidth: { xs: '200px', sm: 'auto' },
+                        '&:hover': {
+                          bgcolor: 'rgba(255, 255, 255, 0.1)',
+                          borderColor: 'white',
+                          borderWidth: '2px'
+                        }
+                      }}
+                    >
+                      Demo
                     </Button>
                   </Stack>
 

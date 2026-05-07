@@ -64,6 +64,7 @@ import Packages from "./pages/packages";
 import PackageDetails from "./pages/pre-define-packages/package-details";
 
 import BookingEnquiryPage from "./pages/booking-enquiry";
+import DemoPage from "./pages/demo";
 
 const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000; //Logout after 1 week
 
@@ -144,6 +145,7 @@ function App() {
             path="/"
             element={<LandingPage />}
           />
+          <Route path="/demo" element={<DemoPage />} />
           <Route path="/dashboard/tour-packages" element={
             <ProtectedRoute>
               <TourPackages />
