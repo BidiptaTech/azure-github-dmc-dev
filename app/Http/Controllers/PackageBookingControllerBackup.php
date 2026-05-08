@@ -149,41 +149,18 @@ class PackageBookingController extends Controller
             $dropoffHotelId = (string) ($arrivalData['dropoff_hotel_id'] ?? '');
             $arrivalData['pickup_port_name'] = $this->resolvePortName($pickupPortId);
             $arrivalData['dropoff_hotel_name'] = $this->resolveHotelName($dropoffHotelId);
-
-            if (! empty($arrivalData['items']) && is_array($arrivalData['items'])) {
-                foreach ($arrivalData['items'] as &$arrivalItem) {
-                    if (! is_array($arrivalItem)) {
-                        continue;
-                    }
-                    $arrivalItem['pickup_port_name'] = $this->resolvePortName((string) ($arrivalItem['pickup_port_id'] ?? ''));
-                    $arrivalItem['dropoff_hotel_name'] = $this->resolveHotelName((string) ($arrivalItem['dropoff_hotel_id'] ?? ''));
-                }
-                unset($arrivalItem);
-            }
         }
         if (is_array($departureData)) {
             $pickupHotelId = (string) ($departureData['pickup_hotel_id'] ?? '');
             $dropoffPortId = (string) ($departureData['dropoff_port_id'] ?? '');
             $departureData['pickup_hotel_name'] = $this->resolveHotelName($pickupHotelId);
             $departureData['dropoff_port_name'] = $this->resolvePortName($dropoffPortId);
-
-            if (! empty($departureData['items']) && is_array($departureData['items'])) {
-                foreach ($departureData['items'] as &$departureItem) {
-                    if (! is_array($departureItem)) {
-                        continue;
-                    }
-                    $departureItem['pickup_hotel_name'] = $this->resolveHotelName((string) ($departureItem['pickup_hotel_id'] ?? ''));
-                    $departureItem['dropoff_port_name'] = $this->resolvePortName((string) ($departureItem['dropoff_port_id'] ?? ''));
-                }
-                unset($departureItem);
-            }
         }
 
         return response()->json([
             'success' => true,
             'package' => [
                 'package_id' => $package->package_id,
-                'package_type' => (string) ($package->package_type ?? ''),
                 'title' => (string) $package->title,
                 'destination' => (string) $package->destination,
                 'city' => (string) $package->city,
