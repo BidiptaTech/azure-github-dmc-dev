@@ -4,12 +4,19 @@
 
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
+        @php
+            $isEdit = isset($mode) && $mode === 'edit' && !empty($package);
+            $initial = isset($initialDefinition) ? $initialDefinition : null;
+        @endphp
+
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="fw-bold mb-1">
-                    <i class="ri-file-list-3-line me-2 text-primary"></i>Create Package Definition
+                    <i class="ri-file-list-3-line me-2 text-primary"></i>{{ $isEdit ? 'Edit Package Definition' : 'Create Package Definition' }}
                 </h4>
-                <p class="text-muted mb-0">Define package services without day-wise itinerary</p>
+                <p class="text-muted mb-0">
+                    {{ $isEdit ? 'Update package definition services and pricing' : 'Define package services without day-wise itinerary' }}
+                </p>
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary">
@@ -29,8 +36,12 @@
             </div>
         @endif
 
-        <form action="{{ route('packages.definition.store') }}" method="POST" enctype="multipart/form-data" id="package-definition-form">
+        <form action="{{ $isEdit ? route('packages.definition.update', ['package_id' => Crypt::encrypt($package->package_id)]) : route('packages.definition.store') }}"
+              method="POST" enctype="multipart/form-data" id="package-definition-form">
             @csrf
+            @if($isEdit)
+                @method('PUT')
+            @endif
 
             <!-- Basic Details: info, availability & pricing in one card -->
             <div class="card mb-4">
@@ -43,21 +54,21 @@
                         <div class="col-md-6">
                             <label class="form-label">Package Title <span class="text-danger">*</span></label>
                             <input type="text" class="form-control @error('title') is-invalid @enderror"
-                                   name="title" value="{{ old('title') }}" required placeholder="e.g., Singapore Explorer">
+                                   name="title" value="{{ old('title', $isEdit ? ($package->title ?? '') : '') }}" required placeholder="e.g., Singapore Explorer">
                             @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Package Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="start_date" value="{{ old('start_date') }}" required min="{{ date('Y-m-d') }}" id="start-date-input">
+                            <input type="date" class="form-control" name="start_date" value="{{ old('start_date', $isEdit ? optional($package->start_date)->format('Y-m-d') : '') }}" required min="{{ date('Y-m-d') }}" id="start-date-input">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Package Expiry Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="expiry_date" value="{{ old('expiry_date') }}" required min="{{ date('Y-m-d') }}" id="expiry-date-input">
+                            <input type="date" class="form-control" name="expiry_date" value="{{ old('expiry_date', $isEdit ? optional($package->expire_date)->format('Y-m-d') : '') }}" required min="{{ date('Y-m-d') }}" id="expiry-date-input">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Tour Duration (Days) <span class="text-danger">*</span></label>
                             <input type="number" class="form-control @error('duration_days') is-invalid @enderror"
-                                   name="duration_days" value="{{ old('duration_days') }}" min="1" required placeholder="e.g. 3">
+                                   name="duration_days" value="{{ old('duration_days', $isEdit ? ($package->duration_days ?? 1) : '') }}" min="1" required placeholder="e.g. 3">
                             @error('duration_days')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3">
@@ -65,7 +76,7 @@
                             <select class="form-select w-100 @error('destination') is-invalid @enderror" id="country-select" name="destination" required>
                                 <option value="">Select Country</option>
                                 @foreach($countries as $country)
-                                    <option value="{{ $country->name }}" {{ old('destination') == $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
+                                    <option value="{{ $country->name }}" {{ old('destination', $isEdit ? ($package->destination ?? '') : '') == $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
                                 @endforeach
                             </select>
                             @error('destination')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -81,12 +92,12 @@
                             <label class="form-label">Category <span class="text-danger">*</span></label>
                             <select class="form-select w-100 @error('category') is-invalid @enderror" name="category" required>
                                 <option value="">Select Category</option>
-                                <option value="Adventure" {{ old('category') == 'Adventure' ? 'selected' : '' }}>Adventure</option>
-                                <option value="Cultural" {{ old('category') == 'Cultural' ? 'selected' : '' }}>Cultural</option>
-                                <option value="City Tour" {{ old('category') == 'City Tour' ? 'selected' : '' }}>City Tour</option>
-                                <option value="Beach" {{ old('category') == 'Beach' ? 'selected' : '' }}>Beach</option>
-                                <option value="Heritage" {{ old('category') == 'Heritage' ? 'selected' : '' }}>Heritage</option>
-                                <option value="Food & Culinary" {{ old('category') == 'Food & Culinary' ? 'selected' : '' }}>Food & Culinary</option>
+                                <option value="Adventure" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Adventure' ? 'selected' : '' }}>Adventure</option>
+                                <option value="Cultural" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Cultural' ? 'selected' : '' }}>Cultural</option>
+                                <option value="City Tour" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'City Tour' ? 'selected' : '' }}>City Tour</option>
+                                <option value="Beach" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Beach' ? 'selected' : '' }}>Beach</option>
+                                <option value="Heritage" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Heritage' ? 'selected' : '' }}>Heritage</option>
+                                <option value="Food & Culinary" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Food & Culinary' ? 'selected' : '' }}>Food & Culinary</option>
                             </select>
                             @error('category')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
@@ -106,6 +117,12 @@
                                             Drag & Drop or click to upload.
                                         </div>
                                         <small class="text-danger d-none" id="main-image-required-msg">Main image is required.</small>
+                                        @if($isEdit && !empty($package->main_image))
+                                            <div class="small text-muted mt-1">Current main image:</div>
+                                            <div class="mb-2">
+                                                <img src="{{ $package->main_image }}" alt="Current main image" style="max-height:100px;border-radius:8px;">
+                                            </div>
+                                        @endif
                                         <div id="main-image-preview-container" class="mt-2"></div>
                                     </div>
                                     <div class="col-md-6">
@@ -114,6 +131,14 @@
                                             Drag & Drop or click to upload.
                                             <input type="file" id="gallery_images" name="gallery_images[]" accept="image/*" multiple style="display: none;">
                                         </div>
+                                        @if($isEdit && !empty($package->gallery_images) && is_array($package->gallery_images) && count($package->gallery_images))
+                                            <div class="small text-muted mt-1">Current gallery images:</div>
+                                            <div class="mb-2">
+                                                @foreach($package->gallery_images as $img)
+                                                    <img src="{{ $img }}" alt="Gallery image" style="max-height:100px;border-radius:8px;margin:0 8px 8px 0;">
+                                                @endforeach
+                                            </div>
+                                        @endif
                                         <div id="gallery-preview-container" class="mt-2"></div>
                                     </div>
                                 </div>
@@ -121,7 +146,7 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label">Description</label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" name="description" rows="3" placeholder="Brief description...">{{ old('description') }}</textarea>
+                            <textarea class="form-control @error('description') is-invalid @enderror" name="description" rows="3" placeholder="Brief description...">{{ old('description', $isEdit ? ($package->description ?? '') : '') }}</textarea>
                             @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>
@@ -225,7 +250,8 @@
                                     </div>
                                     <div class="col-12 col-md-6">
                                         <label class="form-label small mb-1">Price</label>
-                                        <input type="text" class="form-control form-control-sm w-100" id="definition-attraction-ticket-adult-price" value="—" readonly>
+                                        <input type="number" class="form-control form-control-sm w-100" id="definition-attraction-ticket-adult-price" value="" min="0" step="0.01" placeholder="0.00">
+                                        <small class="text-muted">Editable (ticket/attraction base price).</small>
                                     </div>
                                 </div>
                                 <div id="definition-attraction-config" style="display: none;">
@@ -261,7 +287,8 @@
                                                     </div>
                                                     <div class="col-12 col-md-3">
                                                         <label class="form-label small mb-0">Guide Price</label>
-                                                        <input type="text" class="form-control form-control-sm" id="definition-attraction-config-guide-price" value="—" readonly>
+                                                        <input type="number" class="form-control form-control-sm" id="definition-attraction-config-guide-price" value="" min="0" step="0.01" placeholder="0.00">
+                                                        <small class="text-muted">Editable.</small>
                                                     </div>
                                                 </div>
                                             </div>
@@ -347,7 +374,8 @@
                                             </div>
                                             <div class="col-md-5">
                                                 <label class="form-label small mb-0">Price</label>
-                                                <input type="text" class="form-control form-control-sm" id="definition-restaurant-meal-adult-price" value="—" readonly>
+                                                <input type="number" class="form-control form-control-sm" id="definition-restaurant-meal-adult-price" value="" min="0" step="0.01" placeholder="0.00">
+                                                <small class="text-muted">Editable.</small>
                                             </div>
                                         </div>
                                     </div>
@@ -609,21 +637,21 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Inclusions</label>
-                            <textarea class="form-control" name="inclusions" rows="4" placeholder="What's included...">{{ old('inclusions') }}</textarea>
+                            <textarea class="form-control" name="inclusions" rows="4" placeholder="What's included...">{{ old('inclusions', $isEdit ? ($package->inclusions ?? '') : '') }}</textarea>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Exclusions</label>
-                            <textarea class="form-control" name="exclusions" rows="4" placeholder="What's not included...">{{ old('exclusions') }}</textarea>
+                            <textarea class="form-control" name="exclusions" rows="4" placeholder="What's not included...">{{ old('exclusions', $isEdit ? ($package->exclusions ?? '') : '') }}</textarea>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Terms & Conditions</label>
-                            <textarea class="form-control" name="terms_conditions" rows="3" placeholder="Terms and conditions...">{{ old('terms_conditions') }}</textarea>
+                            <textarea class="form-control" name="terms_conditions" rows="3" placeholder="Terms and conditions...">{{ old('terms_conditions', $isEdit ? ($package->terms_conditions ?? '') : '') }}</textarea>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Status <span class="text-danger">*</span></label>
                             <select class="form-select" name="status" required style="max-width: 200px;">
-                                <option value="1" {{ old('status') == '1' ? 'selected' : '' }}>Active</option>
-                                <option value="0" {{ old('status') == '0' ? 'selected' : '' }}>Inactive</option>
+                                <option value="1" {{ old('status', $isEdit ? (string) ($package->status ?? '1') : '') == '1' ? 'selected' : '' }}>Active</option>
+                                <option value="0" {{ old('status', $isEdit ? (string) ($package->status ?? '1') : '') == '0' ? 'selected' : '' }}>Inactive</option>
                             </select>
                         </div>
                     </div>
@@ -632,7 +660,7 @@
 
             <div class="d-flex justify-content-end gap-2">
                 <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary"><i class="ri-close-line me-1"></i>Cancel</a>
-                <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>Create Package Definition</button>
+                <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{{ $isEdit ? 'Update Package Definition' : 'Create Package Definition' }}</button>
             </div>
         </form>
     </div>
@@ -898,9 +926,12 @@ $(document).ready(function() {
         $('#departure-dropoff-port').empty().append('<option value="">Select country first</option>');
         portsByCountry = [];
         restaurantMealsByRestaurant = {};
-        definitionCityPlans = [];
-        activeCityPlanId = null;
-        renderDefinitionCityPlans();
+        // In edit preload mode we should NOT wipe existing city plans / selections.
+        if (!isEditPreloading) {
+            definitionCityPlans = [];
+            activeCityPlanId = null;
+            renderDefinitionCityPlans();
+        }
         if (!country) return;
         $.get(baseUrl + '/ports-by-country/' + encodeURIComponent(country), function(ports) {
             portsByCountry = ports || [];
@@ -920,7 +951,9 @@ $(document).ready(function() {
         $.get(baseUrl + '/cities-by-country/' + encodeURIComponent(country), function(response) {
             citySelect.empty();
             response.forEach(function(c) { citySelect.append(new Option(c.name, c.name)); });
-            citySelect.val(null).trigger('change');
+            if (!isEditPreloading) {
+                citySelect.val(null).trigger('change');
+            }
         });
     });
 
@@ -933,6 +966,7 @@ $(document).ready(function() {
     let vehiclesByCity = [];
     let guidesByCity = [];
     let transferStateByPlan = {};
+    let isEditPreloading = false;
 
     function getPlanTransferState(planId) {
         if (!planId) return null;
@@ -1381,14 +1415,28 @@ $(document).ready(function() {
         return base + transfer;
     }
     function computeRestaurantsTotalForPackage() {
-        let compulsorySum = 0;
-        const opts = [];
+        // Some packages select the same restaurant on multiple days.
+        // Pricing rule: count each unique restaurant once for the package total.
+        // - compulsory: take the MAX line price for that restaurant_id
+        // - optional: take the MIN line price for that restaurant_id
+        const compById = {};
+        const optById = {};
         (definitionRestaurants || []).forEach(function(r) {
             if (r.addon === true) return;
+            const rid = (r && (r.restaurant_id || r.id)) ? String(r.restaurant_id || r.id) : '';
+            if (!rid) return;
             const p = restaurantLinePriceForTotal(r);
-            if (r.optional === true) opts.push(p);
-            else compulsorySum += p;
+            if (r.optional === true) {
+                if (optById[rid] == null) optById[rid] = p;
+                else optById[rid] = Math.min(optById[rid], p);
+            } else {
+                if (compById[rid] == null) compById[rid] = p;
+                else compById[rid] = Math.max(compById[rid], p);
+            }
         });
+        let compulsorySum = 0;
+        Object.keys(compById).forEach(function(k) { compulsorySum += compById[k]; });
+        const opts = Object.keys(optById).map(function(k) { return optById[k]; });
         return compulsorySum + (opts.length ? minFinite(opts) : 0);
     }
     function attractionLineTotal(a) {
@@ -1430,11 +1478,19 @@ $(document).ready(function() {
         const attractionsTotal = computeAttractionsTotalForPackage();
         const restaurantsTotal = computeRestaurantsTotalForPackage();
 
-        const arrivalTotal = (arrivalChosenVehicles || []).reduce(function(sum, v) {
-            return sum + numPriceVal(v && v.selected_price);
+        // IMPORTANT: totals must include transfers across ALL city plans,
+        // not only the currently active plan (arrivalChosenVehicles/departureChosenVehicles).
+        const arrivalTotal = (definitionCityPlans || []).reduce(function(sum, plan) {
+            const st = plan && plan.id ? getPlanTransferState(plan.id) : null;
+            const vehicles = st && Array.isArray(st.arrival_vehicles) ? st.arrival_vehicles : [];
+            const s = vehicles.reduce(function(acc, v) { return acc + numPriceVal(v && v.selected_price); }, 0);
+            return sum + s;
         }, 0);
-        const departureTotal = (departureChosenVehicles || []).reduce(function(sum, v) {
-            return sum + numPriceVal(v && v.selected_price);
+        const departureTotal = (definitionCityPlans || []).reduce(function(sum, plan) {
+            const st = plan && plan.id ? getPlanTransferState(plan.id) : null;
+            const vehicles = st && Array.isArray(st.departure_vehicles) ? st.departure_vehicles : [];
+            const s = vehicles.reduce(function(acc, v) { return acc + numPriceVal(v && v.selected_price); }, 0);
+            return sum + s;
         }, 0);
 
         const rawSubtotal = hotelsTotal + attractionsTotal + restaurantsTotal + arrivalTotal + departureTotal;
@@ -1917,9 +1973,151 @@ $(document).ready(function() {
         return dayWise;
     }
 
-    renderDefinitionDaySelectors();
-    renderDefinitionCityPlans();
-    toggleServiceCards(false);
+    // ---- Edit mode preload (existing package definition) ----
+    const __initialDefinition = @json($initial);
+    if (__initialDefinition && typeof __initialDefinition === 'object') {
+        isEditPreloading = true;
+        // Preload city plans
+        if (Array.isArray(__initialDefinition.day_city_plan)) {
+            definitionCityPlans = __initialDefinition.day_city_plan.map(function(p) {
+                const fromRaw = p.day_from ?? p.city_day_from ?? p.from_day ?? p.from ?? p.start_day;
+                const toRaw = p.day_to ?? p.city_day_to ?? p.to_day ?? p.to ?? p.end_day;
+                const fromNum = parseInt(fromRaw, 10) || 1;
+                const toNum = parseInt(toRaw, 10) || fromNum;
+                return {
+                    id: String(p.id || p.city_plan_id || p.plan_id || ''),
+                    city: p.city || p.city_plan_city || '',
+                    day_from: fromNum,
+                    day_to: toNum,
+                };
+            }).filter(function(p) { return p.id && p.city; });
+        }
+
+        // If no plans were saved, derive plans from selected services (best effort)
+        if (!definitionCityPlans.length) {
+            const planMap = {};
+            const consume = function(row) {
+                if (!row || typeof row !== 'object') return;
+                const pid = row.city_plan_id;
+                const city = row.city_plan_city || row.city;
+                const day = parseInt(row.day, 10);
+                if (!pid || !city || !day) return;
+                if (!planMap[pid]) planMap[pid] = { id: String(pid), city: String(city), day_from: day, day_to: day };
+                planMap[pid].day_from = Math.min(planMap[pid].day_from, day);
+                planMap[pid].day_to = Math.max(planMap[pid].day_to, day);
+            };
+            (Array.isArray(__initialDefinition.selected_hotels) ? __initialDefinition.selected_hotels : []).forEach(function(h) {
+                // Hotels have strong day range hints: city_day_from/city_day_to or start_day + nights
+                const pid = h && h.city_plan_id ? h.city_plan_id : null;
+                const city = h && (h.city_plan_city || h.city) ? (h.city_plan_city || h.city) : null;
+                if (!pid || !city) return;
+                const from = parseInt(h.city_day_from, 10) || parseInt(h.start_day, 10) || 1;
+                const nights = parseInt(h.nights, 10) || 1;
+                const to = parseInt(h.city_day_to, 10) || (from + Math.max(1, nights) - 1);
+                consume({ city_plan_id: pid, city_plan_city: city, day: from });
+                consume({ city_plan_id: pid, city_plan_city: city, day: to });
+            });
+            (Array.isArray(__initialDefinition.selected_attractions) ? __initialDefinition.selected_attractions : []).forEach(consume);
+            (Array.isArray(__initialDefinition.selected_restaurants) ? __initialDefinition.selected_restaurants : []).forEach(consume);
+            definitionCityPlans = Object.values(planMap).sort(function(a,b){return a.day_from-b.day_from;});
+        }
+
+        // Preload services
+        definitionHotels = Array.isArray(__initialDefinition.selected_hotels) ? __initialDefinition.selected_hotels : [];
+        definitionAttractions = Array.isArray(__initialDefinition.selected_attractions) ? __initialDefinition.selected_attractions : [];
+        definitionRestaurants = Array.isArray(__initialDefinition.selected_restaurants) ? __initialDefinition.selected_restaurants : [];
+
+        // Hidden inputs for submit
+        $('#definition-hotels-input').val(JSON.stringify(definitionHotels));
+        $('#definition-attractions-input').val(JSON.stringify(definitionAttractions));
+        $('#definition-restaurants-input').val(JSON.stringify(definitionRestaurants));
+        if (Array.isArray(__initialDefinition.day_city_plan)) {
+            $('#definition-day-city-plan').val(JSON.stringify(__initialDefinition.day_city_plan));
+        }
+        if (Array.isArray(__initialDefinition.day_wise_itinerary)) {
+            $('#definition-day-wise-itinerary').val(JSON.stringify(__initialDefinition.day_wise_itinerary));
+        }
+
+        // Preload markup/price (best effort; totals will be recomputed)
+        if (__initialDefinition.price_data && typeof __initialDefinition.price_data === 'object') {
+            const mt = __initialDefinition.price_data.markup_type || '';
+            const ma = __initialDefinition.price_data.markup_amount != null ? __initialDefinition.price_data.markup_amount : 0;
+            if (mt) $('#definition-markup-type').val(mt);
+            if (ma != null && !isNaN(parseFloat(ma))) $('#definition-markup-amount').val(parseFloat(ma));
+        }
+
+        // Preload arrival/departure into per-plan transfer state
+        const ensureState = function(planId) {
+            activeCityPlanId = activeCityPlanId || planId;
+            return getPlanTransferState(planId);
+        };
+        const aItems = (__initialDefinition.arrival_data && Array.isArray(__initialDefinition.arrival_data.items)) ? __initialDefinition.arrival_data.items : [];
+        aItems.forEach(function(item) {
+            const pid = item.city_plan_id;
+            if (!pid) return;
+            const st = ensureState(pid);
+            st.arrival_enabled = true;
+            st.arrival_day = String(item.day || '');
+            st.arrival_pickup_port_id = String(item.pickup_port_id || '');
+            st.arrival_dropoff_hotel_id = String(item.dropoff_hotel_id || '');
+            st.arrival_vehicles = Array.isArray(item.vehicles) ? item.vehicles : [];
+        });
+        const dItems = (__initialDefinition.departure_data && Array.isArray(__initialDefinition.departure_data.items)) ? __initialDefinition.departure_data.items : [];
+        dItems.forEach(function(item) {
+            const pid = item.city_plan_id;
+            if (!pid) return;
+            const st = ensureState(pid);
+            st.departure_enabled = true;
+            st.departure_day = String(item.day || '');
+            st.departure_pickup_hotel_id = String(item.pickup_hotel_id || '');
+            st.departure_dropoff_port_id = String(item.dropoff_port_id || '');
+            st.departure_vehicles = Array.isArray(item.vehicles) ? item.vehicles : [];
+        });
+
+        // Ensure an active plan for rendering (first plan)
+        if (!activeCityPlanId && definitionCityPlans.length) activeCityPlanId = definitionCityPlans[0].id;
+
+        toggleServiceCards(!!definitionCityPlans.length);
+
+        // Trigger country/city loading and then apply selected cities once options exist
+        if (__initialDefinition.destination) {
+            $('#country-select').val(__initialDefinition.destination).trigger('change');
+        }
+        const initialCities = Array.isArray(__initialDefinition.cities) ? __initialDefinition.cities : [];
+        if (initialCities.length) {
+            const applyCities = function() {
+                const citySel = $('#city-select');
+                const loaded = citySel.find('option').length > 0 && citySel.find('option[value="' + initialCities[0] + '"]').length > 0;
+                if (!loaded) return false;
+                citySel.val(initialCities).trigger('change');
+                return true;
+            };
+            let tries = 0;
+            const t = setInterval(function() {
+                tries++;
+                if (applyCities() || tries > 25) clearInterval(t);
+            }, 200);
+        }
+
+        // After we’ve applied initial values, unlock normal behavior and recompute totals.
+        setTimeout(function() {
+            isEditPreloading = false;
+            renderDefinitionDaySelectors();
+            renderDefinitionCityPlans();
+            renderDefinitionHotels();
+            renderDefinitionAttractions();
+            renderDefinitionRestaurants();
+            updateDefinitionTotalsAndMarkup();
+            renderCityPlanServiceSections();
+            if (activeCityPlanId) {
+                loadServicesForActivePlan();
+                loadTransferStateForActivePlan();
+            }
+        }, 1200);
+    }
+
+        // In edit mode, the preload setTimeout will render everything.
+        // For create mode, do the default initial render below.
     $('input[name="duration_days"]').on('change input', function() {
         renderDefinitionDaySelectors();
         renderDefinitionCityPlans();
@@ -2205,7 +2403,7 @@ $(document).ready(function() {
         const ticketSel = $('#definition-attraction-ticket-select');
         const ticketAdultPriceEl = $('#definition-attraction-ticket-adult-price');
         ticketSel.empty().append('<option value="">Select ticket</option>');
-        ticketAdultPriceEl.val('—');
+        ticketAdultPriceEl.val('');
         if (!val) {
             configEl.hide();
             ticketSel.empty().append('<option value="">Select attraction first</option>');
@@ -2232,7 +2430,7 @@ $(document).ready(function() {
             guideSel.append(new Option(g.name, g.guide_id));
         });
         $('#definition-attraction-config-guide-hour').val('');
-        $('#definition-attraction-config-guide-price').val('—');
+        $('#definition-attraction-config-guide-price').val('');
         const vehicleSel = $('#definition-attraction-config-vehicle');
         vehicleSel.empty().append('<option value="">Select vehicle</option>');
         vehiclesByCity.forEach(function(v) {
@@ -2251,7 +2449,7 @@ $(document).ready(function() {
         const adultPrice = ticketData && ticketData.adult_price != null && ticketData.adult_price !== ''
             ? parseFloat(ticketData.adult_price)
             : null;
-        $('#definition-attraction-ticket-adult-price').val(adultPrice != null && !isNaN(adultPrice) ? formatOptionalPrice(adultPrice) : '—');
+        $('#definition-attraction-ticket-adult-price').val(adultPrice != null && !isNaN(adultPrice) ? adultPrice.toFixed(2) : '');
     });
     $('#definition-attraction-config-need-guide').on('change', function() {
         const checked = $(this).is(':checked');
@@ -2259,7 +2457,7 @@ $(document).ready(function() {
         if (!checked) {
             $('#definition-attraction-config-guide').val('');
             $('#definition-attraction-config-guide-hour').val('');
-            $('#definition-attraction-config-guide-price').val('—');
+            $('#definition-attraction-config-guide-price').val('');
         }
     });
 
@@ -2268,12 +2466,12 @@ $(document).ready(function() {
         const hourKey = $('#definition-attraction-config-guide-hour').val();
         const g = guideId ? guidesByCity.find(function(x) { return x.guide_id == guideId; }) : null;
         if (!g || !hourKey) {
-            $('#definition-attraction-config-guide-price').val('—');
+            $('#definition-attraction-config-guide-price').val('');
             return;
         }
         const priceKey = hourKey === 'hourly' ? 'hourly_price' : (hourKey + '_price');
         const price = g[priceKey] != null && g[priceKey] !== '' ? parseFloat(g[priceKey]) : null;
-        $('#definition-attraction-config-guide-price').val(price != null && !isNaN(price) ? formatOptionalPrice(price) : '—');
+        $('#definition-attraction-config-guide-price').val(price != null && !isNaN(price) ? price.toFixed(2) : '');
     }
 
     $('#definition-attraction-config-guide').on('change', function() {
@@ -2396,7 +2594,10 @@ $(document).ready(function() {
         const g = guideId ? guidesByCity.find(x => x.guide_id == guideId) : null;
         const durationLabels = { hourly: '1 Hour', two_hour: '2 Hours', four_hour: '4 Hours', six_hour: '6 Hours', eight_hour: '8 Hours', ten_hour: '10 Hours', twelve_hour: '12 Hours' };
         const guidePriceKey = guideHourKey ? (guideHourKey === 'hourly' ? 'hourly_price' : (guideHourKey + '_price')) : '';
-        const guidePrice = (g && guidePriceKey && g[guidePriceKey] != null && g[guidePriceKey] !== '') ? parseFloat(g[guidePriceKey]) : null;
+        const guidePriceAuto = (g && guidePriceKey && g[guidePriceKey] != null && g[guidePriceKey] !== '') ? parseFloat(g[guidePriceKey]) : null;
+        const guidePriceInputRaw = $('#definition-attraction-config-guide-price').val();
+        const guidePriceOverride = guidePriceInputRaw !== '' && !isNaN(parseFloat(guidePriceInputRaw)) ? parseFloat(guidePriceInputRaw) : null;
+        const guidePrice = guidePriceOverride != null ? guidePriceOverride : guidePriceAuto;
         if (needGuide && (!guideId || !guideHourKey)) {
             alert('Please select guide and hour.');
             return;
@@ -2419,7 +2620,10 @@ $(document).ready(function() {
         const dropoffVal = $('#definition-attraction-config-dropoff').val();
         const dropoffName = $('#definition-attraction-config-dropoff').find('option:selected').text();
         let attrAdultPrice = '';
-        if (ticketData && ticketData.adult_price != null && ticketData.adult_price !== '') {
+        const attrPriceInputRaw = $('#definition-attraction-ticket-adult-price').val();
+        if (attrPriceInputRaw !== '' && !isNaN(parseFloat(attrPriceInputRaw))) {
+            attrAdultPrice = parseFloat(attrPriceInputRaw);
+        } else if (ticketData && ticketData.adult_price != null && ticketData.adult_price !== '') {
             attrAdultPrice = parseFloat(ticketData.adult_price);
         } else if (data.adult_price != null && data.adult_price !== '') {
             attrAdultPrice = parseFloat(data.adult_price);
@@ -2476,7 +2680,7 @@ $(document).ready(function() {
         renderDefinitionAttractions();
         $('#definition-attraction-select').val('').trigger('change');
         $('#definition-attraction-ticket-select').empty().append('<option value="">Select attraction first</option>');
-        $('#definition-attraction-ticket-adult-price').val('—');
+        $('#definition-attraction-ticket-adult-price').val('');
         $('#definition-attraction-config').hide();
     });
 
@@ -2654,7 +2858,7 @@ $(document).ready(function() {
         const mealTypeSel = $('#definition-restaurant-meal-type-select');
         const mealAdultPriceEl = $('#definition-restaurant-meal-adult-price');
         mealTypeSel.empty().append('<option value="">Select meal type</option>');
-        mealAdultPriceEl.val('—');
+        mealAdultPriceEl.val('');
         if (!val) {
             configEl.hide();
             mealsWrap.hide();
@@ -2692,7 +2896,7 @@ $(document).ready(function() {
         const opt = $(this).find('option:selected');
         const meal = opt.data('meal-data') || null;
         const adult = meal && meal.adult_price != null && meal.adult_price !== '' ? parseFloat(meal.adult_price) : null;
-        $('#definition-restaurant-meal-adult-price').val(adult != null && !isNaN(adult) ? formatOptionalPrice(adult) : '—');
+        $('#definition-restaurant-meal-adult-price').val(adult != null && !isNaN(adult) ? adult.toFixed(2) : '');
     });
     $('#definition-restaurant-config-transfer').on('change', function() {
         const checked = $(this).is(':checked');
@@ -2811,8 +3015,11 @@ $(document).ready(function() {
         const pickupName = $('#definition-restaurant-config-pickup').find('option:selected').text();
         const dropoffVal = $('#definition-restaurant-config-dropoff').val();
         const dropoffName = $('#definition-restaurant-config-dropoff').find('option:selected').text();
-        const restPrice = selectedMeal && selectedMeal.adult_price != null
-            ? parseFloat(selectedMeal.adult_price || 0) : '';
+        const mealPriceInputRaw = $('#definition-restaurant-meal-adult-price').val();
+        const mealPriceOverride = mealPriceInputRaw !== '' && !isNaN(parseFloat(mealPriceInputRaw)) ? parseFloat(mealPriceInputRaw) : null;
+        const restPrice = mealPriceOverride != null
+            ? mealPriceOverride
+            : (selectedMeal && selectedMeal.adult_price != null ? parseFloat(selectedMeal.adult_price || 0) : '');
         definitionRestaurants.push({
             restaurant_id: id,
             restaurant_name: name,
@@ -2825,7 +3032,7 @@ $(document).ready(function() {
             selected_meals: mealTypeVal ? [String(mealTypeVal)] : [],
             meal_type: selectedMeal ? (selectedMeal.type || null) : null,
             meal_type_label: selectedMeal ? (selectedMeal.type_label || null) : null,
-            meal_adult_price: selectedMeal && selectedMeal.adult_price != null ? parseFloat(selectedMeal.adult_price) : null,
+            meal_adult_price: restPrice !== '' && restPrice != null && !isNaN(parseFloat(restPrice)) ? parseFloat(restPrice) : (selectedMeal && selectedMeal.adult_price != null ? parseFloat(selectedMeal.adult_price) : null),
             meal_child_price: selectedMeal && selectedMeal.child_price != null ? parseFloat(selectedMeal.child_price) : null,
             transfer: transfer,
             vehicle_id: v ? v.vehicle_id : null,
