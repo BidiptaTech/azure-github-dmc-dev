@@ -606,8 +606,10 @@ Route::get('/clear', function () {
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
         Route::get('/packages/definition/create', [PackageController::class, 'createDefinition'])->name('packages.definition.create');
         Route::post('/packages/definition', [PackageController::class, 'storeDefinition'])->name('packages.definition.store');
+        Route::get('/packages/definition/{package_id}/edit', [PackageController::class, 'editDefinition'])->name('packages.definition.edit');
+        Route::put('/packages/definition/{package_id}', [PackageController::class, 'updateDefinition'])->name('packages.definition.update');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
-        // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+        Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
         Route::get('/packages/booking/create/{package_id?}', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create');
         Route::get('/packages/{package_id}/booking', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create.legacy');
