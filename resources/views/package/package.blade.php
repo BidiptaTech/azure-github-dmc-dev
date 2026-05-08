@@ -424,6 +424,37 @@
                             <a href="{{ route('packages.show', ['package_id' => Crypt::encrypt($package->package_id)]) }}" class="btn btn-primary btn-sm w-100">
                                 <i class="ri-eye-line me-1"></i>Details
                             </a>
+                            @php
+                                $isBooked = (int) ($package->bookings_count ?? 0) > 0;
+                                $isExpired = !empty($package->expire_date) && \Carbon\Carbon::parse($package->expire_date)->endOfDay()->lt(now());
+                                $editDisabled = $isBooked || $isExpired;
+                                $editTitle = $isBooked
+                                    ? 'This package is already booked and cannot be edited.'
+                                    : ($isExpired ? 'This package has expired and cannot be edited.' : '');
+                                $editHref = $package->package_type === 'definition'
+                                    ? route('packages.definition.edit', ['package_id' => Crypt::encrypt($package->package_id)])
+                                    : route('packages.edit', ['package_id' => Crypt::encrypt($package->package_id)]);
+                            @endphp
+
+                            @if($editDisabled)
+                                <span class="d-inline-block w-100"
+                                      tabindex="0"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top"
+                                      title="{{ $editTitle }}">
+                                    <a href="#"
+                                       class="btn btn-outline-primary btn-sm w-100 disabled"
+                                       tabindex="-1"
+                                       aria-disabled="true"
+                                       onclick="return false;">
+                                        <i class="ri-edit-line me-1"></i>Edit
+                                    </a>
+                                </span>
+                            @else
+                                <a href="{{ $editHref }}" class="btn btn-outline-primary btn-sm w-100">
+                                    <i class="ri-edit-line me-1"></i>Edit
+                                </a>
+                            @endif
                             <form action="{{ route('packages.destroy', ['package_id' => Crypt::encrypt($package->package_id)]) }}" method="POST" class="w-100">
                                 @csrf
                                 @method('DELETE')
@@ -515,4 +546,15 @@
     border-radius: 4px;
 }
 </style>
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.bootstrap || !bootstrap.Tooltip) return;
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+    new bootstrap.Tooltip(el);
+  });
+});
+</script>
+@endsection
 @endsection
