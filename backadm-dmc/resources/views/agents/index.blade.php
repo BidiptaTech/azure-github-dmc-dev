@@ -26,14 +26,14 @@
       <div class="card-datatable table-responsive pt-0">
             <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
                 <div class="d-flex align-items-center">
-                    <h5 class="card-title mb-0">Travel Agents</h5>
+                    <h5 class="card-title mb-0">TA Contacts</h5>
                 </div>
 
                 <div class="d-flex justify-content-between gap-3">
                     <!-- Add New User Button -->
                     @if(!in_array(auth()->user()->role_id, [1, 2, 3, 4]))
                       <a href="{{ route('agents.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
-                          <i class="fas fa-plus"></i> Add New Travel Agent
+                          <i class="fas fa-plus"></i> Add New TA Contact
                       </a>
                     @endif
                     <!-- Import Agents Button -->

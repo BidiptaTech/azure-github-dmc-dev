@@ -103,18 +103,156 @@
                     $hotels = [];
                     $hasArrivalPickup = false;
                     $hasDepartureService = false;
+                    $hasLocalTransfers = false;
+                    $arrivalData = is_array($package->arrival_data ?? null) ? ($package->arrival_data ?? []) : [];
+                    $departureData = is_array($package->departure_data ?? null) ? ($package->departure_data ?? []) : [];
+                    $transferData = is_array($package->transfer_data ?? null) ? ($package->transfer_data ?? []) : [];
+                    $durationDays = (int) ($package->duration_days ?? 0);
+
+                    // Selected JSON columns (definition packages source of truth)
+                    $selectedHotelsRaw = $package->selected_hotels ?? [];
+                    $selectedAttractionsRaw = $package->selected_attractions ?? [];
+                    $selectedRestaurantsRaw = $package->selected_restaurants ?? [];
+
+                    $selectedHotels = is_string($selectedHotelsRaw) ? (json_decode($selectedHotelsRaw, true) ?: []) : (is_array($selectedHotelsRaw) ? $selectedHotelsRaw : []);
+                    $selectedAttractions = is_string($selectedAttractionsRaw) ? (json_decode($selectedAttractionsRaw, true) ?: []) : (is_array($selectedAttractionsRaw) ? $selectedAttractionsRaw : []);
+                    $selectedRestaurants = is_string($selectedRestaurantsRaw) ? (json_decode($selectedRestaurantsRaw, true) ?: []) : (is_array($selectedRestaurantsRaw) ? $selectedRestaurantsRaw : []);
+
+                    // Build a day index for a rich day-wise UI
+                    $dayIndex = [];
+                    $initDay = function (int $day) use (&$dayIndex) {
+                        if (!isset($dayIndex[$day])) {
+                            $dayIndex[$day] = [
+                                'city' => null,
+                                'arrivals' => [],
+                                'departures' => [],
+                                'hotels' => [],
+                                'attractions' => [],
+                                'restaurants' => [],
+                            ];
+                        }
+                    };
+                    $setCity = function (int $day, $city) use (&$dayIndex) {
+                        $cityStr = is_string($city) ? trim($city) : '';
+                        if ($cityStr !== '' && empty($dayIndex[$day]['city'])) {
+                            $dayIndex[$day]['city'] = $cityStr;
+                        }
+                    };
+
+                    // Hotels: distribute across nights starting from start_day
+                    if (!empty($selectedHotels) && is_array($selectedHotels)) {
+                        foreach ($selectedHotels as $h) {
+                            if (!is_array($h)) continue;
+                            $start = (int) ($h['start_day'] ?? 0);
+                            $nights = (int) ($h['nights'] ?? 1);
+                            if ($start <= 0) continue;
+                            $end = $start + max(1, $nights) - 1;
+                            for ($d = $start; $d <= $end; $d++) {
+                                $initDay($d);
+                                $dayIndex[$d]['hotels'][] = $h;
+                                $setCity($d, $h['city_plan_city'] ?? ($h['city'] ?? null));
+                            }
+                            // For highlights preview
+                            $hotelKey = $h['hotel_id'] ?? ($h['id'] ?? null);
+                            if ($hotelKey !== null) {
+                                $hotels[$hotelKey] = [
+                                    'id' => $hotelKey,
+                                    'name' => $h['hotel_name'] ?? ($h['name'] ?? ''),
+                                    'city' => $h['city_plan_city'] ?? ($h['city'] ?? ''),
+                                    'main_image' => $h['main_image'] ?? null,
+                                    'days' => range($start, $end),
+                                ];
+                            }
+                        }
+                    }
+
+                    // Attractions (already have day + pickup/dropoff + guide + transfer)
+                    if (!empty($selectedAttractions) && is_array($selectedAttractions)) {
+                        foreach ($selectedAttractions as $a) {
+                            if (!is_array($a)) continue;
+                            $d = (int) ($a['day'] ?? 0);
+                            if ($d <= 0) continue;
+                            $initDay($d);
+                            $dayIndex[$d]['attractions'][] = $a;
+                            $setCity($d, $a['city_plan_city'] ?? ($a['location'] ?? null));
+
+                            $atk = $a['attraction_id'] ?? ($a['id'] ?? null);
+                            if ($atk !== null) {
+                                $attractions[$atk] = $a;
+                            }
+
+                            if (!empty($a['guide']) && is_array($a['guide'])) {
+                                $gid = $a['guide']['id'] ?? null;
+                                if ($gid !== null) {
+                                    $guides[$gid] = $a['guide'];
+                                }
+                            }
+                        }
+                    }
+
+                    // Restaurants (already have day + meal_type + pickup/dropoff + transfer)
+                    if (!empty($selectedRestaurants) && is_array($selectedRestaurants)) {
+                        foreach ($selectedRestaurants as $r) {
+                            if (!is_array($r)) continue;
+                            $d = (int) ($r['day'] ?? 0);
+                            if ($d <= 0) continue;
+                            $initDay($d);
+                            $dayIndex[$d]['restaurants'][] = $r;
+                            $setCity($d, $r['city_plan_city'] ?? null);
+                        }
+                    }
+
+                    // Arrival/Departure (explicit JSON columns)
+                    $arrivalItems = (isset($arrivalData['items']) && is_array($arrivalData['items'])) ? $arrivalData['items'] : [];
+                    foreach ($arrivalItems as $ai) {
+                        if (!is_array($ai)) continue;
+                        $d = (int) ($ai['day'] ?? 0);
+                        if ($d <= 0) continue;
+                        $initDay($d);
+                        $dayIndex[$d]['arrivals'][] = $ai;
+                        $setCity($d, $ai['city'] ?? null);
+                    }
+
+                    $departureItems = (isset($departureData['items']) && is_array($departureData['items'])) ? $departureData['items'] : [];
+                    foreach ($departureItems as $di) {
+                        if (!is_array($di)) continue;
+                        $d = (int) ($di['day'] ?? 0);
+                        if ($d <= 0) continue;
+                        $initDay($d);
+                        $dayIndex[$d]['departures'][] = $di;
+                        $setCity($d, $di['city'] ?? null);
+                    }
+
+                    // Normalize day-wise rows so this template works for:
+                    // - predefined packages: itineraryData['itinerary'] = [ {day, attractions[], guide{}, arrival_pickup, departure_service, ...}, ... ]
+                    // - definition packages: itineraryData['day_wise_itinerary'] = [ {day, city, arrival{}, departure{}, ...}, ... ]
+                    $dayRows = [];
+                    if (isset($itineraryData['itinerary']) && is_array($itineraryData['itinerary'])) {
+                        $dayRows = $itineraryData['itinerary'];
+                    } elseif (isset($itineraryData['day_wise_itinerary']) && is_array($itineraryData['day_wise_itinerary'])) {
+                        $dayRows = $itineraryData['day_wise_itinerary'];
+                    } elseif (is_array($itineraryData) && array_is_list($itineraryData) && !empty($itineraryData)) {
+                        // In case the itinerary field itself is already a list of day rows
+                        $dayRows = $itineraryData;
+                    }
+                    // Ensure we have day buckets for Day 1..N even if empty (better UX)
+                    if ($durationDays > 0) {
+                        for ($d = 1; $d <= $durationDays; $d++) {
+                            $initDay($d);
+                        }
+                    }
                     
                     // Process itinerary data if available
-                    if(!empty($itineraryData)) {
-                        // Check if we have itinerary key (from the JSON structure)
-                        if(isset($itineraryData['itinerary']) && is_array($itineraryData['itinerary'])) {
-                            foreach($itineraryData['itinerary'] as $day) {
+                    if(!empty($dayRows)) {
+                            foreach($dayRows as $day) {
                                 // Collect attractions - more efficient using associative array
                                 if(isset($day['attractions']) && is_array($day['attractions'])) {
                                     foreach($day['attractions'] as $attraction) {
                                         if(is_array($attraction) && isset($attraction['attraction_id'])) {
                                             // Use attraction_id as key for efficient deduplication
                                             $attractions[$attraction['attraction_id']] = $attraction;
+                                        } elseif (is_array($attraction) && isset($attraction['id'])) {
+                                            $attractions[$attraction['id']] = $attraction;
                                         }
                                     }
                                 }
@@ -128,15 +266,14 @@
                                 }
                                 
                                 // Check for arrival/departure services
-                                if(isset($day['arrival_pickup']) && $day['arrival_pickup'] == 1) {
+                                if((isset($day['arrival_pickup']) && (int) $day['arrival_pickup'] == 1) || !empty($day['arrival'])) {
                                     $hasArrivalPickup = true;
                                 }
                                 
-                                if(isset($day['departure_service']) && $day['departure_service'] == 1) {
+                                if((isset($day['departure_service']) && (int) $day['departure_service'] == 1) || !empty($day['departure'])) {
                                     $hasDepartureService = true;
                                 }
                             }
-                        }
                         
                         // Process hotels data if available
                         if(isset($itineraryData['hotels']) && is_array($itineraryData['hotels'])) {
@@ -162,9 +299,16 @@
                             }
                         }
                     }
+
+                    // Explicit JSON columns for services (definition packages)
+                    $hasArrivalPickup = $hasArrivalPickup || (bool) ($arrivalData['enabled'] ?? false);
+                    $hasDepartureService = $hasDepartureService || (bool) ($departureData['enabled'] ?? false);
+                    $hasLocalTransfers = !empty($transferData) && is_array($transferData) && count($transferData) > 0;
                     
                     // Convert associative arrays to indexed arrays for display
                     $attractions = array_values($attractions);
+                    $hotels = array_values($hotels);
+                    $guides = array_values($guides);
                 @endphp
 
                 <!-- Itinerary Highlights -->
@@ -289,6 +433,12 @@
                                         <i class="ri-flight-takeoff-line me-1 text-danger"></i>Airport Dropoff
                                     </span>
                                 @endif
+
+                                @if($hasLocalTransfers)
+                                    <span class="badge bg-light text-dark">
+                                        <i class="ri-taxi-line me-1 text-info"></i>Local Transfers
+                                    </span>
+                                @endif
                                 
                                 @if(count($guides) > 0)
                                     <span class="badge bg-light text-dark">
@@ -317,7 +467,7 @@
                 </div>
 
                 <!-- Day-wise Itinerary -->
-                @if(!empty($itineraryData))
+                @if(!empty($dayIndex))
                 <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
@@ -325,144 +475,298 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <div class="timeline">
-                            @if(isset($itineraryData['itinerary']) && is_array($itineraryData['itinerary']))
-                                @foreach($itineraryData['itinerary'] as $day)
-                                    <div class="timeline-item mb-4">
-                                        <div class="timeline-marker">
-                                            <span class="badge bg-primary rounded-circle">{{ $day['day'] ?? $loop->iteration }}</span>
-                                        </div>
-                                        <div class="timeline-content">
-                                            <div class="card">
-                                                <div class="card-header bg-light">
-                                                    <h6 class="mb-0">
-                                                        Day {{ $day['day'] ?? $loop->iteration }}
-                                                        @if($day['day'] == 1 && isset($day['arrival_pickup']) && $day['arrival_pickup'] == 1)
-                                                            <span class="badge bg-info ms-2">Arrival Day</span>
-                                                        @endif
-                                                        @if($day['day'] == $package->duration_days && isset($day['departure_service']) && $day['departure_service'] == 1)
-                                                            <span class="badge bg-warning ms-2">Departure Day</span>
-                                                        @endif
-                                                    </h6>
+                        @php ksort($dayIndex); @endphp
+                        <div class="accordion" id="itineraryAccordion">
+                            @foreach($dayIndex as $dayNum => $meta)
+                                @php
+                                    $city = $meta['city'] ?? null;
+                                    $isArrivalDay = ($dayNum === 1 && (!empty($meta['arrivals']) || $hasArrivalPickup));
+                                    $isDepartureDay = ($durationDays > 0 && $dayNum === $durationDays && (!empty($meta['departures']) || $hasDepartureService));
+                                @endphp
+                                <div class="accordion-item mb-2 border-0">
+                                    <h2 class="accordion-header" id="headingDay{{ $dayNum }}">
+                                        <button class="accordion-button {{ $dayNum === 1 ? '' : 'collapsed' }}" type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#collapseDay{{ $dayNum }}"
+                                                aria-expanded="{{ $dayNum === 1 ? 'true' : 'false' }}"
+                                                aria-controls="collapseDay{{ $dayNum }}">
+                                            <div class="d-flex align-items-center w-100 justify-content-between">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge bg-primary">Day {{ $dayNum }}</span>
+                                                    @if($city)
+                                                        <span class="badge bg-secondary-subtle text-secondary">
+                                                            <i class="ri-map-pin-line me-1"></i>{{ $city }}
+                                                        </span>
+                                                    @endif
+                                                    @if($isArrivalDay)
+                                                        <span class="badge bg-info-subtle text-info">Arrival</span>
+                                                    @endif
+                                                    @if($isDepartureDay)
+                                                        <span class="badge bg-warning-subtle text-warning">Departure</span>
+                                                    @endif
                                                 </div>
-                                                <div class="card-body">
-                                                    @if(isset($day['attractions']) && count($day['attractions']) > 0)
-                                                        <div class="mb-3">
-                                                            <h6 class="text-primary mb-2">
-                                                                <i class="ri-map-pin-line me-1"></i>Attractions
-                                                            </h6>
-                                                            <div class="row g-2">
-                                                                @foreach($day['attractions'] as $attraction)
-                                                                    <div class="col-md-6">
-                                                                        <div class="border rounded p-2">
-                                                                            <div class="d-flex align-items-center">
-                                                                                @if(isset($attraction['image']) && $attraction['image'])
-                                                                                    <img src="{{ $attraction['image'] }}" 
-                                                                                         class="rounded me-2" 
-                                                                                         style="width: 40px; height: 40px; object-fit: cover;">
-                                                                                @else
-                                                                                    <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" 
-                                                                                         style="width: 40px; height: 40px;">
-                                                                                        <i class="ri-image-line text-muted"></i>
-                                                                                    </div>
-                                                                                @endif
-                                                                                <div class="flex-grow-1">
-                                                                                    <div class="fw-medium">{{ $attraction['name'] }}</div>
-                                                                                    <small class="text-muted">{{ $attraction['location'] ?? $attraction['city'] }}</small>
+                                                <div class="d-none d-md-flex gap-2">
+                                                    @if(!empty($meta['hotels'])) <span class="badge bg-success-subtle text-success">{{ count($meta['hotels']) }} Hotel</span> @endif
+                                                    @if(!empty($meta['attractions'])) <span class="badge bg-primary-subtle text-primary">{{ count($meta['attractions']) }} Attraction</span> @endif
+                                                    @if(!empty($meta['restaurants'])) <span class="badge bg-danger-subtle text-danger">{{ count($meta['restaurants']) }} Meal</span> @endif
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseDay{{ $dayNum }}" class="accordion-collapse collapse {{ $dayNum === 1 ? 'show' : '' }}"
+                                         aria-labelledby="headingDay{{ $dayNum }}"
+                                         data-bs-parent="#itineraryAccordion">
+                                        <div class="accordion-body pt-2">
+
+                                            {{-- Arrival --}}
+                                            @if(!empty($meta['arrivals']))
+                                                <div class="mb-3">
+                                                    <h6 class="text-info mb-2">
+                                                        <i class="ri-flight-land-line me-1"></i>Arrival Transfer
+                                                    </h6>
+                                                    @foreach($meta['arrivals'] as $ai)
+                                                        @php $vehicles = (isset($ai['vehicles']) && is_array($ai['vehicles'])) ? $ai['vehicles'] : []; @endphp
+                                                        <div class="border rounded p-2 mb-2">
+                                                            <div class="d-flex flex-wrap gap-2 small">
+                                                                <span class="badge bg-light text-dark">
+                                                                    Pickup Port:
+                                                                    {{ $ai['pickup_port_name'] ?? ($ai['pickup_port_id'] ?? '-') }}
+                                                                </span>
+                                                                <span class="badge bg-light text-dark">
+                                                                    Dropoff Hotel:
+                                                                    {{ $ai['dropoff_hotel_name'] ?? ($ai['dropoff_hotel_id'] ?? '-') }}
+                                                                </span>
+                                                                @if(count($vehicles) > 0)
+                                                                    <span class="badge bg-light text-dark">{{ count($vehicles) }} vehicle(s)</span>
+                                                                @endif
+                                                            </div>
+                                                            @if(count($vehicles) > 0)
+                                                                <div class="mt-2 row g-2">
+                                                                    @foreach($vehicles as $v)
+                                                                        <div class="col-md-6">
+                                                                            <div class="bg-light rounded p-2 small">
+                                                                                <div class="fw-semibold">{{ $v['vehicle_name'] ?? 'Vehicle' }} <span class="text-muted">({{ $v['vehicle_type'] ?? '-' }})</span></div>
+                                                                                <div class="text-muted">
+                                                                                    Type: <span class="text-capitalize">{{ $v['selected_transfer_type'] ?? '-' }}</span>
+                                                                                    @if(isset($v['seating_capacity'])) · Seats: {{ $v['seating_capacity'] }} @endif
+                                                                                    @if(isset($v['qty'])) · Qty: {{ $v['qty'] }} @endif
                                                                                 </div>
-                                                                                @if(isset($attraction['transfer_available']) && $attraction['transfer_available'] == 1)
-                                                                                    <span class="badge bg-success-subtle text-success">
-                                                                                        <i class="ri-taxi-line me-1"></i>Transfer
-                                                                                    </span>
+                                                                                @if(isset($v['selected_price']))
+                                                                                    <div class="text-primary fw-semibold">SGD {{ number_format((float) $v['selected_price'], 2) }}</div>
                                                                                 @endif
                                                                             </div>
                                                                         </div>
-                                                                    </div>
-                                                                @endforeach
-                                                            </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
                                                         </div>
-                                                    @endif
+                                                    @endforeach
+                                                </div>
+                                            @endif
 
-                                                                                                         @php
-                                                         $currentDay = $day['day'] ?? $loop->iteration;
-                                                         $dayHotels = $dayToHotels[$currentDay] ?? [];
-                                                     @endphp
-                                                     
-                                                     @if(count($dayHotels) > 0)
-                                                         <div class="mb-3">
-                                                             <h6 class="text-success mb-2">
-                                                                 <i class="ri-hotel-line me-1"></i>Accommodation
-                                                             </h6>
-                                                             <div class="row g-2">
-                                                                 @foreach($dayHotels as $hotel)
-                                                                     <div class="col-md-6">
-                                                                         <div class="border rounded p-2">
-                                                                             <div class="d-flex align-items-center">
-                                                                                 @if(isset($hotel['main_image']) && $hotel['main_image'])
-                                                                                     <img src="{{ $hotel['main_image'] }}" 
-                                                                                          class="rounded me-2" 
-                                                                                          style="width: 40px; height: 40px; object-fit: cover;">
-                                                                                 @else
-                                                                                     <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" 
-                                                                                          style="width: 40px; height: 40px;">
-                                                                                         <i class="ri-building-line text-muted"></i>
-                                                                                     </div>
-                                                                                 @endif
-                                                                                 <div class="flex-grow-1">
-                                                                                     <div class="fw-medium">{{ $hotel['name'] }}</div>
-                                                                                     <small class="text-muted">{{ $hotel['city'] }}</small>
-                                                                                     @if(isset($hotel['star_rating']))
-                                                                                         <div class="text-warning small">
-                                                                                             @for($i = 1; $i <= 5; $i++)
-                                                                                                 <i class="ri-star-fill {{ $i <= $hotel['star_rating'] ? '' : 'text-muted' }}"></i>
-                                                                                             @endfor
-                                                                                         </div>
-                                                                                     @endif
-                                                                                 </div>
-                                                                                 @if(isset($hotel['room_type']))
-                                                                                     <span class="badge bg-info-subtle text-info small">
-                                                                                         {{ $hotel['room_type'] }}
-                                                                                     </span>
-                                                                                 @endif
-                                                                             </div>
-                                                                         </div>
-                                                                     </div>
-                                                                 @endforeach
-                                                             </div>
-                                                         </div>
-                                                     @endif
+                                            {{-- Departure --}}
+                                            @if(!empty($meta['departures']))
+                                                <div class="mb-3">
+                                                    <h6 class="text-warning mb-2">
+                                                        <i class="ri-flight-takeoff-line me-1"></i>Departure Transfer
+                                                    </h6>
+                                                    @foreach($meta['departures'] as $di)
+                                                        @php $vehicles = (isset($di['vehicles']) && is_array($di['vehicles'])) ? $di['vehicles'] : []; @endphp
+                                                        <div class="border rounded p-2 mb-2">
+                                                            <div class="d-flex flex-wrap gap-2 small">
+                                                                <span class="badge bg-light text-dark">
+                                                                    Pickup Hotel:
+                                                                    {{ $di['pickup_hotel_name'] ?? ($di['pickup_hotel_id'] ?? '-') }}
+                                                                </span>
+                                                                <span class="badge bg-light text-dark">
+                                                                    Dropoff Port:
+                                                                    {{ $di['dropoff_port_name'] ?? ($di['dropoff_port_id'] ?? '-') }}
+                                                                </span>
+                                                                @if(count($vehicles) > 0)
+                                                                    <span class="badge bg-light text-dark">{{ count($vehicles) }} vehicle(s)</span>
+                                                                @endif
+                                                            </div>
+                                                            @if(count($vehicles) > 0)
+                                                                <div class="mt-2 row g-2">
+                                                                    @foreach($vehicles as $v)
+                                                                        <div class="col-md-6">
+                                                                            <div class="bg-light rounded p-2 small">
+                                                                                <div class="fw-semibold">{{ $v['vehicle_name'] ?? 'Vehicle' }} <span class="text-muted">({{ $v['vehicle_type'] ?? '-' }})</span></div>
+                                                                                <div class="text-muted">
+                                                                                    Type: <span class="text-capitalize">{{ $v['selected_transfer_type'] ?? '-' }}</span>
+                                                                                    @if(isset($v['seating_capacity'])) · Seats: {{ $v['seating_capacity'] }} @endif
+                                                                                    @if(isset($v['qty'])) · Qty: {{ $v['qty'] }} @endif
+                                                                                </div>
+                                                                                @if(isset($v['selected_price']))
+                                                                                    <div class="text-primary fw-semibold">SGD {{ number_format((float) $v['selected_price'], 2) }}</div>
+                                                                                @endif
+                                                                            </div>
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
 
-                                                    @if(isset($day['guide']) && !empty($day['guide']))
-                                                        <div class="mb-3">
-                                                            <h6 class="text-info mb-2">
-                                                                <i class="ri-user-voice-line me-1"></i>Guide
-                                                            </h6>
-                                                            <div class="border rounded p-2">
-                                                                <div class="d-flex align-items-center">
-                                                                    <div class="flex-grow-1">
-                                                                        <div class="fw-medium">{{ $day['guide']['name'] }}</div>
-                                                                        @if(isset($day['guide']['languages']))
-                                                                            <small class="text-muted">
-                                                                                <i class="ri-translate-2 me-1"></i>
-                                                                                {{ is_array($day['guide']['languages']) ? implode(', ', $day['guide']['languages']) : $day['guide']['languages'] }}
-                                                                            </small>
-                                                                        @endif
-                                                                        @if(isset($day['guide']['contact_no']))
-                                                                            <small class="text-muted d-block">
-                                                                                <i class="ri-phone-line me-1"></i>{{ $day['guide']['contact_no'] }}
-                                                                            </small>
-                                                                        @endif
+                                            {{-- Accommodation --}}
+                                            @if(!empty($meta['hotels']))
+                                                <div class="mb-3">
+                                                    <h6 class="text-success mb-2">
+                                                        <i class="ri-hotel-line me-1"></i>Accommodation
+                                                    </h6>
+                                                    <div class="row g-2">
+                                                        @foreach($meta['hotels'] as $h)
+                                                            @php
+                                                                $hotelName = $h['hotel_name'] ?? ($h['name'] ?? 'Hotel');
+                                                                $nights = (int) ($h['nights'] ?? 1);
+                                                                $rooms = (isset($h['rooms']) && is_array($h['rooms'])) ? $h['rooms'] : [];
+                                                            @endphp
+                                                            <div class="col-md-6">
+                                                                <div class="border rounded p-2 h-100">
+                                                                    <div class="fw-semibold">{{ $hotelName }}</div>
+                                                                    <div class="text-muted small">
+                                                                        {{ $h['city_plan_city'] ?? ($h['city'] ?? '') }}
+                                                                        · {{ $nights }} night{{ $nights === 1 ? '' : 's' }}
                                                                     </div>
+                                                                    @if(count($rooms) > 0)
+                                                                        <div class="mt-2 small">
+                                                                            @foreach($rooms as $r)
+                                                                                <div class="d-flex justify-content-between">
+                                                                                    <span class="text-truncate">
+                                                                                        {{ $r['room_type_name'] ?? 'Room' }}
+                                                                                        @if(!empty($r['bed_type'])) · {{ $r['bed_type'] }} @endif
+                                                                                        @if(isset($r['quantity'])) · Qty: {{ $r['quantity'] }} @endif
+                                                                                    </span>
+                                                                                    <span class="text-muted">
+                                                                                        @if(isset($r['weekday_price'])) Wd: {{ (float) $r['weekday_price'] }} @endif
+                                                                                        @if(isset($r['weekend_price'])) · We: {{ (float) $r['weekend_price'] }} @endif
+                                                                                    </span>
+                                                                                </div>
+                                                                            @endforeach
+                                                                        </div>
+                                                                    @endif
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    @endif
+                                                        @endforeach
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            @endif
+
+                                            {{-- Attractions --}}
+                                            @if(!empty($meta['attractions']))
+                                                <div class="mb-3">
+                                                    <h6 class="text-primary mb-2">
+                                                        <i class="ri-map-pin-line me-1"></i>Attractions
+                                                    </h6>
+                                                    <div class="row g-2">
+                                                        @foreach($meta['attractions'] as $a)
+                                                            @php
+                                                                $guide = (isset($a['guide']) && is_array($a['guide'])) ? $a['guide'] : null;
+                                                                $hasTransfer = !empty($a['transfer']) || ((int) ($a['transfer_available'] ?? 0) === 1);
+                                                            @endphp
+                                                            <div class="col-md-6">
+                                                                <div class="border rounded p-2 h-100">
+                                                                    <div class="d-flex align-items-start">
+                                                                        <div class="me-2 flex-shrink-0" style="width: 44px; height: 44px;">
+                                                                            @if(!empty($a['image']))
+                                                                                <img src="{{ $a['image'] }}" class="rounded" style="width: 44px; height: 44px; object-fit: cover;">
+                                                                            @else
+                                                                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                                                                    <i class="ri-image-line text-muted"></i>
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                        <div class="flex-grow-1">
+                                                                            <div class="fw-semibold">{{ $a['name'] ?? 'Attraction' }}</div>
+                                                                            <div class="text-muted small">{{ $a['location'] ?? ($a['city_plan_city'] ?? '') }}</div>
+                                                                            @if(!empty($a['ticket_name']))
+                                                                                <div class="small">
+                                                                                    <span class="badge bg-light text-dark"><i class="ri-ticket-2-line me-1"></i>{{ $a['ticket_name'] }}</span>
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="mt-2 d-flex flex-wrap gap-2 small">
+                                                                        @if($guide)
+                                                                            <span class="badge bg-primary-subtle text-primary">
+                                                                                <i class="ri-user-voice-line me-1"></i>{{ $guide['name'] ?? 'Guide' }}
+                                                                                @if(!empty($guide['duration_label'])) · {{ $guide['duration_label'] }} @endif
+                                                                            </span>
+                                                                        @endif
+                                                                        @if($hasTransfer)
+                                                                            <span class="badge bg-info-subtle text-info">
+                                                                                <i class="ri-taxi-line me-1"></i>{{ $a['vehicle_name'] ?? 'Transfer' }}
+                                                                                @if(!empty($a['transfer_type'])) · {{ ucfirst((string) $a['transfer_type']) }} @endif
+                                                                                @if(isset($a['transfer_price'])) · SGD {{ number_format((float) $a['transfer_price'], 2) }} @endif
+                                                                            </span>
+                                                                        @endif
+                                                                    </div>
+
+                                                                    @if(!empty($a['pickup_name']) || !empty($a['dropoff_name']))
+                                                                        <div class="mt-2 small text-muted">
+                                                                            @if(!empty($a['pickup_name'])) <div><i class="ri-map-pin-time-line me-1"></i>Pickup: {{ $a['pickup_name'] }}</div> @endif
+                                                                            @if(!empty($a['dropoff_name'])) <div><i class="ri-flag-2-line me-1"></i>Dropoff: {{ $a['dropoff_name'] }}</div> @endif
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            {{-- Restaurants --}}
+                                            @if(!empty($meta['restaurants']))
+                                                <div class="mb-3">
+                                                    <h6 class="text-danger mb-2">
+                                                        <i class="ri-restaurant-line me-1"></i>Meals / Restaurants
+                                                    </h6>
+                                                    <div class="row g-2">
+                                                        @foreach($meta['restaurants'] as $r)
+                                                            @php
+                                                                $hasTransfer = !empty($r['transfer']);
+                                                                $mealLabel = $r['meal_type_label'] ?? null;
+                                                            @endphp
+                                                            <div class="col-md-6">
+                                                                <div class="border rounded p-2 h-100">
+                                                                    <div class="fw-semibold">{{ $r['restaurant_name'] ?? ($r['name'] ?? 'Restaurant') }}</div>
+                                                                    <div class="text-muted small">
+                                                                        @if($mealLabel) {{ $mealLabel }} @endif
+                                                                        @if(isset($r['adult_price'])) · Adult: SGD {{ number_format((float) $r['adult_price'], 2) }} @endif
+                                                                        @if(isset($r['child_price'])) · Child: SGD {{ number_format((float) $r['child_price'], 2) }} @endif
+                                                                    </div>
+                                                                    <div class="mt-2 d-flex flex-wrap gap-2 small">
+                                                                        @if($hasTransfer)
+                                                                            <span class="badge bg-info-subtle text-info">
+                                                                                <i class="ri-taxi-line me-1"></i>{{ $r['vehicle_name'] ?? 'Transfer' }}
+                                                                                @if(!empty($r['transfer_type'])) · {{ ucfirst((string) $r['transfer_type']) }} @endif
+                                                                                @if(isset($r['transfer_price'])) · SGD {{ number_format((float) $r['transfer_price'], 2) }} @endif
+                                                                            </span>
+                                                                        @endif
+                                                                    </div>
+                                                                    @if(!empty($r['pickup_name']) || !empty($r['dropoff_name']))
+                                                                        <div class="mt-2 small text-muted">
+                                                                            @if(!empty($r['pickup_name'])) <div><i class="ri-map-pin-time-line me-1"></i>Pickup: {{ $r['pickup_name'] }}</div> @endif
+                                                                            @if(!empty($r['dropoff_name'])) <div><i class="ri-flag-2-line me-1"></i>Dropoff: {{ $r['dropoff_name'] }}</div> @endif
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            @if(empty($meta['arrivals']) && empty($meta['departures']) && empty($meta['hotels']) && empty($meta['attractions']) && empty($meta['restaurants']))
+                                                <div class="text-muted small">No services booked for this day.</div>
+                                            @endif
                                         </div>
                                     </div>
-                                @endforeach
-                            @endif
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>

@@ -1254,13 +1254,14 @@
                         <div data-i18n="Agency Management">Agency Management</div>
                     </a>
                     <ul class="menu-sub">
+                        @if(in_array(Auth::user()->role_id, [1, 20]))
                         <!-- List Agencies -->
                         <li class="menu-item @if(Request::is('agencies')) active @endif">
                             <a href="{{ route('agencies.index') }}" class="menu-link">
-                                <div data-i18n="Agencies">Agencies</div>
+                                <div data-i18n="Add Agencies">Add Agencies</div>
                             </a>
                         </li>
-
+                        @endif
                         <!-- DMC Agencies Selection -->
                         @php
                             $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
@@ -1276,7 +1277,7 @@
                         @if(hasPermission('view agent'))
                         <li class="menu-item @if(Request::is('agents')) active @endif">
                             <a href="{{ route('agents.index') }}" class="menu-link">
-                                <div data-i18n="Add Travel Agents">Add Travel Agents</div>
+                                <div data-i18n="Add TA Contacts">Add TA Contacts</div>
                             </a>
                         </li>
                         @endif
