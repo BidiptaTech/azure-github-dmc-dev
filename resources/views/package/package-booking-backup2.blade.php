@@ -74,16 +74,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12" id="dayWiseItineraryWrap" style="display:none;">
-                        <div class="card h-100 border-primary border-opacity-25">
-                            <div class="card-header bg-light"><h6 class="mb-0"><i class="ri-calendar-todo-line me-2 text-primary"></i>Day-wise itinerary</h6></div>
-                            <div class="card-body">
-                                <p class="text-muted small mb-3">Hotels stay editable in the section above. Below, each accordion is a tour day that has at least one booking. Open a day to see hotel nights, transfers, attractions, and restaurants for that day only.</p>
-                                <div id="dayWiseItineraryList"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 legacy-attr-rest-wrap">
+                    <div class="col-12">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Attractions</h6></div>
                             <div class="card-body">
@@ -91,7 +82,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 legacy-attr-rest-wrap">
+                    <div class="col-12">
                         <div class="card h-100">
                             <div class="card-header bg-light"><h6 class="mb-0">Restaurants</h6></div>
                             <div class="card-body">
@@ -188,17 +179,6 @@
     .hotel-date-box.selected { border-color: #3f7cff; background: #3f7cff; color: #fff; }
     .hotel-date-box .day { font-size: 13px; font-weight: 700; line-height: 1; }
     .hotel-date-box .wk { font-size: 10px; line-height: 1.1; margin-top: 3px; opacity: 0.85; }
-    .day-wise-itinerary-accordion .accordion-button { font-size: 1rem; box-shadow: none; }
-    .day-wise-itinerary-accordion .accordion-button:not(.collapsed) { background-color: rgba(105, 108, 255, 0.08); color: inherit; }
-    .day-wise-itinerary-accordion .accordion-body { background: #fff; }
-    .day-itinerary-section-title {
-        font-size: 0.72rem;
-        letter-spacing: 0.04em;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #e8ecf1;
-    }
-    .day-itinerary-section:last-child .day-itinerary-section-body > *:last-child { margin-bottom: 0 !important; }
 </style>
 
 <script>
@@ -213,8 +193,6 @@
         let selectedPackageCity = '';
         let selectedHotelDates = {};
         let selectedPackagePriceData = {};
-        let selectedPackageType = '';
-        let loadedPackageDurationDays = 1;
         let lastPricingTotals = { total_price: 0, final_price: 0, markup_type: 'flat', markup_amount: 0 };
 
         function ceilToFive(n) {
@@ -331,13 +309,8 @@
                     const index = parseInt(this.getAttribute('data-index') || '-1', 10);
                     if (index < 0 || !listRef[index]) return;
                     listRef[index].booking_pax = Math.max(0, parseInt(this.value || '0', 10) || 0);
-                    if (sectionKey === 'attractions') {
-                        if (useDayWiseItineraryLayout()) renderDayWiseItinerary();
-                        else renderAttractions();
-                    } else if (sectionKey === 'restaurants') {
-                        if (useDayWiseItineraryLayout()) renderDayWiseItinerary();
-                        else renderRestaurants();
-                    }
+                    if (sectionKey === 'attractions') renderAttractions();
+                    else if (sectionKey === 'restaurants') renderRestaurants();
                     renderPricingSummary();
                     syncHidden();
                 });
@@ -473,15 +446,8 @@
 
         function renderAllSections() {
             renderHotels();
-            const useDay = useDayWiseItineraryLayout();
-            document.querySelectorAll('.legacy-attr-rest-wrap').forEach(w => { w.style.display = useDay ? 'none' : ''; });
-            const dw = document.getElementById('dayWiseItineraryWrap');
-            if (dw) dw.style.display = useDay ? '' : 'none';
-            if (useDay) renderDayWiseItinerary();
-            else {
-                renderAttractions();
-                renderRestaurants();
-            }
+            renderAttractions();
+            renderRestaurants();
             renderArrivalDeparture();
             renderPricingSummary();
         }
@@ -519,7 +485,7 @@
                                 + '</div>';
                         }).join('')
                         + '</div>'
-                        + '<div class="small text-muted mt-1">Selected tour day dates: ' + esc(nightBreakdown.selected_dates.length) + ' / ' + esc(maxAllowedNights) + '</div>';
+                        + '<div class="small text-muted mt-1">Selected: ' + esc(nightBreakdown.selected_dates.length) + ' / ' + esc(maxAllowedNights) + ' night(s)</div>';
                 const roomsHtml = rooms.length
                     ? rooms.map(r => {
                         return '<div class="d-flex align-items-center gap-2 mt-1 py-1 border-bottom">'
@@ -554,19 +520,13 @@
                       + tripleHtml
                     : '';
 
-                const stayBounds = getHotelStayTourDayRangeBounds(h);
-                const packageDaysRow = (stayBounds && stayBounds.from >= 1)
-                    ? '<div class="col-md-12"><div class="text-muted small">Package tour days (stay)</div><div>Day ' + esc(stayBounds.from) + ' – Day ' + esc(stayBounds.to) + '</div></div>'
-                    : '';
-
                 return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
                     + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
                     + esc(h.hotel_name || h.name || 'Hotel') + '</div>'
                     + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(h) + optionalCheckbox + '</div></div>'
                     + '<div class="row g-2">'
                     + '<div class="col-md-2"><div class="text-muted small">City</div><div>' + esc(h.city || selectedPackageCity || '-') + '</div></div>'
-                    + '<div class="col-md-2"><div class="text-muted small">Stay dates</div><div>' + esc(nightBreakdown.nights) + '</div></div>'
-                    + packageDaysRow
+                    + '<div class="col-md-2"><div class="text-muted small">Nights</div><div>' + esc(nightBreakdown.nights) + '</div></div>'
                     + '<div class="col-md-2"><label class="form-label small text-muted mb-1">No. of Rooms</label>'
                     + '<input type="number" min="1" max="' + esc(getMaxHotelRooms()) + '" step="1" class="form-control form-control-sm hotel-num-rooms" data-index="' + idx + '" value="' + esc(numRooms) + '">'
                     + '<div class="form-text small">Max ' + esc(getMaxHotelRooms()) + ' (pax)</div></div>'
@@ -702,367 +662,40 @@
             });
         }
 
-        function buildAttractionCardMarkup(a, idx, opts) {
-            opts = opts || {};
-            const hideDayBadge = !!opts.hideDayBadge;
-            const card = a || {};
-            const guide = card.guide || {};
-            const languages = Array.isArray(guide.languages) ? guide.languages.join(', ') : '-';
-            const bp = getResolvedServiceBookingPax(card);
-            const isSelectable = isOptional(card) || !!(card && card.addon === true);
-            const selectMode = isOptional(card) ? 'optional' : ((card && card.addon === true) ? 'addon' : '');
-            const optionalCheckbox = isSelectable
-                ? '<div class="form-check m-0">' +
-                    '<input class="form-check-input service-select-checkbox" type="checkbox" data-section="attractions" data-mode="' + esc(selectMode) + '" data-index="' + idx + '" ' + (card.selected === true ? 'checked' : '') + '>' +
-                    '<label class="form-check-label small mb-0">Select</label>' +
-                  '</div>'
-                : '';
-            const hasTransfer = !!card.transfer;
-            const transferBlock = hasTransfer
-                ? '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>' + esc(card.vehicle_name || '-') + ' / ' + esc(card.transfer_type || '-') + '</div></div>'
-                  + '<div class="col-md-12"><div class="text-muted small">Pickup -> Dropoff</div><div style="font-size: 0.8rem;">' + esc(card.pickup_name || '-') + ' -> ' + esc(card.dropoff_name || '-') + '</div></div>'
-                : '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>No</div></div>';
-            const dayBadge = hideDayBadge ? '' : ((card.day != null && String(card.day).trim() !== '')
-                ? '<span class="badge bg-light text-dark border ms-2">Pkg day ' + esc(card.day) + '</span>'
-                : '');
-            return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
-                + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
-                + esc(card.name || 'Attraction') + dayBadge + '</div>'
-                + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(card) + optionalCheckbox + '</div></div>'
-                + '<div class="row g-2">'
-                + '<div class="col-md-4"><div class="text-muted small">Location</div><div>' + esc(card.location || selectedPackageCity || '-') + '</div></div>'
-                + '<div class="col-md-4"><div class="text-muted small">Guide</div><div>' + esc(guide.name || '-') + '</div><div class="small text-muted">' + esc(languages) + '</div></div>'
-                + transferBlock
-                + '<div class="col-md-2"><label class="form-label small mb-1">Pax</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-pax" data-section="attractions" data-index="' + idx + '" value="' + esc(bp) + '"></div>'
-                + '<div class="col-md-6"><div class="text-muted small">Total Price</div><div>' + esc(money(attractionTotal(card))) + '</div></div>'
-                + '</div></div>';
-        }
-
-        function buildRestaurantCardMarkup(r, idx, opts) {
-            opts = opts || {};
-            const hideDayBadge = !!opts.hideDayBadge;
-            const card = r || {};
-            const mealBadges = card.meal_type_label ? formatBadge(card.meal_type_label, 'bg-info') : '';
-            const bp = getResolvedServiceBookingPax(card);
-            const isSelectable = isOptional(card) || !!(card && card.addon === true);
-            const selectMode = isOptional(card) ? 'optional' : ((card && card.addon === true) ? 'addon' : '');
-            const optionalCheckbox = isSelectable
-                ? '<div class="form-check m-0">' +
-                    '<input class="form-check-input service-select-checkbox" type="checkbox" data-section="restaurants" data-mode="' + esc(selectMode) + '" data-index="' + idx + '" ' + (card.selected === true ? 'checked' : '') + '>' +
-                    '<label class="form-check-label small mb-0">Select</label>' +
-                  '</div>'
-                : '';
-            const hasTransfer = !!card.transfer;
-            const transferBlock = hasTransfer
-                ? '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>Yes</div></div>'
-                  + '<div class="col-md-3"><div class="text-muted small">Pickup</div><div>' + esc(card.pickup_name || '-') + '</div></div>'
-                  + '<div class="col-md-3"><div class="text-muted small">Dropoff</div><div>' + esc(card.dropoff_name || '-') + '</div></div>'
-                : '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>No</div></div>';
-            const dayBadge = hideDayBadge ? '' : ((card.day != null && String(card.day).trim() !== '')
-                ? '<span class="badge bg-light text-dark border ms-2">Pkg day ' + esc(card.day) + '</span>'
-                : '');
-            return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
-                + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
-                + esc(card.restaurant_name || card.name || 'Restaurant') + dayBadge + '</div>'
-                + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(card) + optionalCheckbox + '</div></div>'
-                + '<div class="row g-2">'
-                + '<div class="col-md-4"><div class="text-muted small">Meals</div><div>' + mealBadges + '</div></div>'
-                + transferBlock
-                + '<div class="col-md-2"><label class="form-label small mb-1">Pax</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-pax" data-section="restaurants" data-index="' + idx + '" value="' + esc(bp) + '"></div>'
-                + '<div class="col-md-6"><div class="text-muted small">Total Price</div><div>' + esc(money(restaurantTotal(card))) + '</div></div>'
-                + '</div></div>';
-        }
-
-        function buildArrivalDaySnippet(item) {
-            if (!item || typeof item !== 'object') return '';
-            const veh = Array.isArray(item.vehicles) ? item.vehicles : [];
-            const vehText = veh.length
-                ? veh.map(v => esc(v.vehicle_name || v.vehicle_id || 'Vehicle') + ' (' + esc((v.selected_transfer_type || 'private')) + ')').join(', ')
-                : '—';
-            return '<div class="border border-info border-opacity-50 rounded p-2 mb-2 bg-info bg-opacity-10 small">'
-                + '<div class="fw-semibold text-info mb-1"><i class="ri-flight-land-line me-1"></i>Arrival transfer</div>'
-                + '<div>' + esc(item.pickup_port_name || item.pickup_port_id || 'Port') + ' → ' + esc(item.dropoff_hotel_name || item.dropoff_hotel_id || 'Hotel') + '</div>'
-                + '<div class="text-muted mt-1">' + vehText + '</div>'
-                + '<div class="text-muted mt-1">Adjust vehicle qty/pax under <strong>Arrival Data</strong> below.</div>'
-                + '</div>';
-        }
-
-        function buildDepartureDaySnippet(item) {
-            if (!item || typeof item !== 'object') return '';
-            const veh = Array.isArray(item.vehicles) ? item.vehicles : [];
-            const vehText = veh.length
-                ? veh.map(v => esc(v.vehicle_name || v.vehicle_id || 'Vehicle') + ' (' + esc((v.selected_transfer_type || 'private')) + ')').join(', ')
-                : '—';
-            return '<div class="border border-warning border-opacity-50 rounded p-2 mb-2 bg-warning bg-opacity-10 small">'
-                + '<div class="fw-semibold text-warning mb-1"><i class="ri-flight-takeoff-line me-1"></i>Departure transfer</div>'
-                + '<div>' + esc(item.pickup_hotel_name || item.pickup_hotel_id || 'Hotel') + ' → ' + esc(item.dropoff_port_name || item.dropoff_port_id || 'Port') + '</div>'
-                + '<div class="text-muted mt-1">' + vehText + '</div>'
-                + '<div class="text-muted mt-1">Adjust vehicle qty/pax under <strong>Departure Data</strong> below.</div>'
-                + '</div>';
-        }
-
-        /**
-         * Inclusive tour-day range for a hotel row (prefer city_plan city_day_from/_to).
-         */
-        function getHotelStayTourDayRangeBounds(hotel) {
-            if (!hotel) return null;
-            let from = parseInt(hotel.city_day_from, 10);
-            let to = parseInt(hotel.city_day_to, 10);
-            if (!isNaN(from) && from >= 1 && !isNaN(to) && to >= from) {
-                return { from, to };
-            }
-            from = parseInt(hotel.start_day, 10);
-            to = parseInt(hotel.end_day, 10);
-            if (!isNaN(from) && from >= 1 && !isNaN(to) && to >= from) {
-                return { from, to };
-            }
-            if (!isNaN(from) && from >= 1) {
-                const span = Math.max(1, parseInt(hotel.nights, 10) || 1);
-                return { from, to: from + span - 1 };
-            }
-            return null;
-        }
-
-        function getHotelInclusiveTourDaysCount(hotel) {
-            const b = getHotelStayTourDayRangeBounds(hotel);
-            if (!b) return 1;
-            return b.to - b.from + 1;
-        }
-
-        /**
-         * Tour-day index numbers covered by a hotel stay (package definition / booking).
-         */
-        function getHotelStayTourDays(hotel) {
-            const b = getHotelStayTourDayRangeBounds(hotel);
-            if (!b) return [];
-            const days = [];
-            for (let d = b.from; d <= b.to; d++) days.push(d);
-            return days;
-        }
-
-        /**
-         * Flat arrival_data with vehicles only → treat as tour day 1 (legacy packages).
-         */
-        function normalizeArrivalItemsForItinerary() {
-            if (!arrivalData || typeof arrivalData !== 'object') return [];
-            if (Array.isArray(arrivalData.items) && arrivalData.items.length) {
-                return arrivalData.items.filter(it => it && typeof it === 'object');
-            }
-            const enabled = arrivalData.enabled === true || arrivalData.enabled === 1 || arrivalData.enabled === '1';
-            const vehicles = Array.isArray(arrivalData.vehicles) ? arrivalData.vehicles : [];
-            if (enabled && vehicles.length) {
-                return [{
-                    day: 1,
-                    pickup_port_id: arrivalData.pickup_port_id,
-                    dropoff_hotel_id: arrivalData.dropoff_hotel_id,
-                    pickup_port_name: arrivalData.pickup_port_name,
-                    dropoff_hotel_name: arrivalData.dropoff_hotel_name,
-                    vehicles: vehicles,
-                    _legacy_flat: true,
-                }];
-            }
-            return [];
-        }
-
-        /**
-         * Flat departure_data with vehicles only → last tour day (legacy packages).
-         */
-        function normalizeDepartureItemsForItinerary() {
-            if (!departureData || typeof departureData !== 'object') return [];
-            if (Array.isArray(departureData.items) && departureData.items.length) {
-                return departureData.items.filter(it => it && typeof it === 'object');
-            }
-            const enabled = departureData.enabled === true || departureData.enabled === 1 || departureData.enabled === '1';
-            const vehicles = Array.isArray(departureData.vehicles) ? departureData.vehicles : [];
-            if (enabled && vehicles.length) {
-                const lastDay = Math.max(1, getTourDurationDaysInclusive());
-                return [{
-                    day: lastDay,
-                    pickup_hotel_id: departureData.pickup_hotel_id,
-                    dropoff_port_id: departureData.dropoff_port_id,
-                    pickup_hotel_name: departureData.pickup_hotel_name,
-                    dropoff_port_name: departureData.dropoff_port_name,
-                    vehicles: vehicles,
-                    _legacy_flat: true,
-                }];
-            }
-            return [];
-        }
-
-        /**
-         * Read-only summary for a hotel night inside the day accordion (details stay in Hotels section).
-         */
-        function buildHotelStaySummaryMarkup(hotel, tourDay) {
-            if (!hotel) return '';
-            const name = hotel.hotel_name || hotel.name || 'Hotel';
-            const b = getHotelStayTourDayRangeBounds(hotel);
-            const span = b ? (b.to - b.from + 1) : 1;
-            let nightOfStay = '';
-            if (b && b.from >= 1) {
-                const n = tourDay - b.from + 1;
-                if (n >= 1 && n <= span) {
-                    nightOfStay = '<div class="text-muted small">Stay: day ' + esc(n) + ' of ' + esc(span) + '</div>';
-                }
-            }
-            const city = hotel.city || hotel.city_plan_city || selectedPackageCity || '';
-            return '<div class="border rounded p-3 mb-2 bg-light day-it-hotel-summary">'
-                + '<div class="fw-semibold text-body"><i class="ri-hotel-line me-1 text-primary"></i>' + esc(name) + '</div>'
-                + (city ? '<div class="small text-muted">' + esc(city) + '</div>' : '')
-                + nightOfStay
-                + '</div>';
-        }
-
-        function buildLocalTransferDaySnippet(transfer, idx) {
-            const t = transfer || {};
-            const label = t.title || t.name || t.route_label || ('Local transfer ' + (idx + 1));
-            const day = t.day != null ? t.day : '';
-            return '<div class="border rounded p-2 mb-2 small bg-white">'
-                + '<div class="fw-semibold"><i class="ri-car-line me-1"></i>' + esc(label) + '</div>'
-                + (day !== '' ? '<div class="text-muted">Tour day ' + esc(day) + '</div>' : '')
-                + '</div>';
-        }
-
-        function dayItinerarySectionMarkup(title, iconClass, bodyHtml) {
-            if (!bodyHtml || String(bodyHtml).trim() === '') return '';
-            const icon = iconClass ? ('<i class="' + esc(iconClass) + ' me-1"></i>') : '';
-            return '<section class="day-itinerary-section mb-4">'
-                + '<h6 class="day-itinerary-section-title">' + icon + esc(title) + '</h6>'
-                + '<div class="day-itinerary-section-body">' + bodyHtml + '</div>'
-                + '</section>';
-        }
-
-        /**
-         * Collect unique tour days that have at least one itinerary row, sorted ascending.
-         */
-        function groupItineraryByUniqueDays() {
-            const daySet = new Set();
-
-            (hotels || []).forEach(h => {
-                getHotelStayTourDays(h).forEach(d => daySet.add(d));
-            });
-            (attractions || []).forEach(a => {
-                const d = parseInt(a && a.day, 10);
-                if (!isNaN(d) && d > 0) daySet.add(d);
-            });
-            (restaurants || []).forEach(r => {
-                const d = parseInt(r && r.day, 10);
-                if (!isNaN(d) && d > 0) daySet.add(d);
-            });
-            normalizeArrivalItemsForItinerary().forEach(it => {
-                const d = parseInt(it.day, 10);
-                if (!isNaN(d) && d > 0) daySet.add(d);
-            });
-            normalizeDepartureItemsForItinerary().forEach(it => {
-                const d = parseInt(it.day, 10);
-                if (!isNaN(d) && d > 0) daySet.add(d);
-            });
-            (transfers || []).forEach(t => {
-                const d = parseInt(t && t.day, 10);
-                if (!isNaN(d) && d > 0) daySet.add(d);
-            });
-
-            const sortedDays = Array.from(daySet).sort((a, b) => a - b);
-            const groups = [];
-
-            sortedDays.forEach(tourDay => {
-                const hotelBlocks = [];
-                (hotels || []).forEach((h) => {
-                    if (h && getHotelStayTourDays(h).includes(tourDay)) {
-                        hotelBlocks.push(buildHotelStaySummaryMarkup(h, tourDay));
-                    }
-                });
-
-                const transferParts = [];
-                normalizeArrivalItemsForItinerary().filter(it => serviceDayMatches(it.day, tourDay)).forEach(it => {
-                    transferParts.push(buildArrivalDaySnippet(it));
-                });
-                normalizeDepartureItemsForItinerary().filter(it => serviceDayMatches(it.day, tourDay)).forEach(it => {
-                    transferParts.push(buildDepartureDaySnippet(it));
-                });
-                (transfers || []).forEach((t, tIdx) => {
-                    if (t && serviceDayMatches(t.day, tourDay)) {
-                        transferParts.push(buildLocalTransferDaySnippet(t, tIdx));
-                    }
-                });
-
-                const attractionBlocks = [];
-                (attractions || []).forEach((a, idx) => {
-                    if (a && serviceDayMatches(a.day, tourDay)) {
-                        attractionBlocks.push(buildAttractionCardMarkup(a, idx, { hideDayBadge: true }));
-                    }
-                });
-
-                const restaurantBlocks = [];
-                (restaurants || []).forEach((r, idx) => {
-                    if (r && serviceDayMatches(r.day, tourDay)) {
-                        restaurantBlocks.push(buildRestaurantCardMarkup(r, idx, { hideDayBadge: true }));
-                    }
-                });
-
-                const hasContent = hotelBlocks.length || transferParts.length || attractionBlocks.length || restaurantBlocks.length;
-                if (!hasContent) return;
-
-                groups.push({
-                    day: tourDay,
-                    html: ''
-                        + dayItinerarySectionMarkup('Hotel', 'ri-hotel-line text-primary', hotelBlocks.join(''))
-                        + dayItinerarySectionMarkup('Transfers', 'ri-route-line text-info', transferParts.join(''))
-                        + dayItinerarySectionMarkup('Attractions', 'ri-map-pin-line text-success', attractionBlocks.join(''))
-                        + dayItinerarySectionMarkup('Restaurants', 'ri-restaurant-line text-warning', restaurantBlocks.join('')),
-                });
-            });
-
-            return groups;
-        }
-
-        function renderDayWiseItinerary() {
-            const el = document.getElementById('dayWiseItineraryList');
-            if (!el) return;
-
-            const groups = groupItineraryByUniqueDays();
-            if (!groups.length) {
-                el.innerHTML = '<div class="alert alert-light border text-muted small mb-0">'
-                    + 'No day-tagged itinerary rows yet for this package. If data uses legacy arrival/departure only, set travel dates and ensure services include day numbers. Hotels and port transfers also appear here when linked to tour days.'
-                    + '</div>';
-                return;
-            }
-
-            const accId = 'pkg-booking-day-accordion';
-            let html = '<div class="accordion accordion-flush day-wise-itinerary-accordion" id="' + accId + '">';
-            groups.forEach((group, index) => {
-                const d = group.day;
-                const collapseId = 'pkg-day-collapse-' + String(d).replace(/\W/g, '_');
-                const headingId = 'pkg-day-heading-' + String(d).replace(/\W/g, '_');
-                const isFirst = index === 0;
-                html += '<div class="accordion-item">'
-                    + '<h2 class="accordion-header" id="' + headingId + '">'
-                    + '<button class="accordion-button' + (isFirst ? '' : ' collapsed') + '" type="button" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="' + (isFirst ? 'true' : 'false') + '" aria-controls="' + collapseId + '">'
-                    + '<span class="d-flex flex-wrap align-items-baseline gap-2 text-start w-100">'
-                    + '<span class="fw-semibold">Day ' + esc(d) + '</span>'
-                    + '<span class="text-muted small fw-normal">' + formatTourDayDateLine(d) + '</span>'
-                    + '</span>'
-                    + '</button>'
-                    + '</h2>'
-                    + '<div id="' + collapseId + '" class="accordion-collapse collapse' + (isFirst ? ' show' : '') + '" aria-labelledby="' + headingId + '">'
-                    + '<div class="accordion-body pt-3 pb-4 px-2 px-md-3">' + group.html + '</div>'
-                    + '</div>'
-                    + '</div>';
-            });
-            html += '</div>';
-            el.innerHTML = html;
-
-            bindSelectableCheckboxes(el, attractions, 'attractions');
-            bindServiceBookingPaxInputs(el, attractions, 'attractions');
-            bindSelectableCheckboxes(el, restaurants, 'restaurants');
-            bindServiceBookingPaxInputs(el, restaurants, 'restaurants');
-        }
-
         function renderAttractions() {
             if (!Array.isArray(attractions) || attractions.length === 0) {
                 attractionsList.innerHTML = '<div class="text-muted small">No attractions selected</div>';
                 return;
             }
-            attractionsList.innerHTML = attractions.map((a, idx) => buildAttractionCardMarkup(a, idx)).join('');
+            attractionsList.innerHTML = attractions.map((a, idx) => {
+                const guide = a.guide || {};
+                const languages = Array.isArray(guide.languages) ? guide.languages.join(', ') : '-';
+                const bp = getResolvedServiceBookingPax(a);
+                const isSelectable = isOptional(a) || !!(a && a.addon === true);
+                const selectMode = isOptional(a) ? 'optional' : ((a && a.addon === true) ? 'addon' : '');
+                const optionalCheckbox = isSelectable
+                    ? '<div class="form-check m-0">' +
+                        '<input class="form-check-input service-select-checkbox" type="checkbox" data-section="attractions" data-mode="' + esc(selectMode) + '" data-index="' + idx + '" ' + (a.selected === true ? 'checked' : '') + '>' +
+                        '<label class="form-check-label small mb-0">Select</label>' +
+                      '</div>'
+                    : '';
+                const hasTransfer = !!a.transfer;
+                const transferBlock = hasTransfer
+                    ? '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>' + esc(a.vehicle_name || '-') + ' / ' + esc(a.transfer_type || '-') + '</div></div>'
+                      + '<div class="col-md-12"><div class="text-muted small">Pickup -> Dropoff</div><div style="font-size: 0.8rem;">' + esc(a.pickup_name || '-') + ' -> ' + esc(a.dropoff_name || '-') + '</div></div>'
+                    : '<div class="col-md-4"><div class="text-muted small">Transfer</div><div>No</div></div>';
+                return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
+                    + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
+                    + esc(a.name || 'Attraction') + '</div>'
+                    + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(a) + optionalCheckbox + '</div></div>'
+                    + '<div class="row g-2">'
+                    + '<div class="col-md-4"><div class="text-muted small">Location</div><div>' + esc(a.location || selectedPackageCity || '-') + '</div></div>'
+                    + '<div class="col-md-4"><div class="text-muted small">Guide</div><div>' + esc(guide.name || '-') + '</div><div class="small text-muted">' + esc(languages) + '</div></div>'
+                    + transferBlock
+                    + '<div class="col-md-2"><label class="form-label small mb-1">Pax</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-pax" data-section="attractions" data-index="' + idx + '" value="' + esc(bp) + '"></div>'
+                    + '<div class="col-md-6"><div class="text-muted small">Total Price</div><div>' + esc(money(attractionTotal(a))) + '</div></div>'
+                    + '</div></div>';
+            }).join('');
             bindSelectableCheckboxes(attractionsList, attractions, 'attractions');
             bindServiceBookingPaxInputs(attractionsList, attractions, 'attractions');
         }
@@ -1072,7 +705,34 @@
                 restaurantsList.innerHTML = '<div class="text-muted small">No restaurants selected</div>';
                 return;
             }
-            restaurantsList.innerHTML = restaurants.map((r, idx) => buildRestaurantCardMarkup(r, idx)).join('');
+            restaurantsList.innerHTML = restaurants.map((r, idx) => {
+                const mealBadges = r.meal_type_label ? formatBadge(r.meal_type_label, 'bg-info') : '';
+                const bp = getResolvedServiceBookingPax(r);
+                const isSelectable = isOptional(r) || !!(r && r.addon === true);
+                const selectMode = isOptional(r) ? 'optional' : ((r && r.addon === true) ? 'addon' : '');
+                const optionalCheckbox = isSelectable
+                    ? '<div class="form-check m-0">' +
+                        '<input class="form-check-input service-select-checkbox" type="checkbox" data-section="restaurants" data-mode="' + esc(selectMode) + '" data-index="' + idx + '" ' + (r.selected === true ? 'checked' : '') + '>' +
+                        '<label class="form-check-label small mb-0">Select</label>' +
+                      '</div>'
+                    : '';
+                const hasTransfer = !!r.transfer;
+                const transferBlock = hasTransfer
+                    ? '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>Yes</div></div>'
+                      + '<div class="col-md-3"><div class="text-muted small">Pickup</div><div>' + esc(r.pickup_name || '-') + '</div></div>'
+                      + '<div class="col-md-3"><div class="text-muted small">Dropoff</div><div>' + esc(r.dropoff_name || '-') + '</div></div>'
+                    : '<div class="col-md-2"><div class="text-muted small">Transfer</div><div>No</div></div>';
+                return '<div class="border rounded p-3 mb-3 w-100 overflow-hidden" style="word-break: break-word;">'
+                    + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">'
+                    + esc(r.restaurant_name || r.name || 'Restaurant') + '</div>'
+                    + '<div class="d-flex align-items-center gap-2 flex-wrap">' + statusBadge(r) + optionalCheckbox + '</div></div>'
+                    + '<div class="row g-2">'
+                    + '<div class="col-md-4"><div class="text-muted small">Meals</div><div>' + mealBadges + '</div></div>'
+                    + transferBlock
+                    + '<div class="col-md-2"><label class="form-label small mb-1">Pax</label><input type="number" min="0" step="1" class="form-control form-control-sm service-booking-pax" data-section="restaurants" data-index="' + idx + '" value="' + esc(bp) + '"></div>'
+                    + '<div class="col-md-6"><div class="text-muted small">Total Price</div><div>' + esc(money(restaurantTotal(r))) + '</div></div>'
+                    + '</div></div>';
+            }).join('');
             bindSelectableCheckboxes(restaurantsList, restaurants, 'restaurants');
             bindServiceBookingPaxInputs(restaurantsList, restaurants, 'restaurants');
         }
@@ -1084,12 +744,15 @@
             const departureEnabled = departureData && departureData.enabled;
             const arrivalBadge = arrivalEnabled ? formatBadge('Enabled', 'bg-success') : formatBadge('Disabled', 'bg-secondary');
             const departureBadge = departureEnabled ? formatBadge('Enabled', 'bg-success') : formatBadge('Disabled', 'bg-secondary');
-            const arrivalVehicles = Array.isArray(arrivalData && arrivalData.vehicles) ? arrivalData.vehicles : [];
-            const departureVehicles = Array.isArray(departureData && departureData.vehicles) ? departureData.vehicles : [];
+            const arrivalVehicles = Array.isArray(arrivalData.vehicles) ? arrivalData.vehicles : [];
+            const departureVehicles = Array.isArray(departureData.vehicles) ? departureData.vehicles : [];
 
-            const renderVehicleRows = (vehicles, sectionKey, itemIdxOpt) => {
+            // Build per-vehicle rows with Qty + Pax inputs. Pax cap = seating_capacity.
+            // Price rule:
+            //   private -> unit_price * qty        (pax NOT multiplied)
+            //   shared  -> unit_price * qty * pax
+            const renderVehicleRows = (vehicles, sectionKey) => {
                 if (!vehicles.length) return '<div class="text-muted small">-</div>';
-                const itemAttr = (itemIdxOpt != null && itemIdxOpt !== undefined) ? (' data-item-idx="' + itemIdxOpt + '"') : '';
                 return vehicles.map((v, idx) => {
                     const type = (v.selected_transfer_type || 'private').toLowerCase();
                     const typeBadge = type === 'shared'
@@ -1107,7 +770,7 @@
                     const formulaNote = type === 'shared'
                         ? 'Shared: unit × qty × pax.'
                         : 'Private: unit × qty (pax not multiplied).';
-                    return '<div class="border rounded p-2 mb-2 bg-white" data-vehicle-card="' + esc(sectionKey) + '-' + (itemIdxOpt != null ? itemIdxOpt + '-' : '') + idx + '">'
+                    return '<div class="border rounded p-2 mb-2 bg-white" data-vehicle-card="' + sectionKey + '-' + idx + '">'
                         + '<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">'
                         + '<div><span class="fw-semibold">' + esc(v.vehicle_name || v.vehicle_id || 'Vehicle') + '</span>'
                         + (v.vehicle_type ? ' <span class="text-muted small">(' + esc(v.vehicle_type) + ')</span>' : '')
@@ -1118,9 +781,9 @@
                         + '</div>'
                         + '<div class="row g-2">'
                         + '<div class="col-md-3"><label class="form-label small mb-1">Qty</label>'
-                        + '<input type="number" min="1" step="1" class="form-control form-control-sm ' + sectionKey + '-vehicle-qty" data-idx="' + idx + '"' + itemAttr + ' value="' + esc(qty) + '"></div>'
+                        + '<input type="number" min="1" step="1" class="form-control form-control-sm ' + sectionKey + '-vehicle-qty" data-idx="' + idx + '" value="' + esc(qty) + '"></div>'
                         + '<div class="col-md-3"><label class="form-label small mb-1">Pax</label>'
-                        + '<input type="number" min="0" step="1"' + paxMaxAttr + ' class="form-control form-control-sm ' + sectionKey + '-vehicle-pax" data-idx="' + idx + '"' + itemAttr + ' value="' + esc(pax) + '"></div>'
+                        + '<input type="number" min="0" step="1"' + paxMaxAttr + ' class="form-control form-control-sm ' + sectionKey + '-vehicle-pax" data-idx="' + idx + '" value="' + esc(pax) + '"></div>'
                         + '<div class="col-md-6 small text-muted align-self-end">'
                         + formulaNote
                         + (capacityNote ? ' ' + capacityNote : '')
@@ -1130,61 +793,27 @@
                 }).join('');
             };
 
-            const renderArrivalItemsSection = () => {
-                if (!arrivalData || !Array.isArray(arrivalData.items) || !arrivalData.items.length) {
-                    const ad = arrivalData || {};
-                    return '<div class="row g-2">'
-                        + '<div class="col-6"><div class="text-muted small">Pickup Port</div><div>' + esc(ad.pickup_port_name || ad.pickup_port_id || '-') + '</div></div>'
-                        + '<div class="col-6"><div class="text-muted small">Dropoff Hotel</div><div>' + esc(ad.dropoff_hotel_name || ad.dropoff_hotel_id || '-') + '</div></div>'
-                        + '<div class="col-12"><div class="text-muted small mb-1">Vehicles</div>'
-                        + renderVehicleRows(arrivalVehicles, 'arrival')
-                        + '</div></div>';
-                }
-                return arrivalData.items.map((item, itemIdx) => {
-                    const vehicles = Array.isArray(item.vehicles) ? item.vehicles : [];
-                    return '<div class="border rounded p-2 mb-3 bg-light">'
-                        + '<div class="fw-semibold mb-2">Tour day ' + esc(item.day != null ? item.day : '-') + (item.city ? (' · ' + esc(item.city)) : '') + '</div>'
-                        + '<div class="row g-2 mb-2"><div class="col-6"><div class="text-muted small">Pickup Port</div><div>' + esc(item.pickup_port_name || item.pickup_port_id || '-') + '</div></div>'
-                        + '<div class="col-6"><div class="text-muted small">Dropoff Hotel</div><div>' + esc(item.dropoff_hotel_name || item.dropoff_hotel_id || '-') + '</div></div></div>'
-                        + '<div class="text-muted small mb-1">Vehicles</div>'
-                        + renderVehicleRows(vehicles, 'arrival', itemIdx)
-                        + '</div>';
-                }).join('');
-            };
-
-            const renderDepartureItemsSection = () => {
-                if (!departureData || !Array.isArray(departureData.items) || !departureData.items.length) {
-                    const dd = departureData || {};
-                    return '<div class="row g-2">'
-                        + '<div class="col-6"><div class="text-muted small">Pickup Hotel</div><div>' + esc(dd.pickup_hotel_name || dd.pickup_hotel_id || '-') + '</div></div>'
-                        + '<div class="col-6"><div class="text-muted small">Dropoff Port</div><div>' + esc(dd.dropoff_port_name || dd.dropoff_port_id || '-') + '</div></div>'
-                        + '<div class="col-12"><div class="text-muted small mb-1">Vehicles</div>'
-                        + renderVehicleRows(departureVehicles, 'departure')
-                        + '</div></div>';
-                }
-                return departureData.items.map((item, itemIdx) => {
-                    const vehicles = Array.isArray(item.vehicles) ? item.vehicles : [];
-                    return '<div class="border rounded p-2 mb-3 bg-light">'
-                        + '<div class="fw-semibold mb-2">Tour day ' + esc(item.day != null ? item.day : '-') + (item.city ? (' · ' + esc(item.city)) : '') + '</div>'
-                        + '<div class="row g-2 mb-2"><div class="col-6"><div class="text-muted small">Pickup Hotel</div><div>' + esc(item.pickup_hotel_name || item.pickup_hotel_id || '-') + '</div></div>'
-                        + '<div class="col-6"><div class="text-muted small">Dropoff Port</div><div>' + esc(item.dropoff_port_name || item.dropoff_port_id || '-') + '</div></div></div>'
-                        + '<div class="text-muted small mb-1">Vehicles</div>'
-                        + renderVehicleRows(vehicles, 'departure', itemIdx)
-                        + '</div>';
-                }).join('');
-            };
-
             arrivalSummary.innerHTML = '<div class="border rounded p-3 mb-2">'
                 + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">Arrival</div>'
                 + '<div class="d-flex align-items-center gap-2 flex-wrap">' + arrivalBadge + '</div></div>'
-                + renderArrivalItemsSection()
-                + '</div>';
+                + '<div class="row g-2">'
+                + '<div class="col-6"><div class="text-muted small">Pickup Port</div><div>' + esc(arrivalData.pickup_port_name || arrivalData.pickup_port_id || '-') + '</div></div>'
+                + '<div class="col-6"><div class="text-muted small">Dropoff Hotel</div><div>' + esc(arrivalData.dropoff_hotel_name || arrivalData.dropoff_hotel_id || '-') + '</div></div>'
+                + '<div class="col-12"><div class="text-muted small mb-1">Vehicles</div>'
+                + renderVehicleRows(arrivalVehicles, 'arrival')
+                + '</div>'
+                + '</div></div>';
 
             departureSummary.innerHTML = '<div class="border rounded p-3 mb-2">'
                 + '<div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-semibold">Departure</div>'
                 + '<div class="d-flex align-items-center gap-2 flex-wrap">' + departureBadge + '</div></div>'
-                + renderDepartureItemsSection()
-                + '</div>';
+                + '<div class="row g-2">'
+                + '<div class="col-6"><div class="text-muted small">Pickup Hotel</div><div>' + esc(departureData.pickup_hotel_name || departureData.pickup_hotel_id || '-') + '</div></div>'
+                + '<div class="col-6"><div class="text-muted small">Dropoff Port</div><div>' + esc(departureData.dropoff_port_name || departureData.dropoff_port_id || '-') + '</div></div>'
+                + '<div class="col-12"><div class="text-muted small mb-1">Vehicles</div>'
+                + renderVehicleRows(departureVehicles, 'departure')
+                + '</div>'
+                + '</div></div>';
         }
 
         function numVal(v) {
@@ -1300,112 +929,27 @@
             return y + '-' + m + '-' + d;
         }
 
-        /**
-         * Travel start through travel end inclusive. Tour day 1 = travel start date.
-         */
         function getTravelDateRange() {
             const start = parseIsoDate(startDateEl && startDateEl.value ? startDateEl.value : '');
             const end = parseIsoDate(endDateEl && endDateEl.value ? endDateEl.value : '');
-            if (!start || !end || end < start) return [];
+            if (!start || !end || end <= start) return [];
             const dates = [];
             const cursor = new Date(start);
-            while (cursor <= end) {
+            while (cursor < end) {
                 dates.push(formatIsoDate(cursor));
                 cursor.setDate(cursor.getDate() + 1);
             }
             return dates;
         }
 
-        function getTourDurationDaysInclusive() {
-            const start = parseIsoDate(startDateEl && startDateEl.value ? startDateEl.value : '');
-            const end = parseIsoDate(endDateEl && endDateEl.value ? endDateEl.value : '');
-            if (start && end && end >= start) {
-                const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                return Math.max(1, days);
-            }
-            const fb = parseInt(loadedPackageDurationDays, 10);
-            return !isNaN(fb) && fb > 0 ? fb : 1;
-        }
-
-        function mapTourDayNumberToDate(dayNum) {
-            const start = parseIsoDate(startDateEl && startDateEl.value ? startDateEl.value : '');
-            if (!start) return null;
-            const d = parseInt(dayNum, 10);
-            if (isNaN(d) || d < 1) return null;
-            const dt = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (d - 1));
-            return formatIsoDate(dt);
-        }
-
-        /**
-         * Maps each tour day in the hotel's stay span to a calendar date (day 1 = trip start).
-         */
-        function getExpectedHotelBookingDatesForHotel(hotel, availableDates) {
-            const avail = Array.isArray(availableDates) ? availableDates : getTravelDateRange();
-            const b = getHotelStayTourDayRangeBounds(hotel);
-            if (!b || !avail.length) return null;
-            const picked = [];
-            for (let d = b.from; d <= b.to; d++) {
-                const iso = mapTourDayNumberToDate(d);
-                if (iso && avail.includes(iso)) picked.push(iso);
-            }
-            return picked.length ? picked.slice() : null;
-        }
-
-        function initHotelDatesFromDefinitionDays() {
-            if (!Array.isArray(hotels) || hotels.length === 0) return;
-            const avail = getTravelDateRange();
-            if (!avail.length) return;
-            hotels.forEach((h, idx) => {
-                const expected = getExpectedHotelBookingDatesForHotel(h, avail);
-                if (!expected || !expected.length) return;
-                const key = getHotelDateKey(h, idx);
-                selectedHotelDates[key] = expected.slice();
-                h.hotel_booking_dates = expected.slice();
-            });
-        }
-
-        /**
-         * Booking screen UX is day-first only:
-         * always render day-wise accordion and hide legacy attractions/restaurants blocks.
-         */
-        function useDayWiseItineraryLayout() {
-            return true;
-        }
-
-        function serviceDayMatches(dayField, tourDay) {
-            const v = parseInt(dayField, 10);
-            if (isNaN(v)) return false;
-            return v === tourDay;
-        }
-
-        function formatTourDayDateLine(tourDay) {
-            const iso = mapTourDayNumberToDate(tourDay);
-            if (!iso) return '';
-            const dt = parseIsoDate(iso);
-            if (!dt) return esc(iso);
-            const wk = dayNames[dt.getDay()].slice(0, 3);
-            return esc(iso) + ' · ' + esc(wk);
-        }
-
-        /**
-         * Unique key per selected_hotels row (same hotel_id can appear twice for different city segments).
-         */
         function getHotelDateKey(hotel, indexHint) {
-            const planId = hotel && hotel.city_plan_id != null && String(hotel.city_plan_id).trim() !== ''
-                ? String(hotel.city_plan_id)
-                : '';
             const id = hotel && (hotel.hotel_id || hotel.id);
-            if (planId && id != null && String(id).trim() !== '') {
-                return String(id) + '::plan_' + planId;
-            }
-            if (id != null && String(id).trim() !== '') {
-                return String(id) + '::idx_' + String(indexHint != null ? indexHint : '');
-            }
+            if (id != null && String(id).trim() !== '') return String(id);
             return 'idx_' + String(indexHint != null ? indexHint : '');
         }
 
         function getDefaultHotelNights(hotel) {
-            return getHotelInclusiveTourDaysCount(hotel);
+            return Math.max(1, parseInt(hotel && hotel.nights, 10) || 1);
         }
 
         function getHotelMaxSelectableNights(hotel, availableDatesCount) {
@@ -1579,10 +1123,7 @@
                 selected = selected.slice(0, maxAllowed);
             }
             if (selected.length === 0 && maxAllowed > 0) {
-                const aligned = getExpectedHotelBookingDatesForHotel(hotel, availableDates);
-                selected = (aligned && aligned.length)
-                    ? aligned.slice(0, Math.min(aligned.length, maxAllowed))
-                    : availableDates.slice(0, maxAllowed);
+                selected = availableDates.slice(0, maxAllowed);
             }
             selectedHotelDates[key] = selected;
             if (hotel) hotel.hotel_booking_dates = selected.slice();
@@ -1693,9 +1234,8 @@
 
         function buildSupplementaryData(tourStartDate) {
             const hotelAddons = (hotels || [])
-                .map((h, idx) => ({ h, idx }))
-                .filter(({ h }) => h && h.addon === true && h.selected === true)
-                .map(({ h, idx }) => {
+                .filter(h => h && h.addon === true && h.selected === true)
+                .map((h, idx) => {
                     const breakdown = getHotelNightBreakdown(h, idx);
                     const total = hotelTotal(h, idx);
                     return {
@@ -1755,22 +1295,6 @@
             };
         }
 
-        function getAllArrivalVehicles() {
-            if (!arrivalData || typeof arrivalData !== 'object') return [];
-            if (Array.isArray(arrivalData.items) && arrivalData.items.length) {
-                return arrivalData.items.flatMap(it => (Array.isArray(it && it.vehicles) ? it.vehicles : []));
-            }
-            return Array.isArray(arrivalData.vehicles) ? arrivalData.vehicles : [];
-        }
-
-        function getAllDepartureVehicles() {
-            if (!departureData || typeof departureData !== 'object') return [];
-            if (Array.isArray(departureData.items) && departureData.items.length) {
-                return departureData.items.flatMap(it => (Array.isArray(it && it.vehicles) ? it.vehicles : []));
-            }
-            return Array.isArray(departureData.vehicles) ? departureData.vehicles : [];
-        }
-
         function renderPricingSummary() {
             if (!pricingSummary) return;
 
@@ -1804,18 +1328,18 @@
                 addon: !!(r && r.addon === true),
             }));
 
-            const arrivalRows = getAllArrivalVehicles().map(v => ({
+            const arrivalRows = Array.isArray(arrivalData && arrivalData.vehicles) ? arrivalData.vehicles.map(v => ({
                 name: 'Arrival - ' + (v.vehicle_name || v.vehicle_id || 'Vehicle'),
                 status: 'Compulsory',
                 total: transferVehicleTotal(v),
                 selected: true,
-            }));
-            const departureRows = getAllDepartureVehicles().map(v => ({
+            })) : [];
+            const departureRows = Array.isArray(departureData && departureData.vehicles) ? departureData.vehicles.map(v => ({
                 name: 'Departure - ' + (v.vehicle_name || v.vehicle_id || 'Vehicle'),
                 status: 'Compulsory',
                 total: transferVehicleTotal(v),
                 selected: true,
-            }));
+            })) : [];
 
             const allRows = []
                 .concat(hotelRows.map(r => ({ section: 'Hotel', ...r })))
@@ -1905,71 +1429,43 @@
 
         function syncHidden() {
             const tourStartDate = startDateEl && startDateEl.value ? startDateEl.value : null;
-            const prevArrival = arrivalData && typeof arrivalData === 'object' ? arrivalData : {};
-            const prevDeparture = departureData && typeof departureData === 'object' ? departureData : {};
-            const arrEnabled = document.getElementById('arrivalEnabled').value === '1';
-            const depEnabled = document.getElementById('departureEnabled').value === '1';
+            const prevArrival = arrivalData && typeof arrivalData === 'object' ? { ...arrivalData } : {};
+            const prevDeparture = departureData && typeof departureData === 'object' ? { ...departureData } : {};
+            arrivalData = {
+                ...prevArrival,
+                enabled: document.getElementById('arrivalEnabled').value === '1',
+                pickup_port_id: document.getElementById('arrivalPickupPortId').value || null,
+                dropoff_hotel_id: document.getElementById('arrivalDropoffHotelId').value || null,
+                vehicles: Array.isArray(prevArrival.vehicles) ? prevArrival.vehicles : [],
+                tour_start_date: tourStartDate
+            };
+            departureData = {
+                ...prevDeparture,
+                enabled: document.getElementById('departureEnabled').value === '1',
+                pickup_hotel_id: document.getElementById('departurePickupHotelId').value || null,
+                dropoff_port_id: document.getElementById('departureDropoffPortId').value || null,
+                vehicles: Array.isArray(prevDeparture.vehicles) ? prevDeparture.vehicles : [],
+                tour_start_date: tourStartDate
+            };
 
-            if (Array.isArray(prevArrival.items) && prevArrival.items.length) {
-                arrivalData = {
-                    ...prevArrival,
-                    enabled: arrEnabled,
-                    tour_start_date: tourStartDate,
-                };
-                const first = prevArrival.items[0];
-                arrivalData.pickup_port_id = first && first.pickup_port_id != null ? first.pickup_port_id : null;
-                arrivalData.dropoff_hotel_id = first && first.dropoff_hotel_id != null ? first.dropoff_hotel_id : null;
-                arrivalData.vehicles = [];
-            } else {
-                arrivalData = {
-                    ...prevArrival,
-                    enabled: arrEnabled,
-                    pickup_port_id: document.getElementById('arrivalPickupPortId').value || null,
-                    dropoff_hotel_id: document.getElementById('arrivalDropoffHotelId').value || null,
-                    vehicles: Array.isArray(prevArrival.vehicles) ? prevArrival.vehicles : [],
-                    tour_start_date: tourStartDate
-                };
-            }
-
-            if (Array.isArray(prevDeparture.items) && prevDeparture.items.length) {
-                departureData = {
-                    ...prevDeparture,
-                    enabled: depEnabled,
-                    tour_start_date: tourStartDate,
-                };
-                const firstD = prevDeparture.items[0];
-                departureData.pickup_hotel_id = firstD && firstD.pickup_hotel_id != null ? firstD.pickup_hotel_id : null;
-                departureData.dropoff_port_id = firstD && firstD.dropoff_port_id != null ? firstD.dropoff_port_id : null;
-                departureData.vehicles = [];
-            } else {
-                departureData = {
-                    ...prevDeparture,
-                    enabled: depEnabled,
-                    pickup_hotel_id: document.getElementById('departurePickupHotelId').value || null,
-                    dropoff_port_id: document.getElementById('departureDropoffPortId').value || null,
-                    vehicles: Array.isArray(prevDeparture.vehicles) ? prevDeparture.vehicles : [],
-                    tour_start_date: tourStartDate
-                };
-            }
-
-            const hotelsPayload = (hotels || []).reduce((acc, h, originalIdx) => {
-                if (!h || (h.compulsory !== true && h.selected !== true)) return acc;
-                const computedTotal = hotelTotal(h, originalIdx);
-                const breakdown = getHotelNightBreakdown(h, originalIdx);
-                acc.push({
-                    ...h,
-                    nights: breakdown.nights,
-                    hotel_booking_dates: breakdown.selected_dates,
-                    base_price: computedTotal,
-                    tour_start_date: tourStartDate
+            const hotelsPayload = (hotels || [])
+                .filter(h => h && (h.compulsory === true || h.selected === true))
+                .map((h, idx) => {
+                    const computedTotal = hotelTotal(h, idx);
+                    const breakdown = getHotelNightBreakdown(h, idx);
+                    return {
+                        ...h,
+                        nights: breakdown.nights,
+                        hotel_booking_dates: breakdown.selected_dates,
+                        base_price: computedTotal,
+                        tour_start_date: tourStartDate
+                    };
                 });
-                return acc;
-            }, []);
-            const hotelBookingDatesPayload = (hotels || []).reduce((acc, h, originalIdx) => {
-                if (!h || (h.compulsory !== true && h.selected !== true)) return acc;
-                const breakdown = getHotelNightBreakdown(h, originalIdx);
-                const key = getHotelDateKey(h, originalIdx);
-                acc[key] = Array.isArray(breakdown.selected_dates) ? breakdown.selected_dates : [];
+            const hotelBookingDatesPayload = hotelsPayload.reduce((acc, h) => {
+                const key = h && (h.hotel_id || h.id);
+                if (key != null && String(key).trim() !== '') {
+                    acc[String(key)] = Array.isArray(h.hotel_booking_dates) ? h.hotel_booking_dates : [];
+                }
                 return acc;
             }, {});
             const attractionsPayload = (attractions || [])
@@ -2023,15 +1519,10 @@
             selectedPackageCity = '';
             selectedHotelDates = {};
             selectedPackagePriceData = {};
-            selectedPackageType = '';
-            loadedPackageDurationDays = 1;
             lastPricingTotals = { total_price: 0, final_price: 0, markup_type: 'flat', markup_amount: 0 };
             packageDetailsSection.style.display = 'none';
             createBookingBtn.disabled = true;
             selectedPackageIdInput.value = '';
-            document.querySelectorAll('.legacy-attr-rest-wrap').forEach(w => { w.style.display = ''; });
-            const dw = document.getElementById('dayWiseItineraryWrap');
-            if (dw) dw.style.display = 'none';
             renderHotels();
             renderAttractions();
             renderRestaurants();
@@ -2047,10 +1538,6 @@
         }
 
         async function applyPackageData(pkg) {
-            selectedPackageType = pkg.package_type || '';
-            loadedPackageDurationDays = parseInt(pkg.duration_days, 10);
-            if (isNaN(loadedPackageDurationDays) || loadedPackageDurationDays < 1) loadedPackageDurationDays = 1;
-
             hotels = initSectionSelections(Array.isArray(pkg.selected_hotels) ? pkg.selected_hotels : [], 'hotels');
             hotels = initHotelRoomDefaults(hotels);
             selectedHotelDates = {};
@@ -2059,17 +1546,13 @@
                 : {};
             hotels.forEach((h, idx) => {
                 const key = getHotelDateKey(h, idx);
-                let incoming = incomingHotelDates[key];
-                if (!Array.isArray(incoming) && h && (h.hotel_id || h.id) != null) {
-                    incoming = incomingHotelDates[String(h.hotel_id || h.id)];
-                }
-                if (Array.isArray(incoming)) {
-                    selectedHotelDates[key] = incoming.slice();
+                const byHotelId = h && (h.hotel_id || h.id) != null ? incomingHotelDates[String(h.hotel_id || h.id)] : null;
+                if (Array.isArray(byHotelId)) {
+                    selectedHotelDates[key] = byHotelId.slice();
                 } else if (Array.isArray(h && h.hotel_booking_dates)) {
                     selectedHotelDates[key] = h.hotel_booking_dates.slice();
                 }
             });
-            initHotelDatesFromDefinitionDays();
             attractions = initSectionSelections(Array.isArray(pkg.selected_attractions) ? pkg.selected_attractions : [], 'attractions');
             guides = initOptionalSelections(Array.isArray(pkg.selected_guides) ? pkg.selected_guides : []);
             restaurants = initSectionSelections(Array.isArray(pkg.selected_restaurants) ? pkg.selected_restaurants : [], 'restaurants');
@@ -2080,29 +1563,21 @@
             selectedPackagePriceData = (pkg && pkg.price_data && typeof pkg.price_data === 'object') ? pkg.price_data : {};
 
             document.getElementById('arrivalEnabled').value = arrivalData && arrivalData.enabled ? '1' : '0';
-            if (arrivalData && Array.isArray(arrivalData.items) && arrivalData.items.length) {
-                const a0 = arrivalData.items[0];
-                document.getElementById('arrivalPickupPortId').value = a0 && a0.pickup_port_id ? a0.pickup_port_id : '';
-                document.getElementById('arrivalDropoffHotelId').value = a0 && a0.dropoff_hotel_id ? a0.dropoff_hotel_id : '';
-            } else {
-                document.getElementById('arrivalPickupPortId').value = arrivalData && arrivalData.pickup_port_id ? arrivalData.pickup_port_id : '';
-                document.getElementById('arrivalDropoffHotelId').value = arrivalData && arrivalData.dropoff_hotel_id ? arrivalData.dropoff_hotel_id : '';
-            }
+            document.getElementById('arrivalPickupPortId').value = arrivalData && arrivalData.pickup_port_id ? arrivalData.pickup_port_id : '';
+            document.getElementById('arrivalDropoffHotelId').value = arrivalData && arrivalData.dropoff_hotel_id ? arrivalData.dropoff_hotel_id : '';
             document.getElementById('departureEnabled').value = departureData && departureData.enabled ? '1' : '0';
-            if (departureData && Array.isArray(departureData.items) && departureData.items.length) {
-                const d0 = departureData.items[0];
-                document.getElementById('departurePickupHotelId').value = d0 && d0.pickup_hotel_id ? d0.pickup_hotel_id : '';
-                document.getElementById('departureDropoffPortId').value = d0 && d0.dropoff_port_id ? d0.dropoff_port_id : '';
-            } else {
-                document.getElementById('departurePickupHotelId').value = departureData && departureData.pickup_hotel_id ? departureData.pickup_hotel_id : '';
-                document.getElementById('departureDropoffPortId').value = departureData && departureData.dropoff_port_id ? departureData.dropoff_port_id : '';
-            }
+            document.getElementById('departurePickupHotelId').value = departureData && departureData.pickup_hotel_id ? departureData.pickup_hotel_id : '';
+            document.getElementById('departureDropoffPortId').value = departureData && departureData.dropoff_port_id ? departureData.dropoff_port_id : '';
 
             packageDetailsSection.style.display = '';
             createBookingBtn.disabled = false;
             selectedPackageIdInput.value = pkg.package_id || '';
 
-            renderAllSections();
+            renderHotels();
+            renderAttractions();
+            renderRestaurants();
+            renderArrivalDeparture();
+            renderPricingSummary();
             syncHidden();
         }
 
@@ -2202,29 +1677,6 @@
             function resolveVehicleField(t) {
                 if (!t || !t.classList) return null;
                 const cls = t.classList;
-                const itemIdxRaw = t.getAttribute('data-item-idx');
-
-                if (itemIdxRaw !== null && itemIdxRaw !== '') {
-                    const itemIdx = parseInt(itemIdxRaw, 10);
-                    if (isNaN(itemIdx) || itemIdx < 0) return null;
-                    if (cls.contains('arrival-vehicle-qty') || cls.contains('arrival-vehicle-pax')) {
-                        const items = arrivalData && arrivalData.items;
-                        if (!Array.isArray(items) || !items[itemIdx] || !Array.isArray(items[itemIdx].vehicles)) return null;
-                        const idx = parseInt(t.getAttribute('data-idx') || '-1', 10);
-                        if (isNaN(idx) || idx < 0 || !items[itemIdx].vehicles[idx]) return null;
-                        const field = cls.contains('arrival-vehicle-qty') ? 'booking_qty' : 'booking_pax';
-                        return { vehicle: items[itemIdx].vehicles[idx], field };
-                    }
-                    if (cls.contains('departure-vehicle-qty') || cls.contains('departure-vehicle-pax')) {
-                        const items = departureData && departureData.items;
-                        if (!Array.isArray(items) || !items[itemIdx] || !Array.isArray(items[itemIdx].vehicles)) return null;
-                        const idx = parseInt(t.getAttribute('data-idx') || '-1', 10);
-                        if (isNaN(idx) || idx < 0 || !items[itemIdx].vehicles[idx]) return null;
-                        const field = cls.contains('departure-vehicle-qty') ? 'booking_qty' : 'booking_pax';
-                        return { vehicle: items[itemIdx].vehicles[idx], field };
-                    }
-                }
-
                 let list = null;
                 let field = null;
                 if (cls.contains('arrival-vehicle-qty')) { list = arrivalData.vehicles; field = 'booking_qty'; }

@@ -61,6 +61,7 @@ use App\Http\Controllers\TaxController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\TodaysBookingsController;
 use App\Http\Controllers\PackageBookingTemplatesController;
+use App\Http\Controllers\GuideLanguagesController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
@@ -90,6 +91,13 @@ Route::get('/clear', function () {
 })->name('clear');
 
         Route::middleware(['auth'])->group(function () {
+            // Guide Languages (master list used for Guides)
+            Route::get('/guide-languages', [GuideLanguagesController::class, 'index'])->name('guide-languages.index');
+            Route::post('/guide-languages', [GuideLanguagesController::class, 'store'])->name('guide-languages.store');
+            Route::get('/guide-languages/{guide_language}/edit', [GuideLanguagesController::class, 'edit'])->name('guide-languages.edit');
+            Route::put('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'update'])->name('guide-languages.update');
+            Route::delete('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'destroy'])->name('guide-languages.destroy');
+
             // Tour prices route
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
             Route::post('/user/profile', [UserController::class, 'updateProfile'])->name('user.profile.update');
@@ -600,8 +608,10 @@ Route::get('/clear', function () {
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
         Route::get('/packages/definition/create', [PackageController::class, 'createDefinition'])->name('packages.definition.create');
         Route::post('/packages/definition', [PackageController::class, 'storeDefinition'])->name('packages.definition.store');
+        Route::get('/packages/definition/{package_id}/edit', [PackageController::class, 'editDefinition'])->name('packages.definition.edit');
+        Route::put('/packages/definition/{package_id}', [PackageController::class, 'updateDefinition'])->name('packages.definition.update');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
-        // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+        Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
         Route::get('/packages/booking/create/{package_id?}', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create');
         Route::get('/packages/{package_id}/booking', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create.legacy');
