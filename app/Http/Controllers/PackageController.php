@@ -1069,9 +1069,6 @@ class PackageController extends Controller
             $decodedRestaurants = is_string($selectedRestaurants) ? (json_decode($selectedRestaurants, true) ?: []) : ($selectedRestaurants ?: []);
             $decodedLocalTransfers = is_string($localTransfers) ? (json_decode($localTransfers, true) ?: []) : ($localTransfers ?: []);
             $decodedIndependentGuides = json_decode($request->input('definition_independent_guide', '[]'), true) ?: [];
-            $decodedArrivalVehicles = json_decode($request->input('arrival_vehicles', '[]'), true) ?: [];
-            
-            $decodedDepartureVehicles = json_decode($request->input('departure_vehicles', '[]'), true) ?: [];
             $decodedDayWiseItinerary = is_string($dayWiseItinerary)
                 ? (json_decode($dayWiseItinerary, true) ?: [])
                 : (is_array($dayWiseItinerary) ? $dayWiseItinerary : []);
@@ -1083,18 +1080,121 @@ class PackageController extends Controller
             // transfer_data: local transfer list
             // arrival_data / departure_data: dedicated arrival/departure section config
             $transferDataPayload = is_array($decodedLocalTransfers) ? $decodedLocalTransfers : [];
+
+            // Build arrival/departure payloads from day_wise_itinerary so the stored
+            // JSON is strictly scoped (arrival_data contains only arrivals, etc.).
+            $findHotelForPlanDay = function (array $hotels, $cityPlanId, ?int $day) {
+                if (empty($cityPlanId) || empty($day)) return null;
+                foreach ($hotels as $h) {
+                    if (!is_array($h)) continue;
+                    if (($h['city_plan_id'] ?? null) !== $cityPlanId) continue;
+                    $start = isset($h['start_day']) ? (int) $h['start_day'] : null;
+                    $nights = isset($h['nights']) ? (int) $h['nights'] : 1;
+                    if (empty($start)) continue;
+                    $end = $start + max(1, $nights) - 1;
+                    if ($day >= $start && $day <= $end) {
+                        return $h['hotel_id'] ?? null;
+                    }
+                }
+                // fallback: first hotel in same plan
+                foreach ($hotels as $h) {
+                    if (!is_array($h)) continue;
+                    if (($h['city_plan_id'] ?? null) === $cityPlanId) {
+                        return $h['hotel_id'] ?? null;
+                    }
+                }
+                return null;
+            };
+
+            $arrivalItems = [];
+            $departureItems = [];
+            $portNameCache = [];
+            $hotelNameCache = [];
+
+            $lookupPortName = function ($portId) use (&$portNameCache) {
+                $key = is_scalar($portId) ? (string) $portId : '';
+                if ($key === '') return null;
+                if (array_key_exists($key, $portNameCache)) return $portNameCache[$key];
+                // PostgreSQL: avoid comparing bigint columns to non-numeric strings
+                if (!is_numeric($portId)) {
+                    $portNameCache[$key] = null;
+                    return null;
+                }
+                $name = \App\Models\Port::where('port_id', (int) $portId)->value('port_name');
+                $portNameCache[$key] = $name ?: null;
+                return $portNameCache[$key];
+            };
+
+            $lookupHotelName = function ($hotelId) use (&$hotelNameCache) {
+                $key = is_scalar($hotelId) ? (string) $hotelId : '';
+                if ($key === '') return null;
+                if (array_key_exists($key, $hotelNameCache)) return $hotelNameCache[$key];
+                $q = \App\Models\Hotel::query()->where('hotel_unique_id', $hotelId);
+                // PostgreSQL: only compare `id` (bigint) when hotelId is numeric
+                if (is_numeric($hotelId)) {
+                    $q->orWhere('id', (int) $hotelId);
+                }
+                $name = $q->value('name');
+                $hotelNameCache[$key] = $name ?: null;
+                return $hotelNameCache[$key];
+            };
+
+            foreach ($decodedDayWiseItinerary as $row) {
+                if (!is_array($row)) continue;
+                $day = isset($row['day']) ? (int) $row['day'] : null;
+                $city = $row['city'] ?? null;
+
+                if (!empty($row['arrival']) && is_array($row['arrival'])) {
+                    $a = $row['arrival'];
+                    $vehicles = $a['vehicles'] ?? ($row['arrival_vehicles'] ?? []);
+                    $planId = $a['city_plan_id'] ?? null;
+                    $dropoffHotelId = $a['dropoff_hotel_id'] ?? null;
+                    if (empty($dropoffHotelId)) {
+                        $dropoffHotelId = $findHotelForPlanDay($decodedHotels, $planId, $day);
+                    }
+                    $pickupPortId = $a['pickup_port_id'] ?? null;
+                    $arrivalItems[] = [
+                        'day' => $day,
+                        'city' => $city,
+                        'city_plan_id' => $planId,
+                        'pickup_port_id' => $pickupPortId,
+                        'pickup_port_name' => $lookupPortName($pickupPortId),
+                        'dropoff_hotel_id' => $dropoffHotelId,
+                        'dropoff_hotel_name' => $lookupHotelName($dropoffHotelId),
+                        'vehicles' => is_array($vehicles) ? $vehicles : [],
+                    ];
+                }
+
+                if (!empty($row['departure']) && is_array($row['departure'])) {
+                    $d = $row['departure'];
+                    $vehicles = $d['vehicles'] ?? ($row['departure_vehicles'] ?? []);
+                    $planId = $d['city_plan_id'] ?? null;
+                    $pickupHotelId = $d['pickup_hotel_id'] ?? null;
+                    if (empty($pickupHotelId)) {
+                        $pickupHotelId = $findHotelForPlanDay($decodedHotels, $planId, $day);
+                    }
+                    $dropoffPortId = $d['dropoff_port_id'] ?? null;
+                    $departureItems[] = [
+                        'day' => $day,
+                        'city' => $city,
+                        'city_plan_id' => $planId,
+                        'pickup_hotel_id' => $pickupHotelId,
+                        'pickup_hotel_name' => $lookupHotelName($pickupHotelId),
+                        'dropoff_port_id' => $dropoffPortId,
+                        'dropoff_port_name' => $lookupPortName($dropoffPortId),
+                        'vehicles' => is_array($vehicles) ? $vehicles : [],
+                    ];
+                }
+            }
+
             $arrivalDataPayload = [
-                'enabled' => (int) $request->input('arrival_pickup', 0) === 1,
-                'pickup_port_id' => $request->input('arrival_pickup_port_id') ?: null,
-                'dropoff_hotel_id' => $request->input('arrival_dropoff_hotel_id') ?: null,
-                'vehicles' => is_array($decodedArrivalVehicles) ? $decodedArrivalVehicles : [],
+                'enabled' => !empty($arrivalItems),
+                'items' => $arrivalItems,
             ];
-            
+
             $departureDataPayload = [
-                'enabled' => (int) $request->input('departure_service', 0) === 1,
-                'pickup_hotel_id' => $request->input('departure_pickup_hotel_id') ?: null,
-                'dropoff_port_id' => $request->input('departure_dropoff_port_id') ?: null,
-                'vehicles' => is_array($decodedDepartureVehicles) ? $decodedDepartureVehicles : [],
+                'enabled' => !empty($departureItems),
+                'items' => $departureItems,
             ];
 
             // price_data is built on the frontend and only carries four keys:

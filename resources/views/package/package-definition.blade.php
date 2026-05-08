@@ -144,8 +144,6 @@
                 </div>
             </div>
 
-            <div id="definition-city-plan-service-sections"></div>
-
             <!-- Hotels & Attractions: two side-by-side boxes -->
             <div class="card mb-4 definition-service-card">
                 <div class="card-header bg-light py-2">
@@ -441,6 +439,12 @@
                                                     <option value="">Add hotels first</option>
                                                 </select>
                                             </div>
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label small mb-0">Arrival Day</label>
+                                                <select class="form-select form-select-sm" id="arrival-day-select">
+                                                    <option value="1">Day 1</option>
+                                                </select>
+                                            </div>
                                         </div>
                                         <button type="button" class="btn btn-info btn-sm mb-2" id="arrival-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle</button>
                                         <div id="arrival-vehicle-select-wrap" style="display: none;">
@@ -502,6 +506,12 @@
                                                     <option value="">Select country first</option>
                                                 </select>
                                             </div>
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label small mb-0">Departure Day</label>
+                                                <select class="form-select form-select-sm" id="departure-day-select">
+                                                    <option value="">Last Day</option>
+                                                </select>
+                                            </div>
                                         </div>
                                         <button type="button" class="btn btn-warning btn-sm mb-2" id="departure-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle</button>
                                         <div id="departure-vehicle-select-wrap" style="display: none;">
@@ -543,6 +553,16 @@
                     <input type="hidden" name="departure_pickup_hotel_id" id="departure-pickup-hotel-hidden" value="">
                     <input type="hidden" name="departure_dropoff_port_id" id="departure-dropoff-port-hidden" value="">
                     <input type="hidden" name="departure_vehicles" id="departure-vehicles-hidden" value="[]">
+                </div>
+            </div>
+
+            <!-- City plan itinerary (2-by-2 grid) -->
+            <div class="card mb-4">
+                <div class="card-header bg-light py-2">
+                    <h5 class="mb-0"><i class="ri-route-line me-2 text-primary"></i>City Plan Itinerary</h5>
+                </div>
+                <div class="card-body py-3">
+                    <div id="definition-city-plan-service-sections" class="row g-3"></div>
                 </div>
             </div>
 
@@ -743,11 +763,11 @@ $(document).ready(function() {
                                 '<select class="form-select form-select-sm definition-city-plan-city" data-id="' + plan.id + '">' + options + '</select>' +
                             '</div>' +
                             '<div class="col-md-3">' +
-                                '<label class="form-label small mb-0">From</label>' +
+                                '<label class="form-label small mb-0">From(Day Start)</label>' +
                                 '<input type="number" min="1" class="form-control form-control-sm definition-city-plan-from" data-id="' + plan.id + '" value="' + plan.day_from + '">' +
                             '</div>' +
                             '<div class="col-md-3">' +
-                                '<label class="form-label small mb-0">To</label>' +
+                                '<label class="form-label small mb-0">To(Day End)</label>' +
                                 '<input type="number" min="1" class="form-control form-control-sm definition-city-plan-to" data-id="' + plan.id + '" value="' + plan.day_to + '">' +
                             '</div>' +
                         '</div>' +
@@ -770,56 +790,31 @@ $(document).ready(function() {
         }
 
         definitionCityPlans.forEach(function(plan) {
-            const hotels = definitionHotels.filter(function(h) { return h.city_plan_id === plan.id; });
-            const attractions = definitionAttractions.filter(function(a) { return a.city_plan_id === plan.id; });
-            const restaurants = definitionRestaurants.filter(function(r) { return r.city_plan_id === plan.id; });
-            const transfer = getPlanTransferState(plan.id) || {};
-
-            const hotelList = hotels.length
-                ? hotels.map(function(h) { return '<li>' + escapeHtml(h.hotel_name || 'Hotel') + '</li>'; }).join('')
-                : '<li class="text-muted">No hotels</li>';
-            const attractionList = attractions.length
-                ? attractions.map(function(a) { return '<li>' + escapeHtml(a.name || 'Attraction') + ' (Day ' + (a.day || '-') + ')</li>'; }).join('')
-                : '<li class="text-muted">No attractions</li>';
-            const restaurantList = restaurants.length
-                ? restaurants.map(function(r) { return '<li>' + escapeHtml(r.restaurant_name || 'Restaurant') + ' (Day ' + (r.day || '-') + ')</li>'; }).join('')
-                : '<li class="text-muted">No restaurants</li>';
-            const arrivalText = transfer.arrival_enabled
-                ? ('Included (' + ((transfer.arrival_vehicles || []).length || 0) + ' vehicle(s))')
-                : 'Not included';
-            const departureText = transfer.departure_enabled
-                ? ('Included (' + ((transfer.departure_vehicles || []).length || 0) + ' vehicle(s))')
-                : 'Not included';
-
             const isActive = plan.id === activeCityPlanId;
             const collapseId = 'def-plan-editor-' + plan.id;
             container.append(
-                '<div class="card mb-3 border-' + (isActive ? 'primary' : 'secondary') + '">' +
-                    '<div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">' +
-                        '<h6 class="mb-0">' + escapeHtml(plan.city || 'City') + ' (Day ' + plan.day_from + ' - ' + plan.day_to + ')</h6>' +
-                        '<div class="d-flex gap-2">' +
-                            '<button type="button" class="btn btn-sm ' + (isActive ? 'btn-primary' : 'btn-outline-primary') + ' definition-select-city-plan-btn" data-id="' + plan.id + '">' +
-                                (isActive ? 'Editing' : 'Edit Services') +
-                            '</button>' +
-                            '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="' + (isActive ? 'true' : 'false') + '">' +
-                                '<i class="ri-edit-2-line me-1"></i>Open Editor' +
-                            '</button>' +
+                '<div class="col-12 col-md-6">' +
+                    '<div class="card h-100 border-' + (isActive ? 'primary' : 'secondary') + '">' +
+                        '<div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">' +
+                            '<h6 class="mb-0">' + escapeHtml(plan.city || 'City') + ' (Day ' + plan.day_from + ' - ' + plan.day_to + ')</h6>' +
+                            '<div class="d-flex gap-2">' +
+                                '<button type="button" class="btn btn-sm ' + (isActive ? 'btn-primary' : 'btn-outline-primary') + ' definition-select-city-plan-btn" data-id="' + plan.id + '">' +
+                                    (isActive ? 'Editing' : 'Edit Services') +
+                                '</button>' +
+                                '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="' + (isActive ? 'true' : 'false') + '">' +
+                                    '<i class="ri-edit-2-line me-1"></i>Open Editor' +
+                                '</button>' +
+                            '</div>' +
                         '</div>' +
-                    '</div>' +
-                    '<div class="card-body py-3">' +
-                        '<div class="row g-2 mb-3">' +
-                            '<div class="col-md-6"><div class="border rounded p-2 h-100"><div class="fw-semibold small mb-1">Hotels</div><ul class="small mb-0 ps-3">' + hotelList + '</ul></div></div>' +
-                            '<div class="col-md-6"><div class="border rounded p-2 h-100"><div class="fw-semibold small mb-1">Attractions</div><ul class="small mb-0 ps-3">' + attractionList + '</ul></div></div>' +
-                            '<div class="col-md-6"><div class="border rounded p-2 h-100"><div class="fw-semibold small mb-1">Restaurants</div><ul class="small mb-0 ps-3">' + restaurantList + '</ul></div></div>' +
-                            '<div class="col-md-6"><div class="border rounded p-2 h-100"><div class="fw-semibold small mb-1">Arrival / Departure</div><div class="small">Arrival: ' + escapeHtml(arrivalText) + '</div><div class="small">Departure: ' + escapeHtml(departureText) + '</div></div></div>' +
+                        '<div class="card-body py-3">' +
+                            '<div class="border rounded p-3 bg-light-subtle">' +
+                                '<div data-itinerary="' + plan.id + '"></div>' +
+                            '</div>' +
                         '</div>' +
-                        '<div class="border rounded p-3 bg-light-subtle">' +
-                            '<div data-itinerary="' + plan.id + '"></div>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div id="' + collapseId + '" class="collapse ' + (isActive ? 'show' : '') + '">' +
-                        '<div class="card-body pt-0">' +
-                            '<div data-editor-mount="' + plan.id + '"></div>' +
+                        '<div id="' + collapseId + '" class="collapse ' + (isActive ? 'show' : '') + '">' +
+                            '<div class="card-body pt-0">' +
+                                '<div data-editor-mount="' + plan.id + '"></div>' +
+                            '</div>' +
                         '</div>' +
                     '</div>' +
                 '</div>'
@@ -945,6 +940,8 @@ $(document).ready(function() {
             transferStateByPlan[planId] = {
                 arrival_enabled: false,
                 departure_enabled: false,
+                arrival_day: '',
+                departure_day: '',
                 arrival_pickup_port_id: '',
                 arrival_dropoff_hotel_id: '',
                 departure_pickup_hotel_id: '',
@@ -956,6 +953,33 @@ $(document).ready(function() {
         return transferStateByPlan[planId];
     }
 
+    function refreshTransferDayDropdowns() {
+        const totalDays = getDurationDays();
+        const activePlan = getActiveCityPlan();
+
+        const arr = $('#arrival-day-select');
+        const dep = $('#departure-day-select');
+        if (!arr.length || !dep.length) return;
+
+        // Default range = full tour, but if a plan is active use that plan range.
+        const fromDay = activePlan ? Math.max(1, parseInt(activePlan.day_from, 10) || 1) : 1;
+        const toDay = activePlan ? Math.min(totalDays, parseInt(activePlan.day_to, 10) || totalDays) : totalDays;
+
+        const prevArr = parseInt(arr.val(), 10) || fromDay;
+        const prevDep = parseInt(dep.val(), 10) || toDay;
+
+        arr.empty();
+        for (let d = fromDay; d <= toDay; d++) arr.append(new Option('Day ' + d, String(d)));
+        if (!arr.find('option').length) arr.append(new Option('Day 1', '1'));
+
+        dep.empty();
+        for (let d = fromDay; d <= toDay; d++) dep.append(new Option('Day ' + d, String(d)));
+        if (!dep.find('option').length) dep.append(new Option('Day ' + toDay, String(toDay)));
+
+        arr.val(String(Math.min(Math.max(prevArr, fromDay), toDay)));
+        dep.val(String(Math.min(Math.max(prevDep, fromDay), toDay)));
+    }
+
     function persistTransferStateForActivePlan() {
         const activePlan = getActiveCityPlan();
         if (!activePlan) return;
@@ -963,6 +987,8 @@ $(document).ready(function() {
         if (!state) return;
         state.arrival_enabled = $('#arrival-pickup-def').is(':checked');
         state.departure_enabled = $('#departure-service-def').is(':checked');
+        state.arrival_day = $('#arrival-day-select').val() || '';
+        state.departure_day = $('#departure-day-select').val() || '';
         state.arrival_pickup_port_id = $('#arrival-pickup-port').val() || '';
         state.arrival_dropoff_hotel_id = $('#arrival-dropoff-hotel').val() || '';
         state.departure_pickup_hotel_id = $('#departure-pickup-hotel').val() || '';
@@ -979,6 +1005,12 @@ $(document).ready(function() {
         if (!activePlan) {
             arrivalChosenVehicles = [];
             departureChosenVehicles = [];
+            arrivalVehiclesByZone = [];
+            departureVehiclesByZone = [];
+            $('#arrival-vehicle-select-wrap').hide();
+            $('#departure-vehicle-select-wrap').hide();
+            $('#arrival-vehicle-select').empty().append('<option value="">Select vehicle</option>');
+            $('#departure-vehicle-select').empty().append('<option value="">Select vehicle</option>');
             renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
             renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
             return;
@@ -988,12 +1020,33 @@ $(document).ready(function() {
         $('#departure-service-def').prop('checked', !!state.departure_enabled);
         $('#arrival-pickup-config').toggle(!!state.arrival_enabled);
         $('#departure-service-config').toggle(!!state.departure_enabled);
+        refreshTransferDayDropdowns();
+        if (state.arrival_day) $('#arrival-day-select').val(String(state.arrival_day));
+        if (state.departure_day) $('#departure-day-select').val(String(state.departure_day));
         $('#arrival-pickup-port').val(state.arrival_pickup_port_id || '');
         $('#arrival-dropoff-hotel').val(state.arrival_dropoff_hotel_id || '');
         $('#departure-pickup-hotel').val(state.departure_pickup_hotel_id || '');
         $('#departure-dropoff-port').val(state.departure_dropoff_port_id || '');
         arrivalChosenVehicles = Array.isArray(state.arrival_vehicles) ? state.arrival_vehicles.slice() : [];
         departureChosenVehicles = Array.isArray(state.departure_vehicles) ? state.departure_vehicles.slice() : [];
+
+        // Reset search-result UI per plan to avoid leaking previous plan results.
+        // Only show the select-wrap if this plan already has chosen vehicles.
+        arrivalVehiclesByZone = [];
+        departureVehiclesByZone = [];
+        $('#arrival-vehicle-select').empty().append('<option value="">Select vehicle</option>');
+        $('#departure-vehicle-select').empty().append('<option value="">Select vehicle</option>');
+        if (Array.isArray(arrivalChosenVehicles) && arrivalChosenVehicles.length) {
+            $('#arrival-vehicle-select-wrap').show();
+        } else {
+            $('#arrival-vehicle-select-wrap').hide();
+        }
+        if (Array.isArray(departureChosenVehicles) && departureChosenVehicles.length) {
+            $('#departure-vehicle-select-wrap').show();
+        } else {
+            $('#departure-vehicle-select-wrap').hide();
+        }
+
         renderChosenVehiclesList(arrivalChosenVehicles, 'arrival-chosen-vehicles');
         renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
         renderCityPlanServiceSections();
@@ -1456,6 +1509,19 @@ $(document).ready(function() {
     }
 
     // ---------------- Day-wise itinerary (city-plan scoped) ----------------
+    function formatTransferVehiclesMeta(list) {
+        const vehicles = Array.isArray(list) ? list : [];
+        if (!vehicles.length) return '';
+        return vehicles.map(function(v) {
+            const name = v && (v.vehicle_name || v.name) ? String(v.vehicle_name || v.name) : 'Vehicle';
+            const vType = v && v.vehicle_type ? String(v.vehicle_type) : '';
+            const tRaw = v && v.selected_transfer_type ? String(v.selected_transfer_type) : '';
+            const t = tRaw === 'shared' ? 'Shared' : (tRaw === 'private' ? 'Private' : '');
+            const label = name + (vType ? ' (' + vType + ')' : '');
+            return t ? (label + ' · ' + t) : label;
+        }).join(', ');
+    }
+
     function addServiceToDay(dayMap, day, service) {
         if (!dayMap[day]) dayMap[day] = [];
         const key = service && service.key
@@ -1470,6 +1536,43 @@ $(document).ready(function() {
         dayMap[day] = dayMap[day].filter(function(x) { return x.key !== key; });
     }
 
+    function getItineraryServiceUi(service) {
+        const t = service && service.type ? String(service.type) : '';
+        const rawName = service && service.name ? String(service.name) : '';
+        const stripPrefix = function(prefix) {
+            const re = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*', 'i');
+            return rawName.replace(re, '').trim();
+        };
+
+        if (t === 'hotel') return { icon: 'ri-hotel-line', klass: 'hotel', short: 'H', label: stripPrefix('Hotel:') || 'Hotel' };
+        if (t === 'attraction') return { icon: 'ri-map-pin-line', klass: 'attraction', short: 'A', label: stripPrefix('Attraction:') || 'Attraction' };
+        if (t === 'restaurant') return { icon: 'ri-restaurant-line', klass: 'restaurant', short: 'R', label: stripPrefix('Restaurant:') || 'Restaurant' };
+        if (t === 'arrival') return { icon: 'ri-flight-land-line', klass: 'arrival', short: 'Arr', label: 'Arrival' };
+        if (t === 'departure') return { icon: 'ri-flight-takeoff-line', klass: 'departure', short: 'Dep', label: 'Departure' };
+        return { icon: 'ri-checkbox-circle-line', klass: 'service', short: '', label: rawName || 'Service' };
+    }
+
+    function renderItineraryChips(services) {
+        const list = Array.isArray(services) ? services : [];
+        if (!list.length) {
+            return '<span class="def-it-empty">No services</span>';
+        }
+        const max = 4;
+        const chips = list.slice(0, max).map(function(s) {
+            const ui = getItineraryServiceUi(s);
+            return (
+                '<span class="def-it-chip def-it-chip--' + ui.klass + '">' +
+                    '<i class="' + ui.icon + '"></i>' +
+                    '<span class="def-it-chip-t">' + escapeHtml(ui.label) + '</span>' +
+                '</span>'
+            );
+        }).join('');
+        const more = list.length > max
+            ? ('<span class="def-it-chip def-it-chip--more">+' + (list.length - max) + '</span>')
+            : '';
+        return '<div class="def-it-chips">' + chips + more + '</div>';
+    }
+
     function buildCityItinerary(planId) {
         const plan = definitionCityPlans.find(function(p) { return p.id === planId; }) || null;
         if (!plan) return [];
@@ -1479,26 +1582,26 @@ $(document).ready(function() {
         const dayMap = {};
         for (let d = fromDay; d <= toDay; d++) dayMap[d] = [];
 
-        // Arrival / Departure tied to plan boundary days
+        // Arrival / Departure (selectable day within plan range)
         const transfer = getPlanTransferState(planId) || {};
-        if (transfer.arrival_enabled) {
-            addServiceToDay(dayMap, fromDay, {
+        if (transfer.arrival_enabled && Array.isArray(transfer.arrival_vehicles) && transfer.arrival_vehicles.length) {
+            const arrivalDay = transfer.arrival_day ? parseInt(transfer.arrival_day, 10) : fromDay;
+            const safeArrivalDay = Math.min(toDay, Math.max(fromDay, arrivalDay || fromDay));
+            addServiceToDay(dayMap, safeArrivalDay, {
                 type: 'arrival',
                 id: planId + ':arrival',
                 name: 'Arrival Pickup',
-                meta: (transfer.arrival_vehicles && transfer.arrival_vehicles.length)
-                    ? (transfer.arrival_vehicles.length + ' vehicle(s)')
-                    : ''
+                meta: formatTransferVehiclesMeta(transfer.arrival_vehicles)
             });
         }
-        if (transfer.departure_enabled) {
-            addServiceToDay(dayMap, toDay, {
+        if (transfer.departure_enabled && Array.isArray(transfer.departure_vehicles) && transfer.departure_vehicles.length) {
+            const departureDay = transfer.departure_day ? parseInt(transfer.departure_day, 10) : toDay;
+            const safeDepartureDay = Math.min(toDay, Math.max(fromDay, departureDay || toDay));
+            addServiceToDay(dayMap, safeDepartureDay, {
                 type: 'departure',
                 id: planId + ':departure',
                 name: 'Departure Transfer',
-                meta: (transfer.departure_vehicles && transfer.departure_vehicles.length)
-                    ? (transfer.departure_vehicles.length + ' vehicle(s)')
-                    : ''
+                meta: formatTransferVehiclesMeta(transfer.departure_vehicles)
             });
         }
 
@@ -1576,18 +1679,17 @@ $(document).ready(function() {
             const hasServices = dayRow.services && dayRow.services.length > 0;
             const collapseId = accordId + '-day-' + dayRow.day;
             const show = hasServices && idx === 0; // open first non-empty day only
-            const summary = hasServices
-                ? dayRow.services.map(function(s) { return escapeHtml((s.name || '').replace(/^Hotel:\s*/,'H: ').replace(/^Attraction:\s*/,'A: ').replace(/^Restaurant:\s*/,'R: ')); }).slice(0, 3).join(' · ')
-                : 'No services selected';
+            const chips = renderItineraryChips(dayRow.services);
             const badge = hasServices
                 ? ('<span class="badge bg-primary-subtle text-primary border">' + dayRow.services.length + '</span>')
                 : ('<span class="badge bg-light text-muted border">0</span>');
 
             const items = hasServices
                 ? dayRow.services.map(function(s) {
+                    const ui = getItineraryServiceUi(s);
                     const meta = s.meta ? ('<div class="def-it-meta">' + escapeHtml(s.meta) + '</div>') : '';
-                    return '<div class="def-it-item">' +
-                        '<div class="def-it-name">' + escapeHtml(s.name) + '</div>' +
+                    return '<div class="def-it-item def-it-item--' + ui.klass + '">' +
+                        '<div class="def-it-name"><i class="' + ui.icon + ' me-1 text-muted"></i>' + escapeHtml(s.name) + '</div>' +
                         meta +
                     '</div>';
                 }).join('')
@@ -1599,7 +1701,7 @@ $(document).ready(function() {
                         '<button class="accordion-button ' + (show ? '' : 'collapsed') + ' def-it-btn" type="button" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="' + (show ? 'true' : 'false') + '" aria-controls="' + collapseId + '">' +
                             '<div class="def-it-btn-left">' +
                                 '<span class="def-it-day-label">Day ' + dayRow.day + '</span>' +
-                                '<span class="def-it-summary">' + summary + '</span>' +
+                                '<span class="def-it-summary">' + chips + '</span>' +
                             '</div>' +
                             '<div class="def-it-btn-right">' + badge + '</div>' +
                         '</button>' +
@@ -1673,8 +1775,10 @@ $(document).ready(function() {
                 day: day,
                 label: 'Day ' + day,
                 city: cityPlan[day] || '',
-                arrival_pickup: day === 1 ? ($('#arrival-pickup-def').is(':checked') ? 1 : 0) : 0,
-                departure_service: day === totalDays ? ($('#departure-service-def').is(':checked') ? 1 : 0) : 0,
+                arrival_pickup: 0,
+                departure_service: 0,
+                arrival: null,
+                departure: null,
                 hotels: [],
                 attractions: [],
                 restaurants: []
@@ -1686,13 +1790,32 @@ $(document).ready(function() {
             if (!state) return;
             const fromDay = Math.max(1, parseInt(plan.day_from, 10) || 1);
             const toDay = Math.min(totalDays, parseInt(plan.day_to, 10) || fromDay);
-            if (state.arrival_enabled && dayWise[fromDay - 1]) {
-                dayWise[fromDay - 1].arrival_pickup = 1;
-                dayWise[fromDay - 1].arrival_vehicles = state.arrival_vehicles || [];
+            const arrivalDay = state.arrival_day ? parseInt(state.arrival_day, 10) : fromDay;
+            const departureDay = state.departure_day ? parseInt(state.departure_day, 10) : toDay;
+            const safeArrivalDay = Math.min(toDay, Math.max(fromDay, arrivalDay || fromDay));
+            const safeDepartureDay = Math.min(toDay, Math.max(fromDay, departureDay || toDay));
+
+            if (state.arrival_enabled && Array.isArray(state.arrival_vehicles) && state.arrival_vehicles.length && dayWise[safeArrivalDay - 1]) {
+                dayWise[safeArrivalDay - 1].arrival_pickup = 1;
+                dayWise[safeArrivalDay - 1].arrival_vehicles = state.arrival_vehicles || [];
+                dayWise[safeArrivalDay - 1].arrival = {
+                    city_plan_id: plan.id,
+                    day: safeArrivalDay,
+                    pickup_port_id: state.arrival_pickup_port_id || null,
+                    dropoff_hotel_id: state.arrival_dropoff_hotel_id || null,
+                    vehicles: state.arrival_vehicles || []
+                };
             }
-            if (state.departure_enabled && dayWise[toDay - 1]) {
-                dayWise[toDay - 1].departure_service = 1;
-                dayWise[toDay - 1].departure_vehicles = state.departure_vehicles || [];
+            if (state.departure_enabled && Array.isArray(state.departure_vehicles) && state.departure_vehicles.length && dayWise[safeDepartureDay - 1]) {
+                dayWise[safeDepartureDay - 1].departure_service = 1;
+                dayWise[safeDepartureDay - 1].departure_vehicles = state.departure_vehicles || [];
+                dayWise[safeDepartureDay - 1].departure = {
+                    city_plan_id: plan.id,
+                    day: safeDepartureDay,
+                    pickup_hotel_id: state.departure_pickup_hotel_id || null,
+                    dropoff_port_id: state.departure_dropoff_port_id || null,
+                    vehicles: state.departure_vehicles || []
+                };
             }
         });
 
@@ -1705,7 +1828,18 @@ $(document).ready(function() {
                     dayWise[day - 1].hotels.push({
                         hotel_id: h.hotel_id,
                         hotel_name: h.hotel_name,
+                        city_plan_id: h.city_plan_id || null,
+                        city_plan_city: h.city_plan_city || null,
+                        stay_start_day: startDay,
+                        stay_end_day: endDay,
                         nights: nights,
+                        rooms: Array.isArray(h.rooms) ? h.rooms : [],
+                        weekend_days: Array.isArray(h.weekend_days) ? h.weekend_days : [],
+                        compulsory: h.compulsory === true || (!h.optional && !h.addon),
+                        optional: h.optional === true,
+                        addon: h.addon === true,
+                        optional_price: h.optional_price != null ? h.optional_price : '',
+                        addon_price: h.addon_price != null ? h.addon_price : '',
                         base_price: h.base_price != null && h.base_price !== '' ? parseFloat(h.base_price) : 0
                     });
                 }
@@ -1718,7 +1852,31 @@ $(document).ready(function() {
                 dayWise[day - 1].attractions.push({
                     attraction_id: a.attraction_id,
                     name: a.name,
-                    base_price: a.base_price != null && a.base_price !== '' ? parseFloat(a.base_price) : 0
+                    location: a.location || null,
+                    city_plan_id: a.city_plan_id || null,
+                    city_plan_city: a.city_plan_city || null,
+                    day: day,
+                    ticket_id: a.ticket_id || null,
+                    ticket_name: a.ticket_name || null,
+                    ticket: a.ticket || null,
+                    guide: a.guide || null,
+                    transfer: !!a.transfer,
+                    transfer_type: a.transfer_type || null,
+                    transfer_price: a.transfer_price != null && !isNaN(parseFloat(a.transfer_price)) ? parseFloat(a.transfer_price) : 0,
+                    vehicle_id: a.vehicle_id || null,
+                    vehicle_name: a.vehicle_name || null,
+                    pickup_id: a.pickup_id || null,
+                    pickup_name: a.pickup_name || null,
+                    dropoff_id: a.dropoff_id || null,
+                    dropoff_name: a.dropoff_name || null,
+                    compulsory: a.compulsory === true || (!a.optional && !a.addon),
+                    optional: a.optional === true,
+                    addon: a.addon === true,
+                    optional_price: a.optional_price != null ? a.optional_price : '',
+                    addon_price: a.addon_price != null ? a.addon_price : '',
+                    base_price: a.base_price != null && a.base_price !== '' ? parseFloat(a.base_price) : 0,
+                    adult_price: a.adult_price != null && a.adult_price !== '' && !isNaN(parseFloat(a.adult_price)) ? parseFloat(a.adult_price) : null,
+                    child_price: a.child_price != null && a.child_price !== '' && !isNaN(parseFloat(a.child_price)) ? parseFloat(a.child_price) : null
                 });
             }
         });
@@ -1729,6 +1887,28 @@ $(document).ready(function() {
                 dayWise[day - 1].restaurants.push({
                     restaurant_id: r.restaurant_id,
                     restaurant_name: r.restaurant_name,
+                    city_plan_id: r.city_plan_id || null,
+                    city_plan_city: r.city_plan_city || null,
+                    day: day,
+                    selected_meals: Array.isArray(r.selected_meals) ? r.selected_meals : [],
+                    meal_type: r.meal_type || null,
+                    meal_type_label: r.meal_type_label || null,
+                    meal_adult_price: r.meal_adult_price != null && !isNaN(parseFloat(r.meal_adult_price)) ? parseFloat(r.meal_adult_price) : null,
+                    meal_child_price: r.meal_child_price != null && !isNaN(parseFloat(r.meal_child_price)) ? parseFloat(r.meal_child_price) : null,
+                    transfer: !!r.transfer,
+                    transfer_type: r.transfer_type || null,
+                    transfer_price: r.transfer_price != null && !isNaN(parseFloat(r.transfer_price)) ? parseFloat(r.transfer_price) : 0,
+                    vehicle_id: r.vehicle_id || null,
+                    vehicle_name: r.vehicle_name || null,
+                    pickup_id: r.pickup_id || null,
+                    pickup_name: r.pickup_name || null,
+                    dropoff_id: r.dropoff_id || null,
+                    dropoff_name: r.dropoff_name || null,
+                    compulsory: r.compulsory === true || (!r.optional && !r.addon),
+                    optional: r.optional === true,
+                    addon: r.addon === true,
+                    optional_price: r.optional_price != null ? r.optional_price : '',
+                    addon_price: r.addon_price != null ? r.addon_price : '',
                     base_price: r.base_price != null && r.base_price !== '' ? parseFloat(r.base_price) : 0
                 });
             }
@@ -2845,6 +3025,12 @@ $(document).ready(function() {
         }
         persistTransferStateForActivePlan();
     });
+    $('#arrival-day-select').on('change', function() {
+        persistTransferStateForActivePlan();
+    });
+    $('#arrival-pickup-port, #arrival-dropoff-hotel').on('change', function() {
+        persistTransferStateForActivePlan();
+    });
     $('#departure-service-def').on('change', function() {
         const checked = $(this).is(':checked');
         $('#departure-service-hidden').val(checked ? 1 : 0);
@@ -2855,6 +3041,12 @@ $(document).ready(function() {
             renderChosenVehiclesList(departureChosenVehicles, 'departure-chosen-vehicles');
             $('#departure-vehicles-hidden').val('[]');
         }
+        persistTransferStateForActivePlan();
+    });
+    $('#departure-day-select').on('change', function() {
+        persistTransferStateForActivePlan();
+    });
+    $('#departure-pickup-hotel, #departure-dropoff-port').on('change', function() {
         persistTransferStateForActivePlan();
     });
 
@@ -3431,6 +3623,16 @@ $(document).ready(function() {
 .hotel-attraction-box { min-height: 280px; }
 .hotel-attraction-box .form-select-sm, .hotel-attraction-box .form-control-sm { min-height: 36px; }
 
+/* More compact service sections */
+.definition-service-card .card-body { margin-top: 8px !important; padding-top: 12px !important; padding-bottom: 12px !important; }
+.definition-service-card .card-header { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.definition-service-card .hotel-attraction-box { padding: 0.75rem !important; }
+.definition-service-card .border.rounded.p-3 { padding: 0.75rem !important; }
+.definition-service-card .bg-primary-subtle,
+.definition-service-card .bg-success-subtle,
+.definition-service-card .bg-info-subtle,
+.definition-service-card .bg-warning-subtle { padding: 0.6rem !important; }
+
 /* Compact Day-wise itinerary */
 .def-itinerary-wrap { max-height: 320px; overflow: auto; padding-right: 4px; }
 .def-it-accordion .accordion-item { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
@@ -3439,13 +3641,28 @@ $(document).ready(function() {
 .def-it-btn { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .def-it-btn-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .def-it-day-label { font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
-.def-it-summary { font-size: 0.82rem; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+.def-it-summary { font-size: 0.82rem; color: #6b7280; min-width: 0; flex: 1; }
+.def-it-empty { color: #9ca3af; font-size: 0.82rem; }
+.def-it-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.def-it-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; font-size: 0.78rem; color: #374151; max-width: 240px; }
+.def-it-chip i { font-size: 0.9rem; opacity: 0.85; }
+.def-it-chip-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.def-it-chip--hotel { background: rgba(13, 110, 253, 0.06); border-color: rgba(13, 110, 253, 0.18); }
+.def-it-chip--attraction { background: rgba(25, 135, 84, 0.06); border-color: rgba(25, 135, 84, 0.18); }
+.def-it-chip--restaurant { background: rgba(253, 126, 20, 0.06); border-color: rgba(253, 126, 20, 0.18); }
+.def-it-chip--arrival { background: rgba(13, 202, 240, 0.08); border-color: rgba(13, 202, 240, 0.22); }
+.def-it-chip--departure { background: rgba(255, 193, 7, 0.10); border-color: rgba(255, 193, 7, 0.28); }
+.def-it-chip--more { background: #f3f4f6; border-color: #e5e7eb; color: #6b7280; }
 .def-it-btn-right .badge { font-size: 0.75rem; }
-.def-it-body { padding: 10px 12px; background: #fff; }
-.def-it-item { padding: 6px 0; border-bottom: 1px dashed #eef2f7; }
-.def-it-item:last-child { border-bottom: none; }
+.def-it-body { padding: 10px 12px; background: #fff; display: flex; flex-direction: column; gap: 10px; }
+.def-it-item { padding: 8px 10px; border: 1px dashed #eef2f7; border-radius: 10px; background: #fff; }
 .def-it-name { font-size: 0.85rem; font-weight: 600; color: #111827; }
 .def-it-meta { font-size: 0.78rem; color: #6b7280; }
+.def-it-item--hotel { background: rgba(13, 110, 253, 0.03); border-color: rgba(13, 110, 253, 0.14); }
+.def-it-item--attraction { background: rgba(25, 135, 84, 0.03); border-color: rgba(25, 135, 84, 0.14); }
+.def-it-item--restaurant { background: rgba(253, 126, 20, 0.03); border-color: rgba(253, 126, 20, 0.14); }
+.def-it-item--arrival { background: rgba(13, 202, 240, 0.04); border-color: rgba(13, 202, 240, 0.18); }
+.def-it-item--departure { background: rgba(255, 193, 7, 0.05); border-color: rgba(255, 193, 7, 0.20); }
 @media (max-width: 991.98px) {
     .hotel-attraction-box { min-height: auto; }
     .card-header { padding: 0.75rem 1rem; }
@@ -3456,7 +3673,7 @@ $(document).ready(function() {
     .select2-container--default .select2-selection--multiple { min-height: 38px; }
     .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px; font-size: 0.9rem; }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
-    .def-it-summary { max-width: 220px; }
+    .def-it-chip { max-width: 160px; }
 }
 </style>
 @endsection
