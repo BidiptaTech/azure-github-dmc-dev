@@ -106,20 +106,61 @@
 
                         <!-- Action Buttons -->
                         <div class="d-flex justify-content-center gap-3 flex-wrap">
-                            <a href="{{ route('single-tour-package.create') }}" class="btn btn-primary btn-lg px-4">
-                                <i class="ri-add-line me-2"></i>Create Another Tour Package
+                            <a
+                                href="{{ route('single-tour-package.create') }}"
+                                class="btn btn-primary btn-lg px-3"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title="Create Another Tour Package"
+                                aria-label="Create Another Tour Package"
+                            >
+                                <i class="ri-add-line"></i>
                             </a>
                             
-                            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-lg px-4">
-                                <i class="ri-dashboard-line me-2"></i>Back to Dashboard
+                            <a
+                                href="{{ route('dashboard') }}"
+                                class="btn btn-outline-secondary btn-lg px-3"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title="Back to Dashboard"
+                                aria-label="Back to Dashboard"
+                            >
+                                <i class="ri-dashboard-line"></i>
                             </a>
 
-                            <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}" class="btn btn-outline-secondary btn-lg px-4" target="_blank">
-                                <i class="ri-file-download-line me-2"></i>Download Quotation
+                            <a
+                                href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}"
+                                class="btn btn-outline-secondary btn-lg px-3"
+                                target="_blank"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title="Breaking Down Quotation"
+                                aria-label="Breaking Down Quotation"
+                            >
+                                <i class="ri-file-list-3-line"></i>
+                            </a>
+                            <a
+                                href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}"
+                                class="btn btn-outline-secondary btn-lg px-3"
+                                target="_blank"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title="Detailed Quotation"
+                                aria-label="Detailed Quotation"
+                            >
+                                <i class="ri-file-text-line"></i>
                             </a>
 
-                            <a href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}" class="btn btn-outline-info btn-lg px-4" target="_blank">
-                                <i class="ri-mail-line me-2"></i>Preview Email Template
+                            <a
+                                href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}"
+                                class="btn btn-outline-info btn-lg px-3"
+                                target="_blank"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title="Preview Email Template"
+                                aria-label="Preview Email Template"
+                            >
+                                <i class="ri-mail-line"></i>
                             </a>
                         </div>
 
