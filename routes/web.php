@@ -197,7 +197,7 @@ Route::get('/clear', function () {
             // Order management routes
             Route::post('/api/orders/{id}/cancel', [SingleTourPackageController::class, 'cancelOrder'])->name('api.orders.cancel');
             
-            Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
+            // Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
             Route::get('/single-tour-package/create/{enquiry_id?}', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
             Route::get('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou'])->name('single-tour-package.thank-you');
             Route::post('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou']);
@@ -312,6 +312,8 @@ Route::get('/clear', function () {
             // Preview page for itinerary with currency selection and download button
             Route::get('/tour/{encryptedTourId}/itinerary-preview', [\App\Http\Controllers\QuotationController::class, 'itineraryPreview'])
                 ->name('tour.itinerary.preview');
+            Route::get('/tour/{encryptedTourId}/detailed-quotation-preview', [\App\Http\Controllers\QuotationController::class, 'detailedQuotationPreview'])
+                ->name('tour.detailed-quotation.preview');
 
             // PDF generation route (used by preview iframe and direct download)
             Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])

@@ -1783,7 +1783,7 @@ class CommonHelper
         }
     }
 
-    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null)
+    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null, $viewName = 'single-tour-package.quotation')
     {
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
@@ -2244,7 +2244,7 @@ class CommonHelper
         try {
             // Configure DomPDF options to work without GD if possible
             //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
-            $pdf = Pdf::loadView('single-tour-package.quotation', [
+            $pdf = Pdf::loadView($viewName, [
                 'tour' => $tour,
                 'servicesByDate' => $servicesByDate,
                 'servicesByType' => $servicesByType,
@@ -2287,7 +2287,7 @@ class CommonHelper
                 
                 // Retry without logo
                 //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
-                $pdf = Pdf::loadView('single-tour-package.quotation', [
+                $pdf = Pdf::loadView($viewName, [
                     'tour' => $tour,
                     'servicesByDate' => $servicesByDate,
                     'servicesByType' => $servicesByType,
@@ -2695,10 +2695,36 @@ class CommonHelper
             ->where('status', 1)
             ->get();
 
+        // GROUP pricing inputs
+        // IMPORTANT (project convention):
+        // - `adult` is the TOTAL adult count (includes FOC adults)
+        // - `foc_size` is how many of those adults are FOC (free of charge)
+        // - `child` are paying children (FOC does not apply to child here)
+        $tourType = strtoupper((string)($tour->tour_type ?? 'FIT'));
+        $adultTotal = max(0, (int)($tour->adult ?? 0));
+        $childTotal = max(0, (int)($tour->child ?? 0));
+        $focSize = max(0, (int)($tour->foc_size ?? 0));
+
+        // Paying pax excludes FOC adults
+        $payingAdults = max(0, $adultTotal - $focSize);
+        $payingPax = $payingAdults + $childTotal;
+
+        // Total pax is the real headcount travelling
+        $totalPax = $adultTotal + $childTotal;
+
+        // When GROUP has FOC, distribute total pax cost over paying pax.
+        // Example: adultTotal=12 (includes foc 2), childTotal=0 => total=12, paying=10 => factor=12/10.
+        $focDistributionFactor = ($tourType === 'GROUP' && $payingPax > 0 && $totalPax > $payingPax)
+            ? ((float)$totalPax / (float)$payingPax)
+            : 1.0;
+
         $totalSingleSharing = 0;
         $totalDoubleSharing = 0;
         $totalTripleSharing = 0;
         $totalBabyCot = 0;
+        // Separate tracker for non-hotel, non-supplement services (for other_services response key)
+        $otherServiceSingle = 0.0;
+        $otherServiceDouble = 0.0;
         // Track child-specific pricing component across attraction/restaurant services
         $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + …)
         
@@ -2718,9 +2744,46 @@ class CommonHelper
 
         // Supplements: services with "supplement": true (per-head prices, excluded from main total)
         $supplements = [];
+        // Merge hotel supplements: same hotel/date-range => one supplement row (avoid duplicates)
+        $hotelSupplementBuckets = [];
 
         // Counter for hotels to segregate individually
         $hotelCount = 0;
+        // Track which hotel occupancies are actually booked on this tour
+        $bookedHotelOccupancies = ['single' => false, 'double' => false, 'triple' => false];
+        
+        // Merge hotel rows: same hotel_id + same date range => one hotel bucket.
+        // Each bucket stores per-head price for single/double/triple once (no multiplication when multiple orders exist).
+        $hotelBuckets = [];
+        // Store display/meta for each grouped hotel key
+        $hotelBucketMeta = [];
+        
+        // Normalize booking date range to group same hotel orders together
+        $getHotelBookingRangeLabel = function (array $item) use ($tour): string {
+            $bookingDate = $item['bookingDate'] ?? null;
+            try {
+                if (is_array($bookingDate) && count($bookingDate) === 2 && !empty($bookingDate[0]) && !empty($bookingDate[1])) {
+                    $start = Carbon::parse($bookingDate[0])->format('Y-m-d');
+                    $end = Carbon::parse($bookingDate[1])->format('Y-m-d');
+                    return $start . ' to ' . $end;
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+            
+            // Fallback to tour dates
+            try {
+                if (!empty($tour->check_in_time) && !empty($tour->check_out_time)) {
+                    $start = Carbon::parse($tour->check_in_time)->format('Y-m-d');
+                    $end = Carbon::parse($tour->check_out_time)->format('Y-m-d');
+                    return $start . ' to ' . $end;
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+            
+            return '';
+        };
 
         foreach ($orders as $order) {
             $rawData = $order->data;
@@ -2736,7 +2799,7 @@ class CommonHelper
             $type = strtolower($order->type ?? '');
             $babyCotPrice = null;
             $manualSinglePrice = null;
-            $manualDoublePrice = null;
+            // $manualDoublePrice = null; // not used (double always from room/hotel tables)
 
             foreach ($items as $item) {
                 $isSupplement = !empty($item['supplement']);
@@ -2777,16 +2840,48 @@ class CommonHelper
                         $hotelName = 'Hotel ' . $hotelCount;
                     }
 
-                    // Initialize individual hotel segregation
-                    $currentHotelKey = $hotelName;
+                    // Group key: same hotel_id + same date range => treat as one hotel
+                    // (hotel name can change/collide; hotel_id is stable)
+                    $rangeLabel = $getHotelBookingRangeLabel(is_array($item) ? $item : []);
+                    $stableHotelId = $hotelId ?: ($hotel ? ($hotel->hotel_unique_id ?? null) : null);
+                    $stableHotelId = $stableHotelId !== null ? (string)$stableHotelId : '';
+                    $groupKey = $stableHotelId !== '' ? ('hotel_' . $stableHotelId) : ('hotel_name_' . preg_replace('/\s+/', '_', strtolower((string)$hotelName)));
+                    $currentHotelKey = $rangeLabel ? ($groupKey . '__' . $rangeLabel) : $groupKey;
+
+                    if (!isset($hotelBucketMeta[$currentHotelKey])) {
+                        $hotelBucketMeta[$currentHotelKey] = [
+                            'hotel_id' => $stableHotelId,
+                            'hotel_name' => $hotelName,
+                            'date_range' => $rangeLabel,
+                            'display_name' => $rangeLabel ? ($hotelName . ' (' . $rangeLabel . ')') : $hotelName,
+                        ];
+                    }
                     
                     if (!isset($segregatedPrices[$currentHotelKey])) {
                         $segregatedPrices[$currentHotelKey] = [
-                            'single' => 0, 
-                            'double' => 0, 
-                            'triple' => 0, 
-                            'baby_cot' => 0
+                            'single' => 0,
+                            'double' => 0,
+                            'triple' => 0,
+                            'baby_cot' => 0,
+                            'occupancy' => null,        // 'single'|'double'|'triple'
+                            'selected_persons' => null, // 1|2|3
                         ];
+                    }
+
+                    // Read selected persons from hotel JSON (rooms[0].selected_persons) and derive occupancy label.
+                    $firstRoom = (!empty($item['rooms']) && is_array($item['rooms'])) ? ($item['rooms'][0] ?? null) : null;
+                    $selectedPersonsForHotel = is_array($firstRoom)
+                        ? ($firstRoom['selected_persons'] ?? $firstRoom['selectedPersons'] ?? null)
+                        : ($item['pax'] ?? null);
+                    $selectedPersonsForHotel = $selectedPersonsForHotel !== null ? (int)$selectedPersonsForHotel : null;
+                    $hotelOccupancy = match ($selectedPersonsForHotel) {
+                        1 => 'single',
+                        2 => 'double',
+                        3 => 'triple',
+                        default => null,
+                    };
+                    if (!empty($hotelOccupancy)) {
+                        $bookedHotelOccupancies[$hotelOccupancy] = true;
                     }
                     
                     // Check for direct totalPrice and head_count in JSON (e.g. from enquiry)
@@ -3183,18 +3278,59 @@ class CommonHelper
                     }
 
                     if ($isSupplement) {
-                        $supplements[] = [
-                            'type'      => 'hotel',
-                            'name'      => $currentHotelKey,
-                            'single'    => $hotelSingleTotal,
-                            'double'    => $hotelDoubleTotal,
-                            'triple'    => $hotelTripleTotal,
-                            'baby_cot'  => $babyCotPrice,
-                        ];
+                        if (!isset($hotelSupplementBuckets[$currentHotelKey])) {
+                            $meta = $hotelBucketMeta[$currentHotelKey] ?? [];
+                            $hotelSupplementBuckets[$currentHotelKey] = [
+                                'type' => 'hotel',
+                                // keep stable key internally but expose friendly names to API
+                                'key' => $currentHotelKey,
+                                'hotel_id' => $meta['hotel_id'] ?? null,
+                                'hotel_name' => $meta['hotel_name'] ?? null,
+                                'date_range' => $meta['date_range'] ?? null,
+                                'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $currentHotelKey),
+                                'name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $currentHotelKey),
+                                'single' => null,
+                                'double' => null,
+                                'triple' => null,
+                                'baby_cot' => 0,
+                            ];
+                        }
+
+                        // Prices come from room pricing data (independent of order occupancy).
+                        // Keep max value in case multiple orders exist for the same supplement hotel.
+                        if ($hotelSingleTotal > 0) {
+                            $prev = $hotelSupplementBuckets[$currentHotelKey]['single'];
+                            $hotelSupplementBuckets[$currentHotelKey]['single'] = $prev === null ? (float)$hotelSingleTotal : max((float)$prev, (float)$hotelSingleTotal);
+                        }
+                        if ($hotelDoubleTotal > 0) {
+                            $prev = $hotelSupplementBuckets[$currentHotelKey]['double'];
+                            $hotelSupplementBuckets[$currentHotelKey]['double'] = $prev === null ? (float)$hotelDoubleTotal : max((float)$prev, (float)$hotelDoubleTotal);
+                        }
+                        if ($hotelTripleTotal > 0) {
+                            $prev = $hotelSupplementBuckets[$currentHotelKey]['triple'];
+                            $hotelSupplementBuckets[$currentHotelKey]['triple'] = $prev === null ? (float)$hotelTripleTotal : max((float)$prev, (float)$hotelTripleTotal);
+                        }
+                        $hotelSupplementBuckets[$currentHotelKey]['baby_cot'] = max((float)($hotelSupplementBuckets[$currentHotelKey]['baby_cot'] ?? 0), (float)$babyCotPrice);
                     } else {
-                        $totalSingleSharing += $hotelSingleTotal;
-                        $totalDoubleSharing += $hotelDoubleTotal;
-                        $totalTripleSharing += $hotelTripleTotal;
+                        if (!isset($hotelBuckets[$currentHotelKey])) {
+                            $hotelBuckets[$currentHotelKey] = [
+                                'single' => null,
+                                'double' => null,
+                                'triple' => null,
+                            ];
+                        }
+                        // Single/double/triple prices come from the room's own pricing data
+                        // (weekday_price, double_weekday_price, extra_bed_price), not from the occupancy
+                        // of this specific order. So fill each slot from ANY order — first non-null wins.
+                        if ($hotelBuckets[$currentHotelKey]['single'] === null && $hotelSingleTotal > 0) {
+                            $hotelBuckets[$currentHotelKey]['single'] = (float)$hotelSingleTotal;
+                        }
+                        if ($hotelBuckets[$currentHotelKey]['double'] === null && $hotelDoubleTotal > 0) {
+                            $hotelBuckets[$currentHotelKey]['double'] = (float)$hotelDoubleTotal;
+                        }
+                        if ($hotelBuckets[$currentHotelKey]['triple'] === null && $hotelTripleTotal > 0) {
+                            $hotelBuckets[$currentHotelKey]['triple'] = (float)$hotelTripleTotal;
+                        }
 
                         // Add to segregated hotel prices
                         $segregatedPrices['hotel']['single'] += $hotelSingleTotal;
@@ -3308,11 +3444,10 @@ class CommonHelper
                                 $totalChildComponent += $childUnitPrice;
                             }
 
-                            // Add only adult part to segregated and main totals (unless supplement)
+                            // Add adult part to other-services total (unless supplement)
                             if (!$isSupplement) {
-                                $serviceKey = $normalizedType === 'attraction' ? 'attraction' : 'restaurant';
-                                $segregatedPrices[$serviceKey]['single'] += $singleSharing;
-                                $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
                             }
                         }
                         // Handle entry_port and exit_port
@@ -3331,9 +3466,8 @@ class CommonHelper
                             $doubleSharing = $singleSharing;
 
                             if (!$isSupplement) {
-                                $serviceKey = $normalizedType === 'entry_port' ? 'entry_port' : 'exit_port';
-                                $segregatedPrices[$serviceKey]['single'] += $singleSharing;
-                                $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
                             }
                         }
                         // Handle travel_point, travel_hourly, local_transport
@@ -3352,9 +3486,8 @@ class CommonHelper
                             $doubleSharing = $singleSharing;
 
                             if (!$isSupplement) {
-                                $serviceKey = $normalizedType;
-                                $segregatedPrices[$serviceKey]['single'] += $singleSharing;
-                                $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
                             }
                         }
                         // Handle guide: per adult price (totalPrice / Adults)
@@ -3370,8 +3503,8 @@ class CommonHelper
                             $doubleSharing = $singleSharing;
 
                             if (!$isSupplement) {
-                                $segregatedPrices['guide']['single'] += $singleSharing;
-                                $segregatedPrices['guide']['double'] += $doubleSharing;
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
                             }
                         }
                         // Default calculation for other service types
@@ -3392,16 +3525,9 @@ class CommonHelper
                             // Double sharing: total / 2 (per person for 2 people)
                             $doubleSharing = $totalPriceFloat;
                             
-                            // Add to segregated prices based on service type
                             if (!$isSupplement) {
-                                $serviceKey = 'other';
-                                if (isset($segregatedPrices[$normalizedType])) {
-                                    $serviceKey = $normalizedType;
-                                } elseif (in_array($normalizedType, ['travel_hourly', 'travel_point', 'local_transport', 'guide'])) {
-                                    $serviceKey = $normalizedType;
-                                }
-                                $segregatedPrices[$serviceKey]['single'] += $singleSharing;
-                                $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
                             }
                         }
 
@@ -3453,80 +3579,129 @@ class CommonHelper
 
                             $supplements[] = $supplementRow;
                         } else {
-                            $totalSingleSharing += $singleSharing;
-                            $totalDoubleSharing += $doubleSharing;
+                            // (already added to $otherServiceSingle/Double above per service type)
                         }
                     }
                 }
             }
         }
+
+        // Append merged hotel supplements (one per hotel/date-range)
+        if (!empty($hotelSupplementBuckets)) {
+            foreach ($hotelSupplementBuckets as $row) {
+                if (!is_array($row)) continue;
+                $supplements[] = $row;
+            }
+        }
+        
+        // Add merged hotel buckets once (prevents 3× multiplication when same hotel/date has multiple orders)
+        $hotelSingle = 0.0;
+        $hotelDouble = 0.0;
+        $hotelTriple = 0.0;
+        foreach ($hotelBuckets as $bucket) {
+            if (!is_array($bucket)) continue;
+            if ($bucket['single'] !== null) $hotelSingle += (float)$bucket['single'];
+            if ($bucket['double'] !== null) $hotelDouble += (float)$bucket['double'];
+            if ($bucket['triple'] !== null) $hotelTriple += (float)$bucket['triple'];
+        }
+
         // Compute effective per-child sharing price (from attraction/restaurant components)
         $childSharing = $totalChildComponent;
 
-        // Round segregated prices and format
-        $segregatedPricesRounded = [];
-        foreach ($segregatedPrices as $serviceType => $prices) {
-            $segregatedPricesRounded[$serviceType] = [
-                'single' => ceil($prices['single']),
-                'double' => ceil($prices['double']),
+        // FOC rules:
+        // - discount=0: ALL services are booked for total pax; distribute total cost over paying pax
+        // - discount=1: FOC hotel cost is free; hotels are charged only for paying pax (no distribution on hotel component)
+        //              other services still distribute over paying pax (can be refined per service rules later)
+        $hasFocDistribution = ($focDistributionFactor !== 1.0);
+        $discountFlag = !empty($tour->discount) && (int)$tour->discount === 1;
+        $hotelFactor = ($hasFocDistribution && !$discountFlag) ? $focDistributionFactor : 1.0;
+        $otherFactor = $hasFocDistribution ? $focDistributionFactor : 1.0;
+
+        // Apply factors
+        $otherServiceSingle *= $otherFactor;
+        $otherServiceDouble *= $otherFactor;
+        $childSharing *= $otherFactor;
+
+        $hotelSingle *= $hotelFactor;
+        $hotelDouble *= $hotelFactor;
+        $hotelTriple *= $hotelFactor;
+
+        // Final per-head totals (supplements excluded)
+        $totalSingleSharing = $hotelSingle + $otherServiceSingle;
+        $totalDoubleSharing = $hotelDouble + $otherServiceDouble;
+        $totalTripleSharing = $hotelTriple;
+
+        // Hotel-wise per-head prices (apply hotel factor so discount=0 shows distributed cost, discount=1 shows paying-only)
+        $hotelPriceOptions = [];
+        foreach ($hotelBuckets as $hotelKey => $bucket) {
+            if (!is_array($bucket)) continue;
+            $meta = $hotelBucketMeta[$hotelKey] ?? [];
+            $hotelPriceOptions[] = [
+                'key' => $hotelKey,
+                'hotel_id' => $meta['hotel_id'] ?? null,
+                'hotel_name' => $meta['hotel_name'] ?? null,
+                'date_range' => $meta['date_range'] ?? null,
+                'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
+                'single' => ceil((float)($bucket['single'] ?? 0) * $hotelFactor),
+                'double' => ceil((float)($bucket['double'] ?? 0) * $hotelFactor),
+                'triple' => ceil((float)($bucket['triple'] ?? 0) * $hotelFactor),
             ];
-            if (isset($prices['triple'])) {
-                $segregatedPricesRounded[$serviceType]['triple'] = ceil($prices['triple']);
-            }
-            if (isset($prices['baby_cot'])) {
-                $segregatedPricesRounded[$serviceType]['baby_cot'] = ceil($prices['baby_cot']);
-            }
         }
 
-        // Format supplements: per-head prices (ceil), excluded from main total
+
+        // Format supplements (per-head, ceiled). Hotel type carries full meta; others carry service-specific fields.
         $supplementsFormatted = array_map(function ($s) {
             $row = [
                 'type'   => $s['type'],
-                'single' => ceil($s['single'] ?? 0),
-                'double' => ceil($s['double'] ?? 0),
+                'single' => ceil((float)($s['single'] ?? 0)),
+                'double' => ceil((float)($s['double'] ?? 0)),
+                'triple' => ceil((float)($s['triple'] ?? 0)),
             ];
-            if (isset($s['name'])) {
-                $row['name'] = $s['name'];
-            }
-            if(($s['type'] ?? null) == 'attraction') {
-                $row['name'] = $s['AttractionName'] ?? 'AttractionName';
-                $row['attraction_id'] = $s['AttractionId'] ?? null;
-                $row['ticket'] = $s['ticketName'] ?? null;
-                $row['transfer_required'] = $s['transfer_options']['transfer_required'] ?? null;
-                $row['guide_required'] = $s['guide_options']['guide_required'] ?? null;
 
-            } elseif(($s['type'] ?? null) == 'restaurant') {
-                $row['name'] = $s['restaurantName'] ?? 'restaurantName';
+            if (($s['type'] ?? null) === 'hotel') {
+                // Hotel supplement: show hotel_name, date_range, display_name (same concept as hotel_price_options)
+                $row['hotel_id']     = $s['hotel_id'] ?? null;
+                $row['hotel_name']   = $s['hotel_name'] ?? ($s['name'] ?? null);
+                $row['date_range']   = $s['date_range'] ?? null;
+                $row['display_name'] = $s['display_name'] ?? ($s['hotel_name'] ?? ($s['name'] ?? null));
+                $row['name']         = $row['display_name'];
+            } elseif (($s['type'] ?? null) === 'attraction') {
+                $row['name']              = $s['AttractionName'] ?? ($s['name'] ?? null);
+                $row['attraction_id']     = $s['AttractionId'] ?? null;
+                $row['ticket']            = $s['ticketName'] ?? null;
+                $row['transfer_required'] = $s['transfer_options']['transfer_required'] ?? null;
+                $row['guide_required']    = $s['guide_options']['guide_required'] ?? null;
+            } elseif (($s['type'] ?? null) === 'restaurant') {
+                $row['name']          = $s['restaurantName'] ?? ($s['name'] ?? null);
                 $row['restaurant_id'] = $s['restaurant_id'] ?? null;
-                $row['mealType'] = $s['mealType'] ?? null;
-                $firstMeal = $s['MealDescription'][0] ?? [];
-                $row['quantity'] = $firstMeal['quantity'] ?? null;
-            } elseif($s['type'] == 'entry_port') {
-                $row['name'] = 'name';
-                $row['entry_port_id'] = $s['entry_port_id'];
-            } elseif($s['type'] == 'exit_port') {
-                $row['name'] = 'name';
-                $row['exit_port_id'] = $s['exit_port_id'];
+                $row['mealType']      = $s['mealType'] ?? null;
+                $row['quantity']      = $s['MealDescription'][0]['quantity'] ?? null;
+            } elseif (($s['type'] ?? null) === 'entry_port') {
+                $row['name']          = $s['name'] ?? 'Entry Port';
+                $row['entry_port_id'] = $s['entry_port_id'] ?? null;
+            } elseif (($s['type'] ?? null) === 'exit_port') {
+                $row['name']         = $s['name'] ?? 'Exit Port';
+                $row['exit_port_id'] = $s['exit_port_id'] ?? null;
+            } else {
+                $row['name'] = $s['name'] ?? ($s['type'] ?? null);
             }
-            if (isset($s['triple'])) {
-                $row['triple'] = ceil($s['triple']);
-            }
-            if (isset($s['baby_cot'])) {
-                $row['baby_cot'] = ceil($s['baby_cot']);
-            }
+
             return $row;
         }, $supplements);
 
-        // dd($totalSingleSharing, $totalDoubleSharing, $totalTripleSharing, $totalBabyCot, $childSharing, $segregatedPricesRounded);
         return [
-            'single_sharing' => ceil($totalSingleSharing),
-            'double_sharing' => ceil($totalDoubleSharing),
-            'triple_sharing' => ceil($totalTripleSharing),
-            'baby_cot_sharing' => ceil($totalBabyCot),
-            // Average per-child price across attraction/restaurant services
-            'child_sharing' => ceil($childSharing),
-            'segregated' => $segregatedPricesRounded,
-            'supplements' => $supplementsFormatted,
+            // Per-head totals (hotel + other services, supplements excluded)
+            'single_sharing'       => ceil($totalSingleSharing),
+            'double_sharing'       => ceil($totalDoubleSharing),
+            'triple_sharing'       => ceil($totalTripleSharing),
+            // Hotel-wise per-head prices (each hotel separately, for rooming scenarios)
+            'hotel_price_options'  => $hotelPriceOptions,
+            // Other services per-head total (non-hotel, non-supplement)
+            'other_services_single' => ceil($otherServiceSingle),
+            'other_services_double' => ceil($otherServiceDouble),
+            // Supplements (hotel + other services marked supplement=true)
+            'supplements'          => $supplementsFormatted,
+            'supplyments'          => $supplementsFormatted,
         ];
     }
 

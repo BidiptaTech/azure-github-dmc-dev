@@ -487,47 +487,26 @@ class TourController extends Controller
         
         try {
             $prices = CommonHelper::calculateTourPrices($tourId);
-            
-            // Format segregated prices (per‑service contribution like hotel/attraction/restaurant, etc.)
-            $segregatedFormatted = [];
-            if (isset($prices['segregated']) && is_array($prices['segregated'])) {
-                foreach ($prices['segregated'] as $serviceType => $servicePrices) {
-                    $segregatedFormatted[$serviceType] = [
-                        'single' => $servicePrices['single'] ?? 0,
-                        'double' => $servicePrices['double'] ?? 0,
-                        'single_formatted' => '₹' . number_format($servicePrices['single'] ?? 0, 2),
-                        'double_formatted' => '₹' . number_format($servicePrices['double'] ?? 0, 2),
-                    ];
 
-                    if (isset($servicePrices['triple'])) {
-                        $segregatedFormatted[$serviceType]['triple'] = $servicePrices['triple'];
-                        $segregatedFormatted[$serviceType]['triple_formatted'] = '₹' . number_format($servicePrices['triple'], 2);
-                    }
-
-                    if (isset($servicePrices['baby_cot'])) {
-                        $segregatedFormatted[$serviceType]['baby_cot'] = $servicePrices['baby_cot'];
-                        $segregatedFormatted[$serviceType]['baby_cot_formatted'] = '₹' . number_format($servicePrices['baby_cot'], 2);
-                    }
-                }
-            }
             return response()->json([
                 'success' => true,
                 'tour_id' => $tourId,
                 'prices' => [
-                    'single_sharing' => $prices['single_sharing'],
-                    'double_sharing' => $prices['double_sharing'],
-                    'triple_sharing' => $prices['triple_sharing'] ?? 0,
-                    // Effective per-child sharing price built from attraction/restaurant child_price where available
-                    'child_sharing' => $prices['child_sharing'] ?? 0,
-                    'supplement' => $prices['single_sharing'] - $prices['double_sharing'],
-                    // Per-service supplements list (items marked with `supplement: true`)
-                    'supplements' => $prices['supplements'] ?? [],
-                    // Backwards-compat alias (common misspelling in some frontends)
-                    'supplyments' => $prices['supplements'] ?? [],
-                    // 'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
-                    // 'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
-                    // 'triple_sharing_formatted' => '₹' . number_format($prices['triple_sharing'] ?? 0, 2),
-                    'segregated' => $segregatedFormatted,
+                    // Each hotel separately with hotel_name, date_range, single/double/triple per-head
+                    'hotels' => $prices['hotel_price_options'] ?? [],
+                    // Non-hotel, non-supplement services total per-head
+                    'other_services' => [
+                        'single' => (float)($prices['other_services_single'] ?? 0),
+                        'double' => (float)($prices['other_services_double'] ?? 0),
+                    ],
+                    // Total per-head = hotel + other_services (supplements excluded)
+                    'total_per_head' => [
+                        'single' => (float)($prices['single_sharing'] ?? 0),
+                        'double' => (float)($prices['double_sharing'] ?? 0),
+                        'triple' => (float)($prices['triple_sharing'] ?? 0),
+                    ],
+                    // Supplements: hotel type (with hotel_name/date_range) + other service types
+                    'supplyments' => $prices['supplyments'] ?? [],
                 ]
             ]);
         } catch (\Exception $e) {

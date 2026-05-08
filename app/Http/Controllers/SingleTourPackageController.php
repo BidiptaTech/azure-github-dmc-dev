@@ -708,6 +708,9 @@ class SingleTourPackageController extends Controller
             'children' => 'required|integer|min:0',
             'infants' => 'required|integer|min:0',
             'agent_id' => 'required|exists:agents,agent_id',
+            'tour_type' => 'nullable|in:FIT,GROUP',
+            'foc_size' => 'nullable|integer|min:0',
+            'discount' => 'nullable|numeric|min:0',
             'reference_number' => 'nullable|string|max:255',
             'package_name' => 'nullable|string|max:255',
             'estimated_budget' => 'nullable|numeric|min:0',
@@ -775,6 +778,10 @@ class SingleTourPackageController extends Controller
             $tour->infant = $request->infants ?? 0;
             $tour->agent_id = $request->agent_id;
             $tour->tour_type = $request->tour_type ?? 'FIT';
+            $tour->foc_size = $request->input('foc_size');
+            $tour->discount = (strtoupper((string) ($request->tour_type ?? 'FIT')) === 'GROUP')
+                ? (float) ($request->input('discount', 0) ?: 0)
+                : 0;
             // Persist new DB column `city_type` ("single" / "multi")
             $tour->city_type = $request->city_type ?? ($request->city_mode ?? 'single');
             $tour->tour_id = $tourId;
