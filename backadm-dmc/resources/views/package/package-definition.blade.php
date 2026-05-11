@@ -677,6 +677,7 @@ $(document).ready(function() {
     const fetchAttractionTransferPricingUrl = '{{ route("fetch-attraction-transfer-pricing") }}';
     const fetchRestaurantTransferPricingUrl = '{{ route("fetch-restaurant-transfer-pricing") }}';
     const restaurantMealsUrlTemplate = '{{ route("restaurant-meals", ["restaurantId" => "__RESTAURANT_ID__"]) }}';
+    const hasExistingMainImage = @json($isEdit && !empty($package->main_image));
 
     $('#country-select').select2();
     $('#city-select').select2({ placeholder: 'Select City(s)' });
@@ -987,31 +988,45 @@ $(document).ready(function() {
         return transferStateByPlan[planId];
     }
 
-    function refreshTransferDayDropdowns() {
+    function getTransferDayBounds(plan) {
         const totalDays = getDurationDays();
-        const activePlan = getActiveCityPlan();
+        const fromDay = plan ? Math.max(1, parseInt(plan.day_from, 10) || 1) : 1;
+        const toDay = plan ? Math.min(totalDays, parseInt(plan.day_to, 10) || fromDay) : totalDays;
 
+        return {
+            fromDay: Math.min(fromDay, toDay),
+            toDay: Math.max(fromDay, toDay)
+        };
+    }
+
+    function appendBoundaryDayOptions(selectEl, fromDay, toDay, enabledDay) {
+        selectEl.empty();
+        for (let day = fromDay; day <= toDay; day++) {
+            const option = new Option('Day ' + day, String(day));
+            option.disabled = day !== enabledDay;
+            selectEl.append(option);
+        }
+        if (!selectEl.find('option').length) {
+            selectEl.append(new Option('Day ' + enabledDay, String(enabledDay)));
+        }
+        selectEl.val(String(enabledDay));
+    }
+
+    function refreshTransferDayDropdowns() {
+        const activePlan = getActiveCityPlan();
         const arr = $('#arrival-day-select');
         const dep = $('#departure-day-select');
         if (!arr.length || !dep.length) return;
 
-        // Default range = full tour, but if a plan is active use that plan range.
-        const fromDay = activePlan ? Math.max(1, parseInt(activePlan.day_from, 10) || 1) : 1;
-        const toDay = activePlan ? Math.min(totalDays, parseInt(activePlan.day_to, 10) || totalDays) : totalDays;
+        const bounds = getTransferDayBounds(activePlan);
+        appendBoundaryDayOptions(arr, bounds.fromDay, bounds.toDay, bounds.fromDay);
+        appendBoundaryDayOptions(dep, bounds.fromDay, bounds.toDay, bounds.toDay);
 
-        const prevArr = parseInt(arr.val(), 10) || fromDay;
-        const prevDep = parseInt(dep.val(), 10) || toDay;
-
-        arr.empty();
-        for (let d = fromDay; d <= toDay; d++) arr.append(new Option('Day ' + d, String(d)));
-        if (!arr.find('option').length) arr.append(new Option('Day 1', '1'));
-
-        dep.empty();
-        for (let d = fromDay; d <= toDay; d++) dep.append(new Option('Day ' + d, String(d)));
-        if (!dep.find('option').length) dep.append(new Option('Day ' + toDay, String(toDay)));
-
-        arr.val(String(Math.min(Math.max(prevArr, fromDay), toDay)));
-        dep.val(String(Math.min(Math.max(prevDep, fromDay), toDay)));
+        if (activePlan) {
+            const state = getPlanTransferState(activePlan.id);
+            state.arrival_day = String(bounds.fromDay);
+            state.departure_day = String(bounds.toDay);
+        }
     }
 
     function persistTransferStateForActivePlan() {
@@ -1021,8 +1036,9 @@ $(document).ready(function() {
         if (!state) return;
         state.arrival_enabled = $('#arrival-pickup-def').is(':checked');
         state.departure_enabled = $('#departure-service-def').is(':checked');
-        state.arrival_day = $('#arrival-day-select').val() || '';
-        state.departure_day = $('#departure-day-select').val() || '';
+        const bounds = getTransferDayBounds(activePlan);
+        state.arrival_day = String(bounds.fromDay);
+        state.departure_day = String(bounds.toDay);
         state.arrival_pickup_port_id = $('#arrival-pickup-port').val() || '';
         state.arrival_dropoff_hotel_id = $('#arrival-dropoff-hotel').val() || '';
         state.departure_pickup_hotel_id = $('#departure-pickup-hotel').val() || '';
@@ -1055,8 +1071,6 @@ $(document).ready(function() {
         $('#arrival-pickup-config').toggle(!!state.arrival_enabled);
         $('#departure-service-config').toggle(!!state.departure_enabled);
         refreshTransferDayDropdowns();
-        if (state.arrival_day) $('#arrival-day-select').val(String(state.arrival_day));
-        if (state.departure_day) $('#departure-day-select').val(String(state.departure_day));
         $('#arrival-pickup-port').val(state.arrival_pickup_port_id || '');
         $('#arrival-dropoff-hotel').val(state.arrival_dropoff_hotel_id || '');
         $('#departure-pickup-hotel').val(state.departure_pickup_hotel_id || '');
@@ -1638,12 +1652,10 @@ $(document).ready(function() {
         const dayMap = {};
         for (let d = fromDay; d <= toDay; d++) dayMap[d] = [];
 
-        // Arrival / Departure (selectable day within plan range)
+        // Arrival is fixed to the city-plan start; departure is fixed to the city-plan end.
         const transfer = getPlanTransferState(planId) || {};
         if (transfer.arrival_enabled && Array.isArray(transfer.arrival_vehicles) && transfer.arrival_vehicles.length) {
-            const arrivalDay = transfer.arrival_day ? parseInt(transfer.arrival_day, 10) : fromDay;
-            const safeArrivalDay = Math.min(toDay, Math.max(fromDay, arrivalDay || fromDay));
-            addServiceToDay(dayMap, safeArrivalDay, {
+            addServiceToDay(dayMap, fromDay, {
                 type: 'arrival',
                 id: planId + ':arrival',
                 name: 'Arrival Pickup',
@@ -1651,9 +1663,7 @@ $(document).ready(function() {
             });
         }
         if (transfer.departure_enabled && Array.isArray(transfer.departure_vehicles) && transfer.departure_vehicles.length) {
-            const departureDay = transfer.departure_day ? parseInt(transfer.departure_day, 10) : toDay;
-            const safeDepartureDay = Math.min(toDay, Math.max(fromDay, departureDay || toDay));
-            addServiceToDay(dayMap, safeDepartureDay, {
+            addServiceToDay(dayMap, toDay, {
                 type: 'departure',
                 id: planId + ':departure',
                 name: 'Departure Transfer',
@@ -1846,28 +1856,24 @@ $(document).ready(function() {
             if (!state) return;
             const fromDay = Math.max(1, parseInt(plan.day_from, 10) || 1);
             const toDay = Math.min(totalDays, parseInt(plan.day_to, 10) || fromDay);
-            const arrivalDay = state.arrival_day ? parseInt(state.arrival_day, 10) : fromDay;
-            const departureDay = state.departure_day ? parseInt(state.departure_day, 10) : toDay;
-            const safeArrivalDay = Math.min(toDay, Math.max(fromDay, arrivalDay || fromDay));
-            const safeDepartureDay = Math.min(toDay, Math.max(fromDay, departureDay || toDay));
 
-            if (state.arrival_enabled && Array.isArray(state.arrival_vehicles) && state.arrival_vehicles.length && dayWise[safeArrivalDay - 1]) {
-                dayWise[safeArrivalDay - 1].arrival_pickup = 1;
-                dayWise[safeArrivalDay - 1].arrival_vehicles = state.arrival_vehicles || [];
-                dayWise[safeArrivalDay - 1].arrival = {
+            if (state.arrival_enabled && Array.isArray(state.arrival_vehicles) && state.arrival_vehicles.length && dayWise[fromDay - 1]) {
+                dayWise[fromDay - 1].arrival_pickup = 1;
+                dayWise[fromDay - 1].arrival_vehicles = state.arrival_vehicles || [];
+                dayWise[fromDay - 1].arrival = {
                     city_plan_id: plan.id,
-                    day: safeArrivalDay,
+                    day: fromDay,
                     pickup_port_id: state.arrival_pickup_port_id || null,
                     dropoff_hotel_id: state.arrival_dropoff_hotel_id || null,
                     vehicles: state.arrival_vehicles || []
                 };
             }
-            if (state.departure_enabled && Array.isArray(state.departure_vehicles) && state.departure_vehicles.length && dayWise[safeDepartureDay - 1]) {
-                dayWise[safeDepartureDay - 1].departure_service = 1;
-                dayWise[safeDepartureDay - 1].departure_vehicles = state.departure_vehicles || [];
-                dayWise[safeDepartureDay - 1].departure = {
+            if (state.departure_enabled && Array.isArray(state.departure_vehicles) && state.departure_vehicles.length && dayWise[toDay - 1]) {
+                dayWise[toDay - 1].departure_service = 1;
+                dayWise[toDay - 1].departure_vehicles = state.departure_vehicles || [];
+                dayWise[toDay - 1].departure = {
                     city_plan_id: plan.id,
-                    day: safeDepartureDay,
+                    day: toDay,
                     pickup_hotel_id: state.departure_pickup_hotel_id || null,
                     dropoff_port_id: state.departure_dropoff_port_id || null,
                     vehicles: state.departure_vehicles || []
@@ -2104,7 +2110,7 @@ $(document).ready(function() {
             isEditPreloading = false;
             renderDefinitionDaySelectors();
             renderDefinitionCityPlans();
-            renderDefinitionHotels();
+            renderChosenHotels();
             renderDefinitionAttractions();
             renderDefinitionRestaurants();
             updateDefinitionTotalsAndMarkup();
@@ -3572,7 +3578,9 @@ $(document).ready(function() {
             return false;
         }
         persistTransferStateForActivePlan();
-        if (!$(this).find('#main_image')[0].files || !$(this).find('#main_image')[0].files.length) {
+        const mainImageInput = $(this).find('#main_image')[0];
+        const hasSelectedMainImage = mainImageInput && mainImageInput.files && mainImageInput.files.length;
+        if (!hasExistingMainImage && !hasSelectedMainImage) {
             $('#main-image-required-msg').removeClass('d-none');
             e.preventDefault();
             return false;

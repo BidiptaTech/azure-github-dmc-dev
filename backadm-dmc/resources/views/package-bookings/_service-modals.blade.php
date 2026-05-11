@@ -24,16 +24,19 @@
                         @foreach(($services['selected_hotels'] ?? []) as $h)
                             @php
                                 $hotelName = $h['hotel_name'] ?? $h['name'] ?? 'Hotel';
-                                $city = $h['city'] ?? '';
+                                $city = $h['city'] ?? $h['city_plan_city'] ?? '';
                                 $nights = (int) ($h['nights'] ?? 0);
+                                $startDay = (int) ($h['start_day'] ?? 0);
+                                $cityDayFrom = (int) ($h['city_day_from'] ?? 0);
+                                $cityDayTo = (int) ($h['city_day_to'] ?? 0);
                                 $start = $h['tour_start_date'] ?? null;
                                 $bookingDates = (is_array($h['hotel_booking_dates'] ?? null) ? $h['hotel_booking_dates'] : []);
                                 $firstBookingDate = !empty($bookingDates) ? \Carbon\Carbon::parse($bookingDates[0]) : null;
                                 $lastBookingDate = !empty($bookingDates) ? \Carbon\Carbon::parse($bookingDates[count($bookingDates)-1]) : null;
 
-                                // Hotel total price must come from selected_hotels JSON `base_price`
-                                // (keep fallbacks for older stored rows)
-                                $hotelTotalPrice = $h['base_price'] ?? $h['total_price'] ?? $h['final_price'] ?? null;
+                                $hotelTotalPrice = $h['total_price'] ?? $h['final_price'] ?? $h['base_price'] ?? null;
+                                $hotelBasePrice = $h['base_price'] ?? null;
+                                $numRooms = $h['num_rooms'] ?? null;
 
                                 // JSON now uses booleans; keep int fallback support
                                 $isCompulsory = (bool) ($h['compulsory'] ?? false);
@@ -61,6 +64,15 @@
                                             @if($nights > 0)
                                                 <span class="badge bg-label-primary"><i class="ri-moon-line me-1"></i>{{ $nights }} nights</span>
                                             @endif
+                                            @if($startDay > 0)
+                                                <span class="badge bg-label-secondary">Start Day {{ $startDay }}</span>
+                                            @endif
+                                            @if($cityDayFrom > 0 && $cityDayTo > 0)
+                                                <span class="badge bg-label-secondary">City Days {{ $cityDayFrom }} - {{ $cityDayTo }}</span>
+                                            @endif
+                                            @if($numRooms !== null)
+                                                <span class="badge bg-label-info">{{ (int) $numRooms }} room(s)</span>
+                                            @endif
                                             @if($isCompulsory)
                                                 <span class="badge bg-label-success">Compulsory</span>
                                             @elseif($isOptional)
@@ -75,6 +87,9 @@
                                         <div class="fw-bold text-primary" style="font-size: 1.05rem;">
                                             {{ $hotelTotalPrice !== null ? number_format((float) $hotelTotalPrice, 2) : '—' }}
                                         </div>
+                                        @if($hotelBasePrice !== null)
+                                            <small class="text-muted d-block">Base: {{ number_format((float) $hotelBasePrice, 2) }}</small>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -140,8 +155,9 @@
                         @foreach(($services['selected_attractions'] ?? []) as $a)
                             @php
                                 $name = $a['name'] ?? 'Attraction';
-                                $location = $a['location'] ?? '';
+                                $location = $a['location'] ?? $a['city_plan_city'] ?? '';
                                 $start = $a['tour_start_date'] ?? null;
+                                $day = (int) ($a['day'] ?? 0);
                                 $base = (float) ($a['base_price'] ?? 0);
                                 $guideName = data_get($a, 'guide.name');
                                 $guidePrice = (float) (data_get($a, 'guide.price') ?? 0);
@@ -170,6 +186,9 @@
                                                     @endif
                                                     @if($start)
                                                         <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($start)->format('d M Y') }}</span>
+                                                    @endif
+                                                    @if($day > 0)
+                                                        <span class="badge bg-label-secondary">Day {{ $day }}</span>
                                                     @endif
                                                     @if(!empty($a['ticket_name']))
                                                         <span class="badge bg-label-primary">Ticket: {{ $a['ticket_name'] }}</span>
@@ -217,6 +236,9 @@
                                                 <small class="text-muted d-block">
                                                     Languages: {{ implode(', ', (array) data_get($a, 'guide.languages')) }}
                                                 </small>
+                                            @endif
+                                            @if(!empty(data_get($a, 'guide.duration_label')))
+                                                <small class="text-muted d-block">Duration: {{ data_get($a, 'guide.duration_label') }}</small>
                                             @endif
                                         </div>
                                     </div>
@@ -267,6 +289,8 @@
                                 $name = $r['restaurant_name'] ?? $r['name'] ?? 'Restaurant';
                                 $mealLabel = $r['meal_type_label'] ?? '';
                                 $start = $r['tour_start_date'] ?? null;
+                                $day = (int) ($r['day'] ?? 0);
+                                $city = $r['city_plan_city'] ?? '';
                                 $base = (float) ($r['base_price'] ?? 0);
                                 $adultPrice = $r['adult_price'] ?? null;
                                 $childPrice = $r['child_price'] ?? null;
@@ -293,6 +317,12 @@
                                             @endif
                                             @if($start)
                                                 <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($start)->format('d M Y') }}</span>
+                                            @endif
+                                            @if($day > 0)
+                                                <span class="badge bg-label-secondary">Day {{ $day }}</span>
+                                            @endif
+                                            @if($city !== '')
+                                                <span class="badge bg-label-info"><i class="ri-map-pin-line me-1"></i>{{ $city }}</span>
                                             @endif
                                             @if($isCompulsory)
                                                 <span class="badge bg-label-success">Compulsory</span>
@@ -373,18 +403,28 @@
                         @php $arr = $services['arrival_data'] ?? []; @endphp
                         @php
                             $enabled = (bool) ($arr['enabled'] ?? true);
-                            $arrTotal = 0.0;
-                            $pickupPortName = $arr['pickup_port_name'] ?? null;
-                            $dropoffHotelName = $arr['dropoff_hotel_name'] ?? null;
-
-                            // Pre-calc total for header display
-                            $arrHeaderTotal = 0.0;
-                            if ($enabled && !empty($arr['vehicles']) && is_array($arr['vehicles'])) {
-                                foreach ($arr['vehicles'] as $v0) {
-                                    $qty0 = (int) ($v0['qty'] ?? 1);
-                                    $unit0 = (float) ($v0['unit_price'] ?? 0);
-                                    $selected0 = (float) ($v0['selected_price'] ?? ($unit0 * $qty0));
-                                    $arrHeaderTotal += $selected0;
+                            $arrivalItems = [];
+                            if (!empty($arr['items']) && is_array($arr['items'])) {
+                                $arrivalItems = $arr['items'];
+                            } elseif (!empty($arr['vehicles']) && is_array($arr['vehicles'])) {
+                                $arrivalItems[] = [
+                                    'day' => 1,
+                                    'city' => $arr['city'] ?? null,
+                                    'pickup_port_id' => $arr['pickup_port_id'] ?? null,
+                                    'pickup_port_name' => $arr['pickup_port_name'] ?? null,
+                                    'dropoff_hotel_id' => $arr['dropoff_hotel_id'] ?? null,
+                                    'dropoff_hotel_name' => $arr['dropoff_hotel_name'] ?? null,
+                                    'vehicles' => $arr['vehicles'],
+                                ];
+                            }
+                            $arrGrandTotal = 0.0;
+                            if ($enabled) {
+                                foreach ($arrivalItems as $item0) {
+                                    foreach (($item0['vehicles'] ?? []) as $v0) {
+                                        $qty0 = (int) ($v0['qty'] ?? 1);
+                                        $unit0 = (float) ($v0['unit_price'] ?? 0);
+                                        $arrGrandTotal += (float) ($v0['selected_price'] ?? ($unit0 * $qty0));
+                                    }
                                 }
                             }
                         @endphp
@@ -401,58 +441,84 @@
                                             <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($arr['tour_start_date'])->format('d M Y') }}</span>
                                         @endif
                                     </div>
-                                    <div class="mt-2 text-muted">
-                                        <div><span class="fw-semibold">Pickup:</span> {{ $pickupPortName ?: ($arr['pickup_port_id'] ?? '—') }}</div>
-                                        <div><span class="fw-semibold">Dropoff:</span> {{ $dropoffHotelName ?: ($arr['dropoff_hotel_id'] ?? '—') }}</div>
-                                    </div>
                                 </div>
                                 <div class="text-end flex-shrink-0">
                                     <small class="text-muted d-block">Total</small>
                                     <div class="fw-bold text-success" style="font-size: 1.05rem;">
-                                        {{ $enabled ? number_format($arrHeaderTotal, 2) : number_format(0, 2) }}
+                                        {{ $enabled ? number_format($arrGrandTotal, 2) : number_format(0, 2) }}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        @if($enabled && !empty($arr['vehicles']) && is_array($arr['vehicles']))
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Vehicle</th>
-                                            <th>Type</th>
-                                            <th>Transfer</th>
-                                            <th style="width: 90px;">Qty</th>
-                                            <th style="width: 140px;">Unit</th>
-                                            <th style="width: 160px;">Selected Price</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($arr['vehicles'] as $v)
-                                            @php
-                                                $qty = (int) ($v['qty'] ?? 1);
-                                                $unit = (float) ($v['unit_price'] ?? 0);
-                                                $selected = (float) ($v['selected_price'] ?? ($unit * $qty));
-                                                $arrTotal += $selected;
-                                            @endphp
-                                            <tr>
-                                                <td>{{ $v['vehicle_name'] ?? 'Vehicle' }}</td>
-                                                <td>{{ $v['vehicle_type'] ?? '—' }}</td>
-                                                <td>{{ $v['selected_transfer_type'] ?? '—' }}</td>
-                                                <td>{{ $qty }}</td>
-                                                <td>{{ number_format($unit, 2) }}</td>
-                                                <td class="fw-semibold">{{ number_format($selected, 2) }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
+                        @if($enabled && !empty($arrivalItems))
+                            @foreach($arrivalItems as $item)
+                                @php
+                                    $itemVehicles = is_array($item['vehicles'] ?? null) ? $item['vehicles'] : [];
+                                    $itemTotal = 0.0;
+                                    foreach ($itemVehicles as $v0) {
+                                        $qty0 = (int) ($v0['qty'] ?? 1);
+                                        $unit0 = (float) ($v0['unit_price'] ?? 0);
+                                        $itemTotal += (float) ($v0['selected_price'] ?? ($unit0 * $qty0));
+                                    }
+                                @endphp
+                                <div class="border rounded p-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                                        <div>
+                                            <div class="fw-semibold text-dark">Day {{ $item['day'] ?? '—' }} Arrival</div>
+                                            <div class="d-flex flex-wrap gap-2 mt-1">
+                                                @if(!empty($item['city']))
+                                                    <span class="badge bg-label-info"><i class="ri-map-pin-line me-1"></i>{{ $item['city'] }}</span>
+                                                @endif
+                                                <span class="badge bg-label-success">Pickup: {{ $item['pickup_port_name'] ?? $item['pickup_port_id'] ?? '—' }}</span>
+                                                <span class="badge bg-label-primary">Dropoff: {{ $item['dropoff_hotel_name'] ?? $item['dropoff_hotel_id'] ?? '—' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            <small class="text-muted d-block">Item Total</small>
+                                            <div class="fw-bold text-success">{{ number_format($itemTotal, 2) }}</div>
+                                        </div>
+                                    </div>
 
-                            <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
-                                <div class="fw-semibold">Total (Arrival Transfers)</div>
-                                <div class="fw-bold text-success">{{ number_format($arrTotal, 2) }}</div>
-                            </div>
+                                    @if(!empty($itemVehicles))
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Vehicle</th>
+                                                        <th>Type</th>
+                                                        <th>Transfer</th>
+                                                        <th>Seats</th>
+                                                        <th style="width: 90px;">Qty</th>
+                                                        <th style="width: 140px;">Unit</th>
+                                                        <th style="width: 160px;">Selected Price</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($itemVehicles as $v)
+                                                        @php
+                                                            $qty = (int) ($v['qty'] ?? 1);
+                                                            $unit = (float) ($v['unit_price'] ?? 0);
+                                                            $selected = (float) ($v['selected_price'] ?? ($unit * $qty));
+                                                        @endphp
+                                                        <tr>
+                                                            <td>{{ $v['vehicle_name'] ?? 'Vehicle' }}</td>
+                                                            <td>{{ $v['vehicle_type'] ?? '—' }}</td>
+                                                            <td>{{ $v['selected_transfer_type'] ?? '—' }}</td>
+                                                            <td>{{ $v['seating_capacity'] ?? '—' }}</td>
+                                                            <td>{{ $qty }}</td>
+                                                            <td>{{ number_format($unit, 2) }}</td>
+                                                            <td class="fw-semibold">{{ number_format($selected, 2) }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <div class="text-muted">No arrival vehicles selected for this day.</div>
+                                    @endif
+                                </div>
+                            @endforeach
                         @else
                             <div class="text-muted">Arrival transfer is disabled or no vehicles selected.</div>
                         @endif
@@ -474,18 +540,28 @@
                         @php $dep = $services['departure_data'] ?? []; @endphp
                         @php
                             $enabled = (bool) ($dep['enabled'] ?? true);
-                            $depTotal = 0.0;
-                            $pickupHotelName = $dep['pickup_hotel_name'] ?? null;
-                            $dropoffPortName = $dep['dropoff_port_name'] ?? null;
-
-                            // Pre-calc total for header display
-                            $depHeaderTotal = 0.0;
-                            if ($enabled && !empty($dep['vehicles']) && is_array($dep['vehicles'])) {
-                                foreach ($dep['vehicles'] as $v0) {
-                                    $qty0 = (int) ($v0['qty'] ?? 1);
-                                    $unit0 = (float) ($v0['unit_price'] ?? 0);
-                                    $selected0 = (float) ($v0['selected_price'] ?? ($unit0 * $qty0));
-                                    $depHeaderTotal += $selected0;
+                            $departureItems = [];
+                            if (!empty($dep['items']) && is_array($dep['items'])) {
+                                $departureItems = $dep['items'];
+                            } elseif (!empty($dep['vehicles']) && is_array($dep['vehicles'])) {
+                                $departureItems[] = [
+                                    'day' => null,
+                                    'city' => $dep['city'] ?? null,
+                                    'pickup_hotel_id' => $dep['pickup_hotel_id'] ?? null,
+                                    'pickup_hotel_name' => $dep['pickup_hotel_name'] ?? null,
+                                    'dropoff_port_id' => $dep['dropoff_port_id'] ?? null,
+                                    'dropoff_port_name' => $dep['dropoff_port_name'] ?? null,
+                                    'vehicles' => $dep['vehicles'],
+                                ];
+                            }
+                            $depGrandTotal = 0.0;
+                            if ($enabled) {
+                                foreach ($departureItems as $item0) {
+                                    foreach (($item0['vehicles'] ?? []) as $v0) {
+                                        $qty0 = (int) ($v0['qty'] ?? 1);
+                                        $unit0 = (float) ($v0['unit_price'] ?? 0);
+                                        $depGrandTotal += (float) ($v0['selected_price'] ?? ($unit0 * $qty0));
+                                    }
                                 }
                             }
                         @endphp
@@ -502,58 +578,84 @@
                                             <span class="badge bg-label-secondary"><i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($dep['tour_start_date'])->format('d M Y') }}</span>
                                         @endif
                                     </div>
-                                    <div class="mt-2 text-muted">
-                                        <div><span class="fw-semibold">Pickup:</span> {{ $pickupHotelName ?: ($dep['pickup_hotel_id'] ?? '—') }}</div>
-                                        <div><span class="fw-semibold">Dropoff:</span> {{ $dropoffPortName ?: ($dep['dropoff_port_id'] ?? '—') }}</div>
-                                    </div>
                                 </div>
                                 <div class="text-end flex-shrink-0">
                                     <small class="text-muted d-block">Total</small>
                                     <div class="fw-bold text-secondary" style="font-size: 1.05rem;">
-                                        {{ $enabled ? number_format($depHeaderTotal, 2) : number_format(0, 2) }}
+                                        {{ $enabled ? number_format($depGrandTotal, 2) : number_format(0, 2) }}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        @if($enabled && !empty($dep['vehicles']) && is_array($dep['vehicles']))
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Vehicle</th>
-                                            <th>Type</th>
-                                            <th>Transfer</th>
-                                            <th style="width: 90px;">Qty</th>
-                                            <th style="width: 140px;">Unit</th>
-                                            <th style="width: 160px;">Selected Price</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($dep['vehicles'] as $v)
-                                            @php
-                                                $qty = (int) ($v['qty'] ?? 1);
-                                                $unit = (float) ($v['unit_price'] ?? 0);
-                                                $selected = (float) ($v['selected_price'] ?? ($unit * $qty));
-                                                $depTotal += $selected;
-                                            @endphp
-                                            <tr>
-                                                <td>{{ $v['vehicle_name'] ?? 'Vehicle' }}</td>
-                                                <td>{{ $v['vehicle_type'] ?? '—' }}</td>
-                                                <td>{{ $v['selected_transfer_type'] ?? '—' }}</td>
-                                                <td>{{ $qty }}</td>
-                                                <td>{{ number_format($unit, 2) }}</td>
-                                                <td class="fw-semibold">{{ number_format($selected, 2) }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
+                        @if($enabled && !empty($departureItems))
+                            @foreach($departureItems as $item)
+                                @php
+                                    $itemVehicles = is_array($item['vehicles'] ?? null) ? $item['vehicles'] : [];
+                                    $itemTotal = 0.0;
+                                    foreach ($itemVehicles as $v0) {
+                                        $qty0 = (int) ($v0['qty'] ?? 1);
+                                        $unit0 = (float) ($v0['unit_price'] ?? 0);
+                                        $itemTotal += (float) ($v0['selected_price'] ?? ($unit0 * $qty0));
+                                    }
+                                @endphp
+                                <div class="border rounded p-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                                        <div>
+                                            <div class="fw-semibold text-dark">Day {{ $item['day'] ?? '—' }} Departure</div>
+                                            <div class="d-flex flex-wrap gap-2 mt-1">
+                                                @if(!empty($item['city']))
+                                                    <span class="badge bg-label-info"><i class="ri-map-pin-line me-1"></i>{{ $item['city'] }}</span>
+                                                @endif
+                                                <span class="badge bg-label-primary">Pickup: {{ $item['pickup_hotel_name'] ?? $item['pickup_hotel_id'] ?? '—' }}</span>
+                                                <span class="badge bg-label-secondary">Dropoff: {{ $item['dropoff_port_name'] ?? $item['dropoff_port_id'] ?? '—' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            <small class="text-muted d-block">Item Total</small>
+                                            <div class="fw-bold text-secondary">{{ number_format($itemTotal, 2) }}</div>
+                                        </div>
+                                    </div>
 
-                            <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
-                                <div class="fw-semibold">Total (Departure Transfers)</div>
-                                <div class="fw-bold text-secondary">{{ number_format($depTotal, 2) }}</div>
-                            </div>
+                                    @if(!empty($itemVehicles))
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Vehicle</th>
+                                                        <th>Type</th>
+                                                        <th>Transfer</th>
+                                                        <th>Seats</th>
+                                                        <th style="width: 90px;">Qty</th>
+                                                        <th style="width: 140px;">Unit</th>
+                                                        <th style="width: 160px;">Selected Price</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($itemVehicles as $v)
+                                                        @php
+                                                            $qty = (int) ($v['qty'] ?? 1);
+                                                            $unit = (float) ($v['unit_price'] ?? 0);
+                                                            $selected = (float) ($v['selected_price'] ?? ($unit * $qty));
+                                                        @endphp
+                                                        <tr>
+                                                            <td>{{ $v['vehicle_name'] ?? 'Vehicle' }}</td>
+                                                            <td>{{ $v['vehicle_type'] ?? '—' }}</td>
+                                                            <td>{{ $v['selected_transfer_type'] ?? '—' }}</td>
+                                                            <td>{{ $v['seating_capacity'] ?? '—' }}</td>
+                                                            <td>{{ $qty }}</td>
+                                                            <td>{{ number_format($unit, 2) }}</td>
+                                                            <td class="fw-semibold">{{ number_format($selected, 2) }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <div class="text-muted">No departure vehicles selected for this day.</div>
+                                    @endif
+                                </div>
+                            @endforeach
                         @else
                             <div class="text-muted">Departure transfer is disabled or no vehicles selected.</div>
                         @endif
