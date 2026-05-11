@@ -128,6 +128,38 @@ class QuotationController extends Controller
         ]);
     }
 
+    public function detailedQuotationPreview($encryptedTourId, Request $request)
+    {
+        try {
+            $tourId = Crypt::decrypt($encryptedTourId);
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Invalid tour reference.');
+        }
+
+        // Stream detailed quotation PDF (currency optional via querystring)
+        $currency = $request->query('currency');
+        $preview = true;
+
+        try {
+            $pdfResponse = CommonHelper::downloadTourPdf(
+                $tourId,
+                $currency,
+                $preview,
+                null,
+                'single-tour-package.detailedqutation'
+            );
+            if ($pdfResponse) {
+                return $pdfResponse;
+            }
+        } catch (\Throwable $e) {
+            Log::error('Detailed quotation PDF generation failed', [
+                'tour_id' => $tourId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return redirect()->back()->with('error', 'Unable to generate detailed quotation.');
+    }
     /**
      * Generate itinerary PDF (used by preview iframe and direct download).
      */

@@ -925,6 +925,81 @@
                                     <input type="hidden" name="children" id="children" value="0">
                                     <input type="hidden" name="infants" id="infants" value="0">
                                     <input type="hidden" name="child_ages" id="child_ages" value="[]">
+
+                                    <!-- Group Details placeholder (FOC) -->
+                                    <div id="groupDetailsPlaceholder" class="mt-2">
+                                        <div id="groupDetailsWrapper" class="d-none">
+                                            <div class="p-2 border rounded" style="background:#ffffff;border-color:#e9ecef !important;border-radius:10px;">
+                                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                                    <div class="fw-semibold" style="color:#495057; font-size:0.82rem;">
+                                                        <i class="ri-group-2-line me-1" style="color:#0d6efd;"></i>Group Details
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="badge" style="background:#e7f1ff;color:#0d6efd;border-radius:6px;font-size:0.7rem;">FOC</span>
+                                                    </div>
+                                                </div>
+
+                                                <div id="groupDetailsCollapse">
+                                                    <div class="row g-2">
+                                                        <input type="hidden" id="group_size" name="group_size" form="singleTourPackageForm" value="{{ old('group_size') }}">
+                                                        <div class="col-6">
+                                                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Group Size</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" min="0" step="1" class="form-control" id="group_size_display" value="0" style="background:#ffffff;border-radius:8px 0 0 8px;">
+                                                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="col-6">
+                                                            <label for="foc_size" class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">FOC Size</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" min="0" step="1" class="form-control" id="foc_size" name="foc_size" form="singleTourPackageForm" value="{{ old('foc_size', 0) }}" style="border-radius:8px 0 0 8px;">
+                                                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="col-12" id="includeFOCInPriceRow">
+                                                            <div class="form-check d-flex align-items-center gap-2" style="margin-top:2px;">
+                                                                <input class="form-check-input" type="checkbox" id="include_foc_in_group_price" name="include_foc_in_group_price" form="singleTourPackageForm" value="1">
+                                                                <label class="form-check-label" for="include_foc_in_group_price" style="color:#495057; font-size:0.74rem;">
+                                                                    Treat FOC pax as discount (free)
+                                                                </label>
+                                                                <i
+                                                                    class="ri-information-line text-dark fw-bold"
+                                                                    style="font-size:1.05rem; cursor: help;"
+                                                                    data-bs-toggle="tooltip"
+                                                                    data-bs-placement="top"
+                                                                    data-bs-html="true"
+                                                                    title="Note: <span class='text-primary'>☑</span> FOC cost is discounted in paying pax. <span class='text-muted'>☐</span> FOC cost is included in paying pax."
+                                                                ></i>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="col-6">
+                                                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Paying Pax</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" class="form-control" id="paying_pax" name="paying_pax" form="singleTourPackageForm" value="{{ old('paying_pax') }}" readonly style="background:#f8f9fa;border-radius:8px 0 0 8px;">
+                                                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="col-6">
+                                                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Total Pax</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="text" class="form-control" id="total_pax_display" value="0" readonly style="background:#f8f9fa;border-radius:8px 0 0 8px;">
+                                                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Binary discount flag expected by backend submit (1 = discount/free FOC, 0 = no discount) -->
+                                                        <input type="hidden" id="discount" name="discount" form="singleTourPackageForm" value="{{ old('discount', 1) }}">
+
+                                                        <input type="hidden" id="auto_foc" name="auto_foc" form="singleTourPackageForm" value="{{ old('auto_foc', 0) }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="col-md-4">
@@ -1510,9 +1585,6 @@
                                     <button type="button" class="btn btn-lg px-5 me-3" id="savePackageBtn" onclick="handleSavePackage(this)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none;">
                                         <i class="ri-save-line me-2"></i>Save Tour Package
                                     </button>
-                                    <!-- <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
-                                        <i class="ri-close-line me-2"></i>Cancel
-                                    </a> -->
                                 </div>
                             </div>
                         </div>
@@ -2493,12 +2565,14 @@
                             rooms: [{
                                 room_id: hotel.roomId || hotel.room_id || "room_" + Date.now(), // Use room_id, not hotel_id
                                 room_type: hotel.roomType || hotel.room_type || "",
+                                occupancy: hotel.occupancy || "double",
+                                selected_persons: parseInt(hotel.selectedPersons) || 1,
                                 number_of_rooms: parseInt(hotel.numberOfRooms) || 1, // Number of rooms selected by user
                                 beds: [{
                                     bed_id: hotel.bedId || hotel.bed_id || "bed_" + Date.now(),
                                     bed_type: hotel.bedType || hotel.bed_type || "", // Store bed type name, not ID
                                     baby_cot: parseInt(hotel.baby_cot) || 0,
-                                    head_count: adults + children,
+                                    head_count: parseInt(hotel.selectedPersons) || 1,
                                     max_occupancy: parseInt(hotel.max_occupancy) || (adults + children),
                                     price: parseFloat(hotel.price) || 0,
                                     mealTypes: [hotel.mealPlan || hotel.meal_plan || ""],
@@ -2618,12 +2692,10 @@
                             // Remarks - use current section-level hotel_remarks or per-hotel remarks
                             remarks: document.getElementById('hotel_remarks')?.value || hotel.remarks || '',
                             
-                            // supplement: true if checkbox checked OR if service adults < tour adults (stored as supplement in DB)
+                            // supplement: only true when user explicitly checks it
                             supplement: (() => {
-                                const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                const serviceAdults = (parseInt(hotel.selectedPersons) || 1) * (parseInt(hotel.numberOfRooms) || 1);
                                 const checkboxChecked = document.getElementById(`hotel_is_supplement_${index}`)?.checked || false;
-                                return (serviceAdults < tourAdults) || checkboxChecked;
+                                return checkboxChecked;
                             })()
                         };
                     });
@@ -5423,6 +5495,13 @@
                         fd.append('mainguest', JSON.stringify(mainGuestData));
                         fd.append('additionalguest', JSON.stringify(additionalGuests));
                         fd.append('tour_type', tourType);
+                        // GROUP: persist FOC details (mounted inside modal)
+                        if (String(tourType).toUpperCase() === 'GROUP') {
+                            fd.append('foc_size', document.getElementById('foc_size')?.value || 0);
+                            fd.append('group_size', document.getElementById('group_size')?.value || 0);
+                            fd.append('paying_pax', document.getElementById('paying_pax')?.value || 0);
+                            fd.append('discount', document.getElementById('discount')?.value || 0);
+                        }
                         // Persist Single/Multi city selection to DB column `city_type`
                         fd.append('city_type', (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single');
                         return fd;
@@ -7701,6 +7780,188 @@
     <script>
         // Guest Dropdown Functions - Define them globally first
 
+        (function groupFOCBehavior() {
+            function safeInt(v) {
+                const n = parseInt(String(v ?? '').trim(), 10);
+                return Number.isFinite(n) ? n : 0;
+            }
+
+            function getSelectedTourType() {
+                const checked = document.querySelector('input[name="tour_type"]:checked');
+                return checked ? String(checked.value || '') : String(window.selectedTourType || 'FIT');
+            }
+
+            function getElVal(id) {
+                const el = document.getElementById(id);
+                return el ? el.value : '';
+            }
+
+            function setElVal(id, v) {
+                const el = document.getElementById(id);
+                if (el) el.value = String(v);
+            }
+
+            function updateFOCUI() {
+                const groupSize = Math.max(0, safeInt(getElVal('group_size')));
+                const focSize = Math.max(0, safeInt(getElVal('foc_size')));
+                const includeFOCPriceEl = document.getElementById('include_foc_in_group_price');
+                const includeFOCInPrice = !!(includeFOCPriceEl && includeFOCPriceEl.checked);
+                const includeFOCRow = document.getElementById('includeFOCInPriceRow');
+
+                // Store foc size in legacy field if backend expects it
+                setElVal('auto_foc', focSize);
+
+                // Total pax includes FOC pax on top of group size.
+                const totalPax = Math.max(0, groupSize + focSize);
+                setElVal('total_pax_display', totalPax);
+
+                // Checkbox only makes sense when FOC > 0
+                if (includeFOCRow) includeFOCRow.classList.toggle('d-none', focSize <= 0);
+                if (includeFOCPriceEl) {
+                    includeFOCPriceEl.disabled = focSize <= 0;
+                    if (focSize <= 0) includeFOCPriceEl.checked = false;
+                }
+
+                // Paying pax must never include FOC.
+                setElVal('paying_pax', groupSize);
+
+                // Discount flag to store:
+                // - If checkbox checked => discount = 1
+                // - If checkbox NOT checked => discount = 0
+                setElVal('discount', includeFOCInPrice ? 1 : 0);
+            }
+
+            function renderMainGuestSummary(male, female, children, infants) {
+                const adults = Math.max(0, safeInt(male) + safeInt(female));
+                const guestSummary = document.getElementById('mainGuestSummary');
+                if (!guestSummary) return;
+
+                let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+                summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+                summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${safeInt(male)}</span></span>`;
+                summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${safeInt(female)}</span></span>`;
+                summaryHTML += `</span>`;
+                summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+                summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${safeInt(children)}</span></span>`;
+                summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${safeInt(infants)}</span></span>`;
+                summaryHTML += `</span>`;
+                guestSummary.innerHTML = summaryHTML;
+            }
+
+            function syncGuestsFromTotalPax() {
+                const type = getSelectedTourType();
+                if (String(type).toUpperCase() !== 'GROUP') return;
+
+                const groupSize = Math.max(0, safeInt(getElVal('group_size')));
+                const focSize = Math.max(0, safeInt(getElVal('foc_size')));
+                const totalPax = Math.max(0, groupSize + focSize);
+
+                // Auto-populate Adults from Total Pax (Male gets all by default)
+                const adultsInput = document.getElementById('adults');
+                const maleInput = document.getElementById('male');
+                const femaleInput = document.getElementById('female');
+                const childrenInput = document.getElementById('children');
+                const infantsInput = document.getElementById('infants');
+
+                if (adultsInput) adultsInput.value = String(totalPax);
+                if (maleInput) maleInput.value = String(totalPax);
+                if (femaleInput) femaleInput.value = '0';
+                if (childrenInput) childrenInput.value = '0';
+                // keep infants as-is (do not auto-change)
+
+                renderMainGuestSummary(totalPax, 0, 0, safeInt(infantsInput?.value || 0));
+
+                // If modal is open, reflect values there too
+                const maleEl = document.getElementById('mainModalMale');
+                const femaleEl = document.getElementById('mainModalFemale');
+                const adultsEl = document.getElementById('mainModalAdults');
+                const childrenEl = document.getElementById('mainModalChildren');
+                if (maleEl) maleEl.textContent = String(totalPax);
+                if (femaleEl) femaleEl.textContent = '0';
+                if (adultsEl) adultsEl.textContent = String(totalPax);
+                if (childrenEl) childrenEl.textContent = '0';
+
+                try { window.updateAllServiceGuestFields && window.updateAllServiceGuestFields(totalPax, 0, 0, safeInt(infantsInput?.value || 0)); } catch (e) {}
+            }
+
+            function setGroupDetailsVisible(isVisible) {
+                const wrap = document.getElementById('groupDetailsWrapper');
+                if (!wrap) return;
+                wrap.classList.toggle('d-none', !isVisible);
+            }
+
+            function updateGroupDetailsVisibility() {
+                // Requested: do NOT show this section on the main page.
+                // We only mount + show it inside the guest modal when GROUP is selected.
+                setGroupDetailsVisible(false);
+            }
+
+            // Move existing Group Details section into/out of modal (no duplicate IDs).
+            window.mountGroupDetailsFOCIntoGuestModal = function (toModal) {
+                const wrapper = document.getElementById('groupDetailsWrapper');
+                if (!wrapper) return;
+
+                const placeholder = document.getElementById('groupDetailsPlaceholder');
+                const mount = document.getElementById('mainGuestGroupDetailsMount');
+                const isGroup = String(getSelectedTourType()).toUpperCase() === 'GROUP';
+
+                if (toModal) {
+                    if (!isGroup || !mount) return;
+                    wrapper.classList.remove('d-none');
+                    mount.appendChild(wrapper);
+                    return;
+                }
+
+                if (placeholder) placeholder.appendChild(wrapper);
+                // Always hide when it's back on the page
+                setGroupDetailsVisible(false);
+            };
+
+            document.addEventListener('input', function (e) {
+                const id = e && e.target ? e.target.id : '';
+                if (id === 'foc_size' || id === 'group_size_display') {
+                    // keep hidden group_size in sync with editable display field
+                    if (id === 'group_size_display') setElVal('group_size', safeInt(getElVal('group_size_display')));
+                    updateFOCUI();
+                    syncGuestsFromTotalPax();
+                }
+            }, true);
+
+            document.addEventListener('change', function (e) {
+                const t = e && e.target ? e.target : null;
+                const id = t && t.id ? t.id : '';
+
+                if (t && t.name === 'tour_type') {
+                    window.selectedTourType = t.value;
+                    updateGroupDetailsVisibility();
+                }
+                if (id === 'include_foc_in_group_price') {
+                    updateFOCUI();
+                }
+            }, true);
+
+            document.addEventListener('DOMContentLoaded', function () {
+                updateGroupDetailsVisibility();
+                // Initialize editable group size from existing hidden value (fallback to current Adults+Children once)
+                const existingGroup = safeInt(getElVal('group_size'));
+                const fallbackGroup = Math.max(0, safeInt(getElVal('adults')) + safeInt(getElVal('children')));
+                const initGroup = existingGroup > 0 ? existingGroup : fallbackGroup;
+                setElVal('group_size', initGroup);
+                setElVal('group_size_display', initGroup);
+                updateFOCUI();
+                syncGuestsFromTotalPax();
+
+                // Enable tooltips for info icons (Bootstrap 5)
+                try {
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
+                            bootstrap.Tooltip.getOrCreateInstance(el);
+                        });
+                    }
+                } catch (e) { /* ignore */ }
+            });
+        })();
+
         
         // Main Guest Selector - Uses the same modal pattern as attraction booking
         window.openMainGuestSelector = function() {
@@ -7738,6 +7999,13 @@
             // Show modal
             const modal = document.getElementById('mainGuestSelectorModal');
             const modalInstance = new bootstrap.Modal(modal);
+
+            // For GROUP: show the same Group Details (FOC) section inside this modal (move it, don't duplicate).
+            try {
+                if (typeof window.mountGroupDetailsFOCIntoGuestModal === 'function') {
+                    window.mountGroupDetailsFOCIntoGuestModal(true);
+                }
+            } catch (e) { /* ignore */ }
             
             // Add event listeners to handle focus properly
             modal.addEventListener('hidden.bs.modal', function () {
@@ -7746,6 +8014,13 @@
                 if (focusedElement && modal.contains(focusedElement)) {
                     focusedElement.blur();
                 }
+
+                // Always restore Group Details section back to form area
+                try {
+                    if (typeof window.mountGroupDetailsFOCIntoGuestModal === 'function') {
+                        window.mountGroupDetailsFOCIntoGuestModal(false);
+                    }
+                } catch (e) { /* ignore */ }
             });
             
             modalInstance.show();
@@ -7766,6 +8041,8 @@
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
                             </div>
                             <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
+                                <!-- Mount point: Group Details (FOC) section moves here for GROUP -->
+                                <div id="mainGuestGroupDetailsMount" class="mb-3"></div>
                                 <div class="row g-3">
                                     <!-- Adults Section -->
                                     <div class="col-md-6">
@@ -7921,6 +8198,7 @@
 
             element.textContent = newValue;
             if (adultsEl) adultsEl.textContent = totalAdults;
+            try { window.syncGroupSizeFromGuestModal && window.syncGroupSizeFromGuestModal(); } catch (e) {}
             return;
         }
 
@@ -7930,6 +8208,7 @@
         if (type === 'children') {
             updateChildAgeDropdowns(newValue);
         }
+        try { window.syncGroupSizeFromGuestModal && window.syncGroupSizeFromGuestModal(); } catch (e) {}
     };
     
     // Update total adults; when adults increased, add to male by default
@@ -7970,6 +8249,7 @@
         adultsEl.textContent = newAdults;
         maleEl.textContent = male;
         femaleEl.textContent = female;
+        try { window.syncGroupSizeFromGuestModal && window.syncGroupSizeFromGuestModal(); } catch (e) {}
     };
     
     // When clicking female +/-: move count between male and female, keeping adults total same
@@ -8002,6 +8282,7 @@
         if (adultsEl) {
             adultsEl.textContent = male + female;
         }
+        try { window.syncGroupSizeFromGuestModal && window.syncGroupSizeFromGuestModal(); } catch (e) {}
     };
         
         // Function to create/update child age dropdowns
@@ -8130,6 +8411,12 @@
                 updateHotelDependentDropdowns(hotelSelect.value);
             }
             
+            // Group size is manual (not derived from guest counts). Just refresh FOC/Paying/Total UI.
+            try {
+                const focSizeEl = document.getElementById('foc_size');
+                if (focSizeEl) focSizeEl.dispatchEvent(new Event('input', { bubbles: true }));
+            } catch (e) { /* ignore */ }
+
             // Update all service guest fields to match main guest values
             updateAllServiceGuestFields(male, female, children, infants);
             
@@ -15214,8 +15501,9 @@
                             <div class="card-body" style="padding: 1.25rem; background: #ffffff;">
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <div class="mb-2 d-flex flex-wrap gap-1">
+                                        <div class="mb-2 d-flex flex-wrap gap-1 align-items-center">
                                             <span class="badge" style="background: #667eea; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">${hotel.numberOfRooms} Room(s)</span>
+                                            <span class="badge" style="background: #0d6efd; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">${hotel.selectedPersons || 1} Pax</span>
                                             <span class="badge" style="background: #b3d9ff; color: #667eea; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">${hotel.roomType}</span>
                                             <span class="badge" style="background: #d1f2eb; color: #28a745; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">${hotel.bedType}</span>
                                         </div>
@@ -15393,7 +15681,7 @@
                                         
                                         <!-- Is Supplement -->
                                         <div class="mt-2 form-check">
-                                            <input class="form-check-input" type="checkbox" name="hotel_is_supplement_${index}" id="hotel_is_supplement_${index}" ${(hotel.supplement || hotel.is_supplement || ((hotel.selectedPersons || 1) * (hotel.numberOfRooms || 1)) < (parseInt(document.getElementById('adults')?.value || 1)) ? 'checked' : '')} onchange="if(typeof updateHotelDataField==='function') updateHotelDataField();">
+                                            <input class="form-check-input" type="checkbox" name="hotel_is_supplement_${index}" id="hotel_is_supplement_${index}" ${(hotel.supplement || hotel.is_supplement) ? 'checked' : ''} onchange="if(typeof updateHotelDataField==='function') updateHotelDataField();">
                                             <label class="form-check-label" style="color: #495057; font-size: 0.85rem;" for="hotel_is_supplement_${index}">Supplement </label>
                                         </div>
                                     </div>
@@ -23587,6 +23875,9 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Mount point: Group Details (FOC) moves here for GROUP -->
+                                <div id="mainGuestGroupDetailsMount" class="mt-3"></div>
                             </div>
                             <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 0.875rem 1.25rem; background: #f8f9fa;">
                                 <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s;">

@@ -208,13 +208,6 @@
 
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
-        // Hotel-only totals per-head (supplements excluded)
-        // overall total = hotel + other services
-        $hotelOnlySingleTotal = max(0, (float)($tourPrices['single_sharing'] ?? 0) - $otherSingleTotal);
-        $hotelOnlyDoubleTotal = max(0, (float)($tourPrices['double_sharing'] ?? 0) - $otherDoubleTotal);
-        // triple total is hotel-only by design
-        $hotelOnlyTripleTotal = max(0, (float)($tourPrices['triple_sharing'] ?? 0));
-
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
         $bookedAttractions = []; // list (keep duplicates)
@@ -526,26 +519,6 @@
                     @else
                         <div class="inclusion">No hotel options available</div>
                     @endif
-
-                    {{-- Price grid (Hotel only; per pax) --}}
-                    <div style="margin-top: 10px;">
-                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
                 </td>
 
                 <td class="quotation-col">
@@ -591,24 +564,36 @@
                         <div class="inclusion">No other services booked</div>
                     @endif
 
-                    {{-- Price (per pax) --}}
-                    <div style="margin-top: 10px;">
-                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($otherTotalForOccupancy) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    {{-- Price is shown in the overall section below --}}
                 </td>
             </tr>
         </table>
+
+        {{-- Overall totals (Hotel + Other services; supplements excluded) --}}
+        @php
+            $overallSingle = (float)($tourPrices['single_sharing'] ?? 0);
+            $overallDouble = (float)($tourPrices['double_sharing'] ?? 0);
+            $overallTriple = (float)($tourPrices['triple_sharing'] ?? 0);
+        @endphp
+        <div style="margin-top: 10px;">
+            <div class="panel-title">Packaged price per person (Hotel + Other Services)</div>
+            <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
+                <thead>
+                    <tr>
+                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($overallSingle) }}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($overallDouble) }}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($overallTriple) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
         
 
