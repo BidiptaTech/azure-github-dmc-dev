@@ -71,20 +71,19 @@ class PackageController extends Controller
             }
         }
 
-        // Price range filter
-        if ($request->filled('price_range')) {
-            $price = explode('-', $request->price_range);
-            if (count($price) == 2) {
-                $query->whereBetween('price_adult', [$price[0], $price[1]]);
-            } else {
-                // For 501+ price
-                $query->where('price_adult', '>', 501);
-            }
-        }
-
         // Category filter
         if ($request->filled('category')) {
             $query->where('category', $request->category);
+        }
+
+        // Package status filter: active packages are status=1 and not expired.
+        if ($request->filled('package_status')) {
+            if ($request->package_status === 'active') {
+                $query->where('status', '1')
+                    ->whereDate('expire_date', '>=', now()->toDateString());
+            } elseif ($request->package_status === 'expired') {
+                $query->whereDate('expire_date', '<', now()->toDateString());
+            }
         }
 
         // Sorting
@@ -112,7 +111,7 @@ class PackageController extends Controller
             $query->orderBy('created_at', 'desc');
         }
 
-        $packages = $query->paginate(12);
+        $packages = $query->paginate(12)->withQueryString();
         
         // Pre-process itinerary data for each package
         foreach ($packages as $package) {
@@ -543,7 +542,15 @@ class PackageController extends Controller
     {
         try {
             $package_id = Crypt::decrypt($package_id);
-            $package = Package::where('package_id', $package_id)->first();
+            $package = Package::withCount('bookings')->where('package_id', $package_id)->firstOrFail();
+
+            if ((int) ($package->bookings_count ?? 0) > 0) {
+                return back()->with('error', 'This package is already booked and cannot be deleted.');
+            }
+
+            if (!empty($package->expire_date) && $package->expire_date->endOfDay()->lt(now())) {
+                return back()->with('error', 'This package has expired and cannot be deleted.');
+            }
             
             // Note: Image cleanup is handled by the storage system configured in CommonHelper
             // The actual files will be managed based on the file_storage setting (local/s3/azure)
