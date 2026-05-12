@@ -8,9 +8,9 @@
                 <i class="ri-gift-line me-2 text-primary"></i>Packages
             </h4>
             <div class="d-flex gap-2">
-                <a href="{{ route('packages.create') }}" class="btn btn-primary">
+                {{-- <a href="{{ route('packages.create') }}" class="btn btn-primary">
                     <i class="ri-add-line me-1"></i>Create New Package
-                </a>
+                </a> --}}
                 <a href="{{ route('packages.definition.create') }}" class="btn btn-outline-primary">
                     <i class="ri-file-list-3-line me-1"></i>Package Definition
                 </a>
@@ -33,16 +33,6 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Price Range</label>
-                            <select class="form-select" name="price_range" onchange="this.form.submit()">
-                                <option value="">All Prices</option>
-                                <option value="0-100" {{ request('price_range') == '0-100' ? 'selected' : '' }}>$0 - $100</option>
-                                <option value="101-300" {{ request('price_range') == '101-300' ? 'selected' : '' }}>$101 - $300</option>
-                                <option value="301-500" {{ request('price_range') == '301-500' ? 'selected' : '' }}>$301 - $500</option>
-                                <option value="501+" {{ request('price_range') == '501+' ? 'selected' : '' }}>$501+</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
                             <label class="form-label">Category</label>
                             <select class="form-select" name="category" onchange="this.form.submit()">
                                 <option value="">All Categories</option>
@@ -52,6 +42,14 @@
                                 <option value="Beach" {{ request('category') == 'Beach' ? 'selected' : '' }}>Beach</option>
                                 <option value="Heritage" {{ request('category') == 'Heritage' ? 'selected' : '' }}>Heritage</option>
                                 <option value="Food & Culinary" {{ request('category') == 'Food & Culinary' ? 'selected' : '' }}>Food & Culinary</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Package Status</label>
+                            <select class="form-select" name="package_status" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                <option value="active" {{ request('package_status') == 'active' ? 'selected' : '' }}>Active</option>
+                                <option value="expired" {{ request('package_status') == 'expired' ? 'selected' : '' }}>Expired</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -105,6 +103,14 @@
                         $finalPrice = isset($priceDataArr['final_price']) && is_numeric($priceDataArr['final_price'])
                             ? (float) $priceDataArr['final_price']
                             : (is_numeric($package->price_adult) ? (float) $package->price_adult : 0);
+                        $isBooked = (int) ($package->bookings_count ?? 0) > 0;
+                        $isExpired = !empty($package->expire_date) && \Carbon\Carbon::parse($package->expire_date)->endOfDay()->lt(now());
+                        $statusLabel = $isExpired
+                            ? 'Expired'
+                            : ($package->status == '1' ? 'Active' : ($package->status == '0' ? 'Draft' : 'Inactive'));
+                        $statusClass = $isExpired
+                            ? 'danger'
+                            : ($package->status == '1' ? 'success' : ($package->status == '0' ? 'warning' : 'secondary'));
                     @endphp
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -112,8 +118,8 @@
                                 <div class="small">From SGD</div>
                                 <div class="h4 mb-0">${{ number_format($finalPrice, 2) }}</div>
                             </div>
-                            <span class="badge bg-{{ $package->status == '1' ? 'success' : ($package->status == '0' ? 'warning' : 'secondary') }}">
-                                {{ ucfirst($package->status == '1' ? 'Active' : ($package->status == '0' ? 'Draft' : 'Inactive')) }}
+                            <span class="badge bg-{{ $statusClass }}">
+                                {{ $statusLabel }}
                             </span>
                         </div>
                         
@@ -425,12 +431,14 @@
                                 <i class="ri-eye-line me-1"></i>Details
                             </a>
                             @php
-                                $isBooked = (int) ($package->bookings_count ?? 0) > 0;
-                                $isExpired = !empty($package->expire_date) && \Carbon\Carbon::parse($package->expire_date)->endOfDay()->lt(now());
                                 $editDisabled = $isBooked || $isExpired;
                                 $editTitle = $isBooked
                                     ? 'This package is already booked and cannot be edited.'
                                     : ($isExpired ? 'This package has expired and cannot be edited.' : '');
+                                $deleteDisabled = $isBooked || $isExpired;
+                                $deleteTitle = $isBooked
+                                    ? 'This package is already booked and cannot be deleted.'
+                                    : ($isExpired ? 'This package has expired and cannot be deleted.' : '');
                                 $editHref = $package->package_type === 'definition'
                                     ? route('packages.definition.edit', ['package_id' => Crypt::encrypt($package->package_id)])
                                     : route('packages.edit', ['package_id' => Crypt::encrypt($package->package_id)]);
@@ -455,14 +463,29 @@
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </a>
                             @endif
-                            <form action="{{ route('packages.destroy', ['package_id' => Crypt::encrypt($package->package_id)]) }}" method="POST" class="w-100">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-outline-danger btn-sm w-100" 
-                                        onclick="return confirm('Are you sure you want to delete this package?')">
-                                    <i class="ri-delete-bin-line me-1"></i>Delete
-                                </button>
-                            </form>
+                            @if($deleteDisabled)
+                                <span class="d-inline-block w-100"
+                                      tabindex="0"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top"
+                                      title="{{ $deleteTitle }}">
+                                    <button type="button"
+                                            class="btn btn-outline-danger btn-sm w-100 disabled"
+                                            tabindex="-1"
+                                            disabled>
+                                        <i class="ri-delete-bin-line me-1"></i>Delete
+                                    </button>
+                                </span>
+                            @else
+                                <form action="{{ route('packages.destroy', ['package_id' => Crypt::encrypt($package->package_id)]) }}" method="POST" class="w-100">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100" 
+                                            onclick="return confirm('Are you sure you want to delete this package?')">
+                                        <i class="ri-delete-bin-line me-1"></i>Delete
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 </div>
