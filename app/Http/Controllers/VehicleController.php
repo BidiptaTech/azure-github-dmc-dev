@@ -81,21 +81,21 @@ class VehicleController extends Controller
         $user = auth()->user();
         if ($user->role_id == 4) {
             $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } elseif ($user->role_id == 3) {
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->get();
         } elseif (in_array($user->role_id, [1, 2, 23, 20])) {
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->get();
         }
         elseif ($user->role_id == 10) {
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
          elseif ($user->role_id == 11 || $user->role_id == 20) {
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
          elseif ($user->role_id == 20) {
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
         elseif(in_array($user->role_id, [25, 62, 110])){
             if($user->role_id == 25){
@@ -112,23 +112,153 @@ class VehicleController extends Controller
             }
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } 
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 76 || $user->role_id == 139){
             $product_head = User::where('userId', $user->created_by)->first();
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
 
         }
         elseif($user->role_id == 111 || $user->role_id == 140){
             $product_manager = User::where('userId', $user->created_by)->first();
             $product_head = User::where('userId', $product_manager->created_by)->first();
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
+            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
         }
 
-        return view('vehicles.vehicle', compact('vehicles'));
+        if (! isset($vehicles)) {
+            $vehicles = collect();
+        }
+
+        $driversByDmc = collect();
+        if ($vehicles->isNotEmpty()) {
+            $dmcIds = $vehicles->pluck('dmc_id')->filter()->unique()->values();
+            $driversByDmc = Driver::whereIn('dmc_id', $dmcIds)
+                ->where(function ($q) {
+                    $q->where('status', 1)->orWhere('is_active', 1);
+                })
+                ->orderBy('name')
+                ->get()
+                ->groupBy('dmc_id');
+        }
+
+        $user = auth()->user();
+        $dmc_id = CommonHelper::getDmcId($user);
+        $drivers = Driver::where('dmc_id', $dmc_id)->get();
+
+        return view('vehicles.vehicle', compact('vehicles', 'drivers', 'driversByDmc'));
+    }
+
+    /**
+     * AJAX: assign or clear driver_id on a vehicle (drivers must belong to the vehicle's DMC).
+     */
+    public function updateDriverAjax(Request $request)
+    {
+        if (! hasPermission('edit vehicle')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'vehicle_id' => 'required|string',
+            'driver_id' => 'nullable|string',
+        ]);
+
+        try {
+            $vehiclePk = Crypt::decrypt($validated['vehicle_id']);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Invalid vehicle'], 422);
+        }
+
+        $vehicle = Vehicle::where('vehicle_id', $vehiclePk)->first();
+        if (! $vehicle) {
+            return response()->json(['success' => false, 'message' => 'Vehicle not found'], 404);
+        }
+
+        $driverIdRaw = $validated['driver_id'] ?? null;
+        $driverName = '—';
+
+        if ($driverIdRaw === null || $driverIdRaw === '') {
+            $vehicle->driver_id = null;
+        } else {
+            $driver = Driver::where('driver_id', $driverIdRaw)
+                ->where('dmc_id', $vehicle->dmc_id)
+                ->where(function ($q) {
+                    $q->where('status', 1)->orWhere('is_active', 1);
+                })
+                ->first();
+            if (! $driver) {
+                return response()->json(['success' => false, 'message' => 'Driver not valid for this vehicle'], 422);
+            }
+            $vehicle->driver_id = $driver->driver_id;
+            $driverName = (string) ($driver->name ?? '—');
+        }
+
+        $vehicle->save();
+
+        return response()->json([
+            'success' => true,
+            'driver_name' => $driverName,
+            'driver_id' => $vehicle->driver_id,
+        ]);
+    }
+
+    /**
+     * AJAX: update vehicle plate number (must remain unique per DMC using same normalization as store).
+     */
+    public function updatePlateAjax(Request $request)
+    {
+        if (! hasPermission('edit vehicle')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'vehicle_id' => 'required|string',
+            'vehicle_plate_no' => 'required|string|max:255',
+        ]);
+
+        try {
+            $vehiclePk = Crypt::decrypt($validated['vehicle_id']);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Invalid vehicle'], 422);
+        }
+
+        $vehicle = Vehicle::where('vehicle_id', $vehiclePk)->first();
+        if (! $vehicle) {
+            return response()->json(['success' => false, 'message' => 'Vehicle not found'], 404);
+        }
+
+        $plate = trim($validated['vehicle_plate_no']);
+        if ($plate === '') {
+            return response()->json(['success' => false, 'message' => 'Vehicle plate number is required.'], 422);
+        }
+
+        $normalizedPlateNumber = $this->normalizePlateNumber($plate);
+
+        $duplicate = Vehicle::withTrashed()
+            ->where('dmc_id', $vehicle->dmc_id)
+            ->where('vehicle_id', '!=', $vehicle->vehicle_id)
+            ->whereRaw(
+                "REPLACE(REPLACE(REPLACE(REPLACE(UPPER(vehicle_plate_no), ' ', ''), '-', ''), '/', ''), '&', '') = ?",
+                [$normalizedPlateNumber]
+            )
+            ->exists();
+
+        if ($duplicate) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A vehicle with this plate number already exists for this DMC.',
+            ], 422);
+        }
+
+        $vehicle->vehicle_plate_no = $plate;
+        $vehicle->save();
+
+        return response()->json([
+            'success' => true,
+            'vehicle_plate_no' => $vehicle->vehicle_plate_no,
+        ]);
     }
 
     /*
