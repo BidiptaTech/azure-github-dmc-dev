@@ -457,14 +457,6 @@
                         @endif
                         <div class="top-line"><span class="bold">Travelling Date:</span> {{ $travellingDate }}</div>
                         <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
-                        @if($showFocBlock)
-                            <div class="top-line">
-                                <span class="bold">FOC Discount:</span>
-                                Single: {{ $formatMoney($focDiscountSingle) }}
-                                &nbsp;/&nbsp;
-                                Double: {{ $formatMoney($focDiscountDouble) }}
-                            </div>
-                        @endif
                     </div>
                 </td>
             </tr>

@@ -68,6 +68,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
 use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
+use App\Http\Controllers\ChatController;
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
 
@@ -242,7 +243,7 @@ Route::get('/clear', function () {
             Route::get('/enquiry-form-pro/get-guides', [EnquiryFormPro::class, 'getGuidesByDestination'])->name('enquiry-form-pro.get-guides');
             Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
             Route::get('/enquiry-form-pro/fetch-meals-by-restaurant', [EnquiryFormPro::class, 'fetchMealsByRestaurant'])->name('enquiry-form-pro.fetch-meals-by-restaurant');
-            
+            Route::post('/create-chat', [ChatController::class, 'createChat'])->name('create-chat');
             // Debug route to check DMC data
             Route::get('/debug/dmc-data', function() {
                 $user = auth()->user();
