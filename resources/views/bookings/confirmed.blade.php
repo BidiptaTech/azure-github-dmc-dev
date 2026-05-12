@@ -1443,8 +1443,12 @@
                                         <i class="ri-eye-line"></i>
                                     </a>
                                     <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
-                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Quotation Preview" target="_blank">
-                                        <i class="ri-file-download-line"></i>
+                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Acco + Service Quotation" target="_blank">
+                                        <i class="ri-file-list-3-line"></i>
+                                    </a>
+                                    <a href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Packaged Quotation" target="_blank">
+                                        <i class="ri-stack-line"></i>
                                     </a>
                                     <a href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
                                        class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Preview Email Template" target="_blank">

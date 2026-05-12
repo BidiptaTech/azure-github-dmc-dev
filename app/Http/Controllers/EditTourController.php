@@ -322,6 +322,15 @@ class EditTourController extends Controller
         // Manually resolve tour by tour_id since route model binding uses 'id' by default
         $tour = Tour::where('tour_id', $tour)->firstOrFail();
 
+        // Normalize so validation + DB writes always see FIT/GROUP and integer FOC (UI may send mixed case).
+        if ($request->has('tour_type')) {
+            $rawType = strtoupper(trim((string) $request->input('tour_type')));
+            $request->merge(['tour_type' => in_array($rawType, ['FIT', 'GROUP'], true) ? $rawType : 'FIT']);
+        }
+        if ($request->has('foc_size')) {
+            $request->merge(['foc_size' => max(0, (int) $request->input('foc_size'))]);
+        }
+
         $validated = $request->validate([
             'display_id' => 'nullable|string|max:255',
             'user_country' => 'required|string|max:255',
@@ -335,7 +344,23 @@ class EditTourController extends Controller
             'agent_id' => 'required|exists:agents,agent_id',
             'child_ages' => 'nullable|string|max:255',
             'delete_affected_services' => 'nullable|boolean', // Flag to delete services outside date range
+            'tour_type' => 'nullable|in:FIT,GROUP',
+            'foc_size' => [
+                'nullable',
+                'integer',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    $f = max(0, (int) $value);
+                    $a = max(0, (int) $request->input('adults', 0));
+                    if ($f > $a) {
+                        $fail('FOC size cannot exceed total adults.');
+                    }
+                },
+            ],
+            'discount' => 'nullable|numeric|min:0|max:1',
         ]);
+
+        $focSizeReq = max(0, (int) $request->input('foc_size', $validated['foc_size'] ?? 0));
 
         try {
             DB::beginTransaction();
@@ -400,6 +425,16 @@ class EditTourController extends Controller
             $tour->agent_id = $validated['agent_id'];
             $tour->child_ages = !empty($validated['child_ages']) ? $validated['child_ages'] : null;
 
+            $tourType = strtoupper((string) ($validated['tour_type'] ?? $tour->tour_type ?? 'FIT'));
+            $tour->tour_type = $tourType;
+            if ($tourType === 'GROUP') {
+                $tour->foc_size = $focSizeReq;
+                $tour->discount = ((float) $request->input('discount', 0) >= 1.0) ? 1.0 : 0.0;
+            } else {
+                $tour->foc_size = 0;
+                $tour->discount = 0.0;
+            }
+
             // If tour date range changed, ensure multi-city plans still fit within the new tour range.
             // Any city plan that is not fully contained in [checkIn, checkOut] is removed from tours.city,
             // and its services are soft-deleted so city/date + services stay consistent.
@@ -452,6 +487,9 @@ class EditTourController extends Controller
                     'male' => $tour->male_count,
                     'female' => $tour->female_count,
                     'agent_id' => $tour->agent_id,
+                    'tour_type' => $tour->tour_type,
+                    'foc_size' => (int) ($tour->foc_size ?? 0),
+                    'discount' => (float) ($tour->discount ?? 0),
                 ],
                 'deleted_services_count' => $deletedServicesCount,
             ]);
