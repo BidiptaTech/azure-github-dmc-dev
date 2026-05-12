@@ -1210,9 +1210,13 @@
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Quotation Preview" target="_blank">
-                                        <i class="ri-file-download-line"></i>
+                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Acco + Service Quotation" target="_blank">
+                                        <i class="ri-file-list-3-line"></i>
+                                    </a>
+                                    <a href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Packaged Quotation" target="_blank">
+                                        <i class="ri-stack-line"></i>
                                     </a>
                                     @if($tour->tour_status == 'Tentative')
                                         @php

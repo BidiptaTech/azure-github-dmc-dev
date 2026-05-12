@@ -206,7 +206,7 @@ Route::get('/clear', function () {
             // Order management routes
             Route::post('/api/orders/{id}/cancel', [SingleTourPackageController::class, 'cancelOrder'])->name('api.orders.cancel');
             
-            Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
+            // Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
             Route::get('/single-tour-package/create/{enquiry_id?}', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
             Route::get('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou'])->name('single-tour-package.thank-you');
             Route::post('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou']);
@@ -321,6 +321,8 @@ Route::get('/clear', function () {
             // Preview page for itinerary with currency selection and download button
             Route::get('/tour/{encryptedTourId}/itinerary-preview', [\App\Http\Controllers\QuotationController::class, 'itineraryPreview'])
                 ->name('tour.itinerary.preview');
+            Route::get('/tour/{encryptedTourId}/detailed-quotation-preview', [\App\Http\Controllers\QuotationController::class, 'detailedQuotationPreview'])
+                ->name('tour.detailed-quotation.preview');
 
             // PDF generation route (used by preview iframe and direct download)
             Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
@@ -607,8 +609,10 @@ Route::get('/clear', function () {
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
         Route::get('/packages/definition/create', [PackageController::class, 'createDefinition'])->name('packages.definition.create');
         Route::post('/packages/definition', [PackageController::class, 'storeDefinition'])->name('packages.definition.store');
+        Route::get('/packages/definition/{package_id}/edit', [PackageController::class, 'editDefinition'])->name('packages.definition.edit');
+        Route::put('/packages/definition/{package_id}', [PackageController::class, 'updateDefinition'])->name('packages.definition.update');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
-        // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+        Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
         Route::get('/packages/booking/create/{package_id?}', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create');
         Route::get('/packages/{package_id}/booking', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create.legacy');
