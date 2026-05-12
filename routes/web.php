@@ -817,6 +817,8 @@ Route::get('/clear', function () {
         Route::post('/vehicle/add-mapping', [VehicleController::class, 'addMappingAjax'])->name('vehicle.add_mapping');
         Route::post('/vehicle/delete-mapping', [VehicleController::class, 'deleteMappingAjax'])->name('vehicle.delete_mapping');
         Route::post('/vehicle/restore-mapping', [VehicleController::class, 'restoreMappingAjax'])->name('vehicle.restore_mapping');
+        Route::post('/vehicle/update-driver', [VehicleController::class, 'updateDriverAjax'])->name('vehicle.update_driver');
+        Route::post('/vehicle/update-plate', [VehicleController::class, 'updatePlateAjax'])->name('vehicle.update_plate');
 
         // tickets
         Route::resource('tickets', TicketController::class);

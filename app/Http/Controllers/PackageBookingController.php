@@ -350,8 +350,12 @@ class PackageBookingController extends Controller
         if ($startDate->lt($pkgStart) || $endDate->gt($pkgExpire)) {
             return back()->withInput()->with('error', 'Travel dates fall outside this package\'s validity window.');
         }
-        if ((int)$duration !== (int) ($package->duration_days ?? 0)) {
-            return back()->withInput()->with('error', 'Travel dates do not match the selected package duration.');
+        $pkgDurationDays = (int) ($package->duration_days ?? 0);
+        if ($pkgDurationDays < 1) {
+            $pkgDurationDays = 1;
+        }
+        if ($duration < $pkgDurationDays) {
+            return back()->withInput()->with('error', 'Travel end date cannot be earlier than the minimum tour length for this package.');
         }
 
         $ceilToFive = function ($n) {
