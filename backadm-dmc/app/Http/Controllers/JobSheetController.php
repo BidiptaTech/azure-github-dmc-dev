@@ -20,6 +20,7 @@ use App\Models\Zone;
 use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Restaurant;
+use App\Services\FirebaseService;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -72,6 +73,43 @@ class JobSheetController extends Controller
         }
 
         return 'N/A';
+    }
+
+    private function syncChatAssignmentToFirebase($tourId, $dmcId, $orderId, $driverId = null, $guideId = null)
+    {
+        $payload = array_filter([
+            'driverId' => !empty($driverId) ? (int) $driverId : null,
+            'guideId' => !empty($guideId) ? (int) $guideId : null,
+        ], static fn ($value) => !is_null($value));
+
+        if (empty($payload) || empty($tourId) || empty($dmcId) || empty($orderId)) {
+            return null;
+        }
+
+        try {
+            return app(FirebaseService::class)->upsertChatAssignment(
+                (int) $tourId,
+                (int) $dmcId,
+                (string) $orderId,
+                $payload
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            \Log::error('Firebase chat assignment sync failed', [
+                'tour_id' => $tourId,
+                'order_id' => $orderId,
+                'driver_id' => $driverId,
+                'guide_id' => $guideId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Jobsheet updated but Firebase chat sync failed.',
+                'error' => $e->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -1644,6 +1682,8 @@ class JobSheetController extends Controller
     {
         
         try {
+            $firebaseSync = null;
+
             // Log all incoming request data for debugging
             \Log::info('updateDriverVehicleAssignment called', [
                 'all_data' => $request->all(),
@@ -1863,11 +1903,23 @@ class JobSheetController extends Controller
                 $is_saved = $jobsheet->save();
             }
 
+            if ($is_saved) {
+                $firebaseSync = $this->syncChatAssignmentToFirebase(
+                    $actualTourId,
+                    $request->dmc_id,
+                    $request->order_id,
+                    $jobsheet->driver_id ?? null,
+                    $jobsheet->guide_id ?? null
+                );
+            }
+
             // Log the driver information being returned
             \Log::info('Assignment update response', [
                 'jobsheet_id' => $jobsheet->jobsheet_id ?? null,
                 'vehicle_id' => $jobsheet->vehicle_id ?? null,
                 'driver_id' => $jobsheet->driver_id ?? null,
+                'guide_id' => $jobsheet->guide_id ?? null,
+                'firebase_sync' => $firebaseSync,
                 'driver_returned' => $driver ? [
                     'driver_id' => $driver->driver_id,
                     'name' => $driver->name,
@@ -1897,6 +1949,7 @@ class JobSheetController extends Controller
                 'message' => $is_saved ? 'Assignment updated successfully' : 'Error updating driver/vehicle/guide assignment',
                 'jobsheet' => $jobsheet,
                 'vehicle' => $vehicle,
+                'firebase_sync' => $firebaseSync,
                 'driver' => $driver ? [
                     'driver_id' => $driver->driver_id,
                     'name' => $driver->name,
