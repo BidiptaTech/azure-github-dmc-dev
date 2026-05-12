@@ -1139,11 +1139,11 @@
                         <div id="adultDetailsContainer" style="display: none;" class="adult-details-container">
                             <div class="field-item">
                                 <span class="detail-label">Man:</span>
-                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultManInput" min="0" value="0" onchange="validateAdultBreakdown()">
+                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultManInput" min="0" value="{{ isset($initialData['male']) ? (int) $initialData['male'] : 0 }}" onchange="validateAdultBreakdown()">
                             </div>
                             <div class="field-item">
                                 <span class="detail-label">Women:</span>
-                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultWomenInput" min="0" value="0" onchange="validateAdultBreakdown()">
+                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultWomenInput" min="0" value="{{ isset($initialData['female']) ? (int) $initialData['female'] : 0 }}" onchange="validateAdultBreakdown()">
                             </div>
                         </div>
                         
@@ -8289,6 +8289,19 @@
         console.log(`Total guides loaded: ${guideList.length}`);
     }
     
+    @php
+        $__ctpInitChildAges = [];
+        if (isset($initialData['child_ages']) && $initialData['child_ages'] !== '') {
+            $raw = $initialData['child_ages'];
+            if (is_string($raw)) {
+                $d = json_decode($raw, true);
+                $__ctpInitChildAges = is_array($d) ? $d : [];
+            } elseif (is_array($raw)) {
+                $__ctpInitChildAges = $raw;
+            }
+        }
+    @endphp
+
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         // Set flag to prevent header date updates during initialization
@@ -8328,7 +8341,17 @@
         updateAdultDetails();
         updateChildDetails();
         updateInfantDetails();
-        
+        (function applyInitialChildAgesFromTourPro() {
+            const ages = @json($__ctpInitChildAges ?? []);
+            if (!Array.isArray(ages) || !ages.length) return;
+            ages.forEach((age, idx) => {
+                const sel = document.getElementById('childAge' + (idx + 1));
+                if (!sel || age === null || age === '') return;
+                const n = parseInt(age, 10);
+                if (Number.isFinite(n) && n >= 0 && n <= 17) sel.value = String(n);
+            });
+        })();
+
         // Load existing table data into arrays BEFORE scanning
         loadExistingDataIntoArrays();
         
