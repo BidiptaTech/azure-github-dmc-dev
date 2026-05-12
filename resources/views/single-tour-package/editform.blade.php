@@ -665,7 +665,34 @@
             background: #f8f9fa;
         }
 
-        /* Keep accordions full-width (match Hotel + Arrival headers) */
+        /* Services + guests: 20px horizontal gutters; row reset stops Bootstrap .row from sticking out wider */
+        .excel-form #segmentServicesBundle,
+        .excel-form #guestInfoSection {
+            margin-left: 20px;
+            margin-right: 20px;
+            box-sizing: border-box;
+        }
+        .excel-form #multiCityServicesHint {
+            margin-left: 20px;
+            margin-right: 20px;
+            box-sizing: border-box;
+        }
+        .excel-form #segmentServicesBundle #servicesAccordion > .row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        .excel-form #segmentServicesBundle #servicesAccordion > .row > .col-12 {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .excel-form #guestInfoSection > .row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        .excel-form #guestInfoSection > .row > .col-12 {
+            padding-left: 0;
+            padding-right: 0;
+        }
         .excel-form #servicesAccordion,
         .excel-form .day-services,
         .excel-form .service-section,
@@ -1084,19 +1111,25 @@
                                 </div>
                             </div>
 
+                            @php
+                                $editTourTypeNormalized = strtoupper((string) (old('tour_type', $tour->tour_type ?? 'FIT')));
+                                if (!in_array($editTourTypeNormalized, ['FIT', 'GROUP'], true)) {
+                                    $editTourTypeNormalized = 'FIT';
+                                }
+                            @endphp
                             <div class="d-flex align-items-center ms-3">
                                 <div class="tour-type-wrapper" style="min-width: 220px;">
                                     <div class="tour-toggle">
-                                        <input type="radio" name="tour_type" id="fit" value="FIT" {{ (old('tour_type', $tour->tour_type ?? 'FIT') === 'FIT') ? 'checked' : '' }} disabled>
+                                        <input type="radio" name="tour_type" id="fit" value="FIT" {{ $editTourTypeNormalized === 'FIT' ? 'checked' : '' }} disabled>
                                         <label for="fit">FIT</label>
 
-                                        <input type="radio" name="tour_type" id="group" value="GROUP" {{ (old('tour_type', $tour->tour_type ?? 'FIT') === 'GROUP') ? 'checked' : '' }} disabled>
+                                        <input type="radio" name="tour_type" id="group" value="GROUP" {{ $editTourTypeNormalized === 'GROUP' ? 'checked' : '' }} disabled>
                                         <label for="group">GROUP</label>
 
                                         <span class="slider"></span>
                                     </div>
                                     {{-- Disabled radios don't submit; keep current tour_type --}}
-                                    <input type="hidden" name="tour_type" value="{{ old('tour_type', $tour->tour_type ?? 'FIT') }}">
+                                    <input type="hidden" name="tour_type" value="{{ $editTourTypeNormalized }}">
                                 </div>
                                 <div class="ms-3" style="min-width: 240px;">
                                     <div class="city-toggle">
@@ -1221,6 +1254,75 @@
                                     <input type="hidden" name="male_count" id="male_count" value="{{ isset($tour->male_count) ? $tour->male_count : ($tour->adult ?? 1) }}">
                                     <input type="hidden" name="female_count" id="female_count" value="{{ isset($tour->female_count) ? $tour->female_count : 0 }}">
                                     <input type="hidden" name="child_ages" id="child_ages" value="{{ $tour->child_ages ?? '' }}">
+
+                                    @php
+                                        $editTourTypeForFoc = $editTourTypeNormalized ?? strtoupper((string) ($tour->tour_type ?? 'FIT'));
+                                        if (!in_array($editTourTypeForFoc, ['FIT', 'GROUP'], true)) {
+                                            $editTourTypeForFoc = 'FIT';
+                                        }
+                                        $editFocSizeVal = max(0, (int) ($tour->foc_size ?? 0));
+                                        $editAdultTotalForFoc = max(1, (int) ($tour->adult ?? 1));
+                                        $editPayingAdultsForFoc = max(0, $editAdultTotalForFoc - $editFocSizeVal);
+                                        $editIncludeFocAsDiscount = ((float) ($tour->discount ?? 0) >= 1);
+                                    @endphp
+                                    <!-- GROUP: FOC (Free of Charge) — tour-wide; same semantics as create flow -->
+                                    <div id="groupDetailsPlaceholder" class="mt-2">
+                                        {{-- Wrapper stays off-page until GROUP guest modal mounts it (same pattern as create) --}}
+                                        <div id="groupDetailsWrapper" class="d-none">
+                                            <div class="p-2 border rounded" style="background:#ffffff;border-color:#e9ecef !important;border-radius:10px;">
+                                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                                    <div class="fw-semibold" style="color:#495057; font-size:0.82rem;">
+                                                        <i class="ri-group-2-line me-1" style="color:#0d6efd;"></i>Group Details
+                                                    </div>
+                                                    <span class="badge" style="background:#e7f1ff;color:#0d6efd;border-radius:6px;font-size:0.7rem;">FOC</span>
+                                                </div>
+                                                <div id="groupDetailsCollapse">
+                                                    <div class="row g-2">
+                                                        <input type="hidden" id="group_size" name="group_size" value="{{ $editPayingAdultsForFoc }}">
+                                                        <div class="col-6">
+                                                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Paying adults (group size)</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" min="0" step="1" class="form-control" id="group_size_display" value="{{ $editPayingAdultsForFoc }}" style="background:#ffffff;border-radius:8px 0 0 8px;">
+                                                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <label for="foc_size" class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">FOC size</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" min="0" step="1" class="form-control" id="foc_size" name="foc_size" value="{{ old('foc_size', $editFocSizeVal) }}" style="border-radius:8px 0 0 8px;">
+                                                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-12 {{ $editFocSizeVal <= 0 ? 'd-none' : '' }}" id="includeFOCInPriceRow">
+                                                            <div class="form-check d-flex align-items-center gap-2" style="margin-top:2px;">
+                                                                <input class="form-check-input" type="checkbox" id="include_foc_in_group_price" name="include_foc_in_group_price" value="1" {{ $editIncludeFocAsDiscount ? 'checked' : '' }} {{ $editFocSizeVal <= 0 ? 'disabled' : '' }}>
+                                                                <label class="form-check-label" for="include_foc_in_group_price" style="color:#495057; font-size:0.74rem;">
+                                                                    Treat FOC pax as discount (free)
+                                                                </label>
+                                                                <i class="ri-information-line text-dark fw-bold" style="font-size:1.05rem; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="<div style='text-align:left;'><div class='fw-semibold mb-1'>Note:</div><div><span class='text-warning fw-semibold'>☑</span> FOC cost is discounted in paying pax.</div><div><span class='text-warning fw-semibold'>☐</span> FOC cost is included in paying pax.</div></div>"></i>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Paying pax</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" class="form-control" id="paying_pax" value="{{ $editPayingAdultsForFoc }}" readonly style="background:#f8f9fa;border-radius:8px 0 0 8px;">
+                                                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Total adults</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="text" class="form-control" id="total_pax_display" value="{{ $editAdultTotalForFoc }}" readonly style="background:#f8f9fa;border-radius:8px 0 0 8px;">
+                                                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                                                            </div>
+                                                        </div>
+                                                        <input type="hidden" id="discount" name="discount" value="{{ $editIncludeFocAsDiscount ? 1 : 0 }}">
+                                                        <input type="hidden" id="auto_foc" name="auto_foc" value="{{ $editFocSizeVal }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Agency / Agent moved to next row with City -->
@@ -1338,239 +1440,6 @@
         @endphp
         </form>
         <!-- End of main tour information form -->
-        
-        <!-- Combined Guest Information Section (Lead Guest + Additional Guests) -->
-        <div id="guestInfoSection">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <!-- Customer Information Section (always show when editing tour so Lead Guest can be added/updated) -->
-                    @php $customer_info = $customer_info ?? []; @endphp
-                    @if(isset($tour))
-                        <div class="accordion mb-4" id="customerAccordion">
-                            <div class="accordion-item border-0">
-                                <div class="card shadow-sm border-0">
-                                    <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem; margin-right: 20px; margin-left: 20px;">
-                                        <div class="d-flex align-items-center">
-                                            <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                <i class="ri-user-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Lead Guest information</h6>
-                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; display:block; margin-top:2px;">Manage customer details and contact information</small>
-                                            </div>
-                                        </div>
-                                        <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
-                                    </div>
-                                    <div id="customerInformationSection" class="collapse" data-bs-parent="#customerAccordion">
-                                        <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem; margin-right: 15px; margin-left: 15px;">
-                                            <div class="row g-2">
-                                                <div class="col-md-2">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
-                                                    <select
-                                                        class="form-select form-select-sm"
-                                                        id="customerSalutation"
-                                                        name="customer_salutation"
-                                                        style="font-size: 0.85rem;"
-                                                    >
-                                                        <option value="">Select</option>
-                                                        <option value="Mr" {{ ($customer_info['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
-                                                        <option value="Mrs" {{ ($customer_info['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
-                                                        <option value="Ms" {{ ($customer_info['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
-                                                        <option value="Miss" {{ ($customer_info['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
-                                                        <option value="Dr" {{ ($customer_info['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
-                                                    <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" style="font-size: 0.85rem;">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
-                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" style="font-size: 0.85rem;">
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
-                                                    @php
-                                                        $tourCountryForCode = $countries->firstWhere('name', $tour->destination ?? '');
-                                                        $defaultCountryCode = $customer_info['countryCode'] ?? ($tourCountryForCode->country_code ?? '');
-                                                    @endphp
-                                                    <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
-                                                        <option value="">Select</option>
-                                                        @foreach($countries as $country)
-                                                            @if(!empty($country->country_code))
-                                                                <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
-                                                            @endif
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
-                                                    <input type="tel" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}" style="font-size: 0.85rem;">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 1</label>
-                                                    <input type="text" class="form-control form-control-sm" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}" style="font-size: 0.85rem;">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 2</label>
-                                                    <input type="text" class="form-control form-control-sm" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}" style="font-size: 0.85rem;">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">State</label>
-                                                    <input type="text" class="form-control form-control-sm" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}" style="font-size: 0.85rem;">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
-                                                    <input type="text" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}" style="font-size: 0.85rem;">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
-                                                    <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
-                                                </div>
-                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
-                                                    <div class="col-md-6">
-                                                        <label class="form-label mb-1" style="font-size: 0.8rem;">
-                                                            <i class="ri-lock-password-line me-1"></i>App Password
-                                                        </label>
-                                                        <div class="d-flex gap-1">
-                                                            <input type="password" class="form-control form-control-sm" id="customerAppPassword" name="customer_app_password" placeholder="Enter app password" autocomplete="new-password" style="font-size: 0.85rem; flex: 1;">
-                                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
-                                                                <i class="ri-eye-off-line"></i>
-                                                            </button>
-                                                            <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
-                                                                <i class="ri-key-line me-1"></i>Generate
-                                                            </button>
-                                                        </div>
-                                                        <small class="text-muted" style="font-size: 0.7rem;">Credentials email is sent to the lead guest only when Email and App Password are set and you save.</small>
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
-
-                    <!-- Additional Guests Section -->
-                    <div class="accordion mb-4" id="additionalGuestsAccordion">
-                        <div class="accordion-item border-0">
-                            <div class="card shadow-sm border-0">
-                                <div class="card-header text-white d-flex justify-content-between align-items-center collapsed" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="false" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem; margin-right: 20px; margin-left: 20px;">
-                                    <div class="d-flex align-items-center">
-                                        <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px; ">
-                                            <i class="ri-group-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Additional Guest(s)</h6>
-                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">
-                                                Add guest details up to the tour pax (Adults + Children)
-                                            </small>
-                                        </div>
-                                    </div>
-                                    <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
-                                </div>
-                                <div id="additionalGuestsSection" class="collapse" data-bs-parent="#additionalGuestsAccordion">
-                                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                        <div class="mb-3 text-end">
-                                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addNewGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                <i class="ri-add-line me-1"></i>Add Guest
-                                            </button>
-                                        </div>
-                                        <div id="additionalGuestsContainer">
-                                            @if(!empty($additionalGuests))
-                                                @foreach($additionalGuests as $index => $guest)
-                                                    <div class="card mb-3 border shadow-sm guest-card" data-guest-index="{{ $index }}">
-                                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                                            <h6 class="mb-0 fw-semibold">
-                                                                <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
-                                                            </h6>
-                                                            <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="{{ $index }}" title="Remove Guest">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                        <div class="card-body" style="margin-top:10px">
-                                                            <div class="row g-3">
-                                                                <div class="col-md-2">
-                                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
-                                                                    <select
-                                                                        class="form-select form-select-sm guest-salutation"
-                                                                        name="additional_guests[{{ $index }}][salutation]"
-                                                                        style="font-size: 0.85rem;"
-                                                                    >
-                                                                        <option value="">Select</option>
-                                                                        <option value="Mr" {{ ($guest['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
-                                                                        <option value="Mrs" {{ ($guest['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
-                                                                        <option value="Ms" {{ ($guest['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
-                                                                        <option value="Miss" {{ ($guest['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
-                                                                        <option value="Dr" {{ ($guest['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
-                                                                    </select>
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <label class="form-label fw-semibold">Name</label>
-                                                                    <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <label class="form-label fw-semibold">Passport No.</label>
-                                                                    <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <label class="form-label fw-semibold">Passport Expiry</label>
-                                                                    <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
-                                                                </div>
-                                                                <div class="col-md-4">
-                                                                    <label class="form-label fw-semibold">Contact No.</label>
-                                                                    <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
-                                                                </div>
-                                                                <div class="col-md-4">
-                                                                    <label class="form-label fw-semibold">Email</label>
-                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
-                                                                </div>
-                                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
-                                                                    <div class="col-md-4">
-                                                                        <label class="form-label fw-semibold"><i class="ri-lock-password-line me-1"></i>App Password</label>
-                                                                        <div class="d-flex gap-1">
-                                                                            <input type="password" class="form-control guest-app-password" name="additional_guests[{{ $index }}][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
-                                                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
-                                                                                <i class="ri-eye-off-line"></i>
-                                                                            </button>
-                                                                            <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
-                                                                                <i class="ri-key-line me-1"></i>Generate
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endforeach
-                                            @else
-                                                <div class="text-muted small mb-3 p-3 bg-light rounded">
-                                                    <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <div class="mt-3 small" id="guestLimitInfo" style="padding: 10px; background: #e7f3ff; border-radius: 6px; border: 1px solid #b3d9ff;">
-                                            <i class="ri-information-line me-1"></i>
-                                            Maximum <span id="maxAdditionalGuests">0</span> additional guest(s) can be added based on total pax (Adults + Children): <span id="totalPaxCount">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Save Changes Button -->
-                    <div class="d-flex justify-content-end mt-4 pt-3">
-                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; height: 35px; padding: 0 10px; margin-right: 20px; margin-left: 20px;">
-                            <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
-                            <i class="ri-save-3-line"></i>
-                            <span>Save Guest Changes</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
 
             <!-- Service Action Buttons -->
 
@@ -5435,9 +5304,246 @@
                                     </div> <!-- end departureTransportSection collapse -->
                                 </div>
                             </div>
-
-            </div>
+                        </div><!-- end day unified .card-body p-0 -->
+                    </div><!-- end day .card -->
+                </div><!-- end day .col-12 -->
+            </div><!-- end day .row.mb-4 -->
+            </div><!-- end #servicesAccordion -->
+            </div><!-- end #segmentServicesBundle -->
             <!-- /#segmentServicesBundle -->
+
+        <!-- Combined Guest Information Section (Lead Guest + Additional Guests) -->
+        <div id="guestInfoSection">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <!-- Customer Information Section (always show when editing tour so Lead Guest can be added/updated) -->
+                    @php $customer_info = $customer_info ?? []; @endphp
+                    @if(isset($tour))
+                        <div class="accordion mb-4" id="customerAccordion">
+                            <div class="accordion-item border-0">
+                                <div class="card shadow-sm border-0">
+                                    <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem;">
+                                        <div class="d-flex align-items-center">
+                                            <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                <i class="ri-user-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Lead Guest information</h6>
+                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; display:block; margin-top:2px;">Manage customer details and contact information</small>
+                                            </div>
+                                        </div>
+                                        <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
+                                    </div>
+                                    <div id="customerInformationSection" class="collapse" data-bs-parent="#customerAccordion">
+                                        <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
+                                            <div class="row g-2">
+                                                <div class="col-md-2">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                                    <select
+                                                        class="form-select form-select-sm"
+                                                        id="customerSalutation"
+                                                        name="customer_salutation"
+                                                        style="font-size: 0.85rem;"
+                                                    >
+                                                        <option value="">Select</option>
+                                                        <option value="Mr" {{ ($customer_info['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                        <option value="Mrs" {{ ($customer_info['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                        <option value="Ms" {{ ($customer_info['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                        <option value="Miss" {{ ($customer_info['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                        <option value="Dr" {{ ($customer_info['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
+                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
+                                                    @php
+                                                        $tourCountryForCode = $countries->firstWhere('name', $tour->destination ?? '');
+                                                        $defaultCountryCode = $customer_info['countryCode'] ?? ($tourCountryForCode->country_code ?? '');
+                                                    @endphp
+                                                    <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
+                                                        <option value="">Select</option>
+                                                        @foreach($countries as $country)
+                                                            @if(!empty($country->country_code))
+                                                                <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
+                                                    <input type="tel" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 1</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 2</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">State</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
+                                                    <input type="text" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}" style="font-size: 0.85rem;">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
+                                                    <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
+                                                </div>
+                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                    <div class="col-md-6">
+                                                        <label class="form-label mb-1" style="font-size: 0.8rem;">
+                                                            <i class="ri-lock-password-line me-1"></i>App Password
+                                                        </label>
+                                                        <div class="d-flex gap-1">
+                                                            <input type="password" class="form-control form-control-sm" id="customerAppPassword" name="customer_app_password" placeholder="Enter app password" autocomplete="new-password" style="font-size: 0.85rem; flex: 1;">
+                                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                                <i class="ri-eye-off-line"></i>
+                                                            </button>
+                                                            <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                                <i class="ri-key-line me-1"></i>Generate
+                                                            </button>
+                                                        </div>
+                                                        <small class="text-muted" style="font-size: 0.7rem;">Credentials email is sent to the lead guest only when Email and App Password are set and you save.</small>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Additional Guests Section -->
+                    <div class="accordion mb-4" id="additionalGuestsAccordion">
+                        <div class="accordion-item border-0">
+                            <div class="card shadow-sm border-0">
+                                <div class="card-header text-white d-flex justify-content-between align-items-center collapsed" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="false" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem;">
+                                    <div class="d-flex align-items-center">
+                                        <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px; ">
+                                            <i class="ri-group-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Additional Guest(s)</h6>
+                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">
+                                                Add guest details up to the tour pax (Adults + Children)
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
+                                </div>
+                                <div id="additionalGuestsSection" class="collapse" data-bs-parent="#additionalGuestsAccordion">
+                                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                        <div class="mb-3 text-end">
+                                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addNewGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                                <i class="ri-add-line me-1"></i>Add Guest
+                                            </button>
+                                        </div>
+                                        <div id="additionalGuestsContainer">
+                                            @if(!empty($additionalGuests))
+                                                @foreach($additionalGuests as $index => $guest)
+                                                    <div class="card mb-3 border shadow-sm guest-card" data-guest-index="{{ $index }}">
+                                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                            <h6 class="mb-0 fw-semibold">
+                                                                <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
+                                                            </h6>
+                                                            <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="{{ $index }}" title="Remove Guest">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                        <div class="card-body" style="margin-top:10px">
+                                                            <div class="row g-3">
+                                                                <div class="col-md-2">
+                                                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                                                    <select
+                                                                        class="form-select form-select-sm guest-salutation"
+                                                                        name="additional_guests[{{ $index }}][salutation]"
+                                                                        style="font-size: 0.85rem;"
+                                                                    >
+                                                                        <option value="">Select</option>
+                                                                        <option value="Mr" {{ ($guest['salutation'] ?? '') == 'Mr' ? 'selected' : '' }}>Mr</option>
+                                                                        <option value="Mrs" {{ ($guest['salutation'] ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs</option>
+                                                                        <option value="Ms" {{ ($guest['salutation'] ?? '') == 'Ms' ? 'selected' : '' }}>Ms</option>
+                                                                        <option value="Miss" {{ ($guest['salutation'] ?? '') == 'Miss' ? 'selected' : '' }}>Miss</option>
+                                                                        <option value="Dr" {{ ($guest['salutation'] ?? '') == 'Dr' ? 'selected' : '' }}>Dr</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="form-label fw-semibold">Name</label>
+                                                                    <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="form-label fw-semibold">Passport No.</label>
+                                                                    <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="form-label fw-semibold">Passport Expiry</label>
+                                                                    <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
+                                                                </div>
+                                                                <div class="col-md-4">
+                                                                    <label class="form-label fw-semibold">Contact No.</label>
+                                                                    <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                                                </div>
+                                                                <div class="col-md-4">
+                                                                    <label class="form-label fw-semibold">Email</label>
+                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
+                                                                </div>
+                                                                @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
+                                                                    <div class="col-md-4">
+                                                                        <label class="form-label fw-semibold"><i class="ri-lock-password-line me-1"></i>App Password</label>
+                                                                        <div class="d-flex gap-1">
+                                                                            <input type="password" class="form-control guest-app-password" name="additional_guests[{{ $index }}][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
+                                                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                                                                <i class="ri-eye-off-line"></i>
+                                                                            </button>
+                                                                            <button class="btn btn-outline-primary btn-sm" type="button" onclick="generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                                                                <i class="ri-key-line me-1"></i>Generate
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="text-muted small mb-3 p-3 bg-light rounded">
+                                                    <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="mt-3 small" id="guestLimitInfo" style="padding: 10px; background: #e7f3ff; border-radius: 6px; border: 1px solid #b3d9ff;">
+                                            <i class="ri-information-line me-1"></i>
+                                            Maximum <span id="maxAdditionalGuests">0</span> additional guest(s) can be added based on total pax (Adults + Children): <span id="totalPaxCount">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Save Changes Button -->
+                    <div class="d-flex justify-content-end mt-4 pt-3">
+                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; height: 35px; padding: 0 10px;">
+                            <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
+                            <i class="ri-save-3-line"></i>
+                            <span>Save Guest Changes</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
                             <script>
                                 // Get total pax from tour data
                                 const totalPax = {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }};
@@ -6517,6 +6623,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
             <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
+                <div id="tourGuestGroupDetailsMount" class="mb-3"></div>
                 <div class="row g-3">
                     <!-- Adults Section -->
                     <div class="col-md-6">
@@ -21145,6 +21252,12 @@
         // Update summary in modal
         updateTourGuestSummary();
         
+        try {
+            if (typeof window.mountEditTourGroupFOCIntoGuestModal === 'function') {
+                window.mountEditTourGroupFOCIntoGuestModal(true);
+            }
+        } catch (e) { /* ignore */ }
+
         // Open modal
         const modal = new bootstrap.Modal(document.getElementById('tourGuestSelectorModal'));
         modal.show();
@@ -21189,6 +21302,12 @@
         femaleEl.value = female;
         adultsEl.textContent = newAdults;
         updateTourGuestSummary();
+        try {
+            const tt = document.querySelector('input[type="hidden"][name="tour_type"]');
+            if (tt && String(tt.value || '').toUpperCase() === 'GROUP' && typeof window.syncEditGroupPaxFromModalGuests === 'function') {
+                window.syncEditGroupPaxFromModalGuests();
+            }
+        } catch (e) { /* ignore */ }
     }
 
     // Update male/female directly; don't allow total adults to drop below 1
@@ -21215,6 +21334,12 @@
         field.value = newValue;
         updateTourAdultsDisplay();
         updateTourGuestSummary();
+        try {
+            const tt = document.querySelector('input[type="hidden"][name="tour_type"]');
+            if (tt && String(tt.value || '').toUpperCase() === 'GROUP' && typeof window.syncEditGroupPaxFromModalGuests === 'function') {
+                window.syncEditGroupPaxFromModalGuests();
+            }
+        } catch (e) { /* ignore */ }
     }
 
     // When clicking female +/-: move count between male and female, keeping adults total same
@@ -21240,6 +21365,12 @@
         femaleEl.value = female;
         updateTourAdultsDisplay();
         updateTourGuestSummary();
+        try {
+            const tt = document.querySelector('input[type="hidden"][name="tour_type"]');
+            if (tt && String(tt.value || '').toUpperCase() === 'GROUP' && typeof window.syncEditGroupPaxFromModalGuests === 'function') {
+                window.syncEditGroupPaxFromModalGuests();
+            }
+        } catch (e) { /* ignore */ }
     }
     
     function incrementTourCount(fieldId) {
@@ -21445,7 +21576,10 @@
         
         // Update summary display
         updateTourGuestSummary();
-        
+        if (typeof window.syncEditFOCAfterGuestModal === 'function') {
+            try { window.syncEditFOCAfterGuestModal(); } catch (e) { /* ignore */ }
+        }
+
         // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('tourGuestSelectorModal'));
         if (modal) {
@@ -25095,6 +25229,206 @@
     }
 
     // Persist current city plans to DB (tours.city)
+    (function editTourGroupFOCBehavior() {
+        function safeInt(v) {
+            const n = parseInt(String(v ?? '').trim(), 10);
+            return Number.isFinite(n) ? n : 0;
+        }
+        function getEl(id) {
+            return document.getElementById(id);
+        }
+        function setVal(id, v) {
+            const el = getEl(id);
+            if (el) el.value = String(v);
+        }
+        function getTourType() {
+            const h = document.querySelector('input[type="hidden"][name="tour_type"]');
+            return h ? String(h.value || 'FIT').toUpperCase() : 'FIT';
+        }
+        function isGroupTour() {
+            return getTourType() === 'GROUP';
+        }
+        function updateEditFOCUI() {
+            if (!isGroupTour()) return;
+            const groupSize = Math.max(0, safeInt(getEl('group_size')?.value));
+            const focSize = Math.max(0, safeInt(getEl('foc_size')?.value));
+            const adultsTotal = Math.max(1, groupSize + focSize);
+            const includeEl = getEl('include_foc_in_group_price');
+            const includeRow = getEl('includeFOCInPriceRow');
+            const includeChecked = !!(includeEl && includeEl.checked);
+
+            setVal('auto_foc', focSize);
+            setVal('total_pax_display', adultsTotal);
+            setVal('paying_pax', groupSize);
+            setVal('adults', adultsTotal);
+
+            if (includeRow) includeRow.classList.toggle('d-none', focSize <= 0);
+            if (includeEl) {
+                includeEl.disabled = focSize <= 0;
+                if (focSize <= 0) includeEl.checked = false;
+            }
+            setVal('discount', (includeChecked && focSize > 0) ? 1 : 0);
+
+            const maleEl = getEl('male_count');
+            const femaleEl = getEl('female_count');
+            let male = safeInt(maleEl?.value);
+            let female = safeInt(femaleEl?.value);
+            if (male + female !== adultsTotal) {
+                female = Math.min(female, adultsTotal);
+                male = Math.max(0, adultsTotal - female);
+                if (male + female < adultsTotal) {
+                    male = adultsTotal - female;
+                }
+                if (adultsTotal >= 1 && male + female === 0) {
+                    male = adultsTotal;
+                    female = 0;
+                }
+                setVal('male_count', male);
+                setVal('female_count', female);
+            }
+            if (typeof updateTourGuestSummary === 'function') {
+                try { updateTourGuestSummary(); } catch (e) { /* ignore */ }
+            }
+        }
+        function syncGroupDisplayFromAdultsTotal() {
+            if (!isGroupTour()) return;
+            const adultsTotal = Math.max(1, safeInt(getEl('adults')?.value));
+            const focSize = Math.min(Math.max(0, safeInt(getEl('foc_size')?.value)), adultsTotal);
+            setVal('foc_size', focSize);
+            const paying = Math.max(0, adultsTotal - focSize);
+            setVal('group_size', paying);
+            setVal('group_size_display', paying);
+            updateEditFOCUI();
+        }
+
+        /** Match create.blade.php syncGuestsFromTotalPax: group + FOC drives modal adult counters (all male by default). */
+        function syncEditTourModalGuestsFromGroupDetails() {
+            if (!isGroupTour()) return;
+            const gs = Math.max(0, safeInt(getEl('group_size')?.value));
+            const foc = Math.max(0, safeInt(getEl('foc_size')?.value));
+            const totalPax = Math.max(1, gs + foc);
+            const maleM = getEl('tour_male_count');
+            const femaleM = getEl('tour_female_count');
+            if (!maleM || !femaleM) return;
+            maleM.value = String(totalPax);
+            femaleM.value = '0';
+            try { if (typeof updateTourAdultsDisplay === 'function') updateTourAdultsDisplay(); } catch (err) { /* ignore */ }
+            try { if (typeof updateTourGuestSummary === 'function') updateTourGuestSummary(); } catch (err) { /* ignore */ }
+        }
+
+        /** After FOC math adjusts main male/female, mirror counts into the guest modal fields. */
+        function syncEditTourModalFromMainCounts() {
+            const maleM = getEl('tour_male_count');
+            const femaleM = getEl('tour_female_count');
+            const mMain = getEl('male_count');
+            const fMain = getEl('female_count');
+            if (!maleM || !femaleM || !mMain || !fMain) return;
+            maleM.value = String(Math.max(0, safeInt(mMain.value)));
+            femaleM.value = String(Math.max(0, safeInt(fMain.value)));
+            try { if (typeof updateTourAdultsDisplay === 'function') updateTourAdultsDisplay(); } catch (err) { /* ignore */ }
+            try { if (typeof updateTourGuestSummary === 'function') updateTourGuestSummary(); } catch (err) { /* ignore */ }
+        }
+
+        /**
+         * Modal male/female +/- changed total adults: derive paying pax (group size) = total − FOC (create-style inverse).
+         * Keeps #adults / #male_count / #female_count in sync for UpdateTourInformation → DB.
+         */
+        function syncEditGroupPaxFromModalGuests() {
+            if (!isGroupTour()) return;
+            const maleM = getEl('tour_male_count');
+            const femaleM = getEl('tour_female_count');
+            if (!maleM || !femaleM) return;
+            const male = Math.max(0, safeInt(maleM.value));
+            const female = Math.max(0, safeInt(femaleM.value));
+            const tot = Math.max(1, male + female);
+            let foc = Math.max(0, safeInt(getEl('foc_size')?.value));
+            if (foc > tot) {
+                foc = tot;
+                setVal('foc_size', foc);
+            }
+            const paying = Math.max(0, tot - foc);
+            setVal('group_size', paying);
+            setVal('group_size_display', paying);
+            setVal('male_count', male);
+            setVal('female_count', female);
+            updateEditFOCUI();
+            const mMain = Math.max(0, safeInt(getEl('male_count')?.value));
+            const fMain = Math.max(0, safeInt(getEl('female_count')?.value));
+            maleM.value = String(mMain);
+            femaleM.value = String(fMain);
+            try { if (typeof updateTourAdultsDisplay === 'function') updateTourAdultsDisplay(); } catch (err) { /* ignore */ }
+            try { if (typeof updateTourGuestSummary === 'function') updateTourGuestSummary(); } catch (err) { /* ignore */ }
+        }
+        window.syncEditGroupPaxFromModalGuests = syncEditGroupPaxFromModalGuests;
+
+        document.addEventListener('input', function (e) {
+            const t = e && e.target;
+            if (!t || !isGroupTour()) return;
+            if (t.id === 'group_size_display') {
+                setVal('group_size', safeInt(t.value));
+                updateEditFOCUI();
+                syncEditTourModalGuestsFromGroupDetails();
+            }
+            if (t.id === 'foc_size') {
+                updateEditFOCUI();
+                syncEditTourModalGuestsFromGroupDetails();
+            }
+        }, true);
+        document.addEventListener('change', function (e) {
+            const t = e && e.target;
+            if (!t || !isGroupTour()) return;
+            if (t.id === 'include_foc_in_group_price') {
+                updateEditFOCUI();
+            }
+        }, true);
+        function initFocTooltipsInWrapper() {
+            try {
+                if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+                const wrap = document.getElementById('groupDetailsWrapper');
+                if (!wrap) return;
+                wrap.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                    bootstrap.Tooltip.getOrCreateInstance(el);
+                });
+            } catch (err) { /* ignore */ }
+        }
+
+        /** Move #groupDetailsWrapper into the tour guest modal for GROUP (create-page pattern). */
+        window.mountEditTourGroupFOCIntoGuestModal = function (toModal) {
+            const wrapper = document.getElementById('groupDetailsWrapper');
+            const placeholder = document.getElementById('groupDetailsPlaceholder');
+            const mount = document.getElementById('tourGuestGroupDetailsMount');
+            if (!wrapper || !placeholder) return;
+            if (toModal) {
+                if (!isGroupTour() || !mount) return;
+                mount.appendChild(wrapper);
+                wrapper.classList.remove('d-none');
+                initFocTooltipsInWrapper();
+                updateEditFOCUI();
+                syncEditTourModalFromMainCounts();
+                return;
+            }
+            placeholder.appendChild(wrapper);
+            wrapper.classList.add('d-none');
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalEl = document.getElementById('tourGuestSelectorModal');
+            if (modalEl && !modalEl.dataset.focMountWired) {
+                modalEl.dataset.focMountWired = '1';
+                modalEl.addEventListener('hidden.bs.modal', function () {
+                    try {
+                        if (typeof window.mountEditTourGroupFOCIntoGuestModal === 'function') {
+                            window.mountEditTourGroupFOCIntoGuestModal(false);
+                        }
+                    } catch (e) { /* ignore */ }
+                });
+            }
+            if (isGroupTour()) updateEditFOCUI();
+        });
+        window.syncEditFOCAfterGuestModal = syncGroupDisplayFromAdultsTotal;
+        window.refreshEditGroupFOCFields = updateEditFOCUI;
+    })();
+
     async function persistCityPlansNow() {
         const form = document.getElementById('singleTourPackageForm');
         if (!form) throw new Error('Form not found');
@@ -25181,6 +25515,16 @@
         formData.append('user_country', userCountryEl ? userCountryEl.value : '');
         formData.append('start_date', startDateEl ? startDateEl.value : '');
         formData.append('end_date', endDateEl ? endDateEl.value : '');
+
+        const tourTypeEarly = document.querySelector('input[type="hidden"][name="tour_type"]');
+        if (tourTypeEarly && String(tourTypeEarly.value || '').toUpperCase() === 'GROUP') {
+            try {
+                if (typeof window.refreshEditGroupFOCFields === 'function') {
+                    window.refreshEditGroupFOCFields();
+                }
+            } catch (e) { /* ignore */ }
+        }
+
         formData.append('adults', adultsEl ? adultsEl.value : '1');
         formData.append('children', childrenEl ? childrenEl.value : '0');
         formData.append('infants', infantsEl ? infantsEl.value : '0');
@@ -25212,6 +25556,15 @@
         }
         
         formData.append('child_ages', childAges);
+
+        const tourTypeHidden = document.querySelector('input[type="hidden"][name="tour_type"]');
+        const tourTypeNorm = String((tourTypeHidden && tourTypeHidden.value) ? tourTypeHidden.value : 'FIT').trim().toUpperCase();
+        formData.append('tour_type', tourTypeNorm === 'GROUP' ? 'GROUP' : 'FIT');
+        const focSizeEl = document.getElementById('foc_size');
+        const focParsed = Math.max(0, parseInt(String(focSizeEl && focSizeEl.value !== '' ? focSizeEl.value : '0'), 10) || 0);
+        formData.append('foc_size', String(focParsed));
+        const discountEl = document.getElementById('discount');
+        formData.append('discount', String(discountEl && (discountEl.value === '1' || discountEl.value === 1) ? 1 : 0));
 
         // If tour date range changed, clear all services first (with explicit confirmation).
         try {
@@ -25882,12 +26235,33 @@
                 // no-op (unlikely), but avoid weird DOM moves
             }
             home.insertAdjacentElement('afterend', bundle);
+            ensureGuestSectionStaysTourScoped();
         }
 
         function setServicesBundleVisible(visible) {
             const bundle = getServicesBundleEl();
             if (!bundle) return;
             bundle.classList.toggle('d-none', !visible);
+        }
+
+        /** Tour-wide guest UI must not live inside #segmentServicesBundle or .segment-services (bundle moves per stay). */
+        function ensureGuestSectionStaysTourScoped() {
+            try {
+                const guest = document.getElementById('guestInfoSection');
+                const bundle = getServicesBundleEl();
+                const home = getServicesHomeEl();
+                if (!guest || !bundle || !home || !home.parentElement) return;
+                const container = home.parentElement;
+                const misplaced = bundle.contains(guest) || !!guest.closest('.segment-services');
+                if (!misplaced) return;
+                if (bundle.parentElement === container) {
+                    bundle.insertAdjacentElement('afterend', guest);
+                } else {
+                    const hint = document.getElementById('multiCityServicesHint');
+                    const anchor = (hint && hint.parentElement === container) ? hint : home;
+                    anchor.insertAdjacentElement('afterend', guest);
+                }
+            } catch (e) { /* ignore */ }
         }
 
         function applySegmentStayDateBadges(startStr, endStr) {
@@ -26621,6 +26995,7 @@
             if (!host) return;
 
             host.appendChild(bundle);
+            ensureGuestSectionStaysTourScoped();
             setServicesBundleVisible(true);
             setServicesHintVisible(false);
             _activeSegmentEl = seg;
@@ -26886,6 +27261,7 @@
                 }
             }
             updateCityHiddenField();
+            ensureGuestSectionStaysTourScoped();
 
             // If multi-city and first segment is valid, auto-activate it so services grid is immediately visible.
             if (getCityTypeMode() === 'multi') {
