@@ -43,300 +43,381 @@
                 @method('PUT')
             @endif
 
-            <!-- Basic Details: info, availability & pricing in one card -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-file-list-3-line me-2 text-primary"></i>Basic Details</h5>
-                </div>
-                <x-alert />
-                <div class="card-body">
-                    <div class="row g-3 two-col-row">
-                        <div class="col-md-6">
-                            <label class="form-label">Package Title <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control @error('title') is-invalid @enderror"
-                                   name="title" value="{{ old('title', $isEdit ? ($package->title ?? '') : '') }}" required placeholder="e.g., Singapore Explorer">
-                            @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Package Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="start_date" value="{{ old('start_date', $isEdit ? optional($package->start_date)->format('Y-m-d') : '') }}" required min="{{ date('Y-m-d') }}" id="start-date-input">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Package Expiry Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="expiry_date" value="{{ old('expiry_date', $isEdit ? optional($package->expire_date)->format('Y-m-d') : '') }}" required min="{{ date('Y-m-d') }}" id="expiry-date-input">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Tour Duration (Days) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control @error('duration_days') is-invalid @enderror"
-                                   name="duration_days" value="{{ old('duration_days', $isEdit ? ($package->duration_days ?? 1) : '') }}" min="1" required placeholder="e.g. 3">
-                            @error('duration_days')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Country/Destination <span class="text-danger">*</span></label>
-                            <select class="form-select w-100 @error('destination') is-invalid @enderror" id="country-select" name="destination" required>
-                                <option value="">Select Country</option>
-                                @foreach($countries as $country)
-                                    <option value="{{ $country->name }}" {{ old('destination', $isEdit ? ($package->destination ?? '') : '') == $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('destination')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">City <span class="text-danger">*</span></label>
-                            <select class="form-select w-100 @error('city') is-invalid @enderror" id="city-select" name="city[]" required multiple disabled>
-                                <option value="">Select Country First</option>
-                            </select>
-                            @error('city')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Category <span class="text-danger">*</span></label>
-                            <select class="form-select w-100 @error('category') is-invalid @enderror" name="category" required>
-                                <option value="">Select Category</option>
-                                <option value="Adventure" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Adventure' ? 'selected' : '' }}>Adventure</option>
-                                <option value="Cultural" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Cultural' ? 'selected' : '' }}>Cultural</option>
-                                <option value="City Tour" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'City Tour' ? 'selected' : '' }}>City Tour</option>
-                                <option value="Beach" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Beach' ? 'selected' : '' }}>Beach</option>
-                                <option value="Heritage" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Heritage' ? 'selected' : '' }}>Heritage</option>
-                                <option value="Food & Culinary" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Food & Culinary' ? 'selected' : '' }}>Food & Culinary</option>
-                            </select>
-                            @error('category')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        
-                        <!-- <div class="col-md-3">
-                            <label class="form-label">Child Max Age</label>
-                            <input type="number" class="form-control" name="child_max_age" value="{{ old('child_max_age') }}" min="1" id="child-max-age-input">
-                        </div> -->
-                        <!-- Images -->
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Main Image <span class="text-danger">*</span></label>
-                                        <input type="file" id="main_image" name="main_image" accept="image/*" class="d-none">
-                                        <div id="main-image-drop-area" class="form-control" style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; cursor: pointer;">
-                                            Drag & Drop or click to upload.
-                                        </div>
-                                        <small class="text-danger d-none" id="main-image-required-msg">Main image is required.</small>
-                                        @if($isEdit && !empty($package->main_image))
-                                            <div class="small text-muted mt-1">Current main image:</div>
-                                            <div class="mb-2">
-                                                <img src="{{ $package->main_image }}" alt="Current main image" style="max-height:100px;border-radius:8px;">
+            <!-- Basic Details: accordion — expanded by default; collapse when done to focus on the rest of the form -->
+            <div class="accordion mb-4 package-basic-accordion" id="packageBasicAccordion">
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header" id="headingBasicDetails">
+                        <button class="accordion-button fw-semibold rounded-top" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapseBasicDetails"
+                                aria-expanded="true"
+                                aria-controls="collapseBasicDetails">
+                            <span class="d-flex align-items-center gap-2 flex-wrap w-100 me-2">
+                                <span class="d-inline-flex align-items-center gap-2">
+                                    <i class="ri-file-list-3-line text-primary"></i>
+                                    <span>Basic Details</span>
+                                </span>
+                                <span class="badge bg-label-primary ms-auto d-none d-sm-inline-flex">Required</span>
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapseBasicDetails"
+                         class="accordion-collapse collapse show"
+                         aria-labelledby="headingBasicDetails"
+                         data-bs-parent="#packageBasicAccordion">
+                        <div class="accordion-body pt-0">
+                            <x-alert />
+                            <div class="row g-3 two-col-row package-basic-fields">
+                                <div class="col-12 col-lg-6">
+                                    <label class="form-label">Package Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control @error('title') is-invalid @enderror"
+                                           name="title" value="{{ old('title', $isEdit ? ($package->title ?? '') : '') }}" required placeholder="e.g., Singapore Explorer">
+                                    @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">Package Start Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" name="start_date" value="{{ old('start_date', $isEdit ? optional($package->start_date)->format('Y-m-d') : '') }}" required min="{{ date('Y-m-d') }}" id="start-date-input">
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">Package Expiry Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" name="expiry_date" value="{{ old('expiry_date', $isEdit ? optional($package->expire_date)->format('Y-m-d') : '') }}" required min="{{ date('Y-m-d') }}" id="expiry-date-input">
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">Tour Duration (Days) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control @error('duration_days') is-invalid @enderror"
+                                           name="duration_days" value="{{ old('duration_days', $isEdit ? ($package->duration_days ?? 1) : '') }}" min="1" required placeholder="e.g. 3">
+                                    @error('duration_days')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">Country/Destination <span class="text-danger">*</span></label>
+                                    <select class="form-select w-100 @error('destination') is-invalid @enderror" id="country-select" name="destination" required>
+                                        <option value="">Select Country</option>
+                                        @foreach($countries as $country)
+                                            <option value="{{ $country->name }}" {{ old('destination', $isEdit ? ($package->destination ?? '') : '') == $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('destination')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-md-6 col-lg-3 package-basic-city-field">
+                                    <label class="form-label">City <span class="text-danger">*</span></label>
+                                    <select class="form-select w-100 @error('city') is-invalid @enderror" id="city-select" name="city[]" required multiple disabled>
+                                        <option value="">Select Country First</option>
+                                    </select>
+                                    @error('city')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">Category <span class="text-danger">*</span></label>
+                                    <select class="form-select w-100 @error('category') is-invalid @enderror" name="category" required>
+                                        <option value="">Select Category</option>
+                                        <option value="Adventure" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Adventure' ? 'selected' : '' }}>Adventure</option>
+                                        <option value="Cultural" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Cultural' ? 'selected' : '' }}>Cultural</option>
+                                        <option value="City Tour" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'City Tour' ? 'selected' : '' }}>City Tour</option>
+                                        <option value="Beach" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Beach' ? 'selected' : '' }}>Beach</option>
+                                        <option value="Heritage" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Heritage' ? 'selected' : '' }}>Heritage</option>
+                                        <option value="Food & Culinary" {{ old('category', $isEdit ? ($package->category ?? '') : '') == 'Food & Culinary' ? 'selected' : '' }}>Food & Culinary</option>
+                                    </select>
+                                    @error('category')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="rounded-3 border bg-light bg-opacity-50 p-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Main Image <span class="text-danger">*</span></label>
+                                                <input type="file" id="main_image" name="main_image" accept="image/*" class="d-none">
+                                                <div id="main-image-drop-area" class="form-control package-basic-dropzone">
+                                                    <span class="package-basic-dropzone-text">Drop image or click to browse</span>
+                                                </div>
+                                                <small class="text-danger d-none" id="main-image-required-msg">Main image is required.</small>
+                                                @if($isEdit && !empty($package->main_image))
+                                                    <div class="small text-muted mt-2">Current main image</div>
+                                                    <div class="mb-1">
+                                                        <img src="{{ $package->main_image }}" alt="Current main image" class="rounded-2 package-basic-thumb">
+                                                    </div>
+                                                @endif
+                                                <div id="main-image-preview-container" class="mt-2"></div>
                                             </div>
-                                        @endif
-                                        <div id="main-image-preview-container" class="mt-2"></div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Gallery Images</label>
-                                        <div id="gallery-drop-area" class="form-control" style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; cursor: pointer;">
-                                            Drag & Drop or click to upload.
-                                            <input type="file" id="gallery_images" name="gallery_images[]" accept="image/*" multiple style="display: none;">
-                                        </div>
-                                        @if($isEdit && !empty($package->gallery_images) && is_array($package->gallery_images) && count($package->gallery_images))
-                                            <div class="small text-muted mt-1">Current gallery images:</div>
-                                            <div class="mb-2">
-                                                @foreach($package->gallery_images as $img)
-                                                    <img src="{{ $img }}" alt="Gallery image" style="max-height:100px;border-radius:8px;margin:0 8px 8px 0;">
-                                                @endforeach
+                                            <div class="col-md-6">
+                                                <label class="form-label">Gallery Images</label>
+                                                <div id="gallery-drop-area" class="form-control package-basic-dropzone">
+                                                    <span class="package-basic-dropzone-text">Drop images or click to browse</span>
+                                                    <input type="file" id="gallery_images" name="gallery_images[]" accept="image/*" multiple style="display: none;">
+                                                </div>
+                                                @if($isEdit && !empty($package->gallery_images) && is_array($package->gallery_images) && count($package->gallery_images))
+                                                    <div class="small text-muted mt-2">Current gallery</div>
+                                                    <div class="mb-1">
+                                                        @foreach($package->gallery_images as $img)
+                                                            <img src="{{ $img }}" alt="Gallery image" class="rounded-2 package-basic-thumb me-2 mb-2">
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                                <div id="gallery-preview-container" class="mt-2"></div>
                                             </div>
-                                        @endif
-                                        <div id="gallery-preview-container" class="mt-2"></div>
+                                        </div>
                                     </div>
                                 </div>
+
+                                <div class="col-12">
+                                    <label class="form-label">Description</label>
+                                    <textarea class="form-control @error('description') is-invalid @enderror package-basic-description" name="description" rows="3" placeholder="Brief description...">{{ old('description', $isEdit ? ($package->description ?? '') : '') }}</textarea>
+                                    @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Description</label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" name="description" rows="3" placeholder="Brief description...">{{ old('description', $isEdit ? ($package->description ?? '') : '') }}</textarea>
-                            @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header bg-light py-2">
-                    <h5 class="mb-0"><i class="ri-calendar-event-line me-2 text-primary"></i>Day-wise City Planner</h5>
-                </div>
-                <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                        <p class="text-muted small mb-0">Add city plans (city + day range). Services will open for selected city plan.</p>
-                        <button type="button" class="btn btn-sm btn-primary" id="definition-add-city-plan-btn">
-                            <i class="ri-add-line me-1"></i>Add City Plan
-                        </button>
+            <!-- Day-wise City Planner -->
+            <div class="card mb-4 definition-city-planner border-0 shadow-sm overflow-hidden">
+                <div class="def-planner-top">
+                    <div class="row g-3 align-items-lg-center p-3 p-lg-4">
+                        <div class="col-12 col-lg">
+                            <div class="d-flex gap-3 min-w-0">
+                                <div class="def-planner-icon-stack flex-shrink-0 d-flex flex-column align-items-center text-center">
+                                    <div class="def-planner-icon">
+                                        <i class="ri-map-pin-line"></i>
+                                    </div>
+                                    <p class="mb-0 mt-2 def-planner-hint">
+                                        Requires multiple cities in Basic Details
+                                    </p>
+                                </div>
+                                <div class="min-w-0 flex-grow-1">
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                        <h5 class="mb-0 fw-semibold def-planner-title">Day-wise City Planner</h5>
+                                        <span class="badge rounded-pill def-planner-pill">Itinerary segments</span>
+                                    </div>
+                                    <p class="mb-0 def-planner-desc">
+                                        Build one segment per stretch of days, pick the city, then wire hotels and attractions to that plan.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-auto ms-lg-auto">
+                            <div class="d-flex flex-wrap align-items-center gap-2 def-planner-cta justify-content-lg-end justify-content-end">
+                                <button type="button" class="btn btn-primary def-planner-add-btn" id="definition-add-city-plan-btn">
+                                    <i class="ri-add-circle-line me-1"></i>Add city plan
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div id="definition-city-plan-list" class="row g-2"></div>
+                </div>
+                <div class="card-body p-3 p-lg-4 def-planner-body">
+                    <div id="definition-city-plan-list" class="row g-3 def-planner-grid"></div>
                     <input type="hidden" name="day_city_plan" id="definition-day-city-plan" value="[]">
                 </div>
             </div>
 
-            <!-- Hotels & Attractions: two side-by-side boxes -->
-            <div class="card mb-4 definition-service-card">
-                <div class="card-header bg-light py-2">
-                    <h5 class="mb-0"><i class="ri-hotel-line me-2 text-primary"></i><i class="ri-map-pin-line me-2 text-success"></i>Hotels & Attractions</h5>
-                </div>
-                <div class="card-body py-3">
-                    <div class="row g-3">
-                        <!-- Hotel box (col-md-6) -->
-                        <div class="col-md-6">
-                            <div class="border rounded p-3 h-100 hotel-attraction-box">
-                                <h6 class="fw-semibold mb-2 text-primary"><i class="ri-hotel-line me-1"></i>Hotel</h6>
-                                <label class="form-label small mb-1">Select Hotel</label>
-                                <select class="form-select form-select-sm w-100 mb-2" id="definition-hotel-select" name="definition_hotel_id">
-                                    <option value="">Select City First</option>
-                                </select>
-                                <div id="definition-rooms-wrapper" style="display: none;">
-                                    <div class="bg-primary-subtle rounded p-2 mb-2">
-                                        <h6 class="small fw-semibold mb-1"><i class="ri-hotel-bed-line me-1"></i>Room Type</h6>
-                                        <div class="d-flex align-items-end gap-2 flex-wrap mb-2">
-                                            <div class="flex-grow-1" style="min-width: 140px;">
-                                                <label class="form-label small mb-0">Room Type</label>
-                                                <select class="form-select form-select-sm" id="definition-room-type-select">
-                                                    <option value="">Select room type</option>
-                                                </select>
-                                            </div>
-                                            <div class="flex-grow-1" style="min-width: 140px;">
-                                                <label class="form-label small mb-0">Bed Type</label>
-                                                <select class="form-select form-select-sm" id="definition-bed-type-select">
-                                                    <option value="">Select bed type</option>
-                                                </select>
-                                            </div>
-                                            <div style="width: 70px;">
-                                                <label class="form-label small mb-0">Qty</label>
-                                                <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1" readonly>
-                                            </div>
-                                            <button type="button" class="btn btn-outline-primary btn-sm" id="definition-room-add-line"><i class="ri-add-line me-1"></i>Add room</button>
+            <!-- Hotels & Attractions -->
+            <div class="accordion mb-4 package-basic-accordion definition-hotels-attr-card definition-service-card border-0 shadow-sm overflow-hidden" id="packageHotelsAttrAccordion">
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header" id="headingHotelsAttr">
+                        <button class="accordion-button fw-semibold rounded-top" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapseHotelsAttr"
+                                aria-expanded="true"
+                                aria-controls="collapseHotelsAttr">
+                            <span class="d-flex align-items-center gap-3 flex-wrap w-100 me-2 text-start">
+                                <span class="def-ha-head-icons d-flex gap-2 flex-shrink-0">
+                                    <span class="def-ha-head-ico def-ha-head-ico--hotel" aria-hidden="true"><i class="ri-hotel-bed-line"></i></span>
+                                    <span class="def-ha-head-ico def-ha-head-ico--attr" aria-hidden="true"><i class="ri-map-pin-line"></i></span>
+                                </span>
+                                <span class="min-w-0 flex-grow-1">
+                                    <span class="d-block mb-1 fw-semibold def-ha-title">Hotels &amp; Attractions</span>
+                                    <span class="d-block small def-ha-sub mb-0">Pick a hotel and room stay, then add attractions and tickets for the active city plan.</span>
+                                </span>
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapseHotelsAttr"
+                         class="accordion-collapse collapse show"
+                         aria-labelledby="headingHotelsAttr"
+                         data-bs-parent="#packageHotelsAttrAccordion">
+                        <div class="accordion-body pt-0 p-3 p-lg-4 def-ha-card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="def-ha-panel def-ha-panel--hotel def-ha-stand-card def-ha-stand-card--hotel hotel-attraction-box h-100">
+                                        <div class="def-ha-panel-head def-ha-panel-head--primary">
+                                            <i class="ri-hotel-line me-2"></i>Hotel
                                         </div>
-                                        <div id="definition-pending-rooms" class="small mb-2"></div>
-                                        <div class="d-flex align-items-end gap-2 flex-wrap">
-                                            <div>
-                                                <label class="form-label small mb-0">Nights</label>
-                                                <input type="number" class="form-control form-control-sm" id="definition-nights" min="1" value="1" style="width: 70px;">
+                                        <div class="def-ha-panel-body">
+                                    <label class="form-label small mb-1 def-ha-label">Select Hotel</label>
+                                    <select class="form-select form-select-sm w-100 mb-2" id="definition-hotel-select" name="definition_hotel_id">
+                                        <option value="">Select City First</option>
+                                    </select>
+                                    <div id="definition-rooms-wrapper" style="display: none;">
+                                        <div class="def-ha-option-card def-ha-option-card--hotel-room mt-2 mb-2">
+                                            <div class="def-ha-option-card-head"><i class="ri-hotel-bed-line me-1"></i>Room &amp; stay</div>
+                                            <div class="def-ha-option-card-body">
+                                            <div class="d-flex align-items-end gap-2 flex-wrap mb-2">
+                                                <div class="flex-grow-1" style="min-width: 140px;">
+                                                    <label class="form-label small mb-0 def-ha-label">Room Type</label>
+                                                    <select class="form-select form-select-sm" id="definition-room-type-select">
+                                                        <option value="">Select room type</option>
+                                                    </select>
+                                                </div>
+                                                <div class="flex-grow-1" style="min-width: 140px;">
+                                                    <label class="form-label small mb-0 def-ha-label">Bed Type</label>
+                                                    <select class="form-select form-select-sm" id="definition-bed-type-select">
+                                                        <option value="">Select bed type</option>
+                                                    </select>
+                                                </div>
+                                                <div style="width: 70px;">
+                                                    <label class="form-label small mb-0 def-ha-label">Qty</label>
+                                                    <input type="number" class="form-control form-control-sm" id="definition-room-type-qty" min="1" value="1" readonly>
+                                                </div>
+                                                <button type="button" class="btn btn-outline-primary btn-sm" id="definition-room-add-line"><i class="ri-add-line me-1"></i>Add room</button>
                                             </div>
-                                            <div>
-                                                <label class="form-label small mb-0">Start Day</label>
-                                                <select class="form-select form-select-sm" id="definition-hotel-day" style="min-width: 120px;">
-                                                    <option value="1">Day 1</option>
-                                                </select>
+                                            <div id="definition-pending-rooms" class="small mb-2"></div>
+                                            <div class="d-flex align-items-end gap-2 flex-wrap">
+                                                <div>
+                                                    <label class="form-label small mb-0 def-ha-label">Nights</label>
+                                                    <input type="number" class="form-control form-control-sm" id="definition-nights" min="1" value="1" style="width: 70px;">
+                                                </div>
+                                                <div>
+                                                    <label class="form-label small mb-0 def-ha-label">Start Day</label>
+                                                    <select class="form-select form-select-sm" id="definition-hotel-day" style="min-width: 120px;">
+                                                        <option value="1">Day 1</option>
+                                                    </select>
+                                                </div>
+                                                <button type="button" class="btn btn-primary btn-sm" id="definition-hotel-add-btn"><i class="ri-add-line me-1"></i>Add</button>
                                             </div>
-                                            <button type="button" class="btn btn-primary btn-sm" id="definition-hotel-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="pt-2 border-top mt-2">
-                                    <h6 class="small fw-semibold mb-1">Chosen Hotels <span class="text-muted fw-normal">(<span id="definition-total-hotels-count">0</span>)</span></h6>
-                                    <div id="definition-chosen-hotels" class="mb-0">
-                                        <div class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select hotel, add rooms, then Add.</div>
+                                    <div class="def-ha-chosen pt-3 mt-2 border-top">
+                                        <h6 class="small fw-semibold mb-2 def-ha-chosen-title">Chosen Hotels <span class="fw-normal def-ha-muted">(<span id="definition-total-hotels-count">0</span>)</span></h6>
+                                        <div id="definition-chosen-hotels" class="mb-0">
+                                            <div class="alert alert-primary border-0 py-2 small mb-0 def-ha-hint"><i class="ri-information-line me-1"></i>Select hotel, add rooms, then Add.</div>
+                                        </div>
+                                        <div id="definition-chosen-hotels-list" class="mt-1" style="display: none;"></div>
                                     </div>
-                                    <div id="definition-chosen-hotels-list" class="mt-1" style="display: none;"></div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Attraction box (col-md-6) -->
                         <div class="col-md-6">
-                            <div class="border rounded p-3 h-100 hotel-attraction-box">
-                                <h6 class="fw-semibold mb-2 text-success"><i class="ri-map-pin-line me-1"></i>Attraction</h6>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label small mb-1">Select Attraction</label>
-                                        <select class="form-select form-select-sm w-100" id="definition-attraction-select">
-                                            <option value="">Select City First</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label small mb-1">Select Ticket</label>
-                                        <select class="form-select form-select-sm w-100" id="definition-attraction-ticket-select">
-                                            <option value="">Select attraction first</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label small mb-1">Price</label>
-                                        <input type="number" class="form-control form-control-sm w-100" id="definition-attraction-ticket-adult-price" value="" min="0" step="0.01" placeholder="0.00">
-                                        <small class="text-muted">Editable (ticket/attraction base price).</small>
-                                    </div>
+                            <div class="def-ha-panel def-ha-panel--attraction def-ha-stand-card def-ha-stand-card--attraction hotel-attraction-box h-100">
+                                <div class="def-ha-panel-head def-ha-panel-head--success">
+                                    <i class="ri-map-pin-line me-2"></i>Attraction
                                 </div>
-                                <div id="definition-attraction-config" style="display: none;">
-                                    <div class="bg-success-subtle rounded p-2 mb-2">
-                                        <h6 class="small fw-semibold mb-1">Guide & transfer</h6>
-                                        <div class="row g-1">
-                                            <div class="col-12">
-                                                <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="checkbox" id="definition-attraction-config-need-guide">
-                                                    <label class="form-check-label small" for="definition-attraction-config-need-guide">Need guide</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-12" id="definition-attraction-config-guide-wrap" style="display: none;">
+                                <div class="def-ha-panel-body">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label small mb-1 def-ha-label">Select Attraction</label>
+                                            <select class="form-select form-select-sm w-100" id="definition-attraction-select">
+                                                <option value="">Select City First</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label small mb-1 def-ha-label">Select Ticket</label>
+                                            <select class="form-select form-select-sm w-100" id="definition-attraction-ticket-select">
+                                                <option value="">Select attraction first</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label small mb-1 def-ha-label">Price</label>
+                                            <input type="number" class="form-control form-control-sm w-100" id="definition-attraction-ticket-adult-price" value="" min="0" step="0.01" placeholder="0.00">
+                                            <small class="def-ha-help">Editable (ticket / attraction base price).</small>
+                                        </div>
+                                    </div>
+                                    <div id="definition-attraction-config" style="display: none;">
+                                        <div class="def-ha-config-shell mb-2 mt-2">
+                                            <div class="def-ha-config-shell-head"><i class="ri-route-line me-1"></i>Guide &amp; transfer</div>
+                                            <div class="def-ha-config-shell-body">
                                                 <div class="row g-2">
-                                                    <div class="col-12 col-md-6">
-                                                        <label class="form-label small mb-0">Select guide</label>
-                                                        <select class="form-select form-select-sm" id="definition-attraction-config-guide">
-                                                            <option value="">Select guide</option>
-                                                        </select>
+                                                    <div class="col-12">
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="checkbox" id="definition-attraction-config-need-guide">
+                                                            <label class="form-check-label small def-ha-check" for="definition-attraction-config-need-guide">Need guide</label>
+                                                        </div>
                                                     </div>
-                                                    <div class="col-12 col-md-3">
-                                                        <label class="form-label small mb-0">Hour</label>
-                                                        <select class="form-select form-select-sm" id="definition-attraction-config-guide-hour">
-                                                            <option value="">Select hour</option>
-                                                            <option value="hourly">1 Hour</option>
-                                                            <option value="two_hour">2 Hours</option>
-                                                            <option value="four_hour">4 Hours</option>
-                                                            <option value="six_hour">6 Hours</option>
-                                                            <option value="eight_hour">8 Hours</option>
-                                                            <option value="ten_hour">10 Hours</option>
-                                                            <option value="twelve_hour">12 Hours</option>
-                                                        </select>
+                                                    <div class="col-12" id="definition-attraction-config-guide-wrap" style="display: none;">
+                                                        <div class="def-ha-option-card def-ha-option-card--guide">
+                                                            <div class="def-ha-option-card-head">Guide options</div>
+                                                            <div class="def-ha-option-card-body">
+                                                                <div class="row g-2">
+                                                                    <div class="col-12 col-md-6">
+                                                                        <label class="form-label small mb-0 def-ha-label">Select guide</label>
+                                                                        <select class="form-select form-select-sm" id="definition-attraction-config-guide">
+                                                                            <option value="">Select guide</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="col-12 col-md-3">
+                                                                        <label class="form-label small mb-0 def-ha-label">Hour</label>
+                                                                        <select class="form-select form-select-sm" id="definition-attraction-config-guide-hour">
+                                                                            <option value="">Select hour</option>
+                                                                            <option value="hourly">1 Hour</option>
+                                                                            <option value="two_hour">2 Hours</option>
+                                                                            <option value="four_hour">4 Hours</option>
+                                                                            <option value="six_hour">6 Hours</option>
+                                                                            <option value="eight_hour">8 Hours</option>
+                                                                            <option value="ten_hour">10 Hours</option>
+                                                                            <option value="twelve_hour">12 Hours</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="col-12 col-md-3">
+                                                                        <label class="form-label small mb-0 def-ha-label">Guide Price</label>
+                                                                        <input type="number" class="form-control form-control-sm" id="definition-attraction-config-guide-price" value="" min="0" step="0.01" placeholder="0.00">
+                                                                        <small class="def-ha-help">Editable.</small>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div class="col-12 col-md-3">
-                                                        <label class="form-label small mb-0">Guide Price</label>
-                                                        <input type="number" class="form-control form-control-sm" id="definition-attraction-config-guide-price" value="" min="0" step="0.01" placeholder="0.00">
-                                                        <small class="text-muted">Editable.</small>
+                                                    <div class="col-12">
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="checkbox" id="definition-attraction-config-transfer">
+                                                            <label class="form-check-label small def-ha-check" for="definition-attraction-config-transfer">Include transfer</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12" id="definition-attraction-config-vehicle-wrap" style="display: none;">
+                                                        <div class="def-ha-option-card def-ha-option-card--transfer">
+                                                            <div class="def-ha-option-card-head">Transfer options</div>
+                                                            <div class="def-ha-option-card-body">
+                                                                <div class="row g-2 mb-2">
+                                                                    <div class="col-md-6">
+                                                                        <label class="form-label small mb-0 def-ha-label">Vehicle</label>
+                                                                        <select class="form-select form-select-sm" id="definition-attraction-config-vehicle"><option value="">Select vehicle</option></select>
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <label class="form-label small mb-0 def-ha-label">Pickup (hotels / restaurants)</label>
+                                                                        <select class="form-select form-select-sm" id="definition-attraction-config-pickup"><option value="">Add hotels or restaurants first</option></select>
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <label class="form-label small mb-0 def-ha-label">Dropoff (e.g. attraction)</label>
+                                                                        <select class="form-select form-select-sm" id="definition-attraction-config-dropoff"><option value="">—</option></select>
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <label class="form-label small mb-0 def-ha-label">Transfer Price</label>
+                                                                        <input type="number" class="form-control form-control-sm" id="definition-attraction-config-transfer-price" min="0" step="0.01" value="0">
+                                                                        <small class="def-ha-help">Auto-fetched from zone mapping (editable).</small>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="private" id="definition-attr-transfer-private"><label class="form-check-label small def-ha-check" for="definition-attr-transfer-private">Private</label></div>
+                                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="shared" id="definition-attr-transfer-shared"><label class="form-check-label small def-ha-check" for="definition-attr-transfer-shared">Shared</label></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="d-flex align-items-end gap-2 mt-1 flex-wrap">
+                                                            <div>
+                                                                <label class="form-label small mb-0 def-ha-label">Day</label>
+                                                                <select class="form-select form-select-sm" id="definition-attraction-day" style="min-width: 120px;">
+                                                                    <option value="1">Day 1</option>
+                                                                </select>
+                                                            </div>
+                                                            <button type="button" class="btn btn-success btn-sm" id="definition-attraction-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="col-12">
-                                                <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="checkbox" id="definition-attraction-config-transfer">
-                                                    <label class="form-check-label small" for="definition-attraction-config-transfer">Include transfer</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-12" id="definition-attraction-config-vehicle-wrap" style="display: none;">
-                                                <div class="row g-2 mb-2">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small mb-0">Vehicle</label>
-                                                        <select class="form-select form-select-sm" id="definition-attraction-config-vehicle"><option value="">Select vehicle</option></select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small mb-0">Pickup (hotels / restaurants)</label>
-                                                        <select class="form-select form-select-sm" id="definition-attraction-config-pickup"><option value="">Add hotels or restaurants first</option></select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small mb-0">Dropoff (e.g. attraction)</label>
-                                                        <select class="form-select form-select-sm" id="definition-attraction-config-dropoff"><option value="">—</option></select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small mb-0">Transfer Price</label>
-                                                        <input type="number" class="form-control form-control-sm" id="definition-attraction-config-transfer-price" min="0" step="0.01" value="0">
-                                                        <small class="text-muted">Auto-fetched from zone mapping (editable).</small>
-                                                    </div>
-                                                </div>
-                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="private" id="definition-attr-transfer-private"><label class="form-check-label small" for="definition-attr-transfer-private">Private</label></div>
-                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_attr_transfer_type" value="shared" id="definition-attr-transfer-shared"><label class="form-check-label small" for="definition-attr-transfer-shared">Shared</label></div>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-end gap-2 mt-1 flex-wrap">
-                                            <div>
-                                                <label class="form-label small mb-0">Day</label>
-                                                <select class="form-select form-select-sm" id="definition-attraction-day" style="min-width: 120px;">
-                                                    <option value="1">Day 1</option>
-                                                </select>
-                                            </div>
-                                            <button type="button" class="btn btn-success btn-sm" id="definition-attraction-add-btn"><i class="ri-add-line me-1"></i>Add</button>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="pt-2 border-top mt-2">
-                                    <h6 class="small fw-semibold mb-1">Chosen Attractions</h6>
-                                    <div id="definition-attractions-empty" class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select attraction, set options, then Add.</div>
-                                    <div id="definition-attractions-list" class="mt-1" style="display: none;"></div>
+                                    <div class="def-ha-chosen pt-3 mt-2 border-top">
+                                        <h6 class="small fw-semibold mb-2 def-ha-chosen-title">Chosen Attractions</h6>
+                                        <div id="definition-attractions-empty" class="alert alert-success border-0 py-2 small mb-0 def-ha-hint"><i class="ri-information-line me-1"></i>Select attraction, set options, then Add.</div>
+                                        <div id="definition-attractions-list" class="mt-1" style="display: none;"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -344,315 +425,464 @@
                     <input type="hidden" name="selected_hotels" id="definition-hotels-input" value="[]">
                     <input type="hidden" name="selected_attractions" id="definition-attractions-input" value="[]">
                     <input type="hidden" name="day_wise_itinerary" id="definition-day-wise-itinerary" value="[]">
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Restaurants & Guide: two side-by-side boxes (same as Hotels & Attractions) -->
-            <div class="card mb-4 definition-service-card">
-                <div class="card-header bg-light py-2">
-                    <h5 class="mb-0"><i class="ri-restaurant-line me-2 text-warning"></i><i class="ri-user-voice-line me-2 text-info"></i>Restaurants</h5>
-                </div>
-                <div class="card-body py-3">
-                    <div class="row g-3">
-                        <!-- Restaurant box (col-md-6) -->
-                        <div class="col-md-6">
-                            <div class="border rounded p-3 h-100 hotel-attraction-box">
-                                <h6 class="fw-semibold mb-2 text-warning"><i class="ri-restaurant-line me-1"></i>Restaurant</h6>
-                                <label class="form-label small mb-1">Select Restaurant</label>
-                                <select class="form-select form-select-sm w-100 mb-2" id="definition-restaurant-select">
-                                    <option value="">Select City First</option>
-                                </select>
-                                <div id="definition-restaurant-config" style="display: none;">
-                                    <div id="definition-restaurant-meals-wrap" class="bg-warning-subtle rounded p-2 mb-2" style="display: none;">
-                                        <h6 class="small fw-semibold mb-1">Meal</h6>
-                                        <div class="row g-2 align-items-end">
-                                            <div class="col-md-7">
-                                                <label class="form-label small mb-0">Type</label>
-                                                <select class="form-select form-select-sm" id="definition-restaurant-meal-type-select">
-                                                    <option value="">Select meal type</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-5">
-                                                <label class="form-label small mb-0">Price</label>
-                                                <input type="number" class="form-control form-control-sm" id="definition-restaurant-meal-adult-price" value="" min="0" step="0.01" placeholder="0.00">
-                                                <small class="text-muted">Editable.</small>
-                                            </div>
+            <!-- Restaurants -->
+            <div class="accordion mb-4 package-basic-accordion definition-restaurants-card definition-service-card border-0 shadow-sm overflow-hidden" id="packageRestaurantsAccordion">
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header" id="headingRestaurants">
+                        <button class="accordion-button fw-semibold rounded-top" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapseRestaurants"
+                                aria-expanded="true"
+                                aria-controls="collapseRestaurants">
+                            <span class="d-flex align-items-center gap-3 flex-wrap w-100 me-2 text-start">
+                                <span class="def-rs-head-icons d-flex gap-2 flex-shrink-0">
+                                    <span class="def-rs-head-ico def-rs-head-ico--rest" aria-hidden="true"><i class="ri-restaurant-2-line"></i></span>
+                                    <span class="def-rs-head-ico def-rs-head-ico--guide" aria-hidden="true"><i class="ri-user-voice-line"></i></span>
+                                </span>
+                                <span class="min-w-0 flex-grow-1">
+                                    <span class="d-block mb-1 fw-semibold def-rs-title">Restaurants</span>
+                                    <span class="d-block small def-rs-sub mb-0">Add dining with optional meal pricing and transfers for the active city plan.</span>
+                                </span>
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapseRestaurants"
+                         class="accordion-collapse collapse show"
+                         aria-labelledby="headingRestaurants"
+                         data-bs-parent="#packageRestaurantsAccordion">
+                        <div class="accordion-body pt-0 p-3 p-lg-4 def-rs-card-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="def-rs-panel def-rs-stand-card def-rs-stand-card--restaurant hotel-attraction-box h-100">
+                                        <div class="def-rs-panel-head">
+                                            <i class="ri-restaurant-line me-2"></i>Restaurant
                                         </div>
-                                    </div>
-                                    <div class="bg-warning-subtle rounded p-2 mb-2">
-                                        <h6 class="small fw-semibold mb-1">Transfer</h6>
-                                        <div class="form-check form-check-inline mb-1">
-                                            <input class="form-check-input" type="checkbox" id="definition-restaurant-config-transfer">
-                                            <label class="form-check-label small">Include transfer</label>
-                                        </div>
-                                        <div id="definition-restaurant-config-vehicle-wrap" style="display: none;">
-                                                <div class="row g-2 mb-2">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small mb-0">Vehicle</label>
-                                                        <select class="form-select form-select-sm" id="definition-restaurant-config-vehicle"><option value="">Select vehicle</option></select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small mb-0">Pickup (hotels / attractions)</label>
-                                                        <select class="form-select form-select-sm" id="definition-restaurant-config-pickup"><option value="">Add hotels or attractions first</option></select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small mb-0">Dropoff (restaurant)</label>
-                                                        <select class="form-select form-select-sm" id="definition-restaurant-config-dropoff"><option value="">—</option></select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small mb-0">Transfer Price</label>
-                                                        <input type="number" class="form-control form-control-sm" id="definition-restaurant-config-transfer-price" min="0" step="0.01" value="0">
-                                                        <small class="text-muted">Auto-fetched from zone mapping (editable).</small>
+                                        <div class="def-rs-panel-body">
+                                    <label class="form-label small mb-1 def-rs-label">Select Restaurant</label>
+                                    <select class="form-select form-select-sm w-100 mb-2" id="definition-restaurant-select">
+                                        <option value="">Select City First</option>
+                                    </select>
+                                    <div id="definition-restaurant-config" style="display: none;">
+                                        <div class="def-rs-config-shell mb-2 mt-2">
+                                            <div class="def-rs-config-shell-head"><i class="ri-settings-3-line me-1"></i>Meal &amp; transfer</div>
+                                            <div class="def-rs-config-shell-body">
+                                                <div id="definition-restaurant-meals-wrap" style="display: none;">
+                                                    <div class="def-rs-option-card def-rs-option-card--meal">
+                                                        <div class="def-rs-option-card-head">Meal</div>
+                                                        <div class="def-rs-option-card-body">
+                                                            <div class="row g-2 def-rs-meal-type-price-row">
+                                                                <div class="col-md-7 d-flex flex-column">
+                                                                    <label class="form-label small mb-1 def-rs-label" for="definition-restaurant-meal-type-select">Type</label>
+                                                                    <select class="form-select form-select-sm mt-auto" id="definition-restaurant-meal-type-select">
+                                                                        <option value="">Select meal type</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="col-md-5 d-flex flex-column">
+                                                                    <label class="form-label small mb-1 def-rs-label" for="definition-restaurant-meal-adult-price">Price</label>
+                                                                    <input type="number" class="form-control form-control-sm mt-auto" id="definition-restaurant-meal-adult-price" value="" min="0" step="0.01" placeholder="0.00">
+                                                                </div>
+                                                            </div>
+                                                            <div class="row mt-1">
+                                                                <div class="col-md-7 d-none d-md-block"></div>
+                                                                <div class="col-md-5">
+                                                                    <small class="def-rs-help mb-0">Editable.</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="private" id="definition-rest-transfer-private"><label class="form-check-label small" for="definition-rest-transfer-private">Private</label></div>
-                                                <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="shared" id="definition-rest-transfer-shared"><label class="form-check-label small" for="definition-rest-transfer-shared">Shared</label></div>
+                                                <div class="def-rs-option-card def-rs-option-card--transfer">
+                                                    <div class="def-rs-option-card-head">Transfer &amp; day</div>
+                                                    <div class="def-rs-option-card-body">
+                                                        <div class="form-check form-check-inline mb-2">
+                                                            <input class="form-check-input" type="checkbox" id="definition-restaurant-config-transfer">
+                                                            <label class="form-check-label small def-rs-check" for="definition-restaurant-config-transfer">Include transfer</label>
+                                                        </div>
+                                                        <div id="definition-restaurant-config-vehicle-wrap" style="display: none;">
+                                                            <div class="def-rs-option-card def-rs-option-card--vehicles mt-2">
+                                                                <div class="def-rs-option-card-head">Transfer details</div>
+                                                                <div class="def-rs-option-card-body">
+                                                                    <div class="row g-2 mb-2">
+                                                                        <div class="col-md-6">
+                                                                            <label class="form-label small mb-0 def-rs-label">Vehicle</label>
+                                                                            <select class="form-select form-select-sm" id="definition-restaurant-config-vehicle"><option value="">Select vehicle</option></select>
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            <label class="form-label small mb-0 def-rs-label">Pickup (hotels / attractions)</label>
+                                                                            <select class="form-select form-select-sm" id="definition-restaurant-config-pickup"><option value="">Add hotels or attractions first</option></select>
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            <label class="form-label small mb-0 def-rs-label">Dropoff (restaurant)</label>
+                                                                            <select class="form-select form-select-sm" id="definition-restaurant-config-dropoff"><option value="">—</option></select>
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            <label class="form-label small mb-0 def-rs-label">Transfer Price</label>
+                                                                            <input type="number" class="form-control form-control-sm" id="definition-restaurant-config-transfer-price" min="0" step="0.01" value="0">
+                                                                            <small class="def-rs-help">Auto-fetched from zone mapping (editable).</small>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="private" id="definition-rest-transfer-private"><label class="form-check-label small def-rs-check" for="definition-rest-transfer-private">Private</label></div>
+                                                                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="definition_rest_transfer_type" value="shared" id="definition-rest-transfer-shared"><label class="form-check-label small def-rs-check" for="definition-rest-transfer-shared">Shared</label></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-flex align-items-end gap-2 mt-2 flex-wrap">
+                                                            <div>
+                                                                <label class="form-label small mb-0 def-rs-label">Day</label>
+                                                                <select class="form-select form-select-sm" id="definition-restaurant-day" style="min-width: 120px;">
+                                                                    <option value="1">Day 1</option>
+                                                                </select>
+                                                            </div>
+                                                            <button type="button" class="btn btn-warning btn-sm" id="definition-restaurant-add-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        <div class="d-flex align-items-end gap-2 mt-1 flex-wrap">
-                                            <div>
-                                                <label class="form-label small mb-0">Day</label>
-                                                <select class="form-select form-select-sm" id="definition-restaurant-day" style="min-width: 120px;">
-                                                    <option value="1">Day 1</option>
-                                                </select>
-                                            </div>
-                                            <button type="button" class="btn btn-warning btn-sm" id="definition-restaurant-add-btn"><i class="ri-add-line me-1"></i>Add</button>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="pt-2 border-top mt-2">
-                                    <h6 class="small fw-semibold mb-1">Chosen Restaurants</h6>
-                                    <div id="definition-restaurants-empty" class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select restaurant, set transfer, then Add.</div>
-                                    <div id="definition-restaurants-list" class="mt-1" style="display: none;"></div>
+                                    <div class="def-rs-chosen pt-3 mt-2 border-top">
+                                        <h6 class="small fw-semibold mb-2 def-rs-chosen-title">Chosen Restaurants</h6>
+                                        <div id="definition-restaurants-empty" class="alert alert-warning border-0 py-2 small mb-0 def-rs-hint"><i class="ri-information-line me-1"></i>Select restaurant, set transfer, then Add.</div>
+                                        <div id="definition-restaurants-list" class="mt-1" style="display: none;"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <input type="hidden" name="selected_restaurants" id="definition-restaurants-input" value="[]">
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Transfers: Arrival (port → hotel) & Departure (hotel → port), search & choose vehicle -->
-            <div class="card mb-4 definition-service-card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-flight-land-line me-2 text-primary"></i>Arrival & Departure</h5>
-                </div>
-                <div class="card-body" style="margin-top: 12px;">
-                    <div class="row g-3">
-                        <!-- Arrival Pickup: port (pickup) → hotel (dropoff), then search vehicle & choose -->
-                        <div class="col-md-6">
-                            <div class="card border-info border-opacity-25">
-                                <div class="card-body p-3">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <span class="badge bg-info-subtle text-info p-2 rounded-circle me-3"><i class="ri-flight-land-line"></i></span>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-0">Arrival Pickup</h6>
-                                            <small class="text-muted">Port → Hotel</small>
+            <!-- Transfers: Arrival (port → hotel) & Departure (hotel → port) -->
+            <div class="accordion mb-4 package-basic-accordion definition-arrival-departure definition-service-card border-0 shadow-sm overflow-hidden" id="packageArrivalDepartureAccordion">
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header" id="headingArrivalDeparture">
+                        <button class="accordion-button fw-semibold rounded-top" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapseArrivalDeparture"
+                                aria-expanded="true"
+                                aria-controls="collapseArrivalDeparture">
+                            <span class="d-flex align-items-center gap-3 flex-wrap w-100 me-2 text-start">
+                                <span class="def-ad-head-icons d-flex gap-2 flex-shrink-0">
+                                    <span class="def-ad-head-ico def-ad-head-ico--arrival" aria-hidden="true"><i class="ri-flight-land-line"></i></span>
+                                    <span class="def-ad-head-ico def-ad-head-ico--departure" aria-hidden="true"><i class="ri-flight-takeoff-line"></i></span>
+                                </span>
+                                <span class="min-w-0 flex-grow-1">
+                                    <span class="d-block mb-1 fw-semibold def-ad-title">Arrival &amp; Departure</span>
+                                    <span class="d-block small def-ad-sub mb-0">Port-to-hotel on arrival and hotel-to-port when leaving — search zone-based vehicles and set transfer type.</span>
+                                </span>
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapseArrivalDeparture"
+                         class="accordion-collapse collapse show"
+                         aria-labelledby="headingArrivalDeparture"
+                         data-bs-parent="#packageArrivalDepartureAccordion">
+                        <div class="accordion-body pt-0 p-3 p-lg-4 def-ad-card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="def-ad-stand-card def-ad-stand-card--arrival h-100">
+                                        <div class="def-ad-panel-head def-ad-panel-head--info">
+                                            <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                                                <span class="def-ad-panel-ico text-info" aria-hidden="true"><i class="ri-flight-land-line"></i></span>
+                                                <div class="min-w-0">
+                                                    <div class="fw-semibold def-ad-panel-title">Arrival pickup</div>
+                                                    <div class="def-ad-panel-sub">Port → hotel</div>
+                                                </div>
+                                            </div>
+                                            <div class="form-check form-switch mb-0 flex-shrink-0 ps-2">
+                                                <input class="form-check-input" type="checkbox" id="arrival-pickup-def" value="1">
+                                                <label class="form-check-label small def-ad-check" for="arrival-pickup-def">Include</label>
+                                            </div>
                                         </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="arrival-pickup-def" value="1">
-                                            <label class="form-check-label" for="arrival-pickup-def">Include</label>
+                                        <div class="def-ad-panel-body">
+                                            <div id="arrival-pickup-config" style="display: none;">
+                                                <div class="row g-2 mb-3">
+                                                    <div class="col-12 col-sm-6">
+                                                        <label class="form-label small mb-1 def-ad-label" for="arrival-pickup-port">Pickup (port)</label>
+                                                        <select class="form-select form-select-sm w-100" id="arrival-pickup-port">
+                                                            <option value="">Select country first</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-12 col-sm-6">
+                                                        <label class="form-label small mb-1 def-ad-label" for="arrival-dropoff-hotel">Dropoff (hotel)</label>
+                                                        <select class="form-select form-select-sm w-100" id="arrival-dropoff-hotel">
+                                                            <option value="">Add hotels first</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-12 col-md-6">
+                                                        <label class="form-label small mb-1 def-ad-label" for="arrival-day-select">Arrival day</label>
+                                                        <select class="form-select form-select-sm w-100" id="arrival-day-select">
+                                                            <option value="1">Day 1</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="btn btn-info btn-sm mb-2" id="arrival-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle</button>
+                                                <div id="arrival-vehicle-select-wrap" style="display: none;">
+                                                    <div class="def-ad-option-card">
+                                                        <div class="def-ad-option-card-head"><i class="ri-car-line me-1"></i>Vehicle &amp; pricing</div>
+                                                        <div class="def-ad-option-card-body">
+                                                            <label class="form-label small mb-1 def-ad-label" for="arrival-vehicle-select">Choose vehicle (zone-based)</label>
+                                                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                                                <select class="form-select form-select-sm flex-grow-1" id="arrival-vehicle-select" style="min-width: 160px;">
+                                                                    <option value="">Select vehicle</option>
+                                                                </select>
+                                                                <button type="button" class="btn btn-info btn-sm flex-shrink-0" id="arrival-add-vehicle-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                                            </div>
+                                                            <div class="row g-2 align-items-end mb-1">
+                                                                <div class="col-md-7">
+                                                                    <span class="small fw-semibold text-uppercase def-ad-mini-h">Transfer type</span>
+                                                                    <div class="mt-1">
+                                                                        <div class="form-check form-check-inline mb-0">
+                                                                            <input class="form-check-input" type="radio" name="arrival_transfer_type" id="arrival-transfer-private" value="private" checked>
+                                                                            <label class="form-check-label small def-ad-check" for="arrival-transfer-private">Private</label>
+                                                                        </div>
+                                                                        <div class="form-check form-check-inline mb-0">
+                                                                            <input class="form-check-input" type="radio" name="arrival_transfer_type" id="arrival-transfer-shared" value="shared">
+                                                                            <label class="form-check-label small def-ad-check" for="arrival-transfer-shared">Shared</label>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-5">
+                                                                    <label class="form-label small mb-1 def-ad-label" for="arrival-transfer-price-input">Price</label>
+                                                                    <input type="number" class="form-control form-control-sm" id="arrival-transfer-price-input" min="0" step="0.01" value="0">
+                                                                </div>
+                                                            </div>
+                                                            <div id="arrival-chosen-vehicles" class="small mt-2 pt-2 border-top def-ad-chosen-list"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div id="arrival-pickup-config" class="mt-2 pt-2 border-top" style="display: none;">
-                                        <div class="row g-2 mb-2">
-                                            <div class="col-6">
-                                                <label class="form-label small mb-0">Pickup (Port)</label>
-                                                <select class="form-select form-select-sm" id="arrival-pickup-port">
-                                                    <option value="">Select country first</option>
-                                                </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="def-ad-stand-card def-ad-stand-card--departure h-100">
+                                        <div class="def-ad-panel-head def-ad-panel-head--warning">
+                                            <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                                                <span class="def-ad-panel-ico text-warning" aria-hidden="true"><i class="ri-flight-takeoff-line"></i></span>
+                                                <div class="min-w-0">
+                                                    <div class="fw-semibold def-ad-panel-title">Departure service</div>
+                                                    <div class="def-ad-panel-sub">Hotel → port</div>
+                                                </div>
                                             </div>
-                                            <div class="col-6">
-                                                <label class="form-label small mb-0">Dropoff (Hotel)</label>
-                                                <select class="form-select form-select-sm" id="arrival-dropoff-hotel">
-                                                    <option value="">Add hotels first</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-12 col-md-6">
-                                                <label class="form-label small mb-0">Arrival Day</label>
-                                                <select class="form-select form-select-sm" id="arrival-day-select">
-                                                    <option value="1">Day 1</option>
-                                                </select>
+                                            <div class="form-check form-switch mb-0 flex-shrink-0 ps-2">
+                                                <input class="form-check-input" type="checkbox" id="departure-service-def" value="1">
+                                                <label class="form-check-label small def-ad-check" for="departure-service-def">Include</label>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn btn-info btn-sm mb-2" id="arrival-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle</button>
-                                        <div id="arrival-vehicle-select-wrap" style="display: none;">
-                                            <label class="form-label small mb-0">Choose vehicle (zone-based)</label>
-                                            <div class="d-flex gap-2 mb-1">
-                                                <select class="form-select form-select-sm flex-grow-1" id="arrival-vehicle-select">
-                                                    <option value="">Select vehicle</option>
-                                                </select>
-                                                <button type="button" class="btn btn-info btn-sm" id="arrival-add-vehicle-btn"><i class="ri-add-line"></i> Add</button>
-                                            </div>
-                                            <div class="row g-2 mb-1">
-                                                <div class="col-md-7">
-                                                    <div class="form-check form-check-inline">
-                                                        <input class="form-check-input" type="radio" name="arrival_transfer_type" id="arrival-transfer-private" value="private" checked>
-                                                        <label class="form-check-label small" for="arrival-transfer-private">Private</label>
+                                        <div class="def-ad-panel-body">
+                                            <div id="departure-service-config" style="display: none;">
+                                                <div class="row g-2 mb-3">
+                                                    <div class="col-12 col-sm-6">
+                                                        <label class="form-label small mb-1 def-ad-label" for="departure-pickup-hotel">Pickup (hotel)</label>
+                                                        <select class="form-select form-select-sm w-100" id="departure-pickup-hotel">
+                                                            <option value="">Add hotels first</option>
+                                                        </select>
                                                     </div>
-                                                    <div class="form-check form-check-inline">
-                                                        <input class="form-check-input" type="radio" name="arrival_transfer_type" id="arrival-transfer-shared" value="shared">
-                                                        <label class="form-check-label small" for="arrival-transfer-shared">Shared</label>
+                                                    <div class="col-12 col-sm-6">
+                                                        <label class="form-label small mb-1 def-ad-label" for="departure-dropoff-port">Dropoff (port)</label>
+                                                        <select class="form-select form-select-sm w-100" id="departure-dropoff-port">
+                                                            <option value="">Select country first</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-12 col-md-6">
+                                                        <label class="form-label small mb-1 def-ad-label" for="departure-day-select">Departure day</label>
+                                                        <select class="form-select form-select-sm w-100" id="departure-day-select">
+                                                            <option value="">Last Day</option>
+                                                        </select>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-5">
-                                                    <label class="form-label small mb-0">Price</label>
-                                                    <input type="number" class="form-control form-control-sm" id="arrival-transfer-price-input" min="0" step="0.01" value="0">
+                                                <button type="button" class="btn btn-warning btn-sm mb-2" id="departure-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle</button>
+                                                <div id="departure-vehicle-select-wrap" style="display: none;">
+                                                    <div class="def-ad-option-card">
+                                                        <div class="def-ad-option-card-head"><i class="ri-car-line me-1"></i>Vehicle &amp; pricing</div>
+                                                        <div class="def-ad-option-card-body">
+                                                            <label class="form-label small mb-1 def-ad-label" for="departure-vehicle-select">Choose vehicle (zone-based)</label>
+                                                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                                                <select class="form-select form-select-sm flex-grow-1" id="departure-vehicle-select" style="min-width: 160px;">
+                                                                    <option value="">Select vehicle</option>
+                                                                </select>
+                                                                <button type="button" class="btn btn-warning btn-sm flex-shrink-0" id="departure-add-vehicle-btn"><i class="ri-add-line me-1"></i>Add</button>
+                                                            </div>
+                                                            <div class="row g-2 align-items-end mb-1">
+                                                                <div class="col-md-7">
+                                                                    <span class="small fw-semibold text-uppercase def-ad-mini-h">Transfer type</span>
+                                                                    <div class="mt-1">
+                                                                        <div class="form-check form-check-inline mb-0">
+                                                                            <input class="form-check-input" type="radio" name="departure_transfer_type" id="departure-transfer-private" value="private" checked>
+                                                                            <label class="form-check-label small def-ad-check" for="departure-transfer-private">Private</label>
+                                                                        </div>
+                                                                        <div class="form-check form-check-inline mb-0">
+                                                                            <input class="form-check-input" type="radio" name="departure_transfer_type" id="departure-transfer-shared" value="shared">
+                                                                            <label class="form-check-label small def-ad-check" for="departure-transfer-shared">Shared</label>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-5">
+                                                                    <label class="form-label small mb-1 def-ad-label" for="departure-transfer-price-input">Price</label>
+                                                                    <input type="number" class="form-control form-control-sm" id="departure-transfer-price-input" min="0" step="0.01" value="0">
+                                                                </div>
+                                                            </div>
+                                                            <div id="departure-chosen-vehicles" class="small mt-2 pt-2 border-top def-ad-chosen-list"></div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div id="arrival-chosen-vehicles" class="small mt-1"></div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <!-- Departure Service: hotel (pickup) → port (dropoff), then search vehicle & choose -->
-                        <div class="col-md-6">
-                            <div class="card border-warning border-opacity-25">
-                                <div class="card-body p-3">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <span class="badge bg-warning-subtle text-warning p-2 rounded-circle me-3"><i class="ri-flight-takeoff-line"></i></span>
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-0">Departure Service</h6>
-                                            <small class="text-muted">Hotel → Port</small>
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="departure-service-def" value="1">
-                                            <label class="form-check-label" for="departure-service-def">Include</label>
-                                        </div>
-                                    </div>
-                                    <div id="departure-service-config" class="mt-2 pt-2 border-top" style="display: none;">
-                                        <div class="row g-2 mb-2">
-                                            <div class="col-6">
-                                                <label class="form-label small mb-0">Pickup (Hotel)</label>
-                                                <select class="form-select form-select-sm" id="departure-pickup-hotel">
-                                                    <option value="">Add hotels first</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-6">
-                                                <label class="form-label small mb-0">Dropoff (Port)</label>
-                                                <select class="form-select form-select-sm" id="departure-dropoff-port">
-                                                    <option value="">Select country first</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-12 col-md-6">
-                                                <label class="form-label small mb-0">Departure Day</label>
-                                                <select class="form-select form-select-sm" id="departure-day-select">
-                                                    <option value="">Last Day</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <button type="button" class="btn btn-warning btn-sm mb-2" id="departure-search-vehicle-btn"><i class="ri-search-line me-1"></i>Search vehicle</button>
-                                        <div id="departure-vehicle-select-wrap" style="display: none;">
-                                            <label class="form-label small mb-0">Choose vehicle (zone-based)</label>
-                                            <div class="d-flex gap-2 mb-1">
-                                                <select class="form-select form-select-sm flex-grow-1" id="departure-vehicle-select">
-                                                    <option value="">Select vehicle</option>
-                                                </select>
-                                                <button type="button" class="btn btn-warning btn-sm" id="departure-add-vehicle-btn"><i class="ri-add-line"></i> Add</button>
-                                            </div>
-                                            <div class="row g-2 mb-1">
-                                                <div class="col-md-7">
-                                                    <div class="form-check form-check-inline">
-                                                        <input class="form-check-input" type="radio" name="departure_transfer_type" id="departure-transfer-private" value="private" checked>
-                                                        <label class="form-check-label small" for="departure-transfer-private">Private</label>
-                                                    </div>
-                                                    <div class="form-check form-check-inline">
-                                                        <input class="form-check-input" type="radio" name="departure_transfer_type" id="departure-transfer-shared" value="shared">
-                                                        <label class="form-check-label small" for="departure-transfer-shared">Shared</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-5">
-                                                    <label class="form-label small mb-0">Price</label>
-                                                    <input type="number" class="form-control form-control-sm" id="departure-transfer-price-input" min="0" step="0.01" value="0">
-                                                </div>
-                                            </div>
-                                            <div id="departure-chosen-vehicles" class="small mt-1"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <input type="hidden" name="arrival_pickup" id="arrival-pickup-hidden" value="0">
+                            <input type="hidden" name="arrival_pickup_port_id" id="arrival-pickup-port-hidden" value="">
+                            <input type="hidden" name="arrival_dropoff_hotel_id" id="arrival-dropoff-hotel-hidden" value="">
+                            <input type="hidden" name="arrival_vehicles" id="arrival-vehicles-hidden" value="[]">
+                            <input type="hidden" name="departure_service" id="departure-service-hidden" value="0">
+                            <input type="hidden" name="departure_pickup_hotel_id" id="departure-pickup-hotel-hidden" value="">
+                            <input type="hidden" name="departure_dropoff_port_id" id="departure-dropoff-port-hidden" value="">
+                            <input type="hidden" name="departure_vehicles" id="departure-vehicles-hidden" value="[]">
                         </div>
                     </div>
-                    <input type="hidden" name="arrival_pickup" id="arrival-pickup-hidden" value="0">
-                    <input type="hidden" name="arrival_pickup_port_id" id="arrival-pickup-port-hidden" value="">
-                    <input type="hidden" name="arrival_dropoff_hotel_id" id="arrival-dropoff-hotel-hidden" value="">
-                    <input type="hidden" name="arrival_vehicles" id="arrival-vehicles-hidden" value="[]">
-                    <input type="hidden" name="departure_service" id="departure-service-hidden" value="0">
-                    <input type="hidden" name="departure_pickup_hotel_id" id="departure-pickup-hotel-hidden" value="">
-                    <input type="hidden" name="departure_dropoff_port_id" id="departure-dropoff-port-hidden" value="">
-                    <input type="hidden" name="departure_vehicles" id="departure-vehicles-hidden" value="[]">
                 </div>
             </div>
 
             <!-- City plan itinerary (2-by-2 grid) -->
-            <div class="card mb-4">
-                <div class="card-header bg-light py-2">
-                    <h5 class="mb-0"><i class="ri-route-line me-2 text-primary"></i>City Plan Itinerary</h5>
-                </div>
-                <div class="card-body py-3">
-                    <div id="definition-city-plan-service-sections" class="row g-3"></div>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-                <div class="card-header bg-light py-2">
-                    <h5 class="mb-0"><i class="ri-money-dollar-circle-line me-2 text-success"></i>Price & Markup</h5>
-                </div>
-                <div class="card-body py-3">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label">Total Price</label>
-                            <input type="number" class="form-control" id="definition-total-price" name="total_price" readonly value="0" step="0.01" min="0">
-                            <small class="text-muted">Sum of hotels, attractions, restaurants, arrival and departure.</small>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Markup Type</label>
-                            <select class="form-select" id="definition-markup-type" name="markup_type">
-                                <option value="">Select type</option>
-                                <option value="percentage">Percentage</option>
-                                <option value="flat">Flat</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Markup Amount</label>
-                            <input type="number" class="form-control" id="definition-markup-amount" name="markup_amount" value="0" step="0.01" min="0">
-                            <small class="text-muted">For percentage, enter % value. For flat, enter amount.</small>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Final Price</label>
-                            <input type="number" class="form-control" id="definition-final-price" readonly value="0" step="0.01" min="0">
-                            <small class="text-muted">Total + markup (percentage of total or flat).</small>
+            <div class="accordion mb-4 package-basic-accordion definition-city-plan-itinerary definition-service-card border-0 shadow-sm overflow-hidden" id="packageCityPlanItineraryAccordion">
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header" id="headingCityPlanItinerary">
+                        <button class="accordion-button fw-semibold rounded-top" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapseCityPlanItinerary"
+                                aria-expanded="true"
+                                aria-controls="collapseCityPlanItinerary">
+                            <span class="d-flex align-items-center gap-3 flex-wrap w-100 me-2 text-start">
+                                <span class="def-pkg-sec-head-ico text-primary" aria-hidden="true"><i class="ri-route-line"></i></span>
+                                <span class="min-w-0 flex-grow-1">
+                                    <span class="d-block mb-1 fw-semibold def-pkg-sec-title">City plan itinerary</span>
+                                    <span class="d-block small def-pkg-sec-sub mb-0">Per–city plan breakdown of services (populated from your city plans above).</span>
+                                </span>
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapseCityPlanItinerary"
+                         class="accordion-collapse collapse show"
+                         aria-labelledby="headingCityPlanItinerary"
+                         data-bs-parent="#packageCityPlanItineraryAccordion">
+                        <div class="accordion-body pt-0 p-3 p-lg-4 def-pkg-acc-body def-pkg-acc-body--primary">
+                            <div id="definition-city-plan-service-sections" class="row g-3"></div>
                         </div>
                     </div>
-                    <input type="hidden" name="price_data" id="definition-price-data" value="{}">
                 </div>
             </div>
 
-            <!-- Inclusions, Exclusions, Terms & Conditions, Status - one box -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-list-check me-2 text-success"></i><i class="ri-file-text-line me-2 text-secondary"></i><i class="ri-toggle-line me-2 text-primary"></i>Inclusions, Exclusions, Terms & Status</h5>
+            <div class="accordion mb-4 package-basic-accordion definition-price-markup definition-service-card border-0 shadow-sm overflow-hidden" id="packagePriceMarkupAccordion">
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header" id="headingPriceMarkup">
+                        <button class="accordion-button fw-semibold rounded-top" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapsePriceMarkup"
+                                aria-expanded="true"
+                                aria-controls="collapsePriceMarkup">
+                            <span class="d-flex align-items-center gap-3 flex-wrap w-100 me-2 text-start">
+                                <span class="def-pkg-sec-head-ico text-success" aria-hidden="true"><i class="ri-money-dollar-circle-line"></i></span>
+                                <span class="min-w-0 flex-grow-1">
+                                    <span class="d-block mb-1 fw-semibold def-pkg-sec-title">Price &amp; markup</span>
+                                    <span class="d-block small def-pkg-sec-sub mb-0">Review computed totals, apply markup, and see the final sell price.</span>
+                                </span>
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapsePriceMarkup"
+                         class="accordion-collapse collapse show"
+                         aria-labelledby="headingPriceMarkup"
+                         data-bs-parent="#packagePriceMarkupAccordion">
+                        <div class="accordion-body pt-0 p-3 p-lg-4 def-pkg-acc-body def-pkg-acc-body--success">
+                            <div class="row g-3">
+                                <div class="col-12 col-lg-3 col-md-6">
+                                    <label class="form-label def-pm-label" for="definition-total-price">Total price</label>
+                                    <input type="number" class="form-control" id="definition-total-price" name="total_price" readonly value="0" step="0.01" min="0">
+                                    <small class="def-pm-help">Sum of hotels, attractions, restaurants, arrival and departure.</small>
+                                </div>
+                                <div class="col-12 col-lg-3 col-md-6">
+                                    <label class="form-label def-pm-label" for="definition-markup-type">Markup type</label>
+                                    <select class="form-select" id="definition-markup-type" name="markup_type">
+                                        <option value="">Select type</option>
+                                        <option value="percentage">Percentage</option>
+                                        <option value="flat">Flat</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-lg-3 col-md-6">
+                                    <label class="form-label def-pm-label" for="definition-markup-amount">Markup amount</label>
+                                    <input type="number" class="form-control" id="definition-markup-amount" name="markup_amount" value="0" step="0.01" min="0">
+                                    <small class="def-pm-help">For percentage, enter % value. For flat, enter amount.</small>
+                                </div>
+                                <div class="col-12 col-lg-3 col-md-6">
+                                    <label class="form-label def-pm-label" for="definition-final-price">Final price</label>
+                                    <input type="number" class="form-control" id="definition-final-price" readonly value="0" step="0.01" min="0">
+                                    <small class="def-pm-help">Total plus markup (percentage of total or flat).</small>
+                                </div>
+                            </div>
+                            <input type="hidden" name="price_data" id="definition-price-data" value="{}">
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body" style="margin-top: 12px;">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Inclusions</label>
-                            <textarea class="form-control" name="inclusions" rows="4" placeholder="What's included...">{{ old('inclusions', $isEdit ? ($package->inclusions ?? '') : '') }}</textarea>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Exclusions</label>
-                            <textarea class="form-control" name="exclusions" rows="4" placeholder="What's not included...">{{ old('exclusions', $isEdit ? ($package->exclusions ?? '') : '') }}</textarea>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Terms & Conditions</label>
-                            <textarea class="form-control" name="terms_conditions" rows="3" placeholder="Terms and conditions...">{{ old('terms_conditions', $isEdit ? ($package->terms_conditions ?? '') : '') }}</textarea>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Status <span class="text-danger">*</span></label>
-                            <select class="form-select" name="status" required style="max-width: 200px;">
-                                <option value="1" {{ old('status', $isEdit ? (string) ($package->status ?? '1') : '') == '1' ? 'selected' : '' }}>Active</option>
-                                <option value="0" {{ old('status', $isEdit ? (string) ($package->status ?? '1') : '') == '0' ? 'selected' : '' }}>Inactive</option>
-                            </select>
+            </div>
+
+            <!-- Inclusions, Exclusions, Terms & Conditions, Status -->
+            <div class="accordion mb-4 package-basic-accordion definition-policies-card definition-service-card border-0 shadow-sm overflow-hidden" id="packagePoliciesAccordion">
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header" id="headingPolicies">
+                        <button class="accordion-button fw-semibold rounded-top" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapsePolicies"
+                                aria-expanded="true"
+                                aria-controls="collapsePolicies">
+                            <span class="d-flex align-items-center gap-3 flex-wrap w-100 me-2 text-start">
+                                <span class="def-pol-head-icons d-flex gap-2 flex-shrink-0">
+                                    <span class="def-pol-head-ico text-success" aria-hidden="true"><i class="ri-list-check"></i></span>
+                                    <span class="def-pol-head-ico text-secondary" aria-hidden="true"><i class="ri-file-text-line"></i></span>
+                                    <span class="def-pol-head-ico text-primary" aria-hidden="true"><i class="ri-toggle-line"></i></span>
+                                </span>
+                                <span class="min-w-0 flex-grow-1">
+                                    <span class="d-block mb-1 fw-semibold def-pkg-sec-title">Inclusions, exclusions, terms &amp; status</span>
+                                    <span class="d-block small def-pkg-sec-sub mb-0">Copy for the offer, legal terms, and whether this definition is active.</span>
+                                </span>
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapsePolicies"
+                         class="accordion-collapse collapse show"
+                         aria-labelledby="headingPolicies"
+                         data-bs-parent="#packagePoliciesAccordion">
+                        <div class="accordion-body pt-0 p-3 p-lg-4 def-pkg-acc-body def-pkg-acc-body--muted">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label def-pol-label" for="field-inclusions">Inclusions</label>
+                                    <textarea class="form-control" id="field-inclusions" name="inclusions" rows="4" placeholder="What's included...">{{ old('inclusions', $isEdit ? ($package->inclusions ?? '') : '') }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label def-pol-label" for="field-exclusions">Exclusions</label>
+                                    <textarea class="form-control" id="field-exclusions" name="exclusions" rows="4" placeholder="What's not included...">{{ old('exclusions', $isEdit ? ($package->exclusions ?? '') : '') }}</textarea>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label def-pol-label" for="field-terms-conditions">Terms &amp; conditions</label>
+                                    <textarea class="form-control" id="field-terms-conditions" name="terms_conditions" rows="3" placeholder="Terms and conditions...">{{ old('terms_conditions', $isEdit ? ($package->terms_conditions ?? '') : '') }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label def-pol-label" for="field-package-status">Status <span class="text-danger">*</span></label>
+                                    <select class="form-select def-pol-status" id="field-package-status" name="status" required>
+                                        <option value="1" {{ old('status', $isEdit ? (string) ($package->status ?? '1') : '') == '1' ? 'selected' : '' }}>Active</option>
+                                        <option value="0" {{ old('status', $isEdit ? (string) ($package->status ?? '1') : '') == '0' ? 'selected' : '' }}>Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -680,7 +910,11 @@ $(document).ready(function() {
     const hasExistingMainImage = @json($isEdit && !empty($package->main_image));
 
     $('#country-select').select2();
-    $('#city-select').select2({ placeholder: 'Select City(s)' });
+    $('#city-select').select2({
+        placeholder: 'Select City(s)',
+        width: '100%',
+        dropdownParent: $(document.body)
+    });
     $('#definition-hotel-select').select2({ placeholder: 'Select hotel' });
     $('#definition-attraction-select').select2({ placeholder: 'Select attraction' });
     $('#definition-restaurant-select').select2({ placeholder: 'Select restaurant' });
@@ -766,7 +1000,17 @@ $(document).ready(function() {
         wrap.empty();
 
         if (!definitionCityPlans.length) {
-            wrap.append('<div class="col-12"><div class="alert alert-info py-2 small mb-0"><i class="ri-information-line me-1"></i>Select multi city first, then click <strong>Add City Plan</strong>.</div></div>');
+            wrap.append(
+                '<div class="col-12">' +
+                    '<div class="def-planner-empty">' +
+                        '<div class="def-planner-empty-icon"><i class="ri-road-map-line"></i></div>' +
+                        '<div>' +
+                            '<h6 class="fw-semibold mb-1">No city plans yet</h6>' +
+                            '<p class="text-muted small mb-0">Select <strong>multiple cities</strong> in Basic Details, then use <strong>Add city plan</strong> to map each city to a day range. The active plan drives hotels and attractions below.</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
         }
 
         definitionCityPlans.forEach(function(plan) {
@@ -775,29 +1019,38 @@ $(document).ready(function() {
                     return '<option value="' + escapeHtml(city) + '" ' + (plan.city === city ? 'selected' : '') + '>' + escapeHtml(city) + '</option>';
                 }).join('')
                 : '<option value="">Select city first</option>';
+            const isActive = plan.id === activeCityPlanId;
 
             wrap.append(
-                '<div class="col-md-6">' +
-                    '<div class="border rounded p-2 ' + (plan.id === activeCityPlanId ? 'border-primary bg-primary-subtle' : 'bg-light-subtle') + '">' +
-                        '<div class="d-flex justify-content-between align-items-center mb-2">' +
-                            '<span class="small fw-semibold">City Plan</span>' +
-                            '<div class="d-flex gap-1">' +
-                                '<button type="button" class="btn btn-sm ' + (plan.id === activeCityPlanId ? 'btn-primary' : 'btn-outline-primary') + ' definition-select-city-plan-btn" data-id="' + plan.id + '">Use</button>' +
-                                '<button type="button" class="btn btn-sm btn-outline-danger definition-remove-city-plan-btn" data-id="' + plan.id + '"><i class="ri-delete-bin-line"></i></button>' +
+                '<div class="col-md-6 col-xl-4">' +
+                    '<div class="def-city-plan-tile ' + (isActive ? 'def-city-plan-tile--active' : '') + '">' +
+                        '<div class="def-city-plan-tile-head">' +
+                            '<div class="d-flex align-items-center gap-2 min-w-0">' +
+                                '<span class="def-city-plan-dot' + (isActive ? ' def-city-plan-dot--on' : '') + '"></span>' +
+                                '<span class="small fw-semibold text-truncate def-city-plan-city-name">' + escapeHtml(plan.city || 'City') + '</span>' +
+                                '<span class="badge ms-auto def-city-plan-state ' + (isActive ? 'bg-primary' : 'bg-label-secondary') + '">' + (isActive ? 'Active' : 'Idle') + '</span>' +
+                            '</div>' +
+                            '<div class="d-flex gap-2 mt-2">' +
+                                '<button type="button" class="btn btn-sm flex-grow-1 ' + (isActive ? 'btn-primary' : 'btn-outline-primary') + ' definition-select-city-plan-btn" data-id="' + plan.id + '">' +
+                                    '<i class="ri-focus-3-line me-1"></i>' + (isActive ? 'In use' : 'Use plan') +
+                                '</button>' +
+                                '<button type="button" class="btn btn-sm btn-outline-danger definition-remove-city-plan-btn" data-id="' + plan.id + '" title="Remove plan"><i class="ri-delete-bin-line"></i></button>' +
                             '</div>' +
                         '</div>' +
-                        '<div class="row g-2">' +
-                            '<div class="col-md-5">' +
-                                '<label class="form-label small mb-0">City</label>' +
-                                '<select class="form-select form-select-sm definition-city-plan-city" data-id="' + plan.id + '">' + options + '</select>' +
-                            '</div>' +
-                            '<div class="col-md-3">' +
-                                '<label class="form-label small mb-0">From(Day Start)</label>' +
-                                '<input type="number" min="1" class="form-control form-control-sm definition-city-plan-from" data-id="' + plan.id + '" value="' + plan.day_from + '">' +
-                            '</div>' +
-                            '<div class="col-md-3">' +
-                                '<label class="form-label small mb-0">To(Day End)</label>' +
-                                '<input type="number" min="1" class="form-control form-control-sm definition-city-plan-to" data-id="' + plan.id + '" value="' + plan.day_to + '">' +
+                        '<div class="def-city-plan-tile-body">' +
+                            '<div class="row g-2">' +
+                                '<div class="col-12">' +
+                                    '<label class="form-label small mb-1 def-city-plan-label">City</label>' +
+                                    '<select class="form-select form-select-sm definition-city-plan-city" data-id="' + plan.id + '">' + options + '</select>' +
+                                '</div>' +
+                                '<div class="col-6">' +
+                                    '<label class="form-label small mb-1 def-city-plan-label">From day</label>' +
+                                    '<input type="number" min="1" class="form-control form-control-sm definition-city-plan-from" data-id="' + plan.id + '" value="' + plan.day_from + '">' +
+                                '</div>' +
+                                '<div class="col-6">' +
+                                    '<label class="form-label small mb-1 def-city-plan-label">To day</label>' +
+                                    '<input type="number" min="1" class="form-control form-control-sm definition-city-plan-to" data-id="' + plan.id + '" value="' + plan.day_to + '">' +
+                                '</div>' +
                             '</div>' +
                         '</div>' +
                     '</div>' +
@@ -2225,7 +2478,7 @@ $(document).ready(function() {
             .map(function(entry, idx) { return { entry: entry, idx: idx }; })
             .filter(function(row) { return !activePlan || row.entry.city_plan_id === activePlan.id; });
         if (hotelsToRender.length === 0) {
-            placeholder.show().html('<div class="alert alert-info py-3 mb-0 d-flex align-items-center"><i class="ri-information-line me-2 fs-5"></i><span>No hotels selected yet. Choose your hotels above and click <strong>Add</strong>.</span></div>');
+            placeholder.show().html('<div class="alert alert-primary border-0 py-3 mb-0 def-ha-hint d-flex align-items-center"><i class="ri-information-line me-2 fs-5"></i><span>No hotels selected yet. Choose your hotels above and click <strong>Add</strong>.</span></div>');
             listEl.hide().empty();
             countEl.text('0');
             return;
@@ -3813,8 +4066,850 @@ $(document).ready(function() {
 </script>
 @endsection
 
-@section('styles')
+@section('css')
 <style>
+/* Accordion: use theme primary (follows template / customizer --bs-primary) */
+#packageBasicAccordion.accordion {
+    --bs-accordion-btn-bg: var(--bs-primary-bg-subtle);
+    --bs-accordion-active-bg: var(--bs-primary-border-subtle);
+    --bs-accordion-btn-color: var(--bs-emphasis-color);
+    --bs-accordion-active-color: var(--bs-primary-text-emphasis);
+    --bs-accordion-bg: var(--bs-body-bg);
+}
+
+/* Basic Details accordion */
+.package-basic-accordion .accordion-item {
+    border-radius: 0.5rem;
+    overflow: visible;
+    box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
+}
+.package-basic-accordion .accordion-header {
+    background-color: var(--bs-primary-bg-subtle) !important;
+    border-bottom: 1px solid var(--bs-primary-border-subtle);
+}
+.package-basic-accordion .accordion-button {
+    padding: 1rem 1.25rem;
+    box-shadow: none !important;
+    background-color: var(--bs-primary-bg-subtle) !important;
+    background-image: none !important;
+    color: var(--bs-emphasis-color);
+}
+.package-basic-accordion .accordion-button.collapsed {
+    background-color: var(--bs-primary-bg-subtle) !important;
+    background-image: none !important;
+}
+.package-basic-accordion .accordion-button:not(.collapsed) {
+    background-color: var(--bs-primary-border-subtle) !important;
+    background-image: none !important;
+    color: var(--bs-primary-text-emphasis);
+}
+.package-basic-accordion .accordion-button:focus {
+    box-shadow: none !important;
+    border-color: transparent !important;
+    background-color: var(--bs-primary-border-subtle) !important;
+}
+.package-basic-accordion .accordion-button::after {
+    filter: opacity(0.65);
+}
+.package-basic-accordion .accordion-body {
+    padding: 1rem 1.25rem 1.25rem;
+    border-top: 1px solid rgba(233, 236, 239, 0.9);
+}
+
+/* Hotels / Restaurants accordions: same as Basic Details — allow dropdowns to escape */
+.package-basic-accordion.definition-hotels-attr-card .accordion-item,
+.package-basic-accordion.definition-restaurants-card .accordion-item,
+.package-basic-accordion.definition-arrival-departure .accordion-item,
+.package-basic-accordion.definition-city-plan-itinerary .accordion-item,
+.package-basic-accordion.definition-price-markup .accordion-item,
+.package-basic-accordion.definition-policies-card .accordion-item {
+    overflow: visible;
+}
+.package-basic-accordion.definition-hotels-attr-card .accordion-button,
+.package-basic-accordion.definition-restaurants-card .accordion-button,
+.package-basic-accordion.definition-arrival-departure .accordion-button,
+.package-basic-accordion.definition-city-plan-itinerary .accordion-button,
+.package-basic-accordion.definition-price-markup .accordion-button,
+.package-basic-accordion.definition-policies-card .accordion-button {
+    align-items: flex-start;
+}
+.package-basic-fields .form-label {
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.35rem;
+}
+/* Same height for text, date, number, single selects, dropzones (textarea + multi-select can grow) */
+.package-basic-fields .form-control:not(textarea) {
+    min-height: 42px;
+    height: 42px;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+.package-basic-fields select.form-select:not([multiple]) {
+    min-height: 42px;
+    height: 42px;
+}
+.package-basic-fields select.form-select[multiple] {
+    min-height: 42px;
+}
+.package-basic-fields .package-basic-description {
+    height: auto !important;
+    min-height: 5.5rem;
+}
+.package-basic-dropzone {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    border: 2px dashed var(--bs-primary-border-subtle) !important;
+    background-color: var(--bs-primary-bg-subtle);
+    border-radius: 0.375rem !important;
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 0.75rem !important;
+}
+.package-basic-dropzone-text {
+    font-size: 0.8125rem;
+    color: #697a8d;
+    line-height: 1.2;
+}
+.package-basic-thumb {
+    max-height: 100px;
+    width: auto;
+    vertical-align: top;
+}
+/* Country + City use Select2 — match native inputs (42px) */
+.package-basic-fields .select2-container {
+    display: block;
+    margin-bottom: 0;
+}
+.package-basic-fields .select2-container--default .select2-selection--single {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0;
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+}
+.package-basic-fields .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 42px !important;
+    padding-left: 1rem;
+    padding-right: 2rem;
+}
+.package-basic-fields .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 40px !important;
+    top: 50% !important;
+    transform: translateY(-50%);
+}
+/* City multi-select: min height matches other fields; grows so all chips stay visible (no clipping) */
+.package-basic-city-field .select2-container--default .select2-selection--multiple {
+    min-height: 42px !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 6px 8px 6px 8px;
+    border-radius: 0.375rem;
+    box-sizing: border-box;
+    overflow: visible !important;
+}
+.package-basic-city-field .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    padding: 2px 4px 0 0;
+    margin: 0;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block;
+}
+.package-basic-city-field .select2-container--default .select2-selection--multiple .select2-search--inline {
+    float: none;
+}
+.package-basic-city-field .select2-container--default .select2-selection--multiple .select2-search--inline .select2-search__field {
+    margin-top: 4px;
+    line-height: 1.35;
+    min-height: 26px;
+}
+.package-basic-city-field .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    line-height: 1.25;
+}
+.package-basic-city-field .select2-container--default.select2-container--open {
+    z-index: 2005 !important;
+}
+/* City dropdown renders under body — stack above accordions, cards, sticky nav */
+.select2-container--default.select2-container--open,
+.select2-dropdown {
+    z-index: 2005 !important;
+}
+
+/* Day-wise City Planner — modern shell + tiles */
+.definition-city-planner {
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg);
+}
+.definition-city-planner .def-planner-top {
+    background-color: var(--bs-primary-bg-subtle) !important;
+    background-image: none;
+    border-bottom: 1px solid var(--bs-primary-border-subtle);
+}
+/* Stronger contrast on tinted header (Bootstrap text-muted is too faint here) */
+.definition-city-planner .def-planner-top .def-planner-title {
+    color: var(--bs-emphasis-color);
+    letter-spacing: -0.02em;
+}
+.definition-city-planner .def-planner-top .def-planner-desc,
+.definition-city-planner .def-planner-top .def-planner-desc.text-muted,
+.definition-city-planner .def-planner-top .def-planner-hint,
+.definition-city-planner .def-planner-top .def-planner-hint.text-muted {
+    color: var(--bs-primary-text-emphasis) !important;
+    opacity: 1 !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+.definition-city-planner .def-planner-top .def-planner-desc {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.definition-city-planner .def-planner-top .def-planner-icon-stack .def-planner-hint {
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.35;
+}
+.definition-city-planner .def-planner-top .def-planner-pill {
+    color: var(--bs-emphasis-color);
+    background: rgba(var(--bs-body-bg-rgb), 0.65);
+    border-color: rgba(var(--bs-primary-rgb), 0.35);
+}
+.definition-city-planner .def-planner-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    color: var(--bs-primary);
+    font-size: 1.35rem;
+}
+.definition-city-planner .def-planner-icon-stack {
+    width: 7.25rem;
+    max-width: 8.75rem;
+}
+.definition-city-planner .def-planner-desc {
+    max-width: 42rem;
+}
+.definition-city-planner .def-planner-add-btn {
+    border-radius: 0.5rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 2px 6px rgba(var(--bs-primary-rgb), 0.25);
+}
+.definition-city-planner .def-planner-body {
+    background: linear-gradient(180deg, rgba(var(--bs-primary-rgb), 0.03) 0%, transparent 120px);
+}
+.def-planner-empty {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1.25rem 1.5rem;
+    border-radius: 0.75rem;
+    border: 1px dashed var(--bs-primary-border-subtle);
+    background: var(--bs-primary-bg-subtle);
+}
+.def-planner-empty h6 {
+    color: var(--bs-emphasis-color);
+}
+.def-planner-empty p.text-muted,
+.def-planner-empty p.small.text-muted {
+    color: var(--bs-body-color) !important;
+}
+.def-planner-empty-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.65rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bs-body-bg);
+    color: var(--bs-primary);
+    font-size: 1.5rem;
+    box-shadow: 0 1px 4px rgba(67, 89, 113, 0.08);
+}
+.def-city-plan-tile {
+    height: 100%;
+    border-radius: 0.65rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+.def-city-plan-tile:hover {
+    border-color: rgba(var(--bs-primary-rgb), 0.35);
+    box-shadow: 0 4px 14px rgba(67, 89, 113, 0.08);
+}
+.def-city-plan-tile--active {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), 0.2), 0 6px 20px rgba(var(--bs-primary-rgb), 0.12);
+}
+.def-city-plan-tile-head {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(231, 233, 235, 0.9));
+    background: rgba(var(--bs-primary-rgb), 0.04);
+}
+.def-city-plan-tile--active .def-city-plan-tile-head {
+    background: rgba(var(--bs-primary-rgb), 0.08);
+}
+.def-city-plan-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--bs-secondary-color);
+    flex-shrink: 0;
+}
+.def-city-plan-dot--on {
+    background: var(--bs-primary);
+    box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.25);
+}
+.def-city-plan-tile-body {
+    padding: 1rem;
+}
+.def-city-plan-tile-head .def-city-plan-city-name {
+    color: var(--bs-emphasis-color);
+}
+.def-city-plan-tile .def-city-plan-label,
+.def-city-plan-tile label.def-city-plan-label {
+    color: var(--bs-primary-text-emphasis) !important;
+    font-weight: 600;
+    opacity: 1 !important;
+    -webkit-font-smoothing: antialiased;
+}
+.def-city-plan-tile .def-city-plan-state.bg-label-secondary {
+    color: var(--bs-emphasis-color) !important;
+    border: 1px solid var(--bs-border-color);
+}
+.def-city-plan-tile .definition-remove-city-plan-btn {
+    width: 2.25rem;
+    padding-left: 0;
+    padding-right: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+@media (max-width: 575.98px) {
+    .definition-city-planner .def-planner-cta {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+}
+
+/* Hotels & Attractions — panel UI */
+.definition-hotels-attr-card {
+    border-radius: 0.75rem;
+}
+.definition-hotels-attr-card .def-ha-head-ico {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+.definition-hotels-attr-card .def-ha-head-ico--hotel {
+    background: rgba(var(--bs-primary-rgb), 0.18);
+    color: var(--bs-primary);
+}
+.definition-hotels-attr-card .def-ha-head-ico--attr {
+    background: rgba(var(--bs-success-rgb), 0.14);
+    color: var(--bs-success);
+}
+.definition-hotels-attr-card .def-ha-title {
+    color: var(--bs-emphasis-color);
+}
+.definition-hotels-attr-card .def-ha-sub {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--bs-primary-text-emphasis);
+    font-weight: 500;
+    max-width: 42rem;
+}
+.definition-hotels-attr-card .def-ha-card-body {
+    background: linear-gradient(180deg, rgba(var(--bs-primary-rgb), 0.03) 0%, transparent 96px);
+}
+.definition-hotels-attr-card .def-ha-panel.def-ha-stand-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 6px 28px rgba(67, 89, 113, 0.1);
+}
+.definition-hotels-attr-card .def-ha-stand-card--hotel {
+    border-top: 3px solid var(--bs-primary);
+    box-shadow: 0 6px 28px rgba(var(--bs-primary-rgb), 0.14);
+}
+.definition-hotels-attr-card .def-ha-stand-card--attraction {
+    border-top: 3px solid var(--bs-success);
+    box-shadow: 0 6px 28px rgba(var(--bs-success-rgb), 0.12);
+}
+.definition-hotels-attr-card .def-ha-panel-head {
+    padding: 0.75rem 1.1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+.definition-hotels-attr-card .def-ha-panel-head--primary {
+    background: linear-gradient(180deg, rgba(var(--bs-primary-rgb), 0.1) 0%, rgba(var(--bs-primary-rgb), 0.04) 100%);
+    color: var(--bs-emphasis-color);
+}
+.definition-hotels-attr-card .def-ha-panel-head--success {
+    background: linear-gradient(180deg, rgba(var(--bs-success-rgb), 0.12) 0%, rgba(var(--bs-success-rgb), 0.04) 100%);
+    color: var(--bs-emphasis-color);
+}
+.definition-hotels-attr-card .def-ha-panel-body {
+    padding: 1.1rem 1.15rem 1.15rem;
+}
+/* Nested config: guide & transfer shell */
+.definition-hotels-attr-card .def-ha-config-shell {
+    border-radius: 0.65rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 2px 10px rgba(67, 89, 113, 0.06);
+    overflow: hidden;
+}
+.definition-hotels-attr-card .def-ha-config-shell-head {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.5rem 0.95rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: rgba(var(--bs-success-rgb), 0.08);
+    color: var(--bs-emphasis-color);
+}
+.definition-hotels-attr-card .def-ha-config-shell-body {
+    padding: 0.85rem 0.95rem 1rem;
+    background: rgba(var(--bs-success-rgb), 0.03);
+}
+/* Option cards (room block, guide, transfer) */
+.definition-hotels-attr-card .def-ha-option-card {
+    border-radius: 0.55rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 2px 10px rgba(67, 89, 113, 0.07);
+    overflow: hidden;
+}
+.definition-hotels-attr-card .def-ha-option-card-head {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.85rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    color: var(--bs-emphasis-color);
+}
+.definition-hotels-attr-card .def-ha-option-card--hotel-room .def-ha-option-card-head {
+    background: rgba(var(--bs-primary-rgb), 0.1);
+}
+.definition-hotels-attr-card .def-ha-option-card--guide .def-ha-option-card-head {
+    background: rgba(var(--bs-primary-rgb), 0.1);
+}
+.definition-hotels-attr-card .def-ha-option-card--transfer .def-ha-option-card-head {
+    background: rgba(var(--bs-success-rgb), 0.12);
+}
+.definition-hotels-attr-card .def-ha-option-card-body {
+    padding: 0.85rem 0.9rem 0.95rem;
+}
+.definition-hotels-attr-card .def-ha-config-shell-body .def-ha-option-card {
+    margin-top: 0.5rem;
+}
+.definition-hotels-attr-card .def-ha-label,
+.definition-hotels-attr-card label.def-ha-label {
+    color: var(--bs-primary-text-emphasis) !important;
+    font-weight: 600;
+}
+.definition-hotels-attr-card .def-ha-check {
+    color: var(--bs-body-color);
+    font-weight: 500;
+}
+.definition-hotels-attr-card .def-ha-help {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    line-height: 1.35;
+    color: var(--bs-primary-text-emphasis);
+}
+.definition-hotels-attr-card .def-ha-chosen-title {
+    color: var(--bs-emphasis-color);
+}
+.definition-hotels-attr-card .def-ha-muted {
+    color: var(--bs-body-color) !important;
+    font-weight: 500;
+}
+.definition-hotels-attr-card .def-ha-hint {
+    border-radius: 0.5rem !important;
+}
+.definition-hotels-attr-card .def-ha-chosen {
+    border-color: var(--bs-border-color-translucent, rgba(231, 233, 235, 0.95)) !important;
+}
+.definition-hotels-attr-card.definition-service-card .def-ha-panel.hotel-attraction-box {
+    padding: 0 !important;
+}
+
+/* Restaurants — panel UI (matches Hotels & Attractions pattern) */
+.definition-restaurants-card {
+    border-radius: 0.75rem;
+}
+.definition-restaurants-card .def-rs-head-ico {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+.definition-restaurants-card .def-rs-head-ico--rest {
+    background: rgba(var(--bs-warning-rgb), 0.22);
+    color: var(--bs-warning);
+}
+.definition-restaurants-card .def-rs-head-ico--guide {
+    background: rgba(var(--bs-info-rgb), 0.14);
+    color: var(--bs-info);
+}
+.definition-restaurants-card .def-rs-title {
+    color: var(--bs-emphasis-color);
+}
+.definition-restaurants-card .def-rs-sub {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--bs-warning-text-emphasis);
+    font-weight: 500;
+    max-width: 42rem;
+}
+.definition-restaurants-card .def-rs-card-body {
+    background: linear-gradient(180deg, rgba(var(--bs-warning-rgb), 0.06) 0%, transparent 96px);
+}
+.definition-restaurants-card .def-rs-panel.def-rs-stand-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 6px 28px rgba(67, 89, 113, 0.1);
+}
+.definition-restaurants-card .def-rs-stand-card--restaurant {
+    border-top: 3px solid var(--bs-warning);
+    box-shadow: 0 6px 28px rgba(var(--bs-warning-rgb), 0.16);
+}
+.definition-restaurants-card .def-rs-panel-head {
+    padding: 0.75rem 1.1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: linear-gradient(180deg, rgba(var(--bs-warning-rgb), 0.12) 0%, rgba(var(--bs-warning-rgb), 0.04) 100%);
+    color: var(--bs-emphasis-color);
+}
+.definition-restaurants-card .def-rs-panel-body {
+    padding: 1.1rem 1.15rem 1.15rem;
+}
+.definition-restaurants-card .def-rs-config-shell {
+    border-radius: 0.65rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 2px 10px rgba(67, 89, 113, 0.06);
+    overflow: hidden;
+}
+.definition-restaurants-card .def-rs-config-shell-head {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.5rem 0.95rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: rgba(var(--bs-warning-rgb), 0.1);
+    color: var(--bs-emphasis-color);
+}
+.definition-restaurants-card .def-rs-config-shell-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.85rem 0.95rem 1rem;
+    background: rgba(var(--bs-warning-rgb), 0.04);
+}
+.definition-restaurants-card .def-rs-option-card {
+    border-radius: 0.55rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 2px 10px rgba(67, 89, 113, 0.07);
+    overflow: hidden;
+}
+.definition-restaurants-card .def-rs-option-card-head {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.85rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    color: var(--bs-emphasis-color);
+}
+.definition-restaurants-card .def-rs-option-card--meal .def-rs-option-card-head {
+    background: rgba(var(--bs-warning-rgb), 0.12);
+}
+.definition-restaurants-card .def-rs-option-card--transfer .def-rs-option-card-head {
+    background: rgba(var(--bs-warning-rgb), 0.1);
+}
+.definition-restaurants-card .def-rs-option-card--vehicles .def-rs-option-card-head {
+    background: rgba(var(--bs-info-rgb), 0.1);
+}
+.definition-restaurants-card .def-rs-option-card-body {
+    padding: 0.85rem 0.9rem 0.95rem;
+}
+.definition-restaurants-card .def-rs-label,
+.definition-restaurants-card label.def-rs-label {
+    color: var(--bs-warning-text-emphasis) !important;
+    font-weight: 600;
+}
+.definition-restaurants-card .def-rs-check {
+    color: var(--bs-body-color);
+    font-weight: 500;
+}
+.definition-restaurants-card .def-rs-help {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    line-height: 1.35;
+    color: var(--bs-warning-text-emphasis);
+}
+.definition-restaurants-card .def-rs-chosen-title {
+    color: var(--bs-emphasis-color);
+}
+.definition-restaurants-card .def-rs-hint {
+    border-radius: 0.5rem !important;
+}
+.definition-restaurants-card .def-rs-chosen {
+    border-color: var(--bs-border-color-translucent, rgba(231, 233, 235, 0.95)) !important;
+}
+.definition-restaurants-card.definition-service-card .def-rs-panel.hotel-attraction-box {
+    padding: 0 !important;
+}
+
+/* Arrival & Departure — accordion body + twin panels */
+.definition-arrival-departure {
+    border-radius: 0.75rem;
+}
+.definition-arrival-departure .def-ad-title {
+    color: var(--bs-emphasis-color);
+}
+.definition-arrival-departure .def-ad-sub {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--bs-primary-text-emphasis);
+    font-weight: 500;
+    max-width: 44rem;
+}
+.definition-arrival-departure .def-ad-card-body {
+    background: linear-gradient(180deg, rgba(var(--bs-primary-rgb), 0.04) 0%, transparent 88px);
+}
+.definition-arrival-departure .def-ad-head-ico {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+.definition-arrival-departure .def-ad-head-ico--arrival {
+    background: rgba(var(--bs-info-rgb), 0.16);
+    color: var(--bs-info);
+}
+.definition-arrival-departure .def-ad-head-ico--departure {
+    background: rgba(var(--bs-warning-rgb), 0.2);
+    color: var(--bs-warning);
+}
+.definition-arrival-departure .def-ad-stand-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(67, 89, 113, 0.08);
+}
+.definition-arrival-departure .def-ad-stand-card--arrival {
+    border-top: 3px solid var(--bs-info);
+    box-shadow: 0 6px 24px rgba(var(--bs-info-rgb), 0.12);
+}
+.definition-arrival-departure .def-ad-stand-card--departure {
+    border-top: 3px solid var(--bs-warning);
+    box-shadow: 0 6px 24px rgba(var(--bs-warning-rgb), 0.12);
+}
+.definition-arrival-departure .def-ad-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+.definition-arrival-departure .def-ad-panel-head--info {
+    background: linear-gradient(180deg, rgba(var(--bs-info-rgb), 0.12) 0%, rgba(var(--bs-info-rgb), 0.04) 100%);
+}
+.definition-arrival-departure .def-ad-panel-head--warning {
+    background: linear-gradient(180deg, rgba(var(--bs-warning-rgb), 0.14) 0%, rgba(var(--bs-warning-rgb), 0.05) 100%);
+}
+.definition-arrival-departure .def-ad-panel-ico {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.definition-arrival-departure .def-ad-panel-head--info .def-ad-panel-ico {
+    background: rgba(var(--bs-info-rgb), 0.14);
+}
+.definition-arrival-departure .def-ad-panel-head--warning .def-ad-panel-ico {
+    background: rgba(var(--bs-warning-rgb), 0.16);
+}
+.definition-arrival-departure .def-ad-panel-title {
+    font-size: 0.95rem;
+    color: var(--bs-emphasis-color);
+}
+.definition-arrival-departure .def-ad-panel-sub {
+    font-size: 0.75rem;
+    color: var(--bs-primary-text-emphasis);
+    font-weight: 500;
+    line-height: 1.35;
+}
+.definition-arrival-departure .def-ad-panel-body {
+    padding: 1rem 1.05rem 1.1rem;
+}
+.definition-arrival-departure .def-ad-label,
+.definition-arrival-departure label.def-ad-label {
+    color: var(--bs-primary-text-emphasis) !important;
+    font-weight: 600;
+}
+.definition-arrival-departure .def-ad-check {
+    color: var(--bs-body-color);
+    font-weight: 500;
+}
+.definition-arrival-departure .def-ad-mini-h {
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    color: var(--bs-primary-text-emphasis);
+}
+.definition-arrival-departure .def-ad-option-card {
+    border-radius: 0.55rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 2px 10px rgba(67, 89, 113, 0.06);
+    overflow: hidden;
+}
+.definition-arrival-departure .def-ad-option-card-head {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.85rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    color: var(--bs-emphasis-color);
+    background: rgba(var(--bs-primary-rgb), 0.06);
+}
+.definition-arrival-departure .def-ad-stand-card--arrival .def-ad-option-card-head {
+    background: rgba(var(--bs-info-rgb), 0.1);
+}
+.definition-arrival-departure .def-ad-stand-card--departure .def-ad-option-card-head {
+    background: rgba(var(--bs-warning-rgb), 0.1);
+}
+.definition-arrival-departure .def-ad-option-card-body {
+    padding: 0.85rem 0.9rem 0.95rem;
+}
+.definition-arrival-departure .def-ad-chosen-list {
+    border-color: var(--bs-border-color-translucent, rgba(231, 233, 235, 0.95)) !important;
+    color: var(--bs-body-color);
+}
+
+/* City plan itinerary, Price & markup, Policies — package-basic accordions */
+.definition-city-plan-itinerary,
+.definition-price-markup,
+.definition-policies-card {
+    border-radius: 0.75rem;
+}
+.definition-city-plan-itinerary .def-pkg-sec-title,
+.definition-price-markup .def-pkg-sec-title,
+.definition-policies-card .def-pkg-sec-title {
+    color: var(--bs-emphasis-color);
+}
+.definition-city-plan-itinerary .def-pkg-sec-sub,
+.definition-price-markup .def-pkg-sec-sub,
+.definition-policies-card .def-pkg-sec-sub {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--bs-primary-text-emphasis);
+    font-weight: 500;
+    max-width: 44rem;
+}
+.definition-city-plan-itinerary .def-pkg-sec-head-ico,
+.definition-price-markup .def-pkg-sec-head-ico {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    background: rgba(var(--bs-primary-rgb), 0.1);
+}
+.definition-price-markup .def-pkg-sec-head-ico {
+    background: rgba(var(--bs-success-rgb), 0.12);
+}
+.definition-policies-card .def-pol-head-icons .def-pol-head-ico {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    background: var(--bs-secondary-bg-subtle);
+    border: 1px solid var(--bs-border-color-translucent, rgba(231, 233, 235, 0.95));
+}
+.definition-city-plan-itinerary .def-pkg-acc-body--primary {
+    background: linear-gradient(180deg, rgba(var(--bs-primary-rgb), 0.05) 0%, transparent 72px);
+}
+.definition-price-markup .def-pkg-acc-body--success {
+    background: linear-gradient(180deg, rgba(var(--bs-success-rgb), 0.07) 0%, transparent 72px);
+}
+.definition-policies-card .def-pkg-acc-body--muted {
+    background: linear-gradient(180deg, rgba(var(--bs-secondary-rgb), 0.06) 0%, transparent 72px);
+}
+.definition-price-markup .def-pm-label {
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    font-size: 0.875rem;
+}
+.definition-price-markup .def-pm-help {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: var(--bs-primary-text-emphasis);
+}
+.definition-policies-card .def-pol-label {
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    font-size: 0.875rem;
+}
+.definition-policies-card .def-pol-status {
+    max-width: 220px;
+}
+
 .form-control, .form-select { padding: 0.5rem 1rem; border-radius: 0.375rem; min-height: 42px; }
 .card { border: none; box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12); border-radius: 0.5rem; }
 .card-header { border-bottom: 1px solid #d9dee3; padding: 1rem 1.5rem; }
@@ -3831,28 +4926,28 @@ $(document).ready(function() {
 .two-col-row .col-md-6 .select2-container { width: 100% !important; }
 .two-col-row .col-md-6 .select2-container--default .select2-selection--single { min-height: 42px; border-radius: 0.375rem; }
 .two-col-row .col-md-6 .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 2.25; }
-.bg-primary-subtle { background-color: rgba(105, 108, 255, 0.1) !important; }
+.bg-primary-subtle { background-color: var(--bs-primary-bg-subtle) !important; }
 .bg-success-subtle { background-color: rgba(32, 201, 151, 0.1) !important; }
 .bg-info-subtle { background-color: rgba(13, 202, 240, 0.1) !important; }
 .bg-warning-subtle { background-color: rgba(253, 126, 20, 0.1) !important; }
 .hotel-attraction-box { min-height: 280px; }
 .hotel-attraction-box .form-select-sm, .hotel-attraction-box .form-control-sm { min-height: 36px; }
 
-/* More compact service sections */
-.definition-service-card .card-body { margin-top: 8px !important; padding-top: 12px !important; padding-bottom: 12px !important; }
+/* More compact service sections (skip Hotels & Attractions / Restaurants — use def-ha / def-rs layout) */
+.definition-service-card:not(.definition-hotels-attr-card):not(.definition-restaurants-card):not(.definition-arrival-departure):not(.definition-city-plan-itinerary):not(.definition-price-markup):not(.definition-policies-card) .card-body { margin-top: 8px !important; padding-top: 12px !important; padding-bottom: 12px !important; }
 .definition-service-card .card-header { padding-top: 0.75rem; padding-bottom: 0.75rem; }
-.definition-service-card .hotel-attraction-box { padding: 0.75rem !important; }
+.definition-service-card:not(.definition-hotels-attr-card):not(.definition-restaurants-card):not(.definition-arrival-departure):not(.definition-city-plan-itinerary):not(.definition-price-markup):not(.definition-policies-card) .hotel-attraction-box { padding: 0.75rem !important; }
 .definition-service-card .border.rounded.p-3 { padding: 0.75rem !important; }
-.definition-service-card .bg-primary-subtle,
-.definition-service-card .bg-success-subtle,
-.definition-service-card .bg-info-subtle,
-.definition-service-card .bg-warning-subtle { padding: 0.6rem !important; }
+.definition-service-card:not(.definition-hotels-attr-card):not(.definition-restaurants-card):not(.definition-arrival-departure):not(.definition-city-plan-itinerary):not(.definition-price-markup):not(.definition-policies-card) .bg-primary-subtle,
+.definition-service-card:not(.definition-hotels-attr-card):not(.definition-restaurants-card):not(.definition-arrival-departure):not(.definition-city-plan-itinerary):not(.definition-price-markup):not(.definition-policies-card) .bg-success-subtle,
+.definition-service-card:not(.definition-hotels-attr-card):not(.definition-restaurants-card):not(.definition-arrival-departure):not(.definition-city-plan-itinerary):not(.definition-price-markup):not(.definition-policies-card) .bg-info-subtle,
+.definition-service-card:not(.definition-hotels-attr-card):not(.definition-restaurants-card):not(.definition-arrival-departure):not(.definition-city-plan-itinerary):not(.definition-price-markup):not(.definition-policies-card) .bg-warning-subtle { padding: 0.6rem !important; }
 
 /* Compact Day-wise itinerary */
 .def-itinerary-wrap { max-height: 320px; overflow: auto; padding-right: 4px; }
 .def-it-accordion .accordion-item { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
 .def-it-accordion .accordion-button { padding: 10px 12px; background: #fff; }
-.def-it-accordion .accordion-button:not(.collapsed) { background: rgba(105, 108, 255, 0.06); }
+.def-it-accordion .accordion-button:not(.collapsed) { background-color: var(--bs-primary-bg-subtle); }
 .def-it-btn { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .def-it-btn-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .def-it-day-label { font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
