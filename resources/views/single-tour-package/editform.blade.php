@@ -1546,6 +1546,23 @@
                                             }
                                         }
                                     }
+
+                                    // Normalize meal plan for <select> values (JS/API use snake_case e.g. room_only)
+                                    $mealPlanSelectValue = $mealPlan;
+                                    if (is_string($mealPlan) && $mealPlan !== '') {
+                                        $mpLower = strtolower(trim($mealPlan));
+                                        $mealPlanMap = [
+                                            'room only' => 'room_only',
+                                            'room_only' => 'room_only',
+                                            'bed & breakfast' => 'bed_&_breakfast',
+                                            'bed and breakfast' => 'bed_&_breakfast',
+                                        ];
+                                        if (isset($mealPlanMap[$mpLower])) {
+                                            $mealPlanSelectValue = $mealPlanMap[$mpLower];
+                                        } elseif (strpos($mpLower, ' ') !== false && strpos($mpLower, '_') === false) {
+                                            $mealPlanSelectValue = strtolower(preg_replace('/\s+/', '_', trim($mealPlan)));
+                                        }
+                                    }
                                     
                                     // Extract transport options
                                     $transferOptions = $hotelInfo['transfer_options'] ?? [];
@@ -1590,6 +1607,28 @@
                                                 </button>
                                             </div>
                                         </div>
+                                        @if(!empty($rooms) && is_array($rooms))
+                                        <div class="alert alert-light border py-2 px-3 mb-3" style="font-size: 0.82rem;">
+                                            <div class="fw-semibold text-secondary mb-1"><i class="ri-stack-line me-1"></i>Saved room configuration</div>
+                                            <ul class="mb-0 ps-3">
+                                                @foreach($rooms as $ri => $roomRow)
+                                                    @php
+                                                        $rn = (int) ($roomRow['number_of_rooms'] ?? 1);
+                                                        $rt = $roomRow['room_type'] ?? 'Room';
+                                                        $bedsRow = $roomRow['beds'] ?? [];
+                                                        $firstB = is_array($bedsRow) && count($bedsRow) ? ($bedsRow[0] ?? []) : [];
+                                                        $bt = $firstB['bed_type'] ?? '';
+                                                        $hc = $firstB['head_count'] ?? $firstB['max_occupancy'] ?? null;
+                                                    @endphp
+                                                    <li>
+                                                        <strong>{{ $rt }}</strong>
+                                                        @if($rn > 1) — {{ $rn }} rooms @else — {{ $rn }} room @endif
+                                                        @if($bt) ({{ $bt }}@if($hc), {{ $hc }} pax @endif) @endif
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                        @endif
                                         <!-- Transport for this hotel -->
                                         <!-- <div class="border rounded-3 p-3 bg-light mb-3">
                                             <div class="row g-2 align-items-center">
@@ -1740,7 +1779,7 @@
                                                         </option>
                                                     @endforeach
                                                     @if($currentHotelName && !$locationFilteredHotels->contains('name', $currentHotelName))
-                                                        <option value="{{ $currentHotelName }}" selected>{{ $currentHotelName }}</option>
+                                                        <option value="{{ $currentHotelName }}" data-hotel-id="{{ $currentHotelId }}" selected>{{ $currentHotelName }}</option>
                                                     @endif
                                                 </select>
                                                 <script>
@@ -1754,12 +1793,16 @@
                                                         
                                                         if (selectedOption && selectedOption.dataset.hotelId) {
                                                             hotelIdInput.value = selectedOption.dataset.hotelId;
-                                                            // Load rooms for the selected hotel
                                                             loadRoomsForHotel_{{ $hotelOrder->booking_id }}(selectedOption.dataset.hotelId);
                                                         } else {
-                                                            hotelIdInput.value = '';
-                                                            // Reset room and bed options
-                                                            resetHotelFormFields_{{ $hotelOrder->booking_id }}();
+                                                            // Keep saved hotel id (fallback option may lack dataset until fixed); still load rooms
+                                                            const savedId = (hotelIdInput && hotelIdInput.value) ? String(hotelIdInput.value).trim() : '';
+                                                            if (savedId) {
+                                                                loadRoomsForHotel_{{ $hotelOrder->booking_id }}(savedId);
+                                                            } else {
+                                                                hotelIdInput.value = '';
+                                                                resetHotelFormFields_{{ $hotelOrder->booking_id }}();
+                                                            }
                                                         }
                                                     }
                                                     
@@ -2141,8 +2184,13 @@
                                                         }
                                                         
                                                         // Populate meal plans dynamically
+                                                        // If DMC hides list prices but saved booking is room-only, still offer room_only
+                                                        if (mealPlans.length === 0) {
+                                                            mealPlans.push({ value: 'room_only', text: `room only${paxInfo}` });
+                                                        }
+
                                                         if (mealPlans.length > 0) {
-                                                            const existingMealPlan = '{{ $mealPlan ?? "" }}';
+                                                            const existingMealPlan = @json($mealPlanSelectValue ?? ($mealPlan ?? ''));
                                                             let mealPlanSelected = false;
                                                             
                                                             mealPlans.forEach(plan => {
@@ -2756,17 +2804,21 @@
                                                         }
                                                     })();
                                                     
-                                                    // Initialize hotel_id and load rooms on page load if hotel is already selected
+                                                    // Initialize: load rooms from saved hotel id so dropdowns + meal plans hydrate (fixes missing data-hotel-id on fallback option)
                                                     document.addEventListener('DOMContentLoaded', function() {
-                                                        const hotelSelect = document.getElementById('hotel_name_{{ $hotelOrder->booking_id }}');
-                                                        if (hotelSelect && hotelSelect.value) {
-                                                            updateHotelId_{{ $hotelOrder->booking_id }}(hotelSelect.value);
+                                                        const hotelIdInput = document.getElementById('hotel_id_{{ $hotelOrder->booking_id }}');
+                                                        const savedHotelId = hotelIdInput && hotelIdInput.value ? String(hotelIdInput.value).trim() : '';
+                                                        if (savedHotelId) {
+                                                            loadRoomsForHotel_{{ $hotelOrder->booking_id }}(savedHotelId);
+                                                        } else {
+                                                            const hotelSelect = document.getElementById('hotel_name_{{ $hotelOrder->booking_id }}');
+                                                            if (hotelSelect && hotelSelect.value) {
+                                                                updateHotelId_{{ $hotelOrder->booking_id }}(hotelSelect.value);
+                                                            }
                                                         }
-                                                        
-                                                        // Initialize price grid after a short delay to ensure all data is loaded
                                                         setTimeout(() => {
-                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
-                                                        }, 500);
+                                                            try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(); } catch (e) {}
+                                                        }, 600);
                                                     });
                                                 </script>
                                             </div>
@@ -2805,7 +2857,7 @@
                                                 <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
                                                     <option value="">Select Meal Plan</option>
                                                     @if($mealPlan)
-                                                        <option value="{{ $mealPlan }}" selected>{{ $mealPlan }}</option>
+                                                        <option value="{{ $mealPlanSelectValue ?? $mealPlan }}" selected>{{ $mealPlan }}</option>
                                                     @endif
                                                 </select>
                                             </div>
@@ -6057,8 +6109,8 @@
                                     </div>
                                     <div class="col-6">
                                         <label for="meal_plan" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Meal Plan</label>
-                                        <select class="form-select modern-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing(); updateHotelModalPrice();" disabled>
-                                            <option value="">Select bed</option>
+                                        <select class="form-select modern-select" id="meal_plan" name="meal_plan" data-no-select2="true" onchange="updateMealPricing(); updateHotelModalPrice();" disabled>
+                                            <option value="">Select meal plan</option>
                                         </select>
                                     </div>
                                     <div class="col-6" id="child_with_bed_wrap_modal" style="display: none;">
@@ -17605,6 +17657,91 @@
             });
     }
     
+    /**
+     * Hotel "Book Your Hotels" modal: meal options come from the selected ROOM TYPE (all matching room rows),
+     * not from the bed record — bed API room_id types often do not match window.roomData and cleared meals.
+     * When preserveMeal is true, keep the previous selection if it still exists (e.g. bed change only).
+     */
+    function loadHotelModalMealPlansFromRoomType(roomType, opts) {
+        opts = opts || {};
+        const preserveMeal = !!opts.preserveMeal;
+        const mealPlanSelect = document.getElementById('meal_plan');
+        if (!mealPlanSelect) return;
+
+        const prevMeal = preserveMeal ? String(mealPlanSelect.value || '') : '';
+        const roomData = window.roomData || [];
+        const rtKey = roomType != null ? String(roomType).trim() : '';
+
+        if (!rtKey || !roomData.length) {
+            mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+            mealPlanSelect.disabled = true;
+            validateHotelModalFields();
+            return;
+        }
+
+        const roomsOfType = roomData.filter(r => String((r.room_type || r.type || '')).trim() === rtKey);
+        if (!roomsOfType.length) {
+            mealPlanSelect.innerHTML = '<option value="">No meal plans available</option>';
+            mealPlanSelect.disabled = true;
+            validateHotelModalFields();
+            return;
+        }
+
+        const mealFlag = (r, a, b) =>
+            (r[a] == 1 || r[a] === true || r[a] === '1' ||
+                (b && (r[b] == 1 || r[b] === true || r[b] === '1')));
+        const hasBreakfast = roomsOfType.some(r => mealFlag(r, 'breakfast', 'breakfast_included'));
+        const hasLunch = roomsOfType.some(r => mealFlag(r, 'lunch', 'lunch_included'));
+        const hasDinner = roomsOfType.some(r => mealFlag(r, 'dinner', 'dinner_included'));
+        const hasRoomsOnly = roomsOfType.some(r => r.rooms_only == 1 || r.rooms_only === true || r.rooms_only === '1');
+
+        const sample = roomsOfType[0];
+        const mealPlans = [];
+        const roomText = 'room';
+        const dmcPriceHide = {{ isset($dmcUser) && ($dmcUser->price_hide ?? 0) == 1 ? 1 : 0 }};
+
+        if (!hasRoomsOnly && !dmcPriceHide) {
+            mealPlans.push(`${roomText} only`);
+        }
+        if (hasBreakfast) mealPlans.push(`${roomText} with breakfast`);
+        if (hasLunch) mealPlans.push(`${roomText} with lunch`);
+        if (hasDinner) mealPlans.push(`${roomText} with dinner`);
+        if (hasBreakfast && hasLunch) mealPlans.push(`${roomText} with breakfast + lunch`);
+        if (hasBreakfast && hasDinner) mealPlans.push(`${roomText} with breakfast + dinner`);
+        if (hasLunch && hasDinner) mealPlans.push(`${roomText} with lunch + dinner`);
+        if (hasBreakfast && hasLunch && hasDinner) {
+            mealPlans.push(`${roomText} with all meals (breakfast + lunch + dinner)`);
+        }
+        if (!mealPlans.length) {
+            mealPlans.push(`${roomText} only`);
+        }
+
+        mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+        mealPlans.forEach(plan => {
+            const option = document.createElement('option');
+            option.value = plan.toLowerCase().replace(/\s+/g, '_');
+            option.textContent = plan;
+            option.dataset.breakfastPrice = sample.breakfast_price || 0;
+            option.dataset.lunchPrice = sample.lunch_price || 0;
+            option.dataset.dinnerPrice = sample.dinner_price || 0;
+            mealPlanSelect.appendChild(option);
+        });
+
+        mealPlanSelect.disabled = false;
+        if (prevMeal && Array.from(mealPlanSelect.options).some(o => o.value === prevMeal)) {
+            mealPlanSelect.value = prevMeal;
+        } else {
+            const firstValued = Array.from(mealPlanSelect.options).find(o => o.value);
+            if (firstValued) mealPlanSelect.value = firstValued.value;
+        }
+
+        if (typeof updateMealPricing === 'function') {
+            updateMealPricing();
+        }
+        try { if (window.refreshSelect2) refreshSelect2(mealPlanSelect); } catch (e) {}
+        validateHotelModalFields();
+    }
+
     function loadBedsForSelectedRoom(roomType) {
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
@@ -17709,16 +17846,13 @@
                     
                     // Validate fields after beds are loaded
                     validateHotelModalFields();
-                    
-                    // Initialize meal plans if bed type is already selected
-                    initializeMealPlansForExistingData();
                 } else {
                     console.log('No beds found for room type:', roomType);
                     bedTypeSelect.innerHTML = '<option value="">No bed types available</option>';
                 }
                 
-                // Load meal plans based on room data
-                loadMealPlansForBed(selectedRooms[0]);
+                // Meals follow room type (not bed row); rebuild when room type / beds list changes
+                loadHotelModalMealPlansFromRoomType(roomType, { preserveMeal: false });
             })
             .catch(error => {
                 console.error('Error fetching beds:', error);
@@ -17730,11 +17864,13 @@
     function updateBedPricingAndMealPlans() {
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
-        const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+        const selectedOption = bedTypeSelect && bedTypeSelect.options[bedTypeSelect.selectedIndex];
         
         if (!selectedOption || !selectedOption.value) {
-            mealPlanSelect.disabled = true;
-            mealPlanSelect.innerHTML = '<option value="">Select bed type first</option>';
+            if (mealPlanSelect) {
+                mealPlanSelect.disabled = true;
+                mealPlanSelect.innerHTML = '<option value="">Select bed type first</option>';
+            }
             return;
         }
         
@@ -17766,81 +17902,21 @@
         
         console.log('Bed selected:', bedData);
         
-        // Validate fields after bed selection
+        // Do not reload meal options here — meals depend on room type only; keep user’s meal choice stable
+        if (typeof updateMealPricing === 'function') {
+            updateMealPricing();
+        }
         validateHotelModalFields();
     }
     
+    /** @deprecated for modal — use loadHotelModalMealPlansFromRoomType; kept for any legacy callers */
     function loadMealPlansForBed(bedData) {
-        const mealPlanSelect = document.getElementById('meal_plan');
-        
-        // Get room data to check meal availability
-        const roomData = window.roomData || [];
-        const roomId = bedData.room_id;
-        const room = roomData.find(r => r.room_id === roomId);
-        
-        if (!room) {
-            mealPlanSelect.innerHTML = '<option value="">No meal plans available</option>';
-            return;
+        const rt = document.getElementById('room_type') && document.getElementById('room_type').value;
+        if (rt) {
+            loadHotelModalMealPlansFromRoomType(rt, { preserveMeal: false });
+        } else if (bedData && (bedData.room_type || bedData.type)) {
+            loadHotelModalMealPlansFromRoomType(String(bedData.room_type || bedData.type), { preserveMeal: false });
         }
-        
-        // Check meal availability for this specific room
-        const hasBreakfast = room.breakfast == 1 || room.breakfast === true;
-        const hasLunch = room.lunch == 1 || room.lunch === true;
-        const hasDinner = room.dinner == 1 || room.dinner === true;
-        
-        // Generate meal plan options in the format "1 x room with/only"
-        const mealPlans = [];
-        const roomText = "room";
-        
-        // Add "Room Only" option only when DMC (created_by user) is allowed to show prices (price_hide != 1)
-        const dmcPriceHide = {{ isset($dmcUser) && ($dmcUser->price_hide ?? 0) == 1 ? 1 : 0 }};
-        if (!dmcPriceHide) {
-            mealPlans.push(`${roomText} only`);
-        }
-        
-        // Add specific meal options based on availability
-        if (hasBreakfast) {
-            mealPlans.push(`${roomText} with breakfast`);
-        }
-        if (hasLunch) {
-            mealPlans.push(`${roomText} with lunch`);
-        }
-        if (hasDinner) {
-            mealPlans.push(`${roomText} with dinner`);
-        }
-        
-        // Add combination meal options
-        if (hasBreakfast && hasLunch) {
-            mealPlans.push(`${roomText} with breakfast + lunch`);
-        }
-        if (hasBreakfast && hasDinner) {
-            mealPlans.push(`${roomText} with breakfast + dinner`);
-        }
-        if (hasLunch && hasDinner) {
-            mealPlans.push(`${roomText} with lunch + dinner`);
-        }
-        if (hasBreakfast && hasLunch && hasDinner) {
-            mealPlans.push(`${roomText} with all meals (breakfast + lunch + dinner)`);
-        }
-        
-        // Populate meal plans
-        mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
-        mealPlans.forEach(plan => {
-            const option = document.createElement('option');
-            option.value = plan.toLowerCase().replace(/\s+/g, '_');
-            option.textContent = plan;
-            // Store meal prices in dataset
-            option.dataset.breakfastPrice = room.breakfast_price || 0;
-            option.dataset.lunchPrice = room.lunch_price || 0;
-            option.dataset.dinnerPrice = room.dinner_price || 0;
-            mealPlanSelect.appendChild(option);
-        });
-        
-        mealPlanSelect.disabled = false;
-        console.log('Meal plans loaded for selected bed');
-        
-        // Check if all required fields are selected to enable proceed button
-        validateHotelModalFields();
     }
     
     function validateHotelModalFields() {
@@ -17979,38 +18055,26 @@
     
     function initializeMealPlansForExistingData() {
         const bedTypeSelect = document.getElementById('bed_type');
-        const mealPlanSelect = document.getElementById('meal_plan');
-        
-        // Check if bed type is already selected and meal plan needs initialization
-        if (bedTypeSelect && bedTypeSelect.value && mealPlanSelect) {
-            console.log('Initializing meal plans for existing bed selection');
-            
-            // Get the selected bed data
-            const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
-            if (selectedOption && selectedOption.value) {
-                const bedData = JSON.parse(selectedOption.getAttribute('data-bed') || '{}');
-                console.log('Loading meal plans for bed data:', bedData);
-                
-                // Initialize person count to 1 by default
-                if (!window.selectedPersonCount) {
-                    window.selectedPersonCount = 1;
-                    
-                    // Update dropdown to reflect selected person count
-                    const personSelect = document.getElementById('person_count_select');
-                    if (personSelect) {
-                        personSelect.value = window.selectedPersonCount;
-                    }
-                }
-                
-                // Load meal plans for the selected bed
-                loadMealPlansForBed(bedData);
+        const roomTypeSelect = document.getElementById('room_type');
+        if (!bedTypeSelect || !bedTypeSelect.value || !roomTypeSelect || !roomTypeSelect.value) {
+            return;
+        }
+        console.log('Initializing meal plans from current room type (bed already selected)');
+        if (!window.selectedPersonCount) {
+            window.selectedPersonCount = 1;
+            const personSelect = document.getElementById('person_count_select');
+            if (personSelect) {
+                personSelect.value = String(window.selectedPersonCount);
             }
         }
+        loadHotelModalMealPlansFromRoomType(roomTypeSelect.value, { preserveMeal: true });
     }
     
     function updateMealPricing() {
-        // Get selected meal plan
         const mealPlanSelect = document.getElementById('meal_plan');
+        if (!mealPlanSelect || !mealPlanSelect.options || mealPlanSelect.selectedIndex < 0) {
+            return;
+        }
         const selectedOption = mealPlanSelect.options[mealPlanSelect.selectedIndex];
         
         if (!selectedOption || !selectedOption.value) {
@@ -22394,7 +22458,7 @@
         
         // Initialize meal plans when hotel modal is shown with existing data
         document.addEventListener('shown.bs.modal', function(e) {
-            if (e.target.id === 'hotelSelectionModal') {
+            if (e.target.id === 'hotelBookingModal') {
                 console.log('Hotel modal opened, checking for meal plan initialization');
                 setTimeout(() => {
                     initializeMealPlansForExistingData();
