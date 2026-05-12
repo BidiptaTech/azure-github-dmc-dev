@@ -302,6 +302,16 @@
         border-color: #fecaca;
     }
 
+    .driver-edit-btn {
+        color: #6366f1;
+        text-decoration: none;
+        line-height: 1;
+    }
+
+    .driver-edit-btn:hover {
+        color: #4f46e5;
+    }
+
     .th-tooltip { cursor: help; }
 
     /* Column widths */
@@ -311,8 +321,9 @@
     #vehiclesTable .col-dmc         { width: 120px; min-width: 100px; }
     #vehiclesTable .col-type        { width: 90px;  min-width: 80px; }
     #vehiclesTable .col-model       { width: 100px; min-width: 90px; }
-    #vehiclesTable .col-year        { width: 55px;  min-width: 50px; }
     #vehiclesTable .col-capacity    { width: 65px;  min-width: 60px; }
+    #vehiclesTable .col-plate       { width: 95px;  min-width: 85px; }
+    #vehiclesTable .col-driver      { width: 155px; min-width: 130px; }
     #vehiclesTable .col-availability{ width: 90px;  min-width: 80px; }
     #vehiclesTable .col-action      { width: 70px;  min-width: 70px; }
     #vehiclesTable .col-created-at  { width: 100px; min-width: 90px; font-size: 10.5px; }
@@ -392,8 +403,9 @@
                             <th class="th-tooltip col-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC Company</th>
                             <th class="th-tooltip col-type" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Vehicle Type">Type</th>
                             <th class="th-tooltip col-model" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Vehicle Model">Model</th>
-                            <th class="th-tooltip col-year" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Model Year">Year</th>
                             <th class="th-tooltip col-capacity" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Seating Capacity">Capacity</th>
+                            <th class="th-tooltip col-plate" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Vehicle Plate Number">Plate No.</th>
+                            <th class="th-tooltip col-driver" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Assigned Driver">Driver</th>
                             <th class="th-tooltip col-availability" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Availability Status">Availability</th>
                             @if(hasPermission('edit vehicle') || hasPermission('delete vehicle'))
                             <th class="th-tooltip col-action" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Available Actions">Actions</th>
@@ -414,8 +426,59 @@
                             <td class="col-dmc">{{ $vehicle->dmc ? $vehicle->dmc->company_name : 'N/A' }}</td>
                             <td class="col-type">{{ $vehicle->vehicle_type }}</td>
                             <td class="col-model">{{ $vehicle->vehicle_model }}</td>
-                            <td class="col-year">{{ $vehicle->model_year }}</td>
                             <td class="col-capacity">{{ $vehicle->seating_capacity }}</td>
+                            <td class="col-plate">
+                                <div class="plate-cell">
+                                    <div class="plate-display-wrap d-inline-flex align-items-center gap-1 flex-wrap">
+                                        <span class="plate-no-text">{{ $vehicle->vehicle_plate_no !== null && $vehicle->vehicle_plate_no !== '' ? $vehicle->vehicle_plate_no : '—' }}</span>
+                                        @if(hasPermission('edit vehicle'))
+                                            <button type="button" class="btn btn-link btn-sm p-0 plate-edit-btn"
+                                                    title="Edit plate number"
+                                                    aria-label="Edit plate number">
+                                                <i class="ri-pencil-line"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                    @if(hasPermission('edit vehicle'))
+                                        <input type="text"
+                                               class="form-control form-control-sm plate-inline-input d-none mt-1"
+                                               style="max-width: 120px;"
+                                               value="{{ $vehicle->vehicle_plate_no ?? '' }}"
+                                               data-vehicle-id="{{ Crypt::encrypt($vehicle->vehicle_id) }}"
+                                               maxlength="255"
+                                               autocomplete="off">
+                                    @endif
+                                </div>
+                            </td>
+                            <td class="col-driver">
+                                @php
+                                    $rowDrivers = $driversByDmc->get($vehicle->dmc_id, collect());
+                                @endphp
+                                <div class="driver-cell">
+                                    <div class="driver-display-wrap d-inline-flex align-items-center gap-1 flex-wrap">
+                                        <span class="driver-name-text">{{ $vehicle->driver->name ?? '—' }}</span>
+                                        @if(hasPermission('edit vehicle'))
+                                            <button type="button" class="btn btn-link btn-sm p-0 driver-edit-btn"
+                                                    title="Change driver"
+                                                    aria-label="Change driver">
+                                                <i class="ri-pencil-line"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                    @if(hasPermission('edit vehicle'))
+                                        <select class="form-select form-select-sm driver-inline-select d-none mt-1 w-100"
+                                                style="max-width: 220px;"
+                                                data-vehicle-id="{{ Crypt::encrypt($vehicle->vehicle_id) }}">
+                                            <option value="">— None —</option>
+                                            @foreach($rowDrivers as $dr)
+                                                <option value="{{ $dr->driver_id }}" @selected((string) ($vehicle->driver_id ?? '') === (string) $dr->driver_id)>
+                                                    {{ $dr->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    @endif
+                                </div>
+                            </td>
                             <td class="col-availability">
                                 @if($vehicle->is_available == 1)
                                     <span class="badge-status active"><span class="dot"></span>Available</span>
@@ -473,11 +536,25 @@
 @section('scripts')
 <!-- SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
-<!-- DataTable JS -->
-<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+<!-- DataTables already loaded in layouts/footer.blade.php — do not load twice -->
 <script>
     $(document).ready(function() {
-        $('.datatables-basic').DataTable({
+        var $vt = $('#vehiclesTable');
+        if (!$vt.length) {
+            console.warn('[vehicles] #vehiclesTable not found');
+            return;
+        }
+        $vt.on('init.dt', function () {
+            console.info('[vehicles] DataTable init — driver edit buttons:', document.querySelectorAll('#vehiclesTable .driver-edit-btn').length,
+                'selects:', document.querySelectorAll('#vehiclesTable .driver-inline-select').length);
+        });
+
+        if ($.fn.DataTable.isDataTable($vt)) {
+            console.warn('[vehicles] DataTable already initialized on #vehiclesTable');
+            console.info('[vehicles] Driver edit buttons:', document.querySelectorAll('#vehiclesTable .driver-edit-btn').length,
+                'selects:', document.querySelectorAll('#vehiclesTable .driver-inline-select').length);
+        } else {
+            $vt.DataTable({
             responsive: false,
             autoWidth: false,
             dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
@@ -494,23 +571,24 @@
                 { targets: '.col-dmc',          width: '120px' },
                 { targets: '.col-type',         width: '90px'  },
                 { targets: '.col-model',        width: '100px' },
-                { targets: '.col-year',         width: '55px'  },
                 { targets: '.col-capacity',     width: '65px'  },
+                { targets: '.col-plate',       width: '95px'  },
+                { targets: '.col-driver',      width: '155px' },
                 { targets: '.col-availability', width: '90px'  },
                 { targets: '.col-action',       width: '70px'  },
                 { targets: '.col-created-at',   width: '100px' },
             ],
-        });
+            });
+        }
 
-        $('#exportCopy').on('click',  function() { $('.datatables-basic').DataTable().button('.buttons-copy').trigger(); });
-        $('#exportCSV').on('click',   function() { $('.datatables-basic').DataTable().button('.buttons-csv').trigger(); });
-        $('#exportExcel').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-excel').trigger(); });
-        $('#exportPDF').on('click',   function() { $('.datatables-basic').DataTable().button('.buttons-pdf').trigger(); });
-        $('#exportPrint').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-print').trigger(); });
+        $('#exportCopy').on('click',  function() { $('#vehiclesTable').DataTable().button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click',   function() { $('#vehiclesTable').DataTable().button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function() { $('#vehiclesTable').DataTable().button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click',   function() { $('#vehiclesTable').DataTable().button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function() { $('#vehiclesTable').DataTable().button('.buttons-print').trigger(); });
     });
 </script>
 
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 <script>
     function initVehicleTooltips() {
         if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
@@ -524,6 +602,171 @@
     $(document).ready(function() {
         initVehicleTooltips();
         $('#vehiclesTable').on('draw.dt', function() { initVehicleTooltips(); });
+
+        const driverUpdateUrl = @json(route('vehicle.update_driver'));
+        const plateUpdateUrl = @json(route('vehicle.update_plate'));
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+
+        // Delegate from document: survives DataTables DOM moves; use closest('td') because DT may not keep td.col-driver.
+        $(document).on('click', '#vehiclesTable .driver-edit-btn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $cell = $(this).closest('td');
+            const $sel = $cell.find('.driver-inline-select');
+            if (!$sel.length) {
+                console.warn('[vehicles] Driver edit: no select in cell (missing edit permission or markup).', {
+                    table: document.querySelectorAll('#vehiclesTable').length,
+                    cellTD: $cell.length,
+                });
+                return;
+            }
+            $cell.find('.driver-display-wrap').addClass('d-none');
+            $sel.removeClass('d-none').trigger('focus');
+        });
+
+        $(document).on('change', '#vehiclesTable .driver-inline-select', function () {
+            const $sel = $(this);
+            const $cell = $sel.closest('td');
+            const vehicleId = $sel.data('vehicle-id');
+            const driverId = $sel.val();
+
+            $sel.prop('disabled', true);
+            $.ajax({
+                url: driverUpdateUrl,
+                method: 'POST',
+                dataType: 'json',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+                data: {
+                    _token: csrfToken,
+                    vehicle_id: vehicleId,
+                    driver_id: driverId
+                }
+            }).done(function (res) {
+                if (res.success) {
+                    const label = (res.driver_name !== undefined && res.driver_name !== '') ? res.driver_name : '—';
+                    $cell.find('.driver-name-text').text(label);
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Update failed', text: res.message || 'Could not update driver.' });
+                }
+            }).fail(function (xhr) {
+                const msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Could not update driver.';
+                Swal.fire({ icon: 'error', title: 'Update failed', text: msg });
+            }).always(function () {
+                $sel.prop('disabled', false);
+                $sel.addClass('d-none');
+                $cell.find('.driver-display-wrap').removeClass('d-none');
+            });
+        });
+
+        $(document).on('keydown', '#vehiclesTable .driver-inline-select', function (e) {
+            if (e.key === 'Escape') {
+                const $sel = $(this);
+                const $cell = $sel.closest('td');
+                $sel.addClass('d-none');
+                $cell.find('.driver-display-wrap').removeClass('d-none');
+            }
+        });
+
+        function plateDisplayLabel(plate) {
+            const s = (plate === undefined || plate === null) ? '' : String(plate).trim();
+            return s === '' ? '—' : s;
+        }
+
+        $(document).on('click', '#vehiclesTable .plate-edit-btn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $cell = $(this).closest('td');
+            const $inp = $cell.find('.plate-inline-input');
+            if (!$inp.length) return;
+            const currentText = $cell.find('.plate-no-text').text().trim();
+            const seed = currentText === '—' ? '' : currentText;
+            $inp.data('original-plate', seed);
+            $inp.val(seed);
+            $cell.find('.plate-display-wrap').addClass('d-none');
+            $inp.removeClass('d-none').trigger('focus');
+        });
+
+        function finishPlateEdit($inp, revert) {
+            const $cell = $inp.closest('td');
+            if (revert) {
+                const orig = $inp.data('original-plate');
+                $inp.val(orig === undefined || orig === null ? '' : orig);
+            }
+            $inp.addClass('d-none');
+            $cell.find('.plate-display-wrap').removeClass('d-none');
+        }
+
+        $(document).on('keydown', '#vehiclesTable .plate-inline-input', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                $(this).blur();
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                finishPlateEdit($(this), true);
+            }
+        });
+
+        $(document).on('blur', '#vehiclesTable .plate-inline-input', function () {
+            const $inp = $(this);
+            const $cell = $inp.closest('td');
+            if ($inp.hasClass('d-none')) return;
+
+            const vehicleId = $inp.data('vehicle-id');
+            const original = ($inp.data('original-plate') === undefined || $inp.data('original-plate') === null)
+                ? ''
+                : String($inp.data('original-plate')).trim();
+            const next = String($inp.val() || '').trim();
+
+            if (next === original) {
+                finishPlateEdit($inp, false);
+                return;
+            }
+
+            if (next === '') {
+                Swal.fire({ icon: 'warning', title: 'Plate required', text: 'Vehicle plate number cannot be empty.' });
+                finishPlateEdit($inp, true);
+                return;
+            }
+
+            $inp.prop('disabled', true);
+            $.ajax({
+                url: plateUpdateUrl,
+                method: 'POST',
+                dataType: 'json',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+                data: {
+                    _token: csrfToken,
+                    vehicle_id: vehicleId,
+                    vehicle_plate_no: next
+                }
+            }).done(function (res) {
+                if (res.success) {
+                    const label = plateDisplayLabel(res.vehicle_plate_no);
+                    $cell.find('.plate-no-text').text(label);
+                    const saved = (res.vehicle_plate_no !== undefined && res.vehicle_plate_no !== null) ? String(res.vehicle_plate_no).trim() : next;
+                    $inp.data('original-plate', saved);
+                    $inp.val(saved);
+                    finishPlateEdit($inp, false);
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Update failed', text: res.message || 'Could not update plate number.' });
+                    finishPlateEdit($inp, true);
+                }
+            }).fail(function (xhr) {
+                let msg = 'Could not update plate number.';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                    else if (xhr.responseJSON.errors) {
+                        const first = Object.values(xhr.responseJSON.errors)[0];
+                        if (Array.isArray(first) && first.length) msg = first[0];
+                    }
+                }
+                Swal.fire({ icon: 'error', title: 'Update failed', text: msg });
+                finishPlateEdit($inp, true);
+            }).always(function () {
+                $inp.prop('disabled', false);
+            });
+        });
     });
 
     window.deleteVehicle = function(deleteUrl, vehicleName) {

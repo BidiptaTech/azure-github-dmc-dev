@@ -15,22 +15,190 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
         .no-border td, .no-border th { border: none; }
+        /* Invoice items: outer bordered box + inner line table (PDF-safe) */
+        table.inv-lines-outer-wrap { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }
+        table.inv-lines-outer-wrap td.inv-lines-box-cell {
+            border: 1px solid #000;
+            padding: 0;
+            vertical-align: top;
+        }
+        /* Premium line-items section (PDF-safe: tables only, no flex/grid) */
+        table.inv-lines-table { width: 100%; border-collapse: collapse; margin-top: 0; table-layout: fixed; }
+        table.inv-lines-table > thead > tr > th {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #374151;
+            background-color: #F3F4F6;
+            border: none !important;
+            border-bottom: 1px solid #D1D5DB !important;
+            padding: 10px 8px;
+            vertical-align: bottom;
+        }
+        table.inv-lines-table > thead > tr > th.inv-col-service { text-align: left; width: 18%; }
+        table.inv-lines-table > thead > tr > th.inv-col-details { text-align: left; width: 60%; }
+        table.inv-lines-table > thead > tr > th.inv-col-amount {
+            text-align: right;
+            width: 22%;
+            font-family: DejaVu Sans Mono, Courier New, Courier, monospace;
+            padding-right: 10px;
+            padding-left: 6px;
+        }
+        table.inv-lines-table > tbody > tr > td {
+            border: none !important;
+            vertical-align: top;
+        }
+        table.inv-lines-table > tbody > tr.inv-line-data > td {
+            border-bottom: none !important;
+            padding: 11px 8px;
+        }
+        table.inv-lines-table .inv-col-service { width: 18%; }
+        table.inv-lines-table .inv-col-details { width: 60%; }
+        table.inv-lines-table .inv-col-amount {
+            width: 22%;
+            text-align: right;
+            font-family: DejaVu Sans Mono, Courier New, Courier, monospace;
+            padding-right: 10px;
+            padding-left: 6px;
+            vertical-align: top;
+        }
+        .inv-svc-cat {
+            font-size: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6B7280;
+            line-height: 1.35;
+        }
+        .inv-svc-detail {
+            font-size: 11px;
+            color: #1F2937;
+            line-height: 1.5;
+        }
+        .inv-svc-amt {
+            display: block;
+            font-size: 11px;
+            font-weight: bold;
+            color: #111827;
+            text-align: right;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        table.inv-lines-table > tbody > tr.inv-total-row > td {
+            border: none !important;
+            padding: 7px 8px;
+            font-size: 11px;
+            color: #374151;
+            vertical-align: middle;
+        }
+        table.inv-lines-table > tbody > tr.inv-total-row > td.inv-col-service {
+            border: none !important;
+        }
+        table.inv-lines-table > tbody > tr.inv-total-row > td.inv-total-label-cell {
+            text-align: right;
+            padding-right: 10px;
+            font-weight: 600;
+            color: #374151;
+        }
+        table.inv-lines-table > tbody > tr.inv-total-row > td.inv-col-amount {
+            color: #111827;
+        }
+        table.inv-lines-table > tbody > tr.inv-total-row:not(.inv-grand-row) > td.inv-col-amount .inv-svc-amt {
+            font-weight: normal;
+            font-size: 11px;
+        }
+        table.inv-lines-table > tbody > tr.inv-grand-row > td.inv-col-amount .inv-svc-amt {
+            font-weight: bold !important;
+        }
+        table.inv-lines-table > tbody > tr.inv-total-sep > td {
+            border-top: none !important;
+            padding-top: 14px !important;
+        }
+        table.inv-lines-table > tbody > tr.inv-grand-row > td {
+            font-size: 12px !important;
+            font-weight: bold !important;
+            color: #111827 !important;
+            padding-top: 10px !important;
+            padding-bottom: 8px !important;
+            vertical-align: middle !important;
+        }
+        table.inv-lines-table > tbody > tr.inv-grand-row > td.inv-total-label-cell {
+            font-size: 12px !important;
+        }
+        table.inv-lines-table > tbody > tr.inv-grand-row > td.inv-col-amount .inv-svc-amt,
+        table.inv-lines-table > tbody > tr.inv-grand-row > td.inv-col-amount {
+            font-size: 13px !important;
+            font-weight: bold !important;
+        }
+        /* Top meta row: M/s + booking (left), invoice refs (right) */
+        table.meta-header-wrap { width: 100%; border-collapse: collapse; }
+        table.meta-header-wrap td.meta-right-stack { vertical-align: top; padding: 0; }
+        table.inv-currency-bar { margin-top: 10px; border-collapse: collapse; width: 100%; table-layout: fixed; }
+        table.inv-currency-bar tr.conv-row td {
+            border: 1px solid #CA8A04 !important;
+            background-color: #ffff00;
+            font-weight: bold;
+        }
+        table.inv-currency-bar tr.conv-row td:last-child {
+            font-family: DejaVu Sans Mono, Courier New, Courier, monospace;
+            text-align: right;
+            padding-right: 10px !important;
+            padding-left: 6px !important;
+        }
         @include('invoices.pdf.partials.header-css')
         .inv-title {
             text-align: center;
             font-size: 18px;
             font-weight: bold;
-            letter-spacing: 2px;
-            padding: 10px;
-            border: 1px solid #000;
-            margin-bottom: 0;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            padding: 12px 8px 10px;
+            margin-top: 18px;
+            margin-bottom: 12px;
+            border: none;
         }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .meta-label { font-weight: bold; width: 120px; }
+        /* Bank details — section heading outside box; outer frame only (no inner row dividers) */
+        .inv-bank-block { margin-top: 16px; page-break-inside: avoid; }
+        .inv-bank-section-title {
+            text-align: center;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #374151;
+            margin: 0 0 8px 0;
+            padding: 0 6px;
+        }
+        table.inv-bank-outer { width: 100%; border-collapse: collapse; margin: 0 0 2px 0; }
+        table.inv-bank-outer td.inv-bank-box-cell {
+            border: 1px solid #000;
+            padding: 0;
+            vertical-align: top;
+        }
+        table.inv-bank-grid { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; }
+        table.inv-bank-grid td {
+            border: none !important;
+            padding: 9px 10px;
+            vertical-align: top;
+        }
+        table.inv-bank-grid td.inv-bank-label {
+            width: 38%;
+            font-weight: bold;
+            font-size: 10px;
+            color: #4B5563;
+        }
+        table.inv-bank-grid td.inv-bank-val {
+            font-size: 10px;
+            color: #111827;
+            line-height: 1.45;
+        }
         .amount-col { text-align: right; white-space: nowrap; }
         .conv-row { background-color: #ffff00; font-weight: bold; }
-        .note-red { color: #cc0000; font-weight: bold; text-align: center; margin: 12px 0; }
+        .note-red { color: #cc0000; font-weight: bold; text-align: center; margin: 14px 0 10px; font-size: 10px; line-height: 1.4; }
         .footer-disclaimer { color: #cc0000; text-align: center; margin-top: 16px; font-size: 10px; }
         .sign-off { text-align: right; margin-top: 24px; font-size: 11px; }
     </style>
@@ -204,19 +372,21 @@
 
     $arrival = $invoice->travel_from_date ? \Carbon\Carbon::parse($invoice->travel_from_date)->format('d M Y') : '';
     $departure = $invoice->travel_to_date ? \Carbon\Carbon::parse($invoice->travel_to_date)->format('d M Y') : '';
-
-    $si = 0;
 @endphp
 
 @include('invoices.pdf.partials.header', ['invoice' => $invoice, 'logoType' => ($logoType ?? 'dmc'), 'showBlueTitle' => true])
 
-{{-- M/s + invoice meta --}}
-<table style="margin-top:0; border-top:0;">
+{{-- M/s + booking summary (left); invoice meta (right) --}}
+<table class="meta-header-wrap" style="margin-top:0; border-top:0;">
     <tr>
-        <td style="width:50%; border:1px solid #000;">
-            <strong>M/s:</strong> {{ $msName !== '' ? $msName : '—' }}
+        <td style="width:50%; border:1px solid #000; vertical-align:top;">
+            <strong>M/s:</strong> {{ $msName !== '' ? $msName : '—' }}<br><br>
+            <strong>Guest / Party:</strong> {{ $leadGuest !== '' ? $leadGuest : ($clientDetails['email'] ?? 'Guest') }}<br>
+            <strong>Travellers:</strong> Adults {{ str_pad((string)($invoice->no_of_adults ?? 0), 2, '0', STR_PAD_LEFT) }} &nbsp;|&nbsp; Children {{ str_pad((string)($invoice->no_of_children ?? 0), 2, '0', STR_PAD_LEFT) }}<br>
+            <strong>Destination:</strong> {{ $invoice->destination ?? '—' }}<br>
+            <strong>Travel Dates:</strong> {{ $arrival !== '' ? $arrival : '—' }} &ndash; {{ $departure !== '' ? $departure : '—' }}
         </td>
-        <td style="width:50%; border:1px solid #000;">
+        <td class="meta-right-stack" style="width:50%; border:1px solid #000;">
             <table class="no-border" style="width:100%;">
                 <tr><td class="meta-label">@if(($invoice->invoice_type ?? '') === 'proforma') Proforma No: @else Inv No.: @endif</td><td>{{ $invNo ?: '—' }}</td></tr>
                 <tr><td class="meta-label">Display ID:</td><td>{{ $displayIdTour ?? '—' }}</td></tr>
@@ -230,96 +400,93 @@
 
 <div class="inv-title">{{ $docTitle }}</div>
 
-<table style="margin-top:0;">
+<table class="inv-lines-outer-wrap">
+<tbody>
+<tr>
+<td class="inv-lines-box-cell">
+<table class="inv-lines-table">
     <thead>
         <tr>
-            <th style="width:8%;" class="text-center">SI NO</th>
-            <th>Particulars</th>
-            <th style="width:20%;" class="text-right">Amount ({{ $baseCc }})</th>
+            <th class="inv-col-service">Service</th>
+            <th class="inv-col-details">Details</th>
+            <th class="inv-col-amount">Amount ({{ $baseCc }})</th>
         </tr>
     </thead>
     <tbody>
-        @php $si = 1; @endphp
-        <tr>
-            <td class="text-center">{{ $si++ }}</td>
-            <td>
-                <strong>Service Offered to:</strong>
-                {{ $leadGuest !== '' ? $leadGuest : ($clientDetails['email'] ?? 'Guest') }}
-                <br><strong>No of Adult:</strong> {{ str_pad((string)($invoice->no_of_adults ?? 0), 2, '0', STR_PAD_LEFT) }}
-                &nbsp; <strong>No of Child:</strong> {{ str_pad((string)($invoice->no_of_children ?? 0), 2, '0', STR_PAD_LEFT) }}
-                <br><strong>Destination:</strong> {{ $invoice->destination ?? '' }}
-                <br><strong>Arrival:</strong> {{ $arrival }} &nbsp; <strong>Departure:</strong> {{ $departure }}
-            </td>
-            <td class="amount-col"></td>
-        </tr>
-
         @foreach($invoice->items->sortBy('id') as $item)
         @php
             $typeLabel = ucwords(str_replace('_', ' ', (string) ($item->item_type ?? 'Item')));
-            $desc = $item->description ?? '';
-            $line = 'Rate: ' . $typeLabel . ($desc !== '' ? ' — ' . \Illuminate\Support\Str::limit($desc, 200) : '');
+            $desc = trim((string) ($item->description ?? ''));
+            $detailText = $desc !== '' ? \Illuminate\Support\Str::limit($desc, 200) : $typeLabel;
         @endphp
-        <tr>
-            <td class="text-center">{{ $si++ }}</td>
-            <td>{{ $line }}</td>
-            <td class="amount-col">{{ $fmtMoney($item->total_price ?? 0) }}</td>
+        <tr class="inv-line-data">
+            <td class="inv-col-service"><span class="inv-svc-cat">{{ strtoupper($typeLabel) }}</span></td>
+            <td class="inv-col-details"><span class="inv-svc-detail">{{ $detailText }}</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($item->total_price ?? 0) }}</span></td>
         </tr>
         @endforeach
 
         @if($serviceCharge > 0)
-        <tr>
-            <td class="text-center">{{ $si++ }}</td>
-            <td>TOTAL TT Bank charges per Transaction - {{ $baseCc }} (service charge)</td>
-            <td class="amount-col">{{ $fmtMoney($serviceCharge) }}</td>
+        <tr class="inv-line-data">
+            <td class="inv-col-service"><span class="inv-svc-cat">Fees</span></td>
+            <td class="inv-col-details"><span class="inv-svc-detail">TOTAL TT Bank charges per Transaction – {{ $baseCc }} (service charge)</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($serviceCharge) }}</span></td>
         </tr>
         @endif
 
         @if($touristTax > 0)
-        <tr>
-            <td class="text-center">{{ $si++ }}</td>
-            <td>Tourist Tax</td>
-            <td class="amount-col">{{ $fmtMoney($touristTax) }}</td>
+        <tr class="inv-line-data">
+            <td class="inv-col-service"><span class="inv-svc-cat">Tax</span></td>
+            <td class="inv-col-details"><span class="inv-svc-detail">Tourist Tax</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($touristTax) }}</span></td>
         </tr>
         @endif
 
         @if($discount > 0.01)
-        <tr>
-            <td class="text-center">{{ $si++ }}</td>
-            <td>Discount</td>
-            <td class="amount-col">-{{ $fmtMoney($discount) }}</td>
+        <tr class="inv-line-data">
+            <td class="inv-col-service"><span class="inv-svc-cat">Discount</span></td>
+            <td class="inv-col-details"><span class="inv-svc-detail">Discount</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">-{{ $fmtMoney($discount) }}</span></td>
         </tr>
         @elseif($discount < -0.01)
-        <tr>
-            <td class="text-center">{{ $si++ }}</td>
-            <td>Additional Charges</td>
-            <td class="amount-col">{{ $fmtMoney(abs($discount)) }}</td>
+        <tr class="inv-line-data">
+            <td class="inv-col-service"><span class="inv-svc-cat">Adjustment</span></td>
+            <td class="inv-col-details"><span class="inv-svc-detail">Additional Charges</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney(abs($discount)) }}</span></td>
         </tr>
         @endif
 
         @if($shouldShowTax && $gstAmount > 0)
-        <tr>
-            <td class="text-center">{{ $si++ }}</td>
-            <td>GST / Tax (included in total where applicable)</td>
-            <td class="amount-col">{{ $fmtMoney($gstAmount) }}</td>
+        <tr class="inv-line-data">
+            <td class="inv-col-service"><span class="inv-svc-cat">GST / Tax</span></td>
+            <td class="inv-col-details"><span class="inv-svc-detail">GST / Tax (included in total where applicable)</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($gstAmount) }}</span></td>
         </tr>
         @endif
 
-        <tr style="font-weight:bold;">
-            <td colspan="2" class="text-right">TOTAL {{ $baseCc }}</td>
-            <td class="amount-col">{{ $fmtMoney($grandTotal) }}</td>
+        <tr class="inv-total-row inv-total-sep inv-grand-row">
+            <td class="inv-col-service">&nbsp;</td>
+            <td class="inv-total-label-cell">TOTAL {{ $baseCc }}</td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($grandTotal) }}</span></td>
         </tr>
 
         @if($shouldShowTax)
-        <tr>
-            <td colspan="2" class="text-right">Payment Received</td>
-            <td class="amount-col">{{ $fmtMoney($paymentReceived) }}</td>
+        <tr class="inv-total-row">
+            <td class="inv-col-service">&nbsp;</td>
+            <td class="inv-total-label-cell">Payment Received</td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($paymentReceived) }}</span></td>
         </tr>
-        <tr>
-            <td colspan="2" class="text-right">Outstanding Balance</td>
-            <td class="amount-col">{{ $fmtMoney($outstandingBalance) }}</td>
+        <tr class="inv-total-row">
+            <td class="inv-col-service">&nbsp;</td>
+            <td class="inv-total-label-cell">Outstanding Balance</td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($outstandingBalance) }}</span></td>
         </tr>
         @endif
     </tbody>
+</table>
+</td>
+</tr>
+</tbody>
 </table>
 
 @if($showCurrencyConversion)
@@ -327,12 +494,12 @@
     $convAmt = $currencyConversion[$selectedCurrency] ?? null;
 @endphp
 @if($convAmt !== null)
-<table style="margin-top:10px;">
+<table class="inv-currency-bar" style="margin-top:10px; width:100%; table-layout:fixed; border-collapse:collapse;">
     <tr class="conv-row">
-        <td colspan="2">
+        <td style="width:78%; padding:8px 10px; vertical-align:middle;">
             <strong>Total booking amount {{ strtolower($selectedCurrency) }}</strong>
         </td>
-        <td class="amount-col">
+        <td style="width:22%; padding:8px 10px; text-align:right; vertical-align:middle; font-family: DejaVu Sans Mono, Courier New, Courier, monospace;">
             {{ $selectedCurrencyPrefix }}{{ number_format(round((float) $convAmt)) }}
         </td>
     </tr>
@@ -394,70 +561,76 @@
         );
     @endphp
     @if(!empty($bankDetailsData['account_name']) || !empty($bankDetailsData['account_number']) || $hasIndiaBankContent)
-    <div style="margin-top:16px; page-break-inside: avoid;">
+    <div class="inv-bank-block">
         @if(!empty($bankDetailsData['account_name']) || !empty($bankDetailsData['account_number']))
-        <div class="text-center" style="font-weight:bold; margin-bottom:6px;">Bank Details ({{ $bankTypeLabel }})</div>
-        <table>
+        <div class="inv-bank-section-title">Bank Details ({{ $bankTypeLabel }})</div>
+        <table class="inv-bank-outer"><tbody><tr><td class="inv-bank-box-cell">
+        <table class="inv-bank-grid">
             @if(!empty($bankDetailsData['account_name']))
-            <tr><td style="width:40%;"><strong>Account Name</strong></td><td>{{ $bankDetailsData['account_name'] }}</td></tr>
+            <tr><td class="inv-bank-label">Account Name</td><td class="inv-bank-val">{{ $bankDetailsData['account_name'] }}</td></tr>
             @endif
             @if(!empty($bankDetailsData['account_number']))
-            <tr><td><strong>Account No</strong></td><td>{{ $bankDetailsData['account_number'] }}</td></tr>
+            <tr><td class="inv-bank-label">Account No</td><td class="inv-bank-val">{{ $bankDetailsData['account_number'] }}</td></tr>
             @endif
             @if(!empty($bankDetailsData['swift_bic_iban']))
-            <tr><td><strong>Swift Code</strong></td><td>{{ $bankDetailsData['swift_bic_iban'] }}</td></tr>
+            <tr><td class="inv-bank-label">Swift Code</td><td class="inv-bank-val">{{ $bankDetailsData['swift_bic_iban'] }}</td></tr>
             @endif
             @if(!empty($bankDetailsData['bank_code']))
-            <tr><td><strong>Bank No</strong></td><td>{{ $bankDetailsData['bank_code'] }}</td></tr>
+            <tr><td class="inv-bank-label">Bank No</td><td class="inv-bank-val">{{ $bankDetailsData['bank_code'] }}</td></tr>
             @endif
             @if(!empty($bankDetailsData['branch_code']))
-            <tr><td><strong>Branch No</strong></td><td>{{ $bankDetailsData['branch_code'] }}</td></tr>
+            <tr><td class="inv-bank-label">Branch No</td><td class="inv-bank-val">{{ $bankDetailsData['branch_code'] }}</td></tr>
             @endif
             @if(!empty($bankDetailsData['bank_address']))
-            <tr><td><strong>Bank Address</strong></td><td>{{ $bankDetailsData['bank_address'] }}</td></tr>
+            <tr><td class="inv-bank-label">Bank Address</td><td class="inv-bank-val">{{ $bankDetailsData['bank_address'] }}</td></tr>
             @endif
         </table>
+        </td></tr></tbody></table>
         @endif
 
         @if($hasIndiaBankContent)
         <p class="note-red">Note:- If you pay in India then you can transfer your payment in our Indian collection agent account.</p>
-        <div class="text-center" style="font-weight:bold; margin-bottom:6px;">Bank Details ({{ $indiaBankDetails['bank_type'] ?? 'INR Accounts' }})</div>
-        <table>
+        <div class="inv-bank-section-title">Bank Details ({{ $indiaBankDetails['bank_type'] ?? 'INR Accounts' }})</div>
+        <table class="inv-bank-outer"><tbody><tr><td class="inv-bank-box-cell">
+        <table class="inv-bank-grid">
             @if(!empty($indiaBankDetails['gst_number']))
-            <tr><td style="width:40%;"><strong>GST Registration Number</strong></td><td>{{ $indiaBankDetails['gst_number'] }}</td></tr>
+            <tr><td class="inv-bank-label">GST Registration Number</td><td class="inv-bank-val">{{ $indiaBankDetails['gst_number'] }}</td></tr>
             @endif
             @if(!empty($indiaBankDetails['pan_number']))
-            <tr><td><strong>PAN Number</strong></td><td>{{ $indiaBankDetails['pan_number'] }}</td></tr>
+            <tr><td class="inv-bank-label">PAN Number</td><td class="inv-bank-val">{{ $indiaBankDetails['pan_number'] }}</td></tr>
             @endif
             @if(!empty($indiaBankDetails['account_name']))
-            <tr><td><strong>Account Name</strong></td><td>{{ $indiaBankDetails['account_name'] }}</td></tr>
+            <tr><td class="inv-bank-label">Account Name</td><td class="inv-bank-val">{{ $indiaBankDetails['account_name'] }}</td></tr>
             @endif
             @if(!empty($indiaBankDetails['bank_name']))
-            <tr><td><strong>Bank</strong></td><td>{{ $indiaBankDetails['bank_name'] }}</td></tr>
+            <tr><td class="inv-bank-label">Bank</td><td class="inv-bank-val">{{ $indiaBankDetails['bank_name'] }}</td></tr>
             @endif
             @if(!empty($indiaBankDetails['account_number']))
-            <tr><td><strong>Account No</strong></td><td>{{ $indiaBankDetails['account_number'] }}</td></tr>
+            <tr><td class="inv-bank-label">Account No</td><td class="inv-bank-val">{{ $indiaBankDetails['account_number'] }}</td></tr>
             @endif
             @if(!empty($indiaBankDetails['ifsc']))
-            <tr><td><strong>IFSC Code</strong></td><td>{{ $indiaBankDetails['ifsc'] }}</td></tr>
+            <tr><td class="inv-bank-label">IFSC Code</td><td class="inv-bank-val">{{ $indiaBankDetails['ifsc'] }}</td></tr>
             @endif
             @if(!empty($indiaBankDetails['bank_address']))
-            <tr><td><strong>Bank Address</strong></td><td>{{ $indiaBankDetails['bank_address'] }}</td></tr>
+            <tr><td class="inv-bank-label">Bank Address</td><td class="inv-bank-val">{{ $indiaBankDetails['bank_address'] }}</td></tr>
             @endif
         </table>
+        </td></tr></tbody></table>
         @endif
     </div>
     @endif
     @endforeach
 @elseif(!empty($invoice->bank_details))
 @php $bd = $invoice->bank_details ?? []; @endphp
-<div style="margin-top:16px;">
-    <div class="text-center" style="font-weight:bold; margin-bottom:6px;">Bank Details ({{ $bd['bank_type'] ?? 'SGD Accounts' }})</div>
-    <table>
-        <tr><td style="width:40%;"><strong>Account Name</strong></td><td>{{ $bd['account_name'] ?? '' }}</td></tr>
-        <tr><td><strong>Account No</strong></td><td>{{ $bd['account_number'] ?? '' }}</td></tr>
-        <tr><td><strong>Bank Address</strong></td><td>{{ $bd['bank_address'] ?? '' }}</td></tr>
+<div class="inv-bank-block">
+    <div class="inv-bank-section-title">Bank Details ({{ $bd['bank_type'] ?? 'SGD Accounts' }})</div>
+    <table class="inv-bank-outer"><tbody><tr><td class="inv-bank-box-cell">
+    <table class="inv-bank-grid">
+        <tr><td class="inv-bank-label">Account Name</td><td class="inv-bank-val">{{ $bd['account_name'] ?? '' }}</td></tr>
+        <tr><td class="inv-bank-label">Account No</td><td class="inv-bank-val">{{ $bd['account_number'] ?? '' }}</td></tr>
+        <tr><td class="inv-bank-label">Bank Address</td><td class="inv-bank-val">{{ $bd['bank_address'] ?? '' }}</td></tr>
     </table>
+    </td></tr></tbody></table>
 </div>
 @endif
 
