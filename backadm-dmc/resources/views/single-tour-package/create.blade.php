@@ -970,7 +970,7 @@
                                                                     data-bs-toggle="tooltip"
                                                                     data-bs-placement="top"
                                                                     data-bs-html="true"
-                                                                    title="Note: <span class='text-primary'>☑</span> FOC cost is discounted in paying pax. <span class='text-muted'>☐</span> FOC cost is included in paying pax."
+                                                                    title="<div style='text-align:left;'><div class='fw-semibold mb-1'>Note:</div><div><span class='text-warning fw-semibold'>☑</span> FOC cost is discounted in paying pax.</div><div><span class='text-warning fw-semibold'>☐</span> FOC cost is included in paying pax.</div></div>"
                                                                 ></i>
                                                             </div>
                                                         </div>
@@ -7962,6 +7962,71 @@
             });
         })();
 
+        // GROUP: Group Size (and FOC) drive total pax; Adults are derived and must not be manually changed.
+        window.__getGroupTotalPax = function () {
+            const gs = parseInt(document.getElementById('group_size')?.value || '0', 10) || 0;
+            const foc = parseInt(document.getElementById('foc_size')?.value || '0', 10) || 0;
+            return Math.max(0, gs + foc);
+        };
+
+        window.__lockGroupAdultControlsInModal = function (modalEl) {
+            const type = String(document.querySelector('input[name="tour_type"]:checked')?.value || window.selectedTourType || 'FIT').toUpperCase();
+            const isGroup = type === 'GROUP';
+            if (!modalEl) return;
+
+            const buttons = modalEl.querySelectorAll('button[onclick]');
+            buttons.forEach((b) => {
+                const oc = String(b.getAttribute('onclick') || '');
+                const isAdultBtn =
+                    // For GROUP: block changing total adults, but allow gender split changes.
+                    oc.includes('updateMainAdults');
+                if (!isAdultBtn) return;
+                b.disabled = isGroup;
+                b.style.opacity = isGroup ? '0.5' : '';
+                b.style.pointerEvents = isGroup ? 'none' : '';
+            });
+        };
+
+        window.__enforceGroupDerivedAdultsInModal = function () {
+            const type = String(document.querySelector('input[name="tour_type"]:checked')?.value || window.selectedTourType || 'FIT').toUpperCase();
+            if (type !== 'GROUP') return;
+
+            const totalPax = window.__getGroupTotalPax();
+            const childrenEl = document.getElementById('mainModalChildren');
+            const maleEl = document.getElementById('mainModalMale');
+            const femaleEl = document.getElementById('mainModalFemale');
+            const adultsEl = document.getElementById('mainModalAdults');
+            if (!childrenEl || !maleEl || !femaleEl || !adultsEl) return;
+
+            const childrenNow = Math.max(0, parseInt(childrenEl.textContent || '0', 10) || 0);
+            const clampedChildren = Math.min(childrenNow, Math.max(0, totalPax - 1)); // keep at least 1 adult
+            if (clampedChildren !== childrenNow) {
+                childrenEl.textContent = String(clampedChildren);
+                try { updateChildAgeDropdowns(clampedChildren); } catch (e) { /* ignore */ }
+            }
+
+            const adults = Math.max(1, totalPax - clampedChildren);
+            // Keep existing male/female split if possible; otherwise clamp to match required adults total.
+            const currentMale = Math.max(0, parseInt(maleEl.textContent || '0', 10) || 0);
+            const currentFemale = Math.max(0, parseInt(femaleEl.textContent || '0', 10) || 0);
+            let nextFemale = Math.min(currentFemale, adults);
+            let nextMale = Math.max(0, adults - nextFemale);
+            if (nextMale + nextFemale !== adults) {
+                nextFemale = Math.min(nextFemale, adults);
+                nextMale = Math.max(0, adults - nextFemale);
+            }
+            if (adults >= 1 && nextMale + nextFemale === 0) {
+                nextMale = adults;
+                nextFemale = 0;
+            }
+            maleEl.textContent = String(nextMale);
+            femaleEl.textContent = String(nextFemale);
+            adultsEl.textContent = String(adults);
+        };
+
+        // Called by existing +/- handlers. For GROUP: no-op (group size is the source of truth).
+        window.syncGroupSizeFromGuestModal = function () { return; };
+
         
         // Main Guest Selector - Uses the same modal pattern as attraction booking
         window.openMainGuestSelector = function() {
@@ -8006,6 +8071,10 @@
                     window.mountGroupDetailsFOCIntoGuestModal(true);
                 }
             } catch (e) { /* ignore */ }
+
+            // GROUP: adults are derived from (group size + foc) and cannot be edited.
+            try { window.__lockGroupAdultControlsInModal(modal); } catch (e) { /* ignore */ }
+            try { window.__enforceGroupDerivedAdultsInModal(); } catch (e) { /* ignore */ }
             
             // Add event listeners to handle focus properly
             modal.addEventListener('hidden.bs.modal', function () {
@@ -8190,6 +8259,41 @@
             const maleCount = maleEl ? (parseInt(maleEl.textContent) || 0) : 0;
             const femaleCount = femaleEl ? (parseInt(femaleEl.textContent) || 0) : 0;
 
+            const tourType = String(document.querySelector('input[name="tour_type"]:checked')?.value || window.selectedTourType || 'FIT').toUpperCase();
+            // GROUP: allow changing gender split but keep total adults fixed.
+            if (tourType === 'GROUP') {
+                let nextMale = maleCount;
+                let nextFemale = femaleCount;
+                if (type === 'male') {
+                    if (change > 0) {
+                        if (femaleCount <= 0) return;
+                        nextMale = maleCount + 1;
+                        nextFemale = femaleCount - 1;
+                    } else if (change < 0) {
+                        if (maleCount <= 0) return;
+                        nextMale = maleCount - 1;
+                        nextFemale = femaleCount + 1;
+                    }
+                } else {
+                    if (change > 0) {
+                        if (maleCount <= 0) return;
+                        nextFemale = femaleCount + 1;
+                        nextMale = maleCount - 1;
+                    } else if (change < 0) {
+                        if (femaleCount <= 0) return;
+                        nextFemale = femaleCount - 1;
+                        nextMale = maleCount + 1;
+                    }
+                }
+                // Keep at least 1 adult total.
+                if (nextMale + nextFemale < 1) return;
+                if (maleEl) maleEl.textContent = String(nextMale);
+                if (femaleEl) femaleEl.textContent = String(nextFemale);
+                if (adultsEl) adultsEl.textContent = String(nextMale + nextFemale);
+                try { window.syncGroupSizeFromGuestModal && window.syncGroupSizeFromGuestModal(); } catch (e) {}
+                return;
+            }
+
             const nextMale = (type === 'male') ? newValue : maleCount;
             const nextFemale = (type === 'female') ? newValue : femaleCount;
             const totalAdults = nextMale + nextFemale;
@@ -8207,6 +8311,10 @@
         // Handle child age dropdowns
         if (type === 'children') {
             updateChildAgeDropdowns(newValue);
+        }
+        // GROUP: when children changes, recompute derived adults (total pax fixed by group size + foc).
+        if (type === 'children') {
+            try { window.__enforceGroupDerivedAdultsInModal(); } catch (e) { /* ignore */ }
         }
         try { window.syncGroupSizeFromGuestModal && window.syncGroupSizeFromGuestModal(); } catch (e) {}
     };

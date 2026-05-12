@@ -450,14 +450,6 @@
                         @endif
                         <div class="top-line"><span class="bold">Travelling Date:</span> {{ $travellingDate }}</div>
                         <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
-                        @if($showFocBlock)
-                            <div class="top-line">
-                                <span class="bold">FOC Discount:</span>
-                                Single: {{ $formatMoney($focDiscountSingle) }}
-                                &nbsp;/&nbsp;
-                                Double: {{ $formatMoney($focDiscountDouble) }}
-                            </div>
-                        @endif
                     </div>
                 </td>
             </tr>
@@ -576,7 +568,7 @@
             $overallTriple = (float)($tourPrices['triple_sharing'] ?? 0);
         @endphp
         <div style="margin-top: 10px;">
-            <div class="panel-title">Packaged price per person (Hotel + Other Services)</div>
+            <div class="panel-title">Packaged price per person</div>
             <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
                 <thead>
                     <tr>
