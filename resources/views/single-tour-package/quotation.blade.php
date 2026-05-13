@@ -39,7 +39,7 @@
             table-layout: fixed;
         }
 
-        .quotation-main-table td {
+        .quotation-main-table > tbody > tr > td {
             border: 1px solid #000;
             vertical-align: top;
             padding: 6px 6px;
@@ -47,6 +47,24 @@
 
         .quotation-col {
             width: 50%;
+        }
+
+        /* Titles sit in their own row; remove extra gap under grey bar */
+        .quotation-main-table .panel-title {
+            margin-bottom: 0;
+        }
+
+        /* No horizontal rule between inclusions and pricing (same visual column as body above) */
+        .quotation-main-table > tbody > tr.quotation-band-body > td {
+            border-bottom: none;
+        }
+
+        /* Pricing row: both cells share one <tr> so blocks are always on the same horizontal line */
+        .quotation-main-table > tbody > tr.quotation-band-pricing > td {
+            border-top: none;
+            padding-top: 10px;
+            padding-bottom: 5px;
+            vertical-align: top;
         }
 
         .panel-title {
@@ -468,20 +486,24 @@
         
 
         <table class="quotation-main-table">
-            <tr>
+            <tbody>
+            {{-- Row 1: section titles (aligned side by side) --}}
+            <tr class="quotation-band-titles">
                 <td class="quotation-col">
                     <div class="panel-title">Hotel cost for entire package</div>
-
-                    {{-- Date first --}}
+                </td>
+                <td class="quotation-col">
+                    <div class="panel-title">Other services cost for entire package</div>
+                </td>
+            </tr>
+            {{-- Row 2: inclusions only — row height = tallest column --}}
+            <tr class="quotation-band-body">
+                <td class="quotation-col">
                     <div class="money-line">
                         <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
                     </div>
-
-                    {{-- Inclusions list --}}
                     <div class="section-label">Inclusions:</div>
                     @php
-                        // Build a lookup from hotel_price_options (has correctly computed triple)
-                        // keyed by lowercase hotel_name for quick matching
                         $hotelPriceLookup = [];
                         foreach ($tourPrices['hotel_price_options'] ?? [] as $hp) {
                             $k = strtolower(trim((string)($hp['hotel_name'] ?? '')));
@@ -491,10 +513,7 @@
                         }
                     @endphp
                     @if(!empty($hotelOptions) && is_array($hotelOptions))
-                        @php
-                            // Deduplicate: same hotel_name + room_category shown only once
-                            $seenHotelKeys = [];
-                        @endphp
+                        @php $seenHotelKeys = []; @endphp
                         <ul class="inclusion-list">
                             @foreach($hotelOptions as $h)
                                 @php
@@ -503,12 +522,8 @@
                                     $roomCategoryName = $h['room_categories'][0]['name'] ?? ($h['hotel_category'] ?? 'Room');
                                     $roomCatLower     = strtolower(trim((string)$roomCategoryName));
                                     $dedupKey         = $hotelNameLower . '||' . $roomCatLower;
-
-                                    // Skip if already shown (duplicate order for same hotel+room)
                                     if (isset($seenHotelKeys[$dedupKey])) continue;
                                     $seenHotelKeys[$dedupKey] = true;
-
-                                    // Prices: prefer hotel_price_options (has triple); fall back to first_total
                                     $priceRow    = $hotelPriceLookup[$hotelNameLower] ?? null;
                                     $hotelSingle = (float)($priceRow['single'] ?? $h['first_total']['single'] ?? 0);
                                     $hotelDouble = (float)($priceRow['double'] ?? $h['first_total']['double'] ?? 0);
@@ -522,37 +537,11 @@
                     @else
                         <div class="inclusion">No hotel options available</div>
                     @endif
-
-                    {{-- Price grid (Hotel only; per pax) --}}
-                    <div style="margin-top: 10px;">
-                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
                 </td>
-
                 <td class="quotation-col">
-                    <div class="panel-title">Other services cost for entire package</div>
-
-                    {{-- Date first --}}
                     <div class="money-line">
                         <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
                     </div>
-
-                    {{-- Inclusions list --}}
                     <div class="section-label">Inclusions:</div>
                     @php $hasAnyOtherInclusions = (!empty($bookedAttractions) || !empty($bookedRestaurants) || !empty($bookedArrivals) || !empty($bookedDepartures) || !empty($bookedLocalTransfers)); @endphp
                     @if($hasAnyOtherInclusions)
@@ -586,24 +575,44 @@
                     @else
                         <div class="inclusion">No other services booked</div>
                     @endif
-
-                    {{-- Price (per pax) --}}
-                    <div style="margin-top: 10px;">
-                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($otherTotalForOccupancy) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
                 </td>
             </tr>
+            {{-- Row 3: pricing only — same row ⇒ same horizontal alignment in all PDF engines --}}
+            <tr class="quotation-band-pricing">
+                <td class="quotation-col">
+                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+                <td class="quotation-col">
+                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($otherTotalForOccupancy) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            </tbody>
         </table>
 
         
