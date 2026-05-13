@@ -94,21 +94,24 @@ class PackageBookingController extends Controller
     {
         $validated = $request->validate([
             'travel_start_date' => 'required|date',
-            'travel_end_date' => 'required|date|after_or_equal:travel_start_date',
-            'pax_count' => 'required|integer|min:1',
         ]);
 
         $startDate = Carbon::parse($validated['travel_start_date'])->startOfDay();
-        $endDate = Carbon::parse($validated['travel_end_date'])->startOfDay();
-        $durationDays = $startDate->diffInDays($endDate) + 1;
-        $totalPax = (int) $validated['pax_count'];
 
         $packages = Package::query()
             ->whereDate('start_date', '<=', $startDate->toDateString())
-            ->whereDate('expire_date', '>=', $endDate->toDateString())
-            ->where('duration_days', $durationDays)
+            ->whereDate('expire_date', '>=', $startDate->toDateString())
             ->orderBy('title')
             ->get(['package_id', 'title', 'destination', 'city', 'duration_days', 'max_pax', 'start_date', 'expire_date'])
+            ->filter(function ($package) use ($startDate) {
+                $days = (int) ($package->duration_days ?? 0);
+                if ($days < 1) {
+                    return false;
+                }
+                $lastTourDay = $startDate->copy()->addDays($days - 1);
+
+                return Carbon::parse($package->expire_date)->startOfDay()->greaterThanOrEqualTo($lastTourDay);
+            })
             ->map(function ($package) {
                 return [
                     'package_id' => $package->package_id,
@@ -125,8 +128,7 @@ class PackageBookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'duration_days' => $durationDays,
-            'total_pax' => $totalPax,
+            'travel_start_date' => $startDate->toDateString(),
             'packages' => $packages,
         ]);
     }
@@ -211,7 +213,6 @@ class PackageBookingController extends Controller
         }
 
         $port = Port::where('port_id', $portId)
-            ->orWhere('id', $portId)
             ->first();
 
         if (!$port) {
@@ -343,8 +344,18 @@ class PackageBookingController extends Controller
         $startDate = Carbon::parse($validated['travel_start_date'])->startOfDay();
         $endDate = Carbon::parse($validated['travel_end_date'])->startOfDay();
         $duration = $startDate->diffInDays($endDate) + 1;
-        if ($package->start_date>$startDate && $package->expire_date<$endDate) {
-            return back()->withInput()->with('error', 'Selected package does not match the chosen date duration. Start date: '.$package->start_date.' End date: '.$package->expire_date.' Selected start date: '.$startDate.' Selected end date: '.$endDate);
+
+        $pkgStart = Carbon::parse($package->start_date)->startOfDay();
+        $pkgExpire = Carbon::parse($package->expire_date)->startOfDay();
+        if ($startDate->lt($pkgStart) || $endDate->gt($pkgExpire)) {
+            return back()->withInput()->with('error', 'Travel dates fall outside this package\'s validity window.');
+        }
+        $pkgDurationDays = (int) ($package->duration_days ?? 0);
+        if ($pkgDurationDays < 1) {
+            $pkgDurationDays = 1;
+        }
+        if ($duration < $pkgDurationDays) {
+            return back()->withInput()->with('error', 'Travel end date cannot be earlier than the minimum tour length for this package.');
         }
 
         $ceilToFive = function ($n) {

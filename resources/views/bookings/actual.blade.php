@@ -474,10 +474,69 @@
         max-width: 100%;
     }
     #toursTable .actions-icons-wrap > a,
-    #toursTable .actions-icons-wrap > form {
+    #toursTable .actions-icons-wrap > form,
+    #toursTable .actions-icons-wrap > .quotation-actions-flyout,
+    #toursTable .actions-icons-wrap > .invoice-actions-flyout {
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+    /* Single trigger icon; hover reveals links above (quotation / invoice pairs) */
+    #toursTable .quotation-actions-flyout,
+    #toursTable .invoice-actions-flyout {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+    #toursTable .quotation-actions-flyout:hover,
+    #toursTable .quotation-actions-flyout:focus-within,
+    #toursTable .invoice-actions-flyout:hover,
+    #toursTable .invoice-actions-flyout:focus-within {
+        z-index: 20;
+    }
+    #toursTable .quotation-actions-flyout__links,
+    #toursTable .invoice-actions-flyout__links {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 0.35rem);
+        top: auto;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.45rem;
+        margin: 0;
+        list-style: none;
+        background: #fff;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.15s ease, visibility 0.15s ease;
+        white-space: nowrap;
+    }
+    /* Bridge gap so pointer can move from button up into the flyout */
+    #toursTable .quotation-actions-flyout__links::after,
+    #toursTable .invoice-actions-flyout__links::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        height: 10px;
+    }
+    #toursTable .quotation-actions-flyout:hover .quotation-actions-flyout__links,
+    #toursTable .quotation-actions-flyout:focus-within .quotation-actions-flyout__links,
+    #toursTable .invoice-actions-flyout:hover .invoice-actions-flyout__links,
+    #toursTable .invoice-actions-flyout:focus-within .invoice-actions-flyout__links {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
     }
     #toursTable .actions-icons-wrap form {
         margin: 0;
@@ -1464,14 +1523,21 @@
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
-                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Acco + Service Quotation" target="_blank">
-                                        <i class="ri-file-list-3-line"></i>
-                                    </a>
-                                    <a href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
-                                       class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Packaged Quotation" target="_blank">
-                                        <i class="ri-stack-line"></i>
-                                    </a>
+                                    <div class="quotation-actions-flyout">
+                                        <button type="button" class="action-icon-badge quotation-actions-flyout__trigger" style="--action-color: #0f766e;" aria-label="Quotation" aria-haspopup="true">
+                                            <i class="ri-bill-line"></i>
+                                        </button>
+                                        <div class="quotation-actions-flyout__links">
+                                            <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                               class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Acco + Service Quotation" target="_blank">
+                                                <i class="ri-file-list-3-line"></i>
+                                            </a>
+                                            <a href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                               class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Packaged Quotation" target="_blank">
+                                                <i class="ri-stack-line"></i>
+                                            </a>
+                                        </div>
+                                    </div>
                                     <button type="button"
                                             class="action-icon-badge"
                                             style="--action-color: #0f766e;"
@@ -1502,14 +1568,21 @@
                                             <i class="ri-file-download-line"></i>
                                         </a>
                                     @elseif($proformaInvoice)
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}"
-                                           class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Proforma Invoice (Price Breakup)" target="_blank">
-                                            <i class="ri-file-paper-line"></i>
-                                        </a>
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}"
-                                           class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Proforma Invoice (Price Only)" target="_blank">
-                                            <i class="ri-file-download-line"></i>
-                                        </a>
+                                        <div class="invoice-actions-flyout">
+                                            <button type="button" class="action-icon-badge invoice-actions-flyout__trigger" style="--action-color: #0e7490;" aria-label="Invoice" aria-haspopup="true">
+                                                <i class="ri-receipt-line"></i>
+                                            </button>
+                                            <div class="invoice-actions-flyout__links">
+                                                <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'full']) }}"
+                                                   class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Invoice Details" target="_blank">
+                                                    <i class="ri-file-paper-line"></i>
+                                                </a>
+                                                <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($proformaInvoice->invoice_id), 'mode' => 'price-only']) }}"
+                                                   class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Invoice Packaged" target="_blank">
+                                                    <i class="ri-file-download-line"></i>
+                                                </a>
+                                            </div>
+                                        </div>
                                         <form action="{{ route('invoices.convert-to-final', $proformaInvoice->invoice_id) }}" method="POST" class="d-inline">
                                             @csrf
                                             <button type="submit" class="action-icon-badge" style="--action-color: #b45309;" data-tooltip="Convert to Final"
@@ -1558,12 +1631,14 @@
                                            onclick="event.stopPropagation();">
                                             <i class="ri-settings-3-line"></i>
                                         </a> -->
-                                    <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="action-icon-badge" 
+                                        <!-- Add Guests
+                                    <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge"
                                        style="--action-color: #0dcaf0;"
                                        data-tooltip="Add Guests">
                                         <i class="ri-user-add-line"></i>
                                     </a>
+                                        -->
                                     <a href="{{ route('bookings.confirmation-voucher', Crypt::encrypt($tour->tour_id)) }}" 
                                         class="action-icon-badge" 
                                         style="--action-color: #7c3aed;"
