@@ -10,7 +10,17 @@
             <div class="col-lg-8">
                 <div class="card border-0 shadow-lg">
                     <div class="card-body text-center py-5">
-                        
+                        <div class="text-start mb-4">
+                            <a
+                                href="{{ route('dashboard') }}"
+                                class="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
+                                aria-label="Back to Dashboard"
+                            >
+                                <i class="ri-arrow-left-line" aria-hidden="true"></i>
+                                <span>Back to Dashboard</span>
+                            </a>
+                        </div>
+
                         <!-- Success Animation -->
                         <div class="success-animation mb-4">
                             <div class="checkmark-circle">
@@ -116,17 +126,6 @@
                             >
                                 <i class="ri-add-line"></i>
                             </a>
-                            
-                            <a
-                                href="{{ route('dashboard') }}"
-                                class="btn btn-outline-secondary btn-lg px-3"
-                                data-bs-toggle="tooltip"
-                                data-bs-placement="top"
-                                title="Back to Dashboard"
-                                aria-label="Back to Dashboard"
-                            >
-                                <i class="ri-dashboard-line"></i>
-                            </a>
 
                             <a
                                 href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}"
@@ -134,8 +133,8 @@
                                 target="_blank"
                                 data-bs-toggle="tooltip"
                                 data-bs-placement="top"
-                                title="Breaking Down Quotation"
-                                aria-label="Breaking Down Quotation"
+                                title="Packaged Quotation"
+                                aria-label="Packaged Quotation"
                             >
                                 <i class="ri-file-list-3-line"></i>
                             </a>
@@ -145,8 +144,8 @@
                                 target="_blank"
                                 data-bs-toggle="tooltip"
                                 data-bs-placement="top"
-                                title="Detailed Quotation"
-                                aria-label="Detailed Quotation"
+                                title="Acco + Service Quotation"
+                                aria-label="Acco + Service Quotation"
                             >
                                 <i class="ri-file-text-line"></i>
                             </a>

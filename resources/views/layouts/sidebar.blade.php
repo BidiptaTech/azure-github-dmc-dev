@@ -1927,7 +1927,7 @@
                             <div class="form-check d-flex align-items-center gap-2" style="margin-top:2px;">
                                 <input class="form-check-input" type="checkbox" id="pro_include_foc_in_group_price">
                                 <label class="form-check-label" for="pro_include_foc_in_group_price" style="color:#495057; font-size:0.74rem;">Treat FOC pax as discount (free)</label>
-                                <i class="ri-information-line text-dark fw-bold ctp-foc-info" style="font-size:1.05rem; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Note: &lt;span class='text-primary'&gt;☑&lt;/span&gt; FOC cost is discounted in paying pax. &lt;span class='text-muted'&gt;☐&lt;/span&gt; FOC cost is included in paying pax."></i>
+                                <i class="ri-information-line text-dark fw-bold ctp-foc-info" style="font-size:1.05rem; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="<div style='text-align:left;'><div class='fw-semibold mb-1'>Note:</div><div><span class='text-warning fw-semibold'>☑</span> FOC cost is discounted in paying pax.</div><div><span class='text-warning fw-semibold'>☐</span> FOC cost is included in paying pax.</div></div>"></i>
                             </div>
                         </div>
                         <div class="col-6">

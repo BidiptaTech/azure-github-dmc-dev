@@ -1103,6 +1103,12 @@ class EnquiryFormPro extends Controller
                 'markup_type' => 'nullable|string|in:percentage,flat',
                 'discount_value' => 'nullable|numeric|min:0',
                 'discount_type' => 'nullable|string|in:percentage,flat,',
+                'tour_type' => 'nullable|in:FIT,GROUP,fit,group',
+                'foc_size' => 'nullable|integer|min:0',
+                'discount' => 'nullable|integer|in:0,1',
+                'male' => 'nullable|integer|min:0',
+                'female' => 'nullable|integer|min:0',
+                'child_ages' => 'nullable|string|max:2000',
             ]);
             
             // Get markup and discount values
@@ -1189,19 +1195,32 @@ class EnquiryFormPro extends Controller
             $tour->infant = $request->infants;
             $tour->agent_id = $request->agent_id;
             $tour->tour_id = $tourId;
-            $tour->male_count = $request->male ?? 0;
-            $tour->female_count = $request->female ?? 0;
+            $tour->male_count = (int) ($request->male ?? 0);
+            $tour->female_count = (int) ($request->female ?? 0);
             $tour->check_in_time = $checkInTime;
             $tour->check_out_time = $checkOutTime;
             $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
             $tour->city = $request->city ?? null;
             $tour->dmc_id = $dmcId;
-            $tour->child_ages = $request->child_ages ?? null;
+            // child_ages: default to '[]' (matches existing JSON-array convention) when not provided
+            $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
-            $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
+            // Normalize tour_type and align FOC / discount columns to CommonHelper::calculateTourPrices contract
+            $rawTourType = strtoupper((string) $request->input('tour_type', 'FIT'));
+            $tourType = in_array($rawTourType, ['FIT', 'GROUP'], true) ? $rawTourType : 'FIT';
+            $tour->tour_type = $tourType;
+            if ($tourType === 'GROUP') {
+                $tour->foc_size = max(0, (int) $request->input('foc_size', 0));
+                // discount=1 when "Treat FOC pax as discount (free)" is selected, else 0
+                $tour->discount = ((int) $request->input('discount', 0) === 1) ? 1 : 0;
+            } else {
+                // FIT: never carries FOC; force defaults so downstream pricing matches CommonHelper
+                $tour->foc_size = 0;
+                $tour->discount = 0;
+            }
             $tour->created_by = $user->userId; // Store the user ID who created the tour
             // Store user currency for this tour based on DMC/user country
             $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
@@ -2739,6 +2758,12 @@ class EnquiryFormPro extends Controller
             'infant_count' => $tour->infant ?? 0,
             'male_count' => $tour->male_count ?? 0,
             'female_count' => $tour->female_count ?? 0,
+            // GROUP + FOC fields (consumed by edit view's pricing JS to mirror CommonHelper::calculateTourPrices)
+            'male' => $tour->male_count ?? 0,
+            'female' => $tour->female_count ?? 0,
+            'child_ages' => $tour->child_ages ?? '[]',
+            'foc_size' => (int) ($tour->foc_size ?? 0),
+            'discount' => (int) ($tour->discount ?? 0),
         ];
         
         // Load agencies filtered by DMC ID
@@ -2886,6 +2911,12 @@ class EnquiryFormPro extends Controller
                 'markup_type' => 'nullable|string|in:percentage,flat',
                 'discount_value' => 'nullable|numeric|min:0',
                 'discount_type' => 'nullable|string|in:percentage,flat,',
+                'tour_type' => 'nullable|in:FIT,GROUP,fit,group',
+                'foc_size' => 'nullable|integer|min:0',
+                'discount' => 'nullable|integer|in:0,1',
+                'male' => 'nullable|integer|min:0',
+                'female' => 'nullable|integer|min:0',
+                'child_ages' => 'nullable|string|max:2000',
             ]);
             
             // Get markup and discount values (coerce — input() can return null when key exists)
@@ -2917,13 +2948,23 @@ class EnquiryFormPro extends Controller
             $tour->child = $request->children;
             $tour->infant = $request->infants;
             $tour->agent_id = $request->agent_id;
-            $tour->male_count = $request->male ?? 0;
-            $tour->female_count = $request->female ?? 0;
+            $tour->male_count = (int) ($request->male ?? 0);
+            $tour->female_count = (int) ($request->female ?? 0);
             $tour->check_in_time = $checkInTime;
             $tour->check_out_time = $checkOutTime;
             $tour->city = $request->city ?? null;
-            $tour->child_ages = $request->child_ages ?? null;
-            $tour->tour_type = $request->input('tour_type', 'FIT'); // FIT or GROUP
+            $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
+            // Normalize tour_type + sync foc_size / discount columns (matches CommonHelper::calculateTourPrices)
+            $rawTourType = strtoupper((string) $request->input('tour_type', 'FIT'));
+            $tourType = in_array($rawTourType, ['FIT', 'GROUP'], true) ? $rawTourType : 'FIT';
+            $tour->tour_type = $tourType;
+            if ($tourType === 'GROUP') {
+                $tour->foc_size = max(0, (int) $request->input('foc_size', 0));
+                $tour->discount = ((int) $request->input('discount', 0) === 1) ? 1 : 0;
+            } else {
+                $tour->foc_size = 0;
+                $tour->discount = 0;
+            }
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             
             // Update main guest data as JSON

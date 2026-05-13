@@ -1464,9 +1464,13 @@
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}"
-                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Download Quotation" target="_blank">
-                                        <i class="ri-file-download-line"></i>
+                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Acco + Service Quotation" target="_blank">
+                                        <i class="ri-file-list-3-line"></i>
+                                    </a>
+                                    <a href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Packaged Quotation" target="_blank">
+                                        <i class="ri-stack-line"></i>
                                     </a>
                                     @php
                                         $all_ids = [11, 33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];

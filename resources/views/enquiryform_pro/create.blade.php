@@ -1070,13 +1070,26 @@
                     <div class="col-auto">
                         <strong style="font-size: 9px; color: #2c3e50;">{{ $user->name }}</strong>
                     </div>
+                    @php
+                        // Lock tour type to whatever was picked in the "Create Single Tour Pro" popup.
+                        // Disable the opposite radio so the user can't switch — switching invalidates
+                        // FOC/group_size collected in the popup and the pricing scaling that depends on them.
+                        $initialTourType = isset($initialData['tour_type']) ? strtoupper((string) $initialData['tour_type']) : 'FIT';
+                        $isFit = $initialTourType === 'FIT';
+                        $isGroup = $initialTourType === 'GROUP';
+                    @endphp
                     <div class="col-auto">
-                        <label style="font-size: 9px; margin: 0; font-weight: 500;">
-                            <input type="radio" name="type" value="FIT" {{ (isset($initialData['tour_type']) && $initialData['tour_type'] == 'FIT') || !isset($initialData) ? 'checked' : '' }}> FIT
+                        <label style="font-size: 9px; margin: 0; font-weight: 500;{{ $isGroup ? ' opacity: 0.55; cursor: not-allowed;' : '' }}" title="{{ $isGroup ? 'FIT is locked: this tour was created as GROUP' : '' }}">
+                            <input type="radio" name="type" value="FIT" {{ $isFit ? 'checked' : '' }} {{ $isGroup ? 'disabled' : '' }}> FIT
                         </label>
-                        <label style="font-size: 9px; margin: 0 0 0 4px; font-weight: 500;">
-                            <input type="radio" name="type" value="GROUP" {{ isset($initialData['tour_type']) && $initialData['tour_type'] == 'GROUP' ? 'checked' : '' }}> Group
+                        <label style="font-size: 9px; margin: 0 0 0 4px; font-weight: 500;{{ $isFit ? ' opacity: 0.55; cursor: not-allowed;' : '' }}" title="{{ $isFit ? 'Group is locked: this tour was created as FIT' : '' }}">
+                            <input type="radio" name="type" value="GROUP" {{ $isGroup ? 'checked' : '' }} {{ $isFit ? 'disabled' : '' }}> Group
                         </label>
+                        {{-- GROUP + FOC (from Create Tour Pro init): mirrors CommonHelper GROUP pricing factors --}}
+                        <input type="hidden" id="enquiryProFocSize" value="{{ isset($initialData['foc_size']) ? (int) $initialData['foc_size'] : 0 }}">
+                        <input type="hidden" id="enquiryProGroupDiscount" value="{{ isset($initialData['discount']) ? (int) $initialData['discount'] : 0 }}">
+                        {{-- child_ages JSON pulled from popup so it survives back to the controller on store --}}
+                        <input type="hidden" id="enquiryProChildAges" value="{{ is_array($initialData['child_ages'] ?? null) ? json_encode($initialData['child_ages']) : ($initialData['child_ages'] ?? '[]') }}">
                     </div>
                     <div class="col-auto d-flex align-items-center">
                         <span class="detail-label me-1" style="font-size: 9px;">Sal:</span>
@@ -1129,20 +1142,31 @@
                 <!-- Pax Section -->
                 <div class="col-auto">
                     <div class="field-group pax-group">
-                        <!-- Adult Section -->
+                        <!-- Adult Section — locked: total adults is set in the initial Create Tour Pro popup
+                             and drives FOC / room distribution / service pricing across the form.
+                             Only the Male / Female breakdown stays editable below. -->
                         <div class="field-item">
                             <i class="ri-user-line field-icon"></i>
                             <span class="detail-label">Adult:</span>
-                            <input type="number" class="form-control form-control-sm beautiful-input" value="{{ $initialData['adult_count'] ?? '2' }}" id="adultCountInput" min="0" onchange="updateAdultDetails()">
+                            <input type="number"
+                                   class="form-control form-control-sm beautiful-input"
+                                   value="{{ $initialData['adult_count'] ?? '2' }}"
+                                   id="adultCountInput"
+                                   min="0"
+                                   readonly
+                                   tabindex="-1"
+                                   style="background-color: #f1f3f5; cursor: not-allowed; color: #495057;"
+                                   title="Adults total is locked — set during the initial Create Tour Pro popup. Edit Male / Female below to adjust the gender breakdown."
+                                   onchange="updateAdultDetails()">
                         </div>
                         <!-- Adult Details (Man/Women) - Hidden by default -->
                         <div id="adultDetailsContainer" style="display: none;" class="adult-details-container">
                             <div class="field-item">
-                                <span class="detail-label">Man:</span>
+                                <span class="detail-label">Male:</span>
                                 <input type="number" class="form-control form-control-sm beautiful-input" id="adultManInput" min="0" value="{{ isset($initialData['male']) ? (int) $initialData['male'] : 0 }}" onchange="validateAdultBreakdown()">
                             </div>
                             <div class="field-item">
-                                <span class="detail-label">Women:</span>
+                                <span class="detail-label">Female:</span>
                                 <input type="number" class="form-control form-control-sm beautiful-input" id="adultWomenInput" min="0" value="{{ isset($initialData['female']) ? (int) $initialData['female'] : 0 }}" onchange="validateAdultBreakdown()">
                             </div>
                         </div>
@@ -1171,6 +1195,36 @@
                                     <input type="checkbox" id="babyCotRequired" class="form-check-input" style="margin-right: 4px;"> Baby Cot Required
                                 </label>
                             </div>
+                        </div>
+
+                        {{-- FOC Section (GROUP only) — BOTH foc_size and the "Free" toggle are LOCKED.
+                             They are set during the initial Create Tour Pro popup and drive every downstream
+                             GROUP pricing calculation. Editing them after services exist would invalidate the
+                             room distribution and the per-pax footer summary.
+                             Visible only when tour type is GROUP. --}}
+                        <div class="field-item" id="focHeaderSection" style="display: {{ $isGroup ? 'inline-flex' : 'none' }};">
+                            <i class="ri-gift-line field-icon"></i>
+                            <span class="detail-label">FOC:</span>
+                            <input type="number"
+                                   class="form-control form-control-sm beautiful-input"
+                                   id="focSizeHeaderInput"
+                                   min="0"
+                                   value="{{ isset($initialData['foc_size']) ? (int) $initialData['foc_size'] : 0 }}"
+                                   readonly
+                                   tabindex="-1"
+                                   style="background-color: #f1f3f5; cursor: not-allowed; color: #495057;"
+                                   title="FOC size is locked — set during the initial Create Tour Pro popup. Changing it would invalidate the room distribution and per-pax pricing of services already added.">
+                            <label class="detail-label" style="cursor: not-allowed; margin-left: 6px; white-space: nowrap; opacity: 0.75;"
+                                   title="'Treat FOC pax as discount (free)' is locked — set during the initial Create Tour Pro popup.">
+                                <input type="checkbox"
+                                       id="focDiscountHeaderCheck"
+                                       class="form-check-input"
+                                       style="margin-right: 4px; vertical-align: middle; cursor: not-allowed;"
+                                       {{ (isset($initialData['discount']) && (int) $initialData['discount'] === 1) ? 'checked' : '' }}
+                                       disabled
+                                       tabindex="-1">
+                                Free
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -6271,6 +6325,41 @@
         }
     }
     
+    // FOC header controls: sync the visible foc_size / "Free" toggle into the hidden inputs
+    // (#enquiryProFocSize, #enquiryProGroupDiscount) which getEnquiryProGroupFocFactors reads,
+    // then re-run the footer Single/Twin/Triple summary so prices reflect the new factors.
+    function updateEnquiryProFocSize(value) {
+        const v = Math.max(0, parseInt(value, 10) || 0);
+        const visible = document.getElementById('focSizeHeaderInput');
+        if (visible && visible.value !== String(v)) visible.value = v;
+        const hidden = document.getElementById('enquiryProFocSize');
+        if (hidden) hidden.value = v;
+        if (typeof recalculateTotals === 'function') recalculateTotals();
+        if (typeof recalculateRoomCombinationPrices === 'function') recalculateRoomCombinationPrices();
+        const chk = document.querySelector('.room-combination-checkbox:checked');
+        if (chk && window.currentRoomCombinations && typeof updatePricingSummary === 'function') {
+            const cid = chk.getAttribute('data-combo-id');
+            const cmb = window.currentRoomCombinations.find(x => String(x.id) === String(cid));
+            if (cmb) updatePricingSummary(cmb);
+        }
+    }
+
+    function updateEnquiryProFocDiscount(checked) {
+        const flag = checked ? 1 : 0;
+        const visible = document.getElementById('focDiscountHeaderCheck');
+        if (visible) visible.checked = !!checked;
+        const hidden = document.getElementById('enquiryProGroupDiscount');
+        if (hidden) hidden.value = flag;
+        if (typeof recalculateTotals === 'function') recalculateTotals();
+        if (typeof recalculateRoomCombinationPrices === 'function') recalculateRoomCombinationPrices();
+        const chk = document.querySelector('.room-combination-checkbox:checked');
+        if (chk && window.currentRoomCombinations && typeof updatePricingSummary === 'function') {
+            const cid = chk.getAttribute('data-combo-id');
+            const cmb = window.currentRoomCombinations.find(x => String(x.id) === String(cid));
+            if (cmb) updatePricingSummary(cmb);
+        }
+    }
+
     // Update Adult Details (Man/Women dropdowns)
     function updateAdultDetails() {
         const adultCount = parseInt(document.getElementById('adultCountInput').value) || 0;
@@ -9464,7 +9553,11 @@
                            data-combo-id="${combo.id}" value="${defaultRooms}" min="0" 
                            style="font-size: 10px; padding: 2px 4px; text-align: center;">
                 </td>
-                <td style="padding: 2px 8px; text-align: center;" class="combo-price-cell">--</td>
+                <td style="padding: 2px 8px;">
+                    <input type="number" class="form-control form-control-sm combo-price" 
+                           data-combo-id="${combo.id}" value="0" min="0" step="0.01"
+                           style="font-size: 10px; padding: 2px 4px; text-align: center; width: 70px;">
+                </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm combo-sell" 
                            data-combo-id="${combo.id}" value="0" min="0" step="0.01"
@@ -9521,35 +9614,38 @@
             if (!combo) return;
             const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
             if (!row) return;
-            
-            const roomsVal = Math.max(1, parseInt(row.querySelector('.combo-rooms')?.value || combo.rooms || 1, 10) || 1);
-            const comboScoped = { ...combo, rooms: roomsVal };
-            let perNight = computeComboAvgCostPerNight(comboScoped, getHeaderValues());
-            if (!perNight || !Number.isFinite(perNight)) {
-                perNight = computePerNightRoomPrice(comboScoped, {
-                    adults: 2,
-                    childWithBed: parseInt(comboScoped.childWithBed || 0, 10) || 0,
-                    childWithoutBed: parseInt(comboScoped.childWithoutBed || 0, 10) || 0,
-                });
-                perNight = Number.isFinite(perNight) ? roundToNextZero(perNight) : 0;
-            }
-            combo.price = perNight;
-            
-            const priceCell = row.querySelector('.combo-price-cell');
+
+            const priceInput = row.querySelector('.combo-price');
             const sellInput = row.querySelector('.combo-sell');
-            
-            if (priceCell) {
-                // Display price - show 0.00 if price is 0, or '--' if invalid/NaN
-                if (Number.isFinite(perNight)) {
-                    priceCell.textContent = perNight.toFixed(2);
-                    // Also update the sell input if it's empty or 0
-                    if (sellInput && (!sellInput.value || sellInput.value === '0' || parseFloat(sellInput.value) === 0)) {
-                        sellInput.value = perNight.toFixed(2);
-                    }
-                } else {
-                    priceCell.textContent = '--';
-                    console.warn('Invalid price calculated:', perNight, 'for combo:', combo.id);
-                }
+
+            // AVG COST = base per-room rate for the standard double-occupancy distribution
+            // (capped at maxOccupancy in case the room only allows a single guest).
+            // It does NOT depend on how many rooms are selected or whether the extra-bed
+            // checkbox is on — those affect distribution and add-on totals respectively, not
+            // the per-room base rate. Keeps the price consistent before/after row selection.
+            const maxOcc = Math.max(1, parseInt(combo.maxOccupancy || 99, 10) || 99);
+            const baseAdults = Math.min(2, maxOcc);
+            let computed = computePerNightRoomPrice(combo, {
+                adults: baseAdults,
+                childWithBed: 0,
+                childWithoutBed: 0,
+            });
+            computed = Number.isFinite(computed) ? roundToNextZero(computed) : 0;
+
+            const priceUserEdited = priceInput?.getAttribute('data-user-edited') === 'true';
+            const sellUserEdited = sellInput?.getAttribute('data-user-edited') === 'true';
+
+            const baseNight = priceUserEdited
+                ? (parseFloat(priceInput.value) || computed)
+                : computed;
+            combo.price = baseNight;
+            combo.sell = sellUserEdited ? (parseFloat(sellInput.value) || baseNight) : baseNight;
+
+            if (priceInput && !priceUserEdited && Number.isFinite(computed)) {
+                priceInput.value = computed.toFixed(2);
+            }
+            if (sellInput && !sellUserEdited && Number.isFinite(baseNight)) {
+                sellInput.value = baseNight.toFixed(2);
             }
         };
 
@@ -9557,6 +9653,19 @@
         // - 1 type selected: rooms = ceil(adults/maxCap) e.g. 4 adults, max 2 → 2 rooms.
         // - 2 types: 1 and 1. 3 types: 1,1,1. 4 types: 1,1,1,1.
         // - If user selects a 5th type: first 4 keep 1,1,1,1; 5th gets 0. When user unselects one of the four, the 5th gets 1 (redistribute among 4 selected).
+        // Per-row room capacity for distribution:
+        //  - extra-bed checkbox CHECKED (and available)  → base 2 + 1 extra bed = 3 (capped by maxOcc)
+        //  - extra-bed checkbox UNCHECKED / unavailable  → base 2                (capped by maxOcc)
+        // Example for 7 adults, 1 combo selected:
+        //   extra bed ON  → ceil(7/3) = 3 rooms (3+3+1)
+        //   extra bed OFF → ceil(7/2) = 4 rooms (2+2+2+1)
+        const getComboRoomCapacity = (combo, comboId) => {
+            const maxOcc = Math.max(1, parseInt(combo?.maxOccupancy || 99, 10) || 99);
+            const extraBedCb = tbody.querySelector(`.combo-extra-bed-check[data-combo-id="${comboId}"]`);
+            const extraBedOn = extraBedCb && extraBedCb.checked && !extraBedCb.disabled && (combo?.extraBedAvailable !== false);
+            return extraBedOn ? Math.min(3, maxOcc) : Math.min(2, maxOcc);
+        };
+
         const distributePaxAcrossRooms = () => {
             const headerValues = getHeaderValues();
             const totalAdults = headerValues.adults || 0;
@@ -9580,6 +9689,15 @@
 
             const totalAdultsForRooms = Math.max(0, totalAdults);
 
+            // Per-combo capacity (depends on each row's extra-bed state).
+            const capacities = order.map(id => {
+                const c = window.currentRoomCombinations.find(x => x.id === id);
+                return getComboRoomCapacity(c, id);
+            });
+            const avgCapacity = capacities.length > 0
+                ? capacities.reduce((s, v) => s + v, 0) / capacities.length
+                : 2;
+
             // Special case: adults == number of selected types → 1 room each (4 adults, 4 types → 1,1,1,1)
             if (totalAdultsForRooms === N) {
                 order.forEach(comboId => {
@@ -9590,11 +9708,9 @@
                 });
             } else {
                 // General case: distribute total rooms needed as evenly as possible across selected types.
-                // Approximate capacity as 2 pax/room when calculating how many rooms are needed overall.
-                // (Per-room max occupancy is still enforced elsewhere when validating totals.)
-                const approxCapacity = 2;
-                const roomsNeeded = totalAdultsForRooms > 0
-                    ? Math.max(1, Math.ceil(totalAdultsForRooms / approxCapacity))
+                // roomsNeeded uses the AVERAGE per-row capacity, which honours each combo's extra-bed state.
+                const roomsNeeded = totalAdultsForRooms > 0 && avgCapacity > 0
+                    ? Math.max(1, Math.ceil(totalAdultsForRooms / avgCapacity))
                     : 0;
 
                 if (roomsNeeded === 0) {
@@ -9631,22 +9747,41 @@
             });
         });
         
+        // AVG COST input: track user edits so recalcPrice doesn't overwrite the manual value,
+        // and keep combo.price in sync for downstream usage (getSelectedRoomCombinations, footer).
+        tbody.querySelectorAll('.combo-price').forEach(input => {
+            input.addEventListener('input', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                this.setAttribute('data-user-edited', 'true');
+                const combo = window.currentRoomCombinations?.find(c => c.id === comboId);
+                if (combo) {
+                    const v = parseFloat(this.value);
+                    combo.price = Number.isFinite(v) ? v : 0;
+                }
+            });
+        });
+
         // Add event listener for sell input changes
         tbody.querySelectorAll('.combo-sell').forEach(input => {
             input.addEventListener('input', function() {
-                const comboId = this.getAttribute('data-combo-id');
                 // Mark as user-edited
                 this.setAttribute('data-user-edited', 'true');
             });
         });
-        
-        // Add event listeners for Extra Bed, CWB, CNB, Infant checkboxes to enable/disable price inputs
+
+        // Extra Bed checkbox: enable/disable price input AND re-distribute rooms across selected
+        // combos. Capacity per row changes (2 ↔ 3), so the total rooms needed for the same
+        // adult count changes too (e.g. 7 pax → 3 rooms with extra bed, 4 rooms without).
         tbody.querySelectorAll('.combo-extra-bed-check').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const comboId = this.getAttribute('data-combo-id');
                 const priceInput = tbody.querySelector(`.combo-extra-bed-price[data-combo-id="${comboId}"]`);
                 if (priceInput) {
                     priceInput.disabled = !this.checked;
+                }
+                const selectionCb = tbody.querySelector(`.room-combination-checkbox[data-combo-id="${comboId}"]`);
+                if (selectionCb && selectionCb.checked) {
+                    distributePaxAcrossRooms();
                 }
             });
         });
@@ -9947,30 +10082,29 @@
         }
         
         pricingSummary.style.display = 'block';
-        
-        // Calculate prices for all occupancy types
+
+        // Hotel modal's room pricing summary shows the RAW per-room prices (same as FIT). The
+        // bottom-of-form footer (recalculateTotals) handles GROUP + FOC distribution separately,
+        // so applying the factor here would double-scale the prices.
         const singleCost = computePerNightRoomPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
         const twinCost = computePerNightRoomPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
         const tripleCost = computePerNightRoomPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
         const childWithBedCost = calculateChildPricing(combo, true);
         const childWithoutBedCost = calculateChildPricing(combo, false);
-        const infantCost = 0; // Infants typically free
-        
-        // Calculate weekday prices
+        const infantCost = 0;
+
         const singleWeekday = computeWeekdayPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
         const twinWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
         const tripleWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
         const childWithBedWeekday = computeChildWeekdayPrice(combo, true);
         const childWithoutBedWeekday = computeChildWeekdayPrice(combo, false);
-        
-        // Calculate weekend prices
+
         const singleWeekend = computeWeekendPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
         const twinWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
         const tripleWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
         const childWithBedWeekend = computeChildWeekendPrice(combo, true);
         const childWithoutBedWeekend = computeChildWeekendPrice(combo, false);
-        
-        // Get extra bed price for display
+
         const room = combo.roomData || {};
         const parsePrice = (val) => {
             if (val === null || val === undefined || val === '') return 0;
@@ -10035,43 +10169,21 @@
         const childWithoutBedSellEl = document.getElementById('pricingSummaryChildWithoutBedSell');
         const infantSellEl = document.getElementById('pricingSummaryInfantSell');
         
-        // Store data attribute to track if value was user-edited
-        if (singleSellEl) {
-            const wasEdited = singleSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!singleSellEl.value || singleSellEl.value === '0' || singleSellEl.value === '')) {
-                singleSellEl.value = Number.isFinite(singleCostRounded) ? singleCostRounded.toFixed(2) : '0.00';
+        const syncPricingSummarySell = (el, costRounded) => {
+            if (!el) return;
+            // Pricing summary Sell mirrors FIT behaviour: only seed when the user hasn't edited it yet.
+            const wasEdited = el.getAttribute('data-user-edited') === 'true';
+            if (!wasEdited && (!el.value || el.value === '0' || el.value === '')) {
+                el.value = Number.isFinite(costRounded) ? costRounded.toFixed(2) : '0.00';
             }
-        }
-        if (twinSellEl) {
-            const wasEdited = twinSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!twinSellEl.value || twinSellEl.value === '0' || twinSellEl.value === '')) {
-                twinSellEl.value = Number.isFinite(twinCostRounded) ? twinCostRounded.toFixed(2) : '0.00';
-            }
-        }
-        if (tripleSellEl) {
-            const wasEdited = tripleSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!tripleSellEl.value || tripleSellEl.value === '0' || tripleSellEl.value === '')) {
-                tripleSellEl.value = Number.isFinite(tripleCostRounded) ? tripleCostRounded.toFixed(2) : '0.00';
-            }
-        }
-        if (childWithBedSellEl) {
-            const wasEdited = childWithBedSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!childWithBedSellEl.value || childWithBedSellEl.value === '0' || childWithBedSellEl.value === '')) {
-                childWithBedSellEl.value = Number.isFinite(childWithBedCostRounded) ? childWithBedCostRounded.toFixed(2) : '0.00';
-            }
-        }
-        if (childWithoutBedSellEl) {
-            const wasEdited = childWithoutBedSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!childWithoutBedSellEl.value || childWithoutBedSellEl.value === '0' || childWithoutBedSellEl.value === '')) {
-                childWithoutBedSellEl.value = Number.isFinite(childWithoutBedCostRounded) ? childWithoutBedCostRounded.toFixed(2) : '0.00';
-            }
-        }
-        if (infantSellEl) {
-            const wasEdited = infantSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!infantSellEl.value || infantSellEl.value === '0' || infantSellEl.value === '')) {
-                infantSellEl.value = Number.isFinite(infantCostRounded) ? infantCostRounded.toFixed(2) : '0.00';
-            }
-        }
+        };
+
+        if (singleSellEl) syncPricingSummarySell(singleSellEl, singleCostRounded);
+        if (twinSellEl) syncPricingSummarySell(twinSellEl, twinCostRounded);
+        if (tripleSellEl) syncPricingSummarySell(tripleSellEl, tripleCostRounded);
+        if (childWithBedSellEl) syncPricingSummarySell(childWithBedSellEl, childWithBedCostRounded);
+        if (childWithoutBedSellEl) syncPricingSummarySell(childWithoutBedSellEl, childWithoutBedCostRounded);
+        if (infantSellEl) syncPricingSummarySell(infantSellEl, infantCostRounded);
         
         // Add event listeners to mark fields as user-edited
         const sellInputs = pricingSummary.querySelectorAll('.pricing-sell-input');
@@ -10085,48 +10197,42 @@
         });
     }
 
-    // Recalculate prices for displayed room combinations (e.g., when dates change)
+    // Recalculate prices for displayed room combinations (e.g., when dates change).
+    // Uses the same double-occupancy base as recalcPrice so AVG COST stays consistent.
     function recalculateRoomCombinationPrices() {
         const tbody = document.getElementById('roomCombinationsTableBody');
         if (!tbody || !window.currentRoomCombinations || window.currentRoomCombinations.length === 0) return;
-        
+
         window.currentRoomCombinations.forEach(combo => {
             const row = tbody.querySelector(`tr[data-combo-id="${combo.id}"]`);
             if (!row) return;
-            const roomsVal = Math.max(1, parseInt(row.querySelector('.combo-rooms')?.value || combo.rooms || 1, 10) || 1);
-            const comboScoped = {
-                ...combo,
-                rooms: roomsVal,
-                childWithBed: parseInt(row.querySelector('.combo-extra-bed')?.value || combo.childWithBed || 0, 10) || 0,
-                childWithoutBed: parseInt(row.querySelector('.combo-child-without')?.value || combo.childWithoutBed || 0, 10) || 0,
-            };
-            let perNight = computeComboAvgCostPerNight(comboScoped, getHeaderValues());
-            if (!perNight || !Number.isFinite(perNight)) {
-                const adults = parseInt(row.querySelector('.combo-adults')?.value || 0, 10) || 0;
-                const a = adults > 0 ? adults : 2;
-                perNight = computePerNightRoomPrice(comboScoped, {
-                    adults: a,
-                    childWithBed: comboScoped.childWithBed,
-                    childWithoutBed: comboScoped.childWithoutBed,
-                });
-                perNight = Number.isFinite(perNight) ? roundToNextZero(perNight) : 0;
-            }
-            combo.price = perNight;
-            const priceCell = row.querySelector('.combo-price-cell');
+
+            const priceInput = row.querySelector('.combo-price');
             const sellInput = row.querySelector('.combo-sell');
-            if (priceCell) {
-                // Display price - show 0.00 if price is 0, or '--' if invalid/NaN
-                if (Number.isFinite(perNight)) {
-                    priceCell.textContent = perNight.toFixed(2);
-                    if (sellInput) {
-                        const wasEdited = sellInput.getAttribute('data-user-edited') === 'true';
-                        if (!wasEdited) {
-                            sellInput.value = perNight.toFixed(2);
-                        }
-                    }
-                } else {
-                    priceCell.textContent = '--';
-                }
+
+            const maxOcc = Math.max(1, parseInt(combo.maxOccupancy || 99, 10) || 99);
+            const baseAdults = Math.min(2, maxOcc);
+            let computed = computePerNightRoomPrice(combo, {
+                adults: baseAdults,
+                childWithBed: 0,
+                childWithoutBed: 0,
+            });
+            computed = Number.isFinite(computed) ? roundToNextZero(computed) : 0;
+
+            const priceUserEdited = priceInput?.getAttribute('data-user-edited') === 'true';
+            const sellUserEdited = sellInput?.getAttribute('data-user-edited') === 'true';
+
+            const baseNight = priceUserEdited
+                ? (parseFloat(priceInput.value) || computed)
+                : computed;
+            combo.price = baseNight;
+            combo.sell = sellUserEdited ? (parseFloat(sellInput.value) || baseNight) : baseNight;
+
+            if (priceInput && !priceUserEdited && Number.isFinite(computed)) {
+                priceInput.value = computed.toFixed(2);
+            }
+            if (sellInput && !sellUserEdited && Number.isFinite(baseNight)) {
+                sellInput.value = baseNight.toFixed(2);
             }
         });
     }
@@ -10163,6 +10269,7 @@
                 // Get the input values for this combination (new simplified structure)
                 const row = checkbox.closest('tr');
                 const roomsInput = document.querySelector(`.combo-rooms[data-combo-id="${comboId}"]`);
+                const priceInput = document.querySelector(`.combo-price[data-combo-id="${comboId}"]`);
                 const sellInput = document.querySelector(`.combo-sell[data-combo-id="${comboId}"]`);
                 const extraBedCheck = document.querySelector(`.combo-extra-bed-check[data-combo-id="${comboId}"]`);
                 const cwbCheck = document.querySelector(`.combo-cwb-check[data-combo-id="${comboId}"]`);
@@ -10178,10 +10285,17 @@
                 const cnbPrice = parseFloat(combo.roomData?.child_without_bed || combo.roomData?.childWithoutBed || combo.roomData?.cnb_price || 0);
                 const infantPrice = parseFloat(combo.babyCotPrice || combo.roomData?.baby_cot_price || combo.bedData?.baby_cot_price || 0);
 
+                const priceFromInput = parseFloat(priceInput?.value);
+                const finalPrice = Number.isFinite(priceFromInput) && priceFromInput > 0
+                    ? priceFromInput
+                    : (parseFloat(combo.price) || 0);
+
                 selectedCombos.push({
                     ...combo,
                     rooms: parseInt(roomsInput?.value || 1),
-                    sell: parseFloat(sellInput?.value || combo.price || 0),
+                    price: finalPrice,
+                    priceUserEdited: priceInput?.getAttribute('data-user-edited') === 'true',
+                    sell: parseFloat(sellInput?.value || finalPrice || 0),
                     sellUserEdited: sellInput?.getAttribute('data-user-edited') === 'true',
                     hasExtraBed: extraBedCheck?.checked || false,
                     extraBedPrice: extraBedPrice, // Always store price, checkbox controls usage
@@ -10227,13 +10341,16 @@
         const headerValues = getHeaderValues();
         
         return combinations.map(combo => {
-            const avgCost = computeComboAvgCostPerNight(combo, headerValues);
-            const fallbackPrice = parseFloat(combo.price) || 0;
-            const costNight = avgCost > 0 ? avgCost : fallbackPrice;
-            // Keep sell equal to avg cost unless user explicitly edited sell.
-            const sellNight = combo.sellUserEdited
-                ? (parseFloat(combo.sell) > 0 ? parseFloat(combo.sell) : (costNight || fallbackPrice))
-                : (costNight || fallbackPrice);
+            // combo.price comes straight from the AVG COST input (set in getSelectedRoomCombinations)
+            // and is the RAW per-night room rate (no FOC scaling). GROUP + FOC distribution is
+            // applied later in recalculateTotals when building the bottom Single/Twin/Triple summary.
+            const priceFromInput = parseFloat(combo.price);
+            const costNight = Number.isFinite(priceFromInput) && priceFromInput > 0
+                ? priceFromInput
+                : computeComboAvgCostPerNight(combo, headerValues);
+            const sellNight = combo.sellUserEdited && parseFloat(combo.sell) > 0
+                ? parseFloat(combo.sell)
+                : costNight;
             return {
             id: generateId('hotel'),
             hotelId: hotelId, // Database ID
@@ -11808,8 +11925,15 @@
             const adultsPerRoom = combo.adultsPerRoom;
             const extraBed = combo.extraBed;
             const childWithoutBed = combo.childWithoutBed;
-            const avgCostNight = computeComboAvgCostPerNight(combo, getHeaderValues());
-            const roomPrice = avgCostNight > 0 ? avgCostNight : (combo.price || 0);
+            // Edit-accommodation path: persist the RAW per-night room rate (from the AVG COST input).
+            // FOC scaling is applied only at recalculateTotals() in the footer, not on hotel.cost / hotel.sell records.
+            const priceFromCombo = parseFloat(combo.price);
+            const roomPrice = Number.isFinite(priceFromCombo) && priceFromCombo > 0
+                ? priceFromCombo
+                : computeComboAvgCostPerNight(combo, getHeaderValues());
+            const sellFinal = combo.sellUserEdited && parseFloat(combo.sell) > 0
+                ? parseFloat(combo.sell)
+                : roomPrice;
             
             // Get arrival/departure data
             const arrivalDateTime = document.getElementById('arrivalDateTime').value;
@@ -11858,9 +11982,7 @@
                 hasInfant: combo.hasInfant || false,
                 infantPrice: combo.infantPrice || 0,
                 cost: roomPrice,
-                sell: combo.sellUserEdited
-                    ? (parseFloat(combo.sell) > 0 ? parseFloat(combo.sell) : (roomPrice || parseFloat(combo.price) || 0))
-                    : (roomPrice || parseFloat(combo.price) || 0),
+                sell: sellFinal,
                 supplement: combo.supplement || false,
                 // Store arrival/departure info with accommodation
                 arrivalDateTime: arrivalDateTime,
@@ -13036,6 +13158,7 @@
                         
                         // Set the values for this combination (new simplified structure)
                         const roomsInput = document.querySelector(`.combo-rooms[data-combo-id="${matchingCombo.id}"]`);
+                        const priceInput = document.querySelector(`.combo-price[data-combo-id="${matchingCombo.id}"]`);
                         const sellInput = document.querySelector(`.combo-sell[data-combo-id="${matchingCombo.id}"]`);
                         const extraBedCheck = document.querySelector(`.combo-extra-bed-check[data-combo-id="${matchingCombo.id}"]`);
                         const cwbCheck = document.querySelector(`.combo-cwb-check[data-combo-id="${matchingCombo.id}"]`);
@@ -13046,9 +13169,6 @@
                         if (roomsInput) {
                             roomsInput.value = hotel.rooms;
                             roomsInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                        if (sellInput) {
-                            sellInput.value = hotel.sell || hotel.roomPrice || 0;
                         }
                         if (extraBedCheck) {
                             extraBedCheck.checked = hotel.hasExtraBed === true;
@@ -13065,6 +13185,21 @@
                         if (supplementCheck) {
                             supplementCheck.checked = hotel.supplement || false;
                         }
+                        // Restore the saved per-night AVG COST / SELL rates after recalc. Mark them as
+                        // user-edited so recalcPrice doesn't overwrite the user's previous values.
+                        setTimeout(function () {
+                            const costVal = parseFloat(hotel.cost) || parseFloat(hotel.roomPrice) || parseFloat(hotel.sell);
+                            const sellVal = parseFloat(hotel.sell) || costVal;
+                            if (priceInput && Number.isFinite(costVal) && costVal > 0) {
+                                priceInput.value = costVal.toFixed(2);
+                                priceInput.setAttribute('data-user-edited', 'true');
+                                if (matchingCombo) matchingCombo.price = costVal;
+                            }
+                            if (sellInput && Number.isFinite(sellVal) && sellVal > 0) {
+                                sellInput.value = sellVal.toFixed(2);
+                                sellInput.setAttribute('data-user-edited', 'true');
+                            }
+                        }, 0);
                         
                         console.log('Set values:', {
                             rooms: hotel.rooms,
@@ -21834,11 +21969,78 @@
         }
     }
 
+    /**
+     * GROUP + FOC factors aligned with App\Helpers\CommonHelper::calculateTourPrices.
+     *  - totalPax  = adults + children (infants excluded, same as the backend headcount).
+     *  - payingPax = max(0, adults - foc_size) + children (FOC applies to adults only).
+     *  - focFactor = totalPax / payingPax when distribution applies (e.g. 7/5 for 7 pax, foc=2).
+     *  - discount = 1 ("Treat FOC pax as discount (free)"):
+     *      → FOC pax pay NOTHING; paying pax pay their normal per-pax share (factor 5/5 = 1).
+     *      → hotelFactor = 1, otherFactor = 1.
+     *  - discount = 0:
+     *      → cost is distributed over paying pax for ALL services.
+     *      → hotelFactor = focFactor, otherFactor = focFactor.
+     */
+    function getEnquiryProGroupFocFactors() {
+        const typeEl = document.querySelector('input[name="type"]:checked');
+        const tourType = (typeEl && typeEl.value ? String(typeEl.value) : 'FIT').toUpperCase();
+        if (tourType !== 'GROUP') {
+            return {
+                isGroup: false,
+                totalPax: 0,
+                payingPax: 0,
+                focSize: 0,
+                discountOn: false,
+                focFactor: 1,
+                hotelFactor: 1,
+                otherFactor: 1,
+            };
+        }
+        const adults = parseInt(document.getElementById('adultCountInput')?.value || '0', 10) || 0;
+        const children = parseInt(document.getElementById('childCountInput')?.value || '0', 10) || 0;
+        const focSize = Math.max(0, parseInt(document.getElementById('enquiryProFocSize')?.value || '0', 10) || 0);
+        const totalPax = adults + children;
+        const payingAdults = Math.max(0, adults - focSize);
+        let payingPax = payingAdults + children;
+        if (payingPax < 1) {
+            payingPax = totalPax > 0 ? totalPax : 1;
+        }
+        let focFactor = 1;
+        if (payingPax > 0 && totalPax > payingPax) {
+            focFactor = totalPax / payingPax;
+        }
+        const hasFocDistribution = focFactor !== 1;
+        const discountOn = parseInt(document.getElementById('enquiryProGroupDiscount')?.value || '0', 10) === 1;
+        // discount=1 → FOC pax are TOTALLY FREE: paying pax pay their normal share for every service,
+        //              so both hotel and non-hotel factors collapse to 1 (5/5 in the user's example).
+        // discount=0 → cost is redistributed over paying pax for every service (focFactor, e.g. 7/5).
+        const distributionFactor = (hasFocDistribution && !discountOn) ? focFactor : 1;
+        const hotelFactor = distributionFactor;
+        const otherFactor = distributionFactor;
+        return {
+            isGroup: true,
+            totalPax,
+            payingPax,
+            focSize,
+            discountOn,
+            focFactor,
+            hotelFactor,
+            otherFactor,
+        };
+    }
+
+    // NOTE: scaleEnquiryProHotelNight() was removed — hotel modal now displays the RAW per-night
+    // room rate (same as FIT). GROUP + FOC scaling is applied only in recalculateTotals() below,
+    // where hotel.cost / hotel.sell are multiplied by hotelFactor while building the footer Single/Twin/Triple summary.
+
     // Recalculate all totals and populate footer table
     function recalculateTotals() {
         const tbody = document.getElementById('footerSummaryBody');
         const thead = document.getElementById('footerSummaryHeader');
         let rows = [];
+        const focHdr = getEnquiryProGroupFocFactors();
+        const htlF = focHdr.hotelFactor;
+        const othF = focHdr.otherFactor;
         
         // Determine if we have hotels (non-supplement hotels)
         const nonSupplementHotels = accommodationList.filter(hotel => !hotel.supplement);
@@ -22211,6 +22413,26 @@
                 }
             }
         });
+
+        // GROUP + FOC: scale hotel bucket vs non-hotel bucket (CommonHelper parity)
+        const scaledTourCost = tourCostPerPax * othF;
+        const scaledTourSell = tourSellPerPax * othF;
+        const scaledTransferCost = transferCostPerPax * othF;
+        const scaledTransferSell = transferSellPerPax * othF;
+        const scaledChildCost = childCostPerPax * othF;
+        const scaledChildSell = childSellPerPax * othF;
+        const scaledGuideSingleCost = guideSingleCost * othF;
+        const scaledGuideSingleSell = guideSingleSell * othF;
+        const scaledGuideTwinCost = guideTwinCost * othF;
+        const scaledGuideTwinSell = guideTwinSell * othF;
+        const scaledGuideTripleCost = guideTripleCost * othF;
+        const scaledGuideTripleSell = guideTripleSell * othF;
+        const scaledLocalTransferSingleCost = localTransferSingleCost * othF;
+        const scaledLocalTransferSingleSell = localTransferSingleSell * othF;
+        const scaledLocalTransferTwinCost = localTransferTwinCost * othF;
+        const scaledLocalTransferTwinSell = localTransferTwinSell * othF;
+        const scaledLocalTransferTripleCost = localTransferTripleCost * othF;
+        const scaledLocalTransferTripleSell = localTransferTripleSell * othF;
         
         // Add accommodation rows (exclude items with supplement checked)
         if (accommodationList.length > 0) {
@@ -22246,26 +22468,28 @@
                 // Child without bed = child without bed amount * nights
                 // Infant = infant amount * nights
                 
-                const singleCost = totalHotelCost + tourCostPerPax + transferCostPerPax + guideSingleCost + localTransferSingleCost;
-                const singleSell = totalHotelSell + tourSellPerPax + transferSellPerPax + guideSingleSell + localTransferSingleSell;
-                
-                const twinCost = (totalHotelCost / 2) + tourCostPerPax + transferCostPerPax + guideTwinCost + localTransferTwinCost;
-                const twinSell = (totalHotelSell / 2) + tourSellPerPax + transferSellPerPax + guideTwinSell + localTransferTwinSell;
-                
-                // Triple includes extra bed
+                const scaledTotalHotelCost = totalHotelCost * htlF;
+                const scaledTotalHotelSell = totalHotelSell * htlF;
                 const totalExtraBedCost = extraBedPricePerNight * nights;
-                const tripleCost = ((totalHotelCost + totalExtraBedCost) / 3) + tourCostPerPax + transferCostPerPax + guideTripleCost + localTransferTripleCost;
-                const tripleSell = ((totalHotelSell + totalExtraBedCost) / 3) + tourSellPerPax + transferSellPerPax + guideTripleSell + localTransferTripleSell;
+                const scaledExtraBedCost = totalExtraBedCost * htlF;
+                const scaledCwbNight = (cwbPricePerNight * nights) * htlF;
+                const scaledCnbNight = (cnbPricePerNight * nights) * htlF;
+
+                const singleCost = scaledTotalHotelCost + scaledTourCost + scaledTransferCost + scaledGuideSingleCost + scaledLocalTransferSingleCost;
+                const singleSell = scaledTotalHotelSell + scaledTourSell + scaledTransferSell + scaledGuideSingleSell + scaledLocalTransferSingleSell;
                 
-                // Child with bed = CWB price * nights + child tour costs
-                const childWithBedCost = (cwbPricePerNight * nights) + childCostPerPax;
-                const childWithBedSell = (cwbPricePerNight * nights) + childSellPerPax;
+                const twinCost = (scaledTotalHotelCost / 2) + scaledTourCost + scaledTransferCost + scaledGuideTwinCost + scaledLocalTransferTwinCost;
+                const twinSell = (scaledTotalHotelSell / 2) + scaledTourSell + scaledTransferSell + scaledGuideTwinSell + scaledLocalTransferTwinSell;
                 
-                // Child without bed = CNB price * nights + child tour costs
-                const childWithoutBedCost = (cnbPricePerNight * nights) + childCostPerPax;
-                const childWithoutBedSell = (cnbPricePerNight * nights) + childSellPerPax;
+                const tripleCost = ((scaledTotalHotelCost + scaledExtraBedCost) / 3) + scaledTourCost + scaledTransferCost + scaledGuideTripleCost + scaledLocalTransferTripleCost;
+                const tripleSell = ((scaledTotalHotelSell + scaledExtraBedCost) / 3) + scaledTourSell + scaledTransferSell + scaledGuideTripleSell + scaledLocalTransferTripleSell;
                 
-                // Infant = infant price * nights
+                const childWithBedCost = scaledCwbNight + scaledChildCost;
+                const childWithBedSell = scaledCwbNight + scaledChildSell;
+                
+                const childWithoutBedCost = scaledCnbNight + scaledChildCost;
+                const childWithoutBedSell = scaledCnbNight + scaledChildSell;
+                
                 const infantCost = infantPricePerNight * nights;
                 const infantSell = infantPricePerNight * nights;
                 
@@ -22331,12 +22555,12 @@
                         </td>
                     </tr>
                 `);
-        });
-    }
+            });
+        }
     
-    // Check if all hotels are marked as supplement
-    // Reuse the nonSupplementHotels variable already declared at the top of this function
-    const allHotelsAreSupplement = accommodationList.length > 0 && nonSupplementHotels.length === 0;
+        // Check if all hotels are marked as supplement
+        // Reuse the nonSupplementHotels variable already declared at the top of this function
+        const allHotelsAreSupplement = accommodationList.length > 0 && nonSupplementHotels.length === 0;
         
         // Show Package Total Tours, Meals & Transfers row when:
         // 1. There are NO hotels at all, OR
@@ -22348,11 +22572,11 @@
                                        localTransferSingleSell > 0 || localTransferTwinSell > 0 || localTransferTripleSell > 0);
         
         if (shouldShowPackageTotal) {
-            // Calculate adult and child costs
-            const adultCost = tourCostPerPax + transferCostPerPax + guideSingleCost + localTransferSingleCost;
-            const adultSell = tourSellPerPax + transferSellPerPax + guideSingleSell + localTransferSingleSell;
-            const childCost = childCostPerPax;
-            const childSell = childSellPerPax;
+            // Calculate adult and child costs (GROUP + FOC: non-hotel bucket uses otherFactor)
+            const adultCost = scaledTourCost + scaledTransferCost + scaledGuideSingleCost + scaledLocalTransferSingleCost;
+            const adultSell = scaledTourSell + scaledTransferSell + scaledGuideSingleSell + scaledLocalTransferSingleSell;
+            const childCost = scaledChildCost;
+            const childSell = scaledChildSell;
             
             // Round prices
             const adultCostRounded = roundToNextZero(adultCost);
@@ -22556,6 +22780,19 @@
                 checkboxes.forEach(cb => cb.checked = this.checked);
             });
         }
+
+        document.querySelectorAll('input[name="type"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (typeof recalculateTotals === 'function') recalculateTotals();
+                if (typeof recalculateRoomCombinationPrices === 'function') recalculateRoomCombinationPrices();
+                const chk = document.querySelector('.room-combination-checkbox:checked');
+                if (chk && window.currentRoomCombinations && typeof updatePricingSummary === 'function') {
+                    const cid = chk.getAttribute('data-combo-id');
+                    const cmb = window.currentRoomCombinations.find(function (x) { return String(x.id) === String(cid); });
+                    if (cmb) updatePricingSummary(cmb);
+                }
+            });
+        });
 
         // Select all arrival/departure
         const selectAllArrivalDeparture = document.getElementById('selectAllArrivalDeparture');
@@ -24112,7 +24349,9 @@
         const male = parseInt(document.getElementById('adultManInput')?.value) || 0;
         const female = parseInt(document.getElementById('adultWomenInput')?.value) || 0;
         const city = null; // Not used in current form
-        const childAges = null; // Can be collected from child details if needed
+        // child_ages JSON string flows through from the "Create Single Tour Pro" popup; default '[]'.
+        // Stored as text on tours.child_ages so CommonHelper::calculateTourPrices can parse it back.
+        const childAges = (document.getElementById('enquiryProChildAges')?.value || '[]');
         
         // Validate required fields
         if (!destination || destination.trim() === '') {
@@ -24156,8 +24395,25 @@
         formData.append('discount_type', discountType);
         
         // Add tour type (FIT or GROUP)
-        const tourType = document.querySelector('input[name="type"]:checked')?.value || 'FIT';
+        // Use :checked to honour user selection; fall back to disabled-but-still-present radio (lock-in case).
+        let tourType = document.querySelector('input[name="type"]:checked')?.value;
+        if (!tourType) {
+            // Both could be disabled in rare templating cases; fall back to whichever radio exists.
+            tourType = document.querySelector('input[name="type"]')?.value || 'FIT';
+        }
+        tourType = String(tourType).toUpperCase();
         formData.append('tour_type', tourType);
+
+        // GROUP + FOC: forward foc_size and discount (1 = "Treat FOC pax as discount (free)"). For FIT, both forced to 0.
+        const focSizeVal = Math.max(0, parseInt(document.getElementById('enquiryProFocSize')?.value || '0', 10) || 0);
+        const discountFlag = parseInt(document.getElementById('enquiryProGroupDiscount')?.value || '0', 10) === 1 ? 1 : 0;
+        if (tourType === 'GROUP') {
+            formData.append('foc_size', focSizeVal);
+            formData.append('discount', discountFlag);
+        } else {
+            formData.append('foc_size', 0);
+            formData.append('discount', 0);
+        }
         
         // Add customer details (salutation, name, contact, email)
         const salutation = document.getElementById('salutationSelect')?.value || 'Mr';
