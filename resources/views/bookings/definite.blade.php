@@ -1501,6 +1501,14 @@
                                        class="action-icon-badge" style="--action-color: #0284c7;" target="_blank" data-tooltip="Preview Email">
                                         <i class="ri-mail-line"></i>
                                     </a>
+                                    <button type="button"
+                                            class="action-icon-badge"
+                                            style="--action-color: #0f766e;"
+                                            data-tooltip="Create Chat Room (Firebase)"
+                                            onclick="event.stopPropagation(); createChatRoomFirebase({{ $tour->tour_id }});"
+                                            id="create-chat-btn-{{ $tour->tour_id }}">
+                                        <i class="ri-chat-1-line"></i>
+                                    </button>
                                     @if($finalInvoice)
                                         <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}"
                                            class="action-icon-badge" style="--action-color: #0369a1;" target="_blank" data-tooltip="Final Invoice (Full)">
@@ -24093,6 +24101,58 @@ function modifyBooking(tourId) {
 function cancelConfirmed(tourId) {
     if (confirm('Are you sure you want to cancel this confirmed booking? This may require refund processing.')) {
         console.log('Cancelling confirmed booking', tourId);
+    }
+}
+
+async function createChatRoomFirebase(tourId) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (!csrfToken) {
+        Swal.fire({
+            title: 'Error!',
+            text: 'Missing CSRF token. Please refresh and try again.',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+
+    try {
+        const res = await fetch('{{ route('create-chat') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ tour_id: tourId })
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+            Swal.fire({
+                title: 'Error!',
+                text: data?.message || 'Failed to create Firebase chat room.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        const isSuccess = data?.success === true;
+        Swal.fire({
+            title: 'Chat Room',
+            text: data?.message || 'Chat room created (or already exists).',
+            icon: isSuccess ? 'success' : 'info',
+            confirmButtonText: 'OK'
+        });
+    } catch (err) {
+        console.error('createChatRoomFirebase error:', err);
+        Swal.fire({
+            title: 'Error!',
+            text: 'Failed to create Firebase chat room.',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
     }
 }
 
