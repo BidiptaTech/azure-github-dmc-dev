@@ -227,11 +227,15 @@
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
         // Hotel-only totals per-head (supplements excluded)
-        // overall total = hotel + other services
+        // overall total = hotel + other services (for all occupancies, including triple)
         $hotelOnlySingleTotal = max(0, (float)($tourPrices['single_sharing'] ?? 0) - $otherSingleTotal);
         $hotelOnlyDoubleTotal = max(0, (float)($tourPrices['double_sharing'] ?? 0) - $otherDoubleTotal);
-        // triple total is hotel-only by design
-        $hotelOnlyTripleTotal = max(0, (float)($tourPrices['triple_sharing'] ?? 0));
+        // Triple_sharing now also includes other-services per-pax (same as single/double),
+        // so subtract it here to keep the Hotel cost box hotel-only.
+        $tripleSharingTotal   = (float)($tourPrices['triple_sharing'] ?? 0);
+        $hotelOnlyTripleTotal = $tripleSharingTotal > 0
+            ? max(0, $tripleSharingTotal - $otherSingleTotal)
+            : 0;
 
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
