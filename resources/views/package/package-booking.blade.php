@@ -23,19 +23,15 @@
                 <div class="card-header bg-light"><h5 class="mb-0">Booking Basics</h5></div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label">Travel Start Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="travel_start_date" name="travel_start_date" required min="{{ date('Y-m-d') }}" value="{{ old('travel_start_date') }}">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Travel End Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="travel_end_date" name="travel_end_date" required min="{{ date('Y-m-d') }}" value="{{ old('travel_end_date') }}">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Pax <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="pax_count" name="pax_count" min="1" value="{{ old('pax_count', 2) }}" required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label">Agency</label>
                             <select id="agency_id" name="agency_id" class="form-select" onchange="loadAgentsByAgency(this.value, null)">
                                 <option value="">Select Agency</option>
@@ -44,7 +40,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label">Agent</label>
                             <select id="agent_id" name="agent_id" class="form-select">
                                 <option value="">Select Agency first</option>
@@ -56,9 +52,13 @@
                         <div class="col-md-8">
                             <label class="form-label">Package <span class="text-danger">*</span></label>
                             <select id="package_select" class="form-select" disabled>
-                                <option value="">Select date range and pax to load packages</option>
+                                <option value="">Select travel start date to load packages</option>
                             </select>
                             <small class="text-muted d-block mt-1" id="packageFilterMessage"></small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Travel End Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="travel_end_date" name="travel_end_date" required min="{{ date('Y-m-d') }}" value="{{ old('travel_end_date') }}" title="Defaults from package length; you may extend later but not shorten below that">
                         </div>
                     </div>
                 </div>
@@ -215,6 +215,8 @@
         let selectedPackagePriceData = {};
         let selectedPackageType = '';
         let loadedPackageDurationDays = 1;
+        /** Minimum allowed travel end date (Y-m-d) once a package is chosen — package-based last day; user may extend only. */
+        let packageMinEndDateYmd = '';
         let lastPricingTotals = { total_price: 0, final_price: 0, markup_type: 'flat', markup_amount: 0 };
 
         function ceilToFive(n) {
@@ -250,8 +252,95 @@
 
         const startDateEl = document.getElementById('travel_start_date');
         const endDateEl = document.getElementById('travel_end_date');
+        const travelEndDateHtmlMin = endDateEl ? (endDateEl.getAttribute('min') || '') : '';
         const paxEl = document.getElementById('pax_count');
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        /** End date = last day of tour (inclusive), same rule as server diffInDays + 1 */
+        function lastTourDayYmdFromStart(ymd, inclusiveDays) {
+            const parts = String(ymd || '').split('-').map(x => parseInt(x, 10));
+            if (parts.length !== 3 || parts.some(n => isNaN(n))) return '';
+            const d = parseInt(inclusiveDays, 10);
+            if (!isFinite(d) || d < 1) return '';
+            const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+            dt.setDate(dt.getDate() + (d - 1));
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + day;
+        }
+
+        function syncEndDateFromPackageDuration(durationDays) {
+            if (!startDateEl.value) return;
+            const lastDay = lastTourDayYmdFromStart(startDateEl.value, durationDays);
+            if (lastDay) {
+                packageMinEndDateYmd = lastDay;
+                endDateEl.min = packageMinEndDateYmd;
+                endDateEl.value = lastDay;
+            }
+        }
+
+        function clampTravelEndDateToMinimum() {
+            if (!packageMinEndDateYmd || !endDateEl.value) return;
+            const cur = endDateEl.value;
+            if (cur < packageMinEndDateYmd) {
+                endDateEl.value = packageMinEndDateYmd;
+            }
+        }
+
+        /**
+         * Departure rows tagged with the previous last tour day move to the new calendar last day.
+         * Items sharing the same maximum `day` are treated as the final departure segment(s).
+         */
+        function syncDepartureDaysToExtendedTour() {
+            const lastDay = getTourDurationDaysInclusive();
+            if (!departureData || typeof departureData !== 'object') return;
+            if (!Array.isArray(departureData.items) || !departureData.items.length) return;
+
+            let maxD = 0;
+            departureData.items.forEach(it => {
+                const d = parseInt(it && it.day, 10);
+                if (!isNaN(d) && d > maxD) maxD = d;
+            });
+            const pkgBase = parseInt(loadedPackageDurationDays, 10) || 1;
+            if (maxD < 1) maxD = pkgBase;
+
+            departureData.items.forEach(it => {
+                if (!it || typeof it !== 'object') return;
+                const d = parseInt(it.day, 10);
+                if (!isNaN(d) && d === maxD) {
+                    it.day = lastDay;
+                }
+            });
+        }
+
+        /** Placeholder accordion rows for extension nights after the packaged duration with no services. */
+        function appendExtensionTourDayPlaceholders(groups) {
+            const lastDay = getTourDurationDaysInclusive();
+            const pkgBase = parseInt(loadedPackageDurationDays, 10) || 1;
+            if (!lastDay || pkgBase >= lastDay) return groups;
+
+            const existing = new Set(groups.map(g => g.day));
+            const merged = groups.slice();
+            for (let d = pkgBase + 1; d <= lastDay; d++) {
+                if (!existing.has(d)) {
+                    merged.push({
+                        day: d,
+                        html: '<div class="alert alert-light border text-muted small mb-0">No packaged services on this tour day.</div>'
+                    });
+                    existing.add(d);
+                }
+            }
+            merged.sort((a, b) => a.day - b.day);
+            return merged;
+        }
+
+        function onTravelEndDateChanged() {
+            clampTravelEndDateToMinimum();
+            syncDepartureDaysToExtendedTour();
+            renderAllSections();
+            syncHidden();
+        }
 
         function esc(v) { return String(v || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
@@ -1019,7 +1108,7 @@
             const el = document.getElementById('dayWiseItineraryList');
             if (!el) return;
 
-            const groups = groupItineraryByUniqueDays();
+            const groups = appendExtensionTourDayPlaceholders(groupItineraryByUniqueDays());
             if (!groups.length) {
                 el.innerHTML = '<div class="alert alert-light border text-muted small mb-0">'
                     + 'No day-tagged itinerary rows yet for this package. If data uses legacy arrival/departure only, set travel dates and ensure services include day numbers. Hotels and port transfers also appear here when linked to tour days.'
@@ -2025,6 +2114,9 @@
             selectedPackagePriceData = {};
             selectedPackageType = '';
             loadedPackageDurationDays = 1;
+            packageMinEndDateYmd = '';
+            if (travelEndDateHtmlMin && endDateEl) endDateEl.setAttribute('min', travelEndDateHtmlMin);
+            else if (endDateEl) endDateEl.removeAttribute('min');
             lastPricingTotals = { total_price: 0, final_price: 0, markup_type: 'flat', markup_amount: 0 };
             packageDetailsSection.style.display = 'none';
             createBookingBtn.disabled = true;
@@ -2102,6 +2194,7 @@
             createBookingBtn.disabled = false;
             selectedPackageIdInput.value = pkg.package_id || '';
 
+            syncDepartureDaysToExtendedTour();
             renderAllSections();
             syncHidden();
         }
@@ -2123,24 +2216,25 @@
             await applyPackageData(data.package);
         }
 
-        function allFilterInputsReady() {
-            return startDateEl.value && endDateEl.value && parseInt(paxEl.value || '0', 10) > 0;
+        function travelStartDateReady() {
+            return !!startDateEl.value;
         }
 
         async function fetchFilteredPackages() {
             resetPackageDetailsUI();
-            packageSelect.innerHTML = '<option value="">Select date range and pax to load packages</option>';
+            endDateEl.value = '';
+            packageMinEndDateYmd = '';
+            if (travelEndDateHtmlMin) endDateEl.setAttribute('min', travelEndDateHtmlMin);
+            packageSelect.innerHTML = '<option value="">Select travel start date to load packages</option>';
             packageSelect.disabled = true;
 
-            if (!allFilterInputsReady()) {
-                packageFilterMessage.textContent = 'Fill travel dates and pax to load matching packages.';
+            if (!travelStartDateReady()) {
+                packageFilterMessage.textContent = 'Select a travel start date to load packages.';
                 return;
             }
 
             const params = new URLSearchParams({
                 travel_start_date: startDateEl.value,
-                travel_end_date: endDateEl.value,
-                pax_count: paxEl.value || '0'
             });
 
             packageFilterMessage.textContent = 'Loading matching packages...';
@@ -2153,19 +2247,25 @@
 
             const packages = Array.isArray(data.packages) ? data.packages : [];
             if (packages.length === 0) {
-                packageSelect.innerHTML = '<option value="">No matching packages found</option>';
-                packageFilterMessage.textContent = 'No packages match selected duration and pax.';
+                packageSelect.innerHTML = '<option value="">No packages found</option>';
+                packageFilterMessage.textContent = 'No packages are valid for this start date (including full tour within package expiry).';
                 return;
             }
 
-            packageSelect.innerHTML = '<option value="">Select package</option>' + packages.map(pkg =>
-                '<option value="' + esc(pkg.package_id) + '">' + esc(pkg.title) + ' (' + esc(pkg.destination) + ' / ' + esc(pkg.city) + ')</option>'
-            ).join('');
+            packageSelect.innerHTML = '<option value="">Select package</option>' + packages.map(pkg => {
+                const days = parseInt(pkg.duration_days, 10) || 0;
+                const dayLabel = days === 1 ? '1 day' : (days + ' days');
+                return '<option value="' + esc(pkg.package_id) + '" data-duration-days="' + esc(String(days)) + '">'
+                    + esc(pkg.title) + ' (' + esc(dayLabel) + ') — ' + esc(pkg.destination) + ' / ' + esc(pkg.city)
+                    + '</option>';
+            }).join('');
             packageSelect.disabled = false;
             packageFilterMessage.textContent = packages.length + ' package(s) found.';
 
-            if (prefilledPackageId && packages.some(p => p.package_id === prefilledPackageId)) {
-                packageSelect.value = prefilledPackageId;
+            if (prefilledPackageId != null && prefilledPackageId !== '' && packages.some(p => String(p.package_id) === String(prefilledPackageId))) {
+                packageSelect.value = String(prefilledPackageId);
+                const pre = packages.find(p => String(p.package_id) === String(prefilledPackageId));
+                if (pre) syncEndDateFromPackageDuration(pre.duration_days);
                 await loadPackageDetails(prefilledPackageId);
             }
         }
@@ -2173,12 +2273,19 @@
         ['arrivalEnabled', 'arrivalPickupPortId', 'arrivalDropoffHotelId', 'departureEnabled', 'departurePickupHotelId', 'departureDropoffPortId']
             .forEach(id => document.getElementById(id).addEventListener('change', syncHidden));
 
-        [startDateEl, endDateEl, paxEl, document.getElementById('agent_id')].forEach(el => {
-            el.addEventListener('change', fetchFilteredPackages);
-        });
+        startDateEl.addEventListener('change', fetchFilteredPackages);
+
+        endDateEl.addEventListener('change', onTravelEndDateChanged);
 
         packageSelect.addEventListener('change', async function () {
             try {
+                const opt = this.selectedOptions[0];
+                const durAttr = opt ? opt.getAttribute('data-duration-days') : null;
+                if (this.value && durAttr !== null && durAttr !== '') {
+                    syncEndDateFromPackageDuration(durAttr);
+                } else {
+                    endDateEl.value = '';
+                }
                 await loadPackageDetails(this.value);
             } catch (e) {
                 resetPackageDetailsUI();

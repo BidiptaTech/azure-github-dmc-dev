@@ -94,21 +94,24 @@ class PackageBookingController extends Controller
     {
         $validated = $request->validate([
             'travel_start_date' => 'required|date',
-            'travel_end_date' => 'required|date|after_or_equal:travel_start_date',
-            'pax_count' => 'required|integer|min:1',
         ]);
 
         $startDate = Carbon::parse($validated['travel_start_date'])->startOfDay();
-        $endDate = Carbon::parse($validated['travel_end_date'])->startOfDay();
-        $durationDays = $startDate->diffInDays($endDate) + 1;
-        $totalPax = (int) $validated['pax_count'];
 
         $packages = Package::query()
             ->whereDate('start_date', '<=', $startDate->toDateString())
-            ->whereDate('expire_date', '>=', $endDate->toDateString())
-            ->where('duration_days', $durationDays)
+            ->whereDate('expire_date', '>=', $startDate->toDateString())
             ->orderBy('title')
             ->get(['package_id', 'title', 'destination', 'city', 'duration_days', 'max_pax', 'start_date', 'expire_date'])
+            ->filter(function ($package) use ($startDate) {
+                $days = (int) ($package->duration_days ?? 0);
+                if ($days < 1) {
+                    return false;
+                }
+                $lastTourDay = $startDate->copy()->addDays($days - 1);
+
+                return Carbon::parse($package->expire_date)->startOfDay()->greaterThanOrEqualTo($lastTourDay);
+            })
             ->map(function ($package) {
                 return [
                     'package_id' => $package->package_id,
@@ -125,8 +128,7 @@ class PackageBookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'duration_days' => $durationDays,
-            'total_pax' => $totalPax,
+            'travel_start_date' => $startDate->toDateString(),
             'packages' => $packages,
         ]);
     }
@@ -211,7 +213,6 @@ class PackageBookingController extends Controller
         }
 
         $port = Port::where('port_id', $portId)
-            ->orWhere('id', $portId)
             ->first();
 
         if (!$port) {
@@ -343,8 +344,18 @@ class PackageBookingController extends Controller
         $startDate = Carbon::parse($validated['travel_start_date'])->startOfDay();
         $endDate = Carbon::parse($validated['travel_end_date'])->startOfDay();
         $duration = $startDate->diffInDays($endDate) + 1;
-        if ($package->start_date>$startDate && $package->expire_date<$endDate) {
-            return back()->withInput()->with('error', 'Selected package does not match the chosen date duration. Start date: '.$package->start_date.' End date: '.$package->expire_date.' Selected start date: '.$startDate.' Selected end date: '.$endDate);
+
+        $pkgStart = Carbon::parse($package->start_date)->startOfDay();
+        $pkgExpire = Carbon::parse($package->expire_date)->startOfDay();
+        if ($startDate->lt($pkgStart) || $endDate->gt($pkgExpire)) {
+            return back()->withInput()->with('error', 'Travel dates fall outside this package\'s validity window.');
+        }
+        $pkgDurationDays = (int) ($package->duration_days ?? 0);
+        if ($pkgDurationDays < 1) {
+            $pkgDurationDays = 1;
+        }
+        if ($duration < $pkgDurationDays) {
+            return back()->withInput()->with('error', 'Travel end date cannot be earlier than the minimum tour length for this package.');
         }
 
         $ceilToFive = function ($n) {
@@ -813,7 +824,11 @@ class PackageBookingController extends Controller
     }
 
     /**
-     * Travel date range plus hotels, attractions, and restaurants grouped by tour_start_date (itinerary UI).
+     * Travel date range plus services grouped onto each calendar row of the itinerary.
+     * Hotels are placed on the first night of each stay ({@see selected_hotels} `city_day_from` / `start_day`
+     * or first `hotel_booking_dates` entry); attractions / guides / restaurants / transfers use numeric `day`
+     * whenever present (aligned to `travel_dates.start_date`).
+     * Arrival and departure payloads may expose `items[]` with `day`; each segment is grouped by that tour day.
      *
      * @return array{
      *   allDates: array<string, bool>,
@@ -939,6 +954,8 @@ class PackageBookingController extends Controller
             return $restaurantNameById[$key];
         };
 
+        $travelStartStr = Carbon::parse($start)->format('Y-m-d');
+
         $transferItems = [];
         foreach ($transfersRaw as $t) {
             if (!is_array($t)) {
@@ -980,37 +997,118 @@ class PackageBookingController extends Controller
         $arrivalByDate = $this->initEmptyDateBuckets($allDates);
         $departureByDate = $this->initEmptyDateBuckets($allDates);
 
-        if (is_array($arrival) && (!empty($arrival['enabled']) || !empty($arrival['pickup_port_id']) || !empty($arrival['vehicles']))) {
-            $arrival['pickup_port_name'] = $resolvePortName($arrival['pickup_port_id'] ?? null);
-            $arrival['dropoff_hotel_name'] = $resolveHotelName($arrival['dropoff_hotel_id'] ?? null);
-            $d = $arrival['tour_start_date'] ?? $defaultDate;
-            if ($d === null || !isset($arrivalByDate[$d])) {
-                $d = $defaultDate;
-            }
-            if ($d !== null && isset($arrivalByDate[$d])) {
-                $arrivalByDate[$d][] = ['data' => $arrival];
+        if (is_array($arrival) && (!empty($arrival['enabled']) || !empty($arrival['items']) || !empty($arrival['pickup_port_id']) || !empty($arrival['vehicles']))) {
+            $arrivalItems = $arrival['items'] ?? null;
+            if (is_array($arrivalItems) && count($arrivalItems) > 0) {
+                foreach ($arrivalItems as $sub) {
+                    if (!is_array($sub)) {
+                        continue;
+                    }
+                    $dayNum = isset($sub['day']) ? (int) $sub['day'] : 1;
+                    $cal = $this->calendarDateForTourDay($travelStartStr, $dayNum);
+                    $row = $sub;
+                    if (empty($row['pickup_port_name'])) {
+                        $row['pickup_port_name'] = $resolvePortName($row['pickup_port_id'] ?? null)
+                            ?: $resolvePortName($arrival['pickup_port_id'] ?? null);
+                    }
+                    if (empty($row['dropoff_hotel_name'])) {
+                        $row['dropoff_hotel_name'] = $resolveHotelName($row['dropoff_hotel_id'] ?? null)
+                            ?: $resolveHotelName($arrival['dropoff_hotel_id'] ?? null);
+                    }
+                    if (($row['pickup_port_name'] ?? null) === null) {
+                        $row['pickup_port_name'] = $arrival['pickup_port_name'] ?? null;
+                    }
+                    if (($row['dropoff_hotel_name'] ?? null) === null) {
+                        $row['dropoff_hotel_name'] = $arrival['dropoff_hotel_name'] ?? null;
+                    }
+                    if (!isset($row['vehicles']) || !is_array($row['vehicles'])) {
+                        $row['vehicles'] = is_array($arrival['vehicles'] ?? null) ? $arrival['vehicles'] : [];
+                    }
+                    if ($cal !== null && isset($arrivalByDate[$cal])) {
+                        $arrivalByDate[$cal][] = ['data' => $row];
+                    }
+                }
+            } else {
+                $arrival['pickup_port_name'] = $resolvePortName($arrival['pickup_port_id'] ?? null)
+                    ?: ($arrival['pickup_port_name'] ?? null);
+                $arrival['dropoff_hotel_name'] = $resolveHotelName($arrival['dropoff_hotel_id'] ?? null)
+                    ?: ($arrival['dropoff_hotel_name'] ?? null);
+                $dayNum = isset($arrival['day']) ? (int) $arrival['day'] : null;
+                $d = ($dayNum !== null && $dayNum >= 1)
+                    ? $this->calendarDateForTourDay($travelStartStr, $dayNum)
+                    : null;
+                if ($d === null || !isset($arrivalByDate[$d])) {
+                    $d = $arrival['tour_start_date'] ?? $defaultDate;
+                }
+                if ($d !== null && isset($arrivalByDate[$d])) {
+                    $arrivalByDate[$d][] = ['data' => $arrival];
+                }
             }
         }
 
-        if (is_array($departure) && (!empty($departure['enabled']) || !empty($departure['dropoff_port_id']) || !empty($departure['vehicles']))) {
-            $departure['dropoff_port_name'] = $resolvePortName($departure['dropoff_port_id'] ?? null);
-            $departure['pickup_hotel_name'] = $resolveHotelName($departure['pickup_hotel_id'] ?? null);
-            $d = $departure['tour_start_date'] ?? $defaultDate;
-            if ($d === null || !isset($departureByDate[$d])) {
-                $d = $defaultDate;
-            }
-            if ($d !== null && isset($departureByDate[$d])) {
-                $departureByDate[$d][] = ['data' => $departure];
+        if (is_array($departure) && (!empty($departure['enabled']) || !empty($departure['items']) || !empty($departure['dropoff_port_id']) || !empty($departure['vehicles']))) {
+            $departureItems = $departure['items'] ?? null;
+            if (is_array($departureItems) && count($departureItems) > 0) {
+                foreach ($departureItems as $sub) {
+                    if (!is_array($sub)) {
+                        continue;
+                    }
+                    $dayNum = isset($sub['day']) ? (int) $sub['day'] : null;
+                    if ($dayNum !== null && $dayNum >= 1) {
+                        $cal = $this->calendarDateForTourDay($travelStartStr, $dayNum);
+                    } else {
+                        $cal = $sub['tour_start_date'] ?? $departure['tour_start_date'] ?? $defaultDate;
+                    }
+                    if ($cal !== null && !isset($departureByDate[$cal])) {
+                        $cal = $defaultDate;
+                    }
+                    $row = $sub;
+                    if (empty($row['pickup_hotel_name'])) {
+                        $row['pickup_hotel_name'] = $resolveHotelName($row['pickup_hotel_id'] ?? null)
+                            ?: $resolveHotelName($departure['pickup_hotel_id'] ?? null);
+                    }
+                    if (empty($row['dropoff_port_name'])) {
+                        $row['dropoff_port_name'] = $resolvePortName($row['dropoff_port_id'] ?? null)
+                            ?: $resolvePortName($departure['dropoff_port_id'] ?? null);
+                    }
+                    if (($row['pickup_hotel_name'] ?? null) === null) {
+                        $row['pickup_hotel_name'] = $departure['pickup_hotel_name'] ?? null;
+                    }
+                    if (($row['dropoff_port_name'] ?? null) === null) {
+                        $row['dropoff_port_name'] = $departure['dropoff_port_name'] ?? null;
+                    }
+                    if (!isset($row['vehicles']) || !is_array($row['vehicles'])) {
+                        $row['vehicles'] = is_array($departure['vehicles'] ?? null) ? $departure['vehicles'] : [];
+                    }
+                    if ($cal !== null && isset($departureByDate[$cal])) {
+                        $departureByDate[$cal][] = ['data' => $row];
+                    }
+                }
+            } else {
+                $departure['dropoff_port_name'] = $resolvePortName($departure['dropoff_port_id'] ?? null)
+                    ?: ($departure['dropoff_port_name'] ?? null);
+                $departure['pickup_hotel_name'] = $resolveHotelName($departure['pickup_hotel_id'] ?? null)
+                    ?: ($departure['pickup_hotel_name'] ?? null);
+                $dayNum = isset($departure['day']) ? (int) $departure['day'] : null;
+                $d = ($dayNum !== null && $dayNum >= 1)
+                    ? $this->calendarDateForTourDay($travelStartStr, $dayNum)
+                    : null;
+                if ($d === null || !isset($departureByDate[$d])) {
+                    $d = $departure['tour_start_date'] ?? $defaultDate;
+                }
+                if ($d !== null && isset($departureByDate[$d])) {
+                    $departureByDate[$d][] = ['data' => $departure];
+                }
             }
         }
 
         return [
             'allDates' => $allDates,
-            'hotelsByDate' => $this->groupPackageItemsByTourDate($allDates, $defaultDate, $hotelsRaw),
-            'attractionsByDate' => $this->groupPackageItemsByTourDate($allDates, $defaultDate, $attractionsRaw),
-            'guidesByDate' => $this->groupPackageItemsByTourDate($allDates, $defaultDate, $guidesRaw),
-            'restaurantsByDate' => $this->groupPackageItemsByTourDate($allDates, $defaultDate, $restaurantsRaw),
-            'transfersByDate' => $this->groupPackageItemsByTourDate($allDates, $defaultDate, $transferItems),
+            'hotelsByDate' => $this->groupPackageHotelsByItineraryStartDay($allDates, $travelStartStr, $defaultDate, $hotelsRaw),
+            'attractionsByDate' => $this->groupPackageItemsByTourDayOrDate($allDates, $travelStartStr, $defaultDate, $attractionsRaw),
+            'guidesByDate' => $this->groupPackageItemsByTourDayOrDate($allDates, $travelStartStr, $defaultDate, $guidesRaw),
+            'restaurantsByDate' => $this->groupPackageItemsByTourDayOrDate($allDates, $travelStartStr, $defaultDate, $restaurantsRaw),
+            'transfersByDate' => $this->groupPackageItemsByTourDayOrDate($allDates, $travelStartStr, $defaultDate, $transferItems),
             'arrivalByDate' => $arrivalByDate,
             'departureByDate' => $departureByDate,
             'defaultDate' => $defaultDate,
@@ -1053,6 +1151,127 @@ class PackageBookingController extends Controller
                 continue;
             }
             $byDate[$d][] = ['index' => (int) $idx, 'data' => $item];
+        }
+
+        return $byDate;
+    }
+
+    /**
+     * Map 1-based tour day number onto a calendar date using the booking's travel start_date.
+     */
+    private function calendarDateForTourDay(string $travelStartYmd, int $dayNum): ?string
+    {
+        if ($dayNum < 1) {
+            return null;
+        }
+        try {
+            return Carbon::parse($travelStartYmd)->startOfDay()->addDays($dayNum - 1)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Place each booked service on the calendar day derived from numeric `day` when present,
+     * otherwise fallback to legacy `tour_start_date`.
+     *
+     * @param  array<string, bool>  $allDates
+     * @param  array<int|string, mixed>  $items
+     * @return array<string, list<array{index: int, data: array}>>
+     */
+    private function groupPackageItemsByTourDayOrDate(array $allDates, string $travelStartYmd, ?string $defaultDate, array $items): array
+    {
+        $byDate = [];
+        foreach (array_keys($allDates) as $d) {
+            $byDate[$d] = [];
+        }
+        foreach ($items as $idx => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $d = null;
+            if (isset($item['day']) && $item['day'] !== null && $item['day'] !== '') {
+                $dayNum = (int) $item['day'];
+                if ($dayNum >= 1) {
+                    $d = $this->calendarDateForTourDay($travelStartYmd, $dayNum);
+                }
+            }
+
+            if ($d === null || !isset($byDate[$d])) {
+                $d = isset($item['tour_start_date']) ? (string) $item['tour_start_date'] : null;
+            }
+            if (($d === null || !isset($byDate[$d])) && $defaultDate !== null) {
+                $d = $defaultDate;
+            }
+            if ($d === null || !isset($byDate[$d])) {
+                continue;
+            }
+            $byDate[$d][] = ['index' => (int) $idx, 'data' => $item];
+        }
+
+        return $byDate;
+    }
+
+    /**
+     * One hotel row per booking: anchored to tour day {@see city_day_from} or {@see start_day},
+     * or first date in hotel_booking_dates when day fields are absent.
+     *
+     * @param  array<string, bool>  $allDates
+     * @param  array<int|string, mixed>  $items
+     * @return array<string, list<array{index: int, data: array}>>
+     */
+    private function groupPackageHotelsByItineraryStartDay(array $allDates, string $travelStartYmd, ?string $defaultDate, array $items): array
+    {
+        $byDate = [];
+        foreach (array_keys($allDates) as $d) {
+            $byDate[$d] = [];
+        }
+        foreach ($items as $idx => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $anchor = null;
+            $hasDayFrom = array_key_exists('city_day_from', $item)
+                ? $item['city_day_from']
+                : null;
+            $hasStart = array_key_exists('start_day', $item)
+                ? $item['start_day']
+                : null;
+            $dayFromSrc = $hasDayFrom ?? $hasStart ?? null;
+
+            if ($dayFromSrc !== null && $dayFromSrc !== '') {
+                $dayNum = (int) $dayFromSrc;
+                if ($dayNum >= 1) {
+                    $anchor = $this->calendarDateForTourDay($travelStartYmd, $dayNum);
+                }
+            }
+
+            if (($anchor === null || !isset($byDate[$anchor])) && isset($item['hotel_booking_dates'])) {
+                $hb = $item['hotel_booking_dates'];
+                if (is_array($hb)) {
+                    foreach ($hb as $dt) {
+                        if (is_string($dt) && isset($byDate[$dt])) {
+                            $anchor = $dt;
+
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (($anchor === null || !isset($byDate[$anchor])) && isset($item['tour_start_date'])) {
+                $ts = (string) $item['tour_start_date'];
+                $anchor = isset($byDate[$ts]) ? $ts : null;
+            }
+            if (($anchor === null || !isset($byDate[$anchor])) && $defaultDate !== null) {
+                $anchor = $defaultDate;
+            }
+
+            if ($anchor !== null && isset($byDate[$anchor])) {
+                $byDate[$anchor][] = ['index' => (int) $idx, 'data' => $item];
+            }
         }
 
         return $byDate;
@@ -1121,6 +1340,13 @@ class PackageBookingController extends Controller
                     return response()->json(['success' => false, 'message' => 'Service not found.'], 404);
                 }
                 $arr[(int) $idx]['tour_start_date'] = $dateStr;
+                if ($rangeStart && !in_array($section, ['hotels'], true)) {
+                    $delta = (int) $rangeStart->diffInDays($newDate, false);
+                    $tourDayNum = $delta + 1;
+                    if ($tourDayNum >= 1) {
+                        $arr[(int) $idx]['day'] = $tourDayNum;
+                    }
+                }
                 $booking->{$column} = $arr;
             } elseif ($section === 'arrival') {
                 $data = $booking->arrival_data;

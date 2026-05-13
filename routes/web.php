@@ -68,6 +68,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
 use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
+use App\Http\Controllers\ChatController;
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
 
@@ -242,7 +243,7 @@ Route::get('/clear', function () {
             Route::get('/enquiry-form-pro/get-guides', [EnquiryFormPro::class, 'getGuidesByDestination'])->name('enquiry-form-pro.get-guides');
             Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
             Route::get('/enquiry-form-pro/fetch-meals-by-restaurant', [EnquiryFormPro::class, 'fetchMealsByRestaurant'])->name('enquiry-form-pro.fetch-meals-by-restaurant');
-            
+            Route::post('/create-chat', [ChatController::class, 'createChat'])->name('create-chat');
             // Debug route to check DMC data
             Route::get('/debug/dmc-data', function() {
                 $user = auth()->user();
@@ -817,6 +818,8 @@ Route::get('/clear', function () {
         Route::post('/vehicle/add-mapping', [VehicleController::class, 'addMappingAjax'])->name('vehicle.add_mapping');
         Route::post('/vehicle/delete-mapping', [VehicleController::class, 'deleteMappingAjax'])->name('vehicle.delete_mapping');
         Route::post('/vehicle/restore-mapping', [VehicleController::class, 'restoreMappingAjax'])->name('vehicle.restore_mapping');
+        Route::post('/vehicle/update-driver', [VehicleController::class, 'updateDriverAjax'])->name('vehicle.update_driver');
+        Route::post('/vehicle/update-plate', [VehicleController::class, 'updatePlateAjax'])->name('vehicle.update_plate');
 
         // tickets
         Route::resource('tickets', TicketController::class);

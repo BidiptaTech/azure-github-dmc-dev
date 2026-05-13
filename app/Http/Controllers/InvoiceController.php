@@ -105,7 +105,8 @@ class InvoiceController extends Controller
      * Resolve Blade view for invoice PDF (standard layout vs travel-agent / alternate layout).
      *
      * @param  string  $invoiceType  proforma|final
-     * @param  string  $mode  full|price-only
+     * @param  string  $mode  full|price-only — when {@see $format} is {@code alternate}, {@code invoices.pdf.alternate}
+     *                        branches on {@code mode} (line items vs aggregate price summary).
      * @param  string|null  $format  standard|alternate
      */
     protected function resolveInvoicePdfViewName(string $invoiceType, string $mode, ?string $format): string
