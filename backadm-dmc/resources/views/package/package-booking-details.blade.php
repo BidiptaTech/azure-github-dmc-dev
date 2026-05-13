@@ -1030,6 +1030,7 @@
                                                 $veh = $a['vehicles'][0] ?? null;
                                                 $pickupPort = $a['pickup_port_name']  ?? $a['pickup_port_id']  ?? 'Arrival Port';
                                                 $dropoffHtl = $a['dropoff_hotel_name'] ?? $a['dropoff_hotel_id'] ?? 'Hotel';
+                                                $arrivalCity = isset($a['city']) ? trim((string) $a['city']) : '';
                                             @endphp
                                             <div class="service-item arrival draggable pkg-pb-draggable-card"
                                                  draggable="true"
@@ -1055,6 +1056,10 @@
                                                             <p class="service-detail-line">
                                                                 <i class="fas fa-route"></i>
                                                                 <span class="service-detail-label">Route:</span>
+                                                                @if($arrivalCity !== '')
+                                                                    <span class="text-muted">{{ $arrivalCity }}</span>
+                                                                    <span class="service-topline-dot">•</span>
+                                                                @endif
                                                                 {{ $pickupPort }}
                                                                 <span class="service-detail-arrow">&rarr;</span>
                                                                 {{ $dropoffHtl }}
@@ -1083,7 +1088,9 @@
                                                 $hIndex = $entry['index'];
                                                 $hotelName = $h['hotel_name'] ?? $h['name'] ?? 'Hotel';
                                                 $nights  = (int) ($h['nights'] ?? 0);
-                                                $city    = $h['city'] ?? '';
+                                                $city    = isset($h['city_plan_city']) && $h['city_plan_city'] !== ''
+                                                    ? trim((string) $h['city_plan_city'])
+                                                    : (string) ($h['city'] ?? '');
                                                 $image   = $h['image'] ?? $h['hotel_image'] ?? null;
                                                 $rooms   = is_array($h['rooms'] ?? null) ? $h['rooms'] : [];
                                                 $roomCnt = count($rooms);
@@ -1093,6 +1100,10 @@
                                                 $optional   = !empty($h['optional']);
                                                 $compulsory = !empty($h['compulsory']);
                                                 $addon      = !empty($h['addon']);
+                                                $cfd = isset($h['city_day_from']) ? (int) $h['city_day_from'] : null;
+                                                $ctd = isset($h['city_day_to']) ? (int) $h['city_day_to'] : null;
+                                                $hasItinDays = ($cfd !== null && $cfd >= 1 && $ctd !== null && $ctd >= $cfd);
+                                                $bookingDates = is_array($h['hotel_booking_dates'] ?? null) ? $h['hotel_booking_dates'] : [];
                                             @endphp
                                             <div class="service-item hotel draggable pkg-pb-draggable-card"
                                                  draggable="true"
@@ -1130,12 +1141,39 @@
                                                         @endif
                                                         <h4 class="service-title">{{ $hotelName }}</h4>
                                                         <div class="service-detail-lines">
-                                                            @if($nights > 0 || $city !== '' || $roomCnt > 0)
+                                                            @if($hasItinDays)
+                                                                <p class="service-detail-line">
+                                                                    <i class="fas fa-calendar-week"></i>
+                                                                    <span class="service-detail-label">Stay:</span>
+                                                                    Tour days {{ $cfd }}
+                                                                    @if($ctd !== $cfd)
+                                                                        &ndash; {{ $ctd }}
+                                                                    @endif
+                                                                    @if($city !== '')
+                                                                        <span class="service-topline-dot">•</span>
+                                                                        {{ $city }}
+                                                                    @endif
+                                                                </p>
+                                                            @elseif($city !== '' && !$hasItinDays)
+                                                                <p class="service-detail-line">
+                                                                    <i class="fas fa-map-marker-alt"></i>
+                                                                    {{ $city }}
+                                                                </p>
+                                                            @endif
+                                                            @if(count($bookingDates) > 0)
+                                                                @php $bdShow = implode(', ', array_slice(array_map('strval', $bookingDates), 0, 6)); @endphp
+                                                                <p class="service-detail-line">
+                                                                    <i class="fas fa-calendar-day"></i>
+                                                                    <span class="service-detail-label">Stay dates:</span>
+                                                                    {{ $bdShow }}@if(count($bookingDates) > 6) &hellip;@endif
+                                                                </p>
+                                                            @endif
+                                                            @if($nights > 0 || (($city !== '') && !$hasItinDays) || $roomCnt > 0)
                                                                 <p class="service-detail-line">
                                                                     @if($nights > 0)
                                                                         <i class="fas fa-moon"></i>{{ $nights }} {{ $nights > 1 ? 'nights' : 'night' }}
                                                                     @endif
-                                                                    @if($city !== '')
+                                                                    @if($city !== '' && !$hasItinDays)
                                                                         <span class="service-topline-dot">•</span>
                                                                         <i class="fas fa-map-marker-alt"></i>{{ $city }}
                                                                     @endif
@@ -1168,6 +1206,9 @@
                                                 $a = $entry['data'];
                                                 $aIndex = $entry['index'];
                                                 $aName = $a['name'] ?? 'Attraction';
+                                                $planCity = isset($a['city_plan_city']) && $a['city_plan_city'] !== ''
+                                                    ? trim((string) $a['city_plan_city'])
+                                                    : '';
                                                 $aLoc  = $a['location'] ?? '';
                                                 $aImg  = $a['image'] ?? null;
                                                 $optional   = !empty($a['optional']);
@@ -1177,7 +1218,9 @@
                                                 $hasTransfer = !empty($a['transfer']);
                                                 $tt  = $a['transfer_type'] ?? '';
                                                 $veh = $a['vehicle_name'] ?? '';
-                                                $duration = $a['duration'] ?? $a['hours'] ?? null;
+                                                $itinDayAttr = isset($a['day']) ? (int) $a['day'] : null;
+                                                $durLabel = is_array($guide) ? ($guide['duration_label'] ?? null) : null;
+                                                $duration = $a['duration'] ?? $a['hours'] ?? $durLabel;
                                             @endphp
                                             <div class="service-item attraction draggable pkg-pb-draggable-card"
                                                  draggable="true"
@@ -1199,9 +1242,18 @@
                                                         <div class="service-topline">
                                                             <span class="service-topline-icon"><i class="fas fa-map-marked-alt"></i></span>
                                                             <div class="service-type-heading">Attraction</div>
+                                                            @if($itinDayAttr !== null && $itinDayAttr >= 1)
+                                                                <span class="service-topline-dot">•</span>
+                                                                <div class="service-topline-subtitle">Tour day {{ $itinDayAttr }}</div>
+                                                            @endif
                                                             @if(!empty($duration))
                                                                 <span class="service-topline-dot">•</span>
-                                                                <div class="service-topline-subtitle">{{ $duration }} hrs</div>
+                                                                <div class="service-topline-subtitle">
+                                                                    {{ is_numeric($duration) ? $duration.' hrs' : $duration }}
+                                                                </div>
+                                                            @elseif($planCity !== '')
+                                                                <span class="service-topline-dot">•</span>
+                                                                <div class="service-topline-subtitle">{{ $planCity }}</div>
                                                             @elseif($aLoc !== '')
                                                                 <span class="service-topline-dot">•</span>
                                                                 <div class="service-topline-subtitle">{{ $aLoc }}</div>
@@ -1216,6 +1268,13 @@
                                                         @endif
                                                         <h4 class="service-title">{{ $aName }}</h4>
                                                         <div class="service-detail-lines">
+                                                            @if($planCity !== '')
+                                                                <p class="service-detail-line">
+                                                                    <i class="fas fa-city"></i>
+                                                                    <span class="service-detail-label">Plan city:</span>
+                                                                    {{ $planCity }}
+                                                                </p>
+                                                            @endif
                                                             @if($aLoc !== '')
                                                                 <p class="service-detail-line">
                                                                     <i class="fas fa-map-marker-alt"></i>{{ $aLoc }}
@@ -1325,13 +1384,18 @@
                                                 $r = $entry['data'];
                                                 $rIndex = $entry['index'];
                                                 $rName = $r['restaurant_name'] ?? $r['name'] ?? 'Restaurant';
+                                                $rPlanCity = isset($r['city_plan_city']) && $r['city_plan_city'] !== ''
+                                                    ? trim((string) $r['city_plan_city'])
+                                                    : '';
                                                 $optional   = !empty($r['optional']);
                                                 $compulsory = !empty($r['compulsory']);
                                                 $addon      = !empty($r['addon']);
                                                 $meals = is_array($r['selected_meals'] ?? null) ? $r['selected_meals'] : [];
+                                                $mealTypeLabel = $r['meal_type_label'] ?? null;
                                                 $hasTransfer = !empty($r['transfer']);
                                                 $tt  = $r['transfer_type'] ?? '';
                                                 $veh = $r['vehicle_name'] ?? '';
+                                                $itinDayRest = isset($r['day']) ? (int) $r['day'] : null;
                                             @endphp
                                             <div class="service-item restaurant draggable pkg-pb-draggable-card"
                                                  draggable="true"
@@ -1349,7 +1413,14 @@
                                                         <div class="service-topline">
                                                             <span class="service-topline-icon"><i class="fas fa-utensils"></i></span>
                                                             <div class="service-type-heading">Restaurant</div>
-                                                            @if(count($meals) > 0)
+                                                            @if($itinDayRest !== null && $itinDayRest >= 1)
+                                                                <span class="service-topline-dot">•</span>
+                                                                <div class="service-topline-subtitle">Tour day {{ $itinDayRest }}</div>
+                                                            @endif
+                                                            @if(!empty($mealTypeLabel))
+                                                                <span class="service-topline-dot">•</span>
+                                                                <div class="service-topline-subtitle">{{ $mealTypeLabel }}</div>
+                                                            @elseif(count($meals) > 0)
                                                                 <span class="service-topline-dot">•</span>
                                                                 <div class="service-topline-subtitle">{{ ucfirst((string) $meals[0]) }}@if(count($meals) > 1) +{{ count($meals) - 1 }}@endif</div>
                                                             @endif
@@ -1363,6 +1434,13 @@
                                                         @endif
                                                         <h4 class="service-title">{{ $rName }}</h4>
                                                         <div class="service-detail-lines">
+                                                            @if($rPlanCity !== '')
+                                                                <p class="service-detail-line">
+                                                                    <i class="fas fa-city"></i>
+                                                                    <span class="service-detail-label">Plan city:</span>
+                                                                    {{ $rPlanCity }}
+                                                                </p>
+                                                            @endif
                                                             @if(count($meals) > 0)
                                                                 <p class="service-detail-line">
                                                                     @foreach($meals as $meal)
@@ -1464,6 +1542,7 @@
                                                 $veh = $d['vehicles'][0] ?? null;
                                                 $pickupHtl  = $d['pickup_hotel_name'] ?? $d['pickup_hotel_id'] ?? 'Hotel';
                                                 $dropoffPrt = $d['dropoff_port_name'] ?? $d['dropoff_port_id'] ?? 'Departure Port';
+                                                $departureCity = isset($d['city']) ? trim((string) $d['city']) : '';
                                             @endphp
                                             <div class="service-item departure draggable pkg-pb-draggable-card"
                                                  draggable="true"
@@ -1489,6 +1568,10 @@
                                                             <p class="service-detail-line">
                                                                 <i class="fas fa-route"></i>
                                                                 <span class="service-detail-label">Route:</span>
+                                                                @if($departureCity !== '')
+                                                                    <span class="text-muted">{{ $departureCity }}</span>
+                                                                    <span class="service-topline-dot">•</span>
+                                                                @endif
                                                                 {{ $pickupHtl }}
                                                                 <span class="service-detail-arrow">&rarr;</span>
                                                                 {{ $dropoffPrt }}
