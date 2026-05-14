@@ -2756,7 +2756,8 @@ class CommonHelper
             'other' => ['single' => 0, 'double' => 0],
         ];
 
-        // Supplements: services with "supplement": true (per-head prices, excluded from main total)
+        // Supplements: services with "supplement": true (excluded from main total).
+        // Non-hotel supplement rows expose full line booking total; hotel supplements use stay totals per rooming.
         $supplements = [];
         // Merge hotel supplements: same hotel/date-range => one supplement row (avoid duplicates)
         $hotelSupplementBuckets = [];
@@ -3579,11 +3580,14 @@ class CommonHelper
 
                         if ($isSupplement) {
                             // Keep supplement row as a standalone payload.
-                            // Some downstream code expects extra keys for attraction/restaurant.
+                            // Supplements are shown as the full line booking total (not per pax).
+                            // single/double/triple use the same total so any existing UI column shows full price.
+                            $supplementFull = (float) $totalPriceFloat;
                             $supplementRow = [
                                 'type'   => $normalizedType ?? $type,
-                                'single' => $singleSharing,
-                                'double' => $doubleSharing,
+                                'single' => $supplementFull,
+                                'double' => $supplementFull,
+                                'triple' => $supplementFull,
                             ];
 
                             if (($normalizedType ?? '') === 'attraction') {
@@ -3700,7 +3704,8 @@ class CommonHelper
         }
 
 
-        // Format supplements (per-head, ceiled). Hotel type carries full meta; others carry service-specific fields.
+        // Format supplements (ceiled). Non-hotel rows use full line totalPrice on single/double/triple;
+        // hotel supplement rows keep per-rooming totals from the supplement stay. Hotel type carries full meta.
         $supplementsFormatted = array_map(function ($s) {
             $row = [
                 'type'   => $s['type'],
