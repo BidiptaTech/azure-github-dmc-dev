@@ -98,9 +98,9 @@ use Illuminate\Support\Facades\Crypt;
                        class="btn btn-primary shadow-sm">
                         <i class="ri-download-line me-1"></i> Download PDF
                     </a>
-                    <a href="{{ route('invoices.show', Crypt::encrypt($invoice->invoice_id)) }}" class="btn btn-outline-secondary">
+                    <!-- <a href="{{ route('invoices.show', Crypt::encrypt($invoice->invoice_id)) }}" class="btn btn-outline-secondary">
                         <i class="ri-arrow-left-line me-1"></i> Back
-                    </a>
+                    </a> -->
                 </div>
             </form>
         </div>
