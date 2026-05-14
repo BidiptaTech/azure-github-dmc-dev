@@ -107,8 +107,34 @@
         }
     }
 
-    // Non-invoice fallback (e.g. itinerary PDF)
-    if (!$hasInvoice && isset($user_dmc) && $user_dmc) {
+    // Non-invoice: agency branding (e.g. tour quotation PDF when agent has agency)
+    if (!$hasInvoice && ($logoType ?? 'dmc') === 'agency' && isset($user_agency) && $user_agency) {
+        $agency = $user_agency;
+        $displayCompanyName = $agency->agency_name ?? 'Agency';
+        $displayAddress = $agency->address ?? null;
+        $displayPhone = $agency->phone ?? null;
+        $displayEmail = $agency->email ?? null;
+        $displayCompanyRegNo = null;
+        $displayLicenceNo = null;
+
+        $agencyLogo = $agency->logo ?? null;
+        if ($agencyLogo) {
+            try {
+                if (preg_match('/^data:image\//i', $agencyLogo)) {
+                    $displayLogoSrc = $agencyLogo;
+                } else {
+                    $logoContent = preg_match('/^https?:\/\//i', $agencyLogo)
+                        ? @file_get_contents($agencyLogo)
+                        : @file_get_contents(public_path(ltrim($agencyLogo, '/')));
+                    if ($logoContent) {
+                        $displayLogoSrc = 'data:image/png;base64,' . base64_encode($logoContent);
+                    }
+                }
+            } catch (\Exception $e) {
+                $displayLogoSrc = null;
+            }
+        }
+    } elseif (!$hasInvoice && isset($user_dmc) && $user_dmc) {
         $displayCompanyName = $user_dmc->company_name ?? $user_dmc->name ?? config('app.name');
         $displayAddress = $user_dmc->company_address ?? $user_dmc->address ?? null;
         $displayPhone = $user_dmc->company_phone ?? $user_dmc->phone ?? $user_dmc->tel ?? null;

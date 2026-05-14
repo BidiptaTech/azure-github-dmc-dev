@@ -1783,7 +1783,7 @@ class CommonHelper
         }
     }
 
-    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null, $viewName = 'single-tour-package.quotation')
+    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null, $viewName = 'single-tour-package.quotation', $logoType = 'dmc')
     {
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
@@ -1916,12 +1916,16 @@ class CommonHelper
             'phone' => 'N/A',
             'email' => 'N/A',
         ];
+        $userAgencyForHeader = null;
 
         if (!empty($tour->agent_id)) {
             $agent = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
             if ($agent) {
                 $agency = $agent->agency;
-                
+                if ($agency) {
+                    $userAgencyForHeader = $agency;
+                }
+
                 // Use agency data if available, otherwise fall back to agent data
                 $agentDetails = [
                     'name' => ($agency && $agency->agency_name) ? $agency->agency_name : ($agent->name ?? 'N/A'),
@@ -1931,6 +1935,11 @@ class CommonHelper
                     'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? 'N/A'),
                 ];
             }
+        }
+
+        $logoType = strtolower((string) $logoType) === 'agency' ? 'agency' : 'dmc';
+        if ($logoType === 'agency' && !$userAgencyForHeader) {
+            $logoType = 'dmc';
         }
 
         // Proposal details
@@ -2266,6 +2275,8 @@ class CommonHelper
                 'selectedCurrency' => $selectedCurrency,
                 'exchangeRate' => $exchangeRate,
                 'quotationInformationHtml' => $quotationInformationHtml,
+                'logoType' => $logoType,
+                'user_agency' => $userAgencyForHeader,
             ]);
             
             $pdf->setPaper('a4');
@@ -2303,11 +2314,14 @@ class CommonHelper
                     'hotelOptions' => $hotelOptions,
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
+                    'exclusions' => $exclusions,
                     'paymentTerms' => $paymentTerms,
                     'baseCurrency' => $baseCurrency,
                     'selectedCurrency' => $selectedCurrency,
                     'exchangeRate' => $exchangeRate,
                     'quotationInformationHtml' => $quotationInformationHtml,
+                    'logoType' => $logoType,
+                    'user_agency' => $userAgencyForHeader,
                 ]);
                 
                 $pdf->setPaper('a4');
