@@ -239,8 +239,8 @@
 
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
-        $bookedAttractions = []; // list (keep duplicates)
-        $bookedRestaurants = []; // list (keep duplicates)
+        $bookedAttractionCards = []; // full cards (transfer / guide details for PDF)
+        $bookedRestaurantCards = [];
         $bookedArrivals = []; // "Arrival: ..." => true
         $bookedDepartures = []; // "Departure: ..." => true
         $bookedLocalTransfers = []; // "Local Transfer: ..." => true
@@ -256,20 +256,17 @@
                     foreach ($cards as $card) {
                         if (!is_array($card)) continue;
                         $title = $card['title'] ?? ($card['attraction']['title'] ?? null);
-                        if (!empty($title)) $bookedAttractions[] = $title;
+                        if (!empty($title)) $bookedAttractionCards[] = $card;
                     }
                 }
 
-                // Restaurant name + meal plan
+                // Restaurant cards (transfer details on quotation; no pricing)
                 if ($normalizedType === 'restaurant') {
                     foreach ($cards as $card) {
                         if (!is_array($card)) continue;
                         $name = $card['title'] ?? ($card['restaurant']['name'] ?? null);
-                        $mealPlan = $card['restaurant']['meal_plan'] ?? ($card['meal_plan'] ?? null);
                         if (!empty($name)) {
-                            $line = $name;
-                            if (!empty($mealPlan)) $line .= ' - ' . $mealPlan;
-                            $bookedRestaurants[] = $line;
+                            $bookedRestaurantCards[] = $card;
                         }
                     }
                 }
@@ -396,26 +393,34 @@
 
         if (!empty($suppAttractionCounts)) {
             $filtered = [];
-            foreach ($bookedAttractions as $a) {
-                if (isset($suppAttractionCounts[$a]) && $suppAttractionCounts[$a] > 0) {
+            foreach ($bookedAttractionCards as $c) {
+                $a = $c['title'] ?? '';
+                if ($a !== '' && isset($suppAttractionCounts[$a]) && $suppAttractionCounts[$a] > 0) {
                     $suppAttractionCounts[$a]--;
                     continue;
                 }
-                $filtered[] = $a;
+                $filtered[] = $c;
             }
-            $bookedAttractions = $filtered;
+            $bookedAttractionCards = $filtered;
         }
 
         if (!empty($suppRestaurantCounts)) {
             $filtered = [];
-            foreach ($bookedRestaurants as $r) {
-                if (isset($suppRestaurantCounts[$r]) && $suppRestaurantCounts[$r] > 0) {
-                    $suppRestaurantCounts[$r]--;
+            foreach ($bookedRestaurantCards as $rc) {
+                $restPart = $rc['restaurant'] ?? [];
+                $nm = $rc['title'] ?? '';
+                $mealPlan = $restPart['meal_plan'] ?? null;
+                $key = $nm;
+                if (!empty($mealPlan)) {
+                    $key .= ' - ' . $mealPlan;
+                }
+                if ($key !== '' && isset($suppRestaurantCounts[$key]) && $suppRestaurantCounts[$key] > 0) {
+                    $suppRestaurantCounts[$key]--;
                     continue;
                 }
-                $filtered[] = $r;
+                $filtered[] = $rc;
             }
-            $bookedRestaurants = $filtered;
+            $bookedRestaurantCards = $filtered;
         }
     @endphp
 
@@ -543,17 +548,138 @@
                         <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
                     </div>
                     <div class="section-label">Inclusions:</div>
-                    @php $hasAnyOtherInclusions = (!empty($bookedAttractions) || !empty($bookedRestaurants) || !empty($bookedArrivals) || !empty($bookedDepartures) || !empty($bookedLocalTransfers)); @endphp
+                    @php $hasAnyOtherInclusions = (!empty($bookedAttractionCards) || !empty($bookedRestaurantCards) || !empty($bookedArrivals) || !empty($bookedDepartures) || !empty($bookedLocalTransfers)); @endphp
                     @if($hasAnyOtherInclusions)
                         <ul class="inclusion-list">
-                            @if(!empty($bookedAttractions))
-                                @foreach($bookedAttractions as $a)
-                                    <li class="inclusion"><span class="bold">Attraction:</span> {{ $a }}</li>
+                            @if(!empty($bookedAttractionCards))
+                                @foreach($bookedAttractionCards as $attrCard)
+                                    @php
+                                        $attrTitle = $attrCard['title'] ?? '';
+                                        $ad = $attrCard['attraction'] ?? null;
+                                        $tr = is_array($ad) ? ($ad['transfer'] ?? null) : null;
+                                        $gd = is_array($ad) ? ($ad['guide'] ?? null) : null;
+                                    @endphp
+                                    <li class="inclusion">
+                                        <span class="bold">Attraction:</span> {{ $attrTitle }}
+                                        @if(is_array($ad))
+                                            @if(is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name']) || (isset($tr['cost']) && is_numeric($tr['cost']) && (float)$tr['cost'] > 0)))
+                                                @php
+                                                    $vehBits = array_filter([
+                                                        $tr['vehicle_name'] ?? null,
+                                                        isset($tr['vehicle_type'], $tr['seating_capacity']) && $tr['vehicle_type'] && $tr['seating_capacity']
+                                                            ? $tr['vehicle_type'] . ' / ' . $tr['seating_capacity'] . ' seats'
+                                                            : ($tr['vehicle_type'] ?? null),
+                                                    ]);
+                                                    $vehLine = implode(' — ', $vehBits);
+                                                    $transferMeta = array_filter([
+                                                        $tr['type'] ?? null,
+                                                        $tr['way'] ?? null,
+                                                    ]);
+                                                @endphp
+                                                <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
+                                                    <span class="bold">Transfer / vehicle:</span>
+                                                    @if(!empty($transferMeta))
+                                                        {{ implode(' · ', $transferMeta) }}
+                                                        @if($vehLine !== '') — @endif
+                                                    @endif
+                                                    {{ $vehLine }}
+                                                    @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
+                                                        <br>
+                                                        @if(!empty($tr['pickup_location_name']))
+                                                            <span class="bold">Pickup:</span> {{ $tr['pickup_location_name'] }}
+                                                        @endif
+                                                        @if(!empty($tr['pickup_time']))
+                                                            @if(!empty($tr['pickup_location_name'])) — @endif
+                                                            <span class="bold">Time:</span> {{ $tr['pickup_time'] }}
+                                                        @endif
+                                                    @endif
+                                                    
+                                                </div>
+                                            @endif
+                                            @if(is_array($gd) && (
+                                                !empty($gd['guide_name']) ||
+                                                !empty($gd['language']) ||
+                                                !empty($gd['pickup_time']) ||
+                                                !empty($gd['package_hours']) ||
+                                                (isset($gd['hours']) && $gd['hours'] !== '' && $gd['hours'] !== null) ||
+                                                (isset($gd['base_price']) && is_numeric($gd['base_price']) && (float)$gd['base_price'] > 0) ||
+                                                (isset($gd['surcharge']) && is_numeric($gd['surcharge']) && (float)$gd['surcharge'] > 0) ||
+                                                (isset($gd['total_price']) && is_numeric($gd['total_price']) && (float)$gd['total_price'] > 0)
+                                            ))
+                                                @php
+                                                    $guideHours = $gd['package_hours'] ?? $gd['hours'] ?? null;
+                                                    $guideShowBase = isset($gd['base_price']) && is_numeric($gd['base_price']) && (float)$gd['base_price'] > 0;
+                                                    $guideShowSur = isset($gd['surcharge']) && is_numeric($gd['surcharge']) && (float)$gd['surcharge'] > 0;
+                                                    $guideShowTot = isset($gd['total_price']) && is_numeric($gd['total_price']) && (float)$gd['total_price'] > 0;
+                                                @endphp
+                                                <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
+                                                    <span class="bold">Guide:</span>
+                                                    @if(!empty($gd['guide_name']))
+                                                        {{ $gd['guide_name'] }}
+                                                    @endif
+                                                    @if(!empty($gd['language']))
+                                                        @if(!empty($gd['guide_name'])) · @endif
+                                                        {{ $gd['language'] }}
+                                                    @endif
+                                                    @if(!empty($gd['pickup_time']))
+                                                        <br><span class="bold">Pickup time:</span> {{ $gd['pickup_time'] }}
+                                                    @endif
+                                                    @if($guideHours !== null && $guideHours !== '')
+                                                        <br><span class="bold">Duration:</span> {{ $guideHours }} hrs
+                                                    @endif
+                                                    
+                                                </div>
+                                            @endif
+                                        @endif
+                                    </li>
                                 @endforeach
                             @endif
-                            @if(!empty($bookedRestaurants))
-                                @foreach($bookedRestaurants as $r)
-                                    <li class="inclusion"><span class="bold">Restaurant:</span> {{ $r }}</li>
+                            @if(!empty($bookedRestaurantCards))
+                                @foreach($bookedRestaurantCards as $restCard)
+                                    @php
+                                        $restTitle = $restCard['title'] ?? '';
+                                        $rs = $restCard['restaurant'] ?? null;
+                                        $mealPlan = is_array($rs) ? ($rs['meal_plan'] ?? null) : null;
+                                        $tr = is_array($rs) ? ($rs['transfer'] ?? null) : null;
+                                    @endphp
+                                    <li class="inclusion">
+                                        <span class="bold">Restaurant:</span> {{ $restTitle }}@if(!empty($mealPlan)) — {{ $mealPlan }}@endif
+                                        @if(is_array($rs))
+                                            @if(is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name']) || !empty($tr['pickup_time'])))
+                                                @php
+                                                    $vehBits = array_filter([
+                                                        $tr['vehicle_name'] ?? null,
+                                                        isset($tr['vehicle_type'], $tr['seating_capacity']) && $tr['vehicle_type'] && $tr['seating_capacity']
+                                                            ? $tr['vehicle_type'] . ' / ' . $tr['seating_capacity'] . ' seats'
+                                                            : ($tr['vehicle_type'] ?? null),
+                                                    ]);
+                                                    $vehLine = implode(' — ', $vehBits);
+                                                    $transferMeta = array_filter([
+                                                        $tr['type'] ?? null,
+                                                        $tr['way'] ?? null,
+                                                    ]);
+                                                @endphp
+                                                <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
+                                                    <span class="bold">Transfer / vehicle:</span>
+                                                    @if(!empty($transferMeta))
+                                                        {{ implode(' · ', $transferMeta) }}
+                                                        @if($vehLine !== '') — @endif
+                                                    @endif
+                                                    {{ $vehLine }}
+                                                    @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
+                                                        <br>
+                                                        @if(!empty($tr['pickup_location_name']))
+                                                            <span class="bold">Pickup:</span> {{ $tr['pickup_location_name'] }}
+                                                        @endif
+                                                        @if(!empty($tr['pickup_time']))
+                                                            @if(!empty($tr['pickup_location_name'])) — @endif
+                                                            <span class="bold">Time:</span> {{ $tr['pickup_time'] }}
+                                                        @endif
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        @endif
+                                    </li>
                                 @endforeach
                             @endif
                             @if(!empty($bookedArrivals))
