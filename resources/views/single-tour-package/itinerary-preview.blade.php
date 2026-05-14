@@ -97,9 +97,9 @@
                     >
                         <i class="ri-download-line me-1"></i> Download Quotation
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="history.back();">
+                    <!-- <button type="button" class="btn btn-outline-secondary" onclick="history.back();">
                         <i class="ri-arrow-left-line me-1"></i> Back
-                    </button>
+                    </button> -->
                 </div>
             </form>
         </div>
