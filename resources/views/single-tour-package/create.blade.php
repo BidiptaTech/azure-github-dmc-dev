@@ -1576,13 +1576,35 @@
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                                 <div>
                                     <h6 class="mb-1">Current Bookings</h6>
                                     <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
                                 </div>
-                                <div>
-                                    <button type="button" class="btn btn-lg px-5 me-3" id="savePackageBtn" onclick="handleSavePackage(this)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none;">
+                                <div class="d-flex align-items-end gap-3 flex-wrap">
+                                    <div style="min-width: 200px;">
+                                        <label for="discount_price" class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.8rem;">
+                                            <i class="ri-price-tag-3-line me-1" style="color:#667eea;"></i>Discount Price
+                                        </label>
+                                        <div class="input-group">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                class="form-control"
+                                                id="discount_price"
+                                                name="discount_price"
+                                                form="singleTourPackageForm"
+                                                value="{{ old('discount_price', 0) }}"
+                                                placeholder="0.00"
+                                                style="height: 48px; border-radius: 8px 0 0 8px; font-size: 0.95rem;"
+                                            >
+                                            <span class="input-group-text fw-semibold" style="height: 48px; border-radius: 0 8px 8px 0; font-size: 0.85rem; background:#f8f9fa; color:#495057;">
+                                                {{ strtoupper(Auth::user()->currency ?? 'SGD') }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn px-5" id="savePackageBtn" onclick="handleSavePackage(this)" style="height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none; font-size: 1rem; font-weight: 500; border-radius: 8px;">
                                         <i class="ri-save-line me-2"></i>Save Tour Package
                                     </button>
                                 </div>
@@ -3505,11 +3527,7 @@
                                         travel_type: "entry_port",
                                         arrival_transport_type: document.querySelector(`input[name="day${day}_arrival_transport_type"]:checked`)?.value || "flight",
                                         arrival_flight_no: document.getElementById(`day${day}_arrival_flight_no`)?.value || "",
-                                        supplement: (() => {
-                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                            const serviceAdults = parseInt(passengerCount) || 0;
-                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_entry_${vehicleIndex}_is_supplement`)?.checked || false);
-                                        })(),
+                                        supplement: !!(document.getElementById(`day${day}_entry_${vehicleIndex}_is_supplement`)?.checked),
                                         entrypickup: pickupZone.text,
                                         entrydropoff: dropoffZone.text,
                                         PickupPlaceid: {
@@ -3630,11 +3648,7 @@
                                         travel_type: "exit_port",
                                         departure_transport_type: document.querySelector(`input[name="day${day}_departure_transport_type"]:checked`)?.value || "flight",
                                         departure_flight_no: document.getElementById(`day${day}_departure_flight_no`)?.value || "",
-                                        supplement: (() => {
-                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                            const serviceAdults = parseInt(passengerCount) || 0;
-                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_exit_${vehicleIndex}_is_supplement`)?.checked || false);
-                                        })(),
+                                        supplement: !!(document.getElementById(`day${day}_exit_${vehicleIndex}_is_supplement`)?.checked),
                                         vehicle_type: vehicle.dataset.vehicle_type || "SUV",
                                         vehicle_model: vehicle.dataset.vehicle_model || "",
                                         model_year: parseInt(vehicle.dataset.model_year) || 0,
@@ -4114,11 +4128,7 @@
                                         pickup_zone_id: pickupZoneId,
                                         dropoff_zone_id: dropoffZoneId,
                                         remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
-                                        supplement: (() => {
-                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                            const serviceAdults = parseInt(adultCount) || 0;
-                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked || false);
-                                        })()
+                                        supplement: !!(document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked)
                                     };
                                     
                                     transportDataArray.push(transportData);
@@ -4247,11 +4257,7 @@
                                             travel_type: "entry_port",
                                             arrival_transport_type: document.querySelector(`input[name="day${day}_arrival_transport_type"]:checked`)?.value || "flight",
                                             arrival_flight_no: document.getElementById(`day${day}_arrival_flight_no`)?.value || "",
-                                            supplement: (() => {
-                                                const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                                const serviceAdults = parseInt(passengerCount) || 0;
-                                                return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_entry_0_is_supplement`)?.checked || false);
-                                            })(),
+                                            supplement: !!(document.getElementById(`day${day}_entry_0_is_supplement`)?.checked),
                                             entrypickup: pickupZone?.text || '',
                                             entrydropoff: dropoffZone?.text || '',
                                             PickupPlaceid: {
@@ -4313,11 +4319,7 @@
                                             travel_type: "exit_port",
                                             departure_transport_type: document.querySelector(`input[name="day${day}_departure_transport_type"]:checked`)?.value || "flight",
                                             departure_flight_no: document.getElementById(`day${day}_departure_flight_no`)?.value || "",
-                                            supplement: (() => {
-                                                const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                                const serviceAdults = parseInt(passengerCount) || 0;
-                                                return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_exit_0_is_supplement`)?.checked || false);
-                                            })(),
+                                            supplement: !!(document.getElementById(`day${day}_exit_0_is_supplement`)?.checked),
                                             vehicle_type: vehicle.dataset.vehicle_type || "SUV",
                                             vehicle_model: vehicle.dataset.vehicle_model || "",
                                             model_year: parseInt(vehicle.dataset.model_year) || 0,
@@ -4491,11 +4493,7 @@
                                                 travel_type: "entry_port",
                                                 arrival_transport_type: document.querySelector(`input[name="day${vehicleDay}_arrival_transport_type"]:checked`)?.value || "flight",
                                                 arrival_flight_no: document.getElementById(`day${vehicleDay}_arrival_flight_no`)?.value || "",
-                                                supplement: (() => {
-                                                    const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                                    const serviceAdults = parseInt(passengerCount) || 0;
-                                                    return (serviceAdults < tourAdults) || (document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_is_supplement`)?.checked || false);
-                                                })(),
+                                                supplement: !!(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_is_supplement`)?.checked),
                                                 entrypickup: pickupField.value,
                                                 entrydropoff: dropoffField.value,
                                                 PickupPlaceid: {
@@ -4660,11 +4658,7 @@
                                                 travel_type: "exit_port",
                                                 departure_transport_type: document.querySelector(`input[name="day${vehicleDay}_departure_transport_type"]:checked`)?.value || "flight",
                                                 departure_flight_no: document.getElementById(`day${vehicleDay}_departure_flight_no`)?.value || "",
-                                                supplement: (() => {
-                                                    const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                                    const serviceAdults = parseInt(passengerCount) || 0;
-                                                    return (serviceAdults < tourAdults) || (document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_is_supplement`)?.checked || false);
-                                                })(),
+                                                supplement: !!(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_is_supplement`)?.checked),
                                                 exitpickup: pickupField.value,
                                                 exitdropoff: dropoffField.value,
                                                 PickupPlaceid: {
@@ -5502,6 +5496,8 @@
                             fd.append('paying_pax', document.getElementById('paying_pax')?.value || 0);
                             fd.append('discount', document.getElementById('discount')?.value || 0);
                         }
+                        // Manual discount price (applies to both FIT and GROUP)
+                        fd.append('discount_price', document.getElementById('discount_price')?.value || 0);
                         // Persist Single/Multi city selection to DB column `city_type`
                         fd.append('city_type', (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single');
                         return fd;
@@ -7960,6 +7956,318 @@
                     }
                 } catch (e) { /* ignore */ }
             });
+        })();
+
+        // GROUP FOC -> Discount Price auto-populate.
+        // When GROUP + "Treat FOC pax as discount (free)" is enabled, services are still
+        // booked for the full pax count, but the cost for FOC pax is written into the
+        // Discount Price field.
+        (function autoPopulateFOCDiscountPrice() {
+            function getEl(id) {
+                return document.getElementById(id);
+            }
+
+            function parseIntVal(id) {
+                const el = getEl(id);
+                const n = parseInt(el ? el.value : '0', 10);
+                return Number.isFinite(n) ? n : 0;
+            }
+
+            function parseJsonField(id) {
+                const el = getEl(id);
+                if (!el || !el.value) return [];
+                try {
+                    const parsed = JSON.parse(el.value);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function getTourType() {
+                const checked = document.querySelector('input[name="tour_type"]:checked');
+                return String((checked && checked.value) || window.selectedTourType || 'FIT').toUpperCase();
+            }
+
+            function isFOCDiscountEnabled() {
+                const checkbox = getEl('include_foc_in_group_price');
+                return getTourType() === 'GROUP'
+                    && !!(checkbox && checkbox.checked)
+                    && parseIntVal('foc_size') > 0;
+            }
+
+            function numberFrom(value) {
+                const n = parseFloat(value);
+                return Number.isFinite(n) ? n : 0;
+            }
+
+            function tourLevelPax() {
+                const adults = parseIntVal('adults');
+                const children = parseIntVal('children');
+                return Math.max(adults + children, adults);
+            }
+
+            function adultCountFrom(item) {
+                const raw = parseInt(
+                    item?.adultCount
+                    ?? item?.adult
+                    ?? item?.adults
+                    ?? item?.pax
+                    ?? 0,
+                    10
+                ) || 0;
+                // Per-service guest summary may not be filled in yet; in that case fall
+                // back to the tour-level adult count so price-per-pax still divides.
+                return raw > 0 ? raw : tourLevelPax();
+            }
+
+            function perPaxFromTotal(item) {
+                const total = numberFrom(item?.totalPrice ?? item?.total_price ?? item?.price ?? 0);
+                const adultCount = adultCountFrom(item);
+                return total > 0 && adultCount > 0 ? total / adultCount : 0;
+            }
+
+            function attractionPerPax(item) {
+                const explicitAdultPrice = numberFrom(
+                    item?.adultPrice
+                    ?? item?.adult_price
+                    ?? item?.ticket_details?.adult_price
+                    ?? 0
+                );
+                let perPax = explicitAdultPrice > 0 ? explicitAdultPrice : perPaxFromTotal(item);
+
+                const adultCount = adultCountFrom(item);
+                if (adultCount > 0) {
+                    const guideTotal = numberFrom(item?.guide_options?.total_price ?? 0);
+                    const transferTotal = numberFrom(item?.transfer_options?.cost ?? 0);
+                    perPax += guideTotal > 0 ? guideTotal / adultCount : 0;
+                    perPax += transferTotal > 0 ? transferTotal / adultCount : 0;
+                }
+
+                return perPax;
+            }
+
+            function hotelIdFromJsonItem(item) {
+                return String(
+                    item?.hotelDetails?.hotel_id
+                    ?? item?.hotelDetails?.hotel_unique_id
+                    ?? item?.hotel_id
+                    ?? ''
+                ).trim();
+            }
+
+            function hotelBookingRangeIso(item) {
+                if (Array.isArray(item?.bookingDate) && item.bookingDate.length >= 2) {
+                    return {
+                        in: String(item.bookingDate[0] || '').trim(),
+                        out: String(item.bookingDate[1] || '').trim()
+                    };
+                }
+                return { in: '', out: '' };
+            }
+
+            function bookedPaxFromHotelJsonItem(item) {
+                let bookedPax = 0;
+                const rooms = Array.isArray(item?.rooms) ? item.rooms : [];
+                rooms.forEach(function (room) {
+                    const numberOfRooms = parseInt(room?.number_of_rooms ?? 1, 10) || 1;
+                    const selectedPersons = parseInt(room?.selected_persons ?? room?.selectedPersons ?? 1, 10) || 1;
+                    bookedPax += numberOfRooms * selectedPersons;
+                });
+                return bookedPax;
+            }
+
+            /**
+             * GROUP FOC hotel leg: same property + same check-in / check-out counts as one stay.
+             * Merge totals and room-based pax, then divide once (avoids summing per-row per-pax
+             * when multiple rows are the same stay / date range).
+             */
+            function hotelPerPaxForFocFromJsonList(items) {
+                const groups = Object.create(null);
+                const tourFallbackPax = Math.max(0, parseIntVal('adults') + parseIntVal('children'));
+
+                items.forEach(function (item, idx) {
+                    const hid = hotelIdFromJsonItem(item);
+                    const range = hotelBookingRangeIso(item);
+                    let key = hid + '|' + range.in + '|' + range.out;
+                    if (!hid || !range.in || !range.out) {
+                        key = '__row_' + idx;
+                    }
+                    if (!groups[key]) {
+                        groups[key] = { total: 0, bookedPax: 0 };
+                    }
+                    const total = numberFrom(item?.totalPrice ?? item?.total_price ?? item?.price ?? 0);
+                    let bp = bookedPaxFromHotelJsonItem(item);
+                    groups[key].total += total;
+                    groups[key].bookedPax += bp;
+                });
+
+                let sum = 0;
+                Object.keys(groups).forEach(function (k) {
+                    const g = groups[k];
+                    let bp = g.bookedPax;
+                    if (bp <= 0) {
+                        bp = tourFallbackPax;
+                    }
+                    if (g.total > 0 && bp > 0) {
+                        sum += g.total / bp;
+                    }
+                });
+                return sum;
+            }
+
+            function calculateFOCDiscountAmount() {
+                let perPaxTotal = 0;
+
+                perPaxTotal += hotelPerPaxForFocFromJsonList(parseJsonField('hotel_data'));
+
+                parseJsonField('attraction_data').forEach(function (item) {
+                    perPaxTotal += attractionPerPax(item);
+                });
+
+                parseJsonField('restaurant_data').forEach(function (item) {
+                    perPaxTotal += perPaxFromTotal(item);
+                });
+
+                // Guide, transports, entry/exit ports and similar service rows use a total
+                // service cost divided by the service adult/pax count.
+                [
+                    'guide_data',
+                    'transport_data',
+                    'entry_port_data',
+                    'exit_port_data',
+                    'activity_data'
+                ].forEach(function (fieldId) {
+                    parseJsonField(fieldId).forEach(function (item) {
+                        perPaxTotal += perPaxFromTotal(item);
+                    });
+                });
+
+                const focSize = parseIntVal('foc_size');
+                return Math.round(perPaxTotal * focSize * 100) / 100;
+            }
+
+            // The hidden service JSON fields (attraction_data, restaurant_data, etc.) are
+            // only filled by the page's own update* functions on save. To reflect what the
+            // user is *currently* seeing in the day plan, we call those builders before we
+            // read the JSON. They're declared at top-level script scope so callable from here.
+            function refreshHiddenServiceFields() {
+                const callers = [
+                    'updateAttractionDataField',
+                    'updateRestaurantDataField',
+                    'updateGuideDataField',
+                    'updateTransportDataField',
+                    'updateHotelDataField'
+                ];
+                callers.forEach(function (name) {
+                    try {
+                        const fn = window[name];
+                        if (typeof fn === 'function') fn();
+                    } catch (e) {
+                        /* ignore individual collector errors */
+                    }
+                });
+            }
+
+            function updateDiscountPrice() {
+                const discountField = getEl('discount_price');
+                if (!discountField) return;
+
+                if (!isFOCDiscountEnabled()) {
+                    if (discountField.dataset.focDiscountAuto === '1') {
+                        discountField.value = '0';
+                    }
+                    discountField.dataset.focDiscountAuto = '0';
+                    discountField.readOnly = false;
+                    discountField.style.background = '';
+                    discountField.removeAttribute('title');
+                    return;
+                }
+
+                refreshHiddenServiceFields();
+                const discountAmount = calculateFOCDiscountAmount();
+                if (discountField.dataset.focDiscountAuto !== '0') {
+                    discountField.value = discountAmount > 0 ? String(discountAmount) : '0';
+                    discountField.dataset.focDiscountAuto = '1';
+                }
+                discountField.readOnly = false;
+                discountField.style.background = '';
+                discountField.title =
+                    'Suggested from FOC (editable). Typing here stops auto-updates; change FOC size / group size or toggle "Treat FOC pax as discount" to refresh the suggestion.';
+            }
+
+            window.recomputeFOCDiscountPrice = function (opts) {
+                const discountField = getEl('discount_price');
+                if (discountField && opts && opts.resetAuto) {
+                    discountField.dataset.focDiscountAuto = '1';
+                }
+                updateDiscountPrice();
+            };
+
+            document.addEventListener('input', function (e) {
+                const id = e?.target?.id || '';
+                if (id === 'discount_price') {
+                    if (e.target) {
+                        e.target.dataset.focDiscountAuto = '0';
+                    }
+                    return;
+                }
+                if (id === 'foc_size' || id === 'group_size_display') {
+                    const df = getEl('discount_price');
+                    if (df) {
+                        df.dataset.focDiscountAuto = '1';
+                    }
+                    updateDiscountPrice();
+                }
+            }, true);
+
+            document.addEventListener('change', function (e) {
+                const target = e?.target;
+                if (!target) return;
+                const id = target.id || '';
+                const cls = target.className || '';
+
+                // Direct FOC controls — turn auto suggestion back on when these change
+                if (
+                    id === 'include_foc_in_group_price'
+                    || id === 'foc_size'
+                    || id === 'group_size_display'
+                    || target.name === 'tour_type'
+                ) {
+                    const df = getEl('discount_price');
+                    if (df) {
+                        df.dataset.focDiscountAuto = '1';
+                    }
+                    updateDiscountPrice();
+                    return;
+                }
+
+                // Common service-selection signals: attraction/ticket/restaurant/guide etc.
+                // We match by id pattern so any day_*_attraction / _ticket / _restaurant
+                // change triggers a recompute.
+                if (
+                    /^day\d+_(attraction|restaurant|guide|transport|entry|exit)_/i.test(id)
+                    || /attraction-select|ticket-select|restaurant-select|meal-select|guide-select|transport-select/i.test(cls)
+                ) {
+                    updateDiscountPrice();
+                }
+            }, true);
+
+            // Hidden service JSON fields are updated programmatically and the user can edit
+            // ticket counts / pickers that don't bubble through our `change` listener, so we
+            // poll while auto-mode is active. 1 second is fast enough for "auto-fill" UX and
+            // keeps the cost of running the collectors negligible.
+            setInterval(function () {
+                if (!isFOCDiscountEnabled()) {
+                    return;
+                }
+                const df = getEl('discount_price');
+                if (df && df.dataset.focDiscountAuto === '1') {
+                    updateDiscountPrice();
+                }
+            }, 1000);
+
+            document.addEventListener('DOMContentLoaded', updateDiscountPrice);
         })();
 
         // GROUP: Group Size (and FOC) drive total pax; Adults are derived and must not be manually changed.
@@ -15801,12 +16109,25 @@
                 container.innerHTML = hotelsHtml;
             }
             
-            // Update summary badges
+            // Update summary badges (same hotel + same check-in/out = one stay for counts)
             const totalHotelsEl = document.getElementById('totalHotels');
             if (totalHotelsEl) {
-                totalHotelsEl.textContent = selectedHotels.length;
+                const stayKey = function (h) {
+                    return String(h.id || '').trim() + '|' + String(h.checkInDate || '').trim() + '|' + String(h.checkOutDate || '').trim();
+                };
+                const uniqueStays = new Set();
+                selectedHotels.forEach(function (h) { uniqueStays.add(stayKey(h)); });
+                totalHotelsEl.textContent = String(uniqueStays.size);
             }
-            const totalNights = selectedHotels.reduce((sum, hotel) => sum + hotel.totalNights, 0);
+            const nightsByStay = Object.create(null);
+            selectedHotels.forEach(function (h) {
+                const k = String(h.id || '').trim() + '|' + String(h.checkInDate || '').trim() + '|' + String(h.checkOutDate || '').trim();
+                const n = parseInt(h.totalNights, 10) || 0;
+                nightsByStay[k] = Math.max(nightsByStay[k] || 0, n);
+            });
+            const totalNights = Object.keys(nightsByStay).reduce(function (sum, k) {
+                return sum + (nightsByStay[k] || 0);
+            }, 0);
             const totalNightsEl = document.getElementById('totalNights');
             if (totalNightsEl) {
                 totalNightsEl.textContent = totalNights + ' Nights';
