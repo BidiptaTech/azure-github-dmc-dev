@@ -15,7 +15,9 @@ use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\CurrencyService;
 use Illuminate\Validation\ValidationException;
@@ -1700,21 +1702,6 @@ class BookingListController extends Controller
         });
         }])->where('tour_id', $tourId)->first();
 
-        // Preload itinerary settings HTML for this tour (by tour's dmc_id + destination/city).
-        // This ensures the modal textarea and generated PDF keep formatting on first load.
-        $defaultCountry = trim((string) ($tour->destination ?? ''));
-        $defaultCity = trim((string) ($tour->city ?? ''));
-        
-        $defaultItineraryInformationHtml = '';
-        $tourDmcId = (int) ($tour->dmc_id ?? $tour->dmc_id ?? 0);
-        if ($tourDmcId > 0 && $defaultCountry !== '' && $defaultCity !== '') {
-            $setting = ItinerarySetting::where('dmc_id', $tourDmcId)
-                ->where('country', $defaultCountry)
-                ->where('city', $defaultCity)
-                ->first();
-            $defaultItineraryInformationHtml = $setting ? (string) ($setting->itinerary_information ?? '') : '';
-        }
-
         // Initialize itineraryByDate as empty array
         $itineraryByDate = [];
         
@@ -1858,12 +1845,6 @@ class BookingListController extends Controller
             }
         }
         
-        $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
-        $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
-        $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
-            return $group->pluck('name')->values();
-        })->toArray();
-
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
@@ -1872,6 +1853,62 @@ class BookingListController extends Controller
             'user_dmc' => $user_dmc,
             'agent_info' => $agent_info,
             'allPassengers' => $allPassengers,
+        ]);
+    }
+
+    /**
+     * Formatted itinerary PDF preview page (iframe + DMC/Agency branding; download opens country/city + extra fields modal like quotation).
+     */
+    public function itineraryFormattedPdfPreview(Request $request, $tourId)
+    {
+        try {
+            $tourIdPlain = Crypt::decrypt($tourId);
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Invalid tour reference.');
+        }
+
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+
+        $logoType = strtolower((string) $request->query('logo_type', 'dmc'));
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+
+        $hasAgency = false;
+        if (!empty($tour->agent_id)) {
+            $agentForPreview = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            $hasAgency = (bool) ($agentForPreview && $agentForPreview->agency);
+        }
+        if ($logoType === 'agency' && !$hasAgency) {
+            $logoType = 'dmc';
+        }
+
+        $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+        $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+        $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+            return $group->pluck('name')->values();
+        })->toArray();
+
+        $defaultItineraryInformationHtml = '';
+        $tourDmcId = (int) ($tour->dmc_id ?? 0);
+        $defaultCountry = trim((string) ($tour->destination ?? ''));
+        $defaultCity = trim((string) ($tour->city ?? ''));
+        if ($tourDmcId > 0 && $defaultCountry !== '' && $defaultCity !== '') {
+            $setting = ItinerarySetting::where('dmc_id', $tourDmcId)
+                ->where('country', $defaultCountry)
+                ->where('city', $defaultCity)
+                ->first();
+            $defaultItineraryInformationHtml = $setting ? (string) ($setting->itinerary_information ?? '') : '';
+        }
+
+        return view('bookingList.itinerary-formatted-preview', [
+            'tour' => $tour,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
+            'encryptedTourId' => $tourId,
             'countries' => $countries,
             'citiesByCountry' => $citiesByCountry,
             'defaultItineraryInformationHtml' => $defaultItineraryInformationHtml,
@@ -1879,32 +1916,144 @@ class BookingListController extends Controller
     }
 
     /**
+     * Store optional itinerary PDF sections (rich text + text blocks) for GET-based PDF generation via short cache key.
+     */
+    public function storeItineraryFormattedPdfInfo(Request $request, $tourId)
+    {
+        try {
+            $tourIdPlain = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Invalid tour.'], 404);
+        }
+
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            return response()->json(['success' => false, 'message' => 'Tour not found.'], 404);
+        }
+
+        try {
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'itinerary_information' => 'nullable|string|max:200000',
+                'emergency_contact' => 'nullable|string|max:50000',
+                'sic_timing' => 'nullable|string|max:50000',
+                'meeting_points' => 'nullable|string|max:50000',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Invalid input.'], 422);
+        }
+
+        $payload = [
+            'itinerary_information' => (string) ($validated['itinerary_information'] ?? ''),
+            'emergency_contact' => (string) ($validated['emergency_contact'] ?? ''),
+            'sic_timing' => (string) ($validated['sic_timing'] ?? ''),
+            'meeting_points' => (string) ($validated['meeting_points'] ?? ''),
+        ];
+
+        $key = 'itinerary_pdf_info_' . Str::random(40);
+        Cache::put($key, json_encode($payload), now()->addMinutes(10));
+
+        return response()->json([
+            'success' => true,
+            'itinerary_pdf_info_key' => $key,
+        ]);
+    }
+
+    private function itineraryFormattedPdfPreviewErrorResponse(string $message)
+    {
+        $safe = e($message);
+
+        return response(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview unavailable</title></head>'
+            . '<body style="margin:0;font-family:system-ui,sans-serif;padding:1.25rem;background:#f8f9fa;color:#333;">'
+            . '<p style="margin:0 0 0.5rem;font-weight:600;">Itinerary PDF preview could not be loaded</p>'
+            . '<p style="margin:0;font-size:0.9rem;">' . $safe . '</p>'
+            . '<p style="margin:1rem 0 0;font-size:0.8rem;color:#6c757d;">Use <strong>Download PDF</strong> on the preview page, or try the other company branding option.</p>'
+            . '</body></html>',
+            503
+        )->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    /**
      * Download itinerary as PDF in the formatted layout (company header, hotel table, daily breakdown).
-     * Uses HTML template rendered server-side with DomPDF.
+     * GET: preview=1 streams inline; optional itinerary_pdf_info_key loads extra sections from cache.
+     * POST: legacy form submit with body fields (still supported).
      */
     public function downloadItineraryFormattedPdf(Request $request, $tourId)
     {
         try {
-            $tourId = Crypt::decrypt($tourId);
+            $tourIdPlain = Crypt::decrypt($tourId);
         } catch (\Exception $e) {
+            if ($request->boolean('preview', false)) {
+                return $this->itineraryFormattedPdfPreviewErrorResponse('Invalid tour.');
+            }
+
             return redirect()->back()->with('error', 'Invalid tour.');
         }
 
-        $data = $this->buildItineraryPdfData($tourId);
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            if ($request->boolean('preview', false)) {
+                return $this->itineraryFormattedPdfPreviewErrorResponse('Tour not found.');
+            }
+
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+
+        $data = $this->buildItineraryPdfData($tourIdPlain);
         if (!$data) {
+            if ($request->boolean('preview', false)) {
+                return $this->itineraryFormattedPdfPreviewErrorResponse('Tour not found or no itinerary data.');
+            }
+
             return redirect()->back()->with('error', 'Tour not found or no itinerary data.');
         }
 
-        $data['emergency_contact'] = $request->input('emergency_contact', '');
-        $data['sic_timing'] = $request->input('sic_timing', '');
-        $data['meeting_points'] = $request->input('meeting_points', '');
-        $data['itinerary_information'] = $request->input('itinerary_information', '');
+        $extras = $this->resolveItineraryFormattedPdfExtras($request, $tour);
+        $data['emergency_contact'] = $extras['emergency_contact'];
+        $data['sic_timing'] = $extras['sic_timing'];
+        $data['meeting_points'] = $extras['meeting_points'];
+        $data['itinerary_information'] = $extras['itinerary_information'];
 
-        $pdf = Pdf::loadView('bookingList.itinerary-pdf', $data)
-            ->setPaper('a4', 'portrait');
+        $preview = $request->boolean('preview', false);
+        $requestedLogo = strtolower(trim((string) $request->query('logo_type', 'dmc')));
+        if (!in_array($requestedLogo, ['dmc', 'agency'], true)) {
+            $requestedLogo = 'dmc';
+        }
+        $logoAttempts = $requestedLogo === 'agency' ? ['agency', 'dmc'] : ['dmc'];
 
-        $filename = 'Itinerary_' . ($data['tourDetails']->display_id ?? $tourId) . '.pdf';
-        return $pdf->download($filename);
+        foreach ($logoAttempts as $attemptLogo) {
+            try {
+                $pdfData = $this->applyItineraryFormattedPdfHeaderBranding($data, $tour, $attemptLogo);
+                $pdf = Pdf::loadView('bookingList.itinerary-pdf', $pdfData)
+                    ->setPaper('a4', 'portrait');
+                $filename = 'Itinerary_' . ($pdfData['tourDetails']->display_id ?? $tourIdPlain) . '.pdf';
+
+                if ($preview) {
+                    return $pdf->stream($filename);
+                }
+
+                return $pdf->download($filename);
+            } catch (\Exception $e) {
+                Log::warning('Formatted itinerary PDF generation attempt failed', [
+                    'tour_id' => $tourIdPlain,
+                    'logo_type' => $attemptLogo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::error('Formatted itinerary PDF failed after all logo attempts', [
+            'tour_id' => $tourIdPlain,
+            'requested_logo_type' => $requestedLogo,
+        ]);
+
+        if ($preview) {
+            return $this->itineraryFormattedPdfPreviewErrorResponse('Unable to generate itinerary PDF.');
+        }
+
+        return redirect()->back()->with('error', 'Failed to generate PDF.');
     }
 
     /**
@@ -2552,6 +2701,99 @@ class BookingListController extends Controller
             'endDate' => $endDate,
             'terms_and_conditions' => $terms_and_conditions,
         ];
+    }
+
+    private function defaultItineraryPdfExtrasForTour(Tour $tour): array
+    {
+        $info = '';
+        $tourDmcId = (int) ($tour->dmc_id ?? 0);
+        $defaultCountry = trim((string) ($tour->destination ?? ''));
+        $defaultCity = trim((string) ($tour->city ?? ''));
+        if ($tourDmcId > 0 && $defaultCountry !== '' && $defaultCity !== '') {
+            $setting = ItinerarySetting::where('dmc_id', $tourDmcId)
+                ->where('country', $defaultCountry)
+                ->where('city', $defaultCity)
+                ->first();
+            $info = $setting ? (string) ($setting->itinerary_information ?? '') : '';
+        }
+
+        return [
+            'emergency_contact' => '',
+            'sic_timing' => '',
+            'meeting_points' => '',
+            'itinerary_information' => $info,
+        ];
+    }
+
+    private function resolveItineraryFormattedPdfExtras(Request $request, Tour $tour): array
+    {
+        $default = $this->defaultItineraryPdfExtrasForTour($tour);
+        $keys = ['emergency_contact', 'sic_timing', 'meeting_points', 'itinerary_information'];
+
+        $cacheKey = (string) $request->query('itinerary_pdf_info_key', '');
+        if ($cacheKey !== '') {
+            $raw = Cache::get($cacheKey);
+            if ($raw !== null) {
+                $decoded = is_array($raw) ? $raw : json_decode((string) $raw, true);
+                if (is_array($decoded)) {
+                    $picked = array_intersect_key($decoded, array_flip($keys));
+
+                    return array_merge($default, $picked);
+                }
+            }
+        }
+
+        if ($request->isMethod('post')) {
+            return [
+                'emergency_contact' => (string) $request->input('emergency_contact', ''),
+                'sic_timing' => (string) $request->input('sic_timing', ''),
+                'meeting_points' => (string) $request->input('meeting_points', ''),
+                'itinerary_information' => (string) $request->input('itinerary_information', ''),
+            ];
+        }
+
+        return $default;
+    }
+
+    private function applyItineraryFormattedPdfHeaderBranding(array $data, Tour $tour, string $logoType): array
+    {
+        $user_dmc = null;
+        if (!empty($tour->dmc_id)) {
+            $user_dmc = User::where('userId', $tour->dmc_id)->first();
+            if ($user_dmc && $user_dmc->logo && !str_starts_with((string) $user_dmc->logo, 'data:image')) {
+                try {
+                    $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                    $imageContent = @file_get_contents($user_dmc->logo, false, $context);
+                    if ($imageContent !== false) {
+                        $imageInfo = @getimagesizefromstring($imageContent);
+                        if ($imageInfo !== false) {
+                            $user_dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Itinerary formatted PDF DMC logo base64 failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $user_agency = null;
+        if (!empty($tour->agent_id)) {
+            $agentHeader = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            if ($agentHeader && $agentHeader->agency) {
+                $user_agency = $agentHeader->agency;
+            }
+        }
+
+        $normalizedLogo = strtolower((string) $logoType) === 'agency' ? 'agency' : 'dmc';
+        if ($normalizedLogo === 'agency' && !$user_agency) {
+            $normalizedLogo = 'dmc';
+        }
+
+        return array_merge($data, [
+            'user_dmc' => $user_dmc,
+            'user_agency' => $user_agency,
+            'logoType' => $normalizedLogo,
+        ]);
     }
 
     private function buildPdfHotels($bookings)
