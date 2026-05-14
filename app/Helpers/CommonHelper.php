@@ -4318,9 +4318,40 @@ class CommonHelper
             if ($transferRequired === 'No') {
                 $transportNote = 'Transport not included';
             }
-            
+
+            $transferSummary = null;
+            if ($transferOptions && is_array($transferOptions)) {
+                $vd = $transferOptions['vehicle_details'] ?? [];
+                $transferSummary = [
+                    'required' => !empty($transferOptions['transfer_required']),
+                    'type' => $transferOptions['type'] ?? null,
+                    'way' => $transferOptions['way'] ?? ($transferOptions['Way'] ?? null),
+                    'vehicle_name' => $transferOptions['vehicle_name'] ?? ($vd['vehicle_name'] ?? null),
+                    'vehicle_type' => is_array($vd) ? ($vd['vehicle_type'] ?? null) : null,
+                    'seating_capacity' => is_array($vd) ? ($vd['seating_capacity'] ?? null) : null,
+                    'pickup_location_name' => $transferOptions['pickup_location_name'] ?? null,
+                    'pickup_time' => $transferOptions['pickup_time'] ?? null,
+                    'cost' => $transferOptions['cost'] ?? null,
+                ];
+            }
+
+            $guideSummary = null;
+            $guideOptions = $item['guide_options'] ?? null;
+            if (!empty($guideOptions) && is_array($guideOptions)) {
+                $guideSummary = [
+                    'required' => !empty($guideOptions['guide_required']),
+                    'guide_name' => $guideOptions['guide_name'] ?? null,
+                    'language' => $guideOptions['language'] ?? null,
+                    'pickup_time' => $guideOptions['pickup_time'] ?? null,
+                    'package_hours' => $guideOptions['package_hours'] ?? null,
+                    'hours' => $guideOptions['hours'] ?? null,
+                    'base_price' => $guideOptions['base_price'] ?? null,
+                    'surcharge' => $guideOptions['surcharge'] ?? null,
+                    'total_price' => $guideOptions['total_price'] ?? null,
+                ];
+            }
+
             $attractionDetails = [
-                'ticket_name' => $item['ticketName'] ?? $item['ticketName'] ?? null,
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null,
@@ -4328,6 +4359,8 @@ class CommonHelper
                 'transport_note' => $transportNote,
                 'transfer_required' => $transferRequired,
                 'transfer_type' => $transferType,
+                'transfer' => $transferSummary,
+                'guide' => $guideSummary,
             ];
         }
 
@@ -4369,6 +4402,22 @@ class CommonHelper
                     $transferType = $transferOptions['type'];
                 }
             }
+
+            $restaurantTransferSummary = null;
+            if ($transferOptions && is_array($transferOptions)) {
+                $vd = $transferOptions['vehicle_details'] ?? [];
+                $restaurantTransferSummary = [
+                    'required' => !empty($transferOptions['transfer_required']),
+                    'type' => $transferOptions['type'] ?? null,
+                    'way' => $transferOptions['way'] ?? ($transferOptions['Way'] ?? null),
+                    'vehicle_name' => $transferOptions['vehicle_name'] ?? ($vd['vehicle_name'] ?? null),
+                    'vehicle_type' => is_array($vd) ? ($vd['vehicle_type'] ?? null) : null,
+                    'seating_capacity' => is_array($vd) ? ($vd['seating_capacity'] ?? null) : null,
+                    'pickup_location_name' => $transferOptions['pickup_location_name'] ?? null,
+                    'pickup_time' => $transferOptions['pickup_time'] ?? null,
+                    'cost' => $transferOptions['cost'] ?? null,
+                ];
+            }
             
             // Clean mealSpecificType to remove emojis and special characters
             $mealSpecificType = $item['mealSpecificType'] ?? null;
@@ -4391,6 +4440,7 @@ class CommonHelper
                 'meal_items' => $mealItems,
                 'transfer_required' => $transferRequired,
                 'transfer_type' => $transferType,
+                'transfer' => $restaurantTransferSummary,
             ];
         }
 
