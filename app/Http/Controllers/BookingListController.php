@@ -1908,10 +1908,10 @@ class BookingListController extends Controller
     }
 
     /**
-     * Download Handover Acknowledgement Checklist as PDF.
-     * Route passes tour_id in encrypted form.
+     * Handover checklist preview page (iframe + DMC/Agency branding, same pattern as tour quotation preview).
+     * Route passes encrypted tour id in path (same as downloadHandoverChecklistPdf).
      */
-    public function downloadHandoverChecklistPdf(Request $request, $tour_id)
+    public function handoverChecklistPreview($tour_id, Request $request)
     {
         try {
             $tourId = Crypt::decrypt($tour_id);
@@ -1919,26 +1919,119 @@ class BookingListController extends Controller
             return redirect()->back()->with('error', 'Invalid tour.');
         }
 
-        $data = $this->buildHandoverChecklistData($tourId);
-        if (!$data) {
-            return redirect()->back()->with('error', 'Tour not found or no data for handover checklist.');
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found.');
         }
 
-        try {
-            $pdf = Pdf::loadView('bookingList.handover-checklist-pdf', $data)
-                ->setPaper('a4', 'portrait');
-            $filename = 'Handover_Checklist_' . ($data['display_id'] ?? $tourId) . '.pdf';
-            return $pdf->download($filename);
-        } catch (\Exception $e) {
-            \Log::error('Handover Checklist PDF error: ' . $e->getMessage(), ['tour_id' => $tourId]);
-            return redirect()->back()->with('error', 'Failed to generate PDF.');
+        $logoType = strtolower((string) $request->query('logo_type', 'dmc'));
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
         }
+
+        $hasAgency = false;
+        if (!empty($tour->agent_id)) {
+            $agentForPreview = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            $hasAgency = (bool) ($agentForPreview && $agentForPreview->agency);
+        }
+        if ($logoType === 'agency' && !$hasAgency) {
+            $logoType = 'dmc';
+        }
+
+        return view('bookingList.handover-checklist-preview', [
+            'tour' => $tour,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
+            'encryptedTourId' => $tour_id,
+        ]);
+    }
+
+    /**
+     * When the handover PDF iframe fails, return a small HTML page instead of redirecting into the iframe.
+     */
+    private function handoverChecklistPdfPreviewErrorResponse(string $message)
+    {
+        $safe = e($message);
+
+        return response(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview unavailable</title></head>'
+            . '<body style="margin:0;font-family:system-ui,sans-serif;padding:1.25rem;background:#f8f9fa;color:#333;">'
+            . '<p style="margin:0 0 0.5rem;font-weight:600;">Handover checklist preview could not be loaded</p>'
+            . '<p style="margin:0;font-size:0.9rem;">' . $safe . '</p>'
+            . '<p style="margin:1rem 0 0;font-size:0.8rem;color:#6c757d;">Use <strong>Download PDF</strong> on the outer page, or try the other company branding option.</p>'
+            . '</body></html>',
+            503
+        )->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    /**
+     * Download or stream Handover Acknowledgement Checklist PDF.
+     * Query: preview=1|0, logo_type=dmc|agency
+     * Route passes tour_id in encrypted form.
+     */
+    public function downloadHandoverChecklistPdf(Request $request, $tour_id)
+    {
+        try {
+            $tourId = Crypt::decrypt($tour_id);
+        } catch (\Exception $e) {
+            if ($request->boolean('preview', false)) {
+                return $this->handoverChecklistPdfPreviewErrorResponse('Invalid tour.');
+            }
+
+            return redirect()->back()->with('error', 'Invalid tour.');
+        }
+
+        $preview = $request->boolean('preview', false);
+        $requestedLogo = strtolower(trim((string) $request->query('logo_type', 'dmc')));
+        if (!in_array($requestedLogo, ['dmc', 'agency'], true)) {
+            $requestedLogo = 'dmc';
+        }
+
+        $logoAttempts = $requestedLogo === 'agency' ? ['agency', 'dmc'] : ['dmc'];
+
+        foreach ($logoAttempts as $attemptLogo) {
+            try {
+                $data = $this->buildHandoverChecklistData($tourId, $attemptLogo);
+                if (!$data) {
+                    continue;
+                }
+
+                $pdf = Pdf::loadView('bookingList.handover-checklist-pdf', $data)
+                    ->setPaper('a4', 'portrait');
+                $filename = 'Handover_Checklist_' . ($data['display_id'] ?? $tourId) . '.pdf';
+
+                if ($preview) {
+                    return $pdf->stream($filename);
+                }
+
+                return $pdf->download($filename);
+            } catch (\Exception $e) {
+                Log::warning('Handover Checklist PDF generation attempt failed', [
+                    'tour_id' => $tourId,
+                    'logo_type' => $attemptLogo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::error('Handover Checklist PDF failed after all logo attempts', [
+            'tour_id' => $tourId,
+            'requested_logo_type' => $requestedLogo,
+        ]);
+
+        if ($preview) {
+            return $this->handoverChecklistPdfPreviewErrorResponse('Unable to generate handover checklist PDF.');
+        }
+
+        return redirect()->back()->with('error', 'Tour not found or failed to generate PDF.');
     }
 
     /**
      * Build data for the handover acknowledgement checklist PDF.
+     *
+     * @param  string  $logoType  Requested header branding: dmc|agency (falls back if no agency on tour).
      */
-    private function buildHandoverChecklistData($tourId)
+    private function buildHandoverChecklistData($tourId, string $logoType = 'dmc')
     {
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
@@ -2245,6 +2338,38 @@ class BookingListController extends Controller
             return strcmp($dA, $dB);
         });
 
+        $user_dmc = null;
+        if (!empty($tour->dmc_id)) {
+            $user_dmc = User::where('userId', $tour->dmc_id)->first();
+            if ($user_dmc && $user_dmc->logo && !str_starts_with((string) $user_dmc->logo, 'data:image')) {
+                try {
+                    $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                    $imageContent = @file_get_contents($user_dmc->logo, false, $context);
+                    if ($imageContent !== false) {
+                        $imageInfo = @getimagesizefromstring($imageContent);
+                        if ($imageInfo !== false) {
+                            $user_dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Handover checklist header DMC logo base64 failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $user_agency = null;
+        if (!empty($tour->agent_id)) {
+            $agentHeader = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            if ($agentHeader && $agentHeader->agency) {
+                $user_agency = $agentHeader->agency;
+            }
+        }
+
+        $normalizedLogo = strtolower((string) $logoType) === 'agency' ? 'agency' : 'dmc';
+        if ($normalizedLogo === 'agency' && !$user_agency) {
+            $normalizedLogo = 'dmc';
+        }
+
         return [
             'tourId' => $tourId,
             'tourDetails' => $tour,
@@ -2258,6 +2383,9 @@ class BookingListController extends Controller
             'cwb' => $cwb,
             'cnb' => $cnb,
             'ticketCoupons' => $ticketCoupons,
+            'logoType' => $normalizedLogo,
+            'user_dmc' => $user_dmc,
+            'user_agency' => $user_agency,
         ];
     }
 
