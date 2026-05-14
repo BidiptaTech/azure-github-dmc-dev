@@ -179,6 +179,6 @@
     </table>
 
     @if($showBlueTitle)
-        <div class="header-doc-title">{{ $docTitle }} {{ $docNumber }}</div>
+        <div class="header-doc-title">{{ $docTitle }}</div>
     @endif
 </div>

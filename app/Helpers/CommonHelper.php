@@ -3354,66 +3354,98 @@ class CommonHelper
                         $normalizedType = strtolower($type ?? '');
                         
                         // Handle attraction and restaurant
-                        // Prefer explicit adult/child unit prices when present (from attraction/meals tables),
-                        // otherwise fall back to totalPrice/pax. For restaurants, also fall back to meals table via meal_id.
+                        //
+                        // Per-pax resolution priority (per-adult unit price):
+                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  ← user override
+                        //   2. Derived from the booking's own totalPrice                ← what the user actually saved
+                        //   3. Catalog default (ticket_details for attraction, meals table for restaurant)
+                        //
+                        // The booking's totalPrice is authoritative because it represents what the user
+                        // actually entered/charged for this specific booking. The catalog (meal.adult_price,
+                        // ticket_details.adult_price) is just a default at the time of selection and may
+                        // differ from what was finally saved on the booking. Falling back to the catalog
+                        // when totalPrice already exists led to incorrect per-pax values
+                        // (e.g. catalog 28 used instead of booked 500/10 = 50).
                         if ($normalizedType === 'attraction' || $normalizedType === 'restaurant') {
                             $adultCount = floatval($item['adultCount'] ?? 0);
                             $childCount = floatval($item['childCount'] ?? 0);
 
-                            // Resolve unit prices from multiple possible locations in the payload
-                            $adultUnitPrice = 0;
-                            $childUnitPrice = 0;
-
-                            if (isset($item['adultPrice'])) {
-                                $adultUnitPrice = floatval($item['adultPrice']);
-                            } elseif (isset($item['adult_price'])) {
-                                $adultUnitPrice = floatval($item['adult_price']);
-                            } elseif (isset($item['ticket_details']['adult_price'])) {
-                                $adultUnitPrice = floatval($item['ticket_details']['adult_price']);
+                            // (1) Explicit JSON per-pax (user override) — highest priority
+                            $jsonAdultPrice = null;
+                            $jsonChildPrice = null;
+                            if (isset($item['adultPrice']) && $item['adultPrice'] !== '') {
+                                $jsonAdultPrice = floatval($item['adultPrice']);
+                            } elseif (isset($item['adult_price']) && $item['adult_price'] !== '') {
+                                $jsonAdultPrice = floatval($item['adult_price']);
+                            }
+                            if (isset($item['childPrice']) && $item['childPrice'] !== '') {
+                                $jsonChildPrice = floatval($item['childPrice']);
+                            } elseif (isset($item['child_price']) && $item['child_price'] !== '') {
+                                $jsonChildPrice = floatval($item['child_price']);
                             }
 
-                            if (isset($item['childPrice'])) {
-                                $childUnitPrice = floatval($item['childPrice']);
-                            } elseif (isset($item['child_price'])) {
-                                $childUnitPrice = floatval($item['child_price']);
-                            } elseif (isset($item['ticket_details']['child_price'])) {
-                                $childUnitPrice = floatval($item['ticket_details']['child_price']);
+                            // (3) Catalog defaults — used only as a last resort
+                            $catalogAdultPrice = null;
+                            $catalogChildPrice = null;
+                            if (isset($item['ticket_details']['adult_price']) && $item['ticket_details']['adult_price'] !== '') {
+                                $catalogAdultPrice = floatval($item['ticket_details']['adult_price']);
                             }
-
-                            // Extra fallback for RESTAURANTS: if we still don't have unit prices,
-                            // try to fetch them from meals table using MealDescription[0].meal_id.
+                            if (isset($item['ticket_details']['child_price']) && $item['ticket_details']['child_price'] !== '') {
+                                $catalogChildPrice = floatval($item['ticket_details']['child_price']);
+                            }
                             if ($normalizedType === 'restaurant'
-                            && ($adultUnitPrice <= 0 || $childUnitPrice <= 0)
-                            && !empty($item['MealDescription'][0]['meal_id'])
+                                && ($catalogAdultPrice === null || $catalogChildPrice === null)
+                                && !empty($item['MealDescription'][0]['meal_id'])
                             ) {
                                 try {
-                                    $mealId       = $item['MealDescription'][0]['meal_id'];
-                                    $restaurantId = $item['restaurantId'] ?? null;
-
+                                    $mealId    = $item['MealDescription'][0]['meal_id'];
                                     $mealQuery = \App\Models\Meal::where('meal_id', $mealId)->first();
-                                    // if ($restaurantId) {
-                                    //     $mealQuery->where('restaurant_id', $restaurantId);
-                                    // }
-                                    // if (!empty($tour->dmc_id)) {
-                                    //     $mealQuery->where('dmc_id', $tour->dmc_id);
-                                    // }
-
                                     if ($mealQuery) {
-                                        if ($adultUnitPrice <= 0 && $mealQuery->adult_price !== null) {
-                                            $adultUnitPrice = (float) $mealQuery->adult_price;
+                                        if ($catalogAdultPrice === null && $mealQuery->adult_price !== null) {
+                                            $catalogAdultPrice = (float) $mealQuery->adult_price;
                                         }
-                                        if ($childUnitPrice <= 0 && $mealQuery->child_price !== null) {
-                                            $childUnitPrice = (float) $mealQuery->child_price;
+                                        if ($catalogChildPrice === null && $mealQuery->child_price !== null) {
+                                            $catalogChildPrice = (float) $mealQuery->child_price;
                                         }
                                     }
                                 } catch (\Throwable $e) {
-                                    \Log::warning('Failed to fetch meal unit prices for restaurant child_sharing', [
+                                    \Log::warning('Failed to fetch meal unit prices for restaurant', [
                                         'meal_id'       => $item['MealDescription'][0]['meal_id'] ?? null,
                                         'restaurant_id' => $item['restaurantId'] ?? null,
                                         'tour_id'       => $tour->tour_id ?? null,
                                         'error'         => $e->getMessage(),
                                     ]);
                                 }
+                            }
+
+                            // (2) Derived per-adult from the booking's totalPrice.
+                            // If children are present, subtract child cost (using best known child unit
+                            // price: JSON > catalog) so the remainder represents only adult cost.
+                            $derivedAdultPrice = null;
+                            if ($totalPriceFloat > 0 && $adultCount > 0) {
+                                $childUnitForSubtraction = $jsonChildPrice ?? $catalogChildPrice ?? 0;
+                                $childCost = ($childCount > 0) ? ($childUnitForSubtraction * $childCount) : 0;
+                                $derivedAdultPrice = max(0, $totalPriceFloat - $childCost) / $adultCount;
+                            }
+
+                            // Final per-adult unit price: JSON > derived (from booking total) > catalog
+                            if ($jsonAdultPrice !== null && $jsonAdultPrice > 0) {
+                                $adultUnitPrice = $jsonAdultPrice;
+                            } elseif ($derivedAdultPrice !== null && $derivedAdultPrice > 0) {
+                                $adultUnitPrice = $derivedAdultPrice;
+                            } elseif ($catalogAdultPrice !== null && $catalogAdultPrice > 0) {
+                                $adultUnitPrice = $catalogAdultPrice;
+                            } else {
+                                $adultUnitPrice = 0;
+                            }
+
+                            // Final per-child unit price: JSON > catalog (child cost stays in child_sharing only)
+                            if ($jsonChildPrice !== null && $jsonChildPrice > 0) {
+                                $childUnitPrice = $jsonChildPrice;
+                            } elseif ($catalogChildPrice !== null && $catalogChildPrice > 0) {
+                                $childUnitPrice = $catalogChildPrice;
+                            } else {
+                                $childUnitPrice = 0;
                             }
 
                             // Adult per pax → main totals + segregated (with hotel and other services).
@@ -3614,8 +3646,9 @@ class CommonHelper
         //              other services still distribute over paying pax (can be refined per service rules later)
         $hasFocDistribution = ($focDistributionFactor !== 1.0);
         $discountFlag = !empty($tour->discount) && (int)$tour->discount === 1;
-        $hotelFactor = ($hasFocDistribution && !$discountFlag) ? $focDistributionFactor : 1.0;
-        $otherFactor = $hasFocDistribution ? $focDistributionFactor : 1.0;
+        $distributionfactor=($hasFocDistribution && !$discountFlag) ? $focDistributionFactor : 1.0;
+        $hotelFactor = $distributionfactor;
+        $otherFactor = $distributionfactor;
 
         // Apply factors
         $otherServiceSingle *= $otherFactor;
@@ -3626,10 +3659,14 @@ class CommonHelper
         $hotelDouble *= $hotelFactor;
         $hotelTriple *= $hotelFactor;
 
-        // Final per-head totals (supplements excluded)
+        // Final per-head totals (supplements excluded).
+        // Other-service prices (attraction, restaurant, transfers, etc.) are per-pax amounts
+        // that don't depend on room occupancy — a guest in a triple room still consumes the
+        // same attractions/meals as anyone else, so the same per-pax other-services cost
+        // applies to triple sharing too. (otherServiceSingle == otherServiceDouble for these.)
         $totalSingleSharing = $hotelSingle + $otherServiceSingle;
         $totalDoubleSharing = $hotelDouble + $otherServiceDouble;
-        $totalTripleSharing = $hotelTriple;
+        $totalTripleSharing = ($hotelTriple > 0) ? ($hotelTriple + $otherServiceSingle) : 0;
 
         // Hotel-wise per-head prices (apply hotel factor so discount=0 shows distributed cost, discount=1 shows paying-only)
         $hotelPriceOptions = [];
