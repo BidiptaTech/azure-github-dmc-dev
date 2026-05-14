@@ -18,7 +18,7 @@ class FirebaseService
         $this->database = $factory->createDatabase();
     }
 
-    public function createChatRoom($tourId, $dmcId)
+    public function createChatRoom($tourId, $dmcId, array $tourDetails = [])
     {
         $reference = $this->getChatReference($tourId);
 
@@ -26,6 +26,8 @@ class FirebaseService
         $snapshot = $reference->getSnapshot();
 
         if (!$snapshot->exists()) {
+            $sanitizedDetails = $this->sanitizeForRealtimeDatabase($tourDetails);
+
             $reference->set([
                 'tour_id' => $tourId,
                 'dmc_id' => (int) $dmcId,
@@ -34,18 +36,53 @@ class FirebaseService
                 'messages' => [],
                 'ID' => [],
                 'guestId' => null,
+                'Tour_Details' => $sanitizedDetails,
             ]);
 
             return [
                 'success' => true,
-                'message' => 'Chat room created'
+                'message' => 'Chat room created',
+                'data' => [
+                    'tour_id' => (int) $tourId,
+                    'Tour_Details' => $sanitizedDetails,
+                ],
             ];
         }
 
         return [
             'success' => false,
-            'message' => 'Chat room already exists'
+            'message' => 'Chat room already exists',
         ];
+    }
+
+    /**
+     * Ensure values are JSON/Firebase-friendly (Carbon, nested objects, etc.).
+     */
+    public function sanitizeForRealtimeDatabase($value)
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format(\DateTime::ATOM);
+        }
+        if (is_array($value)) {
+            $out = [];
+            foreach ($value as $k => $v) {
+                $out[$k] = $this->sanitizeForRealtimeDatabase($v);
+            }
+
+            return $out;
+        }
+        if (is_object($value)) {
+            if ($value instanceof \JsonSerializable) {
+                return $this->sanitizeForRealtimeDatabase($value->jsonSerialize());
+            }
+            if (method_exists($value, 'toArray')) {
+                return $this->sanitizeForRealtimeDatabase($value->toArray());
+            }
+
+            return $this->sanitizeForRealtimeDatabase((array) $value);
+        }
+
+        return $value;
     }
 
     public function upsertChatAssignment($tourId, $dmcId, $orderId, array $assignmentData)
