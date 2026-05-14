@@ -20,7 +20,7 @@ yarn-error.log
 
 # Storage link (should be created during deployment, not committed)
 /public/storage
-/storage/app/firebase/firebase_credentials.json
+/storage/app/firebase/firebase_crendentials.json
 # Deployment logs
 deploy.log
 
