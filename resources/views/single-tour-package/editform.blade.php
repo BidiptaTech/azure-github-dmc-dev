@@ -1043,6 +1043,42 @@
         #hotelBookingModal .form-text {
             font-size: 0.65rem;
         }
+
+        /* Back button — white surface, slate border (matches outline “secondary” style on hero) */
+        .tour-edit-back-outline {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 1rem !important;
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+            line-height: 1.25;
+            color: #475569 !important;
+            background: #fff !important;
+            border: 1px solid #64748b !important;
+            border-radius: 10px !important;
+            box-shadow: none !important;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+        .tour-edit-back-outline i {
+            font-size: 1rem;
+            color: #475569;
+        }
+        .tour-edit-back-outline:hover {
+            background: #f8fafc !important;
+            color: #334155 !important;
+            border-color: #475569 !important;
+        }
+        .tour-edit-back-outline:hover i {
+            color: #334155;
+        }
+        .tour-edit-back-outline:active {
+            background: #f1f5f9 !important;
+        }
+        .tour-edit-back-outline:focus-visible {
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(100, 116, 139, 0.28) !important;
+        }
 </style>
 
 <div class="content-wrapper excel-form">
@@ -1054,7 +1090,7 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
+                    <div class="card-header text-white d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                         <div class="d-flex align-items-center">
                             <!-- <i class="ri-map-pin-line me-3 fs-4"></i> -->
                             <div>
@@ -1062,6 +1098,13 @@
                                 <p class="mb-0 opacity-75">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
                             </div>
                         </div>
+                        <button type="button"
+                                class="btn btn-sm tour-edit-back-outline text-nowrap ms-auto"
+                                onclick="history.back();"
+                                aria-label="Go back">
+                            <i class="ri-arrow-left-line" aria-hidden="true"></i>
+                            <span>Back</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1831,7 +1874,7 @@
                                                         const currentDmcId = dmcIdInput ? dmcIdInput.value : '';
                                                         
                                                         // Fetch rooms for the selected hotel
-                                                        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${currentDmcId}`)
+                                                        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId || '')}`)
                                                             .then(response => {
                                                                 if (!response.ok) {
                                                                     throw new Error('Network response was not ok');
@@ -1844,16 +1887,8 @@
                                                                 roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
                                                                 
                                                                 if (response.success && response.rooms && response.rooms.length > 0) {
-                                                                    // Filter rooms by DMC ID
-                                                                    let dmcFilteredRooms = response.rooms.filter(room => {
-                                                                        const roomDmcId = room.created_by;
-                                                                        return roomDmcId && roomDmcId == currentDmcId;
-                                                                    });
-                                                                    
-                                                                    if (dmcFilteredRooms.length === 0) {
-                                                                        roomTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
-                                                                        return;
-                                                                    }
+                                                                    // Server already filtered rooms by DMC — do not re-filter by created_by only
+                                                                    const dmcFilteredRooms = response.rooms;
                                                                     
                                                                     // Store room data for this booking
                                                                     window.roomData_{{ $hotelOrder->booking_id }} = dmcFilteredRooms;
@@ -1921,11 +1956,13 @@
                                                                     }
                                                                 } else {
                                                                     roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                                                                    roomTypeSelect.disabled = false;
                                                                 }
                                                             })
                                                             .catch(error => {
                                                                 console.error('Error loading rooms:', error);
                                                                 roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                                                                roomTypeSelect.disabled = false;
                                                             });
                                                     }
                                                     
@@ -17405,8 +17442,6 @@
         // Add event listeners with null checks
         const checkInDate = document.getElementById('check_in_date');
         const checkOutDate = document.getElementById('check_out_date');
-        const hotelSelect = document.getElementById('hotel_select');
-        const proceedBtn = document.getElementById('proceed_hotel_btn');
         
         if (checkInDate) {
             checkInDate.addEventListener('change', updateNightsDisplay);
@@ -17414,9 +17449,9 @@
         if (checkOutDate) {
             checkOutDate.addEventListener('change', updateNightsDisplay);
         }
-        if (hotelSelect) {
-            hotelSelect.addEventListener('change', onHotelSelection);
-        }
+        // Hotel change is handled by inline onchange="loadRoomsForSelectedHotel(...)" on #hotel_select.
+        // Do not attach onHotelSelection here: it called loadRoomOptions() with hotel list rows that have no
+        // embedded `rooms`, which cleared room/bed/meal and raced the fetchRooms API path.
         // `#proceed_hotel_btn` already has inline `onclick="proceedToHotelSelection()"`.
         // Attaching another click listener here causes the booking submit to happen twice.
     }
@@ -17528,6 +17563,10 @@
         const roomTypeSelect = document.getElementById('room_type');
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
+        if (!roomTypeSelect || !bedTypeSelect || !mealPlanSelect) {
+            console.warn('loadRoomsForSelectedHotel: room/bed/meal selects not found');
+            return;
+        }
         
         if (!hotelId) {
             // Reset to default state when no hotel selected
@@ -17545,11 +17584,12 @@
         mealPlanSelect.innerHTML = '<option value="">Loading rooms...</option>';
         mealPlanSelect.disabled = true;
         
-        // Get current user's DMC ID for room filtering
-        const currentDmcId = document.getElementById('dmc_id').value;
+        // Get DMC id for query string (API resolves DMC from auth; this is informational)
+        const dmcEl = document.getElementById('dmc_id');
+        const currentDmcId = dmcEl ? String(dmcEl.value || '').trim() : '';
         
-        // Fetch rooms for the selected hotel with DMC filtering (same as create.blade.php)
-        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${currentDmcId}`)
+        // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is (see loadRoomsForSelectedHotel).
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -17565,21 +17605,8 @@
                 mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
                 
                 if (response.success && response.rooms && response.rooms.length > 0) {
-                    // Filter rooms by DMC ID using created_by field
-                    let dmcFilteredRooms = response.rooms.filter(room => {
-                        const roomDmcId = room.created_by;
-                        return roomDmcId && roomDmcId == currentDmcId;
-                    });
-                    
-                    console.log('Rooms after DMC filtering:', dmcFilteredRooms.length);
-                    
-                    if (dmcFilteredRooms.length === 0) {
-                        console.warn(`No rooms found for DMC ${currentDmcId} in hotel ${hotelId}`);
-                        roomTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
-                        bedTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
-                        mealPlanSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
-                        return;
-                    }
+                    const dmcFilteredRooms = response.rooms;
+                    console.log('Rooms from API (server-filtered):', dmcFilteredRooms.length);
                     
                     // Store room data globally for bed fetching
                     window.roomData = dmcFilteredRooms;
@@ -17647,6 +17674,7 @@
                 } else {
                     console.log('No rooms found for hotel:', hotelId);
                     roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                    roomTypeSelect.disabled = false;
                 }
             })
             .catch(error => {
@@ -17654,6 +17682,7 @@
                 roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
                 bedTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
                 mealPlanSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                roomTypeSelect.disabled = false;
             });
     }
     
@@ -18144,29 +18173,12 @@
     
     function onHotelSelection() {
         const hotelSelect = document.getElementById('hotel_select');
-        const roomType = document.getElementById('room_type');
-        const bedType = document.getElementById('bed_type');
-        const mealPlan = document.getElementById('meal_plan');
-        
-        if (!hotelSelect || !roomType || !bedType || !mealPlan) {
-            console.warn('Hotel selection elements not found');
-            return;
-        }
-        
-        const hotelId = hotelSelect.value;
-        
+        if (!hotelSelect) return;
+        const hotelId = hotelSelect.value || '';
         if (hotelId) {
-            // Get the selected hotel data
-            const selectedOption = hotelSelect.querySelector(`option[value="${hotelId}"]`);
-            if (selectedOption) {
-                const hotelData = JSON.parse(selectedOption.getAttribute('data-hotel'));
-                
-                // Load room options for selected hotel
-                loadRoomOptions(hotelData, roomType, bedType, mealPlan);
-            }
+            loadRoomsForSelectedHotel(hotelId);
         } else {
-            // Reset room options
-            resetRoomOptions();
+            resetHotelModalFields();
         }
     }
     
