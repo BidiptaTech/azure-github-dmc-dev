@@ -39,10 +39,12 @@
 <body>
 
     @include('invoices.pdf.partials.header', [
-        'logoType' => 'dmc',
+        'logoType' => $logoType ?? 'dmc',
         'showBlueTitle' => true,
         'docTitle' => 'ITINERARY',
         'docNumber' => ($display_id ?? $tourId),
+        'user_dmc' => $user_dmc ?? null,
+        'user_agency' => $user_agency ?? null,
     ])
 
     <div class="band">

@@ -328,6 +328,9 @@ Route::get('/clear', function () {
             Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
                 ->name('tour.itinerary.pdf');
 
+            Route::get('/tour/{tourId}/download-detailed-quotation', [\App\Http\Controllers\QuotationController::class, 'downloadDetailedQuotation'])
+                ->name('tour.detailed-quotation.pdf');
+
             // Temporarily store edited “quotation_information” for preview + PDF
             Route::post('/tour/{tourId}/quotation-info', [\App\Http\Controllers\QuotationController::class, 'storeQuotationInfo'])
                 ->name('tour.quotation.info');
@@ -905,7 +908,10 @@ Route::get('/clear', function () {
         Route::resource('bookinglist', BookingListController::class);
         // Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
+        Route::get('tour-itinerary/{tourId}/formatted-pdf-preview', [BookingListController::class, 'itineraryFormattedPdfPreview'])->name('bookinglist.itinerary.formatted-preview');
+        Route::post('tour-itinerary/{tourId}/formatted-pdf-info', [BookingListController::class, 'storeItineraryFormattedPdfInfo'])->name('bookinglist.itinerary.pdf.store-info');
         Route::match(['get', 'post'], 'tour-itinerary/{tourId}/pdf-formatted', [BookingListController::class, 'downloadItineraryFormattedPdf'])->name('bookinglist.itinerary.pdf');
+        Route::get('booking-list/handover-checklist-preview/{tour_id}', [BookingListController::class, 'handoverChecklistPreview'])->name('bookinglist.handoverChecklist.preview');
         Route::get('booking-list/handover-checklist/{tour_id}', [BookingListController::class, 'downloadHandoverChecklistPdf'])->name('bookinglist.handoverChecklist.pdf');
         Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
         Route::get('bookinglist/check-price-hide', [BookingListController::class, 'checkPriceHide'])->name('bookinglist.checkPriceHide');
@@ -1014,6 +1020,7 @@ Route::get('/clear', function () {
             Route::post('/invoices/{invoiceId}/convert-to-final', [InvoiceController::class, 'convertToFinal'])->name('invoices.convert-to-final');
             Route::post('/invoices/tour/{tourId}/handle-cancellation', [InvoiceController::class, 'handleCancellation'])->name('invoices.handle-cancellation');
         Route::get('/bookings/export-tour-pdf/{tourId}', [BookingsController::class, 'exportTourPDF'])->name('bookings.export-tour-pdf');
+        Route::get('/bookings/confirmation-voucher-preview/{tourId}', [BookingsController::class, 'confirmationVoucherPreview'])->name('bookings.confirmation-voucher.preview');
         Route::get('/bookings/confirmation-voucher/{tourId}', [BookingsController::class, 'confirmationVoucher'])->name('bookings.confirmation-voucher');
         Route::post('/bookings/cancel-tour/{tourId}', [BookingsController::class, 'cancelTour'])->name('bookings.cancel-tour');
         Route::post('/bookings/{encryptedId}/save-qr', [BookingsController::class, 'saveQrCode'])->name('bookings.save-qr');
