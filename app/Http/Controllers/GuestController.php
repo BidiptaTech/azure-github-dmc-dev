@@ -47,6 +47,47 @@ class GuestController extends Controller
         return array_values(array_unique($normalized, SORT_REGULAR));
     }
 
+    /**
+     * Parse tour_id from request input: comma-separated string, JSON array string, or array.
+     */
+    private function parseTourIdsFromInput($tourIdInput): array
+    {
+        if ($tourIdInput === null || $tourIdInput === '') {
+            return [];
+        }
+
+        if (is_array($tourIdInput)) {
+            return $this->normalizeTourIds($tourIdInput);
+        }
+
+        $str = trim((string) $tourIdInput);
+        if ($str === '') {
+            return [];
+        }
+
+        if ($str !== '' && $str[0] === '[') {
+            $decoded = json_decode($str, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $this->normalizeTourIds($decoded);
+            }
+        }
+
+        if (strpos($str, ',') !== false) {
+            $parsed = [];
+            foreach (explode(',', $str) as $part) {
+                $part = trim($part);
+                if ($part === '') {
+                    continue;
+                }
+                $parsed[] = is_numeric($part) ? (int) $part : $part;
+            }
+
+            return $this->normalizeTourIds($parsed);
+        }
+
+        return $this->normalizeTourIds([is_numeric($str) ? (int) $str : $str]);
+    }
+
     private function syncGuestIdsToFirebase(array $tourIds, $guestId): array
     {
         $results = [];
@@ -471,40 +512,22 @@ class GuestController extends Controller
                 $updateData['app_password'] = Hash::make($plainPassword);
             }
             
-            // Handle tour_id separately - it could be comma-separated or single value
-            if ($request->has('tour_id') && $request->tour_id) {
-                // Split by comma if multiple tour IDs are provided
-                $tourIdInput = $request->tour_id;
-                $tourIdArray = [];
-                
-                // Check if it contains commas (multiple tour IDs)
-                if (strpos($tourIdInput, ',') !== false) {
-                    // Split and trim
-                    $tourIdParts = explode(',', $tourIdInput);
-                    foreach ($tourIdParts as $part) {
-                        $part = trim($part);
-                        if (!empty($part)) {
-                            $tourIdArray[] = is_numeric($part) ? (int)$part : $part;
-                        }
-                    }
-                } else {
-                    // Single tour ID
-                    $tourIdInput = trim($tourIdInput);
-                    if (!empty($tourIdInput)) {
-                        $tourIdArray[] = is_numeric($tourIdInput) ? (int)$tourIdInput : $tourIdInput;
-                    }
-                }
-                
-                $updateData['tour_id'] = $tourIdArray;
+            // Handle tour_id separately (comma-separated, JSON array string, or array — same idea as store)
+            if ($request->filled('tour_id')) {
+                $updateData['tour_id'] = $this->parseTourIdsFromInput($request->tour_id);
             }
-            
+
             $guest->update($updateData);
             $guest->refresh();
 
             $currentTourIds = $this->normalizeTourIds($guest->tour_id);
             $removedTourIds = array_values(array_diff($previousTourIds, $currentTourIds));
-            $firebaseSync = $this->syncGuestIdsToFirebase($currentTourIds, $guest->guest_id);
-            $firebaseRemoved = $this->removeGuestIdsFromFirebase($removedTourIds, $guest->guest_id);
+            $syncGuestId = $guest->guest_id;
+
+            // Push this guest_id onto Firebase for every tour they remain linked to (upsertChatGuest), like store()
+            $firebaseSync = $this->syncGuestIdsToFirebase($currentTourIds, $syncGuestId);
+            // Drop guest_id from chat nodes for tours they were removed from
+            $firebaseRemoved = $this->removeGuestIdsFromFirebase($removedTourIds, $syncGuestId);
 
             // Send update notification email if email and password are provided
             if ($guest->email && $plainPassword) {
@@ -553,8 +576,12 @@ class GuestController extends Controller
             }
 
             $tourIds = $this->normalizeTourIds($guest->tour_id);
+            $syncGuestId = $guest->guest_id;
+
+            // Clear guest_id from Firebase chat nodes before soft-delete (same guest_id as store/update use)
+            $firebaseRemoved = $this->removeGuestIdsFromFirebase($tourIds, $syncGuestId);
+
             $guest->delete();
-            $firebaseRemoved = $this->removeGuestIdsFromFirebase($tourIds, $guest->guest_id);
 
             return response()->json([
                 'success' => true,
