@@ -5772,9 +5772,35 @@
                         if (!country && enquiry && enquiry.country) { country = String(enquiry.country).trim(); }
                         if (!country) { alert('Please select a city so the country can be saved.'); resetSaveButton(); return false; }
 
+                        let cityName = '';
+                        const cityEl = document.getElementById('single_city');
+                        if (cityEl) {
+                            // Select2 ajax uses numeric city_id as `id` — always persist the human name
+                            if (typeof $ !== 'undefined' && $(cityEl).length && $(cityEl).data('select2')) {
+                                try {
+                                    const d2 = $(cityEl).select2('data');
+                                    if (d2 && d2.length && d2[0] && d2[0].text) {
+                                        cityName = String(d2[0].text).replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                    }
+                                } catch (e3) { /* ignore */ }
+                            }
+                            if (!cityName) {
+                                const v = String(cityEl.value || '').trim();
+                                if (v && !/^\d+$/.test(v)) {
+                                    cityName = v.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                } else if (v && cityEl.selectedIndex >= 0) {
+                                    const opt = cityEl.options[cityEl.selectedIndex];
+                                    const t = opt ? String(opt.textContent || '').trim() : '';
+                                    if (t) cityName = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                    else cityName = v;
+                                }
+                            }
+                        }
+                        if (!cityName) { alert('Please select a city.'); resetSaveButton(); return false; }
+
                         const tourFormData = makeBaseTourFormData();
                         tourFormData.append('user_country', country);
-                        tourFormData.append('city', '');
+                        tourFormData.append('city', cityName);
                         tourFormData.append('start_date', startDate);
                         tourFormData.append('end_date', endDate);
 
