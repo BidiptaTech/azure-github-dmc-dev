@@ -206,6 +206,10 @@
             ? ceil((float)($tourPrices['double_sharing'] ?? 0) * $focSize)
             : 0;
 
+        // GROUP + discount flag: show stored tours.discount_amount on PDF
+        $showGroupDiscountAmount = ($tourType === 'GROUP' && $hasDiscount);
+        $groupDiscountAmount = (float)($tour->discount_amount ?? 0);
+
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
@@ -456,6 +460,9 @@
                         @endif
                         <div class="top-line"><span class="bold">Travelling Date:</span> {{ $travellingDate }}</div>
                         <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
+                        @if($showGroupDiscountAmount)
+                            <div class="top-line"><span class="bold">Discount amount:</span> {{ $formatMoney($groupDiscountAmount) }}</div>
+                        @endif
                     </div>
                 </td>
             </tr>
@@ -790,10 +797,23 @@
                     <tbody>
                         @foreach($suppServices as $s)
                             @php
-                                $suppType  = strtolower((string)($s['type'] ?? ''));
-                                $typeLabel = strtoupper($suppType) ?: 'SUPPLEMENT';
-                                $svcName   = $s['name'] ?? ($s['AttractionName'] ?? ($s['restaurantName'] ?? ''));
-                                $svcLabel  = $svcName !== '' ? ($typeLabel . ': ' . $svcName) : $typeLabel;
+                                $suppTypeRaw = trim((string)($s['type'] ?? ''));
+                                $svcName = trim((string)($s['name'] ?? ($s['AttractionName'] ?? ($s['restaurantName'] ?? ''))));
+                                $tSlug = strtolower(str_replace([' ', '-'], '_', $suppTypeRaw));
+                                $nSlug = strtolower(str_replace([' ', '-'], '_', $svcName));
+                                $typePretty = $tSlug !== '' ? \Illuminate\Support\Str::headline($tSlug) : '';
+                                $namePretty = $nSlug !== '' ? \Illuminate\Support\Str::headline($nSlug) : '';
+                                $typeNorm = strtolower(preg_replace('/[^a-z0-9]+/', '', $suppTypeRaw));
+                                $nameNorm = strtolower(preg_replace('/[^a-z0-9]+/', '', $svcName));
+                                if ($svcName !== '' && $typeNorm !== '' && $typeNorm === $nameNorm) {
+                                    $svcLabel = $typePretty;
+                                } elseif ($svcName !== '' && $typePretty !== '' && $typeNorm !== $nameNorm) {
+                                    $svcLabel = $typePretty . ': ' . $namePretty;
+                                } elseif ($svcName !== '') {
+                                    $svcLabel = $namePretty;
+                                } else {
+                                    $svcLabel = $typePretty !== '' ? $typePretty : 'Supplement';
+                                }
                                 $suppPrice = $occupancyKey === 'double'
                                     ? (float)($s['double'] ?? 0)
                                     : (float)($s['single'] ?? 0);
