@@ -905,6 +905,8 @@ Route::get('/clear', function () {
         Route::resource('bookinglist', BookingListController::class);
         // Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
+        Route::get('tour-itinerary/{tourId}/formatted-pdf-preview', [BookingListController::class, 'itineraryFormattedPdfPreview'])->name('bookinglist.itinerary.formatted-preview');
+        Route::post('tour-itinerary/{tourId}/formatted-pdf-info', [BookingListController::class, 'storeItineraryFormattedPdfInfo'])->name('bookinglist.itinerary.pdf.store-info');
         Route::match(['get', 'post'], 'tour-itinerary/{tourId}/pdf-formatted', [BookingListController::class, 'downloadItineraryFormattedPdf'])->name('bookinglist.itinerary.pdf');
         Route::get('booking-list/handover-checklist-preview/{tour_id}', [BookingListController::class, 'handoverChecklistPreview'])->name('bookinglist.handoverChecklist.preview');
         Route::get('booking-list/handover-checklist/{tour_id}', [BookingListController::class, 'downloadHandoverChecklistPdf'])->name('bookinglist.handoverChecklist.pdf');
