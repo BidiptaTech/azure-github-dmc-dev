@@ -1659,14 +1659,14 @@
                                         <i class="ri-user-add-line"></i>
                                     </a>
                                         -->
-                                    <a href="{{ route('bookings.confirmation-voucher', Crypt::encrypt($tour->tour_id)) }}" 
+                                    <a href="{{ route('bookings.confirmation-voucher.preview', Crypt::encrypt($tour->tour_id)) }}" 
                                         class="action-icon-badge" 
                                         style="--action-color: #7c3aed;"
                                         data-tooltip="Confirmation Voucher"
                                         target="_blank">
                                             <i class="ri-file-download-line"></i>
                                     </a>
-                                    <a href="{{ route('bookinglist.handoverChecklist.pdf',  Crypt::encrypt($tour->tour_id)) }}" 
+                                    <a href="{{ route('bookinglist.handoverChecklist.preview', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="action-icon-badge" 
                                        style="--action-color: #0d9488;"
                                        data-tooltip="Handover Checklist PDF"

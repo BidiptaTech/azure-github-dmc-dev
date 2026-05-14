@@ -84,40 +84,16 @@
 </head>
 <body>
     @php
-        // Prefer DMC user from logged-in session for header fields (UEN/TA licence),
-        // fallback to the injected $dmcUser if lookup fails.
-        $headerDmcUser = null;
-        try {
-            $currentUser = \Illuminate\Support\Facades\Auth::user();
-            if ($currentUser) {
-                $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
-                if (!empty($dmcId)) {
-                    $headerDmcUser = \App\Models\User::where('userId', $dmcId)->first();
-                }
-            }
-        } catch (\Throwable $e) {
-            $headerDmcUser = null;
-        }
-
-        $dmcUserForHeader = $headerDmcUser ?: $dmcUser;
-
-        $rootDmc = $dmcUserForHeader;
-        if ($dmcUserForHeader) {
-            $visited = [];
-            while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
-                $visited[] = $rootDmc->created_by;
-                $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
-            }
-            if (!$rootDmc) $rootDmc = $dmcUserForHeader;
-        }
+        $rootDmc = $voucherRootDmc ?? $dmcUser ?? null;
     @endphp
 
     @include('invoices.pdf.partials.header', [
-        'logoType' => 'dmc',
+        'logoType' => $logoType ?? 'dmc',
         'showBlueTitle' => true,
         'docTitle' => 'CONFIRMATION VOUCHER',
         'docNumber' => $referenceId,
-        'user_dmc' => $rootDmc,
+        'user_dmc' => $user_dmc ?? $dmcUser ?? null,
+        'user_agency' => $user_agency ?? null,
     ])
 
     {{-- MAIN INFO TABLE --}}
@@ -230,32 +206,34 @@
     {{-- FOOTER: DMC Contact Details --}}
     @php
         $footerParts = [];
-        $dmcAddr = $rootDmc->address ?? $dmcUser->address ?? null;
+        $dmcAddr = optional($rootDmc)->address ?? optional($dmcUser)->address ?? null;
         if (is_string($dmcAddr) && !empty(trim($dmcAddr))) $footerParts[] = trim($dmcAddr);
 
         $phones = [];
-        $tel = $rootDmc->tel ?? $rootDmc->telephone ?? $rootDmc->phone ?? $dmcUser->tel ?? $dmcUser->telephone ?? $dmcUser->phone ?? null;
-        $countryCode = $rootDmc->country_code ?? $dmcUser->country_code ?? null;
+        $tel = optional($rootDmc)->tel ?? optional($rootDmc)->telephone ?? optional($rootDmc)->phone
+            ?? optional($dmcUser)->tel ?? optional($dmcUser)->telephone ?? optional($dmcUser)->phone ?? null;
+        $countryCode = optional($rootDmc)->country_code ?? optional($dmcUser)->country_code ?? null;
         if (is_string($tel) && !empty(trim($tel))) {
             $formattedPhone = ($countryCode ? '+' . $countryCode . ' ' : '') . trim($tel);
             $phones[] = $formattedPhone;
         }
-        $phone2 = $rootDmc->phone_number ?? $dmcUser->phone_number ?? null;
+        $phone2 = optional($rootDmc)->phone_number ?? optional($dmcUser)->phone_number ?? null;
         if (is_string($phone2) && !empty(trim($phone2)) && $phone2 !== ($tel ?? '')) {
             $phones[] = ($countryCode ? '+' . $countryCode . ' ' : '') . trim($phone2);
         }
         if (!empty($phones)) $footerParts[] = implode(' , ', $phones);
 
-        $fax = $rootDmc->fax ?? $dmcUser->fax ?? null;
+        $fax = optional($rootDmc)->fax ?? optional($dmcUser)->fax ?? null;
         if (is_string($fax) && !empty(trim($fax))) $footerParts[] = 'Fax: ' . trim($fax);
 
         $footerLine1 = implode(',  ', $footerParts);
 
         $footerLine2Parts = [];
-        $dmcEmail = $rootDmc->email ?? $rootDmc->company_email ?? $dmcUser->email ?? $dmcUser->company_email ?? null;
+        $dmcEmail = optional($rootDmc)->email ?? optional($rootDmc)->company_email
+            ?? optional($dmcUser)->email ?? optional($dmcUser)->company_email ?? null;
         if (is_string($dmcEmail) && !empty(trim($dmcEmail))) $footerLine2Parts[] = 'Email : ' . trim($dmcEmail);
 
-        $dmcWebsite = $rootDmc->website ?? $dmcUser->website ?? null;
+        $dmcWebsite = optional($rootDmc)->website ?? optional($dmcUser)->website ?? null;
         if (is_string($dmcWebsite) && !empty(trim($dmcWebsite))) $footerLine2Parts[] = 'visit us: ' . trim($dmcWebsite);
 
         $footerLine2 = implode(' : ', $footerLine2Parts);
