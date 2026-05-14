@@ -1585,14 +1585,21 @@
                                         <i class="ri-chat-1-line"></i>
                                     </button>
                                     @if($finalInvoice)
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}"
-                                           class="action-icon-badge" style="--action-color: #0369a1;" target="_blank" data-tooltip="Final Invoice (Full)">
-                                            <i class="ri-file-paper-2-line"></i>
-                                        </a>
-                                        <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}"
-                                           class="action-icon-badge" style="--action-color: #7c3aed;" target="_blank" data-tooltip="Final Invoice (Price Only)">
-                                            <i class="ri-file-download-line"></i>
-                                        </a>
+                                        <div class="invoice-actions-flyout">
+                                            <button type="button" class="action-icon-badge invoice-actions-flyout__trigger" style="--action-color: #0e7490;" aria-label="Invoice" aria-haspopup="true">
+                                                <i class="ri-receipt-line"></i>
+                                            </button>
+                                            <div class="invoice-actions-flyout__links">
+                                                <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'full']) }}"
+                                                   class="action-icon-badge" style="--action-color: #0e7490;" data-tooltip="Invoice Details" target="_blank">
+                                                    <i class="ri-file-paper-line"></i>
+                                                </a>
+                                                <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($finalInvoice->invoice_id), 'mode' => 'price-only']) }}"
+                                                   class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Invoice Packaged" target="_blank">
+                                                    <i class="ri-file-download-line"></i>
+                                                </a>
+                                            </div>
+                                        </div>
                                     @elseif($proformaInvoice)
                                         <div class="invoice-actions-flyout">
                                             <button type="button" class="action-icon-badge invoice-actions-flyout__trigger" style="--action-color: #0e7490;" aria-label="Invoice" aria-haspopup="true">

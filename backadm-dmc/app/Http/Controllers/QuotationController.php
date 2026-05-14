@@ -14,9 +14,32 @@ use App\Models\City;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use App\Models\Agent;
 
 class QuotationController extends Controller
 {
+    /**
+     * When the PDF iframe fails, never redirect back to the preview URL (that loads the full app inside the iframe).
+     */
+    private function itineraryPdfErrorResponse(Request $request, string $message)
+    {
+        if ($request->boolean('preview', false)) {
+            $safe = e($message);
+
+            return response(
+                '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview unavailable</title></head>'
+                . '<body style="margin:0;font-family:system-ui,sans-serif;padding:1.25rem;background:#f8f9fa;color:#333;">'
+                . '<p style="margin:0 0 0.5rem;font-weight:600;">Quotation preview could not be loaded</p>'
+                . '<p style="margin:0;font-size:0.9rem;">' . $safe . '</p>'
+                . '<p style="margin:1rem 0 0;font-size:0.8rem;color:#6c757d;">Use <strong>Download Quotation</strong> on the outer page, or try another currency / company option.</p>'
+                . '</body></html>',
+                503
+            )->header('Content-Type', 'text/html; charset=UTF-8');
+        }
+
+        return redirect()->back()->with('error', $message);
+    }
+
     /**
      * Show itinerary / quotation preview with currency dropdown and embedded PDF.
      */
@@ -112,6 +135,19 @@ class QuotationController extends Controller
             $selectedCurrency = $defaultCurrency;
         }
 
+        $logoType = strtolower((string) $request->query('logo_type', 'dmc'));
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+        $hasAgency = false;
+        if (!empty($tour->agent_id)) {
+            $agentForPreview = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            $hasAgency = $agentForPreview && $agentForPreview->agency;
+        }
+        if ($logoType === 'agency' && !$hasAgency) {
+            $logoType = 'dmc';
+        }
+
         // For the “Quotation Information” modal (country/city selection)
         $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
         $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
@@ -125,6 +161,8 @@ class QuotationController extends Controller
             'availableCurrencies' => $availableCurrencies,
             'countries' => $countries,
             'citiesByCountry' => $citiesByCountry,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
         ]);
     }
 
@@ -146,7 +184,8 @@ class QuotationController extends Controller
                 $currency,
                 $preview,
                 null,
-                'single-tour-package.detailedqutation'
+                'single-tour-package.detailedqutation',
+                (string) $request->query('logo_type', 'dmc')
             );
             if ($pdfResponse) {
                 return $pdfResponse;
@@ -168,38 +207,55 @@ class QuotationController extends Controller
         try {
             $tour = Tour::where('tour_id', $tourId)->first();
             if (!$tour) {
-                return redirect()->back()->with('error', 'Tour not found.');
+                return $this->itineraryPdfErrorResponse($request, 'Tour not found.');
             }
 
             $currency = $request->query('currency'); // target currency selected by user
             $preview = $request->boolean('preview', false);
             $quotationInfoKey = $request->query('quotation_info_key');
             $quotationInformationHtml = $quotationInfoKey ? Cache::get((string) $quotationInfoKey) : null;
-
-            try {
-                $pdfResponse = CommonHelper::downloadTourPdf(
-                    $tourId,
-                    $currency,
-                    $preview,
-                    $quotationInformationHtml
-                );
-                if ($pdfResponse) {
-                    return $pdfResponse;
-                }
-            } catch (\Exception $e) {
-                Log::error('PDF generation error: ' . $e->getMessage(), [
-                    'tour_id' => $tourId,
-                    'trace' => $e->getTraceAsString(),
-                ]);
+            $logoType = strtolower(trim((string) $request->query('logo_type', 'dmc')));
+            if (!in_array($logoType, ['dmc', 'agency'], true)) {
+                $logoType = 'dmc';
             }
 
-            return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
+            // If agency-branded PDF fails, fall back to the same quotation with DMC logo and company name only.
+            $logoAttempts = $logoType === 'agency' ? ['agency', 'dmc'] : ['dmc'];
+
+            foreach ($logoAttempts as $attemptLogo) {
+                try {
+                    $pdfResponse = CommonHelper::downloadTourPdf(
+                        $tourId,
+                        $currency,
+                        $preview,
+                        $quotationInformationHtml,
+                        'single-tour-package.quotation',
+                        $attemptLogo
+                    );
+                    if ($pdfResponse) {
+                        return $pdfResponse;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Itinerary PDF generation attempt failed', [
+                        'tour_id' => $tourId,
+                        'logo_type' => $attemptLogo,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            Log::error('Itinerary PDF generation failed after all logo attempts', [
+                'tour_id' => $tourId,
+                'requested_logo_type' => $logoType,
+            ]);
+
+            return $this->itineraryPdfErrorResponse($request, 'Unable to generate itinerary PDF.');
         } catch (\Exception $e) {
             Log::error('PDF route error: ' . $e->getMessage(), [
                 'tour_id' => $tourId,
                 'trace' => $e->getTraceAsString(),
             ]);
-            return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
+            return $this->itineraryPdfErrorResponse($request, 'Unable to generate itinerary PDF.');
         }
     }
 

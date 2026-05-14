@@ -407,7 +407,7 @@
             if (!empty($tour->dmc_id)) {
                 $tourDmcUser = \App\Models\User::where('userId', $tour->dmc_id)->first();
             }
-            $tourDmcCompanyCode = $tourDmcUser->company_code ?? null;
+            $tourDmcCompanyCode = $tourDmcUser?->company_code ?? null;
             $tourDmcCompanyCode = is_string($tourDmcCompanyCode) ? trim($tourDmcCompanyCode) : '';
             $tourDmcCompanyCode = $tourDmcCompanyCode !== '' ? $tourDmcCompanyCode : null;
 
@@ -415,7 +415,7 @@
             if (!empty($tour->created_by)) {
                 $createByUser = \App\Models\User::where('userId', $tour->created_by)->first();
             }
-            $createByUserCode = $createByUser->user_code ?? null;
+            $createByUserCode = $createByUser?->user_code ?? null;
             $createByUserCode = is_string($createByUserCode) ? trim($createByUserCode) : '';
             $createByUserCode = $createByUserCode !== '' ? $createByUserCode : null;
 
@@ -430,11 +430,12 @@
         @endphp
 
         @include('invoices.pdf.partials.header', [
-            'logoType' => 'dmc',
+            'logoType' => $logoType ?? 'dmc',
             'showBlueTitle' => true,
             'docTitle' => 'QUOTATION',
             'docNumber' => $formattedDisplayId,
             'user_dmc' => $tourDmcUser,
+            'user_agency' => $user_agency ?? null,
         ])
 
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
