@@ -328,6 +328,9 @@ Route::get('/clear', function () {
             Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
                 ->name('tour.itinerary.pdf');
 
+            Route::get('/tour/{tourId}/download-detailed-quotation', [\App\Http\Controllers\QuotationController::class, 'downloadDetailedQuotation'])
+                ->name('tour.detailed-quotation.pdf');
+
             // Temporarily store edited “quotation_information” for preview + PDF
             Route::post('/tour/{tourId}/quotation-info', [\App\Http\Controllers\QuotationController::class, 'storeQuotationInfo'])
                 ->name('tour.quotation.info');
