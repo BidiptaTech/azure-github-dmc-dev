@@ -166,6 +166,9 @@ class QuotationController extends Controller
         ]);
     }
 
+    /**
+     * Packaged (detailed) quotation preview page: currency, iframe preview, then download via modal (same flow as itinerary preview).
+     */
     public function detailedQuotationPreview($encryptedTourId, Request $request)
     {
         try {
@@ -174,31 +177,113 @@ class QuotationController extends Controller
             return redirect()->back()->with('error', 'Invalid tour reference.');
         }
 
-        // Stream detailed quotation PDF (currency optional via querystring)
-        $currency = $request->query('currency');
-        $preview = true;
-
-        try {
-            $pdfResponse = CommonHelper::downloadTourPdf(
-                $tourId,
-                $currency,
-                $preview,
-                null,
-                'single-tour-package.detailedqutation',
-                (string) $request->query('logo_type', 'dmc')
-            );
-            if ($pdfResponse) {
-                return $pdfResponse;
-            }
-        } catch (\Throwable $e) {
-            Log::error('Detailed quotation PDF generation failed', [
-                'tour_id' => $tourId,
-                'error' => $e->getMessage(),
-            ]);
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found.');
         }
 
-        return redirect()->back()->with('error', 'Unable to generate detailed quotation.');
+        $availableCurrencies = [
+            'SGD',
+            'USD',
+            'EUR',
+            'GBP',
+            'INR',
+            'AUD',
+            'NZD',
+            'CAD',
+            'CHF',
+            'JPY',
+            'CNY',
+            'HKD',
+            'TWD',
+            'KRW',
+            'THB',
+            'MYR',
+            'IDR',
+            'PHP',
+            'VND',
+            'AED',
+            'SAR',
+            'QAR',
+            'KWD',
+            'BHD',
+            'OMR',
+            'ZAR',
+            'NGN',
+            'EGP',
+            'KES',
+            'GHS',
+            'MAD',
+            'BRL',
+            'ARS',
+            'CLP',
+            'COP',
+            'PEN',
+            'MXN',
+            'RUB',
+            'UAH',
+            'TRY',
+            'ILS',
+            'PLN',
+            'CZK',
+            'HUF',
+            'RON',
+            'SEK',
+            'NOK',
+            'DKK',
+            'ISK',
+            'BGN',
+            'HRK',
+            'PKR',
+            'LKR',
+            'BDT',
+            'MVR',
+            'KZT',
+            'DOP',
+            'JMD',
+        ];
+        $currentUser = Auth::user();
+        $dmcId = CommonHelper::getDmcId($currentUser);
+        $dmc = User::select('country')->where('userId', $dmcId)->first();
+        $country = $dmc ? Country::select('currency')->where('name', $dmc->country)->first() : null;
+        $currencyRaw = $country ? $country->currency : null;
+        $defaultCurrency = CurrencyHelper::normalizeCurrencyToCode($currencyRaw, $availableCurrencies, 'SGD');
+        $selectedCurrency = strtoupper($request->query('currency', $defaultCurrency));
+
+        if (!in_array($selectedCurrency, $availableCurrencies, true)) {
+            $selectedCurrency = $defaultCurrency;
+        }
+
+        $logoType = strtolower((string) $request->query('logo_type', 'dmc'));
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+        $hasAgency = false;
+        if (!empty($tour->agent_id)) {
+            $agentForPreview = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            $hasAgency = $agentForPreview && $agentForPreview->agency;
+        }
+        if ($logoType === 'agency' && !$hasAgency) {
+            $logoType = 'dmc';
+        }
+
+        $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+        $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+        $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+            return $group->pluck('name')->values();
+        })->toArray();
+
+        return view('single-tour-package.detailed-quotation-preview', [
+            'tour' => $tour,
+            'selectedCurrency' => $selectedCurrency,
+            'availableCurrencies' => $availableCurrencies,
+            'countries' => $countries,
+            'citiesByCountry' => $citiesByCountry,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
+        ]);
     }
+
     /**
      * Generate itinerary PDF (used by preview iframe and direct download).
      */
@@ -256,6 +341,66 @@ class QuotationController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
             return $this->itineraryPdfErrorResponse($request, 'Unable to generate itinerary PDF.');
+        }
+    }
+
+    /**
+     * Generate packaged (detailed) quotation PDF for iframe preview and download.
+     */
+    public function downloadDetailedQuotation($tourId, Request $request)
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->first();
+            if (!$tour) {
+                return $this->itineraryPdfErrorResponse($request, 'Tour not found.');
+            }
+
+            $currency = $request->query('currency');
+            $preview = $request->boolean('preview', false);
+            $quotationInfoKey = $request->query('quotation_info_key');
+            $quotationInformationHtml = $quotationInfoKey ? Cache::get((string) $quotationInfoKey) : null;
+            $logoType = strtolower(trim((string) $request->query('logo_type', 'dmc')));
+            if (!in_array($logoType, ['dmc', 'agency'], true)) {
+                $logoType = 'dmc';
+            }
+
+            $logoAttempts = $logoType === 'agency' ? ['agency', 'dmc'] : ['dmc'];
+
+            foreach ($logoAttempts as $attemptLogo) {
+                try {
+                    $pdfResponse = CommonHelper::downloadTourPdf(
+                        $tourId,
+                        $currency,
+                        $preview,
+                        $quotationInformationHtml,
+                        'single-tour-package.detailedqutation',
+                        $attemptLogo
+                    );
+                    if ($pdfResponse) {
+                        return $pdfResponse;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Packaged quotation PDF generation attempt failed', [
+                        'tour_id' => $tourId,
+                        'logo_type' => $attemptLogo,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            Log::error('Packaged quotation PDF generation failed after all logo attempts', [
+                'tour_id' => $tourId,
+                'requested_logo_type' => $logoType,
+            ]);
+
+            return $this->itineraryPdfErrorResponse($request, 'Unable to generate packaged quotation PDF.');
+        } catch (\Exception $e) {
+            Log::error('Packaged quotation PDF route error: ' . $e->getMessage(), [
+                'tour_id' => $tourId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->itineraryPdfErrorResponse($request, 'Unable to generate packaged quotation PDF.');
         }
     }
 
