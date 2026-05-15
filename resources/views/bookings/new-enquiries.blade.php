@@ -89,6 +89,12 @@
         position: relative;
         z-index: 10;
     }
+    #toursTable tbody tr:has(.quotation-actions-flyout:hover),
+    #toursTable tbody tr:has(.quotation-actions-flyout:focus-within),
+    #toursTable tbody tr:has(.invoice-actions-flyout:hover),
+    #toursTable tbody tr:has(.invoice-actions-flyout:focus-within) {
+        z-index: 40;
+    }
     
     /* Services column: professional soft-badge style (light bg, colored icon) */
     #toursTable td:nth-child(5) {
@@ -183,6 +189,8 @@
         overflow: visible;
     }
     #toursTable .actions-icons-wrap {
+        overflow: visible;
+        position: relative;
         display: grid;
         grid-template-columns: repeat(3, auto);
         row-gap: 0.5rem;
@@ -200,12 +208,12 @@
         align-items: center;
         justify-content: center;
     }
-    /* Single trigger icon; hover reveals links above (quotation / invoice pairs) */
+    /* Hover reveals stacked links immediately beside the trigger icon */
     #toursTable .quotation-actions-flyout,
     #toursTable .invoice-actions-flyout {
         position: relative;
         display: inline-flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
         z-index: 1;
     }
@@ -215,39 +223,83 @@
     #toursTable .invoice-actions-flyout:focus-within {
         z-index: 20;
     }
+    #toursTable .quotation-actions-flyout:hover .quotation-actions-flyout__trigger,
+    #toursTable .quotation-actions-flyout:focus-within .quotation-actions-flyout__trigger,
+    #toursTable .invoice-actions-flyout:hover .invoice-actions-flyout__trigger,
+    #toursTable .invoice-actions-flyout:focus-within .invoice-actions-flyout__trigger {
+        border-color: color-mix(in srgb, var(--action-color, #0f766e) 55%, #e2e8f0);
+        background: color-mix(in srgb, var(--action-color, #0f766e) 14%, #fff);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-color, #0f766e) 30%, transparent),
+                    0 0 12px color-mix(in srgb, var(--action-color, #0f766e) 38%, transparent);
+    }
     #toursTable .quotation-actions-flyout__links,
     #toursTable .invoice-actions-flyout__links {
         position: absolute;
-        left: 50%;
-        bottom: calc(100% + 0.35rem);
-        top: auto;
-        transform: translateX(-50%);
+        left: calc(100% + 0.2rem);
+        top: 0;
+        right: auto;
+        bottom: auto;
+        transform: none;
         display: flex;
-        flex-direction: row;
-        align-items: center;
+        flex-direction: column;
+        align-items: stretch;
         gap: 0.35rem;
-        padding: 0.35rem 0.45rem;
+        padding: 0.35rem;
         margin: 0;
         list-style: none;
-        background: #fff;
+        background: rgba(255, 255, 255, 0.97);
         border-radius: 10px;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.14);
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transition: opacity 0.15s ease, visibility 0.15s ease;
+        transition: opacity 0.15s ease, visibility 0.15s ease, box-shadow 0.15s ease;
         white-space: nowrap;
+        z-index: 30;
     }
-    /* Bridge gap so pointer can move from button up into the flyout */
+    #toursTable .quotation-actions-flyout::before,
+    #toursTable .invoice-actions-flyout::before {
+        content: '';
+        position: absolute;
+        left: 100%;
+        top: 0;
+        width: 0.35rem;
+        height: 100%;
+        z-index: 29;
+    }
+    #toursTable .quotation-actions-flyout:hover .quotation-actions-flyout__links,
+    #toursTable .quotation-actions-flyout:focus-within .quotation-actions-flyout__links {
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.14),
+                    0 0 20px color-mix(in srgb, #0f766e 22%, transparent);
+    }
+    #toursTable .invoice-actions-flyout:hover .invoice-actions-flyout__links,
+    #toursTable .invoice-actions-flyout:focus-within .invoice-actions-flyout__links {
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.14),
+                    0 0 20px color-mix(in srgb, #0e7490 22%, transparent);
+    }
+    #toursTable .quotation-actions-flyout__links .action-icon-badge,
+    #toursTable .invoice-actions-flyout__links .action-icon-badge {
+        border-color: color-mix(in srgb, var(--action-color, #475569) 50%, #e2e8f0);
+        background: color-mix(in srgb, var(--action-color, #475569) 16%, #fff);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-color, #475569) 28%, transparent),
+                    0 0 14px color-mix(in srgb, var(--action-color, #475569) 42%, transparent);
+    }
+    #toursTable .quotation-actions-flyout__links .action-icon-badge:hover,
+    #toursTable .invoice-actions-flyout__links .action-icon-badge:hover {
+        background: color-mix(in srgb, var(--action-color, #475569) 24%, #fff);
+        border-color: color-mix(in srgb, var(--action-color, #475569) 62%, #e2e8f0);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-color, #475569) 38%, transparent),
+                    0 0 18px color-mix(in srgb, var(--action-color, #475569) 55%, transparent);
+    }
     #toursTable .quotation-actions-flyout__links::after,
     #toursTable .invoice-actions-flyout__links::after {
         content: '';
         position: absolute;
-        left: 0;
-        right: 0;
-        top: 100%;
-        height: 10px;
+        top: 0;
+        bottom: 0;
+        right: 100%;
+        width: 0.35rem;
     }
     #toursTable .quotation-actions-flyout:hover .quotation-actions-flyout__links,
     #toursTable .quotation-actions-flyout:focus-within .quotation-actions-flyout__links,
