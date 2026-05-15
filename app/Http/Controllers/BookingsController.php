@@ -2264,27 +2264,188 @@ class BookingsController extends Controller
         ]);
     }
 
+    public function confirmationVoucherPreview(Request $request, $tourId)
+    {
+        try {
+            $tourIdPlain = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Invalid tour ID');
+        }
+
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found');
+        }
+
+        $logoType = strtolower((string) $request->query('logo_type', 'dmc'));
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+
+        $hasAgency = false;
+        if (!empty($tour->agent_id)) {
+            $agentForPreview = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            $hasAgency = (bool) ($agentForPreview && $agentForPreview->agency);
+        }
+        if ($logoType === 'agency' && !$hasAgency) {
+            $logoType = 'dmc';
+        }
+
+        return view('bookings.voucher-preview', [
+            'tour' => $tour,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
+            'encryptedTourId' => $tourId,
+        ]);
+    }
+
     public function confirmationVoucher(Request $request, $tourId)
     {
         try {
-            $tourId = Crypt::decrypt($tourId);
+            $tourIdPlain = Crypt::decrypt($tourId);
         } catch (\Exception $e) {
+            if ($request->boolean('preview', false)) {
+                return $this->confirmationVoucherPreviewErrorResponse('Invalid tour ID');
+            }
             abort(404, 'Invalid tour ID');
         }
 
-        $tour = Tour::where('tour_id', $tourId)->first();
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
         if (!$tour) {
+            if ($request->boolean('preview', false)) {
+                return $this->confirmationVoucherPreviewErrorResponse('Tour not found');
+            }
             abort(404, 'Tour not found');
         }
 
-        $orders = Order::where('tour_id', $tourId)
+        $payload = $this->computeConfirmationVoucherPayload($tour);
+        if ($payload === null) {
+            if ($request->boolean('preview', false)) {
+                return $this->confirmationVoucherPreviewErrorResponse('No approved services found for this tour.');
+            }
+            return back()->with('error', 'No approved services found for this tour.');
+        }
+
+        $preview = $request->boolean('preview', false);
+        $requestedLogo = strtolower(trim((string) $request->query('logo_type', 'dmc')));
+        if (!in_array($requestedLogo, ['dmc', 'agency'], true)) {
+            $requestedLogo = 'dmc';
+        }
+        $logoAttempts = $requestedLogo === 'agency' ? ['agency', 'dmc'] : ['dmc'];
+
+        foreach ($logoAttempts as $attemptLogo) {
+            try {
+                $voucherData = $this->applyConfirmationVoucherBranding($payload, $tour, $attemptLogo);
+                $dompdf = new Dompdf();
+                $dompdf->set_option('isRemoteEnabled', true);
+                $dompdf->set_option('isHtml5ParserEnabled', true);
+                $html = view('bookings.voucher-pdf', $voucherData)->render();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+                $filename = 'Confirmation_Voucher_' . ($tour->display_id ?? $tourIdPlain) . '.pdf';
+                return $dompdf->stream($filename, ['Attachment' => !$preview]);
+            } catch (\Exception $e) {
+                Log::warning('Confirmation voucher PDF attempt failed', [
+                    'tour_id' => $tourIdPlain,
+                    'logo_type' => $attemptLogo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($preview) {
+            return $this->confirmationVoucherPreviewErrorResponse('Unable to generate confirmation voucher PDF.');
+        }
+
+        return back()->with('error', 'Failed to generate PDF.');
+    }
+
+    private function confirmationVoucherPreviewErrorResponse(string $message)
+    {
+        $safe = e($message);
+        return response(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview unavailable</title></head>'
+            . '<body style="margin:0;font-family:system-ui,sans-serif;padding:1.25rem;background:#f8f9fa;color:#333;">'
+            . '<p style="margin:0 0 0.5rem;font-weight:600;">Confirmation voucher preview could not be loaded</p>'
+            . '<p style="margin:0;font-size:0.9rem;">' . $safe . '</p>'
+            . '<p style="margin:1rem 0 0;font-size:0.8rem;color:#6c757d;">Use <strong>Download PDF</strong> on the outer page, or try the other company branding option.</p>'
+            . '</body></html>',
+            503
+        )->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    private function resolveVoucherRootDmcUser(?User $dmcUser): ?User
+    {
+        if (!$dmcUser) {
+            return null;
+        }
+        $rootDmc = $dmcUser;
+        $visited = [];
+        while ($rootDmc
+            && (int) $rootDmc->role_id !== 11
+            && $rootDmc->created_by
+            && !in_array($rootDmc->created_by, $visited, true)) {
+            $visited[] = $rootDmc->created_by;
+            $rootDmc = User::where('userId', $rootDmc->created_by)->first();
+        }
+        return $rootDmc ?: $dmcUser;
+    }
+
+    private function applyConfirmationVoucherBranding(array $payload, Tour $tour, string $logoType): array
+    {
+        $user_dmc = null;
+        if (!empty($tour->dmc_id)) {
+            $user_dmc = User::where('userId', $tour->dmc_id)->first();
+            if ($user_dmc && $user_dmc->logo && !str_starts_with((string) $user_dmc->logo, 'data:image')) {
+                try {
+                    $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                    $imageContent = @file_get_contents($user_dmc->logo, false, $context);
+                    if ($imageContent !== false) {
+                        $imageInfo = @getimagesizefromstring($imageContent);
+                        if ($imageInfo !== false) {
+                            $user_dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Voucher header DMC logo base64 failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $user_agency = null;
+        if (!empty($tour->agent_id)) {
+            $agentHeader = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            if ($agentHeader && $agentHeader->agency) {
+                $user_agency = $agentHeader->agency;
+            }
+        }
+
+        $normalizedLogo = strtolower((string) $logoType) === 'agency' ? 'agency' : 'dmc';
+        if ($normalizedLogo === 'agency' && !$user_agency) {
+            $normalizedLogo = 'dmc';
+        }
+
+        $voucherRootDmc = $this->resolveVoucherRootDmcUser($user_dmc);
+
+        return array_merge($payload, [
+            'user_dmc' => $user_dmc,
+            'user_agency' => $user_agency,
+            'logoType' => $normalizedLogo,
+            'voucherRootDmc' => $voucherRootDmc,
+        ]);
+    }
+
+    private function computeConfirmationVoucherPayload(Tour $tour): ?array
+    {
+        $orders = Order::where('tour_id', $tour->tour_id)
             ->where('bookingType', 'booking')
             ->whereNull('deleted_at')
             ->where('is_approve', 1)
             ->get();
 
         if ($orders->isEmpty()) {
-            return back()->with('error', 'No approved services found for this tour.');
+            return null;
         }
 
         $dmcUser = User::where('userId', $tour->dmc_id)->first();
@@ -2554,7 +2715,7 @@ class BookingsController extends Controller
         }
         $confirmationNo = !empty($confirmationNos) ? implode(', ', $confirmationNos) : 'na';
 
-        $voucherData = [
+        return [
             'tour' => $tour,
             'dmcUser' => $dmcUser,
             'hotels' => $hotels,
@@ -2568,16 +2729,5 @@ class BookingsController extends Controller
             'confirmationNo' => (string) $confirmationNo,
             'mealPlanSummary' => (string) $mealPlanSummary,
         ];
-
-        $dompdf = new Dompdf();
-        $dompdf->set_option('isRemoteEnabled', true);
-        $dompdf->set_option('isHtml5ParserEnabled', true);
-        $html = view('bookings.voucher-pdf', $voucherData)->render();
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-
-        $filename = 'Confirmation_Voucher_' . ($tour->display_id ?? $tourId) . '.pdf';
-        return $dompdf->stream($filename, ['Attachment' => true]);
     }
 }

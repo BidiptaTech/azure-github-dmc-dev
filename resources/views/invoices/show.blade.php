@@ -318,9 +318,10 @@ use Illuminate\Support\Facades\Crypt;
                             <i class="ri-pencil-line me-1"></i> Edit
                         </a>
                         @endif -->
-                        <a href="{{ route('bookings.view-tour', Crypt::encrypt($invoice->tour_id)) }}" 
-                           class="btn btn-outline-secondary btn-sm">
-                            <i class="ri-arrow-left-line me-1"></i> Back to Tour
+                        <a href="#"
+                           class="btn btn-outline-secondary btn-sm"
+                           onclick="event.preventDefault(); history.back();">
+                            <i class="ri-arrow-left-line me-1"></i> Back
                         </a>
                     </div>
                 </div>

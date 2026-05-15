@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Helpers\CommonHelper;
 use App\Mail\DmcMail;
+use App\Services\FirebaseService;
 
 class EditTourController extends Controller
 {
@@ -358,6 +359,8 @@ class EditTourController extends Controller
                 },
             ],
             'discount' => 'nullable|numeric|min:0|max:1',
+            'discount_price' => 'nullable|numeric|min:0',
+            'discount_amount' => 'nullable|numeric|min:0',
         ]);
 
         $focSizeReq = max(0, (int) $request->input('foc_size', $validated['foc_size'] ?? 0));
@@ -435,6 +438,12 @@ class EditTourController extends Controller
                 $tour->discount = 0.0;
             }
 
+            // UI field discount_price → existing column discount_amount (same field, no new column)
+            $tour->discount_amount = (float) ($request->input(
+                'discount_price',
+                $request->input('discount_amount', $tour->discount_amount ?? 0)
+            ) ?: 0);
+
             // If tour date range changed, ensure multi-city plans still fit within the new tour range.
             // Any city plan that is not fully contained in [checkIn, checkOut] is removed from tours.city,
             // and its services are soft-deleted so city/date + services stay consistent.
@@ -490,6 +499,7 @@ class EditTourController extends Controller
                     'tour_type' => $tour->tour_type,
                     'foc_size' => (int) ($tour->foc_size ?? 0),
                     'discount' => (float) ($tour->discount ?? 0),
+                    'discount_amount' => (float) ($tour->discount_amount ?? 0),
                 ],
                 'deleted_services_count' => $deletedServicesCount,
             ]);
@@ -747,6 +757,9 @@ class EditTourController extends Controller
                 }
             }
 
+            // Match GuestController::update — upsert guests.guest_id onto Firebase chat node for this tour
+            $firebaseSync = $this->syncFirebasePrimaryGuestForTourFromGuestsTable($tour);
+
             $message = 'Guest details updated successfully.';
             if (!empty($emailResults)) {
                 $sentCount = count(array_filter($emailResults, fn($r) => $r['sent'] ?? false));
@@ -775,6 +788,7 @@ class EditTourController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
+                'firebase_sync' => $firebaseSync,
             ]);
         } catch (\Throwable $exception) {
             DB::rollBack();
@@ -1044,6 +1058,102 @@ class EditTourController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+        }
+    }
+
+    /**
+     * Resolve the lead (main) guest row for this tour using the same rules as syncGuestsToGuestsTable().
+     */
+    private function resolveLeadGuestRowForTour(Tour $tour): ?Guest
+    {
+        $tourIdInt = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+        $mainguest = $tour->mainguest;
+        if (!is_array($mainguest)) {
+            return null;
+        }
+        if (empty($mainguest['full_name']) && empty($mainguest['fullName']) && empty($mainguest['email'])) {
+            return null;
+        }
+
+        $fullName = $mainguest['full_name'] ?? $mainguest['fullName'] ?? 'Guest';
+        $email = trim((string) ($mainguest['email'] ?? $mainguest['Email'] ?? ''));
+        $phone = trim((string) ($mainguest['phone'] ?? ''));
+
+        if ($email !== '') {
+            $found = Guest::whereJsonContains('tour_id', $tourIdInt)->where('email', $email)->first();
+            if ($found) {
+                return $found;
+            }
+        }
+        if ($fullName !== '' && $phone !== '') {
+            return Guest::whereJsonContains('tour_id', $tourIdInt)
+                ->where('guest_name', $fullName)
+                ->where('contact', $phone)
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Upsert Firebase chat/guestId for this tour from the guests table (same service path as GuestController::syncGuestIdsToFirebase).
+     * Firebase stores one guestId per tour chat; we use the lead guest when identifiable, otherwise the lowest guest_id for this tour.
+     */
+    private function syncFirebasePrimaryGuestForTourFromGuestsTable(Tour $tour): array
+    {
+        $tourIdInt = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+
+        $guest = $this->resolveLeadGuestRowForTour($tour);
+        if (!$guest) {
+            $guest = Guest::query()
+                ->whereJsonContains('tour_id', $tourIdInt)
+                ->orderBy('guest_id')
+                ->first();
+        }
+
+        if (!$guest) {
+            return [];
+        }
+
+        $tourRow = Tour::query()
+            ->select(['tour_id', 'dmc_id'])
+            ->where('tour_id', $tourIdInt)
+            ->first();
+
+        if (!$tourRow || empty($tourRow->dmc_id)) {
+            Log::warning('Skipping Firebase guest sync (tour edit): missing tour or DMC ID', [
+                'tour_id' => $tourIdInt,
+                'guest_id' => $guest->guest_id,
+            ]);
+
+            return [[
+                'success' => false,
+                'tour_id' => $tourIdInt,
+                'guest_id' => (int) $guest->guest_id,
+                'message' => 'Missing tour or DMC ID',
+            ]];
+        }
+
+        try {
+            return [app(FirebaseService::class)->upsertChatGuest(
+                (int) $tourRow->tour_id,
+                (int) $tourRow->dmc_id,
+                (int) $guest->guest_id
+            )];
+        } catch (\Throwable $e) {
+            report($e);
+            Log::error('Firebase guest sync failed (tour edit)', [
+                'tour_id' => $tourIdInt,
+                'guest_id' => $guest->guest_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [[
+                'success' => false,
+                'tour_id' => $tourIdInt,
+                'guest_id' => (int) $guest->guest_id,
+                'message' => $e->getMessage(),
+            ]];
         }
     }
 
