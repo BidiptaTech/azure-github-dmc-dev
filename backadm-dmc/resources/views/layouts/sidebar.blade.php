@@ -92,7 +92,7 @@
 
         @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
             <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
-                <a href="{{ route('enquiry-form-pro.create') }}" class="menu-link" id="createSingleTourProBtn">
+                <a href="#" class="menu-link" id="createSingleTourProBtn" data-enquiry-pro-create-url="{{ route('enquiry-form-pro.create') }}">
                     <i class="menu-icon tf-icons ri-file-list-3-line"></i>
                     <div data-i18n="Create Tour">Create Tour</div>
                     <span class="badge-pro">Pro</span>
@@ -1705,53 +1705,84 @@
         </div>
 <!-- Modal for Create Single Tour Pro Initial Information -->
 <div class="modal fade" id="createTourProModal" tabindex="-1" aria-labelledby="createTourProModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 800px;">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white py-2">
-                <h6 class="modal-title mb-0" id="createTourProModalLabel">
-                    <i class="ri-file-list-3-line me-2"></i>Create Single Tour Pro
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 860px;">
+        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white py-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                <h6 class="modal-title mb-0 text-white d-flex align-items-center" id="createTourProModalLabel">
+                    <span class="d-inline-flex align-items-center justify-content-center me-2" style="width:28px;height:28px;background:rgba(255,255,255,0.2);border-radius:6px;"><i class="ri-file-list-3-line"></i></span>
+                    Create Single Tour Pro
                 </h6>
                 <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="createTourProForm" method="POST" action="{{ route('enquiry-form-pro.initialize') }}">
                 @csrf
                 <div class="modal-body" style="padding: 10px 15px;">
-                    <!-- Row 1: Tour Type (Radio), Dates, Pax -->
+                    <!-- Row 1: Tour Type + dates -->
                     <div class="row g-2 mb-1">
-                        <div class="col-2">
+                        <div class="col-md-3 col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Type <span class="text-danger">*</span></label>
                             <div class="d-flex gap-2 mt-1">
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeFIT" value="FIT" checked required>
+                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeFIT" value="FIT" checked>
                                     <label class="form-check-label small" for="tourTypeFIT" style="font-size: 10px;">FIT</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeGroup" value="Group" required>
+                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeGroup" value="GROUP">
                                     <label class="form-check-label small" for="tourTypeGroup" style="font-size: 10px;">Group</label>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-2">
+                        <div class="col-md-3 col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Start <span class="text-danger">*</span></label>
                             <input type="date" class="form-control form-control-sm" id="tourStartDate" name="tour_start_date" required style="font-size: 10px;">
                         </div>
-                        <div class="col-2">
+                        <div class="col-md-3 col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">End <span class="text-danger">*</span></label>
                             <input type="date" class="form-control form-control-sm" id="tourEndDate" name="tour_end_date" required style="font-size: 10px;">
                         </div>
-                        <div class="col-2">
+                    </div>
+
+                    <!-- FIT: Adult / Child / Infant (unchanged behaviour) -->
+                    <div class="row g-2 mb-1" id="tourProFitPaxRow">
+                        <div class="col-md-2 col-4">
                             <label class="form-label small mb-0" style="font-size: 10px;">Adult <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control form-control-sm" id="adultCount" name="adult_count" min="0" value="1" required style="font-size: 10px;">
+                            <input type="number" class="form-control form-control-sm" id="adultCount" min="1" value="1" style="font-size: 10px;">
                         </div>
-                        <div class="col-2">
+                        <div class="col-md-2 col-4">
                             <label class="form-label small mb-0" style="font-size: 10px;">Child</label>
-                            <input type="number" class="form-control form-control-sm" id="childCount" name="child_count" min="0" value="0" style="font-size: 10px;">
+                            <input type="number" class="form-control form-control-sm" id="childCount" min="0" value="0" style="font-size: 10px;">
                         </div>
-                        <div class="col-2">
+                        <div class="col-md-2 col-4">
                             <label class="form-label small mb-0" style="font-size: 10px;">Infant</label>
-                            <input type="number" class="form-control form-control-sm" id="infantCount" name="infant_count" min="0" value="0" style="font-size: 10px;">
+                            <input type="number" class="form-control form-control-sm" id="infantCount" min="0" value="0" style="font-size: 10px;">
                         </div>
                     </div>
+
+                    <!-- GROUP: summary + open guest / FOC modal (Create Lite style) -->
+                    <div class="row g-2 mb-1 d-none" id="tourProGroupPaxRow">
+                        <div class="col-12">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Guests <span class="text-danger">*</span></label>
+                            <div class="d-flex align-items-center flex-wrap gap-2 p-2 border rounded" style="background:#f8f9fa;font-size:10px;">
+                                <span id="tourProGroupGuestSummary" class="text-muted">Configure group guests and FOC…</span>
+                                <button type="button" class="btn btn-sm text-white ms-auto" id="tourProOpenGuestModalBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 10px; padding: 4px 10px;">
+                                    <i class="ri-group-line me-1"></i>Select tour guests
+                                </button>
+                            </div>
+                            <small class="text-muted" style="font-size:9px;">Group size = paying pax; FOC adds to total pax. Adults + children must match total pax (male + female = adults). Infants are extra and do not use a pax slot.</small>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="adult_count" id="ctp_hidden_adult_count" value="1">
+                    <input type="hidden" name="child_count" id="ctp_hidden_child_count" value="0">
+                    <input type="hidden" name="infant_count" id="ctp_hidden_infant_count" value="0">
+                    <input type="hidden" name="male" id="ctp_hidden_male" value="0">
+                    <input type="hidden" name="female" id="ctp_hidden_female" value="0">
+                    <input type="hidden" name="group_size" id="ctp_hidden_group_size" value="0">
+                    <input type="hidden" name="foc_size" id="ctp_hidden_foc_size" value="0">
+                    <input type="hidden" name="paying_pax" id="ctp_hidden_paying_pax" value="0">
+                    <input type="hidden" name="discount" id="ctp_hidden_discount" value="0">
+                    <input type="hidden" name="auto_foc" id="ctp_hidden_auto_foc" value="0">
+                    <input type="hidden" name="child_ages" id="ctp_hidden_child_ages" value="[]">
 
                     <!-- Row 2: Destination (moved before Agency) -->
                     <div class="row g-2 mb-1">
@@ -1859,6 +1890,135 @@
         </div>
     </div>
 </div>
+
+<!-- Select Tour Guests + FOC (Group — Create Lite parity) -->
+<div class="modal fade" id="tourProGuestModal" tabindex="-1" aria-labelledby="tourProGuestModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                <h5 class="modal-title fw-bold d-flex align-items-center mb-0 text-white" id="tourProGuestModalLabel" style="font-size: 1.05rem;">
+                    <span class="d-inline-flex align-items-center justify-content-center me-2" style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:8px;"><i class="ri-group-line"></i></span>
+                    Select Tour Guests
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
+                <div class="p-2 border rounded mb-3" style="background:#ffffff;border-color:#e9ecef !important;border-radius:10px;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="fw-semibold" style="color:#495057; font-size:0.82rem;"><i class="ri-group-2-line me-1 text-primary"></i>Group Details</div>
+                        <span class="badge" style="background:#e7f1ff;color:#0d6efd;border-radius:6px;font-size:0.7rem;">FOC</span>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Group Size</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" min="0" step="1" class="form-control" id="pro_group_size_display" value="1" style="border-radius:8px 0 0 8px;">
+                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold mb-1" for="pro_foc_size" style="color:#495057; font-size:0.74rem;">FOC Size</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" min="0" step="1" class="form-control" id="pro_foc_size" value="0" style="border-radius:8px 0 0 8px;">
+                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                            </div>
+                        </div>
+                        <div class="col-12" id="pro_includeFOCInPriceRow">
+                            <div class="form-check d-flex align-items-center gap-2" style="margin-top:2px;">
+                                <input class="form-check-input" type="checkbox" id="pro_include_foc_in_group_price">
+                                <label class="form-check-label" for="pro_include_foc_in_group_price" style="color:#495057; font-size:0.74rem;">Treat FOC pax as discount (free)</label>
+                                <i class="ri-information-line text-dark fw-bold ctp-foc-info" style="font-size:1.05rem; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="<div style='text-align:left;'><div class='fw-semibold mb-1'>Note:</div><div><span class='text-warning fw-semibold'>☑</span> FOC cost is discounted in paying pax.</div><div><span class='text-warning fw-semibold'>☐</span> FOC cost is included in paying pax.</div></div>"></i>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Paying Pax</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" id="pro_paying_pax" value="1" readonly style="background:#f8f9fa;border-radius:8px 0 0 8px;">
+                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Total Pax</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="pro_total_pax_display" value="1" readonly style="background:#f8f9fa;border-radius:8px 0 0 8px;">
+                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div class="card-header py-2" style="background:#f8f9fa;border:none;border-bottom:1px solid #e9ecef;">
+                                <h6 class="mb-0 fw-semibold" style="color:#495057;font-size:0.875rem;"><i class="ri-user-line me-2 text-primary"></i>Adults</h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="mb-3 text-center">
+                                    <label class="form-label fw-semibold d-block small">Adults</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestAdultsDelta(-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalAdults">1</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestAdultsDelta(1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                                <div class="mb-2 text-center">
+                                    <label class="form-label fw-semibold d-block small"><i class="ri-men-line text-primary"></i> Male</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('male',-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalMale">1</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('male',1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <label class="form-label fw-semibold d-block small"><i class="ri-women-line text-primary"></i> Female</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestFemaleDelta(-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalFemale">0</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestFemaleDelta(1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div class="card-header py-2" style="background:#f8f9fa;border:none;border-bottom:1px solid #e9ecef;">
+                                <h6 class="mb-0 fw-semibold" style="color:#495057;font-size:0.875rem;"><i class="ri-user-smile-line me-2 text-primary"></i>Children &amp; Infants</h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="mb-3 text-center">
+                                    <label class="form-label fw-semibold d-block small">Children <small class="text-muted d-block fw-normal">Ages 1–17</small></label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('children',-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalChildren">0</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('children',1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                    <div id="ctpChildAgesSection" class="mt-2 text-start" style="display:none;">
+                                        <label class="form-label small fw-semibold">Child ages</label>
+                                        <div id="ctpChildAgeDropdowns" class="d-flex flex-column gap-1"></div>
+                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <label class="form-label fw-semibold d-block small">Infants <small class="text-muted d-block fw-normal">Under 1 year</small></label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('infants',-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalInfants">0</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('infants',1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #e9ecef;background:#f8f9fa;">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm text-white" id="tourProGuestApplyBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"><i class="ri-check-line me-1"></i>Apply Selection</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Enhanced tooltip functionality
@@ -2167,6 +2327,365 @@
                 loadDestinations();
             });
         }
+
+        // Create Tour Pro — FIT pax vs Group (FOC + guest modal, Create Lite parity)
+        window.tourProGuestConfigured = false;
+        function ctpSafeInt(v) {
+            const n = parseInt(String(v ?? '').trim(), 10);
+            return Number.isFinite(n) ? n : 0;
+        }
+        function ctpIsGroup() {
+            const r = document.getElementById('tourTypeGroup');
+            return !!(r && r.checked);
+        }
+        function ctpSetHidden(id, val) {
+            const el = document.getElementById(id);
+            if (el) el.value = String(val);
+        }
+        function ctpSyncFitHiddenPax() {
+            if (ctpIsGroup()) return;
+            const elA = document.getElementById('adultCount');
+            const elC = document.getElementById('childCount');
+            const elI = document.getElementById('infantCount');
+            const a = Math.max(0, ctpSafeInt(elA ? elA.value : 0));
+            const c = Math.max(0, ctpSafeInt(elC ? elC.value : 0));
+            const i = Math.max(0, ctpSafeInt(elI ? elI.value : 0));
+            ctpSetHidden('ctp_hidden_adult_count', a);
+            ctpSetHidden('ctp_hidden_child_count', c);
+            ctpSetHidden('ctp_hidden_infant_count', i);
+            ctpSetHidden('ctp_hidden_male', 0);
+            ctpSetHidden('ctp_hidden_female', 0);
+            ctpSetHidden('ctp_hidden_group_size', 0);
+            ctpSetHidden('ctp_hidden_foc_size', 0);
+            ctpSetHidden('ctp_hidden_paying_pax', 0);
+            ctpSetHidden('ctp_hidden_discount', 0);
+            ctpSetHidden('ctp_hidden_auto_foc', 0);
+            ctpSetHidden('ctp_hidden_child_ages', '[]');
+        }
+        function ctpInitDefaultGroupHidden() {
+            ctpSetHidden('ctp_hidden_group_size', 1);
+            ctpSetHidden('ctp_hidden_foc_size', 0);
+            ctpSetHidden('ctp_hidden_paying_pax', 1);
+            ctpSetHidden('ctp_hidden_discount', 0);
+            ctpSetHidden('ctp_hidden_auto_foc', 0);
+            ctpSetHidden('ctp_hidden_adult_count', 1);
+            ctpSetHidden('ctp_hidden_child_count', 0);
+            ctpSetHidden('ctp_hidden_infant_count', 0);
+            ctpSetHidden('ctp_hidden_male', 1);
+            ctpSetHidden('ctp_hidden_female', 0);
+            ctpSetHidden('ctp_hidden_child_ages', '[]');
+        }
+        function ctpRefreshTourTypeUI() {
+            const fitRow = document.getElementById('tourProFitPaxRow');
+            const groupRow = document.getElementById('tourProGroupPaxRow');
+            const g = ctpIsGroup();
+            if (fitRow) fitRow.classList.toggle('d-none', g);
+            if (groupRow) groupRow.classList.toggle('d-none', !g);
+            if (!g) {
+                window.tourProGuestConfigured = false;
+                ctpSyncFitHiddenPax();
+            }
+            ctpRenderGroupSummary();
+        }
+        document.querySelectorAll('input[name="tour_type"]').forEach(function(r) {
+            r.addEventListener('change', function() {
+                if (ctpIsGroup()) {
+                    window.tourProGuestConfigured = false;
+                    ctpInitDefaultGroupHidden();
+                }
+                ctpRefreshTourTypeUI();
+            });
+        });
+        ['adultCount', 'childCount', 'infantCount'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', ctpSyncFitHiddenPax);
+        });
+        function ctpUpdateFOCFieldsInModal() {
+            const gsd = document.getElementById('pro_group_size_display');
+            const focEl = document.getElementById('pro_foc_size');
+            const gs = Math.max(0, ctpSafeInt(gsd ? gsd.value : 0));
+            const foc = Math.max(0, ctpSafeInt(focEl ? focEl.value : 0));
+            const row = document.getElementById('pro_includeFOCInPriceRow');
+            const cb = document.getElementById('pro_include_foc_in_group_price');
+            const total = gs + foc;
+            const pp = document.getElementById('pro_paying_pax');
+            const tp = document.getElementById('pro_total_pax_display');
+            if (pp) pp.value = String(gs);
+            if (tp) tp.value = String(total);
+            if (row) row.classList.toggle('d-none', foc <= 0);
+            if (cb) {
+                cb.disabled = foc <= 0;
+                if (foc <= 0) cb.checked = false;
+            }
+        }
+        function ctpModalTourCap() {
+            const gsd = document.getElementById('pro_group_size_display');
+            const focEl = document.getElementById('pro_foc_size');
+            const gs = Math.max(0, ctpSafeInt(gsd ? gsd.value : 0));
+            const foc = Math.max(0, ctpSafeInt(focEl ? focEl.value : 0));
+            return gs + foc;
+        }
+        /** Total tour pax = group + FOC. Infants do not count toward this cap; children do. */
+        function ctpSyncModalGuestsToCap() {
+            ctpUpdateFOCFieldsInModal();
+            const cap = ctpModalTourCap();
+            const childEl = document.getElementById('ctpModalChildren');
+            const infEl = document.getElementById('ctpModalInfants');
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (!childEl || !infEl || !maleEl || !femaleEl) return;
+            let ch = ctpSafeInt(childEl.textContent);
+            if (ch > cap) {
+                ch = cap;
+                childEl.textContent = String(ch);
+                window.ctpUpdateChildAgeDropdownsPro(ch);
+            }
+            let m = ctpSafeInt(maleEl.textContent);
+            let f = ctpSafeInt(femaleEl.textContent);
+            const rem = Math.max(0, cap - ch);
+            if (m + f > rem) {
+                f = Math.min(f, rem);
+                m = rem - f;
+                if (m < 0) {
+                    m = 0;
+                    f = rem;
+                }
+            } else if (m + f < rem) {
+                m = rem - f;
+            }
+            maleEl.textContent = String(m);
+            femaleEl.textContent = String(f);
+            if (adEl) adEl.textContent = String(m + f);
+        }
+        function ctpRebalanceHeadcountToTotal() {
+            ctpSyncModalGuestsToCap();
+        }
+        document.addEventListener('input', function(e) {
+            if (!e.target) return;
+            if (e.target.id === 'pro_group_size_display' || e.target.id === 'pro_foc_size') {
+                ctpRebalanceHeadcountToTotal();
+            }
+        }, true);
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.id === 'pro_include_foc_in_group_price') {
+                ctpUpdateFOCFieldsInModal();
+            }
+        }, true);
+        window.ctpGuestDelta = function(type, change) {
+            const cap = ctpModalTourCap();
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const childEl = document.getElementById('ctpModalChildren');
+            const infEl = document.getElementById('ctpModalInfants');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (!maleEl || !femaleEl || !childEl || !infEl) return;
+            let m = ctpSafeInt(maleEl.textContent);
+            let f = ctpSafeInt(femaleEl.textContent);
+            let c = ctpSafeInt(childEl.textContent);
+            let inf = ctpSafeInt(infEl.textContent);
+            if (type === 'male' || type === 'female') {
+                const cur = type === 'male' ? m : f;
+                const nv = cur + change;
+                if (nv < 0) return;
+                if (type === 'male') m = nv; else f = nv;
+                if (m + f < 1) return;
+                if (m + f + c > cap) return;
+                maleEl.textContent = String(m);
+                femaleEl.textContent = String(f);
+                if (adEl) adEl.textContent = String(m + f);
+                return;
+            }
+            if (type === 'children') {
+                const nv = c + change;
+                if (nv < 0) return;
+                if (m + f + nv > cap) return;
+                c = nv;
+                childEl.textContent = String(c);
+                window.ctpUpdateChildAgeDropdownsPro(c);
+                if (adEl) adEl.textContent = String(m + f);
+                ctpSyncModalGuestsToCap();
+                return;
+            }
+            if (type === 'infants') {
+                const nv = inf + change;
+                if (nv < 0) return;
+                inf = nv;
+                infEl.textContent = String(inf);
+            }
+        };
+        window.ctpGuestAdultsDelta = function(change) {
+            const cap = ctpModalTourCap();
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const childEl = document.getElementById('ctpModalChildren');
+            const infEl = document.getElementById('ctpModalInfants');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (!maleEl || !femaleEl || !childEl || !infEl) return;
+            let m = ctpSafeInt(maleEl.textContent);
+            let f = ctpSafeInt(femaleEl.textContent);
+            const c = ctpSafeInt(childEl.textContent);
+            const maxAd = Math.max(0, cap - c);
+            let total = m + f + change;
+            total = Math.max(maxAd > 0 ? 1 : 0, Math.min(maxAd, total));
+            const diff = total - (m + f);
+            if (diff > 0) m += diff;
+            else {
+                let rem = -diff;
+                const fromM = Math.min(m, rem);
+                m -= fromM;
+                rem -= fromM;
+                f = Math.max(0, f - rem);
+            }
+            maleEl.textContent = String(m);
+            femaleEl.textContent = String(f);
+            if (adEl) adEl.textContent = String(m + f);
+        };
+        window.ctpGuestFemaleDelta = function(change) {
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (!maleEl || !femaleEl) return;
+            let m = ctpSafeInt(maleEl.textContent);
+            let f = ctpSafeInt(femaleEl.textContent);
+            if (change > 0) {
+                if (m <= 0) return;
+                m--;
+                f++;
+            } else {
+                if (f <= 0) return;
+                f--;
+                m++;
+            }
+            maleEl.textContent = String(m);
+            femaleEl.textContent = String(f);
+            if (adEl) adEl.textContent = String(m + f);
+        };
+        window.ctpUpdateChildAgeDropdownsPro = function(childCount) {
+            const sec = document.getElementById('ctpChildAgesSection');
+            const box = document.getElementById('ctpChildAgeDropdowns');
+            if (!sec || !box) return;
+            if (!childCount) {
+                sec.style.display = 'none';
+                box.innerHTML = '';
+                return;
+            }
+            sec.style.display = 'block';
+            box.innerHTML = '';
+            for (let i = 1; i <= childCount; i++) {
+                let opts = '<option value="">Age</option>';
+                for (let a = 1; a <= 17; a++) opts += '<option value="' + a + '">' + a + '</option>';
+                box.insertAdjacentHTML('beforeend', '<div class="d-flex align-items-center gap-1 mb-1"><span class="small">C' + i + ':</span><select class="form-select form-select-sm ctp-child-age">' + opts + '</select></div>');
+            }
+        };
+        function ctpCopyModalInputsFromHidden() {
+            const gsd = document.getElementById('pro_group_size_display');
+            const focEl = document.getElementById('pro_foc_size');
+            if (gsd) gsd.value = String(Math.max(1, ctpSafeInt(document.getElementById('ctp_hidden_group_size').value) || 1));
+            if (focEl) focEl.value = String(Math.max(0, ctpSafeInt(document.getElementById('ctp_hidden_foc_size').value)));
+            const cb = document.getElementById('pro_include_foc_in_group_price');
+            if (cb) cb.checked = document.getElementById('ctp_hidden_discount').value === '1';
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const childEl = document.getElementById('ctpModalChildren');
+            const infEl = document.getElementById('ctpModalInfants');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (maleEl) maleEl.textContent = String(ctpSafeInt(document.getElementById('ctp_hidden_male').value));
+            if (femaleEl) femaleEl.textContent = String(ctpSafeInt(document.getElementById('ctp_hidden_female').value));
+            if (childEl) childEl.textContent = String(ctpSafeInt(document.getElementById('ctp_hidden_child_count').value));
+            if (infEl) infEl.textContent = String(ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value));
+            const m = maleEl ? ctpSafeInt(maleEl.textContent) : 0;
+            const f = femaleEl ? ctpSafeInt(femaleEl.textContent) : 0;
+            if (adEl) adEl.textContent = String(m + f);
+            ctpRebalanceHeadcountToTotal();
+            window.ctpUpdateChildAgeDropdownsPro(childEl ? ctpSafeInt(childEl.textContent) : 0);
+            let ages = [];
+            try {
+                ages = JSON.parse(document.getElementById('ctp_hidden_child_ages').value || '[]');
+            } catch (e2) { ages = []; }
+            document.querySelectorAll('.ctp-child-age').forEach(function(sel, idx) {
+                if (ages[idx] != null && ages[idx] !== '') sel.value = String(parseInt(ages[idx], 10));
+            });
+        }
+        function ctpOpenGuestModal() {
+            if (!ctpIsGroup()) return;
+            if (!window.tourProGuestConfigured) ctpInitDefaultGroupHidden();
+            ctpCopyModalInputsFromHidden();
+            const el = document.getElementById('tourProGuestModal');
+            if (!el || !window.bootstrap) return;
+            const bm = bootstrap.Modal.getOrCreateInstance(el);
+            el.addEventListener('shown.bs.modal', function onShown() {
+                el.removeEventListener('shown.bs.modal', onShown);
+                try {
+                    document.querySelectorAll('#tourProGuestModal [data-bs-toggle="tooltip"]').forEach(function(t) {
+                        bootstrap.Tooltip.getOrCreateInstance(t);
+                    });
+                } catch (e3) { /* ignore */ }
+            }, { once: true });
+            bm.show();
+        }
+        const ctpOpenBtn = document.getElementById('tourProOpenGuestModalBtn');
+        if (ctpOpenBtn) ctpOpenBtn.addEventListener('click', function() { ctpOpenGuestModal(); });
+        const ctpApplyBtn = document.getElementById('tourProGuestApplyBtn');
+        if (ctpApplyBtn) {
+            ctpApplyBtn.addEventListener('click', function() {
+                const gs = Math.max(0, ctpSafeInt(document.getElementById('pro_group_size_display').value));
+                const foc = Math.max(0, ctpSafeInt(document.getElementById('pro_foc_size').value));
+                const cap = gs + foc;
+                const childEl = document.getElementById('ctpModalChildren');
+                let c = ctpSafeInt(childEl.textContent);
+                c = Math.min(c, cap);
+                childEl.textContent = String(c);
+                window.ctpUpdateChildAgeDropdownsPro(c);
+                ctpSyncModalGuestsToCap();
+                const m = ctpSafeInt(document.getElementById('ctpModalMale').textContent);
+                const f = ctpSafeInt(document.getElementById('ctpModalFemale').textContent);
+                const inf = ctpSafeInt(document.getElementById('ctpModalInfants').textContent);
+                const childAges = [];
+                document.querySelectorAll('.ctp-child-age').forEach(function(s) {
+                    if (s.value) childAges.push(parseInt(s.value, 10));
+                });
+                if (c > 0 && childAges.length !== c) {
+                    alert('Please select an age for each child.');
+                    return;
+                }
+                const cb = document.getElementById('pro_include_foc_in_group_price');
+                ctpSetHidden('ctp_hidden_group_size', gs);
+                ctpSetHidden('ctp_hidden_foc_size', foc);
+                ctpSetHidden('ctp_hidden_paying_pax', gs);
+                ctpSetHidden('ctp_hidden_auto_foc', foc);
+                ctpSetHidden('ctp_hidden_discount', (cb && cb.checked) ? 1 : 0);
+                ctpSetHidden('ctp_hidden_male', m);
+                ctpSetHidden('ctp_hidden_female', f);
+                ctpSetHidden('ctp_hidden_adult_count', m + f);
+                ctpSetHidden('ctp_hidden_child_count', c);
+                ctpSetHidden('ctp_hidden_infant_count', inf);
+                ctpSetHidden('ctp_hidden_child_ages', JSON.stringify(childAges));
+                window.tourProGuestConfigured = true;
+                ctpRenderGroupSummary();
+                const gmod = document.getElementById('tourProGuestModal');
+                const inst = gmod && window.bootstrap ? bootstrap.Modal.getInstance(gmod) : null;
+                if (inst) inst.hide();
+            });
+        }
+        function ctpRenderGroupSummary() {
+            const span = document.getElementById('tourProGroupGuestSummary');
+            if (!span || !ctpIsGroup()) return;
+            if (!window.tourProGuestConfigured) {
+                span.textContent = 'Configure group guests and FOC…';
+                return;
+            }
+            const a = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
+            const c = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
+            const i = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
+            const m = ctpSafeInt(document.getElementById('ctp_hidden_male').value);
+            const f = ctpSafeInt(document.getElementById('ctp_hidden_female').value);
+            const gs = ctpSafeInt(document.getElementById('ctp_hidden_group_size').value);
+            const foc = ctpSafeInt(document.getElementById('ctp_hidden_foc_size').value);
+            span.innerHTML = 'Paying <strong>' + gs + '</strong> + FOC <strong>' + foc + '</strong> · ' + a + ' adults (' + m + 'M/' + f + 'F), ' + c + ' ch, ' + i + ' inf';
+        }
+        ctpRefreshTourTypeUI();
+        ctpSyncFitHiddenPax();
 
         // Store agencies list globally for autocomplete
         let availableAgencies = [];
@@ -2626,15 +3145,36 @@
                 return false;
             }
 
-            // Check at least one person
-            const adults = parseInt(document.getElementById('adultCount').value) || 0;
-            const children = parseInt(document.getElementById('childCount').value) || 0;
-            const infants = parseInt(document.getElementById('infantCount').value) || 0;
-            
-            if (adults + children + infants === 0) {
-                e.preventDefault();
-                alert('Please specify at least one passenger (Adult, Child, or Infant)');
-                return false;
+            // Pax validation (FIT uses visible fields; GROUP uses hidden after guest modal)
+            ctpSyncFitHiddenPax();
+            if (ctpIsGroup()) {
+                if (!window.tourProGuestConfigured) {
+                    e.preventDefault();
+                    alert('For Group tours, click "Select tour guests", set group size / FOC / breakdown, then Apply Selection.');
+                    return false;
+                }
+                const adults = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
+                const children = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
+                const infants = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
+                if (adults + children + infants === 0) {
+                    e.preventDefault();
+                    alert('Please specify at least one passenger.');
+                    return false;
+                }
+            } else {
+                const adults = ctpSafeInt(document.getElementById('adultCount').value);
+                const children = ctpSafeInt(document.getElementById('childCount').value);
+                const infants = ctpSafeInt(document.getElementById('infantCount').value);
+                if (adults + children + infants === 0) {
+                    e.preventDefault();
+                    alert('Please specify at least one passenger (Adult, Child, or Infant)');
+                    return false;
+                }
+                if (adults < 1) {
+                    e.preventDefault();
+                    alert('FIT tours require at least one adult.');
+                    return false;
+                }
             }
         });
 
