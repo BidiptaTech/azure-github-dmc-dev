@@ -823,6 +823,11 @@
         min-height: 0px !important;
     }
 
+    /* Per-service FOC toggles only when GROUP + FOC size + "Treat FOC pax as discount (free)" is on */
+    .enquiry-pro-container:not(.enquiry-pro-group-foc-discount-active) .group-foc-service-discount-ui {
+        display: none !important;
+    }
+
     /* Destination tags styling */
     .destination-tags-container {
         border: 1px solid #dee2e6 !important;
@@ -968,6 +973,9 @@
     
     // Check dropdown after page loads
     document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            if (typeof initArrDepZonePriceListeners === 'function') initArrDepZonePriceListeners();
+        }, 500);
         // Wait for Select2 to initialize, then set default port for arrival and departure
         setTimeout(function() {
             if (window.defaultValues && window.defaultValues.port) {
@@ -1070,13 +1078,26 @@
                     <div class="col-auto">
                         <strong style="font-size: 9px; color: #2c3e50;">{{ $user->name }}</strong>
                     </div>
+                    @php
+                        // Lock tour type to whatever was picked in the "Create Single Tour Pro" popup.
+                        // Disable the opposite radio so the user can't switch — switching invalidates
+                        // FOC/group_size collected in the popup and the pricing scaling that depends on them.
+                        $initialTourType = isset($initialData['tour_type']) ? strtoupper((string) $initialData['tour_type']) : 'FIT';
+                        $isFit = $initialTourType === 'FIT';
+                        $isGroup = $initialTourType === 'GROUP';
+                    @endphp
                     <div class="col-auto">
-                        <label style="font-size: 9px; margin: 0; font-weight: 500;">
-                            <input type="radio" name="type" value="FIT" {{ (isset($initialData['tour_type']) && $initialData['tour_type'] == 'FIT') || !isset($initialData) ? 'checked' : '' }}> FIT
+                        <label style="font-size: 9px; margin: 0; font-weight: 500;{{ $isGroup ? ' opacity: 0.55; cursor: not-allowed;' : '' }}" title="{{ $isGroup ? 'FIT is locked: this tour was created as GROUP' : '' }}">
+                            <input type="radio" name="type" value="FIT" {{ $isFit ? 'checked' : '' }} {{ $isGroup ? 'disabled' : '' }}> FIT
                         </label>
-                        <label style="font-size: 9px; margin: 0 0 0 4px; font-weight: 500;">
-                            <input type="radio" name="type" value="GROUP" {{ isset($initialData['tour_type']) && $initialData['tour_type'] == 'GROUP' ? 'checked' : '' }}> Group
+                        <label style="font-size: 9px; margin: 0 0 0 4px; font-weight: 500;{{ $isFit ? ' opacity: 0.55; cursor: not-allowed;' : '' }}" title="{{ $isFit ? 'Group is locked: this tour was created as FIT' : '' }}">
+                            <input type="radio" name="type" value="GROUP" {{ $isGroup ? 'checked' : '' }} {{ $isFit ? 'disabled' : '' }}> Group
                         </label>
+                        {{-- GROUP + FOC (from Create Tour Pro init): mirrors CommonHelper GROUP pricing factors --}}
+                        <input type="hidden" id="enquiryProFocSize" value="{{ isset($initialData['foc_size']) ? (int) $initialData['foc_size'] : 0 }}">
+                        <input type="hidden" id="enquiryProGroupDiscount" value="{{ isset($initialData['discount']) ? (int) $initialData['discount'] : 0 }}">
+                        {{-- child_ages JSON pulled from popup so it survives back to the controller on store --}}
+                        <input type="hidden" id="enquiryProChildAges" value="{{ is_array($initialData['child_ages'] ?? null) ? json_encode($initialData['child_ages']) : ($initialData['child_ages'] ?? '[]') }}">
                     </div>
                     <div class="col-auto d-flex align-items-center">
                         <span class="detail-label me-1" style="font-size: 9px;">Sal:</span>
@@ -1129,21 +1150,32 @@
                 <!-- Pax Section -->
                 <div class="col-auto">
                     <div class="field-group pax-group">
-                        <!-- Adult Section -->
+                        <!-- Adult Section — locked: total adults is set in the initial Create Tour Pro popup
+                             and drives FOC / room distribution / service pricing across the form.
+                             Only the Male / Female breakdown stays editable below. -->
                         <div class="field-item">
                             <i class="ri-user-line field-icon"></i>
                             <span class="detail-label">Adult:</span>
-                            <input type="number" class="form-control form-control-sm beautiful-input" value="{{ $initialData['adult_count'] ?? '2' }}" id="adultCountInput" min="0" onchange="updateAdultDetails()">
+                            <input type="number"
+                                   class="form-control form-control-sm beautiful-input"
+                                   value="{{ $initialData['adult_count'] ?? '2' }}"
+                                   id="adultCountInput"
+                                   min="0"
+                                   readonly
+                                   tabindex="-1"
+                                   style="background-color: #f1f3f5; cursor: not-allowed; color: #495057;"
+                                   title="Adults total is locked — set during the initial Create Tour Pro popup. Edit Male / Female below to adjust the gender breakdown."
+                                   onchange="updateAdultDetails()">
                         </div>
                         <!-- Adult Details (Man/Women) - Hidden by default -->
                         <div id="adultDetailsContainer" style="display: none;" class="adult-details-container">
                             <div class="field-item">
-                                <span class="detail-label">Man:</span>
-                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultManInput" min="0" value="0" onchange="validateAdultBreakdown()">
+                                <span class="detail-label">Male:</span>
+                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultManInput" min="0" value="{{ isset($initialData['male']) ? (int) $initialData['male'] : 0 }}" onchange="validateAdultBreakdown()">
                             </div>
                             <div class="field-item">
-                                <span class="detail-label">Women:</span>
-                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultWomenInput" min="0" value="0" onchange="validateAdultBreakdown()">
+                                <span class="detail-label">Female:</span>
+                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultWomenInput" min="0" value="{{ isset($initialData['female']) ? (int) $initialData['female'] : 0 }}" onchange="validateAdultBreakdown()">
                             </div>
                         </div>
                         
@@ -1171,6 +1203,36 @@
                                     <input type="checkbox" id="babyCotRequired" class="form-check-input" style="margin-right: 4px;"> Baby Cot Required
                                 </label>
                             </div>
+                        </div>
+
+                        {{-- FOC Section (GROUP only) — BOTH foc_size and the "Free" toggle are LOCKED.
+                             They are set during the initial Create Tour Pro popup and drive every downstream
+                             GROUP pricing calculation. Editing them after services exist would invalidate the
+                             room distribution and the per-pax footer summary.
+                             Visible only when tour type is GROUP. --}}
+                        <div class="field-item" id="focHeaderSection" style="display: {{ $isGroup ? 'inline-flex' : 'none' }};">
+                            <i class="ri-gift-line field-icon"></i>
+                            <span class="detail-label">FOC:</span>
+                            <input type="number"
+                                   class="form-control form-control-sm beautiful-input"
+                                   id="focSizeHeaderInput"
+                                   min="0"
+                                   value="{{ isset($initialData['foc_size']) ? (int) $initialData['foc_size'] : 0 }}"
+                                   readonly
+                                   tabindex="-1"
+                                   style="background-color: #f1f3f5; cursor: not-allowed; color: #495057;"
+                                   title="FOC size is locked — set during the initial Create Tour Pro popup. Changing it would invalidate the room distribution and per-pax pricing of services already added.">
+                            <label class="detail-label" style="cursor: not-allowed; margin-left: 6px; white-space: nowrap; opacity: 0.75;"
+                                   title="'Treat FOC pax as discount (free)' is locked — set during the initial Create Tour Pro popup.">
+                                <input type="checkbox"
+                                       id="focDiscountHeaderCheck"
+                                       class="form-check-input"
+                                       style="margin-right: 4px; vertical-align: middle; cursor: not-allowed;"
+                                       {{ (isset($initialData['discount']) && (int) $initialData['discount'] === 1) ? 'checked' : '' }}
+                                       disabled
+                                       tabindex="-1">
+                                Free
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -1529,6 +1591,7 @@
                             <th>INFANT QTY</th>
                             <th>COST/PAX</th>
                             <th>SELL/PAX</th>
+                            <th class="group-foc-service-discount-ui">FOC</th>
                             <th>SUPPLEMENT</th>
                         </tr>
                     </thead>
@@ -1575,18 +1638,21 @@
                            oninput="applyMarkupDiscount()">
                 </div>
                 
-                <!-- Discount Section -->
+                <!-- Discount Section — FOC option auto-computes the monetary value being absorbed
+                     for the FOC pax across all booked services. Updates live as services are added. -->
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <label style="font-size: 11px; margin: 0; white-space: nowrap; color: red; font-weight: bold;">Discount:</label>
-                    <select id="discountType" style="width: 60px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
+                    <select id="discountType" style="width: 70px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
                             onchange="handleDiscountTypeChange()">
                         <option value="" selected>Select</option>
                         <option value="percentage">%</option>
                         <option value="flat">Fixed</option>
+                        <option value="foc">FOC</option>
                     </select>
                     <input type="number" id="discountValue" value="0" step="1" min="0" disabled
-                           style="width: 50px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
-                           oninput="applyMarkupDiscount()">
+                           style="width: 60px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
+                           oninput="applyMarkupDiscount()"
+                           title="Discount value. When type = FOC, this is auto-computed and locked.">
                 </div>
             </div>
             
@@ -1847,6 +1913,14 @@
                     </div>
                     
                 </div>
+                <div class="row g-2 mb-1 group-foc-service-discount-ui" id="accommodationHotelFocRow">
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="accommodationHotelFocServiceDiscount" checked onchange="if (typeof recalculateTotals === 'function') recalculateTotals();">
+                            <label class="form-check-label small" for="accommodationHotelFocServiceDiscount">FOC discount (hotel room sell)</label>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Room/Bed/Meal Combinations Table (shown after hotel selection) -->
                 <div id="roomCombinationsSection" style="display: none;">
@@ -1889,6 +1963,7 @@
                 <!-- Arrival/Departure Flight Information (shown for both hotel mode and standalone mode) -->
                 <div class="border-top pt-2 mt-2" id="arrivalDepartureSection" style="display: none;">
                     <h6 class="small mb-1 text-muted" id="arrivalDepartureSectionTitle">Arrival/Departure Flight Information</h6>
+                    <div id="modalArrivalOnlyContent">
                     <div class="row g-2 mb-1">
                         <div class="col-2" id="arrivalDateTimeField">
                             <label class="form-label small">Arrival Date & Time</label>
@@ -1993,9 +2068,22 @@
                                     <option value="both-way">2-Way</option>
                                 </select>
                             </div>
-                            <!-- Cost and Sell fields removed - prices auto-calculated from vehicle selection -->
                             <input type="hidden" id="arrivalCost" value="0">
                             <input type="hidden" id="arrivalSell" value="0">
+                            <div class="col-12 pt-1" id="arrivalZonePriceRow" style="display: none;">
+                                <span class="small text-muted">Zone price (Cost / Sell):</span>
+                                <strong class="text-primary ms-1" id="arrivalZonePriceDisplay">—</strong>
+                                <span class="small text-muted ms-2" id="arrivalZonePriceMeta"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-2 mb-1 group-foc-service-discount-ui" id="arrivalTransferFocRowWrap">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="arrivalFocServiceDiscount" onchange="if (typeof syncModalTransferFocFromModal === 'function') syncModalTransferFocFromModal();">
+                                <label class="form-check-label small" for="arrivalFocServiceDiscount">FOC discount (arrival)</label>
+                            </div>
                         </div>
                     </div>
                     
@@ -2049,10 +2137,24 @@
                                     <input type="number" class="form-control form-control-sm" id="arrivalGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
                             </div>
+                            <div class="col-12 pt-1" id="arrivalGuidePriceRow" style="display: none;">
+                                <span class="small text-muted">Guide price (12h):</span>
+                                <strong class="text-primary ms-1" id="arrivalGuidePriceDisplay">—</strong>
+                            </div>
+                            <div class="row g-2 mt-1 group-foc-service-discount-ui">
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="arrivalGuideFocServiceDiscount" onchange="if (typeof syncModalGuideFocFromCheckboxes === 'function') syncModalGuideFocFromCheckboxes(); else if (typeof recalculateTotals === 'function') recalculateTotals();">
+                                        <label class="form-check-label small" for="arrivalGuideFocServiceDiscount">FOC discount (arrival guide)</label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    </div><!-- /#modalArrivalOnlyContent -->
                     
                     <!-- Separator between Arrival and Departure -->
+                    <div id="modalDepartureOnlyContent">
                     <div id="departureInfoSeparator">
                         <div class="border-top my-2" style="border-color: #dee2e6 !important;"></div>
                         <h6 class="small mb-2 text-muted" style="font-weight: 600;">Departure Information</h6>
@@ -2162,9 +2264,22 @@
                                     <option value="both-way">2-Way</option>
                                 </select>
                             </div>
-                            <!-- Cost and Sell fields removed - prices auto-calculated from vehicle selection -->
                             <input type="hidden" id="departureCost" value="0">
                             <input type="hidden" id="departureSell" value="0">
+                            <div class="col-12 pt-1" id="departureZonePriceRow" style="display: none;">
+                                <span class="small text-muted">Zone price (Cost / Sell):</span>
+                                <strong class="text-primary ms-1" id="departureZonePriceDisplay">—</strong>
+                                <span class="small text-muted ms-2" id="departureZonePriceMeta"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-2 mb-1 group-foc-service-discount-ui" id="departureTransferFocRowWrap">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="departureFocServiceDiscount" onchange="if (typeof syncModalTransferFocFromModal === 'function') syncModalTransferFocFromModal();">
+                                <label class="form-check-label small" for="departureFocServiceDiscount">FOC discount (departure)</label>
+                            </div>
                         </div>
                     </div>
                     
@@ -2218,8 +2333,21 @@
                                     <input type="number" class="form-control form-control-sm" id="departureGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
                             </div>
+                            <div class="col-12 pt-1" id="departureGuidePriceRow" style="display: none;">
+                                <span class="small text-muted">Guide price (12h):</span>
+                                <strong class="text-primary ms-1" id="departureGuidePriceDisplay">—</strong>
+                            </div>
+                            <div class="row g-2 mt-1 group-foc-service-discount-ui">
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="departureGuideFocServiceDiscount" onchange="if (typeof syncModalGuideFocFromCheckboxes === 'function') syncModalGuideFocFromCheckboxes(); else if (typeof recalculateTotals === 'function') recalculateTotals();">
+                                        <label class="form-check-label small" for="departureGuideFocServiceDiscount">FOC discount (departure guide)</label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    </div><!-- /#modalDepartureOnlyContent -->
                 </div>
 
                 <!-- Selected Hotels List - Hidden (now using checkbox selection in combinations table) -->
@@ -2331,6 +2459,7 @@
                                 <th style="width: 80px; padding: 4px 8px; text-align: center;">Guide</th>
                                 <th style="padding: 4px 8px;">Select Guide</th>
                                 <th style="width: 50px; padding: 4px 8px; text-align: center;">Qty.</th>
+                                <th style="width: 64px; padding: 4px 8px; text-align: center;" class="group-foc-service-discount-ui" title="Include in footer FOC discount (GROUP)">FOC</th>
                             </tr>
                         </thead>
                         <tbody id="attractionsTableBody">
@@ -2452,6 +2581,9 @@
                                 <td style="padding: 2px 8px; text-align: center;">
                                     <input type="number" class="form-control form-control-sm attraction-guide-qty" data-attr-id="{{ $attr->id }}" value="1" min="1" max="99" placeholder="Qty" title="Guide Quantity" style="font-size: 10px; padding: 2px 4px; width: 45px; text-align: center;">
                                 </td>
+                                <td style="padding: 2px 8px; text-align: center;" class="group-foc-service-discount-ui">
+                                    <input type="checkbox" class="form-check-input attraction-foc-discount" data-attr-id="{{ $attr->id }}" title="FOC discount (this ticket)">
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -2541,11 +2673,12 @@
                                 <th style="width: 100px; padding: 4px 8px; text-align: center;">Child Qty</th>
                                 <th style="width: 120px; padding: 4px 8px; text-align: right;">Day Rate (Cost)</th>
                                 <th style="width: 120px; padding: 4px 8px; text-align: right;">Sell Price</th>
+                                <th style="width: 44px; padding: 4px 8px; text-align: center;" class="group-foc-service-discount-ui" title="FOC discount">FOC</th>
                             </tr>
                         </thead>
                         <tbody id="guidesTableBody">
                             <tr>
-                                <td colspan="9" class="text-center text-muted" style="padding: 20px;">
+                                <td colspan="10" class="text-center text-muted" style="padding: 20px;">
                                     Please select a destination to load guides
                                 </td>
                             </tr>
@@ -2615,11 +2748,12 @@
                                 <th style="width: 100px; padding: 4px 8px;">Charges /pax</th>
                                 <th style="width: 60px; padding: 4px 8px; text-align: center;">Infant</th>
                                 <th style="width: 100px; padding: 4px 8px;">Charges /pax</th>
+                                <th style="width: 50px; padding: 4px 8px; text-align: center;" class="group-foc-service-discount-ui">FOC</th>
                             </tr>
                         </thead>
                         <tbody id="miscItemsTableBody">
                             <tr>
-                                <td colspan="8" class="text-center text-muted" style="padding: 20px;">
+                                <td colspan="9" class="text-center text-muted" style="padding: 20px;">
                                     Please select a destination to load miscellaneous items
                                 </td>
                             </tr>
@@ -2697,6 +2831,7 @@
                                 <th style="width: 60px; padding: 4px 8px; text-align: center;">Infant</th>
                                 <th style="width: 90px; padding: 4px 8px;">Cost /pax</th>
                                 <th style="width: 90px; padding: 4px 8px;">Sell /pax</th>
+                                <th style="width: 60px; padding: 4px 8px; text-align: center;" class="group-foc-service-discount-ui">FOC</th>
                             </tr>
                         </thead>
                         <tbody id="mealsTableBody">
@@ -2789,6 +2924,14 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="row g-2 mb-1 group-foc-service-discount-ui">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="restaurantTransferFocServiceDiscount" onchange="if (typeof recalculateTotals === 'function') recalculateTotals();">
+                                    <label class="form-check-label small" for="restaurantTransferFocServiceDiscount">FOC discount (restaurant transfer)</label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -2850,6 +2993,14 @@
                             <div class="col-3">
                                 <label class="form-label small">Child Qty</label>
                                 <input type="number" class="form-control form-control-sm" id="restaurantGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-1 group-foc-service-discount-ui">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="restaurantGuideFocServiceDiscount" onchange="if (typeof recalculateTotals === 'function') recalculateTotals();">
+                                    <label class="form-check-label small" for="restaurantGuideFocServiceDiscount">FOC discount (restaurant guide)</label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2928,6 +3079,10 @@
                             <span class="ms-1" style="font-size: 11px;">Bus</span>
                         </label>
                     </div>
+                </div>
+                <div class="form-check mb-2 group-foc-service-discount-ui">
+                    <input type="checkbox" class="form-check-input" id="transferPackageFocDiscount">
+                    <label class="form-check-label small" for="transferPackageFocDiscount">FOC discount (GROUP + FOC pax)</label>
                 </div>
 
                 <!-- Local Transfer Form -->
@@ -3054,6 +3209,14 @@
 
                         <!-- Guide Details (shown when checkbox is checked) -->
                         <div id="localTransportGuideDetailsSection" style="display: none;">
+                            <div class="row g-2 mb-1 group-foc-service-discount-ui">
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="transferPackageGuideFocDiscount">
+                                        <label class="form-check-label small" for="transferPackageGuideFocDiscount">FOC discount (this guide)</label>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="row g-2 mb-1">
                                 <div class="col-5">
                                     <label class="form-label small fw-bold">Select Guide</label>
@@ -4102,8 +4265,11 @@
             }
             // Filter vehicles based on default service type
             setTimeout(() => filterArrivalVehiclesByServiceType(), 100);
+            setTimeout(() => refreshArrivalTransferZonePrice(), 200);
             // Sync guide counts when transfer section is shown
             setTimeout(() => syncArrivalGuideCounts(), 150);
+        } else {
+            setArrDepTransferPriceUI('arrival', 0, 0, '', false);
         }
         // NOTE: Guide selection is now independent of transfer - do NOT auto-uncheck/hide guide when transfer is unchecked
     }
@@ -4169,8 +4335,11 @@
             }
             // Filter vehicles based on default service type
             setTimeout(() => filterDepartureVehiclesByServiceType(), 100);
+            setTimeout(() => refreshDepartureTransferZonePrice(), 200);
             // Sync guide counts when transfer section is shown
             setTimeout(() => syncDepartureGuideCounts(), 150);
+        } else {
+            setArrDepTransferPriceUI('departure', 0, 0, '', false);
         }
         // NOTE: Guide selection is now independent of transfer - do NOT auto-uncheck/hide guide when transfer is unchecked
     }
@@ -6271,6 +6440,48 @@
         }
     }
     
+    // FOC header controls: sync the visible foc_size / "Free" toggle into the hidden inputs
+    // (#enquiryProFocSize, #enquiryProGroupDiscount) which getEnquiryProGroupFocFactors reads,
+    // then re-run the footer Single/Twin/Triple summary so prices reflect the new factors.
+    function updateEnquiryProFocSize(value) {
+        const v = Math.max(0, parseInt(value, 10) || 0);
+        const visible = document.getElementById('focSizeHeaderInput');
+        if (visible && visible.value !== String(v)) visible.value = v;
+        const hidden = document.getElementById('enquiryProFocSize');
+        if (hidden) hidden.value = v;
+        if (typeof recalculateTotals === 'function') recalculateTotals();
+        if (typeof recalculateRoomCombinationPrices === 'function') recalculateRoomCombinationPrices();
+        const chk = document.querySelector('.room-combination-checkbox:checked');
+        if (chk && window.currentRoomCombinations && typeof updatePricingSummary === 'function') {
+            const cid = chk.getAttribute('data-combo-id');
+            const cmb = window.currentRoomCombinations.find(x => String(x.id) === String(cid));
+            if (cmb) updatePricingSummary(cmb);
+        }
+    }
+
+    function updateEnquiryProFocDiscount(checked) {
+        const flag = checked ? 1 : 0;
+        const visible = document.getElementById('focDiscountHeaderCheck');
+        if (visible) visible.checked = !!checked;
+        const hidden = document.getElementById('enquiryProGroupDiscount');
+        if (hidden) hidden.value = flag;
+        if (flag === 1) {
+            const dt = document.getElementById('discountType');
+            if (dt && dt.value !== 'foc') {
+                dt.value = 'foc';
+                if (typeof handleDiscountTypeChange === 'function') handleDiscountTypeChange();
+            }
+        }
+        if (typeof recalculateTotals === 'function') recalculateTotals();
+        if (typeof recalculateRoomCombinationPrices === 'function') recalculateRoomCombinationPrices();
+        const chk = document.querySelector('.room-combination-checkbox:checked');
+        if (chk && window.currentRoomCombinations && typeof updatePricingSummary === 'function') {
+            const cid = chk.getAttribute('data-combo-id');
+            const cmb = window.currentRoomCombinations.find(x => String(x.id) === String(cid));
+            if (cmb) updatePricingSummary(cmb);
+        }
+    }
+
     // Update Adult Details (Man/Women dropdowns)
     function updateAdultDetails() {
         const adultCount = parseInt(document.getElementById('adultCountInput').value) || 0;
@@ -8289,6 +8500,19 @@
         console.log(`Total guides loaded: ${guideList.length}`);
     }
     
+    @php
+        $__ctpInitChildAges = [];
+        if (isset($initialData['child_ages']) && $initialData['child_ages'] !== '') {
+            $raw = $initialData['child_ages'];
+            if (is_string($raw)) {
+                $d = json_decode($raw, true);
+                $__ctpInitChildAges = is_array($d) ? $d : [];
+            } elseif (is_array($raw)) {
+                $__ctpInitChildAges = $raw;
+            }
+        }
+    @endphp
+
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         // Set flag to prevent header date updates during initialization
@@ -8328,7 +8552,17 @@
         updateAdultDetails();
         updateChildDetails();
         updateInfantDetails();
-        
+        (function applyInitialChildAgesFromTourPro() {
+            const ages = @json($__ctpInitChildAges ?? []);
+            if (!Array.isArray(ages) || !ages.length) return;
+            ages.forEach((age, idx) => {
+                const sel = document.getElementById('childAge' + (idx + 1));
+                if (!sel || age === null || age === '') return;
+                const n = parseInt(age, 10);
+                if (Number.isFinite(n) && n >= 0 && n <= 17) sel.value = String(n);
+            });
+        })();
+
         // Load existing table data into arrays BEFORE scanning
         loadExistingDataIntoArrays();
         
@@ -8391,6 +8625,9 @@
         const accommodationModalElement = document.getElementById('accommodationModal');
         if (accommodationModalElement) {
             accommodationModalElement.addEventListener('hidden.bs.modal', function() {
+                if (typeof restoreHotelModalPreview === 'function') {
+                    restoreHotelModalPreview();
+                }
                 // Reset all arrival/departure mode flags
                 window.isArrivalDepartureOnlyMode = false;
                 window.willOpenArrivalDepartureOnly = false;
@@ -8399,6 +8636,8 @@
                 window.isEditingArrivalDeparture = false;
                 window.isAddingNewArrivalDeparture = false;
                 window.editingAccommodationIndex = null;
+                window.hotelModalPreviewActive = false;
+                window.hotelModalBaseList = null;
                 console.log('Accommodation modal closed, all flags reset');
             });
         }
@@ -8469,6 +8708,7 @@
         selectedHotelsTemp = [];
         editingHotelId = null;
         window.editingAccommodationIndex = null;
+        if (typeof startHotelModalPreview === 'function') startHotelModalPreview();
         
         // Check if we're opening in arrival/departure only mode
         const isArrivalDepartureOnly = window.willOpenArrivalDepartureOnly || false;
@@ -8500,12 +8740,16 @@
             // Show hotel sections
             document.getElementById('hotelSelectionRow1').style.display = 'flex';
             document.getElementById('selectedHotelsSection').style.display = 'none';
+            const hFocRowShow = document.getElementById('accommodationHotelFocRow');
+            if (hFocRowShow) hFocRowShow.style.display = '';
         } else {
             // Hide hotel sections for arrival/departure only mode
             document.getElementById('hotelSelectionRow1').style.display = 'none';
             const hotelSelectionRow2 = document.getElementById('hotelSelectionRow2');
             if (hotelSelectionRow2) hotelSelectionRow2.style.display = 'none';
             document.getElementById('selectedHotelsSection').style.display = 'none';
+            const hFocRowHide = document.getElementById('accommodationHotelFocRow');
+            if (hFocRowHide) hFocRowHide.style.display = 'none';
         }
         
         // Hide arrival/departure section (hidden for now, unless in arrival/departure only mode)
@@ -8527,6 +8771,19 @@
         
         // Clear the flag after using it
         window.willOpenArrivalDepartureOnly = false;
+
+        const modalArrOpen = document.getElementById('modalArrivalOnlyContent');
+        const modalDepOpen = document.getElementById('modalDepartureOnlyContent');
+        if (modalArrOpen) modalArrOpen.style.display = '';
+        if (modalDepOpen) modalDepOpen.style.display = '';
+        const depXferFocOpenAcc = document.getElementById('departureTransferFocRowWrap');
+        if (depXferFocOpenAcc) depXferFocOpenAcc.style.display = '';
+        const htlFocOpen = document.getElementById('accommodationHotelFocServiceDiscount');
+        if (htlFocOpen && !isArrivalDepartureOnly) htlFocOpen.checked = true;
+        const agfOpen = document.getElementById('arrivalGuideFocServiceDiscount');
+        const dgfOpen = document.getElementById('departureGuideFocServiceDiscount');
+        if (agfOpen) agfOpen.checked = false;
+        if (dgfOpen) dgfOpen.checked = false;
         
         // Clear transfer checkboxes and reset dropdowns
         document.getElementById('arrivalTransfer').checked = false;
@@ -9441,7 +9698,11 @@
                            data-combo-id="${combo.id}" value="${defaultRooms}" min="0" 
                            style="font-size: 10px; padding: 2px 4px; text-align: center;">
                 </td>
-                <td style="padding: 2px 8px; text-align: center;" class="combo-price-cell">--</td>
+                <td style="padding: 2px 8px;">
+                    <input type="number" class="form-control form-control-sm combo-price" 
+                           data-combo-id="${combo.id}" value="0" min="0" step="0.01"
+                           style="font-size: 10px; padding: 2px 4px; text-align: center; width: 70px;">
+                </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm combo-sell" 
                            data-combo-id="${combo.id}" value="0" min="0" step="0.01"
@@ -9498,35 +9759,38 @@
             if (!combo) return;
             const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
             if (!row) return;
-            
-            const roomsVal = Math.max(1, parseInt(row.querySelector('.combo-rooms')?.value || combo.rooms || 1, 10) || 1);
-            const comboScoped = { ...combo, rooms: roomsVal };
-            let perNight = computeComboAvgCostPerNight(comboScoped, getHeaderValues());
-            if (!perNight || !Number.isFinite(perNight)) {
-                perNight = computePerNightRoomPrice(comboScoped, {
-                    adults: 2,
-                    childWithBed: parseInt(comboScoped.childWithBed || 0, 10) || 0,
-                    childWithoutBed: parseInt(comboScoped.childWithoutBed || 0, 10) || 0,
-                });
-                perNight = Number.isFinite(perNight) ? roundToNextZero(perNight) : 0;
-            }
-            combo.price = perNight;
-            
-            const priceCell = row.querySelector('.combo-price-cell');
+
+            const priceInput = row.querySelector('.combo-price');
             const sellInput = row.querySelector('.combo-sell');
-            
-            if (priceCell) {
-                // Display price - show 0.00 if price is 0, or '--' if invalid/NaN
-                if (Number.isFinite(perNight)) {
-                    priceCell.textContent = perNight.toFixed(2);
-                    // Also update the sell input if it's empty or 0
-                    if (sellInput && (!sellInput.value || sellInput.value === '0' || parseFloat(sellInput.value) === 0)) {
-                        sellInput.value = perNight.toFixed(2);
-                    }
-                } else {
-                    priceCell.textContent = '--';
-                    console.warn('Invalid price calculated:', perNight, 'for combo:', combo.id);
-                }
+
+            // AVG COST = base per-room rate for the standard double-occupancy distribution
+            // (capped at maxOccupancy in case the room only allows a single guest).
+            // It does NOT depend on how many rooms are selected or whether the extra-bed
+            // checkbox is on — those affect distribution and add-on totals respectively, not
+            // the per-room base rate. Keeps the price consistent before/after row selection.
+            const maxOcc = Math.max(1, parseInt(combo.maxOccupancy || 99, 10) || 99);
+            const baseAdults = Math.min(2, maxOcc);
+            let computed = computePerNightRoomPrice(combo, {
+                adults: baseAdults,
+                childWithBed: 0,
+                childWithoutBed: 0,
+            });
+            computed = Number.isFinite(computed) ? roundToNextZero(computed) : 0;
+
+            const priceUserEdited = priceInput?.getAttribute('data-user-edited') === 'true';
+            const sellUserEdited = sellInput?.getAttribute('data-user-edited') === 'true';
+
+            const baseNight = priceUserEdited
+                ? (parseFloat(priceInput.value) || computed)
+                : computed;
+            combo.price = baseNight;
+            combo.sell = sellUserEdited ? (parseFloat(sellInput.value) || baseNight) : baseNight;
+
+            if (priceInput && !priceUserEdited && Number.isFinite(computed)) {
+                priceInput.value = computed.toFixed(2);
+            }
+            if (sellInput && !sellUserEdited && Number.isFinite(baseNight)) {
+                sellInput.value = baseNight.toFixed(2);
             }
         };
 
@@ -9534,6 +9798,19 @@
         // - 1 type selected: rooms = ceil(adults/maxCap) e.g. 4 adults, max 2 → 2 rooms.
         // - 2 types: 1 and 1. 3 types: 1,1,1. 4 types: 1,1,1,1.
         // - If user selects a 5th type: first 4 keep 1,1,1,1; 5th gets 0. When user unselects one of the four, the 5th gets 1 (redistribute among 4 selected).
+        // Per-row room capacity for distribution:
+        //  - extra-bed checkbox CHECKED (and available)  → base 2 + 1 extra bed = 3 (capped by maxOcc)
+        //  - extra-bed checkbox UNCHECKED / unavailable  → base 2                (capped by maxOcc)
+        // Example for 7 adults, 1 combo selected:
+        //   extra bed ON  → ceil(7/3) = 3 rooms (3+3+1)
+        //   extra bed OFF → ceil(7/2) = 4 rooms (2+2+2+1)
+        const getComboRoomCapacity = (combo, comboId) => {
+            const maxOcc = Math.max(1, parseInt(combo?.maxOccupancy || 99, 10) || 99);
+            const extraBedCb = tbody.querySelector(`.combo-extra-bed-check[data-combo-id="${comboId}"]`);
+            const extraBedOn = extraBedCb && extraBedCb.checked && !extraBedCb.disabled && (combo?.extraBedAvailable !== false);
+            return extraBedOn ? Math.min(3, maxOcc) : Math.min(2, maxOcc);
+        };
+
         const distributePaxAcrossRooms = () => {
             const headerValues = getHeaderValues();
             const totalAdults = headerValues.adults || 0;
@@ -9557,6 +9834,15 @@
 
             const totalAdultsForRooms = Math.max(0, totalAdults);
 
+            // Per-combo capacity (depends on each row's extra-bed state).
+            const capacities = order.map(id => {
+                const c = window.currentRoomCombinations.find(x => x.id === id);
+                return getComboRoomCapacity(c, id);
+            });
+            const avgCapacity = capacities.length > 0
+                ? capacities.reduce((s, v) => s + v, 0) / capacities.length
+                : 2;
+
             // Special case: adults == number of selected types → 1 room each (4 adults, 4 types → 1,1,1,1)
             if (totalAdultsForRooms === N) {
                 order.forEach(comboId => {
@@ -9567,11 +9853,9 @@
                 });
             } else {
                 // General case: distribute total rooms needed as evenly as possible across selected types.
-                // Approximate capacity as 2 pax/room when calculating how many rooms are needed overall.
-                // (Per-room max occupancy is still enforced elsewhere when validating totals.)
-                const approxCapacity = 2;
-                const roomsNeeded = totalAdultsForRooms > 0
-                    ? Math.max(1, Math.ceil(totalAdultsForRooms / approxCapacity))
+                // roomsNeeded uses the AVERAGE per-row capacity, which honours each combo's extra-bed state.
+                const roomsNeeded = totalAdultsForRooms > 0 && avgCapacity > 0
+                    ? Math.max(1, Math.ceil(totalAdultsForRooms / avgCapacity))
                     : 0;
 
                 if (roomsNeeded === 0) {
@@ -9598,6 +9882,7 @@
                 if (combo && typeof updatePricingSummary === 'function') updatePricingSummary(combo);
             });
             if (typeof validateTotalOccupancy === 'function') validateTotalOccupancy();
+            if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
         };
         
         // Add event listener for room count changes
@@ -9605,25 +9890,47 @@
             input.addEventListener('input', function() {
                 const comboId = this.getAttribute('data-combo-id');
                 recalcPrice(comboId);
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
             });
         });
         
+        // AVG COST input: track user edits so recalcPrice doesn't overwrite the manual value,
+        // and keep combo.price in sync for downstream usage (getSelectedRoomCombinations, footer).
+        tbody.querySelectorAll('.combo-price').forEach(input => {
+            input.addEventListener('input', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                this.setAttribute('data-user-edited', 'true');
+                const combo = window.currentRoomCombinations?.find(c => c.id === comboId);
+                if (combo) {
+                    const v = parseFloat(this.value);
+                    combo.price = Number.isFinite(v) ? v : 0;
+                }
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
+            });
+        });
+
         // Add event listener for sell input changes
         tbody.querySelectorAll('.combo-sell').forEach(input => {
             input.addEventListener('input', function() {
-                const comboId = this.getAttribute('data-combo-id');
                 // Mark as user-edited
                 this.setAttribute('data-user-edited', 'true');
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
             });
         });
-        
-        // Add event listeners for Extra Bed, CWB, CNB, Infant checkboxes to enable/disable price inputs
+
+        // Extra Bed checkbox: enable/disable price input AND re-distribute rooms across selected
+        // combos. Capacity per row changes (2 ↔ 3), so the total rooms needed for the same
+        // adult count changes too (e.g. 7 pax → 3 rooms with extra bed, 4 rooms without).
         tbody.querySelectorAll('.combo-extra-bed-check').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const comboId = this.getAttribute('data-combo-id');
                 const priceInput = tbody.querySelector(`.combo-extra-bed-price[data-combo-id="${comboId}"]`);
                 if (priceInput) {
                     priceInput.disabled = !this.checked;
+                }
+                const selectionCb = tbody.querySelector(`.room-combination-checkbox[data-combo-id="${comboId}"]`);
+                if (selectionCb && selectionCb.checked) {
+                    distributePaxAcrossRooms();
                 }
             });
         });
@@ -9635,6 +9942,7 @@
                 if (priceInput) {
                     priceInput.disabled = !this.checked;
                 }
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
             });
         });
         
@@ -9645,6 +9953,7 @@
                 if (priceInput) {
                     priceInput.disabled = !this.checked;
                 }
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
             });
         });
         
@@ -9655,6 +9964,13 @@
                 if (priceInput) {
                     priceInput.disabled = !this.checked;
                 }
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
+            });
+        });
+
+        tbody.querySelectorAll('.combo-supplement-check').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
             });
         });
         
@@ -9924,30 +10240,29 @@
         }
         
         pricingSummary.style.display = 'block';
-        
-        // Calculate prices for all occupancy types
+
+        // Hotel modal's room pricing summary shows the RAW per-room prices (same as FIT). The
+        // bottom-of-form footer (recalculateTotals) handles GROUP + FOC distribution separately,
+        // so applying the factor here would double-scale the prices.
         const singleCost = computePerNightRoomPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
         const twinCost = computePerNightRoomPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
         const tripleCost = computePerNightRoomPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
         const childWithBedCost = calculateChildPricing(combo, true);
         const childWithoutBedCost = calculateChildPricing(combo, false);
-        const infantCost = 0; // Infants typically free
-        
-        // Calculate weekday prices
+        const infantCost = 0;
+
         const singleWeekday = computeWeekdayPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
         const twinWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
         const tripleWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
         const childWithBedWeekday = computeChildWeekdayPrice(combo, true);
         const childWithoutBedWeekday = computeChildWeekdayPrice(combo, false);
-        
-        // Calculate weekend prices
+
         const singleWeekend = computeWeekendPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
         const twinWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
         const tripleWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
         const childWithBedWeekend = computeChildWeekendPrice(combo, true);
         const childWithoutBedWeekend = computeChildWeekendPrice(combo, false);
-        
-        // Get extra bed price for display
+
         const room = combo.roomData || {};
         const parsePrice = (val) => {
             if (val === null || val === undefined || val === '') return 0;
@@ -10012,43 +10327,21 @@
         const childWithoutBedSellEl = document.getElementById('pricingSummaryChildWithoutBedSell');
         const infantSellEl = document.getElementById('pricingSummaryInfantSell');
         
-        // Store data attribute to track if value was user-edited
-        if (singleSellEl) {
-            const wasEdited = singleSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!singleSellEl.value || singleSellEl.value === '0' || singleSellEl.value === '')) {
-                singleSellEl.value = Number.isFinite(singleCostRounded) ? singleCostRounded.toFixed(2) : '0.00';
+        const syncPricingSummarySell = (el, costRounded) => {
+            if (!el) return;
+            // Pricing summary Sell mirrors FIT behaviour: only seed when the user hasn't edited it yet.
+            const wasEdited = el.getAttribute('data-user-edited') === 'true';
+            if (!wasEdited && (!el.value || el.value === '0' || el.value === '')) {
+                el.value = Number.isFinite(costRounded) ? costRounded.toFixed(2) : '0.00';
             }
-        }
-        if (twinSellEl) {
-            const wasEdited = twinSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!twinSellEl.value || twinSellEl.value === '0' || twinSellEl.value === '')) {
-                twinSellEl.value = Number.isFinite(twinCostRounded) ? twinCostRounded.toFixed(2) : '0.00';
-            }
-        }
-        if (tripleSellEl) {
-            const wasEdited = tripleSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!tripleSellEl.value || tripleSellEl.value === '0' || tripleSellEl.value === '')) {
-                tripleSellEl.value = Number.isFinite(tripleCostRounded) ? tripleCostRounded.toFixed(2) : '0.00';
-            }
-        }
-        if (childWithBedSellEl) {
-            const wasEdited = childWithBedSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!childWithBedSellEl.value || childWithBedSellEl.value === '0' || childWithBedSellEl.value === '')) {
-                childWithBedSellEl.value = Number.isFinite(childWithBedCostRounded) ? childWithBedCostRounded.toFixed(2) : '0.00';
-            }
-        }
-        if (childWithoutBedSellEl) {
-            const wasEdited = childWithoutBedSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!childWithoutBedSellEl.value || childWithoutBedSellEl.value === '0' || childWithoutBedSellEl.value === '')) {
-                childWithoutBedSellEl.value = Number.isFinite(childWithoutBedCostRounded) ? childWithoutBedCostRounded.toFixed(2) : '0.00';
-            }
-        }
-        if (infantSellEl) {
-            const wasEdited = infantSellEl.getAttribute('data-user-edited') === 'true';
-            if (!wasEdited && (!infantSellEl.value || infantSellEl.value === '0' || infantSellEl.value === '')) {
-                infantSellEl.value = Number.isFinite(infantCostRounded) ? infantCostRounded.toFixed(2) : '0.00';
-            }
-        }
+        };
+
+        if (singleSellEl) syncPricingSummarySell(singleSellEl, singleCostRounded);
+        if (twinSellEl) syncPricingSummarySell(twinSellEl, twinCostRounded);
+        if (tripleSellEl) syncPricingSummarySell(tripleSellEl, tripleCostRounded);
+        if (childWithBedSellEl) syncPricingSummarySell(childWithBedSellEl, childWithBedCostRounded);
+        if (childWithoutBedSellEl) syncPricingSummarySell(childWithoutBedSellEl, childWithoutBedCostRounded);
+        if (infantSellEl) syncPricingSummarySell(infantSellEl, infantCostRounded);
         
         // Add event listeners to mark fields as user-edited
         const sellInputs = pricingSummary.querySelectorAll('.pricing-sell-input');
@@ -10062,48 +10355,42 @@
         });
     }
 
-    // Recalculate prices for displayed room combinations (e.g., when dates change)
+    // Recalculate prices for displayed room combinations (e.g., when dates change).
+    // Uses the same double-occupancy base as recalcPrice so AVG COST stays consistent.
     function recalculateRoomCombinationPrices() {
         const tbody = document.getElementById('roomCombinationsTableBody');
         if (!tbody || !window.currentRoomCombinations || window.currentRoomCombinations.length === 0) return;
-        
+
         window.currentRoomCombinations.forEach(combo => {
             const row = tbody.querySelector(`tr[data-combo-id="${combo.id}"]`);
             if (!row) return;
-            const roomsVal = Math.max(1, parseInt(row.querySelector('.combo-rooms')?.value || combo.rooms || 1, 10) || 1);
-            const comboScoped = {
-                ...combo,
-                rooms: roomsVal,
-                childWithBed: parseInt(row.querySelector('.combo-extra-bed')?.value || combo.childWithBed || 0, 10) || 0,
-                childWithoutBed: parseInt(row.querySelector('.combo-child-without')?.value || combo.childWithoutBed || 0, 10) || 0,
-            };
-            let perNight = computeComboAvgCostPerNight(comboScoped, getHeaderValues());
-            if (!perNight || !Number.isFinite(perNight)) {
-                const adults = parseInt(row.querySelector('.combo-adults')?.value || 0, 10) || 0;
-                const a = adults > 0 ? adults : 2;
-                perNight = computePerNightRoomPrice(comboScoped, {
-                    adults: a,
-                    childWithBed: comboScoped.childWithBed,
-                    childWithoutBed: comboScoped.childWithoutBed,
-                });
-                perNight = Number.isFinite(perNight) ? roundToNextZero(perNight) : 0;
-            }
-            combo.price = perNight;
-            const priceCell = row.querySelector('.combo-price-cell');
+
+            const priceInput = row.querySelector('.combo-price');
             const sellInput = row.querySelector('.combo-sell');
-            if (priceCell) {
-                // Display price - show 0.00 if price is 0, or '--' if invalid/NaN
-                if (Number.isFinite(perNight)) {
-                    priceCell.textContent = perNight.toFixed(2);
-                    if (sellInput) {
-                        const wasEdited = sellInput.getAttribute('data-user-edited') === 'true';
-                        if (!wasEdited) {
-                            sellInput.value = perNight.toFixed(2);
-                        }
-                    }
-                } else {
-                    priceCell.textContent = '--';
-                }
+
+            const maxOcc = Math.max(1, parseInt(combo.maxOccupancy || 99, 10) || 99);
+            const baseAdults = Math.min(2, maxOcc);
+            let computed = computePerNightRoomPrice(combo, {
+                adults: baseAdults,
+                childWithBed: 0,
+                childWithoutBed: 0,
+            });
+            computed = Number.isFinite(computed) ? roundToNextZero(computed) : 0;
+
+            const priceUserEdited = priceInput?.getAttribute('data-user-edited') === 'true';
+            const sellUserEdited = sellInput?.getAttribute('data-user-edited') === 'true';
+
+            const baseNight = priceUserEdited
+                ? (parseFloat(priceInput.value) || computed)
+                : computed;
+            combo.price = baseNight;
+            combo.sell = sellUserEdited ? (parseFloat(sellInput.value) || baseNight) : baseNight;
+
+            if (priceInput && !priceUserEdited && Number.isFinite(computed)) {
+                priceInput.value = computed.toFixed(2);
+            }
+            if (sellInput && !sellUserEdited && Number.isFinite(baseNight)) {
+                sellInput.value = baseNight.toFixed(2);
             }
         });
     }
@@ -10119,7 +10406,7 @@
     }
     
     // Get selected room combinations with their input values
-    function getSelectedRoomCombinations() {
+    function getSelectedRoomCombinations(silent) {
         const selectedCombos = [];
         const checkboxes = document.querySelectorAll('.room-combination-checkbox:checked');
         
@@ -10128,7 +10415,9 @@
         
         if (!window.currentRoomCombinations || window.currentRoomCombinations.length === 0) {
             console.error('No room combinations available. Combinations may not have loaded yet.');
-            alert('Room combinations are still loading. Please wait a moment and try again.');
+            if (!silent) {
+                alert('Room combinations are still loading. Please wait a moment and try again.');
+            }
             return [];
         }
         
@@ -10140,6 +10429,7 @@
                 // Get the input values for this combination (new simplified structure)
                 const row = checkbox.closest('tr');
                 const roomsInput = document.querySelector(`.combo-rooms[data-combo-id="${comboId}"]`);
+                const priceInput = document.querySelector(`.combo-price[data-combo-id="${comboId}"]`);
                 const sellInput = document.querySelector(`.combo-sell[data-combo-id="${comboId}"]`);
                 const extraBedCheck = document.querySelector(`.combo-extra-bed-check[data-combo-id="${comboId}"]`);
                 const cwbCheck = document.querySelector(`.combo-cwb-check[data-combo-id="${comboId}"]`);
@@ -10155,10 +10445,17 @@
                 const cnbPrice = parseFloat(combo.roomData?.child_without_bed || combo.roomData?.childWithoutBed || combo.roomData?.cnb_price || 0);
                 const infantPrice = parseFloat(combo.babyCotPrice || combo.roomData?.baby_cot_price || combo.bedData?.baby_cot_price || 0);
 
+                const priceFromInput = parseFloat(priceInput?.value);
+                const finalPrice = Number.isFinite(priceFromInput) && priceFromInput > 0
+                    ? priceFromInput
+                    : (parseFloat(combo.price) || 0);
+
                 selectedCombos.push({
                     ...combo,
                     rooms: parseInt(roomsInput?.value || 1),
-                    sell: parseFloat(sellInput?.value || combo.price || 0),
+                    price: finalPrice,
+                    priceUserEdited: priceInput?.getAttribute('data-user-edited') === 'true',
+                    sell: parseFloat(sellInput?.value || finalPrice || 0),
                     sellUserEdited: sellInput?.getAttribute('data-user-edited') === 'true',
                     hasExtraBed: extraBedCheck?.checked || false,
                     extraBedPrice: extraBedPrice, // Always store price, checkbox controls usage
@@ -10202,15 +10499,19 @@
         const checkOut = document.getElementById('checkOutDate').value;
         const nights = document.getElementById('numNights').value;
         const headerValues = getHeaderValues();
+        const hotelFocSvc = document.getElementById('accommodationHotelFocServiceDiscount')?.checked !== false;
         
         return combinations.map(combo => {
-            const avgCost = computeComboAvgCostPerNight(combo, headerValues);
-            const fallbackPrice = parseFloat(combo.price) || 0;
-            const costNight = avgCost > 0 ? avgCost : fallbackPrice;
-            // Keep sell equal to avg cost unless user explicitly edited sell.
-            const sellNight = combo.sellUserEdited
-                ? (parseFloat(combo.sell) > 0 ? parseFloat(combo.sell) : (costNight || fallbackPrice))
-                : (costNight || fallbackPrice);
+            // combo.price comes straight from the AVG COST input (set in getSelectedRoomCombinations)
+            // and is the RAW per-night room rate (no FOC scaling). GROUP + FOC distribution is
+            // applied later in recalculateTotals when building the bottom Single/Twin/Triple summary.
+            const priceFromInput = parseFloat(combo.price);
+            const costNight = Number.isFinite(priceFromInput) && priceFromInput > 0
+                ? priceFromInput
+                : computeComboAvgCostPerNight(combo, headerValues);
+            const sellNight = combo.sellUserEdited && parseFloat(combo.sell) > 0
+                ? parseFloat(combo.sell)
+                : costNight;
             return {
             id: generateId('hotel'),
             hotelId: hotelId, // Database ID
@@ -10248,9 +10549,86 @@
             childWithoutBed: combo.childWithoutBed || 0,
             // Store room and bed data for reference
             roomData: combo.roomData,
-            bedData: combo.bedData
+            bedData: combo.bedData,
+            focServiceDiscount: hotelFocSvc
             };
         });
+    }
+
+    function startHotelModalPreview() {
+        if (window.isArrivalDepartureOnlyMode || window.willOpenArrivalDepartureOnly) return;
+        window.hotelModalPreviewActive = true;
+        window.hotelModalSaved = false;
+        window.hotelModalBaseList = JSON.parse(JSON.stringify(accommodationList));
+        const isEdit = window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined;
+        window.hotelModalEditStartIndex = isEdit ? window.editingAccommodationIndex : null;
+        window.hotelModalEditSpanCount = isEdit ? 1 : 0;
+    }
+
+    function restoreHotelModalPreview() {
+        if (!window.hotelModalPreviewActive || window.hotelModalSaved) return;
+        if (window.hotelModalBaseList) {
+            accommodationList = JSON.parse(JSON.stringify(window.hotelModalBaseList));
+            updateAccommodationTable();
+            recalculateEntryExitPorts();
+            if (typeof recalculateTotals === 'function') recalculateTotals();
+        }
+        window.hotelModalPreviewActive = false;
+        window.hotelModalBaseList = null;
+        window.hotelModalEditStartIndex = null;
+        window.hotelModalEditSpanCount = 0;
+    }
+
+    function mergeHotelEntryFromExisting(newHotel, existing) {
+        if (!existing) return newHotel;
+        ['bookingId', 'orderId', 'arrivalDepartureIds', 'transferIds', 'headCount'].forEach(key => {
+            if (existing[key] !== undefined && existing[key] !== null) {
+                newHotel[key] = existing[key];
+            }
+        });
+        if (existing.focServiceDiscount !== undefined) {
+            newHotel.focServiceDiscount = existing.focServiceDiscount;
+        }
+        return newHotel;
+    }
+
+    function applyAccommodationListFromModalPreview() {
+        if (!window.hotelModalPreviewActive) return;
+        const base = window.hotelModalBaseList || [];
+        const selected = getSelectedRoomCombinations(true);
+        const hasHotel = !!document.getElementById('hotelSelect')?.value;
+        let hotels = [];
+        if (selected.length > 0 && hasHotel) {
+            hotels = convertCombinationsToHotels(selected);
+        }
+        if (window.hotelModalEditStartIndex !== null && window.hotelModalEditStartIndex !== undefined) {
+            const start = window.hotelModalEditStartIndex;
+            const span = window.hotelModalEditSpanCount || 1;
+            const exSlice = base.slice(start, start + span);
+            hotels = hotels.map((h, i) => {
+                const ex = exSlice[i] || exSlice[0];
+                if (ex) {
+                    h.id = ex.id;
+                    if (i === 0) mergeHotelEntryFromExisting(h, ex);
+                }
+                return h;
+            });
+            accommodationList = [...base.slice(0, start), ...hotels, ...base.slice(start + span)];
+            window.hotelModalEditSpanCount = hotels.length;
+        } else {
+            accommodationList = hotels.length ? [...base, ...hotels] : [...base];
+        }
+    }
+
+    function syncAccommodationPreviewFromModal() {
+        if (!window.hotelModalPreviewActive) return;
+        if (window.isArrivalDepartureOnlyMode) return;
+        const modal = document.getElementById('accommodationModal');
+        if (!modal || !modal.classList.contains('show')) return;
+        applyAccommodationListFromModalPreview();
+        updateAccommodationTable();
+        recalculateEntryExitPorts();
+        if (typeof recalculateTotals === 'function') recalculateTotals();
     }
 
     // Load bed types when room type is selected (deprecated - now using combination table)
@@ -10630,10 +11008,6 @@
                 const arrivalChild = parseInt(document.getElementById('arrivalChild')?.value || child);
                 const arrivalInfant = parseInt(document.getElementById('arrivalInfant')?.value || infant);
                 
-                // Get cost and sell from input fields
-                const arrivalCost = parseFloat(document.getElementById('arrivalCost')?.value || 0);
-                const arrivalSell = parseFloat(document.getElementById('arrivalSell')?.value || 0);
-                
                 const arrivalDestinationSelect = document.getElementById('arrivalDestination');
                 const arrivalDestinationId = arrivalDestinationSelect?.value || '';
                 const arrivalDestinationName = arrivalDestinationSelect?.selectedOptions[0]?.getAttribute('data-name') || '';
@@ -10698,9 +11072,9 @@
                             // Calculate prices
                             const prices = calculateTransferPrice(zonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
                             
-                            // Use manual cost/sell if provided, otherwise use calculated prices
-                            const finalCost = arrivalCost > 0 ? arrivalCost : prices.cost;
-                            const finalSell = arrivalSell > 0 ? arrivalSell : prices.sell;
+                            // Match departure behaviour: always persist zone-calculated prices so Shared/Private toggles update Local Transfer
+                            const finalCost = prices.cost;
+                            const finalSell = prices.sell;
                             
                             // Update existing transfer
                             transferList[transferIndex] = {
@@ -10783,9 +11157,8 @@
                     // Calculate prices
                     const prices = calculateTransferPrice(zonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
                     
-                    // Use manual cost/sell if provided, otherwise use calculated prices
-                    const finalCost = arrivalCost > 0 ? arrivalCost : prices.cost;
-                    const finalSell = arrivalSell > 0 ? arrivalSell : prices.sell;
+                    const finalCost = prices.cost;
+                    const finalSell = prices.sell;
                     
                     // Create new transfer if checked and doesn't exist
                     const transferId = generateId('transfer');
@@ -10830,6 +11203,7 @@
                 // Get adult and child quantities from modal inputs
                 const arrivalGuideAdultQty = parseInt(document.getElementById('arrivalGuideAdultQty')?.value || '0') || 0;
                 const arrivalGuideChildQty = parseInt(document.getElementById('arrivalGuideChildQty')?.value || '0') || 0;
+                const arrivalGuideFocSvc = document.getElementById('arrivalGuideFocServiceDiscount')?.checked === true;
                 
                 // Find existing guide in guideList
                 const existingArrivalGuideIndex = item.guideId ? guideList.findIndex(g => String(g.id) === String(item.guideId)) : -1;
@@ -10858,7 +11232,8 @@
                             cost: guidePrice, // Fixed price for 12 hours
                             sell: guidePrice, // Fixed price for 12 hours
                             adultsQty: arrivalGuideAdultQty,
-                            childQty: arrivalGuideChildQty
+                            childQty: arrivalGuideChildQty,
+                            focServiceDiscount: arrivalGuideFocSvc
                         };
                         arrivalDepartureList[index].guideId = guideList[existingArrivalGuideIndex].id;
                     } else {
@@ -10879,7 +11254,8 @@
                             linkedTo: 'arrival',
                             arrivalId: item.id,
                             adultsQty: arrivalGuideAdultQty,
-                            childQty: arrivalGuideChildQty
+                            childQty: arrivalGuideChildQty,
+                            focServiceDiscount: arrivalGuideFocSvc
                         };
                         guideList.push(guideEntry);
                         arrivalDepartureList[index].guideId = guideEntryId;
@@ -11082,6 +11458,7 @@
                 // Get adult and child quantities from modal inputs
                 const departureGuideAdultQty = parseInt(document.getElementById('departureGuideAdultQty')?.value || '0') || 0;
                 const departureGuideChildQty = parseInt(document.getElementById('departureGuideChildQty')?.value || '0') || 0;
+                const departureGuideFocSvc = document.getElementById('departureGuideFocServiceDiscount')?.checked === true;
                 
                 // Find existing guide in guideList
                 const existingGuideIndex = item.guideId ? guideList.findIndex(g => String(g.id) === String(item.guideId)) : -1;
@@ -11110,7 +11487,8 @@
                             cost: guidePrice, // Fixed price for 12 hours
                             sell: guidePrice, // Fixed price for 12 hours
                             adultsQty: departureGuideAdultQty,
-                            childQty: departureGuideChildQty
+                            childQty: departureGuideChildQty,
+                            focServiceDiscount: departureGuideFocSvc
                         };
                         arrivalDepartureList[index].guideId = guideList[existingGuideIndex].id;
                     } else {
@@ -11131,7 +11509,8 @@
                             linkedTo: 'departure',
                             departureId: item.id,
                             adultsQty: departureGuideAdultQty,
-                            childQty: departureGuideChildQty
+                            childQty: departureGuideChildQty,
+                            focServiceDiscount: departureGuideFocSvc
                         };
                         guideList.push(guideEntry);
                         arrivalDepartureList[index].guideId = guideEntryId;
@@ -11269,20 +11648,13 @@
                         dmcId
                     );
                     
-                    // Calculate prices
-                    const prices = calculateTransferPrice(arrivalZonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
-                    arrivalVehiclePrice = prices.cost || 0;
-                }
-                // Fallback to vehicle base price if zone price returned 0
-                if (arrivalVehiclePrice === 0 && arrivalTransfer && arrivalVehicleId) {
-                    const vSel = document.getElementById('arrivalVehicleType');
-                    const vOpt = vSel ? Array.from(vSel.options).find(o => o.value === arrivalVehicleId) : null;
-                    if (vOpt) {
-                        arrivalVehiclePrice = (arrivalTransferType === 'S' || arrivalTransferType === 'sic' || arrivalTransferType === 'Shared')
-                            ? parseFloat(vOpt.dataset.sharablePrice || 0)
-                            : parseFloat(vOpt.dataset.basePrice || 0);
+                    if (typeof zonePriceHasMapping === 'function' && zonePriceHasMapping(arrivalZonePrice)) {
+                        const prices = calculateTransferPrice(arrivalZonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
+                        arrivalVehiclePrice = prices.cost || 0;
                     }
                 }
+                
+                const arrivalFocSvc = document.getElementById('arrivalFocServiceDiscount')?.checked || false;
                 
                 const arrivalEntry = {
                     id: arrivalId,
@@ -11308,7 +11680,8 @@
                     transferDestinationId: arrivalDestinationId,
                     transferDestinationName: arrivalDestinationName,
                     supplement: '',
-                    accommodationIndex: null
+                    accommodationIndex: null,
+                    focServiceDiscount: arrivalFocSvc
                 };
                 
                 // Add to transfer list if transfer is checked
@@ -11335,7 +11708,8 @@
                         sell: arrivalVehiclePrice, // Default: cost = sell (user can edit)
                         zonePrivatePrice: arrivalZonePrice.private_price,
                         zoneSharedPrice: arrivalZonePrice.shared_price,
-                        taxIncluded: false
+                        taxIncluded: false,
+                        focServiceDiscount: arrivalFocSvc
                     });
                     arrivalEntry.transferId = transferId;
                 }
@@ -11347,6 +11721,7 @@
                 // Get adult and child quantities from modal inputs
                 const arrivalGuideAdultQty = parseInt(document.getElementById('arrivalGuideAdultQty')?.value || '0') || 0;
                 const arrivalGuideChildQty = parseInt(document.getElementById('arrivalGuideChildQty')?.value || '0') || 0;
+                const arrivalGuideFocSvc = document.getElementById('arrivalGuideFocServiceDiscount')?.checked === true;
                 
                 if (arrivalGuideChecked && arrivalGuideSelect && arrivalGuideSelect.value) {
                     const arrivalGuideId = arrivalGuideSelect.value;
@@ -11375,7 +11750,8 @@
                             cost: guidePrice, // Fixed price for 12 hours
                             sell: guidePrice, // Fixed price for 12 hours
                             adultsQty: arrivalGuideAdultQty,
-                            childQty: arrivalGuideChildQty
+                            childQty: arrivalGuideChildQty,
+                            focServiceDiscount: arrivalGuideFocSvc
                         };
                         arrivalEntry.guideId = guideList[existingGuideIndex].id;
                     } else {
@@ -11396,7 +11772,8 @@
                             linkedTo: 'arrival',
                             arrivalId: arrivalId,
                             adultsQty: arrivalGuideAdultQty,
-                            childQty: arrivalGuideChildQty
+                            childQty: arrivalGuideChildQty,
+                            focServiceDiscount: arrivalGuideFocSvc
                         };
                         guideList.push(guideEntry);
                         arrivalEntry.guideId = guideEntryId;
@@ -11509,20 +11886,13 @@
                         dmcId
                     );
                     
-                    // Calculate prices
-                    const prices = calculateTransferPrice(departureZonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
-                    departureVehiclePrice = prices.cost || 0;
-                }
-                // Fallback to vehicle base price if zone price returned 0
-                if (departureVehiclePrice === 0 && departureTransfer && departureVehicleId) {
-                    const vSel = document.getElementById('departureVehicleType');
-                    const vOpt = vSel ? Array.from(vSel.options).find(o => o.value === departureVehicleId) : null;
-                    if (vOpt) {
-                        departureVehiclePrice = (departureTransferType === 'S' || departureTransferType === 'sic' || departureTransferType === 'Shared')
-                            ? parseFloat(vOpt.dataset.sharablePrice || 0)
-                            : parseFloat(vOpt.dataset.basePrice || 0);
+                    if (typeof zonePriceHasMapping === 'function' && zonePriceHasMapping(departureZonePrice)) {
+                        const prices = calculateTransferPrice(departureZonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
+                        departureVehiclePrice = prices.cost || 0;
                     }
                 }
+                
+                const departureFocSvc = document.getElementById('departureFocServiceDiscount')?.checked || false;
                 
                 const departureEntry = {
                     id: departureId,
@@ -11548,7 +11918,8 @@
                     transferDestinationId: departureDestinationId,
                     transferDestinationName: departureDestinationName,
                     supplement: '',
-                    accommodationIndex: null
+                    accommodationIndex: null,
+                    focServiceDiscount: departureFocSvc
                 };
                 
                 // Add to transfer list if transfer is checked
@@ -11575,7 +11946,8 @@
                         sell: departureVehiclePrice, // Default: cost = sell (user can edit)
                         zonePrivatePrice: departureZonePrice.private_price,
                         zoneSharedPrice: departureZonePrice.shared_price,
-                        taxIncluded: false
+                        taxIncluded: false,
+                        focServiceDiscount: departureFocSvc
                     });
                     departureEntry.transferId = transferId;
                 }
@@ -11587,6 +11959,7 @@
                 // Get adult and child quantities from modal inputs
                 const departureGuideAdultQty = parseInt(document.getElementById('departureGuideAdultQty')?.value || '0') || 0;
                 const departureGuideChildQty = parseInt(document.getElementById('departureGuideChildQty')?.value || '0') || 0;
+                const departureGuideFocSvc = document.getElementById('departureGuideFocServiceDiscount')?.checked === true;
                 
                 if (departureGuideChecked && departureGuideSelect && departureGuideSelect.value) {
                     const departureGuideId = departureGuideSelect.value;
@@ -11615,7 +11988,8 @@
                             cost: guidePrice, // Fixed price for 12 hours
                             sell: guidePrice, // Fixed price for 12 hours
                             adultsQty: departureGuideAdultQty,
-                            childQty: departureGuideChildQty
+                            childQty: departureGuideChildQty,
+                            focServiceDiscount: departureGuideFocSvc
                         };
                         departureEntry.guideId = guideList[existingGuideIndex].id;
                     } else {
@@ -11636,7 +12010,8 @@
                             linkedTo: 'departure',
                             departureId: departureId,
                             adultsQty: departureGuideAdultQty,
-                            childQty: departureGuideChildQty
+                            childQty: departureGuideChildQty,
+                            focServiceDiscount: departureGuideFocSvc
                         };
                         guideList.push(guideEntry);
                         departureEntry.guideId = guideEntryId;
@@ -11742,53 +12117,17 @@
         
         // Check if we're editing an existing accommodation
         if (window.editingAccommodationIndex !== undefined && window.editingAccommodationIndex !== null) {
-            // Get selected combinations
             const selectedCombinations = getSelectedRoomCombinations();
             
             if (selectedCombinations.length === 0) {
                 alert('Please select at least one room combination');
                 return;
             }
-            
-            // Get the first selected combination (for editing, we only allow one)
-            const combo = selectedCombinations[0];
-            
-            // Get the form values
-            const hotelSelect = document.getElementById('hotelSelect');
-            const hotelId = hotelSelect.value;
-            const hotelName = hotelSelect.options[hotelSelect.selectedIndex].text;
-            const selectedOption = hotelSelect.options[hotelSelect.selectedIndex];
-            const hotelDataStr = selectedOption.getAttribute('data-hotel-data');
-            let hotelData = {};
-            if (hotelDataStr) {
-                try {
-                    hotelData = JSON.parse(hotelDataStr);
-                } catch (e) {
-                    console.error('Error parsing hotel data:', e);
-                }
-            }
-            const hotel_unique_id = hotelData.hotel_unique_id || hotelData.id || hotelId;
-            const destination = document.getElementById('hotelDestination').value;
-            const checkIn = document.getElementById('checkInDate').value;
-            const checkOut = document.getElementById('checkOutDate').value;
-            const nights = document.getElementById('numNights').value;
-            
-            // Get values from the selected combination
-            const roomType = combo.roomType;
-            const roomId = combo.roomId;
-            const bedType = combo.bedType;
-            const bedTypeRaw = combo.bedTypeRaw || combo.bedType;
-            const mealPlan = combo.mealPlan;
-            const mealPlanLabel = combo.mealPlanLabel || combo.mealPlan;
-            const maxOccupancy = combo.maxOccupancy;
-            const rooms = combo.rooms;
-            const adultsPerRoom = combo.adultsPerRoom;
-            const extraBed = combo.extraBed;
-            const childWithoutBed = combo.childWithoutBed;
-            const avgCostNight = computeComboAvgCostPerNight(combo, getHeaderValues());
-            const roomPrice = avgCostNight > 0 ? avgCostNight : (combo.price || 0);
-            
-            // Get arrival/departure data
+
+            window.hotelModalSaved = true;
+            const editAccIdx = window.hotelModalEditStartIndex ?? window.editingAccommodationIndex;
+            applyAccommodationListFromModalPreview();
+
             const arrivalDateTime = document.getElementById('arrivalDateTime').value;
             const arrivalPortSelect = document.getElementById('arrivalPort');
             const arrivalPortId = arrivalPortSelect.value;
@@ -11799,59 +12138,25 @@
             const departurePortId = departurePortSelect.value;
             const departurePortName = departurePortSelect.selectedOptions[0]?.text || '';
             const departureFlightNo = document.getElementById('departureFlightNo').value;
-            
-            const editAccIdx = window.editingAccommodationIndex;
+            const hotelFocSvc = document.getElementById('accommodationHotelFocServiceDiscount')?.checked !== false;
 
-            // Update the existing accommodation
-            accommodationList[editAccIdx] = {
-                ...accommodationList[editAccIdx],
-                hotelId: hotelId,
-                hotel_unique_id: hotel_unique_id,
-                hotelName: hotelName,
-                destination: destination,
-                roomId: roomId,
-                roomType: roomType,
-                bedType: bedType,
-                bedTypeRaw: bedTypeRaw,
-                maxOccupancy: maxOccupancy,
-                checkIn: checkIn,
-                checkOut: checkOut,
-                nights: nights,
-                rooms: rooms,
-                adultsPerRoom: adultsPerRoom,
-                extraBed: extraBed,
-                childWithBed: combo.childWithBed || 0,
-                childWithoutBed: childWithoutBed,
-                mealPlan: mealPlan,
-                mealPlanLabel: mealPlanLabel,
-                roomPrice: roomPrice,
-                // Extra bed and child pricing from checkboxes
-                hasExtraBed: combo.hasExtraBed || false,
-                extraBedPrice: combo.extraBedPrice || 0,
-                hasCwb: combo.hasCwb || false,
-                cwbPrice: combo.cwbPrice || 0,
-                hasCnb: combo.hasCnb || false,
-                cnbPrice: combo.cnbPrice || 0,
-                hasInfant: combo.hasInfant || false,
-                infantPrice: combo.infantPrice || 0,
-                cost: roomPrice,
-                sell: combo.sellUserEdited
-                    ? (parseFloat(combo.sell) > 0 ? parseFloat(combo.sell) : (roomPrice || parseFloat(combo.price) || 0))
-                    : (roomPrice || parseFloat(combo.price) || 0),
-                supplement: combo.supplement || false,
-                // Store arrival/departure info with accommodation
-                arrivalDateTime: arrivalDateTime,
-                arrivalPortId: arrivalPortId,
-                arrivalPortName: arrivalPortName,
-                arrivalFlightNo: arrivalFlightNo,
-                departureDateTime: departureDateTime,
-                departurePortId: departurePortId,
-                departurePortName: departurePortName,
-                departureFlightNo: departureFlightNo
-            };
+            if (accommodationList[editAccIdx]) {
+                accommodationList[editAccIdx] = {
+                    ...accommodationList[editAccIdx],
+                    arrivalDateTime,
+                    arrivalPortId,
+                    arrivalPortName,
+                    arrivalFlightNo,
+                    departureDateTime,
+                    departurePortId,
+                    departurePortName,
+                    departureFlightNo,
+                    focServiceDiscount: hotelFocSvc
+                };
+            }
 
             // One global hotel-synced arrival + departure (same as edit template) — do not push duplicate rows here.
-            const oldTransferIds = accommodationList[editAccIdx].transferIds || [];
+            const oldTransferIds = accommodationList[editAccIdx]?.transferIds || [];
             if (oldTransferIds.length > 0) {
                 transferList = transferList.filter(t => !oldTransferIds.map(String).includes(String(t.id)));
             }
@@ -12005,18 +12310,19 @@
             console.error('No combinations selected. Available combinations:', window.currentRoomCombinations?.length || 0);
             return;
         }
-        
-        // Convert selected combinations to hotel entries
-        selectedHotelsTemp = convertCombinationsToHotels(selectedCombinations);
+
+        window.hotelModalSaved = true;
+        const baseLen = (window.hotelModalBaseList || []).length;
+        applyAccommodationListFromModalPreview();
+        selectedHotelsTemp = accommodationList.slice(baseLen);
 
         // Get pax numbers from header
         const adults = parseInt(document.getElementById('adultCountInput')?.value || 0);
         const child = parseInt(document.getElementById('childCountInput')?.value || 0);
         const infant = parseInt(document.getElementById('infantCountInput')?.value || 0);
 
-        // Add to main accommodation list
-        const startIndex = accommodationList.length;
-        accommodationList = [...accommodationList, ...selectedHotelsTemp];
+        // Add to main accommodation list (already applied via preview)
+        const startIndex = baseLen;
         
         // Initialize each hotel with empty arrivalDepartureIds
         selectedHotelsTemp.forEach((hotel, idx) => {
@@ -12227,13 +12533,23 @@
     function updateModalArrivalDeptInfo() {
         if (window.isArrivalDepartureOnlyMode) return;
 
+        const modalArrWrapRestore = document.getElementById('modalArrivalOnlyContent');
+        const modalDepWrapRestore = document.getElementById('modalDepartureOnlyContent');
+        if (modalArrWrapRestore) modalArrWrapRestore.style.display = '';
+        if (modalDepWrapRestore) modalDepWrapRestore.style.display = '';
+
         const section = document.getElementById('arrivalDepartureSection');
         if (!section) return;
 
         const checkIn  = document.getElementById('checkInDate')?.value  || '';
         const checkOut = document.getElementById('checkOutDate')?.value || '';
 
-        if (!checkIn) { section.style.display = 'none'; return; }
+        if (!checkIn) {
+            const depXferFocWrapNoDates = document.getElementById('departureTransferFocRowWrap');
+            if (depXferFocWrapNoDates) depXferFocWrapNoDates.style.display = '';
+            section.style.display = 'none';
+            return;
+        }
 
         // Exclude the hotel currently being edited to avoid double-counting its old dates
         const editIdx = (window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined)
@@ -12310,9 +12626,16 @@
                         if (gs && gEntry.guideId) gs.value = gEntry.guideId;
                         const qa = document.getElementById('arrivalGuideAdultQty'); if (qa) qa.value = gEntry.adultsQty || 0;
                         const qc = document.getElementById('arrivalGuideChildQty'); if (qc) qc.value = gEntry.childQty  || 0;
+                        const agf = document.getElementById('arrivalGuideFocServiceDiscount');
+                        if (agf) agf.checked = !!(gEntry.focServiceDiscount || gEntry.foc_service_discount);
                     }, 150);
                 }
+            } else {
+                const agfClr = document.getElementById('arrivalGuideFocServiceDiscount');
+                if (agfClr) agfClr.checked = false;
             }
+            const afoc = document.getElementById('arrivalFocServiceDiscount');
+            if (afoc) afoc.checked = !!(entry.focServiceDiscount || entry.foc_service_discount);
         }
 
         function populateDepFields(entry) {
@@ -12346,9 +12669,16 @@
                         if (gs && gEntry.guideId) gs.value = gEntry.guideId;
                         const qa = document.getElementById('departureGuideAdultQty'); if (qa) qa.value = gEntry.adultsQty || 0;
                         const qc = document.getElementById('departureGuideChildQty'); if (qc) qc.value = gEntry.childQty  || 0;
+                        const dgf = document.getElementById('departureGuideFocServiceDiscount');
+                        if (dgf) dgf.checked = !!(gEntry.focServiceDiscount || gEntry.foc_service_discount);
                     }, 150);
                 }
+            } else {
+                const dgfClr = document.getElementById('departureGuideFocServiceDiscount');
+                if (dgfClr) dgfClr.checked = false;
             }
+            const dfoc = document.getElementById('departureFocServiceDiscount');
+            if (dfoc) dfoc.checked = !!(entry.focServiceDiscount || entry.foc_service_discount);
         }
 
         const adults = parseInt(document.getElementById('adultCountInput')?.value || 2);
@@ -12473,6 +12803,9 @@
         if (depDest && depDefault?.hotelUniqueId && depDest.value !== depDefault.hotelUniqueId) {
             depDest.value = depDefault.hotelUniqueId;
         }
+
+        const depXferFocWrapHotel = document.getElementById('departureTransferFocRowWrap');
+        if (depXferFocWrapHotel) depXferFocWrapHotel.style.display = '';
 
         section.style.display = 'block';
     }
@@ -12609,18 +12942,11 @@
             }
             try {
                 arrZonePrice = await fetchZonePrice(arrVehicleId, arrPortId, 'port', actualArrDestId, arrDestType, dmcId);
-                const prices = calculateTransferPrice(arrZonePrice, arrTypeVal, 'one-way', arrAdults, arrChild);
-                arrVehiclePrice = prices.cost || 0;
-            } catch(e) { console.warn('syncHotelArrDep: arrival zone price fetch failed', e); }
-            // Fallback to vehicle base price if zone price returned 0
-            if (arrVehiclePrice === 0 && arrVehicleSel) {
-                const vOpt = Array.from(arrVehicleSel.options).find(o => o.value === arrVehicleId);
-                if (vOpt) {
-                    arrVehiclePrice = (arrTypeVal === 'S' || arrTypeVal === 'sic' || arrTypeVal === 'Shared')
-                        ? parseFloat(vOpt.dataset.sharablePrice || 0)
-                        : parseFloat(vOpt.dataset.basePrice || 0);
+                if (zonePriceHasMapping(arrZonePrice)) {
+                    const prices = calculateTransferPrice(arrZonePrice, arrTypeVal, 'one-way', arrAdults, arrChild);
+                    arrVehiclePrice = prices.cost || 0;
                 }
-            }
+            } catch(e) { console.warn('syncHotelArrDep: arrival zone price fetch failed', e); }
         }
 
         // ---- Fetch zone prices for departure transfer ----
@@ -12634,18 +12960,11 @@
             }
             try {
                 depZonePrice = await fetchZonePrice(depVehicleId, actualDepDestId, depDestType, depPortId, 'port', dmcId);
-                const prices = calculateTransferPrice(depZonePrice, depTypeVal, 'one-way', depAdults, depChild);
-                depVehiclePrice = prices.cost || 0;
-            } catch(e) { console.warn('syncHotelArrDep: departure zone price fetch failed', e); }
-            // Fallback to vehicle base price if zone price returned 0
-            if (depVehiclePrice === 0 && depVehicleSel) {
-                const vOpt = Array.from(depVehicleSel.options).find(o => o.value === depVehicleId);
-                if (vOpt) {
-                    depVehiclePrice = (depTypeVal === 'S' || depTypeVal === 'sic' || depTypeVal === 'Shared')
-                        ? parseFloat(vOpt.dataset.sharablePrice || 0)
-                        : parseFloat(vOpt.dataset.basePrice || 0);
+                if (zonePriceHasMapping(depZonePrice)) {
+                    const prices = calculateTransferPrice(depZonePrice, depTypeVal, 'one-way', depAdults, depChild);
+                    depVehiclePrice = prices.cost || 0;
                 }
-            }
+            } catch(e) { console.warn('syncHotelArrDep: departure zone price fetch failed', e); }
         }
 
         function upsertPort(travelType, dtVal, portId, portName, flightNo, hasTransfer,
@@ -12673,21 +12992,8 @@
             const entryId = base.id
                 || (isArrival ? preservedEntryPortId : preservedExitPortId)
                 || generateId('port');
-            const updated = {
-                ...base, id: entryId, travel_type: travelType,
-                type: isArrival ? 'Arrival' : 'Departure', dateTime: dtVal,
-                portId, portName, flightNo, hasTransfer, transferType: xferType, transferWay: 'one-way',
-                vehicleId, vehicleType, vehicleName,
-                adults: nAdults, adultsQty: nAdults, child: nChild, childQty: nChild,
-                infant: nInfant, infantQty: nInfant,
-                adultCost: vehiclePrice, adultSell: vehiclePrice,
-                childCost: vehiclePrice, childSell: vehiclePrice,
-                transferDestinationId: destId, transferDestinationName: destName,
-                cost: vehiclePrice, sell: vehiclePrice,
-                accommodationIndex: null, sourceType: 'hotel', isStandalone: true
-            };
 
-            // Match and update existing transfer row for this side; avoid creating duplicates on add/remove cycles.
+            // Resolve linked transfer before reading FOC (departure checkbox may be hidden in hotel-date panel).
             const sourceKey = isArrival ? 'arrival' : 'departure';
             const prefix = isArrival ? 'Arrival:' : 'Departure:';
             function findBestTransferIndex() {
@@ -12721,6 +13027,27 @@
             }
             const existingTransferIdx = findBestTransferIndex();
             const prevTransfer = existingTransferIdx !== -1 ? transferList[existingTransferIdx] : null;
+
+            const depFocWrap = document.getElementById('departureTransferFocRowWrap');
+            const focSvc = isArrival
+                ? (document.getElementById('arrivalFocServiceDiscount')?.checked === true)
+                : (depFocWrap && depFocWrap.style.display === 'none'
+                    ? !!(prevTransfer?.focServiceDiscount || existingDepPortRow?.focServiceDiscount)
+                    : (document.getElementById('departureFocServiceDiscount')?.checked === true));
+            const updated = {
+                ...base, id: entryId, travel_type: travelType,
+                type: isArrival ? 'Arrival' : 'Departure', dateTime: dtVal,
+                portId, portName, flightNo, hasTransfer, transferType: xferType, transferWay: 'one-way',
+                vehicleId, vehicleType, vehicleName,
+                adults: nAdults, adultsQty: nAdults, child: nChild, childQty: nChild,
+                infant: nInfant, infantQty: nInfant,
+                adultCost: vehiclePrice, adultSell: vehiclePrice,
+                childCost: vehiclePrice, childSell: vehiclePrice,
+                transferDestinationId: destId, transferDestinationName: destName,
+                cost: vehiclePrice, sell: vehiclePrice,
+                accommodationIndex: null, sourceType: 'hotel', isStandalone: true,
+                focServiceDiscount: focSvc
+            };
             const effectiveVehicleId = vehicleId || (prevTransfer?.vehicleId || '');
             const effectiveVehicleType = vehicleType || (prevTransfer?.vehicleType || '');
             const effectiveVehicleName = vehicleName || (prevTransfer?.vehicleName || '');
@@ -12758,7 +13085,8 @@
                     sell: effectiveSell,
                     zonePrivatePrice: zonePrice?.private_price || 0,
                     zoneSharedPrice:  zonePrice?.shared_price  || 0,
-                    taxIncluded: false
+                    taxIncluded: false,
+                    focServiceDiscount: focSvc
                 };
                 if (existingTransferIdx !== -1) {
                     transferList[existingTransferIdx] = {
@@ -12831,7 +13159,8 @@
                     hours: 12, cost: guidePrice, sell: guidePrice,
                     supplement: false, isStandalone: false,
                     linkedTo, arrivalId,
-                    adultsQty: guideAdultQty, childQty: guideChildQty
+                    adultsQty: guideAdultQty, childQty: guideChildQty,
+                    focServiceDiscount: document.getElementById(travelLabel === 'arrival' ? 'arrivalGuideFocServiceDiscount' : 'departureGuideFocServiceDiscount')?.checked === true
                 };
                 if (existingIdx !== -1) {
                     guideList[existingIdx] = { ...guideList[existingIdx], ...guideObj };
@@ -13013,6 +13342,7 @@
                         
                         // Set the values for this combination (new simplified structure)
                         const roomsInput = document.querySelector(`.combo-rooms[data-combo-id="${matchingCombo.id}"]`);
+                        const priceInput = document.querySelector(`.combo-price[data-combo-id="${matchingCombo.id}"]`);
                         const sellInput = document.querySelector(`.combo-sell[data-combo-id="${matchingCombo.id}"]`);
                         const extraBedCheck = document.querySelector(`.combo-extra-bed-check[data-combo-id="${matchingCombo.id}"]`);
                         const cwbCheck = document.querySelector(`.combo-cwb-check[data-combo-id="${matchingCombo.id}"]`);
@@ -13023,9 +13353,6 @@
                         if (roomsInput) {
                             roomsInput.value = hotel.rooms;
                             roomsInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                        if (sellInput) {
-                            sellInput.value = hotel.sell || hotel.roomPrice || 0;
                         }
                         if (extraBedCheck) {
                             extraBedCheck.checked = hotel.hasExtraBed === true;
@@ -13042,6 +13369,25 @@
                         if (supplementCheck) {
                             supplementCheck.checked = hotel.supplement || false;
                         }
+                        const htlFocEd = document.getElementById('accommodationHotelFocServiceDiscount');
+                        if (htlFocEd) htlFocEd.checked = hotel.focServiceDiscount !== false;
+                        
+                        // Restore the saved per-night AVG COST / SELL rates after recalc. Mark them as
+                        // user-edited so recalcPrice doesn't overwrite the user's previous values.
+                        setTimeout(function () {
+                            const costVal = parseFloat(hotel.cost) || parseFloat(hotel.roomPrice) || parseFloat(hotel.sell);
+                            const sellVal = parseFloat(hotel.sell) || costVal;
+                            if (priceInput && Number.isFinite(costVal) && costVal > 0) {
+                                priceInput.value = costVal.toFixed(2);
+                                priceInput.setAttribute('data-user-edited', 'true');
+                                if (matchingCombo) matchingCombo.price = costVal;
+                            }
+                            if (sellInput && Number.isFinite(sellVal) && sellVal > 0) {
+                                sellInput.value = sellVal.toFixed(2);
+                                sellInput.setAttribute('data-user-edited', 'true');
+                            }
+                            if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
+                        }, 0);
                         
                         console.log('Set values:', {
                             rooms: hotel.rooms,
@@ -13100,6 +13446,7 @@
         
         // Set editing mode
         window.editingAccommodationIndex = index;
+        if (typeof startHotelModalPreview === 'function') startHotelModalPreview();
         
         // Reset and hide the temp hotels section
         selectedHotelsTemp = [];
@@ -13255,6 +13602,8 @@
         if (hotelSelectionRow2) hotelSelectionRow2.style.display = 'none';
         const selectedHotelsSection = document.getElementById('selectedHotelsSection');
         if (selectedHotelsSection) selectedHotelsSection.style.display = 'none';
+        const accommodationHotelFocRowAd = document.getElementById('accommodationHotelFocRow');
+        if (accommodationHotelFocRowAd) accommodationHotelFocRowAd.style.display = 'none';
         
         // Hide room combinations and hotel transfer sections
         const roomCombinationsSection = document.getElementById('roomCombinationsSection');
@@ -13300,6 +13649,13 @@
         // Show the departure separator in ADD mode (both sections visible)
         const departureInfoSeparatorAdd = document.getElementById('departureInfoSeparator');
         if (departureInfoSeparatorAdd) departureInfoSeparatorAdd.style.display = 'block';
+        
+        const modalArrAdd = document.getElementById('modalArrivalOnlyContent');
+        const modalDepAdd = document.getElementById('modalDepartureOnlyContent');
+        if (modalArrAdd) modalArrAdd.style.display = '';
+        if (modalDepAdd) modalDepAdd.style.display = '';
+        const depXferFocOpenAd = document.getElementById('departureTransferFocRowWrap');
+        if (depXferFocOpenAd) depXferFocOpenAd.style.display = '';
         
         // Note: Cost/sell fields are inside transfer details section and will be shown/hidden by toggle functions
         
@@ -13614,6 +13970,8 @@
             if (hotelSelectionRow2) hotelSelectionRow2.style.display = 'none';
             const selectedHotelsSection = document.getElementById('selectedHotelsSection');
             if (selectedHotelsSection) selectedHotelsSection.style.display = 'none';
+            const accommodationHotelFocRowEd = document.getElementById('accommodationHotelFocRow');
+            if (accommodationHotelFocRowEd) accommodationHotelFocRowEd.style.display = 'none';
             
             // Hide room combinations and hotel transfer sections
             const roomCombinationsSection = document.getElementById('roomCombinationsSection');
@@ -13627,67 +13985,31 @@
                 arrivalDepartureSection.style.display = 'block';
             }
             
-                // Show ONLY the relevant fields based on what is being edited
+            const modalArrivalBlock = document.getElementById('modalArrivalOnlyContent');
+            const modalDepartureBlock = document.getElementById('modalDepartureOnlyContent');
+            const arrDepSecTitle = document.getElementById('arrivalDepartureSectionTitle');
+            const arrivalGuideSection = document.getElementById('arrivalGuideSection');
+            const departureGuideSection = document.getElementById('departureGuideSection');
+
             if (arrivalDeparture.type === 'Arrival') {
-                // Editing Arrival - Show only Arrival fields, Hide ALL Departure fields
-                document.getElementById('arrivalDateTimeField').style.display = 'block';
-                document.getElementById('arrivalPortField').style.display = 'block';
-                document.getElementById('arrivalFlightNoField').style.display = 'block';
-                document.getElementById('arrivalTransferField').style.display = 'block';
-                document.getElementById('departureDateTimeField').style.display = 'none';
-                document.getElementById('departurePortField').style.display = 'none';
-                document.getElementById('departureFlightNoField').style.display = 'none';
-                document.getElementById('departureTransferField').style.display = 'none';
-                // Hide departure separator/header and both departure detail sections
-                const depInfoSepArrival = document.getElementById('departureInfoSeparator');
-                if (depInfoSepArrival) depInfoSepArrival.style.display = 'none';
-                const depTransDetailArrival = document.getElementById('departureTransferDetailsSection');
-                if (depTransDetailArrival) depTransDetailArrival.style.display = 'none';
-                
-                // Show arrival guide section, hide departure guide section
-                const arrivalGuideSection = document.getElementById('arrivalGuideSection');
-                if (arrivalGuideSection) {
-                    arrivalGuideSection.style.display = 'block';
-                }
-                const departureGuideSection = document.getElementById('departureGuideSection');
-                if (departureGuideSection) {
-                    departureGuideSection.style.display = 'none';
-                }
-                
-                // Update modal title
+                if (modalArrivalBlock) modalArrivalBlock.style.display = '';
+                if (modalDepartureBlock) modalDepartureBlock.style.display = 'none';
+                if (arrDepSecTitle) arrDepSecTitle.textContent = 'Arrival Information';
+                if (arrivalGuideSection) arrivalGuideSection.style.display = 'block';
+                if (departureGuideSection) departureGuideSection.style.display = 'none';
                 document.getElementById('modalTitleIcon').className = 'ri-flight-takeoff-line me-2';
                 document.getElementById('modalTitleText').textContent = 'Edit Arrival';
             } else {
-                // Editing Departure - Show only Departure fields, Hide ALL Arrival fields
-                document.getElementById('arrivalDateTimeField').style.display = 'none';
-                document.getElementById('arrivalPortField').style.display = 'none';
-                document.getElementById('arrivalFlightNoField').style.display = 'none';
-                document.getElementById('arrivalTransferField').style.display = 'none';
-                // Hide arrival transfer details and departure separator (not needed since only departure shown)
-                const arrTransDetailDep = document.getElementById('arrivalTransferDetailsSection');
-                if (arrTransDetailDep) arrTransDetailDep.style.display = 'none';
-                const depInfoSepDep = document.getElementById('departureInfoSeparator');
-                if (depInfoSepDep) depInfoSepDep.style.display = 'none';
-                document.getElementById('departureDateTimeField').style.display = 'block';
-                document.getElementById('departurePortField').style.display = 'block';
-                document.getElementById('departureFlightNoField').style.display = 'block';
-                document.getElementById('departureTransferField').style.display = 'block';
-                
-                // Show departure guide section, hide arrival guide section
-                const arrivalGuideSection = document.getElementById('arrivalGuideSection');
-                if (arrivalGuideSection) {
-                    arrivalGuideSection.style.display = 'none';
-                }
-                const departureGuideSection = document.getElementById('departureGuideSection');
-                if (departureGuideSection) {
-                    departureGuideSection.style.display = 'block';
-                }
-                
-                // Update modal title
+                if (modalArrivalBlock) modalArrivalBlock.style.display = 'none';
+                if (modalDepartureBlock) modalDepartureBlock.style.display = '';
+                if (arrDepSecTitle) arrDepSecTitle.textContent = 'Departure Information';
+                if (arrivalGuideSection) arrivalGuideSection.style.display = 'none';
+                if (departureGuideSection) departureGuideSection.style.display = 'block';
                 document.getElementById('modalTitleIcon').className = 'ri-flight-land-line me-2';
                 document.getElementById('modalTitleText').textContent = 'Edit Departure';
             }
-            document.getElementById('arrivalDepartureSectionTitle').textContent = 'Flight Information';
+            const depXferFocEdAd = document.getElementById('departureTransferFocRowWrap');
+            if (depXferFocEdAd) depXferFocEdAd.style.display = '';
             
             // Re-initialize Select2 for port dropdowns to ensure they work properly
             if (typeof $.fn.select2 !== 'undefined') {
@@ -13785,6 +14107,15 @@
                     // Populate cost and sell
                     document.getElementById('arrivalCost').value = data.cost || data.adultCost || 0;
                     document.getElementById('arrivalSell').value = data.sell || data.adultSell || 0;
+                    setTimeout(() => {
+                        if (typeof refreshArrivalTransferZonePrice === 'function') refreshArrivalTransferZonePrice();
+                        if (typeof refreshArrivalGuidePriceDisplay === 'function') refreshArrivalGuidePriceDisplay();
+                    }, 250);
+                    const afocXfer = document.getElementById('arrivalFocServiceDiscount');
+                    if (afocXfer) {
+                        afocXfer.checked = !!(linked && (linked.focServiceDiscount || linked.foc_service_discount)) ||
+                            !!(data.focServiceDiscount || data.foc_service_discount);
+                    }
                     
                     // Sync guide counts with transfer values
                     syncArrivalGuideCounts();
@@ -13848,6 +14179,8 @@
                             if (arrivalGuideHeaderRow) {
                                 arrivalGuideHeaderRow.style.display = 'block';
                             }
+                            const agfPop = document.getElementById('arrivalGuideFocServiceDiscount');
+                            if (agfPop) agfPop.checked = !!(guideEntry.focServiceDiscount || guideEntry.foc_service_discount);
                         }
                     } else {
                         // Show guide section even if no guide is selected, but uncheck checkbox and hide fields
@@ -13865,14 +14198,9 @@
                         if (arrivalGuideHeaderRow) {
                             arrivalGuideHeaderRow.style.display = 'none';
                         }
+                        const agfClr2 = document.getElementById('arrivalGuideFocServiceDiscount');
+                        if (agfClr2) agfClr2.checked = false;
                     }
-                    // Defensive: re-enforce hiding of ALL departure-related elements for arrival-only editing
-                    const _depInfoSep = document.getElementById('departureInfoSeparator');
-                    if (_depInfoSep) _depInfoSep.style.display = 'none';
-                    const _depTransDet = document.getElementById('departureTransferDetailsSection');
-                    if (_depTransDet) _depTransDet.style.display = 'none';
-                    const _depGuide = document.getElementById('departureGuideSection');
-                    if (_depGuide) _depGuide.style.display = 'none';
                 } else {
                     // Normalize date to YYYY-MM-DDTHH:mm format for datetime-local input
                     const normalizedDateTime = normalizeDateTimeLocal(data.dateTime);
@@ -13914,6 +14242,15 @@
                     // Populate cost and sell
                     document.getElementById('departureCost').value = data.cost || data.adultCost || 0;
                     document.getElementById('departureSell').value = data.sell || data.adultSell || 0;
+                    setTimeout(() => {
+                        if (typeof refreshDepartureTransferZonePrice === 'function') refreshDepartureTransferZonePrice();
+                        if (typeof refreshDepartureGuidePriceDisplay === 'function') refreshDepartureGuidePriceDisplay();
+                    }, 250);
+                    const dfocXfer = document.getElementById('departureFocServiceDiscount');
+                    if (dfocXfer) {
+                        dfocXfer.checked = !!(linked && (linked.focServiceDiscount || linked.foc_service_discount)) ||
+                            !!(data.focServiceDiscount || data.foc_service_discount);
+                    }
                     
                     // Sync guide counts with transfer values
                     syncDepartureGuideCounts();
@@ -13977,6 +14314,8 @@
                             if (departureGuideHeaderRow) {
                                 departureGuideHeaderRow.style.display = 'block';
                             }
+                            const dgfPop = document.getElementById('departureGuideFocServiceDiscount');
+                            if (dgfPop) dgfPop.checked = !!(guideEntry.focServiceDiscount || guideEntry.foc_service_discount);
                         }
                     } else {
                         // Show guide section even if no guide is selected, but uncheck checkbox and hide fields
@@ -13994,14 +14333,9 @@
                         if (departureGuideHeaderRow) {
                             departureGuideHeaderRow.style.display = 'none';
                         }
+                        const dgfClr2 = document.getElementById('departureGuideFocServiceDiscount');
+                        if (dgfClr2) dgfClr2.checked = false;
                     }
-                    // Defensive: re-enforce hiding of ALL arrival-related elements for departure-only editing
-                    const _arrTransDet = document.getElementById('arrivalTransferDetailsSection');
-                    if (_arrTransDet) _arrTransDet.style.display = 'none';
-                    const _arrGuide = document.getElementById('arrivalGuideSection');
-                    if (_arrGuide) _arrGuide.style.display = 'none';
-                    const _depInfoSepD = document.getElementById('departureInfoSeparator');
-                    if (_depInfoSepD) _depInfoSepD.style.display = 'none';
                 }
                 
                 // Reset the flag after populating
@@ -14237,49 +14571,205 @@
     }
 
     // Update arrival vehicle pricing when vehicle is selected
-    function updateArrivalVehiclePricing() {
-        const vehicleSelect = document.getElementById('arrivalVehicleType');
-        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-        
-        if (selectedOption && selectedOption.value) {
-            const transferType = document.getElementById('arrivalTransferType').value;
-            const basePrice = transferType === 'S' 
-                ? parseFloat(selectedOption.dataset.sharablePrice || 0)
-                : parseFloat(selectedOption.dataset.basePrice || 0);
-            
-            // Store the vehicle price for later use
-            vehicleSelect.dataset.currentPrice = basePrice;
-            
-            console.log('Arrival vehicle selected:', {
-                vehicle: selectedOption.text,
-                type: transferType,
-                price: basePrice,
-                seating: selectedOption.dataset.seating
-            });
-        }
+    function formatArrDepZonePrice(amount) {
+        const n = parseFloat(amount);
+        if (!Number.isFinite(n) || n <= 0) return '—';
+        return n.toFixed(2);
     }
 
-    // Update departure vehicle pricing when vehicle is selected
-    function updateDepartureVehiclePricing() {
-        const vehicleSelect = document.getElementById('departureVehicleType');
-        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-        
-        if (selectedOption && selectedOption.value) {
-            const transferType = document.getElementById('departureTransferType').value;
-            const basePrice = transferType === 'S' 
-                ? parseFloat(selectedOption.dataset.sharablePrice || 0)
-                : parseFloat(selectedOption.dataset.basePrice || 0);
-            
-            // Store the vehicle price for later use
-            vehicleSelect.dataset.currentPrice = basePrice;
-            
-            console.log('Departure vehicle selected:', {
-                vehicle: selectedOption.text,
-                type: transferType,
-                price: basePrice,
-                seating: selectedOption.dataset.seating
-            });
+    function setArrDepTransferPriceUI(side, cost, sell, metaText, showRow) {
+        const prefix = side === 'departure' ? 'departure' : 'arrival';
+        const row = document.getElementById(prefix + 'ZonePriceRow');
+        const disp = document.getElementById(prefix + 'ZonePriceDisplay');
+        const meta = document.getElementById(prefix + 'ZonePriceMeta');
+        const costEl = document.getElementById(prefix + 'Cost');
+        const sellEl = document.getElementById(prefix + 'Sell');
+        if (costEl) costEl.value = cost || 0;
+        if (sellEl) sellEl.value = sell || 0;
+        if (row) row.style.display = showRow ? '' : 'none';
+        if (disp) {
+            const c = formatArrDepZonePrice(cost);
+            const s = formatArrDepZonePrice(sell);
+            disp.textContent = (c !== '—' || s !== '—') ? (c + ' / ' + s) : '—';
         }
+        if (meta) meta.textContent = metaText || '';
+    }
+
+    function resolveArrDepDestMeta(destSel) {
+        if (!destSel?.value) return { id: '', type: 'hotel', name: '' };
+        const opt = destSel.selectedOptions[0];
+        const type = opt?.getAttribute('data-type') || 'hotel';
+        let id = destSel.value;
+        if (type === 'hotel') {
+            id = opt?.getAttribute('data-hotel-unique-id') || id;
+        }
+        return { id, type, name: opt?.getAttribute('data-name') || opt?.text || '' };
+    }
+
+    function vehicleOptionBasePrice(vOpt, transferType) {
+        if (!vOpt) return 0;
+        return transferType === 'S'
+            ? parseFloat(vOpt.dataset.sharablePrice || vOpt.getAttribute('data-sharable-price') || 0)
+            : parseFloat(vOpt.dataset.basePrice || vOpt.getAttribute('data-base-price') || 0);
+    }
+
+    function zonePriceHasMapping(zonePrice) {
+        const pp = parseFloat(zonePrice?.private_price ?? zonePrice?.privatePrice ?? 0);
+        const sp = parseFloat(zonePrice?.shared_price ?? zonePrice?.sharedPrice ?? 0);
+        return pp > 0 || sp > 0;
+    }
+
+    function transferPriceFromZone(zonePrice, transferType, way, adults, child) {
+        if (!zonePriceHasMapping(zonePrice)) {
+            return { cost: 0, sell: 0, meta: '(No zone mapping for this route)' };
+        }
+        const prices = calculateTransferPrice(zonePrice, transferType, way || 'one-way', adults, child);
+        const pp = parseFloat(zonePrice.private_price || zonePrice.privatePrice || 0);
+        const sp = parseFloat(zonePrice.shared_price || zonePrice.sharedPrice || 0);
+        return {
+            cost: prices.cost || 0,
+            sell: prices.sell || 0,
+            meta: '(zone: Private ' + pp.toFixed(2) + ' / Shared ' + sp.toFixed(2) + ')'
+        };
+    }
+
+    async function refreshArrivalTransferZonePrice() {
+        const transferChecked = document.getElementById('arrivalTransfer')?.checked;
+        if (!transferChecked) {
+            setArrDepTransferPriceUI('arrival', 0, 0, '', false);
+            return;
+        }
+        const vSel = document.getElementById('arrivalVehicleType');
+        const vOpt = vSel?.selectedOptions?.[0];
+        const vehicleId = vSel?.value || '';
+        const portId = document.getElementById('arrivalPort')?.value || '';
+        const dest = resolveArrDepDestMeta(document.getElementById('arrivalDestination'));
+        const transferType = document.getElementById('arrivalTransferType')?.value || 'S';
+        const adults = parseInt(document.getElementById('arrivalAdults')?.value || '2', 10);
+        const child = parseInt(document.getElementById('arrivalChild')?.value || '0', 10);
+
+        if (!vehicleId) {
+            setArrDepTransferPriceUI('arrival', 0, 0, 'Select vehicle', true);
+            return;
+        }
+
+        let cost = 0, sell = 0, meta = '';
+        if (!portId || !dest.id) {
+            meta = !portId ? 'Select arrival port' : 'Select drop-off';
+        } else {
+            try {
+                const dmcId = '{{ $dmc_id ?? "" }}';
+                const zonePrice = await fetchZonePrice(vehicleId, portId, 'port', dest.id, dest.type, dmcId);
+                const result = transferPriceFromZone(zonePrice, transferType, 'one-way', adults, child);
+                cost = result.cost;
+                sell = result.sell;
+                meta = result.meta;
+            } catch (e) {
+                console.warn('Arrival zone price fetch failed', e);
+                meta = '(Could not load zone price)';
+            }
+        }
+        setArrDepTransferPriceUI('arrival', cost, sell, meta, true);
+    }
+
+    async function refreshDepartureTransferZonePrice() {
+        const transferChecked = document.getElementById('departureTransfer')?.checked;
+        if (!transferChecked) {
+            setArrDepTransferPriceUI('departure', 0, 0, '', false);
+            return;
+        }
+        const vSel = document.getElementById('departureVehicleType');
+        const vOpt = vSel?.selectedOptions?.[0];
+        const vehicleId = vSel?.value || '';
+        const portId = document.getElementById('departurePort')?.value || '';
+        const dest = resolveArrDepDestMeta(document.getElementById('departureDestination'));
+        const transferType = document.getElementById('departureTransferType')?.value || 'S';
+        const adults = parseInt(document.getElementById('departureAdults')?.value || '2', 10);
+        const child = parseInt(document.getElementById('departureChild')?.value || '0', 10);
+
+        if (!vehicleId) {
+            setArrDepTransferPriceUI('departure', 0, 0, 'Select vehicle', true);
+            return;
+        }
+
+        let cost = 0, sell = 0, meta = '';
+        if (!portId || !dest.id) {
+            meta = !dest.id ? 'Select pickup' : 'Select departure port';
+        } else {
+            try {
+                const dmcId = '{{ $dmc_id ?? "" }}';
+                const zonePrice = await fetchZonePrice(vehicleId, dest.id, dest.type, portId, 'port', dmcId);
+                const result = transferPriceFromZone(zonePrice, transferType, 'one-way', adults, child);
+                cost = result.cost;
+                sell = result.sell;
+                meta = result.meta;
+            } catch (e) {
+                console.warn('Departure zone price fetch failed', e);
+                meta = '(Could not load zone price)';
+            }
+        }
+        setArrDepTransferPriceUI('departure', cost, sell, meta, true);
+    }
+
+    function refreshArrivalGuidePriceDisplay() {
+        const row = document.getElementById('arrivalGuidePriceRow');
+        const disp = document.getElementById('arrivalGuidePriceDisplay');
+        const checked = document.getElementById('arrivalGuideCheckbox')?.checked;
+        const sel = document.getElementById('arrivalGuide');
+        if (!row || !disp) return;
+        if (!checked || !sel?.value) {
+            row.style.display = 'none';
+            disp.textContent = '—';
+            return;
+        }
+        const price = parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0);
+        row.style.display = '';
+        disp.textContent = formatArrDepZonePrice(price);
+    }
+
+    function refreshDepartureGuidePriceDisplay() {
+        const row = document.getElementById('departureGuidePriceRow');
+        const disp = document.getElementById('departureGuidePriceDisplay');
+        const checked = document.getElementById('departureGuideCheckbox')?.checked;
+        const sel = document.getElementById('departureGuide');
+        if (!row || !disp) return;
+        if (!checked || !sel?.value) {
+            row.style.display = 'none';
+            disp.textContent = '—';
+            return;
+        }
+        const price = parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0);
+        row.style.display = '';
+        disp.textContent = formatArrDepZonePrice(price);
+    }
+
+    function initArrDepZonePriceListeners() {
+        if (window._arrDepZoneListenersReady) return;
+        window._arrDepZoneListenersReady = true;
+        if (!window.jQuery) return;
+        const $ = window.jQuery;
+        $('#arrivalPort').on('change', () => refreshArrivalTransferZonePrice());
+        $('#departurePort').on('change', () => refreshDepartureTransferZonePrice());
+        document.getElementById('arrivalDestination')?.addEventListener('change', () => refreshArrivalTransferZonePrice());
+        document.getElementById('departureDestination')?.addEventListener('change', () => refreshDepartureTransferZonePrice());
+        document.getElementById('arrivalAdults')?.addEventListener('change', () => refreshArrivalTransferZonePrice());
+        document.getElementById('arrivalChild')?.addEventListener('change', () => refreshArrivalTransferZonePrice());
+        document.getElementById('departureAdults')?.addEventListener('change', () => refreshDepartureTransferZonePrice());
+        document.getElementById('departureChild')?.addEventListener('change', () => refreshDepartureTransferZonePrice());
+        document.getElementById('arrivalTransfer')?.addEventListener('change', () => setTimeout(refreshArrivalTransferZonePrice, 80));
+        document.getElementById('departureTransfer')?.addEventListener('change', () => setTimeout(refreshDepartureTransferZonePrice, 80));
+        document.getElementById('arrivalGuide')?.addEventListener('change', refreshArrivalGuidePriceDisplay);
+        document.getElementById('departureGuide')?.addEventListener('change', refreshDepartureGuidePriceDisplay);
+        document.getElementById('arrivalGuideCheckbox')?.addEventListener('change', refreshArrivalGuidePriceDisplay);
+        document.getElementById('departureGuideCheckbox')?.addEventListener('change', refreshDepartureGuidePriceDisplay);
+    }
+
+    async function updateArrivalVehiclePricing() {
+        await refreshArrivalTransferZonePrice();
+    }
+
+    async function updateDepartureVehiclePricing() {
+        await refreshDepartureTransferZonePrice();
     }
 
     // Calculate vehicle price based on passengers and vehicle capacity
@@ -14654,6 +15144,9 @@
                                         <td style="padding: 2px 8px; text-align: center;">
                                             <input type="number" class="form-control form-control-sm attraction-guide-qty" data-attr-id="${attr.id}" value="1" min="1" max="99" placeholder="Qty" title="Guide Quantity" style="font-size: 10px; padding: 2px 4px; width: 45px; text-align: center;">
                                         </td>
+                                        <td style="padding: 2px 8px; text-align: center;" class="group-foc-service-discount-ui">
+                                            <input type="checkbox" class="form-check-input attraction-foc-discount" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" title="FOC discount (this ticket)">
+                                        </td>
                                     </tr>
                                 `;
                             });
@@ -14727,6 +15220,9 @@
                                     </td>
                                     <td style="padding: 2px 8px; text-align: center;">
                                         <input type="number" class="form-control form-control-sm attraction-guide-qty" data-attr-id="${attr.id}" value="1" min="1" max="99" placeholder="Qty" title="Guide Quantity" style="font-size: 10px; padding: 2px 4px; width: 45px; text-align: center;">
+                                    </td>
+                                    <td style="padding: 2px 8px; text-align: center;" class="group-foc-service-discount-ui">
+                                        <input type="checkbox" class="form-check-input attraction-foc-discount" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" title="FOC discount (this ticket)">
                                     </td>
                                 </tr>
                             `;
@@ -14918,6 +15414,7 @@
             const guideChecked = row.querySelector('.attraction-guide-checkbox').checked;
             const guideSelect = row.querySelector('.attraction-guide-select');
             const guideId = guideSelect?.value || '';
+            const lineFocDisc = row.querySelector('.attraction-foc-discount')?.checked === true;
             
             // Validate: if guide checkbox is checked, guide must be selected
             if (guideChecked && !guideId) {
@@ -15167,7 +15664,9 @@
                         adultSell: adultSell,
                         childCost: childCost,
                         childSell: childSell,
-                        isStandalone: false  // Mark as linked to attraction
+                        isStandalone: false,  // Mark as linked to attraction
+                        sourceTourId: tourId,
+                        focServiceDiscount: false
                     };
                     guideList.push(guideEntry);
                 }
@@ -15229,7 +15728,8 @@
                 guideId: guideEntryId,
                 guideInfo: guideInfo,
                 guide_options: guide_options,
-                guideRequired: guideChecked
+                guideRequired: guideChecked,
+                focServiceDiscount: lineFocDisc
             };
             
             console.log('Updated tour:', tourList[window.editingTourIndex]);
@@ -15264,6 +15764,7 @@
             const attractionName = row.getAttribute('data-attraction-name');
             const ticketId = checkbox.getAttribute('data-ticket-id') || row.getAttribute('data-ticket-id') || '0';
             const ticketName = row.getAttribute('data-ticket-name') || '';
+            const lineFocDisc = row.querySelector('.attraction-foc-discount')?.checked === true;
             
             // Get values from the row
             const adultsQty = parseInt(row.querySelector('.attraction-adult-qty').value) || 0;
@@ -15518,7 +16019,9 @@
                         adultSell: adultSell,
                         childCost: childCost,
                         childSell: childSell,
-                        isStandalone: false  // Mark as linked to attraction
+                        isStandalone: false,  // Mark as linked to attraction
+                        sourceTourId: tourId,
+                        focServiceDiscount: false
                     };
                     guideList.push(guideEntry);
                 }
@@ -15579,7 +16082,8 @@
                 guideId: guideEntryId,
                 guideInfo: guideInfo,
                 guide_options: guide_options,
-                guideRequired: guideChecked
+                guideRequired: guideChecked,
+                focServiceDiscount: lineFocDisc
             };
             
             tourList.push(tourData);
@@ -15850,12 +16354,14 @@
         // After attractions load, set filter type and check the matching attraction
         setTimeout(() => {
             const attractionRows = document.querySelectorAll('.attraction-row');
+            const tourTicket = String(tour.ticketId != null && tour.ticketId !== '' ? tour.ticketId : '0');
             
             // Determine attraction type (tour site vs attraction) for this tour and set the filter radio accordingly
             let selectedFilterType = 'attraction'; // default
             const targetRowForType = Array.from(attractionRows).find(row => {
                 const attrId = row.getAttribute('data-attraction-id');
-                return attrId == tour.attractionId;
+                const rowTicket = String(row.getAttribute('data-ticket-id') || '0');
+                return attrId == tour.attractionId && rowTicket === tourTicket;
             });
             if (targetRowForType) {
                 const rowType = parseInt(targetRowForType.getAttribute('data-attraction-type')) || 1;
@@ -15870,7 +16376,8 @@
             filterAttractionsByType(selectedFilterType);
             attractionRows.forEach(row => {
                 const attrId = row.getAttribute('data-attraction-id');
-                if (attrId == tour.attractionId) {
+                const rowTicket = String(row.getAttribute('data-ticket-id') || '0');
+                if (attrId == tour.attractionId && rowTicket === tourTicket) {
                     // Check the checkbox
                     const checkbox = row.querySelector('.attraction-checkbox');
                     if (checkbox) checkbox.checked = true;
@@ -15956,6 +16463,9 @@
                         // No guide info - ensure checkbox is unchecked
                         if (guideCheckbox) guideCheckbox.checked = false;
                     }
+                    
+                    const focCb = row.querySelector('.attraction-foc-discount');
+                    if (focCb) focCb.checked = !!(tour.focServiceDiscount || tour.foc_service_discount);
                 }
             });
         }, 500);
@@ -16199,6 +16709,9 @@
                                            value="${defaultSellPrice}" step="1" min="0"
                                            style="font-size: 10px; padding: 2px 4px; text-align: right;">
                                 </td>
+                                <td style="padding: 2px 8px; text-align: center;" class="group-foc-service-discount-ui">
+                                    <input type="checkbox" class="form-check-input guide-foc-discount" data-guide-id="${guide.guide_id}" title="FOC discount">
+                                </td>
                             </tr>
                         `;
                     });
@@ -16342,7 +16855,8 @@
                     guideId: guideId,
                     locationId: locationId,
                     locationName: locationName,
-                    locationType: locationType
+                    locationType: locationType,
+                    focServiceDiscount: row.querySelector('.guide-foc-discount')?.checked === true
                 };
                 
                 console.log(`Adding guide (${q + 1}/${quantity}):`, guideData);
@@ -16441,7 +16955,8 @@
                     guideId: guideId,
                     locationId: locationId,
                     locationName: locationName,
-                    locationType: locationType
+                    locationType: locationType,
+                    focServiceDiscount: row.querySelector('.guide-foc-discount')?.checked === true
                 };
                 
                 guideList.push(guideData);
@@ -16807,7 +17322,7 @@
             // Clear items table
             const itemsTableBody = document.getElementById('miscItemsTableBody');
             if (itemsTableBody) {
-                itemsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 20px;">Please select a destination to load miscellaneous items</td></tr>';
+                itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a destination to load miscellaneous items</td></tr>';
             }
             
             // Reset checkboxes
@@ -16837,12 +17352,12 @@
         const itemsTableBody = document.getElementById('miscItemsTableBody');
         
         if (!destination) {
-            itemsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 20px;">Please select a destination to load miscellaneous items</td></tr>';
+            itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a destination to load miscellaneous items</td></tr>';
             return;
         }
         
         // Show loading state
-        itemsTableBody.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px;"><i class="ri-loader-4-line ri-spin me-2"></i>Loading miscellaneous items...</td></tr>';
+        itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 20px;"><i class="ri-loader-4-line ri-spin me-2"></i>Loading miscellaneous items...</td></tr>';
         
         // Get DMC ID from the form or session
         const dmcId = '{{ $dmc_id ?? "" }}';
@@ -16853,7 +17368,7 @@
         console.log('User created_by:', '{{ auth()->user()->created_by ?? "N/A" }}');
         
         if (!dmcId || dmcId === '') {
-            itemsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-danger" style="padding: 20px;"><i class="ri-error-warning-line me-2"></i>DMC ID not found. Please contact support.<br><small class="text-muted">Role: {{ auth()->user()->role_id ?? "N/A" }}, User ID: {{ auth()->user()->userId ?? "N/A" }}</small></td></tr>';
+            itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;"><i class="ri-error-warning-line me-2"></i>DMC ID not found. Please contact support.<br><small class="text-muted">Role: {{ auth()->user()->role_id ?? "N/A" }}, User ID: {{ auth()->user()->userId ?? "N/A" }}</small></td></tr>';
             console.error('DMC ID not available. User role:', '{{ auth()->user()->role_id ?? "N/A" }}');
             return;
         }
@@ -16875,7 +17390,7 @@
                 console.log('Loaded miscellaneous items:', items);
                 
                 if (!items || items.length === 0) {
-                    itemsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 20px;">No miscellaneous items available. Please configure items in the DMC panel.</td></tr>';
+                    itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">No miscellaneous items available. Please configure items in the DMC panel.</td></tr>';
                     return;
                 }
                 
@@ -16907,6 +17422,9 @@
                         </td>
                         <td style="padding: 2px 8px;">
                             <input type="text" class="form-control form-control-sm misc-infant-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.infant_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                        </td>
+                        <td style="padding: 2px 8px; text-align: center;" class="group-foc-service-discount-ui">
+                            <input type="checkbox" class="form-check-input misc-foc-discount" data-item-id="misc_${item.mis_id}" title="FOC discount (this item)">
                         </td>
                     </tr>
                 `).join('');
@@ -16955,7 +17473,7 @@
             })
             .catch(error => {
                 console.error('Error loading miscellaneous items:', error);
-                itemsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-danger" style="padding: 20px;"><i class="ri-error-warning-line me-2"></i>Error loading items. Please try again.</td></tr>';
+                itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;"><i class="ri-error-warning-line me-2"></i>Error loading items. Please try again.</td></tr>';
             });
     }
     
@@ -17003,6 +17521,7 @@
             const childCharge = row.querySelector('.misc-child-charge').value || '0.00';
             const infantQty = parseInt(row.querySelector('.misc-infant-qty').value) || 0;
             const infantCharge = row.querySelector('.misc-infant-charge').value || '0.00';
+            const focServiceDiscount = row.querySelector('.misc-foc-discount')?.checked === true;
             
             // Parse charges
             const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
@@ -17028,7 +17547,8 @@
                 infantQty: infantQty,
                 infantCost: infantCost,
                 infantSell: infantSell,
-                supplement: !!miscList[window.editingMiscIndex].supplement
+                supplement: !!miscList[window.editingMiscIndex].supplement,
+                focServiceDiscount: focServiceDiscount
             };
             
             window.editingMiscIndex = null;
@@ -17046,6 +17566,7 @@
                 const childCharge = row.querySelector('.misc-child-charge').value || '0.00';
                 const infantQty = parseInt(row.querySelector('.misc-infant-qty').value) || 0;
                 const infantCharge = row.querySelector('.misc-infant-charge').value || '0.00';
+                const focServiceDiscount = row.querySelector('.misc-foc-discount')?.checked === true;
                 
                 // Parse charges
                 const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
@@ -17070,7 +17591,8 @@
                     infantQty: infantQty,
                     infantCost: infantCost,
                     infantSell: infantSell,
-                    supplement: false
+                    supplement: false,
+                    focServiceDiscount: focServiceDiscount
                 };
                 
                 miscList.push(miscData);
@@ -17124,6 +17646,7 @@
                 <td><input type="number" value="${item.infantQty}" onchange="updateMiscField(${index}, 'infantQty', this.value)"></td>
                 <td><input type="text" value="${parseFloat(String(item.infantCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(item.infantSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'infantSell', this.value)" step="1"></td>
+                <td style="text-align: center;" class="group-foc-service-discount-ui"><input type="checkbox" ${item.focServiceDiscount || item.foc_service_discount ? 'checked' : ''} onchange="updateMiscField(${index}, 'focServiceDiscount', this.checked)"></td>
                 <td style="text-align: center;"><input type="checkbox" ${item.supplement ? 'checked' : ''} onchange="updateMiscSupplement(${index}, this.checked)"></td>
             </tr>
         `).join('');
@@ -17201,6 +17724,8 @@
                 setVal('.misc-child-charge', parseFloat(String(item.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
                 setVal('.misc-infant-qty', item.infantQty);
                 setVal('.misc-infant-charge', parseFloat(String(item.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+                const mFoc = targetRow.querySelector(`.misc-foc-discount[data-item-id="${itemId}"]`);
+                if (mFoc) mFoc.checked = !!(item.focServiceDiscount || item.foc_service_discount);
                 
                 // Scroll the row into view
                 targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -17307,7 +17832,7 @@
             // Get sell prices (remove "SGD " prefix and parse as float)
             const adultSell = parseFloat((row.querySelector('.meal-adult-sell')?.value || '0').replace(/[^\d.-]/g, ''));
             const childSell = parseFloat((row.querySelector('.meal-child-sell')?.value || '0').replace(/[^\d.-]/g, ''));
-            const infantSell = parseFloat((row.querySelector('.meal-infant-sell')?.value || '0').replace(/[^\d.-]/g, ''));
+            const infantSell = parseFloat((row.querySelector('.meal-infant-sell')?.value || row.querySelector('.meal-infant-cost')?.value || '0').replace(/[^\d.-]/g, ''));
             
             // Calculate cost subtotal for this meal: mealCount * (adultQty * adultCost + childQty * childCost + infantQty * infantCost)
             const mealCostSubtotal = mealCount * ((adultQty * adultCost) + (childQty * childCost) + (infantQty * infantCost));
@@ -17410,7 +17935,7 @@
         // Clear the meals table
         const mealsTableBody = document.getElementById('mealsTableBody');
         if (mealsTableBody) {
-            mealsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Select a destination and restaurant to load dishes</td></tr>';
+            mealsTableBody.innerHTML = '<tr><td colspan="13" class="text-center text-muted" style="padding: 20px;">Select a destination and restaurant to load dishes</td></tr>';
         }
         
         // Reset all checkboxes in the table
@@ -17462,6 +17987,11 @@
                 }
             }
         }
+        
+        const rtFocNew = document.getElementById('restaurantTransferFocServiceDiscount');
+        if (rtFocNew) rtFocNew.checked = false;
+        const rgFocNew = document.getElementById('restaurantGuideFocServiceDiscount');
+        if (rgFocNew) rgFocNew.checked = false;
         
         // Update modal title
         const modalTitle = document.getElementById('mealModalTitleText');
@@ -17523,6 +18053,8 @@
         if (typeSelect) {
             typeSelect.value = 'S';
         }
+        const rtFoc = document.getElementById('restaurantTransferFocServiceDiscount');
+        if (rtFoc) rtFoc.checked = false;
     }
     
     // Helper function to get hotel from accommodation list (prioritizes accommodation list over default)
@@ -17665,6 +18197,10 @@
         const detailsSection = document.getElementById('restaurantGuideDetailsSection');
         if (detailsSection) {
             detailsSection.style.display = guideChecked ? 'block' : 'none';
+        }
+        if (!guideChecked) {
+            const rgFoc = document.getElementById('restaurantGuideFocServiceDiscount');
+            if (rgFoc) rgFoc.checked = false;
         }
         if (guideChecked) {
             updateRestaurantGuidePricing();
@@ -17890,7 +18426,7 @@
         // Show loading state
         const mealsTableBody = document.getElementById('mealsTableBody');
         if (mealsTableBody) {
-            mealsTableBody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 20px;">Loading meals...</td></tr>';
+            mealsTableBody.innerHTML = '<tr><td colspan="13" class="text-center" style="padding: 20px;">Loading meals...</td></tr>';
         }
         
         try {
@@ -17941,7 +18477,7 @@
                 }
                 
                 if (mealsTableBody) {
-                    mealsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;">${errorMessage}</td></tr>`;
+                    mealsTableBody.innerHTML = `<tr><td colspan="13" class="text-center text-danger" style="padding: 20px;">${errorMessage}</td></tr>`;
                 }
                 alert(errorMessage);
                 return;
@@ -17954,7 +18490,7 @@
                 console.error('Response text:', responseText.substring(0, 500));
                 const errorMessage = 'Server returned non-JSON response. This usually indicates an authentication or routing error.';
                 if (mealsTableBody) {
-                    mealsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;">${errorMessage}</td></tr>`;
+                    mealsTableBody.innerHTML = `<tr><td colspan="13" class="text-center text-danger" style="padding: 20px;">${errorMessage}</td></tr>`;
                 }
                 alert(errorMessage + '\n\nCheck the browser console for details.');
                 return;
@@ -17974,7 +18510,7 @@
             if (!data.success) {
                 const errorMessage = data.message || 'Error loading meals. Please try again.';
                 if (mealsTableBody) {
-                    mealsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">${errorMessage}</td></tr>`;
+                    mealsTableBody.innerHTML = `<tr><td colspan="13" class="text-center text-muted" style="padding: 20px;">${errorMessage}</td></tr>`;
                 }
                 alert(errorMessage);
                 return;
@@ -17985,7 +18521,7 @@
             const restaurantMeals = data.meals || [];
             if (restaurantMeals.length === 0) {
                 if (mealsTableBody) {
-                    mealsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">No meals/dishes found for this restaurant</td></tr>';
+                    mealsTableBody.innerHTML = '<tr><td colspan="13" class="text-center text-muted" style="padding: 20px;">No meals/dishes found for this restaurant</td></tr>';
                 }
                 alert('No meals/dishes found for this restaurant');
                 return;
@@ -17998,7 +18534,7 @@
             console.error('Error fetching meals for restaurant:', error);
             console.error('Error stack:', error.stack);
             if (mealsTableBody) {
-                mealsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;">Error loading meals. Please check the console for details.</td></tr>';
+                mealsTableBody.innerHTML = '<tr><td colspan="13" class="text-center text-danger" style="padding: 20px;">Error loading meals. Please check the console for details.</td></tr>';
             }
             alert('Error loading meals: ' + error.message + '\n\nCheck the browser console for more details.');
         }
@@ -18173,6 +18709,9 @@
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="text" class="form-control form-control-sm meal-infant-sell" data-meal-id="${meal.meal_id}" value="0.00" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
+                </td>
+                <td style="padding: 2px 8px; text-align: center;" class="group-foc-service-discount-ui">
+                    <input type="checkbox" class="form-check-input meal-foc-discount" data-meal-id="${meal.meal_id}" title="FOC discount (this meal)">
                 </td>
             `;
             
@@ -18349,7 +18888,7 @@
             const childSellValue = row.querySelector('.meal-child-sell')?.value || '0.00';
             const infantQty = parseInt(row.querySelector('.meal-infant-qty').value) || 0;
             const infantCostValue = row.querySelector('.meal-infant-cost')?.value || '0.00';
-            const infantSellValue = row.querySelector('.meal-infant-sell')?.value || '0.00';
+            const infantSellValue = row.querySelector('.meal-infant-sell')?.value || row.querySelector('.meal-infant-cost')?.value || '0.00';
             
             // Get transfer info from restaurant transfer section (not per-row)
             const transferChecked = document.getElementById('restaurantTransferCheckbox')?.checked || false;
@@ -18367,6 +18906,8 @@
             const vehicleCapacity = parseInt(vehicleOption?.getAttribute('data-seating')) || 0;
             const transferWay = document.getElementById('restaurantTransferWay')?.value || 'one-way';
             const transferType = document.getElementById('restaurantTransferType')?.value || 'S';
+            const restaurantTransferFocSvc = document.getElementById('restaurantTransferFocServiceDiscount')?.checked === true;
+            const restaurantGuideFocSvc = document.getElementById('restaurantGuideFocServiceDiscount')?.checked === true;
             
             console.log('=== Editing Meal - Transfer Status ===');
             console.log('Transfer checkbox checked:', transferChecked);
@@ -18497,7 +19038,8 @@
                     zoneSharedPrice: restaurantZonePrice.shared_price,
                     isStandalone: false,
                     sourceType: 'meal',
-                    sourceId: mealId
+                    sourceId: mealId,
+                    focServiceDiscount: restaurantTransferFocSvc
                 };
                 
                 // Check if transfer already exists - update it instead of adding new
@@ -18617,7 +19159,8 @@
                             linkedTo: 'restaurant',
                             restaurantName: restaurantName,
                             adultsQty: restaurantGuideAdultQty,
-                            childQty: restaurantGuideChildQty
+                            childQty: restaurantGuideChildQty,
+                            focServiceDiscount: restaurantGuideFocSvc
                         };
                         guideList.push(guideEntry);
                     }
@@ -18631,6 +19174,7 @@
                         guideList[existingGuideIndex].sell = price;
                         guideList[existingGuideIndex].adultsQty = restaurantGuideAdultQty;
                         guideList[existingGuideIndex].childQty = restaurantGuideChildQty;
+                        guideList[existingGuideIndex].focServiceDiscount = restaurantGuideFocSvc;
                         guideId = oldMeal.guideId; // Keep the existing entry ID
                     }
                 }
@@ -18721,7 +19265,8 @@
                 transferInfo: transferInfo, // Will be null if transfer unchecked
                 guideId: guideId,
                 guideInfo: guideInfo,
-                guide_options: guide_options
+                guide_options: guide_options,
+                focServiceDiscount: row.querySelector('.meal-foc-discount')?.checked === true
             };
             
             console.log('Updated meal data:', mealData);
@@ -18756,6 +19301,8 @@
             const vehicleCapacity = parseInt(vehicleOption?.getAttribute('data-seating')) || 0;
             const transferWay = document.getElementById('restaurantTransferWay')?.value || 'one-way';
             const transferType = document.getElementById('restaurantTransferType')?.value || 'S';
+            const restaurantTransferFocSvc = document.getElementById('restaurantTransferFocServiceDiscount')?.checked === true;
+            const restaurantGuideFocSvc = document.getElementById('restaurantGuideFocServiceDiscount')?.checked === true;
             
             // Adding new meals - collect meal count per row and generate IDs
             const mealIdsPerRow = [];
@@ -18870,7 +19417,8 @@
                     zoneSharedPrice: restaurantZonePrice.shared_price,
                     isStandalone: false,
                     sourceType: 'meal',
-                    sourceId: mealIdsPerRow[0][0] // Link to first meal
+                    sourceId: mealIdsPerRow[0][0], // Link to first meal
+                    focServiceDiscount: restaurantTransferFocSvc
                 };
                 
                 transferList.push(transferEntry);
@@ -18999,7 +19547,7 @@
                 const childSellValue = row.querySelector('.meal-child-sell')?.value || '0.00';
                 const infantQty = parseInt(row.querySelector('.meal-infant-qty')?.value) || 0;
                 const infantCostValue = row.querySelector('.meal-infant-cost')?.value || '0.00';
-                const infantSellValue = row.querySelector('.meal-infant-sell')?.value || '0.00';
+                const infantSellValue = row.querySelector('.meal-infant-sell')?.value || row.querySelector('.meal-infant-cost')?.value || '0.00';
                 
                 const adultCost = parseFloat(adultCostValue.replace(/[^0-9.]/g, '')) || 0;
                 const adultSell = parseFloat(adultSellValue.replace(/[^0-9.]/g, '')) || 0;
@@ -19007,6 +19555,7 @@
                 const childSell = parseFloat(childSellValue.replace(/[^0-9.]/g, '')) || 0;
                 const infantCost = parseFloat(infantCostValue.replace(/[^0-9.]/g, '')) || 0;
                 const infantSell = parseFloat(infantSellValue.replace(/[^0-9.]/g, '')) || 0;
+                const mealRowFoc = row.querySelector('.meal-foc-discount')?.checked === true;
                 
                 let guide_options = null;
                 if (guideChecked && guideId && guideInfo) {
@@ -19090,7 +19639,8 @@
                             linkedTo: 'restaurant',
                             restaurantName: restaurantName,
                             adultsQty: guideInfo.adultsQty,
-                            childQty: guideInfo.childQty
+                            childQty: guideInfo.childQty,
+                            focServiceDiscount: restaurantGuideFocSvc
                         };
                         guideList.push(guideEntry);
                         thisGuideId = currentGuideEntryId;
@@ -19124,7 +19674,8 @@
                         transferInfo: thisTransferInfo,
                         guideId: thisGuideId,
                         guideInfo: thisGuideInfo,
-                        guide_options: thisGuideOptions
+                        guide_options: thisGuideOptions,
+                        focServiceDiscount: mealRowFoc
                     };
                     
                     mealList.push(mealData);
@@ -19696,10 +20247,23 @@
                 if (restaurantGuideDetailsSection) {
                     restaurantGuideDetailsSection.style.display = 'none';
                 }
+                const rgFocClr = document.getElementById('restaurantGuideFocServiceDiscount');
+                if (rgFocClr) rgFocClr.checked = false;
             }
         } else {
             // If no restaurant ID, just try to populate what we can
             populateMealFormForEdit(meal);
+        }
+        
+        const linkedXferFocEdit = meal.transferId ? transferList.find(t => String(t.id) === String(meal.transferId)) : null;
+        const rtFocEdit = document.getElementById('restaurantTransferFocServiceDiscount');
+        if (rtFocEdit) {
+            rtFocEdit.checked = !!(linkedXferFocEdit && (linkedXferFocEdit.focServiceDiscount || linkedXferFocEdit.foc_service_discount));
+        }
+        const linkedGuideFocEdit = meal.guideId ? guideList.find(g => String(g.id) === String(meal.guideId)) : null;
+        const rgFocEdit = document.getElementById('restaurantGuideFocServiceDiscount');
+        if (rgFocEdit) {
+            rgFocEdit.checked = !!(linkedGuideFocEdit && (linkedGuideFocEdit.focServiceDiscount || linkedGuideFocEdit.foc_service_discount));
         }
         
         document.getElementById('mealModalTitleText').textContent = 'Edit Meal / Restaurant';
@@ -19725,8 +20289,12 @@
         setVal('.meal-child-cost', parseFloat(String(meal.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
         setVal('.meal-child-sell', parseFloat(String(meal.childSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
         setVal('.meal-infant-qty', meal.infantQty);
-        setVal('.meal-infant-cost', parseFloat(String(meal.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
-        setVal('.meal-infant-sell', parseFloat(String(meal.infantSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        const infantCostOnly = meal.infantCost ?? meal.infant_cost ?? 0;
+        const infantSellOnly = meal.infantSell ?? meal.infant_sell ?? infantCostOnly;
+        setVal('.meal-infant-cost', parseFloat(String(infantCostOnly).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        setVal('.meal-infant-sell', parseFloat(String(infantSellOnly).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+        const mfoc = row.querySelector(`.meal-foc-discount[data-meal-id="${mealId}"]`);
+        if (mfoc) mfoc.checked = !!(meal.focServiceDiscount || meal.foc_service_discount);
     }
     
     // Helper function to populate meal form fields for editing
@@ -20202,6 +20770,16 @@
         document.getElementById('localWay').value = 'both-way';
         document.getElementById('localAdults').value = '2';
         document.getElementById('localChild').value = '0';
+        const tpf = document.getElementById('transferPackageFocDiscount');
+        if (tpf) tpf.checked = false;
+        const tpgf = document.getElementById('transferPackageGuideFocDiscount');
+        if (tpgf) tpgf.checked = false;
+        const ltgc = document.getElementById('localTransportGuideCheckbox');
+        if (ltgc) ltgc.checked = false;
+        const ltds = document.getElementById('localTransportGuideDetailsSection');
+        if (ltds) ltds.style.display = 'none';
+        const ltgs = document.getElementById('localTransportGuideSelect');
+        if (ltgs) ltgs.value = '';
         
         // Flight
         document.getElementById('flightDepartFrom').value = '';
@@ -21204,6 +21782,7 @@
                 // Add guide entry to guideList (with quantity loop)
                 const guideEntryId = generateId('guide');
                 const localTransportGuideQuantity = parseInt(document.getElementById('localTransportGuideQuantity')?.value || '1') || 1;
+                const transferGuideFocSvc = document.getElementById('transferPackageGuideFocDiscount')?.checked === true;
                 for (let gq = 0; gq < localTransportGuideQuantity; gq++) {
                     const currentGuideId = gq === 0 ? guideEntryId : generateId('guide');
                     const guideEntry = {
@@ -21222,7 +21801,8 @@
                         sourceType: 'transfer',
                         sourceId: transferData.id,
                         adultsQty: localTransportGuideAdultQty,
-                        childQty: localTransportGuideChildQty
+                        childQty: localTransportGuideChildQty,
+                        focServiceDiscount: transferGuideFocSvc
                     };
                     guideList.push(guideEntry);
                 }
@@ -21353,6 +21933,8 @@
             };
         }
         
+        transferData.focServiceDiscount = document.getElementById('transferPackageFocDiscount')?.checked || false;
+
         const isEditing = window.editingTransferIndex !== null && window.editingTransferIndex !== undefined;
         
         if (isEditing) {
@@ -21540,6 +22122,15 @@
                         hoursSelect.value = guideEntry.hours;
                     }
                     updateLocalTransportGuidePricing(); // Update pricing based on hours
+                    const tpgfEd = document.getElementById('transferPackageGuideFocDiscount');
+                    if (tpgfEd) {
+                        let lg = null;
+                        if (transfer.guideId) lg = guideList.find(g => String(g.id) === String(transfer.guideId));
+                        if (!lg && transfer.guideInfo && transfer.guideInfo.guideId) {
+                            lg = guideList.find(g => String(g.guideId) === String(transfer.guideInfo.guideId));
+                        }
+                        tpgfEd.checked = !!(lg && (lg.focServiceDiscount || lg.foc_service_discount));
+                    }
                 }
             } else {
                 // No guide info - ensure checkbox is unchecked and section is hidden
@@ -21549,6 +22140,8 @@
                 if (guideDetailsSection) {
                     guideDetailsSection.style.display = 'none';
                 }
+                const tpgfClr = document.getElementById('transferPackageGuideFocDiscount');
+                if (tpgfClr) tpgfClr.checked = false;
             }
         }
         else if (transportMode === 'flight') {
@@ -21631,6 +22224,9 @@
             document.getElementById('busTaxIncluded').checked = transfer.taxIncluded || false;
         }
         
+        const _tpFoc = document.getElementById('transferPackageFocDiscount');
+        if (_tpFoc) _tpFoc.checked = !!transfer.focServiceDiscount;
+
         document.getElementById('transferModalTitleText').textContent = 'Edit Transfer Package';
         document.getElementById('saveTransferBtnText').textContent = 'Save & Close';
         
@@ -21811,11 +22407,107 @@
         }
     }
 
+    /**
+     * Show per-service FOC discount UI + footer "FOC" discount type only when GROUP has FOC pax
+     * and "Treat FOC pax as discount (free)" (#enquiryProGroupDiscount) is on.
+     */
+    function refreshGroupFocDiscountUiVisibility() {
+        const wrap = document.querySelector('.enquiry-pro-container');
+        let active = false;
+        if (typeof getEnquiryProGroupFocFactors === 'function') {
+            const f = getEnquiryProGroupFocFactors();
+            active = !!(f.isGroup && f.focSize > 0 && f.discountOn);
+        }
+        if (wrap) {
+            wrap.classList.toggle('enquiry-pro-group-foc-discount-active', active);
+        }
+        const focOpt = document.querySelector('#discountType option[value="foc"]');
+        const dt = document.getElementById('discountType');
+        // Clear invalid "FOC" selection BEFORE hiding the option — some browsers keep the old
+        // value if the selected <option> is hidden first, which broke the edit form footer.
+        if (!active && dt && dt.value === 'foc') {
+            if (focOpt) focOpt.hidden = false;
+            dt.value = '';
+            if (typeof handleDiscountTypeChange === 'function') handleDiscountTypeChange();
+        }
+        if (focOpt) focOpt.hidden = !active;
+    }
+
+    /**
+     * GROUP + FOC factors aligned with App\Helpers\CommonHelper::calculateTourPrices.
+     *  - totalPax  = adults + children (infants excluded, same as the backend headcount).
+     *  - payingPax = max(0, adults - foc_size) + children (FOC applies to adults only).
+     *  - focFactor = totalPax / payingPax when distribution applies (e.g. 7/5 for 7 pax, foc=2).
+     *  - discount = 1 ("Treat FOC pax as discount (free)"):
+     *      → FOC pax pay NOTHING; paying pax pay their normal per-pax share (factor 5/5 = 1).
+     *      → hotelFactor = 1, otherFactor = 1.
+     *  - discount = 0:
+     *      → cost is distributed over paying pax for ALL services.
+     *      → hotelFactor = focFactor, otherFactor = focFactor.
+     */
+    function getEnquiryProGroupFocFactors() {
+        const typeEl = document.querySelector('input[name="type"]:checked');
+        const tourType = (typeEl && typeEl.value ? String(typeEl.value) : 'FIT').toUpperCase();
+        if (tourType !== 'GROUP') {
+            return {
+                isGroup: false,
+                totalPax: 0,
+                payingPax: 0,
+                focSize: 0,
+                discountOn: false,
+                focFactor: 1,
+                hotelFactor: 1,
+                otherFactor: 1,
+            };
+        }
+        const adults = parseInt(document.getElementById('adultCountInput')?.value || '0', 10) || 0;
+        const children = parseInt(document.getElementById('childCountInput')?.value || '0', 10) || 0;
+        const focSize = Math.max(0, parseInt(document.getElementById('enquiryProFocSize')?.value || '0', 10) || 0);
+        const totalPax = adults + children;
+        const payingAdults = Math.max(0, adults - focSize);
+        let payingPax = payingAdults + children;
+        if (payingPax < 1) {
+            payingPax = totalPax > 0 ? totalPax : 1;
+        }
+        let focFactor = 1;
+        if (payingPax > 0 && totalPax > payingPax) {
+            focFactor = totalPax / payingPax;
+        }
+        const hasFocDistribution = focFactor !== 1;
+        const discountOn = parseInt(document.getElementById('enquiryProGroupDiscount')?.value || '0', 10) === 1;
+        // discount=1 → FOC pax are TOTALLY FREE: paying pax pay their normal share for every service,
+        //              so both hotel and non-hotel factors collapse to 1 (5/5 in the user's example).
+        // discount=0 → cost is redistributed over paying pax for every service (focFactor, e.g. 7/5).
+        const distributionFactor = (hasFocDistribution && !discountOn) ? focFactor : 1;
+        const hotelFactor = distributionFactor;
+        const otherFactor = distributionFactor;
+        return {
+            isGroup: true,
+            totalPax,
+            payingPax,
+            focSize,
+            discountOn,
+            focFactor,
+            hotelFactor,
+            otherFactor,
+        };
+    }
+
+    // NOTE: scaleEnquiryProHotelNight() was removed — hotel modal now displays the RAW per-night
+    // room rate (same as FIT). GROUP + FOC scaling is applied only in recalculateTotals() below,
+    // where hotel.cost / hotel.sell are multiplied by hotelFactor while building the footer Single/Twin/Triple summary.
+
     // Recalculate all totals and populate footer table
     function recalculateTotals() {
+        if (typeof refreshGroupFocDiscountUiVisibility === 'function') {
+            refreshGroupFocDiscountUiVisibility();
+        }
         const tbody = document.getElementById('footerSummaryBody');
         const thead = document.getElementById('footerSummaryHeader');
         let rows = [];
+        const focHdr = getEnquiryProGroupFocFactors();
+        const htlF = focHdr.hotelFactor;
+        const othF = focHdr.otherFactor;
         
         // Determine if we have hotels (non-supplement hotels)
         const nonSupplementHotels = accommodationList.filter(hotel => !hotel.supplement);
@@ -21993,7 +22685,7 @@
                 if (miscTableBody) {
                     const tableRows = Array.from(miscTableBody.querySelectorAll('tr'));
                     if (miscIndex < tableRows.length) {
-                        // Misc table columns: 1-checkbox, 2-date, 3-item, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-infant qty, 11-infant cost, 12-infant sell, 13-supplement
+                        // Misc table columns: 1-checkbox, 2-date, 3-item, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-infant qty, 11-infant cost, 12-infant sell, 13-FOC, 14-supplement
                         const adultCostInput = tableRows[miscIndex].querySelector('td:nth-child(5) input');
                         const adultSellInput = tableRows[miscIndex].querySelector('td:nth-child(6) input');
                         const childCostInput = tableRows[miscIndex].querySelector('td:nth-child(8) input');
@@ -22188,6 +22880,26 @@
                 }
             }
         });
+
+        // GROUP + FOC: scale hotel bucket vs non-hotel bucket (CommonHelper parity)
+        const scaledTourCost = tourCostPerPax * othF;
+        const scaledTourSell = tourSellPerPax * othF;
+        const scaledTransferCost = transferCostPerPax * othF;
+        const scaledTransferSell = transferSellPerPax * othF;
+        const scaledChildCost = childCostPerPax * othF;
+        const scaledChildSell = childSellPerPax * othF;
+        const scaledGuideSingleCost = guideSingleCost * othF;
+        const scaledGuideSingleSell = guideSingleSell * othF;
+        const scaledGuideTwinCost = guideTwinCost * othF;
+        const scaledGuideTwinSell = guideTwinSell * othF;
+        const scaledGuideTripleCost = guideTripleCost * othF;
+        const scaledGuideTripleSell = guideTripleSell * othF;
+        const scaledLocalTransferSingleCost = localTransferSingleCost * othF;
+        const scaledLocalTransferSingleSell = localTransferSingleSell * othF;
+        const scaledLocalTransferTwinCost = localTransferTwinCost * othF;
+        const scaledLocalTransferTwinSell = localTransferTwinSell * othF;
+        const scaledLocalTransferTripleCost = localTransferTripleCost * othF;
+        const scaledLocalTransferTripleSell = localTransferTripleSell * othF;
         
         // Add accommodation rows (exclude items with supplement checked)
         if (accommodationList.length > 0) {
@@ -22223,26 +22935,28 @@
                 // Child without bed = child without bed amount * nights
                 // Infant = infant amount * nights
                 
-                const singleCost = totalHotelCost + tourCostPerPax + transferCostPerPax + guideSingleCost + localTransferSingleCost;
-                const singleSell = totalHotelSell + tourSellPerPax + transferSellPerPax + guideSingleSell + localTransferSingleSell;
-                
-                const twinCost = (totalHotelCost / 2) + tourCostPerPax + transferCostPerPax + guideTwinCost + localTransferTwinCost;
-                const twinSell = (totalHotelSell / 2) + tourSellPerPax + transferSellPerPax + guideTwinSell + localTransferTwinSell;
-                
-                // Triple includes extra bed
+                const scaledTotalHotelCost = totalHotelCost * htlF;
+                const scaledTotalHotelSell = totalHotelSell * htlF;
                 const totalExtraBedCost = extraBedPricePerNight * nights;
-                const tripleCost = ((totalHotelCost + totalExtraBedCost) / 3) + tourCostPerPax + transferCostPerPax + guideTripleCost + localTransferTripleCost;
-                const tripleSell = ((totalHotelSell + totalExtraBedCost) / 3) + tourSellPerPax + transferSellPerPax + guideTripleSell + localTransferTripleSell;
+                const scaledExtraBedCost = totalExtraBedCost * htlF;
+                const scaledCwbNight = (cwbPricePerNight * nights) * htlF;
+                const scaledCnbNight = (cnbPricePerNight * nights) * htlF;
+
+                const singleCost = scaledTotalHotelCost + scaledTourCost + scaledTransferCost + scaledGuideSingleCost + scaledLocalTransferSingleCost;
+                const singleSell = scaledTotalHotelSell + scaledTourSell + scaledTransferSell + scaledGuideSingleSell + scaledLocalTransferSingleSell;
                 
-                // Child with bed = CWB price * nights + child tour costs
-                const childWithBedCost = (cwbPricePerNight * nights) + childCostPerPax;
-                const childWithBedSell = (cwbPricePerNight * nights) + childSellPerPax;
+                const twinCost = (scaledTotalHotelCost / 2) + scaledTourCost + scaledTransferCost + scaledGuideTwinCost + scaledLocalTransferTwinCost;
+                const twinSell = (scaledTotalHotelSell / 2) + scaledTourSell + scaledTransferSell + scaledGuideTwinSell + scaledLocalTransferTwinSell;
                 
-                // Child without bed = CNB price * nights + child tour costs
-                const childWithoutBedCost = (cnbPricePerNight * nights) + childCostPerPax;
-                const childWithoutBedSell = (cnbPricePerNight * nights) + childSellPerPax;
+                const tripleCost = ((scaledTotalHotelCost + scaledExtraBedCost) / 3) + scaledTourCost + scaledTransferCost + scaledGuideTripleCost + scaledLocalTransferTripleCost;
+                const tripleSell = ((scaledTotalHotelSell + scaledExtraBedCost) / 3) + scaledTourSell + scaledTransferSell + scaledGuideTripleSell + scaledLocalTransferTripleSell;
                 
-                // Infant = infant price * nights
+                const childWithBedCost = scaledCwbNight + scaledChildCost;
+                const childWithBedSell = scaledCwbNight + scaledChildSell;
+                
+                const childWithoutBedCost = scaledCnbNight + scaledChildCost;
+                const childWithoutBedSell = scaledCnbNight + scaledChildSell;
+                
                 const infantCost = infantPricePerNight * nights;
                 const infantSell = infantPricePerNight * nights;
                 
@@ -22308,12 +23022,12 @@
                         </td>
                     </tr>
                 `);
-        });
-    }
+            });
+        }
     
-    // Check if all hotels are marked as supplement
-    // Reuse the nonSupplementHotels variable already declared at the top of this function
-    const allHotelsAreSupplement = accommodationList.length > 0 && nonSupplementHotels.length === 0;
+        // Check if all hotels are marked as supplement
+        // Reuse the nonSupplementHotels variable already declared at the top of this function
+        const allHotelsAreSupplement = accommodationList.length > 0 && nonSupplementHotels.length === 0;
         
         // Show Package Total Tours, Meals & Transfers row when:
         // 1. There are NO hotels at all, OR
@@ -22325,11 +23039,11 @@
                                        localTransferSingleSell > 0 || localTransferTwinSell > 0 || localTransferTripleSell > 0);
         
         if (shouldShowPackageTotal) {
-            // Calculate adult and child costs
-            const adultCost = tourCostPerPax + transferCostPerPax + guideSingleCost + localTransferSingleCost;
-            const adultSell = tourSellPerPax + transferSellPerPax + guideSingleSell + localTransferSingleSell;
-            const childCost = childCostPerPax;
-            const childSell = childSellPerPax;
+            // Calculate adult and child costs (GROUP + FOC: non-hotel bucket uses otherFactor)
+            const adultCost = scaledTourCost + scaledTransferCost + scaledGuideSingleCost + scaledLocalTransferSingleCost;
+            const adultSell = scaledTourSell + scaledTransferSell + scaledGuideSingleSell + scaledLocalTransferSingleSell;
+            const childCost = scaledChildCost;
+            const childSell = scaledChildSell;
             
             // Round prices
             const adultCostRounded = roundToNextZero(adultCost);
@@ -22396,6 +23110,299 @@
         applyMarkupDiscount();
     }
 
+    /**
+     * While the accommodation modal is open, keep transferList / arrivalDepartureList FOC flags
+     * in sync with the modal checkboxes so FOC discount in the footer updates without Save & Close.
+     */
+    function syncModalTransferFocFromModal() {
+        try {
+            if (window.isArrivalDepartureOnlyMode && window.editingArrivalDepartureIndex !== null && window.editingArrivalDepartureIndex !== undefined) {
+                const item = arrivalDepartureList[window.editingArrivalDepartureIndex];
+                if (item) {
+                    const isArr = (item.type === 'Arrival' || item.type === 'arrival');
+                    const foc = isArr
+                        ? (document.getElementById('arrivalFocServiceDiscount')?.checked === true)
+                        : (document.getElementById('departureFocServiceDiscount')?.checked === true);
+                    item.focServiceDiscount = foc;
+                    if (item.transferId) {
+                        const ti = transferList.findIndex(t => String(t.id) === String(item.transferId));
+                        if (ti !== -1) {
+                            transferList[ti] = { ...transferList[ti], focServiceDiscount: foc };
+                        }
+                    }
+                    if (typeof updateTransferTable === 'function') updateTransferTable();
+                }
+            } else {
+                const section = document.getElementById('arrivalDepartureSection');
+                const depWrap = document.getElementById('departureTransferFocRowWrap');
+                if (section && section.style.display !== 'none') {
+                    const arrEntry = arrivalDepartureList.find(e => e.sourceType === 'hotel' && e.travel_type === 'entry_port');
+                    const depEntry = arrivalDepartureList.find(e => e.sourceType === 'hotel' && e.travel_type === 'exit_port');
+                    if (arrEntry && arrEntry.transferId) {
+                        const focA = document.getElementById('arrivalFocServiceDiscount')?.checked === true;
+                        arrEntry.focServiceDiscount = focA;
+                        const ti = transferList.findIndex(t => String(t.id) === String(arrEntry.transferId));
+                        if (ti !== -1) transferList[ti] = { ...transferList[ti], focServiceDiscount: focA };
+                    }
+                    if (depEntry && depEntry.transferId && !(depWrap && depWrap.style.display === 'none')) {
+                        const focD = document.getElementById('departureFocServiceDiscount')?.checked === true;
+                        depEntry.focServiceDiscount = focD;
+                        const ti = transferList.findIndex(t => String(t.id) === String(depEntry.transferId));
+                        if (ti !== -1) transferList[ti] = { ...transferList[ti], focServiceDiscount: focD };
+                    }
+                    if (typeof updateTransferTable === 'function') updateTransferTable();
+                }
+            }
+        } catch (e) {
+            console.warn('syncModalTransferFocFromModal', e);
+        }
+        if (typeof recalculateTotals === 'function') recalculateTotals();
+    }
+
+    /** Standalone arrival/departure edit: sync guide FOC checkbox to guideList for live footer FOC. */
+    function syncModalGuideFocFromCheckboxes() {
+        try {
+            if (!window.isArrivalDepartureOnlyMode || window.editingArrivalDepartureIndex === null || window.editingArrivalDepartureIndex === undefined) {
+                if (typeof recalculateTotals === 'function') recalculateTotals();
+                return;
+            }
+            const item = arrivalDepartureList[window.editingArrivalDepartureIndex];
+            if (!item || !item.guideId) {
+                if (typeof recalculateTotals === 'function') recalculateTotals();
+                return;
+            }
+            const isArr = item.type === 'Arrival' || item.type === 'arrival';
+            const foc = document.getElementById(isArr ? 'arrivalGuideFocServiceDiscount' : 'departureGuideFocServiceDiscount')?.checked === true;
+            const gi = guideList.findIndex(g => String(g.id) === String(item.guideId));
+            if (gi !== -1) {
+                guideList[gi] = { ...guideList[gi], focServiceDiscount: foc };
+            }
+        } catch (e) {
+            console.warn('syncModalGuideFocFromCheckboxes', e);
+        }
+        if (typeof recalculateTotals === 'function') recalculateTotals();
+    }
+
+    /**
+     * GROUP + FOC: monetary value absorbed for FOC adults (× foc_size).
+     * - Hotels: only when "Treat FOC pax as discount (free)" is on (no per-room checkbox).
+     * - Attractions, meals, misc, guides, transfers: only services with "FOC discount" checked in their modal.
+     * Mirrors hotelFactor / otherFactor from getEnquiryProGroupFocFactors (same as footer totals).
+     */
+    function computeAutoFocDiscount() {
+        const f = (typeof getEnquiryProGroupFocFactors === 'function')
+            ? getEnquiryProGroupFocFactors()
+            : { isGroup: false, focSize: 0, discountOn: false, hotelFactor: 1, otherFactor: 1 };
+        if (!f.isGroup || f.focSize <= 0) return 0;
+        if (!f.discountOn) return 0;
+
+        const htlF = f.hotelFactor;
+        const othF = f.otherFactor;
+        const foc = f.focSize;
+
+        const ceilIfDecimal = (value) => ((value % 1 === 0) ? value : Math.ceil(value));
+
+        let total = 0;
+
+        accommodationList.forEach((hotel) => {
+            if (hotel.supplement) return;
+            if (hotel.focServiceDiscount === false) return;
+            const nights = parseInt(String(hotel.nights || 0), 10) || 0;
+            const sell = parseFloat(hotel.sell) || 0;
+            const scaledTotalHotelSell = nights * sell * htlF;
+            const twinHotelPerPax = scaledTotalHotelSell / 2;
+            if (twinHotelPerPax > 0) total += twinHotelPerPax * foc;
+        });
+
+        const tourTableBody = document.getElementById('tourTableBody');
+        const transferTableBody = document.getElementById('transferTableBody');
+        const guideTableBody = document.getElementById('guideTableBody');
+
+        tourList.forEach((tour, tourIndex) => {
+            if (tour.supplement || !tour.focServiceDiscount) return;
+            const adultsQty = parseInt(tour.adultsQty, 10) || 0;
+            const childQty = parseInt(tour.childQty, 10) || 0;
+            const infantQty = parseInt(tour.infantQty, 10) || 0;
+            let adultSell = parseFloat(tour.adultSell) || 0;
+            let childSell = parseFloat(tour.childSell) || 0;
+            let infantSell = parseFloat(tour.infantSell) || 0;
+            if (tourTableBody) {
+                const tableRows = Array.from(tourTableBody.querySelectorAll('tr'));
+                if (tourIndex < tableRows.length) {
+                    const tr = tableRows[tourIndex];
+                    const adultSellInput = tr.querySelector('td:nth-child(6) input');
+                    const childSellInput = tr.querySelector('td:nth-child(9) input');
+                    if (adultSellInput && adultSellInput.value !== '') adultSell = parseFloat(adultSellInput.value) || 0;
+                    if (childSellInput && childSellInput.value !== '') childSell = parseFloat(childSellInput.value) || 0;
+                }
+            }
+            const ticketTotal = adultSell * adultsQty + childSell * childQty + infantSell * infantQty;
+            const ticketPax = adultsQty + childQty + infantQty;
+            if (ticketPax > 0 && ticketTotal > 0) {
+                total += (ticketTotal / ticketPax) * othF * foc;
+            } else if (adultSell > 0) {
+                total += adultSell * othF * foc;
+            }
+
+            if (tour.transferId) {
+                const ti = transferList.findIndex(t => String(t.id) === String(tour.transferId));
+                if (ti !== -1) {
+                    const tr = transferList[ti];
+                    if (!tr.supplement && tr.transportMode === 'local') {
+                        let listSellValue = parseFloat(tr.sell || 0);
+                        if (transferTableBody) {
+                            const rows = Array.from(transferTableBody.querySelectorAll('tr'));
+                            if (ti < rows.length) {
+                                const sellInput = rows[ti].querySelector('td:nth-child(11) input');
+                                if (sellInput && sellInput.value !== '') listSellValue = parseFloat(sellInput.value) || 0;
+                            }
+                        }
+                        const baseSell = listSellValue;
+                        const transferType = (tr.type || '').toString().toLowerCase();
+                        const isPrivateXfer = transferType === 'p' || transferType === 'private';
+                        if (baseSell > 0) {
+                            if (isPrivateXfer) {
+                                const paxCount = (parseInt(tr.adults, 10) || 0) + (parseInt(tr.child, 10) || 0);
+                                if (paxCount > 0) {
+                                    total += (baseSell / paxCount) * othF * foc;
+                                } else {
+                                    total += ceilIfDecimal(baseSell / 2) * othF * foc;
+                                }
+                            } else {
+                                total += baseSell * othF * foc;
+                            }
+                        }
+                    }
+                }
+            }
+
+            guideList.forEach((guide, guideIndex) => {
+                if (guide.supplement) return;
+                if (String(guide.sourceTourId || '') !== String(tour.id)) return;
+                let guideSell = parseFloat(guide.sell || 0);
+                if (guideTableBody) {
+                    const gRows = Array.from(guideTableBody.querySelectorAll('tr'));
+                    if (guideIndex < gRows.length) {
+                        const sellInput = gRows[guideIndex].querySelector('td:nth-child(9) input[type="number"]');
+                        if (sellInput && sellInput.value !== '') guideSell = parseFloat(sellInput.value) || 0;
+                    }
+                }
+                const adultQ = parseInt(guide.adultsQty ?? guide.adults ?? 0, 10) || 0;
+                const childQ = parseInt(guide.childQty ?? guide.child ?? 0, 10) || 0;
+                const paxCountG = adultQ + childQ;
+                if (paxCountG > 0) {
+                    total += (guideSell / paxCountG) * othF * foc;
+                } else {
+                    const twinPartG = ceilIfDecimal(guideSell / 2) * othF;
+                    if (twinPartG > 0) total += twinPartG * foc;
+                }
+            });
+        });
+
+        const mealTableBody = document.getElementById('mealTableBody');
+        mealList.forEach((meal, mealIndex) => {
+            if (meal.supplement || !meal.focServiceDiscount) return;
+            let adultSell = parseFloat(meal.adultSell) || 0;
+            if (mealTableBody) {
+                const tableRows = Array.from(mealTableBody.querySelectorAll('tr'));
+                if (mealIndex < tableRows.length) {
+                    const adultSellInput = tableRows[mealIndex].querySelector('td:nth-child(6) input');
+                    if (adultSellInput && adultSellInput.value !== '') adultSell = parseFloat(adultSellInput.value) || 0;
+                }
+            }
+            if (adultSell > 0) total += adultSell * othF * foc;
+        });
+
+        const miscTableBody = document.getElementById('miscTableBody');
+        miscList.forEach((misc, miscIndex) => {
+            if (misc.supplement || !misc.focServiceDiscount) return;
+            let adultSell = parseFloat(misc.adultSell) || 0;
+            if (miscTableBody) {
+                const tableRows = Array.from(miscTableBody.querySelectorAll('tr'));
+                if (miscIndex < tableRows.length) {
+                    const adultSellInput = tableRows[miscIndex].querySelector('td:nth-child(6) input');
+                    if (adultSellInput && adultSellInput.value !== '') adultSell = parseFloat(adultSellInput.value) || 0;
+                }
+            }
+            if (adultSell > 0) total += adultSell * othF * foc;
+        });
+
+        transferList.forEach((transfer, transferIndex) => {
+            if (transfer.supplement || !transfer.focServiceDiscount) return;
+            if (transfer.sourceType === 'tour' && transfer.sourceId) {
+                const ownerTour = tourList.find(tu => String(tu.id) === String(transfer.sourceId));
+                if (ownerTour && ownerTour.focServiceDiscount) return;
+            }
+            if (transfer.transportMode === 'local') {
+                let listSellValue = parseFloat(transfer.sell || 0);
+                if (transferTableBody) {
+                    const tableRows = Array.from(transferTableBody.querySelectorAll('tr'));
+                    if (transferIndex < tableRows.length) {
+                        const sellInput = tableRows[transferIndex].querySelector('td:nth-child(11) input');
+                        if (sellInput && sellInput.value !== '') listSellValue = parseFloat(sellInput.value) || 0;
+                    }
+                }
+                const baseSell = listSellValue;
+                const transferType = (transfer.type || '').toString().toLowerCase();
+                const isPrivate = transferType === 'p' || transferType === 'private';
+                if (baseSell > 0) {
+                    if (isPrivate) {
+                        const paxCount = (parseInt(transfer.adults, 10) || 0) + (parseInt(transfer.child, 10) || 0);
+                        if (paxCount > 0) {
+                            total += (baseSell / paxCount) * othF * foc;
+                        } else {
+                            total += ceilIfDecimal(baseSell / 2) * othF * foc;
+                        }
+                    } else {
+                        total += baseSell * othF * foc;
+                    }
+                }
+                return;
+            }
+            const paxCount = (parseInt(transfer.adults) || 0) + (parseInt(transfer.child) || 0);
+            const sell = parseFloat(transfer.sell) || 0;
+            if (paxCount <= 0 || sell <= 0) return;
+            const perPax = sell / paxCount;
+            total += perPax * othF * foc;
+        });
+
+        guideList.forEach((guide, guideIndex) => {
+            if (guide.supplement || !guide.focServiceDiscount) return;
+            if (guide.sourceTourId) {
+                const ownerTour = tourList.find(tu => String(tu.id) === String(guide.sourceTourId));
+                if (ownerTour && ownerTour.focServiceDiscount) return;
+            }
+            const isStandalone = guide.isStandalone !== false;
+            const isRestaurantGuide = guide.linkedTo === 'restaurant';
+            const isAttractionGuide = guide.isStandalone === false && guide.linkedTo !== 'restaurant' && guide.linkedTo !== 'arrival' && guide.linkedTo !== 'departure' && guide.linkedTo !== 'local_transport';
+            const isArrivalGuide = guide.linkedTo === 'arrival';
+            const isDepartureGuide = guide.linkedTo === 'departure';
+            const isLocalTransportGuide = guide.linkedTo === 'local_transport';
+            if (!(isStandalone || isRestaurantGuide || isAttractionGuide || isArrivalGuide || isDepartureGuide || isLocalTransportGuide)) return;
+
+            let guideSell = parseFloat(guide.sell || 0);
+            if (guideTableBody) {
+                const tableRows = Array.from(guideTableBody.querySelectorAll('tr'));
+                if (guideIndex < tableRows.length) {
+                    const sellInput = tableRows[guideIndex].querySelector('td:nth-child(9) input[type="number"]');
+                    if (sellInput && sellInput.value !== '') guideSell = parseFloat(sellInput.value) || 0;
+                }
+            }
+            const adultQ = parseInt(guide.adultsQty ?? guide.adults ?? 0, 10) || 0;
+            const childQ = parseInt(guide.childQty ?? guide.child ?? 0, 10) || 0;
+            const paxCount = adultQ + childQ;
+            if (paxCount > 0) {
+                const perPax = guideSell / paxCount;
+                total += perPax * othF * foc;
+            } else {
+                const twinPart = ceilIfDecimal(guideSell / 2) * othF;
+                if (twinPart > 0) total += twinPart * foc;
+            }
+        });
+
+        return Math.ceil(total);
+    }
+
     // Handle discount type change - enable/disable value input
     function handleDiscountTypeChange() {
         const discountType = document.getElementById('discountType');
@@ -22404,8 +23411,28 @@
         if (discountType.value === '') {
             discountValue.disabled = true;
             discountValue.value = 0;
+            discountValue.style.backgroundColor = '';
+            discountValue.title = 'Discount value. When type = FOC, this is auto-computed and locked.';
+        } else if (discountType.value === 'foc') {
+            const f = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : { isGroup: false, focSize: 0, discountOn: false };
+            if (!f.isGroup || f.focSize <= 0 || !f.discountOn) {
+                discountType.value = '';
+                discountValue.disabled = true;
+                discountValue.value = 0;
+                discountValue.style.backgroundColor = '';
+                discountValue.title = 'Discount value. When type = FOC, this is auto-computed and locked.';
+                applyMarkupDiscount();
+                return;
+            }
+            // Auto-computed; field is locked so the value can't drift from the live calculation.
+            discountValue.disabled = true;
+            discountValue.value = computeAutoFocDiscount();
+            discountValue.style.backgroundColor = '#fff8e1';
+            discountValue.title = 'Auto-computed FOC discount: hotels when “Free” is on, plus checked services (adult/twin share × FOC size).';
         } else {
             discountValue.disabled = false;
+            discountValue.style.backgroundColor = '';
+            discountValue.title = 'Discount value. When type = FOC, this is auto-computed and locked.';
         }
         applyMarkupDiscount();
     }
@@ -22426,8 +23453,23 @@
         
         const markupValue = parseFloat(markupValueElem.value || 0);
         const markupType = markupTypeElem.value || '';
-        const discountValue = parseFloat(discountValueElem.value || 0);
         const discountType = discountTypeElem.value || '';
+        const focHdr = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
+        const focDiscountUiActive = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
+
+        // FOC discount type: auto-recompute the absorbed-cost value on every pass so it stays
+        // in sync as services are added/removed. The value is purely informational and is NOT
+        // subtracted from per-pax sells (paying pax already pay their normal share with factor = 1).
+        let discountValue;
+        if (discountType === 'foc' && focDiscountUiActive) {
+            discountValue = computeAutoFocDiscount();
+            discountValueElem.value = discountValue;
+        } else if (discountType === 'foc') {
+            discountValue = 0;
+            discountValueElem.value = 0;
+        } else {
+            discountValue = parseFloat(discountValueElem.value || 0);
+        }
         
         console.log('📊 Markup/Discount Values:', {
             markupValue,
@@ -22493,8 +23535,10 @@
                             }
                         }
                         
-                        // Apply discount (only if type is selected and value > 0)
-                        if (discountValue > 0 && discountType !== '') {
+                        // Apply discount (only if type is selected and value > 0).
+                        // FOC type is intentionally skipped — its value is informational only
+                        // (paying-pax sells are already correct at factor = 1).
+                        if (discountValue > 0 && discountType !== '' && discountType !== 'foc') {
                             if (discountType === 'percentage') {
                                 newValue -= (newValue * discountValue / 100);
                             } else {
@@ -22533,6 +23577,19 @@
                 checkboxes.forEach(cb => cb.checked = this.checked);
             });
         }
+
+        document.querySelectorAll('input[name="type"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (typeof recalculateTotals === 'function') recalculateTotals();
+                if (typeof recalculateRoomCombinationPrices === 'function') recalculateRoomCombinationPrices();
+                const chk = document.querySelector('.room-combination-checkbox:checked');
+                if (chk && window.currentRoomCombinations && typeof updatePricingSummary === 'function') {
+                    const cid = chk.getAttribute('data-combo-id');
+                    const cmb = window.currentRoomCombinations.find(function (x) { return String(x.id) === String(cid); });
+                    if (cmb) updatePricingSummary(cmb);
+                }
+            });
+        });
 
         // Select all arrival/departure
         const selectAllArrivalDeparture = document.getElementById('selectAllArrivalDeparture');
@@ -22595,6 +23652,19 @@
                 console.log('Discount type changed:', this.value);
                 handleDiscountTypeChange();
             });
+        }
+
+        (function syncFooterFocWhenTreatFocFreeOnInit() {
+            const h = document.getElementById('enquiryProGroupDiscount');
+            if (!h || String(h.value) !== '1') return;
+            if (discountType && discountType.value !== 'foc') {
+                discountType.value = 'foc';
+                if (typeof handleDiscountTypeChange === 'function') handleDiscountTypeChange();
+            }
+        })();
+
+        if (typeof refreshGroupFocDiscountUiVisibility === 'function') {
+            refreshGroupFocDiscountUiVisibility();
         }
 
         console.log('✅ Markup/Discount event listeners registered');
@@ -22741,6 +23811,148 @@
             return null;
         }
     }
+
+    /** Total tour adults stored as beds[].head_count (not per-room capacity). */
+    function getHotelHeadCount(hotel) {
+        const headerAdults = parseInt(document.getElementById('adultCountInput')?.value || document.getElementById('adults')?.value || '0', 10) || 0;
+        if (headerAdults > 0) return headerAdults;
+        const stored = parseInt(hotel?.headCount ?? hotel?.head_count ?? 0, 10);
+        if (stored > 0) return stored;
+        return parseInt(hotel?.adultsPerRoom, 10) || 2;
+    }
+
+    function getFocDiscountContext() {
+        const discountType = document.getElementById('discountType')?.value || '';
+        const f = (typeof getEnquiryProGroupFocFactors === 'function')
+            ? getEnquiryProGroupFocFactors()
+            : { isGroup: false, focSize: 0, discountOn: false, hotelFactor: 1, otherFactor: 1 };
+        const active = discountType === 'foc' && f.isGroup && f.focSize > 0 && f.discountOn;
+        return {
+            active,
+            focSize: active ? f.focSize : 0,
+            hotelFactor: f.hotelFactor || 1,
+            otherFactor: f.otherFactor || 1,
+        };
+    }
+
+    function focCeilIfDecimal(value) {
+        return (value % 1 === 0) ? value : Math.ceil(value);
+    }
+
+    function computeHotelServiceDiscountAmount(hotel) {
+        const ctx = getFocDiscountContext();
+        if (!ctx.active || hotel.supplement || hotel.focServiceDiscount === false) return 0;
+        const nights = parseInt(String(hotel.nights || 0), 10) || 0;
+        const sell = parseFloat(hotel.sell) || 0;
+        const scaledTotalHotelSell = nights * sell * ctx.hotelFactor;
+        const twinHotelPerPax = scaledTotalHotelSell / 2;
+        return twinHotelPerPax > 0 ? twinHotelPerPax * ctx.focSize : 0;
+    }
+
+    function computeArrivalDepartureVehicleDiscountAmount(item) {
+        const ctx = getFocDiscountContext();
+        if (!ctx.active || item.supplement || !item.focServiceDiscount) return 0;
+        const adults = parseInt(item.adultsQty, 10) || 0;
+        const child = parseInt(item.childQty, 10) || 0;
+        const paxCount = adults + child;
+        const adultSell = parseFloat(item.adultSell) || 0;
+        const typeVal = (item.transferType || item.type || '').toString().toLowerCase();
+        const isShared = typeVal === 's' || typeVal === 'shared' || typeVal === 'sic';
+        if (isShared) {
+            return adultSell > 0 ? adultSell * ctx.otherFactor * ctx.focSize : 0;
+        }
+        const sell = parseFloat(item.adultSell || item.sell || item.cost) || 0;
+        if (paxCount > 0 && sell > 0) {
+            return (sell / paxCount) * ctx.otherFactor * ctx.focSize;
+        }
+        return sell > 0 ? focCeilIfDecimal(sell / 2) * ctx.otherFactor * ctx.focSize : 0;
+    }
+
+    function computeGuideServiceDiscountAmount(guide, focEnabled) {
+        const ctx = getFocDiscountContext();
+        if (!ctx.active || !guide || guide.supplement) return 0;
+        if (focEnabled === false) return 0;
+        if (focEnabled !== true && !(guide.focServiceDiscount || guide.foc_service_discount)) return 0;
+        const guideSell = parseFloat(guide.sell || 0);
+        const adultQ = parseInt(guide.adultsQty ?? guide.adults ?? 0, 10) || 0;
+        const childQ = parseInt(guide.childQty ?? guide.child ?? 0, 10) || 0;
+        const paxCountG = adultQ + childQ;
+        if (paxCountG > 0) {
+            return (guideSell / paxCountG) * ctx.otherFactor * ctx.focSize;
+        }
+        return focCeilIfDecimal(guideSell / 2) * ctx.otherFactor * ctx.focSize;
+    }
+
+    function computeTourTicketDiscountAmount(tour) {
+        const ctx = getFocDiscountContext();
+        if (!ctx.active || tour.supplement || !tour.focServiceDiscount) return 0;
+        const adultsQty = parseInt(tour.adultsQty, 10) || 0;
+        const childQty = parseInt(tour.childQty, 10) || 0;
+        const infantQty = parseInt(tour.infantQty, 10) || 0;
+        const adultSell = parseFloat(tour.adultSell) || 0;
+        const childSell = parseFloat(tour.childSell) || 0;
+        const infantSell = parseFloat(tour.infantSell) || 0;
+        const ticketTotal = adultSell * adultsQty + childSell * childQty + infantSell * infantQty;
+        const ticketPax = adultsQty + childQty + infantQty;
+        if (ticketPax > 0 && ticketTotal > 0) {
+            return (ticketTotal / ticketPax) * ctx.otherFactor * ctx.focSize;
+        }
+        if (adultSell > 0) {
+            return adultSell * ctx.otherFactor * ctx.focSize;
+        }
+        return 0;
+    }
+
+    function computeTransferOptionsDiscountAmount(transfer, parentFocEnabled) {
+        if (!transfer) return 0;
+        const ctx = getFocDiscountContext();
+        if (!ctx.active || transfer.supplement) return 0;
+        const focOn = parentFocEnabled === true || !!(transfer.focServiceDiscount || transfer.foc_service_discount);
+        if (!focOn) return 0;
+        const sell = parseFloat(transfer.sell ?? transfer.adultSell ?? transfer.cost ?? 0) || 0;
+        const adults = parseInt(transfer.adults ?? transfer.adultsQty ?? 0, 10) || 0;
+        const child = parseInt(transfer.child ?? transfer.childQty ?? 0, 10) || 0;
+        const paxCount = adults + child;
+        const typeVal = (transfer.type || transfer.transferType || '').toString().toLowerCase();
+        const isShared = typeVal === 's' || typeVal === 'shared' || typeVal === 'sic';
+        const isPrivate = typeVal === 'p' || typeVal === 'private';
+        if (transfer.transportMode === 'local') {
+            if (isShared) {
+                return sell > 0 ? sell * ctx.otherFactor * ctx.focSize : 0;
+            }
+            if (isPrivate) {
+                if (paxCount > 0 && sell > 0) {
+                    return (sell / paxCount) * ctx.otherFactor * ctx.focSize;
+                }
+                return sell > 0 ? focCeilIfDecimal(sell / 2) * ctx.otherFactor * ctx.focSize : 0;
+            }
+        }
+        if (isShared && sell > 0) {
+            return sell * ctx.otherFactor * ctx.focSize;
+        }
+        if (paxCount > 0 && sell > 0) {
+            return (sell / paxCount) * ctx.otherFactor * ctx.focSize;
+        }
+        return 0;
+    }
+
+    function computeMealDiscountAmount(meal) {
+        const ctx = getFocDiscountContext();
+        if (!ctx.active || meal.supplement || !meal.focServiceDiscount) return 0;
+        const adultSell = parseFloat(meal.adultSell) || 0;
+        return adultSell > 0 ? adultSell * ctx.otherFactor * ctx.focSize : 0;
+    }
+
+    function computeStandaloneGuideDiscountAmount(guide) {
+        return computeGuideServiceDiscountAmount(guide, !!(guide.focServiceDiscount || guide.foc_service_discount));
+    }
+
+    function computeMiscDiscountAmount(misc) {
+        const ctx = getFocDiscountContext();
+        if (!ctx.active || misc.supplement || !(misc.focServiceDiscount || misc.foc_service_discount)) return 0;
+        const adultSell = parseFloat(misc.adultSell) || 0;
+        return adultSell > 0 ? adultSell * ctx.otherFactor * ctx.focSize : 0;
+    }
     
     // Transform arrival/departure data to required format
     async function transformArrivalDepartureData() {
@@ -22878,6 +24090,7 @@
                     basePrice: parseFloat(item.adultSell) || parseFloat(item.adultCost) || parseFloat(item.cost) || 0,
                     base_price: parseFloat(item.adultSell) || parseFloat(item.adultCost) || parseFloat(item.cost) || 0,
                     totalPrice: arrTotalPrice,
+                    discount_amount: computeArrivalDepartureVehicleDiscountAmount(item),
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
@@ -22933,7 +24146,8 @@
                             tourActivity: `Arrival Guide - ${item.portName}`,
                             tour_activity: `Arrival Guide - ${item.portName}`,
                             Activity: `Arrival Guide - ${item.portName}`,
-                            pickup_time: linkedGuide.time || ''
+                            pickup_time: linkedGuide.time || '',
+                            discount_amount: computeGuideServiceDiscountAmount(linkedGuide, true)
                         };
                     }
                 }
@@ -23046,6 +24260,7 @@
                     basePrice: parseFloat(item.adultSell) || parseFloat(item.adultCost) || parseFloat(item.cost) || 0,
                     base_price: parseFloat(item.adultSell) || parseFloat(item.adultCost) || parseFloat(item.cost) || 0,
                     totalPrice: depTotalPrice,
+                    discount_amount: computeArrivalDepartureVehicleDiscountAmount(item),
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
@@ -23085,7 +24300,8 @@
                             tourActivity: `Departure Guide - ${item.portName}`,
                             tour_activity: `Departure Guide - ${item.portName}`,
                             Activity: `Departure Guide - ${item.portName}`,
-                            pickup_time: linkedGuide.time || ''
+                            pickup_time: linkedGuide.time || '',
+                            discount_amount: computeGuideServiceDiscountAmount(linkedGuide, true)
                         };
                     }
                 }
@@ -23187,7 +24403,7 @@
                 bed_id: String(actualBedId || ""),
                 bed_type: cleanBedType,
                 baby_cot: 0,
-                head_count: parseInt(hotel.adultsPerRoom) || 2,
+                head_count: getHotelHeadCount(hotel),
                 max_occupancy: parseInt(hotel.maxOccupancy) || 3,
                 price: roomSell,
                 mealTypes: [mealPlanLabel],
@@ -23264,6 +24480,7 @@
                 // Pricing
                 totalPrice: totalPrice,
                 price: totalPrice,
+                discount_amount: computeHotelServiceDiscountAmount(hotel),
                 
                 // Extra bed (enabled, price, quantity, total_cost = price * quantity * nights)
                 extra_bed: {
@@ -23418,7 +24635,8 @@
                 dmc_id: dmcId,
                 supplement: tour.supplement || false,
                 transferId: tour.transferId || null,
-                guideId: tour.guideId || null
+                guideId: tour.guideId || null,
+                discount_amount: computeTourTicketDiscountAmount(tour)
             };
             
             // Add transfer_options if attraction has linked transfer
@@ -23450,6 +24668,7 @@
                         cost: basePrice,
                         sell: basePrice,
                         totalPrice: transferTotalPrice,
+                        discount_amount: computeTransferOptionsDiscountAmount(linkedTransfer, tour.focServiceDiscount),
                         adults: adults,
                         child: child,
                         pickup_location_name: pickupName,
@@ -23506,7 +24725,8 @@
                         tourActivity: tour.attractionName || '',
                         tour_activity: tour.attractionName || '',
                         Activity: tour.attractionName || '',
-                        pickup_time: linkedGuide.time || ''
+                        pickup_time: linkedGuide.time || '',
+                        discount_amount: computeGuideServiceDiscountAmount(linkedGuide, tour.focServiceDiscount)
                     };
                     tourData.guideInfo = {
                         id: linkedGuide.id,
@@ -23591,7 +24811,8 @@
                 dmc_id: String(dmcId),
                 bookingType: "enquiry",
                 supplement: meal.supplement || false,
-                transferId: meal.transferId || null
+                transferId: meal.transferId || null,
+                discount_amount: computeMealDiscountAmount(meal)
             };
             
             // Add transfer_options if meal has linked transfer
@@ -23631,6 +24852,7 @@
                     cost: basePrice,
                     sell: basePrice,
                     totalPrice: transferTotalPrice,
+                    discount_amount: computeTransferOptionsDiscountAmount(transferSource, meal.focServiceDiscount),
                     adults: adults,
                     child: child,
                     pickup_location_name: pickupName,
@@ -23715,6 +24937,13 @@
                         sell: guideSource.sell || 0
                     };
                 }
+                const mealGuideForDisc = guideList.find(g => g.id === meal.guideId) || guideSource;
+                if (mealData.guide_options) {
+                    mealData.guide_options.discount_amount = computeGuideServiceDiscountAmount(
+                        mealGuideForDisc,
+                        meal.focServiceDiscount
+                    );
+                }
             }
             
             return mealData;
@@ -23780,6 +25009,7 @@
                 child_sell: parseFloat(guide.childSell) || 0,
                 surcharge: 0,
                 totalPrice: parseFloat(guide.sell || guide.adultSell || 0), // Guide price is fixed, not multiplied by pax
+                discount_amount: computeStandaloneGuideDiscountAmount(guide),
                 pickupdate: normalizeDateToYYYYMMDD(guide.dateTime),
                 bookingDate: normalizeDateToYYYYMMDD(guide.dateTime),
                 date: normalizeDateToYYYYMMDD(guide.dateTime),
@@ -23989,7 +25219,8 @@
                 seating_capacity: vehicleDetails.seating_capacity || transfer.seatingCapacity || transfer.capacity || "",
                 seatingCapacity: transfer.seatingCapacity || transfer.capacity || "",
                 capacity: transfer.seatingCapacity || transfer.capacity || "",
-                supplement: transfer.supplement !== undefined ? transfer.supplement : false
+                supplement: transfer.supplement !== undefined ? transfer.supplement : false,
+                discount_amount: computeTransferOptionsDiscountAmount(transfer, true)
             };
             
             // Add linked_to_hotel field if this is a hotel-linked transfer
@@ -24022,7 +25253,10 @@
                         cost: parseFloat(linkedGuide.cost || 0),
                         Cost: parseFloat(linkedGuide.cost || 0),
                         sell: parseFloat(linkedGuide.sell || 0),
-                        Sell: parseFloat(linkedGuide.sell || 0)
+                        Sell: parseFloat(linkedGuide.sell || 0),
+                        focServiceDiscount: !!(linkedGuide.focServiceDiscount || linkedGuide.foc_service_discount),
+                        foc_service_discount: !!(linkedGuide.focServiceDiscount || linkedGuide.foc_service_discount),
+                        discount_amount: computeGuideServiceDiscountAmount(linkedGuide, true)
                     };
                     transferData.guideId = linkedGuide.id;
                 }
@@ -24056,9 +25290,12 @@
             infantCost: parseFloat(misc.infantCost) || 0,
             infantSell: parseFloat(misc.infantSell) || 0,
             supplement: !!misc.supplement,
+            focServiceDiscount: !!(misc.focServiceDiscount || misc.foc_service_discount),
+            foc_service_discount: !!(misc.focServiceDiscount || misc.foc_service_discount),
             totalPrice: (parseFloat(misc.adultSell || 0) * parseInt(misc.adultsQty || 0)) + 
                        (parseFloat(misc.childSell || 0) * parseInt(misc.childQty || 0)) +
                        (parseFloat(misc.infantSell || 0) * parseInt(misc.infantQty || 0)),
+            discount_amount: computeMiscDiscountAmount(misc),
             dmc_id: dmcId,
             city: destination,
             country: destination,
@@ -24089,7 +25326,9 @@
         const male = parseInt(document.getElementById('adultManInput')?.value) || 0;
         const female = parseInt(document.getElementById('adultWomenInput')?.value) || 0;
         const city = null; // Not used in current form
-        const childAges = null; // Can be collected from child details if needed
+        // child_ages JSON string flows through from the "Create Single Tour Pro" popup; default '[]'.
+        // Stored as text on tours.child_ages so CommonHelper::calculateTourPrices can parse it back.
+        const childAges = (document.getElementById('enquiryProChildAges')?.value || '[]');
         
         // Validate required fields
         if (!destination || destination.trim() === '') {
@@ -24131,10 +25370,29 @@
         formData.append('markup_type', markupType);
         formData.append('discount_value', discountValue);
         formData.append('discount_type', discountType);
+        const discountAmountOut = (discountType === 'foc') ? discountValue : 0;
+        formData.append('discount_amount', discountAmountOut);
         
         // Add tour type (FIT or GROUP)
-        const tourType = document.querySelector('input[name="type"]:checked')?.value || 'FIT';
+        // Use :checked to honour user selection; fall back to disabled-but-still-present radio (lock-in case).
+        let tourType = document.querySelector('input[name="type"]:checked')?.value;
+        if (!tourType) {
+            // Both could be disabled in rare templating cases; fall back to whichever radio exists.
+            tourType = document.querySelector('input[name="type"]')?.value || 'FIT';
+        }
+        tourType = String(tourType).toUpperCase();
         formData.append('tour_type', tourType);
+
+        // GROUP + FOC: forward foc_size and discount (1 = "Treat FOC pax as discount (free)"). For FIT, both forced to 0.
+        const focSizeVal = Math.max(0, parseInt(document.getElementById('enquiryProFocSize')?.value || '0', 10) || 0);
+        const discountFlag = parseInt(document.getElementById('enquiryProGroupDiscount')?.value || '0', 10) === 1 ? 1 : 0;
+        if (tourType === 'GROUP') {
+            formData.append('foc_size', focSizeVal);
+            formData.append('discount', discountFlag);
+        } else {
+            formData.append('foc_size', 0);
+            formData.append('discount', 0);
+        }
         
         // Add customer details (salutation, name, contact, email)
         const salutation = document.getElementById('salutationSelect')?.value || 'Mr';
@@ -24748,7 +26006,7 @@
                         bed_id: String(actualBedId || ""), // Actual database bed_id as string
                         bed_type: room.bedType || "",
                         baby_cot: 0,
-                        head_count: room.adultsPerRoom || 2,
+                        head_count: getHotelHeadCount(group.hotel || room),
                         max_occupancy: room.maxOccupancy || 2,
                         price: room.roomPrice || 0,
                         mealTypes: [room.mealPlan || "EP"],
