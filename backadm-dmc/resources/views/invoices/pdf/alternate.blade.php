@@ -428,6 +428,33 @@
     $leadGuest = $clientDetails['lead_guest_name'] ?? '';
     $tour = $invoice->tour;
     $displayIdTour = $tour ? ($tour->display_id ?? '') : '';
+
+    // Stored tours.discount_amount for Lite PDF: do not gate on GROUP only (FIT and others store amounts too).
+    $parseTourDiscountAmount = static function ($tourModel) {
+        if (! $tourModel) {
+            return 0.0;
+        }
+        $raw = $tourModel->getAttributes()['discount_amount'] ?? $tourModel->discount_amount ?? null;
+        if ($raw === null || $raw === '') {
+            return 0.0;
+        }
+        if (is_numeric($raw)) {
+            return (float) $raw;
+        }
+        $s = preg_replace('/[^0-9.\\-]/', '', str_replace([',', ' '], '', (string) $raw));
+
+        return ($s === '' || $s === '-') ? 0.0 : (float) $s;
+    };
+    $tourDiscountAmount = $parseTourDiscountAmount($tour);
+    $discountFlagRaw = $tour ? ($tour->discount ?? null) : null;
+    $isTourDiscountFlagOn = $tour && (
+        $discountFlagRaw === true
+        || $discountFlagRaw === 1
+        || $discountFlagRaw === '1'
+        || (is_string($discountFlagRaw) && in_array(strtolower($discountFlagRaw), ['t', 'true', 'yes', 'on'], true))
+        || (is_numeric($discountFlagRaw) && (int) $discountFlagRaw === 1)
+    );
+    $showTourDiscountAmount = $tour && (abs($tourDiscountAmount) > 0.0001 || $isTourDiscountFlagOn);
     $salesRefNoMeta = '';
     if ($tour) {
         $createdByUserCode = '';
@@ -466,6 +493,12 @@
 
     $actualFromItems = (float) $invoice->items->sum('total_price');
     $discount = $actualFromItems - (float) $baseAmount;
+    // Tour special discount shown as its own line; remainder keeps invoice math unchanged (special + other = $discount).
+    $specialDiscountForLines = ($tourDiscountAmount > 0.0001) ? (float) $tourDiscountAmount : 0.0;
+    $otherInvoiceDiscount = $discount - $specialDiscountForLines;
+    // Packaged Lite PDF: total / outstanding reflect special discount off stored invoice total.
+    $grandTotalAlternatePdf = (float) $grandTotal - $specialDiscountForLines;
+    $outstandingBalanceAlternatePdf = $grandTotalAlternatePdf - $paymentReceived;
 
     $selectedCurrency = strtoupper($selectedCurrency ?? 'SGD');
     $currencyConversion = $currencyConversion ?? [];
@@ -482,8 +515,15 @@
     $departure = $invoice->travel_to_date ? \Carbon\Carbon::parse($invoice->travel_to_date)->format('d M Y') : '';
 
     // Price-only lite summary: must run in this scope (Blade @include is isolated).
+    $liteSpecialDiscount = 0.0;
+    $liteOtherDiscountVs = 0.0;
     if (($mode ?? 'full') === 'price-only') {
         require resource_path('views/invoices/pdf/partials/alternate-lite-price-compute-inc.php');
+        $liteSpecialDiscount = ($tourDiscountAmount > 0.0001) ? (float) $tourDiscountAmount : 0.0;
+        $liteOtherDiscountVs = $liteDiscountVsActual - $liteSpecialDiscount;
+        // Same rule as packaged Lite TOTAL: final / outstanding reflect special discount off computed price breakup totals.
+        $liteFinalPriceAlternatePdf = (float) $liteFinalPrice - $liteSpecialDiscount;
+        $liteOutstandingBalanceAlternatePdf = $liteFinalPriceAlternatePdf - (float) $litePaymentReceived;
     }
 @endphp
 
@@ -497,7 +537,15 @@
             <strong>Guest / Party:</strong> {{ $leadGuest !== '' ? $leadGuest : ($clientDetails['email'] ?? 'Guest') }}<br>
             <strong>Travellers:</strong> Adults {{ str_pad((string)($invoice->no_of_adults ?? 0), 2, '0', STR_PAD_LEFT) }} &nbsp;|&nbsp; Children {{ str_pad((string)($invoice->no_of_children ?? 0), 2, '0', STR_PAD_LEFT) }}<br>
             <strong>Destination:</strong> {{ $invoice->destination ?? '—' }}<br>
-            <strong>Travel Dates:</strong> {{ $arrival !== '' ? $arrival : '—' }} &ndash; {{ $departure !== '' ? $departure : '—' }}
+            <strong>Travel Dates:</strong> {{ $arrival !== '' ? $arrival : '—' }} &ndash; {{ $departure !== '' ? $departure : '—' }}<br>
+            @if($showTourDiscountAmount)
+            <strong>Special Discount:</strong>
+            @if(($mode ?? 'full') === 'price-only')
+                {{ $litePdfFormatPrice($tourDiscountAmount) }}<br>
+            @else
+                {{ $fmtMoney($tourDiscountAmount) }}<br>
+            @endif
+            @endif
         </td>
         <td class="meta-right-stack" style="width:30%; vertical-align:top;">
             <strong>@if(($invoice->invoice_type ?? '') === 'proforma') Proforma No: @else Inv No.: @endif</strong> {{ $invNo ?: '—' }}<br>
@@ -551,17 +599,24 @@
         </tr>
         @endif
 
-        @if($discount > 0.01)
+        @if($specialDiscountForLines > 0.01)
+        <tr class="inv-line-data">
+            <td class="inv-col-service"><span class="inv-svc-cat">Special Discount</span></td>
+            <td class="inv-col-details"><span class="inv-svc-detail">Special Discount (per tour)</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">-{{ $fmtMoney($specialDiscountForLines) }}</span></td>
+        </tr>
+        @endif
+        @if($otherInvoiceDiscount > 0.01)
         <tr class="inv-line-data">
             <td class="inv-col-service"><span class="inv-svc-cat">Discount</span></td>
             <td class="inv-col-details"><span class="inv-svc-detail">Discount</span></td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">-{{ $fmtMoney($discount) }}</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">-{{ $fmtMoney($otherInvoiceDiscount) }}</span></td>
         </tr>
-        @elseif($discount < -0.01)
+        @elseif($otherInvoiceDiscount < -0.01)
         <tr class="inv-line-data">
             <td class="inv-col-service"><span class="inv-svc-cat">Adjustment</span></td>
             <td class="inv-col-details"><span class="inv-svc-detail">Additional Charges</span></td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney(abs($discount)) }}</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney(abs($otherInvoiceDiscount)) }}</span></td>
         </tr>
         @endif
 
@@ -576,7 +631,7 @@
         <tr class="inv-total-row inv-total-sep inv-grand-row">
             <td class="inv-col-service">&nbsp;</td>
             <td class="inv-total-label-cell">TOTAL {{ $baseCc }}</td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($grandTotal) }}</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($grandTotalAlternatePdf) }}</span></td>
         </tr>
 
         @if($shouldShowTax)
@@ -588,7 +643,7 @@
         <tr class="inv-total-row">
             <td class="inv-col-service">&nbsp;</td>
             <td class="inv-total-label-cell">Outstanding Balance</td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($outstandingBalance) }}</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($outstandingBalanceAlternatePdf) }}</span></td>
         </tr>
         @endif
 
@@ -626,24 +681,31 @@
             <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice($liteActualAmount) }}</span></td>
         </tr>
         @if($liteNegotiatedAmount !== null)
+        @if($liteSpecialDiscount > 0.01)
+        <tr class="inv-total-row">
+            <td class="inv-col-service">&nbsp;</td>
+            <td class="inv-total-label-cell">Special Discount</td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">-{{ $litePdfFormatPrice($liteSpecialDiscount) }}</span></td>
+        </tr>
+        @endif
+        @if($liteOtherDiscountVs > 0.01)
+        <tr class="inv-total-row">
+            <td class="inv-col-service">&nbsp;</td>
+            <td class="inv-total-label-cell">Discount</td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">-{{ $litePdfFormatPrice($liteOtherDiscountVs) }}</span></td>
+        </tr>
+        @elseif($liteOtherDiscountVs < -0.01)
+        <tr class="inv-total-row">
+            <td class="inv-col-service">&nbsp;</td>
+            <td class="inv-total-label-cell">Additional Charges</td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice(abs($liteOtherDiscountVs)) }}</span></td>
+        </tr>
+        @endif
         <tr class="inv-total-row">
             <td class="inv-col-service">&nbsp;</td>
             <td class="inv-total-label-cell">Last Negotiated Amount</td>
             <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice($liteNegotiatedAmount) }}</span></td>
         </tr>
-        @if($liteDiscountVsActual > 0)
-        <tr class="inv-total-row">
-            <td class="inv-col-service">&nbsp;</td>
-            <td class="inv-total-label-cell">Discount</td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">-{{ $litePdfFormatPrice($liteDiscountVsActual) }}</span></td>
-        </tr>
-        @elseif($liteDiscountVsActual < 0)
-        <tr class="inv-total-row">
-            <td class="inv-col-service">&nbsp;</td>
-            <td class="inv-total-label-cell">Additional Charges</td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice(abs($liteDiscountVsActual)) }}</span></td>
-        </tr>
-        @endif
         @endif
 
         @if($liteShouldShowTax && $liteGstAmount > 0)
@@ -667,7 +729,7 @@
         <tr class="inv-total-row inv-grand-row">
             <td class="inv-col-service">&nbsp;</td>
             <td class="inv-total-label-cell">Final Price</td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice($liteFinalPrice) }}</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice($liteFinalPriceAlternatePdf) }}</span></td>
         </tr>
 
         @if($liteShouldShowTax)
@@ -679,7 +741,7 @@
         <tr class="inv-total-row">
             <td class="inv-col-service">&nbsp;</td>
             <td class="inv-total-label-cell">Outstanding Balance</td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice($liteOutstandingBalance) }}</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice($liteOutstandingBalanceAlternatePdf) }}</span></td>
         </tr>
         @endif
     </tbody>
