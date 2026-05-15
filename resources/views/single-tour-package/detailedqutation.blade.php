@@ -157,6 +157,9 @@
             ? $travelFrom->format('d M Y') . ' to ' . $travelTo->format('d M Y')
             : 'N/A';
 
+        // Pro form: hotel single column uses double rate (both columns show the same hotel price).
+        $isProTour = (int)($tour->is_pro ?? 0) === 1;
+
         // Very basic rooming heuristic: if >= 2 adults, show DBL
         $occupancyKey = $adults >= 2 ? 'double' : 'single';
         $roomingText = $adults >= 2 ? '01 DBL TWIN' : '01 SGL';
@@ -211,6 +214,17 @@
         $groupDiscountAmount = (float)($tour->discount_amount ?? 0);
 
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
+
+        // Hotel-only totals per-head (supplements excluded) — for hotel cost panel
+        $hotelOnlySingleTotal = max(0, (float)($tourPrices['single_sharing'] ?? 0) - $otherSingleTotal);
+        $hotelOnlyDoubleTotal = max(0, (float)($tourPrices['double_sharing'] ?? 0) - $otherDoubleTotal);
+        $tripleSharingTotal   = (float)($tourPrices['triple_sharing'] ?? 0);
+        $hotelOnlyTripleTotal = $tripleSharingTotal > 0
+            ? max(0, $tripleSharingTotal - $otherSingleTotal)
+            : 0;
+        if ($isProTour) {
+            $hotelOnlySingleTotal = $hotelOnlyDoubleTotal;
+        }
 
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
@@ -524,6 +538,25 @@
                     @else
                         <div class="inclusion">No hotel options available</div>
                     @endif
+
+                    <div style="margin-top: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </td>
 
                 <td class="quotation-col">
@@ -765,6 +798,9 @@
                                 $suppSingle     = (float)($s['single'] ?? 0);
                                 $suppDouble     = (float)($s['double'] ?? 0);
                                 $suppTriple     = (float)($s['triple'] ?? 0);
+                                if ($isProTour) {
+                                    $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
+                                }
                             @endphp
                             <tr>
                                 <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">
