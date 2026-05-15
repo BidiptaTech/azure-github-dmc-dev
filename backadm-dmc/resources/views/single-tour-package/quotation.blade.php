@@ -175,6 +175,9 @@
             ? $travelFrom->format('d M Y') . ' to ' . $travelTo->format('d M Y')
             : 'N/A';
 
+        // Pro form: hotel single column uses double rate (both columns show the same hotel price).
+        $isProTour = (int)($tour->is_pro ?? 0) === 1;
+
         // Very basic rooming heuristic: if >= 2 adults, show DBL
         $occupancyKey = $adults >= 2 ? 'double' : 'single';
         $roomingText = $adults >= 2 ? '01 DBL TWIN' : '01 SGL';
@@ -234,6 +237,9 @@
         // overall total = hotel + other services (for all occupancies, including triple)
         $hotelOnlySingleTotal = max(0, (float)($tourPrices['single_sharing'] ?? 0) - $otherSingleTotal);
         $hotelOnlyDoubleTotal = max(0, (float)($tourPrices['double_sharing'] ?? 0) - $otherDoubleTotal);
+        if ($isProTour) {
+            $hotelOnlySingleTotal = $hotelOnlyDoubleTotal;
+        }
         // Triple_sharing now also includes other-services per-pax (same as single/double),
         // so subtract it here to keep the Hotel cost box hotel-only.
         $tripleSharingTotal   = (float)($tourPrices['triple_sharing'] ?? 0);
@@ -801,6 +807,9 @@
                                 $suppSingle     = (float)($s['single'] ?? 0);
                                 $suppDouble     = (float)($s['double'] ?? 0);
                                 $suppTriple     = (float)($s['triple'] ?? 0);
+                                if ($isProTour) {
+                                    $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
+                                }
                             @endphp
                             <tr>
                                 <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">
