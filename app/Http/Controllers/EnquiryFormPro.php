@@ -1102,7 +1102,8 @@ class EnquiryFormPro extends Controller
                 'markup_value' => 'nullable|numeric|min:0',
                 'markup_type' => 'nullable|string|in:percentage,flat',
                 'discount_value' => 'nullable|numeric|min:0',
-                'discount_type' => 'nullable|string|in:percentage,flat,',
+                'discount_type' => 'nullable|string|in:percentage,flat,foc,',
+                'discount_amount' => 'nullable|numeric|min:0',
                 'tour_type' => 'nullable|in:FIT,GROUP,fit,group',
                 'foc_size' => 'nullable|integer|min:0',
                 'discount' => 'nullable|integer|in:0,1',
@@ -1116,6 +1117,7 @@ class EnquiryFormPro extends Controller
             $markupType = $request->input('markup_type', 'percentage');
             $discountValue = $request->input('discount_value', 0);
             $discountType = $request->input('discount_type', '');
+            $discountAmountStored = (float) $request->input('discount_amount', 0);
             
             DB::beginTransaction();
             
@@ -1221,6 +1223,10 @@ class EnquiryFormPro extends Controller
                 $tour->foc_size = 0;
                 $tour->discount = 0;
             }
+            // Pro form: monetary FOC line (footer) persisted for reporting / quotations
+            $tour->discount_amount = ($discountType === 'foc')
+                ? ($discountAmountStored > 0 ? $discountAmountStored : (float) $discountValue)
+                : $discountAmountStored;
             $tour->created_by = $user->userId; // Store the user ID who created the tour
             // Store user currency for this tour based on DMC/user country
             $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
@@ -2544,6 +2550,11 @@ class EnquiryFormPro extends Controller
         $markupType = $firstOrder->markup_type ?? 'percentage';
         $discountValue = $firstOrder->discount ?? 0;
         $discountType = $firstOrder->discount_type ?? '';
+        // FOC total is recomputed client-side after all services load (syncFocDiscountAfterOrdersLoaded).
+        // Only seed the input when not FOC; for FOC the live computeAutoFocDiscount() is authoritative.
+        if ($discountType !== 'foc' && isset($tour->discount_amount) && (float) $tour->discount_amount > 0) {
+            $discountValue = (float) $tour->discount_amount;
+        }
         
         // Get DMC ID
         $user = Auth::user();
@@ -2910,7 +2921,8 @@ class EnquiryFormPro extends Controller
                 'markup_value' => 'nullable|numeric|min:0',
                 'markup_type' => 'nullable|string|in:percentage,flat',
                 'discount_value' => 'nullable|numeric|min:0',
-                'discount_type' => 'nullable|string|in:percentage,flat,',
+                'discount_type' => 'nullable|string|in:percentage,flat,foc,',
+                'discount_amount' => 'nullable|numeric|min:0',
                 'tour_type' => 'nullable|in:FIT,GROUP,fit,group',
                 'foc_size' => 'nullable|integer|min:0',
                 'discount' => 'nullable|integer|in:0,1',
@@ -2924,6 +2936,7 @@ class EnquiryFormPro extends Controller
             $markupType = (string) ($request->input('markup_type') ?? 'percentage');
             $discountValue = $request->input('discount_value', 0);
             $discountType = (string) ($request->input('discount_type') ?? '');
+            $discountAmountStored = (float) $request->input('discount_amount', 0);
             
             DB::beginTransaction();
             
@@ -2965,6 +2978,9 @@ class EnquiryFormPro extends Controller
                 $tour->foc_size = 0;
                 $tour->discount = 0;
             }
+            $tour->discount_amount = ($discountType === 'foc')
+                ? ($discountAmountStored > 0 ? $discountAmountStored : (float) $discountValue)
+                : $discountAmountStored;
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             
             // Update main guest data as JSON
