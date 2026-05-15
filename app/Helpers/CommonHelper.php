@@ -1783,7 +1783,7 @@ class CommonHelper
         }
     }
 
-    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null, $viewName = 'single-tour-package.quotation')
+    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null, $viewName = 'single-tour-package.quotation', $logoType = 'dmc')
     {
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
@@ -1916,12 +1916,16 @@ class CommonHelper
             'phone' => 'N/A',
             'email' => 'N/A',
         ];
+        $userAgencyForHeader = null;
 
         if (!empty($tour->agent_id)) {
             $agent = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
             if ($agent) {
                 $agency = $agent->agency;
-                
+                if ($agency) {
+                    $userAgencyForHeader = $agency;
+                }
+
                 // Use agency data if available, otherwise fall back to agent data
                 $agentDetails = [
                     'name' => ($agency && $agency->agency_name) ? $agency->agency_name : ($agent->name ?? 'N/A'),
@@ -1931,6 +1935,11 @@ class CommonHelper
                     'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? 'N/A'),
                 ];
             }
+        }
+
+        $logoType = strtolower((string) $logoType) === 'agency' ? 'agency' : 'dmc';
+        if ($logoType === 'agency' && !$userAgencyForHeader) {
+            $logoType = 'dmc';
         }
 
         // Proposal details
@@ -2266,6 +2275,8 @@ class CommonHelper
                 'selectedCurrency' => $selectedCurrency,
                 'exchangeRate' => $exchangeRate,
                 'quotationInformationHtml' => $quotationInformationHtml,
+                'logoType' => $logoType,
+                'user_agency' => $userAgencyForHeader,
             ]);
             
             $pdf->setPaper('a4');
@@ -2303,11 +2314,14 @@ class CommonHelper
                     'hotelOptions' => $hotelOptions,
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
+                    'exclusions' => $exclusions,
                     'paymentTerms' => $paymentTerms,
                     'baseCurrency' => $baseCurrency,
                     'selectedCurrency' => $selectedCurrency,
                     'exchangeRate' => $exchangeRate,
                     'quotationInformationHtml' => $quotationInformationHtml,
+                    'logoType' => $logoType,
+                    'user_agency' => $userAgencyForHeader,
                 ]);
                 
                 $pdf->setPaper('a4');
@@ -2742,7 +2756,8 @@ class CommonHelper
             'other' => ['single' => 0, 'double' => 0],
         ];
 
-        // Supplements: services with "supplement": true (per-head prices, excluded from main total)
+        // Supplements: services with "supplement": true (excluded from main total).
+        // Non-hotel supplement rows expose full line booking total; hotel supplements use stay totals per rooming.
         $supplements = [];
         // Merge hotel supplements: same hotel/date-range => one supplement row (avoid duplicates)
         $hotelSupplementBuckets = [];
@@ -3565,11 +3580,14 @@ class CommonHelper
 
                         if ($isSupplement) {
                             // Keep supplement row as a standalone payload.
-                            // Some downstream code expects extra keys for attraction/restaurant.
+                            // Supplements are shown as the full line booking total (not per pax).
+                            // single/double/triple use the same total so any existing UI column shows full price.
+                            $supplementFull = (float) $totalPriceFloat;
                             $supplementRow = [
                                 'type'   => $normalizedType ?? $type,
-                                'single' => $singleSharing,
-                                'double' => $doubleSharing,
+                                'single' => $supplementFull,
+                                'double' => $supplementFull,
+                                'triple' => $supplementFull,
                             ];
 
                             if (($normalizedType ?? '') === 'attraction') {
@@ -3686,7 +3704,8 @@ class CommonHelper
         }
 
 
-        // Format supplements (per-head, ceiled). Hotel type carries full meta; others carry service-specific fields.
+        // Format supplements (ceiled). Non-hotel rows use full line totalPrice on single/double/triple;
+        // hotel supplement rows keep per-rooming totals from the supplement stay. Hotel type carries full meta.
         $supplementsFormatted = array_map(function ($s) {
             $row = [
                 'type'   => $s['type'],
@@ -4304,9 +4323,40 @@ class CommonHelper
             if ($transferRequired === 'No') {
                 $transportNote = 'Transport not included';
             }
-            
+
+            $transferSummary = null;
+            if ($transferOptions && is_array($transferOptions)) {
+                $vd = $transferOptions['vehicle_details'] ?? [];
+                $transferSummary = [
+                    'required' => !empty($transferOptions['transfer_required']),
+                    'type' => $transferOptions['type'] ?? null,
+                    'way' => $transferOptions['way'] ?? ($transferOptions['Way'] ?? null),
+                    'vehicle_name' => $transferOptions['vehicle_name'] ?? ($vd['vehicle_name'] ?? null),
+                    'vehicle_type' => is_array($vd) ? ($vd['vehicle_type'] ?? null) : null,
+                    'seating_capacity' => is_array($vd) ? ($vd['seating_capacity'] ?? null) : null,
+                    'pickup_location_name' => $transferOptions['pickup_location_name'] ?? null,
+                    'pickup_time' => $transferOptions['pickup_time'] ?? null,
+                    'cost' => $transferOptions['cost'] ?? null,
+                ];
+            }
+
+            $guideSummary = null;
+            $guideOptions = $item['guide_options'] ?? null;
+            if (!empty($guideOptions) && is_array($guideOptions)) {
+                $guideSummary = [
+                    'required' => !empty($guideOptions['guide_required']),
+                    'guide_name' => $guideOptions['guide_name'] ?? null,
+                    'language' => $guideOptions['language'] ?? null,
+                    'pickup_time' => $guideOptions['pickup_time'] ?? null,
+                    'package_hours' => $guideOptions['package_hours'] ?? null,
+                    'hours' => $guideOptions['hours'] ?? null,
+                    'base_price' => $guideOptions['base_price'] ?? null,
+                    'surcharge' => $guideOptions['surcharge'] ?? null,
+                    'total_price' => $guideOptions['total_price'] ?? null,
+                ];
+            }
+
             $attractionDetails = [
-                'ticket_name' => $item['ticketName'] ?? $item['ticketName'] ?? null,
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null,
@@ -4314,6 +4364,8 @@ class CommonHelper
                 'transport_note' => $transportNote,
                 'transfer_required' => $transferRequired,
                 'transfer_type' => $transferType,
+                'transfer' => $transferSummary,
+                'guide' => $guideSummary,
             ];
         }
 
@@ -4355,6 +4407,22 @@ class CommonHelper
                     $transferType = $transferOptions['type'];
                 }
             }
+
+            $restaurantTransferSummary = null;
+            if ($transferOptions && is_array($transferOptions)) {
+                $vd = $transferOptions['vehicle_details'] ?? [];
+                $restaurantTransferSummary = [
+                    'required' => !empty($transferOptions['transfer_required']),
+                    'type' => $transferOptions['type'] ?? null,
+                    'way' => $transferOptions['way'] ?? ($transferOptions['Way'] ?? null),
+                    'vehicle_name' => $transferOptions['vehicle_name'] ?? ($vd['vehicle_name'] ?? null),
+                    'vehicle_type' => is_array($vd) ? ($vd['vehicle_type'] ?? null) : null,
+                    'seating_capacity' => is_array($vd) ? ($vd['seating_capacity'] ?? null) : null,
+                    'pickup_location_name' => $transferOptions['pickup_location_name'] ?? null,
+                    'pickup_time' => $transferOptions['pickup_time'] ?? null,
+                    'cost' => $transferOptions['cost'] ?? null,
+                ];
+            }
             
             // Clean mealSpecificType to remove emojis and special characters
             $mealSpecificType = $item['mealSpecificType'] ?? null;
@@ -4377,6 +4445,7 @@ class CommonHelper
                 'meal_items' => $mealItems,
                 'transfer_required' => $transferRequired,
                 'transfer_type' => $transferType,
+                'transfer' => $restaurantTransferSummary,
             ];
         }
 

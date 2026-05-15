@@ -3,8 +3,8 @@
 @section('content')
 @php
     use Illuminate\Support\Facades\Crypt;
-    $itineraryPreviewBase = route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]);
-    $itineraryQuery = [
+    $detailedQuotationPreviewBase = route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]);
+    $detailedQuotationQuery = [
         'currency' => $selectedCurrency,
         'logo_type' => $logoType ?? 'dmc',
     ];
@@ -70,14 +70,14 @@
 <div class="container-fluid">
     <div class="row mb-2 align-items-start">
         <div class="col-md-6">
-            <h4 class="mb-1">Tour Quotation Preview</h4>
+            <h4 class="mb-1">Packaged Quotation Preview</h4>
             <p class="text-muted small mb-0">
                 Tour ID: {{ $tour->display_id ?? $tour->tour_id }} &mdash;
                 Destination: {{ $tour->destination ?? $tour->tour_destination ?? 'N/A' }}
             </p>
         </div>
         <div class="col-md-6 text-md-end mt-2 mt-md-0">
-            <form method="GET" action="{{ $itineraryPreviewBase }}" class="invoice-preview-actions d-flex flex-wrap align-items-center justify-content-md-end gap-2 gap-md-3">
+            <form method="GET" action="{{ $detailedQuotationPreviewBase }}" class="invoice-preview-actions d-flex flex-wrap align-items-center justify-content-md-end gap-2 gap-md-3">
                 <input type="hidden" name="logo_type" value="{{ $logoType ?? 'dmc' }}">
                 <div class="d-flex align-items-center gap-2">
                     <label for="currency" class="mb-0 fw-semibold text-nowrap">Currency</label>
@@ -97,9 +97,6 @@
                     >
                         <i class="ri-download-line me-1"></i> Download Quotation
                     </button>
-                    <!-- <button type="button" class="btn btn-outline-secondary" onclick="history.back();">
-                        <i class="ri-arrow-left-line me-1"></i> Back
-                    </button> -->
                 </div>
             </form>
         </div>
@@ -112,9 +109,9 @@
                 <div class="toolbar-segment">
                     <span class="toolbar-label">Company</span>
                     <div class="btn-group btn-group-sm" role="group" aria-label="Company branding">
-                        <a href="{{ $itineraryPreviewBase }}?{{ http_build_query(array_merge($itineraryQuery, ['logo_type' => 'dmc'])) }}"
+                        <a href="{{ $detailedQuotationPreviewBase }}?{{ http_build_query(array_merge($detailedQuotationQuery, ['logo_type' => 'dmc'])) }}"
                            class="btn {{ ($logoType ?? 'dmc') === 'dmc' ? 'btn-success' : 'btn-outline-secondary' }}">DMC</a>
-                        <a href="{{ $itineraryPreviewBase }}?{{ http_build_query(array_merge($itineraryQuery, ['logo_type' => 'agency'])) }}"
+                        <a href="{{ $detailedQuotationPreviewBase }}?{{ http_build_query(array_merge($detailedQuotationQuery, ['logo_type' => 'agency'])) }}"
                            class="btn {{ ($logoType ?? 'dmc') === 'agency' ? 'btn-success' : 'btn-outline-secondary' }}">Agency</a>
                     </div>
                 </div>
@@ -129,7 +126,7 @@
                 <div class="card-body" style="padding: 0;">
                     <iframe
                         id="quotationIframe"
-                        src="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency, 'preview' => 1, 'logo_type' => $logoType ?? 'dmc']) }}"
+                        src="{{ route('tour.detailed-quotation.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency, 'preview' => 1, 'logo_type' => $logoType ?? 'dmc']) }}"
                         style="width: 100%; height: 900px; border: none;"
                     ></iframe>
                 </div>
@@ -207,7 +204,6 @@
             const textareaEl = document.getElementById('quotation_information_modal');
             if (!textareaEl) return;
 
-            // Build city options based on selected country
             function setCityOptions(countryName) {
                 const cities = citiesByCountry[countryName] || [];
                 citySelect.innerHTML = '<option value="">Select City</option>';
@@ -229,7 +225,6 @@
                 errorEl.classList.add('d-none');
             }
 
-            // Initialize summernote editor (footer jQuery is already loaded when this runs)
             try {
                 if (window.jQuery && jQuery.fn && jQuery.fn.summernote) {
                     jQuery(textareaEl).summernote({
@@ -244,17 +239,14 @@
                     });
                 }
             } catch (e) {
-                // If editor fails, we still allow plain textarea updates.
             }
 
-            // Populate initial city dropdown based on preselected country
             if (countrySelect && countrySelect.value) {
                 setCityOptions(countrySelect.value);
             }
 
             countrySelect.addEventListener('change', function () {
                 setCityOptions(this.value);
-                // Reset content when switching context
                 try {
                     if (window.jQuery && jQuery.fn && jQuery.fn.summernote) {
                         jQuery(textareaEl).summernote('code', '');
@@ -285,7 +277,6 @@
                         ? (json.data.quotation_information || '')
                         : '';
 
-                    // Prefer summernote if available, otherwise fall back to plain textarea value.
                     try {
                         if (window.jQuery && jQuery.fn && jQuery.fn.summernote) {
                             jQuery(textareaEl).summernote('code', html);
@@ -303,7 +294,6 @@
                 }
             }
 
-            // Debounced auto-load when both selectors have values
             let loadTimer = null;
             function maybeAutoLoad() {
                 clearTimeout(loadTimer);
@@ -367,19 +357,18 @@
                     const json = await res.json();
 
                     if (!json || !json.success || !json.quotation_info_key) {
-                        showError('Unable to generate quotation preview PDF.');
+                        showError('Unable to generate packaged quotation preview PDF.');
                         return;
                     }
 
                     const key = json.quotation_info_key;
-                    const itineraryLogoType = @json($logoType ?? 'dmc');
-                    const previewBaseUrl = '{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency, 'preview' => 1]) }}' + '&logo_type=' + encodeURIComponent(itineraryLogoType);
-                    const downloadBaseUrl = '{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency]) }}' + '&logo_type=' + encodeURIComponent(itineraryLogoType);
+                    const packagedLogoType = @json($logoType ?? 'dmc');
+                    const previewBaseUrl = '{{ route('tour.detailed-quotation.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency, 'preview' => 1]) }}' + '&logo_type=' + encodeURIComponent(packagedLogoType);
+                    const downloadBaseUrl = '{{ route('tour.detailed-quotation.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency]) }}' + '&logo_type=' + encodeURIComponent(packagedLogoType);
 
                     const previewUrl = previewBaseUrl + '&quotation_info_key=' + encodeURIComponent(key);
                     const downloadUrl = downloadBaseUrl + '&quotation_info_key=' + encodeURIComponent(key);
 
-                    // Update iframe preview first, then trigger download in a new tab.
                     const iframe = document.getElementById('quotationIframe');
                     if (iframe) iframe.src = previewUrl;
 
@@ -397,4 +386,3 @@
     </script>
 @endpush
 @endsection
-

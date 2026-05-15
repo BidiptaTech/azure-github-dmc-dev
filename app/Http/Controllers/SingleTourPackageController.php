@@ -711,6 +711,9 @@ class SingleTourPackageController extends Controller
             'tour_type' => 'nullable|in:FIT,GROUP',
             'foc_size' => 'nullable|integer|min:0',
             'discount' => 'nullable|numeric|min:0',
+            // Form sends discount_price; map into tours.discount_amount (existing column)
+            'discount_price' => 'nullable|numeric|min:0',
+            'discount_amount' => 'nullable|numeric|min:0',
             'reference_number' => 'nullable|string|max:255',
             'package_name' => 'nullable|string|max:255',
             'estimated_budget' => 'nullable|numeric|min:0',
@@ -779,9 +782,15 @@ class SingleTourPackageController extends Controller
             $tour->agent_id = $request->agent_id;
             $tour->tour_type = $request->tour_type ?? 'FIT';
             $tour->foc_size = $request->input('foc_size');
+            // GROUP FOC flag: DB column is integer-safe (0/1)
             $tour->discount = (strtoupper((string) ($request->tour_type ?? 'FIT')) === 'GROUP')
-                ? (float) ($request->input('discount', 0) ?: 0)
+                ? (((int) ($request->input('discount', 0) ?: 0)) ? 1 : 0)
                 : 0;
+            // UI field discount_price → existing column discount_amount (same field, no new column)
+            $tour->discount_amount = (float) ($request->input(
+                'discount_price',
+                $request->input('discount_amount', 0)
+            ) ?: 0);
             // Persist new DB column `city_type` ("single" / "multi")
             $tour->city_type = $request->city_type ?? ($request->city_mode ?? 'single');
             $tour->tour_id = $tourId;
@@ -791,7 +800,16 @@ class SingleTourPackageController extends Controller
             $tour->check_out_time = $checkOutTime;
             $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
-            $tour->city = $request->city;
+            $cityRaw = $request->input('city');
+            $cityStr = is_string($cityRaw) ? trim($cityRaw) : '';
+            if ($cityStr === '') {
+                $tour->city = null;
+            } elseif (ctype_digit($cityStr)) {
+                $tour->city = City::query()->where('city_id', (int) $cityStr)->value('name');
+            } else {
+                $stripped = preg_replace('/\s*\([^)]*\)\s*$/', '', $cityStr);
+                $tour->city = ($stripped !== '' ? $stripped : $cityStr);
+            }
             $tour->dmc_id = $dmcId;
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
