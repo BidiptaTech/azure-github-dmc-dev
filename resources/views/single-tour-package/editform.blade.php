@@ -1043,6 +1043,42 @@
         #hotelBookingModal .form-text {
             font-size: 0.65rem;
         }
+
+        /* Back button — white surface, slate border (matches outline “secondary” style on hero) */
+        .tour-edit-back-outline {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 1rem !important;
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+            line-height: 1.25;
+            color: #475569 !important;
+            background: #fff !important;
+            border: 1px solid #64748b !important;
+            border-radius: 10px !important;
+            box-shadow: none !important;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+        .tour-edit-back-outline i {
+            font-size: 1rem;
+            color: #475569;
+        }
+        .tour-edit-back-outline:hover {
+            background: #f8fafc !important;
+            color: #334155 !important;
+            border-color: #475569 !important;
+        }
+        .tour-edit-back-outline:hover i {
+            color: #334155;
+        }
+        .tour-edit-back-outline:active {
+            background: #f1f5f9 !important;
+        }
+        .tour-edit-back-outline:focus-visible {
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(100, 116, 139, 0.28) !important;
+        }
 </style>
 
 <div class="content-wrapper excel-form">
@@ -1054,7 +1090,7 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
+                    <div class="card-header text-white d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                         <div class="d-flex align-items-center">
                             <!-- <i class="ri-map-pin-line me-3 fs-4"></i> -->
                             <div>
@@ -1062,6 +1098,13 @@
                                 <p class="mb-0 opacity-75">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
                             </div>
                         </div>
+                        <button type="button"
+                                class="btn btn-sm tour-edit-back-outline text-nowrap ms-auto"
+                                onclick="history.back();"
+                                aria-label="Go back">
+                            <i class="ri-arrow-left-line" aria-hidden="true"></i>
+                            <span>Back</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1392,6 +1435,29 @@
                                         @endforeach
                                     </select>
                                 </div>
+
+                                <!-- Discount Amount -->
+                                <div class="col-md-2" id="discountAmountCol">
+                                    <label for="discount_price" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-price-tag-3-line me-1" style="color: #667eea;"></i>Discount Amount
+                                    </label>
+                                    <div class="input-group">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            class="form-control"
+                                            id="discount_price"
+                                            name="discount_price"
+                                            value="{{ old('discount_price', $tour->discount_amount ?? 0) }}"
+                                            placeholder="0.00"
+                                            style="height: 40px; border-radius: 8px 0 0 8px; font-size: 0.9rem; border: 1px solid #dee2e6;"
+                                        >
+                                        <span class="input-group-text fw-semibold" style="height: 40px; border-radius: 0 8px 8px 0; font-size: 0.8rem; background:#f8f9fa; color:#495057;">
+                                            {{ strtoupper(Auth::user()->currency ?? 'SGD') }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             <input type="hidden" name="city" id="city" value="{{ old('city', $tour->city ?? '') }}">
@@ -1468,6 +1534,14 @@
                     <div id="hotelAccommodationsSection" class="collapse show" data-bs-parent="#servicesAccordion">
                     <div class="card-body mt-3">
                             <div class="row">
+                                @php
+                                    $tourHotelDateMin = isset($tour) && $tour->check_in_time
+                                        ? \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d')
+                                        : '';
+                                    $tourHotelDateMax = isset($tour) && $tour->check_out_time
+                                        ? \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d')
+                                        : '';
+                                @endphp
                                 @if(isset($hotelOrders) && count($hotelOrders) > 0)
                                 @foreach($hotelOrders as $hotelOrder)
                                 @php
@@ -1598,7 +1672,7 @@
                                             <div class="d-flex flex-column align-items-end gap-2">
                                                 <div class="text-end">
                                                     <span class="d-block text-muted small">Total Price</span>
-                                                    <span class="fw-bold text-success" style="font-size: 1.05rem;">
+                                                    <span class="fw-bold text-success" style="font-size: 1.05rem;" id="hotel_header_total_{{ $hotelOrder->booking_id }}">
                                                         {{ $tour->currency ?? '$' }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
                                                     </span>
                                                 </div>
@@ -1831,7 +1905,7 @@
                                                         const currentDmcId = dmcIdInput ? dmcIdInput.value : '';
                                                         
                                                         // Fetch rooms for the selected hotel
-                                                        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${currentDmcId}`)
+                                                        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId || '')}`)
                                                             .then(response => {
                                                                 if (!response.ok) {
                                                                     throw new Error('Network response was not ok');
@@ -1844,16 +1918,8 @@
                                                                 roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
                                                                 
                                                                 if (response.success && response.rooms && response.rooms.length > 0) {
-                                                                    // Filter rooms by DMC ID
-                                                                    let dmcFilteredRooms = response.rooms.filter(room => {
-                                                                        const roomDmcId = room.created_by;
-                                                                        return roomDmcId && roomDmcId == currentDmcId;
-                                                                    });
-                                                                    
-                                                                    if (dmcFilteredRooms.length === 0) {
-                                                                        roomTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
-                                                                        return;
-                                                                    }
+                                                                    // Server already filtered rooms by DMC — do not re-filter by created_by only
+                                                                    const dmcFilteredRooms = response.rooms;
                                                                     
                                                                     // Store room data for this booking
                                                                     window.roomData_{{ $hotelOrder->booking_id }} = dmcFilteredRooms;
@@ -1921,11 +1987,13 @@
                                                                     }
                                                                 } else {
                                                                     roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                                                                    roomTypeSelect.disabled = false;
                                                                 }
                                                             })
                                                             .catch(error => {
                                                                 console.error('Error loading rooms:', error);
                                                                 roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                                                                roomTypeSelect.disabled = false;
                                                             });
                                                     }
                                                     
@@ -1983,9 +2051,12 @@
                                                                 if (data.success && data.beds && data.beds.length > 0) {
                                                                     data.beds.forEach(bed => {
                                                                         let bedTypeText = bed.room_type || bed.bed_type || 'Standard Bed';
+                                                                        const baseMaxOccupancy = window.getEditBaseMaxOccupancyFromBedData
+                                                                            ? window.getEditBaseMaxOccupancyFromBedData(bed)
+                                                                            : (parseInt(bed.max_occupancy, 10) || 0);
                                                                         
-                                                                        if (bed.max_occupancy) {
-                                                                            bedTypeText += ` - Max ${bed.max_occupancy} guests`;
+                                                                        if (baseMaxOccupancy) {
+                                                                            bedTypeText += ` - Max ${baseMaxOccupancy} guests`;
                                                                         }
                                                                         
                                                                         if (bed.adult_count && bed.child_count) {
@@ -2006,10 +2077,11 @@
                                                                             }
                                                                         }
                                                                         
+                                                                        const bedForDataset = Object.assign({}, bed, { base_max_occupancy: baseMaxOccupancy });
                                                                         const option = document.createElement('option');
                                                                         option.value = bed.bed_type || bed.room_type || bed.bed_id;
                                                                         option.textContent = bedTypeText;
-                                                                        option.setAttribute('data-bed', JSON.stringify(bed));
+                                                                        option.setAttribute('data-bed', JSON.stringify(bedForDataset));
                                                                         option.setAttribute('data-bed-id', bed.bed_id);
                                                                         option.setAttribute('data-room-id', bed.room_id);
                                                                         
@@ -2032,6 +2104,13 @@
                                                                     
                                                                     bedTypeSelect.disabled = false;
                                                                     console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
+
+                                                                    setTimeout(() => {
+                                                                        try {
+                                                                            updatePaxInfo_{{ $hotelOrder->booking_id }}(document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}')?.value);
+                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(false);
+                                                                        } catch (e) {}
+                                                                    }, 150);
                                                                     
                                                                     // If a bed type was selected, trigger meal plan loading
                                                                     const selectedBedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
@@ -2300,17 +2379,26 @@
                                                         // Update pax info when bed is selected
                                                         if (selectedOption) {
                                                             const bedData = JSON.parse(selectedOption.dataset.bed || '{}');
-                                                            const maxOccupancy = bedData.max_occupancy;
+                                                            const maxOccupancy = window.getEditBaseMaxOccupancyFromBedData
+                                                                ? window.getEditBaseMaxOccupancyFromBedData(bedData)
+                                                                : (parseInt(bedData.max_occupancy, 10) || 0);
                                                             const paxInfoEl = document.getElementById('pax_info_{{ $hotelOrder->booking_id }}');
                                                             
                                                             if (maxOccupancy && paxInfoEl) {
-                                                                paxInfoEl.textContent = `Max occupancy: ${maxOccupancy} pax`;
+                                                                let info = `Max occupancy: ${maxOccupancy} pax`;
+                                                                if (bedData.extra_bed && bedData.extra_bed_price) {
+                                                                    info += ` | Extra bed: $${parseFloat(bedData.extra_bed_price).toFixed(2)}/night`;
+                                                                } else if (bedData.extra_bed) {
+                                                                    info += ' | Extra bed available';
+                                                                }
+                                                                paxInfoEl.textContent = info;
                                                                 paxInfoEl.style.color = '#198754';
                                                             }
                                                         }
                                                         
                                                         // Update price when bed type changes
                                                         updateHotelPrice_{{ $hotelOrder->booking_id }}(true);
+                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                         
                                                         // Load meal plans
                                                         if (selectedOption && selectedOption.dataset.roomId) {
@@ -2351,14 +2439,28 @@
                                                             const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
                                                             if (selectedOption) {
                                                                 const bedData = JSON.parse(selectedOption.dataset.bed || '{}');
-                                                                const maxOccupancy = bedData.max_occupancy;
-                                                                
+                                                                const maxOccupancy = window.getEditBaseMaxOccupancyFromBedData
+                                                                    ? window.getEditBaseMaxOccupancyFromBedData(bedData)
+                                                                    : (parseInt(bedData.max_occupancy, 10) || 0);
+                                                                const pax = parseInt(paxValue, 10) || 0;
+                                                                const extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
+                                                                const maxWithExtra = bedData.extra_bed ? maxOccupancy + 1 : maxOccupancy;
+
                                                                 if (maxOccupancy) {
-                                                                    if (parseInt(paxValue) > parseInt(maxOccupancy)) {
-                                                                        paxInfoEl.textContent = `Warning: Exceeds max occupancy of ${maxOccupancy} pax`;
+                                                                    let info = `Max occupancy: ${maxOccupancy} pax`;
+                                                                    if (bedData.extra_bed && extraBedPrice > 0) {
+                                                                        info += ` | Extra bed: $${extraBedPrice.toFixed(2)}/night`;
+                                                                    } else if (bedData.extra_bed) {
+                                                                        info += ' | Extra bed available';
+                                                                    }
+                                                                    if (pax > maxWithExtra) {
+                                                                        paxInfoEl.textContent = `Warning: Exceeds max ${maxWithExtra} pax (incl. extra bed)`;
                                                                         paxInfoEl.style.color = '#dc3545';
+                                                                    } else if (pax > maxOccupancy && bedData.extra_bed) {
+                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - maxOccupancy} person)`;
+                                                                        paxInfoEl.style.color = '#d97706';
                                                                     } else {
-                                                                        paxInfoEl.textContent = `Max occupancy: ${maxOccupancy} pax`;
+                                                                        paxInfoEl.textContent = info;
                                                                         paxInfoEl.style.color = '#198754';
                                                                     }
                                                                 }
@@ -2465,8 +2567,77 @@
                                                         }
                                                     }
                                                     
-                                                    // Function to update hotel price breakdown grid
-                                                    function updateHotelPriceGrid_{{ $hotelOrder->booking_id }}() {
+                                                    if (typeof window.getEditBaseMaxOccupancyFromBedData !== 'function') {
+                                                        window.getEditBaseMaxOccupancyFromBedData = function(bedData) {
+                                                            if (!bedData || typeof bedData !== 'object') return 0;
+                                                            if (bedData.base_max_occupancy != null && bedData.base_max_occupancy !== '') {
+                                                                return parseInt(bedData.base_max_occupancy, 10) || 0;
+                                                            }
+                                                            let maxOccupancy = parseInt(bedData.max_occupancy, 10) || 0;
+                                                            if (maxOccupancy && bedData.extra_bed) {
+                                                                maxOccupancy = Math.max(1, maxOccupancy - 1);
+                                                            }
+                                                            return maxOccupancy;
+                                                        };
+                                                    }
+
+                                                    function getEditHotelBedContext_{{ $hotelOrder->booking_id }}() {
+                                                        let maxOccupancy = 0;
+                                                        let extraBedPrice = 0;
+                                                        let extraBedAvailable = false;
+                                                        const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        if (bedTypeSelect && bedTypeSelect.value) {
+                                                            const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+                                                            if (selectedOption) {
+                                                                try {
+                                                                    const bedData = JSON.parse(selectedOption.dataset.bed || '{}');
+                                                                    maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(bedData);
+                                                                    extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
+                                                                    extraBedAvailable = !!(bedData.extra_bed);
+                                                                } catch (e) { /* ignore */ }
+                                                            }
+                                                        }
+                                                        if (extraBedPrice <= 0 || maxOccupancy <= 0) {
+                                                            const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
+                                                            if (originalJsonEl && originalJsonEl.value) {
+                                                                try {
+                                                                    const orig = JSON.parse(originalJsonEl.value);
+                                                                    const firstRoom = Array.isArray(orig) ? orig[0] : orig;
+                                                                    const firstBed = (firstRoom && firstRoom.beds && firstRoom.beds[0]) ? firstRoom.beds[0] : {};
+                                                                    if (maxOccupancy <= 0) {
+                                                                        maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
+                                                                    }
+                                                                    if (extraBedPrice <= 0) {
+                                                                        extraBedPrice = parseFloat(firstBed.extra_bed_price) || 0;
+                                                                    }
+                                                                    if (!extraBedAvailable) {
+                                                                        extraBedAvailable = !!(firstBed.extra_bed);
+                                                                    }
+                                                                } catch (e) { /* ignore */ }
+                                                            }
+                                                        }
+                                                        return { maxOccupancy, extraBedPrice, extraBedAvailable };
+                                                    }
+
+                                                    function calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, numberOfNights) {
+                                                        const ctx = getEditHotelBedContext_{{ $hotelOrder->booking_id }}();
+                                                        const pax = parseInt(numberOfPersons, 10) || 1;
+                                                        const rooms = parseInt(numberOfRooms, 10) || 1;
+                                                        const nights = parseInt(numberOfNights, 10) || 1;
+                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || pax <= ctx.maxOccupancy) {
+                                                            return { extraPersons: 0, total: 0, perNightRate: ctx.extraBedPrice };
+                                                        }
+                                                        const extraPersons = pax - ctx.maxOccupancy;
+                                                        return {
+                                                            extraPersons,
+                                                            perNightRate: ctx.extraBedPrice,
+                                                            total: extraPersons * ctx.extraBedPrice * rooms * nights
+                                                        };
+                                                    }
+
+                                                    // Function to update hotel price breakdown grid (syncInput=true updates Total Price field from calculation)
+                                                    function updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(syncInput) {
+                                                        syncInput = syncInput === true;
                                                         const gridBody = document.getElementById('hotel_price_grid_body_{{ $hotelOrder->booking_id }}');
                                                         const grandTotalEl = document.getElementById('hotel_grand_total_{{ $hotelOrder->booking_id }}');
                                                         
@@ -2545,6 +2716,9 @@
                                                             roomSubtotal = weekdayPricePerNight * numberOfNights * numberOfRooms;
                                                             weekdayNights = numberOfNights;
                                                         }
+
+                                                        const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, numberOfNights);
+                                                        const extraBedSubtotal = extraBedCalc.total;
                                                         
                                                         // Meal plan: use saved price only when selected plan matches saved meal type; else use room's meal prices (so changing meal updates price)
                                                         let mealPlanSubtotal = 0;
@@ -2649,6 +2823,17 @@
                                                             </div>
                                                             <span style="color: #1e293b; font-weight: 500;">$${roomSubtotal.toFixed(2)} <small class="text-muted">(${roomLabel})</small></span>
                                                         </div>`;
+
+                                                        if (extraBedSubtotal > 0) {
+                                                            const ebLabel = `${extraBedCalc.extraPersons} extra person${extraBedCalc.extraPersons > 1 ? 's' : ''} @ $${extraBedCalc.perNightRate.toFixed(2)}/night x ${numberOfNights} night${numberOfNights > 1 ? 's' : ''} x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''}`;
+                                                            gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
+                                                                <div class="d-flex align-items-center">
+                                                                    <i class="ri-hotel-bed-line me-2" style="font-size: 1rem; color: #d97706;"></i>
+                                                                    <span style="color: #475569;"><strong>Extra Bed Cost:</strong></span>
+                                                                </div>
+                                                                <span style="color: #1e293b; font-weight: 500;">$${extraBedSubtotal.toFixed(2)} <small class="text-muted">(${ebLabel})</small></span>
+                                                            </div>`;
+                                                        }
                                                         
                                                         // Meal plan row (only if meal plan selected and has price)
                                                         if (mealPlanSubtotal > 0) {
@@ -2688,15 +2873,40 @@
                                                         gridBody.innerHTML = gridHTML;
                                                         
                                                         // Calculate and display grand total
-                                                        const grandTotal = roomSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
-                                                        grandTotalEl.textContent = '$' + grandTotal.toFixed(2);
+                                                        const grandTotal = roomSubtotal + extraBedSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
+                                                        const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
+                                                        grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
                                                         
-                                                        // Update the Total Price input field to match the grid total
                                                         const totalPriceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
-                                                        if (totalPriceInput && grandTotal > 0) {
-                                                            totalPriceInput.value = grandTotal.toFixed(2);
-                                                            // Clear manual edit flag since we're auto-updating from grid
-                                                            totalPriceInput.dataset.manualEdit = 'false';
+                                                        const headerTotalEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
+                                                        const dbTotal = totalPriceInput ? (parseFloat(totalPriceInput.dataset.dbTotal) || 0) : 0;
+                                                        let displayTotal = grandTotal;
+
+                                                        if (totalPriceInput) {
+                                                            const currentVal = parseFloat(totalPriceInput.value) || 0;
+                                                            const hasSavedCustom = dbTotal > 0 && Math.abs(dbTotal - grandTotal) > 0.009;
+                                                            const isManual = totalPriceInput.dataset.manualEdit === 'true';
+
+                                                            if (syncInput && grandTotal > 0) {
+                                                                totalPriceInput.value = grandTotal.toFixed(2);
+                                                                displayTotal = grandTotal;
+                                                                totalPriceInput.dataset.manualEdit = 'false';
+                                                            } else if (isManual) {
+                                                                displayTotal = currentVal > 0 ? currentVal : dbTotal;
+                                                            } else if (hasSavedCustom) {
+                                                                totalPriceInput.value = dbTotal.toFixed(2);
+                                                                displayTotal = dbTotal;
+                                                                totalPriceInput.dataset.manualEdit = 'true';
+                                                            } else if (grandTotal > 0) {
+                                                                totalPriceInput.value = grandTotal.toFixed(2);
+                                                                displayTotal = grandTotal;
+                                                            } else {
+                                                                displayTotal = currentVal || dbTotal;
+                                                            }
+                                                        }
+
+                                                        if (headerTotalEl && displayTotal > 0) {
+                                                            headerTotalEl.textContent = currencyLabel + ' ' + displayTotal.toFixed(2);
                                                         }
                                                     }
                                                     
@@ -2725,9 +2935,10 @@
                                                             return;
                                                         }
                                                         
-                                                        // If forceUpdate is true (user made a change), clear the preserved flag to allow recalculation
+                                                        // If forceUpdate is true (user changed pax/dates/rooms), recalculate and sync input
                                                         if (forceUpdate) {
                                                             priceInput.dataset.preservedFromDb = 'false';
+                                                            priceInput.dataset.manualEdit = 'false';
                                                         }
                                                         
                                                         const selectedRoomType = roomTypeSelect.value;
@@ -2774,18 +2985,28 @@
                                                         }
                                                         if (totalPrice === 0 && nightCount === 0) {
                                                             totalPrice = weekdayPricePerNight * 1 * numberOfRooms;
+                                                            nightCount = 1;
                                                         }
+                                                        const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, nightCount || 1);
+                                                        totalPrice += extraBedCalc.total;
                                                         
-                                                        // Update price input if calculated price is valid
-                                                        if (totalPrice > 0) {
+                                                        if (forceUpdate && totalPrice > 0) {
                                                             priceInput.value = totalPrice.toFixed(2);
-                                                        } else if (currentPrice === 0) {
-                                                            // Only clear if current value is 0 (don't overwrite saved values)
-                                                            priceInput.value = '0.00';
+                                                        } else {
+                                                            const dbTotal = parseFloat(priceInput.dataset.dbTotal) || 0;
+                                                            const hasSavedCustom = dbTotal > 0 && Math.abs(dbTotal - totalPrice) > 0.009;
+                                                            if (!hasSavedCustom && priceInput.dataset.manualEdit !== 'true') {
+                                                                if (totalPrice > 0) {
+                                                                    priceInput.value = totalPrice.toFixed(2);
+                                                                } else if (currentPrice === 0) {
+                                                                    priceInput.value = '0.00';
+                                                                }
+                                                            } else if (dbTotal > 0 && priceInput.dataset.manualEdit !== 'true') {
+                                                                priceInput.value = dbTotal.toFixed(2);
+                                                            }
                                                         }
                                                         
-                                                        // Update price grid
-                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(forceUpdate);
                                                     }
                                                     
                                                     // Track manual price edits - attach event listener immediately
@@ -2793,13 +3014,22 @@
                                                         const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
                                                         if (priceInput) {
                                                             // Mark as manually edited when user types
+                                                            function syncHotelHeaderTotal_{{ $hotelOrder->booking_id }}() {
+                                                                const headerEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
+                                                                const val = parseFloat(priceInput.value) || parseFloat(priceInput.dataset.dbTotal) || 0;
+                                                                if (headerEl && val > 0) {
+                                                                    headerEl.textContent = '{{ trim($tour->currency ?? "$") }} ' + val.toFixed(2);
+                                                                }
+                                                            }
+
                                                             priceInput.addEventListener('input', function() {
                                                                 this.dataset.manualEdit = 'true';
+                                                                syncHotelHeaderTotal_{{ $hotelOrder->booking_id }}();
                                                             });
                                                             
-                                                            // Also mark on change event (for cases where input event doesn't fire)
                                                             priceInput.addEventListener('change', function() {
                                                                 this.dataset.manualEdit = 'true';
+                                                                syncHotelHeaderTotal_{{ $hotelOrder->booking_id }}();
                                                             });
                                                         }
                                                     })();
@@ -2824,19 +3054,19 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-check-line me-1 text-primary"></i>Check-in Date</label>
-                                                <input type="date" class="form-control border-2" style="height: 35px;" name="check_in_date" value="{{ $checkInValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <input type="date" class="form-control border-2 hotel-check-in-date" style="height: 35px;" name="check_in_date" id="check_in_date_{{ $hotelOrder->booking_id }}" value="{{ $checkInValue }}" min="{{ $tourHotelDateMin }}" max="{{ $tourHotelDateMax }}" data-tour-min="{{ $tourHotelDateMin }}" data-tour-max="{{ $tourHotelDateMax }}" required onchange="onHotelCheckInChange({{ $hotelOrder->booking_id }});">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-close-line me-1 text-danger"></i>Check-out Date</label>
-                                                <input type="date" class="form-control border-2" style="height: 35px;" name="check_out_date" value="{{ $checkOutValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <input type="date" class="form-control border-2 hotel-check-out-date" style="height: 35px;" name="check_out_date" id="check_out_date_{{ $hotelOrder->booking_id }}" value="{{ $checkOutValue }}" min="{{ $tourHotelDateMin }}" max="{{ $tourHotelDateMax }}" data-tour-min="{{ $tourHotelDateMin }}" data-tour-max="{{ $tourHotelDateMax }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-door-open-line me-1 text-info"></i>Number of Rooms</label>
-                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-home-4-line me-1 text-secondary"></i>Room Type</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(this.value); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <select class="form-select border-2" style="height: 35px;" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Room Type</option>
                                                     @if($roomType)
                                                         <option value="{{ $roomType }}" selected>{{ $roomType }}</option>
@@ -2854,7 +3084,7 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-restaurant-line me-1 text-success"></i>Meal Plan</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Meal Plan</option>
                                                     @if($mealPlan)
                                                         <option value="{{ $mealPlanSelectValue ?? $mealPlan }}" selected>{{ $mealPlan }}</option>
@@ -2863,7 +3093,7 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Number of Persons (Pax)</label>
-                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true); updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();">
+                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                 <small class="text-muted d-block mt-1" id="pax_info_{{ $hotelOrder->booking_id }}"></small>
                                             </div>
                                             <div class="col-md-3" id="child_with_bed_wrap_{{ $hotelOrder->booking_id }}" style="display: none;">
@@ -2879,7 +3109,7 @@
                                                         id="child_with_bed_{{ $hotelOrder->booking_id }}"
                                                         value="{{ $childWithBedJson }}"
                                                         {{ $childWithBedEnabled ? 'checked' : '' }}
-                                                        onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();"
+                                                        onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);"
                                                     >
                                                     <label class="form-check-label" for="child_with_bed_{{ $hotelOrder->booking_id }}">
                                                         Child with bed
@@ -2899,7 +3129,7 @@
                                                         id="child_without_bed_{{ $hotelOrder->booking_id }}"
                                                         value="{{ $childWithoutBedJson }}"
                                                         {{ $childWithoutBedEnabled ? 'checked' : '' }}
-                                                        onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();"
+                                                        onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);"
                                                     >
                                                     <label class="form-check-label" for="child_without_bed_{{ $hotelOrder->booking_id }}">
                                                         Child without bed
@@ -2912,7 +3142,7 @@
                                                 </label>
                                                 <div class="input-group">
                                                     <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">$</span>
-                                                    <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false">
+                                                    <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false" data-db-total="{{ number_format((float)$totalPrice, 2, '.', '') }}">
                                                 </div>
                                                 <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room & rooms</small>
                                             </div>
@@ -2982,6 +3212,80 @@
                                 @endif
                             </div>
                         </div> <!-- end card-body -->
+                        @if(!empty($tourHotelDateMin) && !empty($tourHotelDateMax))
+                        <script>
+                        (function() {
+                            const TOUR_HOTEL_DATE_MIN = @json($tourHotelDateMin);
+                            const TOUR_HOTEL_DATE_MAX = @json($tourHotelDateMax);
+
+                            function getTourHotelDateRange() {
+                                const s = document.getElementById('start_date');
+                                const e = document.getElementById('end_date');
+                                return {
+                                    min: (s && s.value) ? String(s.value).trim() : TOUR_HOTEL_DATE_MIN,
+                                    max: (e && e.value) ? String(e.value).trim() : TOUR_HOTEL_DATE_MAX
+                                };
+                            }
+
+                            window.onHotelCheckInChange = function(bookingId) {
+                                const checkIn = document.getElementById('check_in_date_' + bookingId);
+                                const checkOut = document.getElementById('check_out_date_' + bookingId);
+                                const range = getTourHotelDateRange();
+                                if (!checkIn || !checkOut || !range.min || !range.max) return;
+
+                                checkIn.min = range.min;
+                                checkIn.max = range.max;
+                                checkOut.max = range.max;
+
+                                const outMin = (checkIn.value && checkIn.value >= range.min) ? checkIn.value : range.min;
+                                checkOut.min = outMin;
+
+                                if (checkOut.value && checkOut.value < outMin) checkOut.value = outMin;
+                                if (checkOut.value && checkOut.value > range.max) checkOut.value = range.max;
+
+                                try {
+                                    const paxEl = document.getElementById('number_of_persons_' + bookingId);
+                                    const fnPax = window['updatePaxInfo_' + bookingId];
+                                    if (typeof fnPax === 'function') fnPax(paxEl ? paxEl.value : '');
+                                } catch (e) { /* ignore */ }
+                                const fnPrice = window['updateHotelPrice_' + bookingId];
+                                if (typeof fnPrice === 'function') fnPrice(true);
+                            };
+
+                            function applyHotelEditDateConstraints(form) {
+                                const range = getTourHotelDateRange();
+                                if (!form || !range.min || !range.max) return;
+
+                                const checkIn = form.querySelector('input[name="check_in_date"]');
+                                const checkOut = form.querySelector('input[name="check_out_date"]');
+                                if (!checkIn || !checkOut) return;
+
+                                checkIn.min = range.min;
+                                checkIn.max = range.max;
+                                checkOut.max = range.max;
+
+                                const outMin = (checkIn.value && checkIn.value >= range.min) ? checkIn.value : range.min;
+                                checkOut.min = outMin;
+
+                                if (checkIn.value && checkIn.value < range.min) checkIn.value = range.min;
+                                if (checkIn.value && checkIn.value > range.max) checkIn.value = range.max;
+                                if (checkOut.value && checkOut.value > range.max) checkOut.value = range.max;
+                                if (checkOut.value && checkOut.value < checkOut.min) checkOut.value = checkOut.min;
+                            }
+
+                            function initAllHotelEditDateConstraints() {
+                                document.querySelectorAll('.hotel-edit-form').forEach(applyHotelEditDateConstraints);
+                            }
+
+                            document.addEventListener('DOMContentLoaded', initAllHotelEditDateConstraints);
+
+                            const tourStartEl = document.getElementById('start_date');
+                            const tourEndEl = document.getElementById('end_date');
+                            if (tourStartEl) tourStartEl.addEventListener('change', initAllHotelEditDateConstraints);
+                            if (tourEndEl) tourEndEl.addEventListener('change', initAllHotelEditDateConstraints);
+                        })();
+                        </script>
+                        @endif
                         <div class="card-footer bg-light">
                             <div class="text-center py-3">
                                 <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addHotelService()" style="
@@ -5596,6 +5900,7 @@
                 </div>
             </div>
         </div>
+
                             <script>
                                 // Get total pax from tour data
                                 const totalPax = {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }};
@@ -17405,8 +17710,6 @@
         // Add event listeners with null checks
         const checkInDate = document.getElementById('check_in_date');
         const checkOutDate = document.getElementById('check_out_date');
-        const hotelSelect = document.getElementById('hotel_select');
-        const proceedBtn = document.getElementById('proceed_hotel_btn');
         
         if (checkInDate) {
             checkInDate.addEventListener('change', updateNightsDisplay);
@@ -17414,9 +17717,9 @@
         if (checkOutDate) {
             checkOutDate.addEventListener('change', updateNightsDisplay);
         }
-        if (hotelSelect) {
-            hotelSelect.addEventListener('change', onHotelSelection);
-        }
+        // Hotel change is handled by inline onchange="loadRoomsForSelectedHotel(...)" on #hotel_select.
+        // Do not attach onHotelSelection here: it called loadRoomOptions() with hotel list rows that have no
+        // embedded `rooms`, which cleared room/bed/meal and raced the fetchRooms API path.
         // `#proceed_hotel_btn` already has inline `onclick="proceedToHotelSelection()"`.
         // Attaching another click listener here causes the booking submit to happen twice.
     }
@@ -17528,6 +17831,10 @@
         const roomTypeSelect = document.getElementById('room_type');
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
+        if (!roomTypeSelect || !bedTypeSelect || !mealPlanSelect) {
+            console.warn('loadRoomsForSelectedHotel: room/bed/meal selects not found');
+            return;
+        }
         
         if (!hotelId) {
             // Reset to default state when no hotel selected
@@ -17545,11 +17852,12 @@
         mealPlanSelect.innerHTML = '<option value="">Loading rooms...</option>';
         mealPlanSelect.disabled = true;
         
-        // Get current user's DMC ID for room filtering
-        const currentDmcId = document.getElementById('dmc_id').value;
+        // Get DMC id for query string (API resolves DMC from auth; this is informational)
+        const dmcEl = document.getElementById('dmc_id');
+        const currentDmcId = dmcEl ? String(dmcEl.value || '').trim() : '';
         
-        // Fetch rooms for the selected hotel with DMC filtering (same as create.blade.php)
-        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${currentDmcId}`)
+        // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is (see loadRoomsForSelectedHotel).
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -17565,21 +17873,8 @@
                 mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
                 
                 if (response.success && response.rooms && response.rooms.length > 0) {
-                    // Filter rooms by DMC ID using created_by field
-                    let dmcFilteredRooms = response.rooms.filter(room => {
-                        const roomDmcId = room.created_by;
-                        return roomDmcId && roomDmcId == currentDmcId;
-                    });
-                    
-                    console.log('Rooms after DMC filtering:', dmcFilteredRooms.length);
-                    
-                    if (dmcFilteredRooms.length === 0) {
-                        console.warn(`No rooms found for DMC ${currentDmcId} in hotel ${hotelId}`);
-                        roomTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
-                        bedTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
-                        mealPlanSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
-                        return;
-                    }
+                    const dmcFilteredRooms = response.rooms;
+                    console.log('Rooms from API (server-filtered):', dmcFilteredRooms.length);
                     
                     // Store room data globally for bed fetching
                     window.roomData = dmcFilteredRooms;
@@ -17647,6 +17942,7 @@
                 } else {
                     console.log('No rooms found for hotel:', hotelId);
                     roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                    roomTypeSelect.disabled = false;
                 }
             })
             .catch(error => {
@@ -17654,6 +17950,7 @@
                 roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
                 bedTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
                 mealPlanSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                roomTypeSelect.disabled = false;
             });
     }
     
@@ -18144,29 +18441,12 @@
     
     function onHotelSelection() {
         const hotelSelect = document.getElementById('hotel_select');
-        const roomType = document.getElementById('room_type');
-        const bedType = document.getElementById('bed_type');
-        const mealPlan = document.getElementById('meal_plan');
-        
-        if (!hotelSelect || !roomType || !bedType || !mealPlan) {
-            console.warn('Hotel selection elements not found');
-            return;
-        }
-        
-        const hotelId = hotelSelect.value;
-        
+        if (!hotelSelect) return;
+        const hotelId = hotelSelect.value || '';
         if (hotelId) {
-            // Get the selected hotel data
-            const selectedOption = hotelSelect.querySelector(`option[value="${hotelId}"]`);
-            if (selectedOption) {
-                const hotelData = JSON.parse(selectedOption.getAttribute('data-hotel'));
-                
-                // Load room options for selected hotel
-                loadRoomOptions(hotelData, roomType, bedType, mealPlan);
-            }
+            loadRoomsForSelectedHotel(hotelId);
         } else {
-            // Reset room options
-            resetRoomOptions();
+            resetHotelModalFields();
         }
     }
     
@@ -25629,6 +25909,8 @@
         formData.append('foc_size', String(focParsed));
         const discountEl = document.getElementById('discount');
         formData.append('discount', String(discountEl && (discountEl.value === '1' || discountEl.value === 1) ? 1 : 0));
+        const discountPriceEl = document.getElementById('discount_price');
+        formData.append('discount_price', discountPriceEl ? (discountPriceEl.value || '0') : '0');
 
         // If tour date range changed, clear all services first (with explicit confirmation).
         try {

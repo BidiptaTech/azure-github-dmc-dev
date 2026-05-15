@@ -359,6 +359,8 @@ class EditTourController extends Controller
                 },
             ],
             'discount' => 'nullable|numeric|min:0|max:1',
+            'discount_price' => 'nullable|numeric|min:0',
+            'discount_amount' => 'nullable|numeric|min:0',
         ]);
 
         $focSizeReq = max(0, (int) $request->input('foc_size', $validated['foc_size'] ?? 0));
@@ -436,6 +438,12 @@ class EditTourController extends Controller
                 $tour->discount = 0.0;
             }
 
+            // UI field discount_price → existing column discount_amount (same field, no new column)
+            $tour->discount_amount = (float) ($request->input(
+                'discount_price',
+                $request->input('discount_amount', $tour->discount_amount ?? 0)
+            ) ?: 0);
+
             // If tour date range changed, ensure multi-city plans still fit within the new tour range.
             // Any city plan that is not fully contained in [checkIn, checkOut] is removed from tours.city,
             // and its services are soft-deleted so city/date + services stay consistent.
@@ -491,6 +499,7 @@ class EditTourController extends Controller
                     'tour_type' => $tour->tour_type,
                     'foc_size' => (int) ($tour->foc_size ?? 0),
                     'discount' => (float) ($tour->discount ?? 0),
+                    'discount_amount' => (float) ($tour->discount_amount ?? 0),
                 ],
                 'deleted_services_count' => $deletedServicesCount,
             ]);

@@ -800,7 +800,16 @@ class SingleTourPackageController extends Controller
             $tour->check_out_time = $checkOutTime;
             $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
-            $tour->city = $request->city;
+            $cityRaw = $request->input('city');
+            $cityStr = is_string($cityRaw) ? trim($cityRaw) : '';
+            if ($cityStr === '') {
+                $tour->city = null;
+            } elseif (ctype_digit($cityStr)) {
+                $tour->city = City::query()->where('city_id', (int) $cityStr)->value('name');
+            } else {
+                $stripped = preg_replace('/\s*\([^)]*\)\s*$/', '', $cityStr);
+                $tour->city = ($stripped !== '' ? $stripped : $cityStr);
+            }
             $tour->dmc_id = $dmcId;
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
@@ -3561,6 +3570,9 @@ class SingleTourPackageController extends Controller
                                         // Child pricing (when child with bed / child without bed checkboxes are checked)
                                         'child_with_bed' => $hotelBooking['child_with_bed'] ?? null,
                                         'child_without_bed' => $hotelBooking['child_without_bed'] ?? null,
+
+                                        // Extra bed (3 pax / extra person on room)
+                                        'extra_bed' => $hotelBooking['extra_bed'] ?? null,
                                         
                                         // Tour ID
                                         'tour_id' => $tourId,
