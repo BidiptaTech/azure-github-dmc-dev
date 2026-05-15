@@ -1965,41 +1965,51 @@ class JobSheetController extends Controller
         }
     }
 
-    public function updateGuideJobsheet(Request $request){
-        $date = $request->date;
-        $tour_id = $request->tour_id;
-        $order_id = $request->order_id;
-        $user = auth()->user();
+    public function updateGuideJobsheet(Request $request)
+    {
+        try {
+            $date = $request->date;
+            $order_id = $request->order_id;
+            $user = auth()->user();
+            $firebaseSync = null;
+            $jobsheet = null;
+            $is_saved = false;
 
-        $order = Order::where('booking_id', $order_id)->first();
-        
-        // Check if data is already an array or a JSON string
-        if (is_string($order->data)) {
-            $order_data = json_decode($order->data, true);
-        } else {
-            $order_data = $order->data; // Already an array
-        }
-        
-        // Safely extract data with null coalescing
-        $firstOrderData = $order_data[0] ?? [];
-        $pickup = $firstOrderData['entrypickup'] ?? null;
-        $dropoff = null;
-        $type = $order->type;
-        $entry_time = $firstOrderData['entrytime'] ?? null;
-        $entrypickup = $firstOrderData['entrypickup'] ?? null;
+            $order = Order::where('booking_id', $order_id)->first();
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found',
+                ], 404);
+            }
 
-        $existingJobsheet = Jobsheet::where('date', $date)
-            ->where('type', $request->order_type)
-            ->where('service_type', $request->type)
-            ->where('tour_id', $tour_id)
-            ->where('date', $date)
-            ->first();
-        if($existingJobsheet){
-            $existingJobsheet->guide_id = $request->guide_id;
-            $existingJobsheet->save();
-        }
-        else{
-            $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
+            $actualTourId = $order->tour_id;
+
+            // Check if data is already an array or a JSON string
+            if (is_string($order->data)) {
+                $order_data = json_decode($order->data, true);
+            } else {
+                $order_data = $order->data;
+            }
+
+            $firstOrderData = $order_data[0] ?? [];
+            $entrypickup = $firstOrderData['entrypickup'] ?? null;
+
+            $existingJobsheet = Jobsheet::where('date', $date)
+                ->where('type', $request->order_type)
+                ->where('service_type', $request->type)
+                ->where('tour_id', $actualTourId)
+                ->where('order_id', $order_id)
+                ->first();
+
+            if ($existingJobsheet) {
+                $existingJobsheet->guide_id = $request->guide_id;
+                $is_saved = $existingJobsheet->save();
+                if ($is_saved) {
+                    $jobsheet = $existingJobsheet;
+                }
+            } else {
+                $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
                 $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
                 $jobsheetId = CommonHelper::createId($jobsheet_max_id);
                 while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
@@ -2010,9 +2020,8 @@ class JobSheetController extends Controller
                 $jobsheet->jobsheet_id = $jobsheetId;
                 $jobsheet->dmc_id = $request->dmc_id;
                 $jobsheet->created_by = $user->userId;
-                $jobsheet->tour_id = $tour_id;
+                $jobsheet->tour_id = $actualTourId;
                 $jobsheet->date = $date;
-                $jobsheet->type = $request->order_type;
                 $jobsheet->journey_time = $request->entry_time;
                 $jobsheet->guide_id = $request->guide_id;
                 $jobsheet->data = json_encode([
@@ -2021,13 +2030,33 @@ class JobSheetController extends Controller
                 $jobsheet->type = 'guide';
                 $jobsheet->service_type = $request->type;
                 $jobsheet->order_id = $order_id;
-                $jobsheet->save();
+                $is_saved = $jobsheet->save();
+            }
+
+            if (!empty($is_saved) && $jobsheet) {
+                $firebaseSync = $this->syncChatAssignmentToFirebase(
+                    $actualTourId,
+                    $request->dmc_id,
+                    $order_id,
+                    $jobsheet->driver_id ?? null,
+                    $jobsheet->guide_id ?? null
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Guide jobsheet updated successfully',
+                'jobsheet' => $jobsheet,
+                'firebase_sync' => $firebaseSync,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error updating guide jobsheet: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error processing request: ' . $e->getMessage(),
+            ], 500);
         }
-        return response()->json([
-            'success' => true,
-            'message' => 'Guide jobsheet updated successfully',
-        ]);
-        
     }
     
     /**
