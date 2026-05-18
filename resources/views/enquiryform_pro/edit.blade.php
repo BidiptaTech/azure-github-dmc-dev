@@ -1318,11 +1318,11 @@
                         <div id="adultDetailsContainer" style="display: none;" class="adult-details-container">
                             <div class="field-item">
                                 <span class="detail-label">Male:</span>
-                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultManInput" min="0" value="{{ isset($initialData['male']) ? (int) $initialData['male'] : 0 }}" onchange="validateAdultBreakdown()">
+                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultManInput" min="0" value="{{ isset($initialData['male']) ? (int) $initialData['male'] : 0 }}" onchange="validateAdultBreakdown('male')" oninput="validateAdultBreakdown('male')">
                             </div>
                             <div class="field-item">
                                 <span class="detail-label">Female:</span>
-                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultWomenInput" min="0" value="{{ isset($initialData['female']) ? (int) $initialData['female'] : 0 }}" onchange="validateAdultBreakdown()">
+                                <input type="number" class="form-control form-control-sm beautiful-input" id="adultWomenInput" min="0" value="{{ isset($initialData['female']) ? (int) $initialData['female'] : 0 }}" onchange="validateAdultBreakdown('female')" oninput="validateAdultBreakdown('female')">
                             </div>
                         </div>
                         
@@ -1330,7 +1330,14 @@
                         <div class="field-item">
                             <i class="ri-user-smile-line field-icon"></i>
                             <span class="detail-label">Child:</span>
-                            <input type="number" class="form-control form-control-sm beautiful-input" value="{{ $initialData['child_count'] ?? '0' }}" id="childCountInput" min="0" onchange="updateChildDetails()">
+                            @php $ctpChildCount = (int) ($initialData['child_count'] ?? 0); @endphp
+                            <input type="number"
+                                   class="form-control form-control-sm beautiful-input"
+                                   value="{{ $ctpChildCount }}"
+                                   id="childCountInput"
+                                   min="0"
+                                   data-initial-child-count="{{ $ctpChildCount }}"
+                                   @if($ctpChildCount <= 0) readonly disabled tabindex="-1" style="background-color: #f1f3f5; cursor: not-allowed; color: #495057;" title="No children on this tour — set in the Create Tour Pro popup." @else readonly tabindex="-1" style="background-color: #f1f3f5; cursor: not-allowed; color: #495057;" title="Child count is locked — set in the Create Tour Pro popup. Child ages are shown when expanded." @endif>
                         </div>
                         <!-- Child Details (Ages) - Hidden by default -->
                         <div id="childDetailsContainer" style="display: none;" class="child-details-container">
@@ -7012,6 +7019,7 @@
             // Set max values
             manInput.setAttribute('max', adultCount);
             womenInput.setAttribute('max', adultCount);
+            syncAdultGenderBreakdownToTotal();
         } else {
             container.style.display = 'none';
             document.getElementById('adultManInput').value = 0;
@@ -7084,27 +7092,70 @@
         }
     }
     
-    // Validate Adult Breakdown (Man + Women should equal Adult count)
-    function validateAdultBreakdown() {
-        const adultCount = parseInt(document.getElementById('adultCountInput').value) || 0;
-        const manCount = parseInt(document.getElementById('adultManInput').value) || 0;
-        const womenCount = parseInt(document.getElementById('adultWomenInput').value) || 0;
-        const total = manCount + womenCount;
-        
-        if (total > adultCount) {
-            alert(`Total Man (${manCount}) + Women (${womenCount}) = ${total} cannot exceed Adult count (${adultCount})`);
-            // Auto-adjust: reduce the last changed field
-            const manInput = document.getElementById('adultManInput');
-            const womenInput = document.getElementById('adultWomenInput');
-            
-            if (manCount > 0) {
-                const excess = total - adultCount;
-                manInput.value = Math.max(0, manCount - excess);
-            } else if (womenCount > 0) {
-                const excess = total - adultCount;
-                womenInput.value = Math.max(0, womenCount - excess);
-            }
+    /** Locked child count from Tour Pro popup (0 = disabled). */
+    function getHeaderChildCount() {
+        const input = document.getElementById('childCountInput');
+        if (!input) return 0;
+        const locked = parseInt(input.getAttribute('data-initial-child-count'), 10);
+        if (!isNaN(locked) && (input.readOnly || input.disabled)) {
+            return Math.max(0, locked);
         }
+        return Math.max(0, parseInt(input.value, 10) || 0);
+    }
+
+    function applyHeaderChildCountFromTourPro() {
+        const input = document.getElementById('childCountInput');
+        if (!input) return;
+        const locked = parseInt(input.getAttribute('data-initial-child-count'), 10);
+        const childCount = !isNaN(locked) ? Math.max(0, locked) : (parseInt(input.value, 10) || 0);
+        input.value = childCount;
+        if (childCount <= 0) {
+            input.readOnly = true;
+            input.disabled = true;
+            input.setAttribute('tabindex', '-1');
+            input.title = 'No children on this tour — set in the Create Tour Pro popup.';
+        } else {
+            input.readOnly = true;
+            input.disabled = false;
+            input.setAttribute('tabindex', '-1');
+            input.title = 'Child count is locked — set in the Create Tour Pro popup. Child ages are shown when expanded.';
+        }
+        input.style.backgroundColor = '#f1f3f5';
+        input.style.cursor = 'not-allowed';
+        input.style.color = '#495057';
+    }
+
+    /** Keep male + female = locked adult total; adjust the gender not being edited. */
+    function syncAdultGenderBreakdownToTotal(changedField) {
+        const adultCount = parseInt(document.getElementById('adultCountInput')?.value, 10) || 0;
+        const manInput = document.getElementById('adultManInput');
+        const womenInput = document.getElementById('adultWomenInput');
+        if (!manInput || !womenInput || adultCount <= 0) {
+            if (manInput) manInput.value = 0;
+            if (womenInput) womenInput.value = 0;
+            return;
+        }
+        let manCount = parseInt(manInput.value, 10);
+        let womenCount = parseInt(womenInput.value, 10);
+        if (isNaN(manCount)) manCount = 0;
+        if (isNaN(womenCount)) womenCount = 0;
+
+        if (changedField === 'male') {
+            manCount = Math.max(0, Math.min(adultCount, manCount));
+            womenCount = adultCount - manCount;
+        } else if (changedField === 'female') {
+            womenCount = Math.max(0, Math.min(adultCount, womenCount));
+            manCount = adultCount - womenCount;
+        } else {
+            manCount = Math.max(0, Math.min(adultCount, manCount));
+            womenCount = adultCount - manCount;
+        }
+        manInput.value = manCount;
+        womenInput.value = womenCount;
+    }
+
+    function validateAdultBreakdown(changedField) {
+        syncAdultGenderBreakdownToTotal(changedField);
     }
     
     // ==================== HEADER DATE MANAGEMENT ====================
@@ -8428,7 +8479,8 @@
     
     // Update Child Details (Age dropdowns)
     function updateChildDetails() {
-        const childCount = parseInt(document.getElementById('childCountInput').value) || 0;
+        applyHeaderChildCountFromTourPro();
+        const childCount = getHeaderChildCount();
         const container = document.getElementById('childDetailsContainer');
         
         if (childCount > 0) {
@@ -9438,9 +9490,24 @@
         
         // Initialize dates without triggering validation
         initializeDates();
+        applyHeaderChildCountFromTourPro();
         updateAdultDetails();
         updateChildDetails();
         updateInfantDetails();
+        (function applyInitialChildAgesFromTourPro() {
+            let ages = [];
+            try {
+                const raw = document.getElementById('enquiryProChildAges')?.value || '[]';
+                ages = JSON.parse(raw);
+            } catch (e) { ages = []; }
+            if (!Array.isArray(ages) || !ages.length) return;
+            ages.forEach((age, idx) => {
+                const sel = document.getElementById('childAge' + (idx + 1));
+                if (!sel || age === null || age === '') return;
+                const n = parseInt(age, 10);
+                if (Number.isFinite(n) && n >= 0 && n <= 17) sel.value = String(n);
+            });
+        })();
         
         // Load existing orders from backend into arrays (Fresh JSON format) BEFORE scanning
         if (window.isEditMode) {
@@ -21951,12 +22018,12 @@
         const linkedXferFocEdit = meal.transferId ? transferList.find(t => String(t.id) === String(meal.transferId)) : null;
         const rtFocEdit = document.getElementById('restaurantTransferFocServiceDiscount');
         if (rtFocEdit) {
-            rtFocEdit.checked = !!(linkedXferFocEdit && (linkedXferFocEdit.focServiceDiscount || linkedXferFocEdit.foc_service_discount));
+            rtFocEdit.checked = enquiryProIsFocDiscountOn(linkedXferFocEdit || meal.transfer_options || meal.transferInfo);
         }
         const linkedGuideFocEdit = meal.guideId ? guideList.find(g => String(g.id) === String(meal.guideId)) : null;
         const rgFocEdit = document.getElementById('restaurantGuideFocServiceDiscount');
         if (rgFocEdit) {
-            rgFocEdit.checked = !!(linkedGuideFocEdit && (linkedGuideFocEdit.focServiceDiscount || linkedGuideFocEdit.foc_service_discount));
+            rgFocEdit.checked = enquiryProIsFocDiscountOn(linkedGuideFocEdit || meal.guide_options || meal.guideInfo);
         }
         
         document.getElementById('mealModalTitleText').textContent = 'Edit Meal / Restaurant';
@@ -21987,7 +22054,7 @@
         setVal('.meal-infant-cost', parseFloat(String(infantCostOnly).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
         setVal('.meal-infant-sell', parseFloat(String(infantSellOnly).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
         const mfoc = row.querySelector(`.meal-foc-discount[data-meal-id="${mealId}"]`);
-        if (mfoc) mfoc.checked = !!(meal.focServiceDiscount || meal.foc_service_discount);
+        if (mfoc) mfoc.checked = enquiryProIsFocDiscountOn(meal);
     }
     
     // Helper function to populate meal form fields for editing
@@ -24381,7 +24448,7 @@
         const typeEl = document.querySelector('input[name="type"]:checked') || document.querySelector('input[name="type"]');
         const tourType = (typeEl && typeEl.value ? String(typeEl.value) : 'FIT').toUpperCase();
         if (tourType !== 'GROUP') {
-            return { isGroup: false, totalPax: 0, payingPax: 0, focSize: 0, discountOn: false, focFactor: 1, hotelFactor: 1, otherFactor: 1 };
+            return { isGroup: false, totalPax: 0, payingPax: 0, payingAdults: 0, focSize: 0, discountOn: false, focFactor: 1, hotelFactor: 1, otherFactor: 1 };
         }
         const adults = parseInt(document.getElementById('adultCountInput')?.value || '0', 10) || 0;
         const children = parseInt(document.getElementById('childCountInput')?.value || '0', 10) || 0;
@@ -24400,7 +24467,7 @@
         const distributionFactor = (hasFocDistribution && !discountOn) ? focFactor : 1;
         const hotelFactor = distributionFactor;
         const otherFactor = distributionFactor;
-        return { isGroup: true, totalPax, payingPax, focSize, discountOn, focFactor, hotelFactor, otherFactor };
+        return { isGroup: true, totalPax, payingPax, payingAdults, focSize, discountOn, focFactor, hotelFactor, otherFactor };
     }
 
     // Recalculate all totals and populate footer table
@@ -24416,6 +24483,10 @@
         const __focFactors = getEnquiryProGroupFocFactors();
         const __htlF = __focFactors.hotelFactor;
         const __othF = __focFactors.otherFactor;
+        // Flat-rate services (private vehicle, guide): divide total by paying adults — do not multiply by otherFactor.
+        const __flatFocDivisor = (__focFactors.isGroup && !__focFactors.discountOn && __focFactors.focSize > 0)
+            ? Math.max(1, __focFactors.payingAdults) : 0;
+        const scaleFlatRateFoc = (amount) => (__flatFocDivisor > 0 ? amount : amount * __othF);
         
         // Determine if we have hotels (non-supplement hotels)
         const nonSupplementHotels = accommodationList.filter(hotel => !hotel.supplement);
@@ -24702,13 +24773,24 @@
                         });
                     }
                     
-                    // Divide guide price by occupancy count and use ceiling value only if decimal exists
-                    guideSingleCost += ceilIfDecimal(guideCost / 1);
-                    guideSingleSell += ceilIfDecimal(guideSell / 1);
-                    guideTwinCost += ceilIfDecimal(guideCost / 2);
-                    guideTwinSell += ceilIfDecimal(guideSell / 2);
-                    guideTripleCost += ceilIfDecimal(guideCost / 3);
-                    guideTripleSell += ceilIfDecimal(guideSell / 3);
+                    // GROUP + FOC (no discount): flat guide total ÷ paying adults. Else: occupancy split.
+                    if (__flatFocDivisor > 0) {
+                        const perPayingCost = ceilIfDecimal(guideCost / __flatFocDivisor);
+                        const perPayingSell = ceilIfDecimal(guideSell / __flatFocDivisor);
+                        guideSingleCost += perPayingCost;
+                        guideSingleSell += perPayingSell;
+                        guideTwinCost += perPayingCost;
+                        guideTwinSell += perPayingSell;
+                        guideTripleCost += perPayingCost;
+                        guideTripleSell += perPayingSell;
+                    } else {
+                        guideSingleCost += ceilIfDecimal(guideCost / 1);
+                        guideSingleSell += ceilIfDecimal(guideSell / 1);
+                        guideTwinCost += ceilIfDecimal(guideCost / 2);
+                        guideTwinSell += ceilIfDecimal(guideSell / 2);
+                        guideTripleCost += ceilIfDecimal(guideCost / 3);
+                        guideTripleSell += ceilIfDecimal(guideSell / 3);
+                    }
                 }
             }
         });
@@ -24722,6 +24804,12 @@
         let localTransferTwinSell = 0;
         let localTransferTripleCost = 0;
         let localTransferTripleSell = 0;
+        let localPrivSingleCost = 0, localPrivSingleSell = 0;
+        let localPrivTwinCost = 0, localPrivTwinSell = 0;
+        let localPrivTripleCost = 0, localPrivTripleSell = 0;
+        let localSharedSingleCost = 0, localSharedSingleSell = 0;
+        let localSharedTwinCost = 0, localSharedTwinSell = 0;
+        let localSharedTripleCost = 0, localSharedTripleSell = 0;
         
         // Get all local transfers (from all sources: Arrival, Departure, Hotel, Restaurant, Attraction, Local Transport)
         // Exclude items with supplement checked
@@ -24766,28 +24854,62 @@
             const transferType = (transfer.type || '').toString().toLowerCase();
             const isPrivate = transferType === 'p' || transferType === 'private';
             
-            // Add to totals with occupancy division for private transfers
+            // Add to totals — private flat-rate vs shared per-pax (FOC uses paying-adult divisor for private/guide)
             if (baseSell > 0 || baseCost > 0) {
-                // Single: full price
-                localTransferSingleCost += baseCost;
-                localTransferSingleSell += baseSell;
-                
                 if (isPrivate) {
-                    // Twin: divide by 2 for private transfers
-                    localTransferTwinCost += ceilIfDecimal(baseCost / 2);
-                    localTransferTwinSell += ceilIfDecimal(baseSell / 2);
-                    // Triple: divide by 3 for private transfers
-                    localTransferTripleCost += ceilIfDecimal(baseCost / 3);
-                    localTransferTripleSell += ceilIfDecimal(baseSell / 3);
+                    if (__flatFocDivisor > 0) {
+                        const perPayingCost = ceilIfDecimal(baseCost / __flatFocDivisor);
+                        const perPayingSell = ceilIfDecimal(baseSell / __flatFocDivisor);
+                        localPrivSingleCost += perPayingCost;
+                        localPrivSingleSell += perPayingSell;
+                        localPrivTwinCost += perPayingCost;
+                        localPrivTwinSell += perPayingSell;
+                        localPrivTripleCost += perPayingCost;
+                        localPrivTripleSell += perPayingSell;
+                    } else {
+                        localPrivSingleCost += baseCost;
+                        localPrivSingleSell += baseSell;
+                        localPrivTwinCost += ceilIfDecimal(baseCost / 2);
+                        localPrivTwinSell += ceilIfDecimal(baseSell / 2);
+                        localPrivTripleCost += ceilIfDecimal(baseCost / 3);
+                        localPrivTripleSell += ceilIfDecimal(baseSell / 3);
+                    }
                 } else {
-                    // Shared: same price for all occupancies (per person price)
-                    localTransferTwinCost += baseCost;
-                    localTransferTwinSell += baseSell;
-                    localTransferTripleCost += baseCost;
-                    localTransferTripleSell += baseSell;
+                    localSharedSingleCost += baseCost;
+                    localSharedSingleSell += baseSell;
+                    localSharedTwinCost += baseCost;
+                    localSharedTwinSell += baseSell;
+                    localSharedTripleCost += baseCost;
+                    localSharedTripleSell += baseSell;
                 }
             }
         });
+
+        localTransferSingleCost = localPrivSingleCost + localSharedSingleCost;
+        localTransferSingleSell = localPrivSingleSell + localSharedSingleSell;
+        localTransferTwinCost = localPrivTwinCost + localSharedTwinCost;
+        localTransferTwinSell = localPrivTwinSell + localSharedTwinSell;
+        localTransferTripleCost = localPrivTripleCost + localSharedTripleCost;
+        localTransferTripleSell = localPrivTripleSell + localSharedTripleSell;
+
+        const sTourCost = tourCostPerPax * __othF;
+        const sTourSell = tourSellPerPax * __othF;
+        const sTransferCost = transferCostPerPax * __othF;
+        const sTransferSell = transferSellPerPax * __othF;
+        const sChildCost = childCostPerPax * __othF;
+        const sChildSell = childSellPerPax * __othF;
+        const sGuideSingleCost = scaleFlatRateFoc(guideSingleCost);
+        const sGuideSingleSell = scaleFlatRateFoc(guideSingleSell);
+        const sGuideTwinCost = scaleFlatRateFoc(guideTwinCost);
+        const sGuideTwinSell = scaleFlatRateFoc(guideTwinSell);
+        const sGuideTripleCost = scaleFlatRateFoc(guideTripleCost);
+        const sGuideTripleSell = scaleFlatRateFoc(guideTripleSell);
+        const sLocalSingleCost = scaleFlatRateFoc(localPrivSingleCost) + localSharedSingleCost * __othF;
+        const sLocalSingleSell = scaleFlatRateFoc(localPrivSingleSell) + localSharedSingleSell * __othF;
+        const sLocalTwinCost = scaleFlatRateFoc(localPrivTwinCost) + localSharedTwinCost * __othF;
+        const sLocalTwinSell = scaleFlatRateFoc(localPrivTwinSell) + localSharedTwinSell * __othF;
+        const sLocalTripleCost = scaleFlatRateFoc(localPrivTripleCost) + localSharedTripleCost * __othF;
+        const sLocalTripleSell = scaleFlatRateFoc(localPrivTripleSell) + localSharedTripleSell * __othF;
         
         // Add accommodation rows (exclude items with supplement checked)
         if (accommodationList.length > 0) {
@@ -24892,25 +25014,6 @@
                 const cwbNightCost = (cwbPrice * nights) * __htlF;
                 const cnbNightCost = (cnbPrice * nights) * __htlF;
 
-                const sTourCost = tourCostPerPax * __othF;
-                const sTourSell = tourSellPerPax * __othF;
-                const sTransferCost = transferCostPerPax * __othF;
-                const sTransferSell = transferSellPerPax * __othF;
-                const sChildCost = childCostPerPax * __othF;
-                const sChildSell = childSellPerPax * __othF;
-                const sGuideSingleCost = guideSingleCost * __othF;
-                const sGuideSingleSell = guideSingleSell * __othF;
-                const sGuideTwinCost = guideTwinCost * __othF;
-                const sGuideTwinSell = guideTwinSell * __othF;
-                const sGuideTripleCost = guideTripleCost * __othF;
-                const sGuideTripleSell = guideTripleSell * __othF;
-                const sLocalSingleCost = localTransferSingleCost * __othF;
-                const sLocalSingleSell = localTransferSingleSell * __othF;
-                const sLocalTwinCost = localTransferTwinCost * __othF;
-                const sLocalTwinSell = localTransferTwinSell * __othF;
-                const sLocalTripleCost = localTransferTripleCost * __othF;
-                const sLocalTripleSell = localTransferTripleSell * __othF;
-
                 // Single = sell * nights (full room cost for single occupancy)
                 const singleCost = totalCost + sTourCost + sTransferCost + sGuideSingleCost + sLocalSingleCost;
                 const singleSell = totalSell + sTourSell + sTransferSell + sGuideSingleSell + sLocalSingleSell;
@@ -25013,11 +25116,11 @@
                                        localTransferSingleSell > 0 || localTransferTwinSell > 0 || localTransferTripleSell > 0);
         
         if (shouldShowPackageTotal) {
-            // Calculate adult and child costs (GROUP + FOC: non-hotel bucket uses otherFactor — same as CommonHelper)
-            const adultCost = (tourCostPerPax + transferCostPerPax + guideSingleCost + localTransferSingleCost) * __othF;
-            const adultSell = (tourSellPerPax + transferSellPerPax + guideSingleSell + localTransferSingleSell) * __othF;
-            const childCost = childCostPerPax * __othF;
-            const childSell = childSellPerPax * __othF;
+            // Calculate adult and child costs (private/guide flat-rate FOC already in s* totals)
+            const adultCost = sTourCost + sTransferCost + sGuideSingleCost + sLocalSingleCost;
+            const adultSell = sTourSell + sTransferSell + sGuideSingleSell + sLocalSingleSell;
+            const childCost = sChildCost;
+            const childSell = sChildSell;
             
             // Round prices
             const adultCostRounded = roundToNextZero(adultCost);
@@ -25181,6 +25284,7 @@
         accommodationList.forEach((hotel) => {
             if (hotel.supplement) return;
             if (hotel.focServiceDiscount === false) return;
+            if (!focServiceHasPositiveSell(hotel, 'hotel')) return;
             const nights = parseInt(String(hotel.nights || 0), 10) || 0;
             const sell = parseFloat(hotel.sell) || 0;
             const scaledTotalHotelSell = nights * sell * htlF;
@@ -25194,6 +25298,7 @@
 
         tourList.forEach((tour, tourIndex) => {
             if (tour.supplement || !tour.focServiceDiscount) return;
+            if (!focServiceHasPositiveSell(tour, 'tour')) return;
             const adultsQty = parseInt(tour.adultsQty, 10) || 0;
             const childQty = parseInt(tour.childQty, 10) || 0;
             const infantQty = parseInt(tour.infantQty, 10) || 0;
@@ -25261,6 +25366,7 @@
                         if (sellInput && sellInput.value !== '') guideSell = parseFloat(sellInput.value) || 0;
                     }
                 }
+                if (guideSell <= 0) return;
                 const adultQ = parseInt(guide.adultsQty ?? guide.adults ?? 0, 10) || 0;
                 const childQ = parseInt(guide.childQty ?? guide.child ?? 0, 10) || 0;
                 const paxCountG = adultQ + childQ;
@@ -25276,6 +25382,7 @@
         const mealTableBody = document.getElementById('mealTableBody');
         mealList.forEach((meal, mealIndex) => {
             if (meal.supplement || !meal.focServiceDiscount) return;
+            if (!focServiceHasPositiveSell(meal, 'meal')) return;
             let adultSell = parseFloat(meal.adultSell) || 0;
             if (mealTableBody) {
                 const tableRows = Array.from(mealTableBody.querySelectorAll('tr'));
@@ -25290,6 +25397,7 @@
         const miscTableBody = document.getElementById('miscTableBody');
         miscList.forEach((misc, miscIndex) => {
             if (misc.supplement || !misc.focServiceDiscount) return;
+            if (!focServiceHasPositiveSell(misc, 'misc')) return;
             let adultSell = parseFloat(misc.adultSell) || 0;
             if (miscTableBody) {
                 const tableRows = Array.from(miscTableBody.querySelectorAll('tr'));
@@ -25303,6 +25411,7 @@
 
         transferList.forEach((transfer, transferIndex) => {
             if (transfer.supplement || !transfer.focServiceDiscount) return;
+            if (!focServiceHasPositiveSell(transfer, 'transfer')) return;
             if (transfer.sourceType === 'tour' && transfer.sourceId) {
                 const ownerTour = tourList.find(tu => String(tu.id) === String(transfer.sourceId));
                 if (ownerTour && ownerTour.focServiceDiscount) return;
@@ -25362,6 +25471,7 @@
                     if (sellInput && sellInput.value !== '') guideSell = parseFloat(sellInput.value) || 0;
                 }
             }
+            if (guideSell <= 0) return;
             const adultQ = parseInt(guide.adultsQty ?? guide.adults ?? 0, 10) || 0;
             const childQ = parseInt(guide.childQty ?? guide.child ?? 0, 10) || 0;
             const paxCount = adultQ + childQ;
@@ -25824,6 +25934,7 @@
     function computeHotelServiceDiscountAmount(hotel) {
         const ctx = getFocDiscountContext();
         if (!ctx.active || hotel.supplement || hotel.focServiceDiscount === false) return 0;
+        if (!focServiceHasPositiveSell(hotel, 'hotel')) return 0;
         const nights = parseInt(String(hotel.nights || 0), 10) || 0;
         const sell = parseFloat(hotel.sell) || 0;
         const scaledTotalHotelSell = nights * sell * ctx.hotelFactor;
@@ -25834,6 +25945,7 @@
     function computeArrivalDepartureVehicleDiscountAmount(item) {
         const ctx = getFocDiscountContext();
         if (!ctx.active || item.supplement || !item.focServiceDiscount) return 0;
+        if (!focServiceHasPositiveSell(item, 'arrival')) return 0;
         const adults = parseInt(item.adultsQty, 10) || 0;
         const child = parseInt(item.childQty, 10) || 0;
         const paxCount = adults + child;
@@ -25856,6 +25968,7 @@
         if (focEnabled === false) return 0;
         if (focEnabled !== true && !(guide.focServiceDiscount || guide.foc_service_discount)) return 0;
         const guideSell = parseFloat(guide.sell || 0);
+        if (guideSell <= 0) return 0;
         const adultQ = parseInt(guide.adultsQty ?? guide.adults ?? 0, 10) || 0;
         const childQ = parseInt(guide.childQty ?? guide.child ?? 0, 10) || 0;
         const paxCountG = adultQ + childQ;
@@ -25868,6 +25981,7 @@
     function computeTourTicketDiscountAmount(tour) {
         const ctx = getFocDiscountContext();
         if (!ctx.active || tour.supplement || !tour.focServiceDiscount) return 0;
+        if (!focServiceHasPositiveSell(tour, 'tour')) return 0;
         const adultsQty = parseInt(tour.adultsQty, 10) || 0;
         const childQty = parseInt(tour.childQty, 10) || 0;
         const infantQty = parseInt(tour.infantQty, 10) || 0;
@@ -25891,6 +26005,7 @@
         if (!ctx.active || transfer.supplement) return 0;
         const focOn = parentFocEnabled === true || !!(transfer.focServiceDiscount || transfer.foc_service_discount);
         if (!focOn) return 0;
+        if (!focServiceHasPositiveSell(transfer, 'transfer')) return 0;
         const sell = parseFloat(transfer.sell ?? transfer.adultSell ?? transfer.cost ?? 0) || 0;
         const adults = parseInt(transfer.adults ?? transfer.adultsQty ?? 0, 10) || 0;
         const child = parseInt(transfer.child ?? transfer.childQty ?? 0, 10) || 0;
@@ -25921,6 +26036,7 @@
     function computeMealDiscountAmount(meal) {
         const ctx = getFocDiscountContext();
         if (!ctx.active || meal.supplement || !meal.focServiceDiscount) return 0;
+        if (!focServiceHasPositiveSell(meal, 'meal')) return 0;
         const adultSell = parseFloat(meal.adultSell) || 0;
         return adultSell > 0 ? adultSell * ctx.otherFactor * ctx.focSize : 0;
     }
@@ -25932,8 +26048,38 @@
     function computeMiscDiscountAmount(misc) {
         const ctx = getFocDiscountContext();
         if (!ctx.active || misc.supplement || !(misc.focServiceDiscount || misc.foc_service_discount)) return 0;
+        if (!focServiceHasPositiveSell(misc, 'misc')) return 0;
         const adultSell = parseFloat(misc.adultSell) || 0;
         return adultSell > 0 ? adultSell * ctx.otherFactor * ctx.focSize : 0;
+    }
+
+    /** FOC discount checkbox on for a service row (matches UI). */
+    function enquiryProIsFocDiscountOn(entity) {
+        if (!entity) return false;
+        if (entity.focServiceDiscount === false || entity.foc_service_discount === false) return false;
+        if (parseInt(entity.discount, 10) === 0) return false;
+        if (parseInt(entity.discount, 10) === 1) return true;
+        return !!(entity.focServiceDiscount || entity.foc_service_discount);
+    }
+
+    /** Order JSON: discount 1=on / 0=off and discount_amount (0 when off). */
+    function enquiryProOrderDiscountPayload(entity, amountComputer) {
+        const on = enquiryProIsFocDiscountOn(entity);
+        const amount = on && typeof amountComputer === 'function' ? (parseFloat(amountComputer()) || 0) : 0;
+        return { discount: on ? 1 : 0, discount_amount: amount };
+    }
+
+    /** Restaurant meal transfer for order JSON — prefer transferList (has FOC flag + prices). */
+    function getMealLinkedTransferForOrder(meal) {
+        if (!meal) return null;
+        const fromList = meal.transferId
+            ? (transferList.find(t => String(t.id) === String(meal.transferId)) || null)
+            : null;
+        const fromInfo = meal.transferInfo && Object.keys(meal.transferInfo).length > 0 ? meal.transferInfo : null;
+        if (fromList) {
+            return fromInfo ? Object.assign({}, fromInfo, fromList) : fromList;
+        }
+        return fromInfo;
     }
 
     /** True when GROUP tour has FOC + "Treat FOC pax as discount (free)" and footer type is FOC. */
@@ -25945,9 +26091,83 @@
         return discountType === 'foc' && f.isGroup && f.focSize > 0 && f.discountOn;
     }
 
+    /** True when saved/loaded JSON row has a positive sell (or per-pax sell) — not only discount_amount. */
+    function servicePayloadHasPositivePrice(data, opts) {
+        opts = opts || {};
+        if (!data) return false;
+        const num = (v) => {
+            const n = parseFloat(v);
+            return (!isNaN(n) && n > 0) ? n : 0;
+        };
+        const fromObj = (obj) => {
+            if (!obj || typeof obj !== 'object') return false;
+            const adultsQty = parseInt(obj.adults ?? obj.adultsQty ?? obj.adult ?? 0, 10) || 0;
+            const childQty = parseInt(obj.children ?? obj.childQty ?? obj.child ?? 0, 10) || 0;
+            const infantQty = parseInt(obj.infants ?? obj.infantQty ?? obj.infant ?? 0, 10) || 0;
+            const adultSell = num(obj.adultSell ?? obj.adult_sell);
+            const childSell = num(obj.childSell ?? obj.child_sell);
+            const infantSell = num(obj.infantSell ?? obj.infant_sell);
+            if (adultSell * adultsQty + childSell * childQty + infantSell * infantQty > 0) return true;
+            if (adultSell > 0 || childSell > 0 || infantSell > 0) return true;
+            if (num(obj.sell ?? obj.Sell ?? obj.totalPrice ?? obj.total_price ?? obj.price ?? obj.cost) > 0) return true;
+            if (Array.isArray(obj.beds)) {
+                for (const bed of obj.beds) {
+                    if (num(bed?.sell ?? bed?.price) > 0) return true;
+                }
+            }
+            if (Array.isArray(obj.rooms)) {
+                for (const room of obj.rooms) {
+                    const beds = room?.beds || [];
+                    for (const bed of beds) {
+                        if (num(bed?.sell ?? bed?.price) > 0) return true;
+                    }
+                }
+            }
+            return false;
+        };
+        if (fromObj(data)) return true;
+        if (opts.nested && fromObj(opts.nested)) return true;
+        if (data.transfer_options && fromObj(data.transfer_options)) return true;
+        if (data.guide_options && fromObj(data.guide_options)) return true;
+        return false;
+    }
+
+    /** Live in-memory service has sell > 0 (skip FOC discount when price is zero). */
+    function focServiceHasPositiveSell(service, kind) {
+        if (!service) return false;
+        const num = (v) => {
+            const n = parseFloat(v);
+            return (!isNaN(n) && n > 0) ? n : 0;
+        };
+        if (kind === 'hotel') {
+            return num(service.sell ?? service.roomPrice) > 0;
+        }
+        if (kind === 'tour') {
+            const adultsQty = parseInt(service.adultsQty, 10) || 0;
+            const childQty = parseInt(service.childQty, 10) || 0;
+            const infantQty = parseInt(service.infantQty, 10) || 0;
+            const ticketTotal = num(service.adultSell) * adultsQty + num(service.childSell) * childQty + num(service.infantSell) * infantQty;
+            return ticketTotal > 0 || num(service.adultSell) > 0 || num(service.childSell) > 0;
+        }
+        if (kind === 'guide') {
+            return num(service.sell) > 0;
+        }
+        if (kind === 'transfer') {
+            return num(service.sell ?? service.adultSell ?? service.cost) > 0;
+        }
+        if (kind === 'meal' || kind === 'misc') {
+            return num(service.adultSell) > 0;
+        }
+        if (kind === 'arrival') {
+            return num(service.adultSell ?? service.sell) > 0;
+        }
+        return num(service.sell ?? service.adultSell) > 0;
+    }
+
     /**
      * Restore FOC checkbox state when loading orders: honour saved flags / discount_amount,
      * otherwise default to included (same as create form modals).
+     * discount_amount alone does not enable FOC when the service sell price is 0.
      */
     function resolveFocServiceDiscountFromPayload(data, opts) {
         opts = opts || {};
@@ -25957,18 +26177,30 @@
         if (data.focServiceDiscount === false || data.foc_service_discount === false) {
             return false;
         }
+        if (parseInt(data.discount, 10) === 0) {
+            return false;
+        }
+        if (parseInt(data.discount, 10) === 1) {
+            return servicePayloadHasPositivePrice(data, opts);
+        }
         if (data.focServiceDiscount === true || data.foc_service_discount === true) {
-            return true;
+            return servicePayloadHasPositivePrice(data, opts);
         }
         const disc = parseFloat(data.discount_amount ?? data.discountAmount ?? 0);
-        if (!isNaN(disc) && disc > 0) {
+        if (!isNaN(disc) && disc > 0 && servicePayloadHasPositivePrice(data, opts)) {
             return true;
         }
         const nested = opts.nested;
         if (nested) {
-            const nestedDisc = parseFloat(nested.discount_amount ?? nested.discountAmount ?? 0);
-            if (!isNaN(nestedDisc) && nestedDisc > 0) {
+            if (parseInt(nested.discount, 10) === 0) {
+                /* explicit off on nested transfer/guide */
+            } else if (parseInt(nested.discount, 10) === 1 && servicePayloadHasPositivePrice(nested, {})) {
                 return true;
+            } else {
+                const nestedDisc = parseFloat(nested.discount_amount ?? nested.discountAmount ?? 0);
+                if (!isNaN(nestedDisc) && nestedDisc > 0 && servicePayloadHasPositivePrice(nested, {})) {
+                    return true;
+                }
             }
         }
         return isGroupFocDiscountActive();
@@ -26121,7 +26353,7 @@
                             return _adultSell || _childSell || parseFloat(item.sell || item.cost || 0) || 0;
                         }
                     })(),
-                    discount_amount: computeArrivalDepartureVehicleDiscountAmount(item),
+                    ...enquiryProOrderDiscountPayload(item, () => computeArrivalDepartureVehicleDiscountAmount(item)),
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
@@ -26180,7 +26412,7 @@
                             tour_activity: `Arrival Guide - ${item.portName}`,
                             Activity: `Arrival Guide - ${item.portName}`,
                             pickup_time: linkedGuide.time || '',
-                            discount_amount: computeGuideServiceDiscountAmount(linkedGuide, true)
+                            ...enquiryProOrderDiscountPayload(linkedGuide, () => computeGuideServiceDiscountAmount(linkedGuide, true))
                         };
                     }
                 }
@@ -26289,7 +26521,7 @@
                             return _adultSell || _childSell || parseFloat(item.sell || item.cost || 0) || 0;
                         }
                     })(),
-                    discount_amount: computeArrivalDepartureVehicleDiscountAmount(item),
+                    ...enquiryProOrderDiscountPayload(item, () => computeArrivalDepartureVehicleDiscountAmount(item)),
                     Tax: 0,
                     distance: 0,
                     Night_Start_Time: null,
@@ -26332,7 +26564,7 @@
                             tour_activity: `Departure Guide - ${item.portName}`,
                             Activity: `Departure Guide - ${item.portName}`,
                             pickup_time: linkedGuide.time || '',
-                            discount_amount: computeGuideServiceDiscountAmount(linkedGuide, true)
+                            ...enquiryProOrderDiscountPayload(linkedGuide, () => computeGuideServiceDiscountAmount(linkedGuide, true))
                         };
                     }
                 }
@@ -26511,7 +26743,7 @@
                 // Pricing
                 totalPrice: totalPrice,
                 price: totalPrice,
-                discount_amount: computeHotelServiceDiscountAmount(hotel),
+                ...enquiryProOrderDiscountPayload(hotel, () => computeHotelServiceDiscountAmount(hotel)),
                 
                 // Extra bed (enabled, price, quantity, total_cost = price * quantity * nights)
                 extra_bed: {
@@ -26672,7 +26904,7 @@
                 guideId: tour.guideId || null,
                 booking_id: tour.bookingId || tour.booking_id || null,
                 bookingId: tour.bookingId || tour.booking_id || null,
-                discount_amount: computeTourTicketDiscountAmount(tour)
+                ...enquiryProOrderDiscountPayload(tour, () => computeTourTicketDiscountAmount(tour))
             };
             
             // Add transfer_options if attraction has linked transfer
@@ -26703,7 +26935,7 @@
                         cost: basePrice,
                         sell: basePrice,
                         totalPrice: transferTotalPrice,
-                        discount_amount: computeTransferOptionsDiscountAmount(linkedTransfer, tour.focServiceDiscount),
+                        ...enquiryProOrderDiscountPayload(linkedTransfer, () => computeTransferOptionsDiscountAmount(linkedTransfer, true)),
                         adults: adults,
                         child: child,
                         pickup_location_name: pickupName,
@@ -26761,7 +26993,7 @@
                         tour_activity: tour.attractionName || '',
                         Activity: tour.attractionName || '',
                         pickup_time: linkedGuide.time || '',
-                        discount_amount: computeGuideServiceDiscountAmount(linkedGuide, tour.focServiceDiscount)
+                        ...enquiryProOrderDiscountPayload(linkedGuide, () => computeGuideServiceDiscountAmount(linkedGuide, true))
                     };
                     tourData.guideInfo = {
                         id: linkedGuide.id,
@@ -26849,13 +27081,12 @@
                 transferId: meal.transferId || null,
                 booking_id: meal.bookingId || meal.booking_id || null,
                 bookingId: meal.bookingId || meal.booking_id || null,
-                discount_amount: computeMealDiscountAmount(meal)
+                ...enquiryProOrderDiscountPayload(meal, () => computeMealDiscountAmount(meal))
             };
             
-            // Add transfer_options if meal has linked transfer
-            if (meal.transferId) {
-                const linkedTransfer = transferList.find(t => t.id === meal.transferId);
-                if (linkedTransfer) {
+            // Add transfer_options if meal has linked transfer (transferList has FOC + prices)
+            const linkedTransfer = getMealLinkedTransferForOrder(meal);
+            if (linkedTransfer) {
                     const pickupName = linkedTransfer.pickup || '';
                     const dropoffName = linkedTransfer.dropoff || '';
                     const baseCost = parseFloat(linkedTransfer.cost) || 0;
@@ -26880,7 +27111,7 @@
                         cost: basePrice,
                         sell: basePrice,
                         totalPrice: transferTotalPrice,
-                        discount_amount: computeTransferOptionsDiscountAmount(linkedTransfer, meal.focServiceDiscount),
+                        ...enquiryProOrderDiscountPayload(linkedTransfer, () => computeTransferOptionsDiscountAmount(linkedTransfer, true)),
                         adults: adults,
                         child: child,
                         pickup_location_name: pickupName,
@@ -26904,7 +27135,6 @@
                         adults: adults,
                         child: child
                     };
-                }
             }
             
             // Add guide_options if meal has linked guide
@@ -26931,7 +27161,8 @@
                         cost: parseFloat(linkedGuide.cost || 0),
                         Cost: parseFloat(linkedGuide.cost || 0),
                         sell: parseFloat(linkedGuide.sell || 0),
-                        Sell: parseFloat(linkedGuide.sell || 0)
+                        Sell: parseFloat(linkedGuide.sell || 0),
+                        ...enquiryProOrderDiscountPayload(linkedGuide, () => computeGuideServiceDiscountAmount(linkedGuide, true))
                     };
                     mealData.guideInfo = {
                         id: linkedGuide.id,
@@ -26944,9 +27175,6 @@
                         cost: linkedGuide.cost,
                         sell: linkedGuide.sell
                     };
-                    if (mealData.guide_options) {
-                        mealData.guide_options.discount_amount = computeGuideServiceDiscountAmount(linkedGuide, meal.focServiceDiscount);
-                    }
                 }
             }
             
@@ -27013,7 +27241,7 @@
                 child_sell: parseFloat(guide.childSell) || 0,
                 surcharge: 0,
                 totalPrice: parseFloat(guide.sell || guide.adultSell || 0), // Guide price is fixed, not multiplied by pax
-                discount_amount: computeStandaloneGuideDiscountAmount(guide),
+                ...enquiryProOrderDiscountPayload(guide, () => computeStandaloneGuideDiscountAmount(guide)),
                 pickupdate: normalizeDateToYYYYMMDD(guide.dateTime),
                 bookingDate: normalizeDateToYYYYMMDD(guide.dateTime),
                 date: normalizeDateToYYYYMMDD(guide.dateTime),
@@ -27212,7 +27440,7 @@
                 transportMode: "local",
                 booking_id: transfer.bookingId || transfer.booking_id || null,
                 bookingId: transfer.bookingId || transfer.booking_id || null,
-                discount_amount: computeTransferOptionsDiscountAmount(transfer, true)
+                ...enquiryProOrderDiscountPayload(transfer, () => computeTransferOptionsDiscountAmount(transfer, true))
             };
             
             // Add linked_to_hotel field if this is a hotel-linked transfer
@@ -27248,7 +27476,7 @@
                         Sell: parseFloat(linkedGuide.sell || 0),
                         focServiceDiscount: !!(linkedGuide.focServiceDiscount || linkedGuide.foc_service_discount),
                         foc_service_discount: !!(linkedGuide.focServiceDiscount || linkedGuide.foc_service_discount),
-                        discount_amount: computeGuideServiceDiscountAmount(linkedGuide, true)
+                        ...enquiryProOrderDiscountPayload(linkedGuide, () => computeGuideServiceDiscountAmount(linkedGuide, true))
                     };
                     transferData.guideId = linkedGuide.id;
                 }
@@ -27287,7 +27515,7 @@
             totalPrice: (parseFloat(misc.adultSell || 0) * parseInt(misc.adultsQty || 0)) + 
                        (parseFloat(misc.childSell || 0) * parseInt(misc.childQty || 0)) +
                        (parseFloat(misc.infantSell || 0) * parseInt(misc.infantQty || 0)),
-            discount_amount: computeMiscDiscountAmount(misc),
+            ...enquiryProOrderDiscountPayload(misc, () => computeMiscDiscountAmount(misc)),
             dmc_id: dmcId,
             city: destination,
             country: destination,
@@ -29653,7 +29881,7 @@
         const hasTransferData = !!(data.vehicles_name || data.vehicleName || data.vehicle_id || data.vehicleId || data.transferType || data.type);
         const mappedPS = resolvePrivateSharedPSFromPayload(data);
         
-        const arrivalFocSvc = resolveFocServiceDiscountFromPayload(data, { nested: data.guide_options });
+        const arrivalFocSvc = resolveFocServiceDiscountFromPayload(data);
         const arrival = {
             id: data.id || order.order_id || generateId('arrival'),
             orderId: order.id || order.order_id,
@@ -29771,7 +29999,7 @@
                     adultSell: data.guide_options.sell || data.guide_options.adultSell || data.guide_options.adult_sell || 0,
                     childSell: data.guide_options.childSell || data.guide_options.child_sell || 0,
                     supplement: false,
-                    focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: data.guide_options }),
+                    focServiceDiscount: resolveFocServiceDiscountFromPayload(data.guide_options),
                     isStandalone: false,
                     linkedTo: 'arrival',
                     sourceType: 'transfer',
@@ -29798,7 +30026,7 @@
         const hasTransferData = !!(data.vehicles_name || data.vehicleName || data.vehicle_id || data.vehicleId || data.transferType || data.type);
         const mappedPS = resolvePrivateSharedPSFromPayload(data);
         
-        const departureFocSvc = resolveFocServiceDiscountFromPayload(data, { nested: data.guide_options });
+        const departureFocSvc = resolveFocServiceDiscountFromPayload(data);
         const departure = {
             id: data.id || order.order_id || generateId('departure'),
             orderId: order.id || order.order_id,
@@ -29916,7 +30144,7 @@
                     adultSell: data.guide_options.sell || data.guide_options.adultSell || data.guide_options.adult_sell || 0,
                     childSell: data.guide_options.childSell || data.guide_options.child_sell || 0,
                     supplement: false,
-                    focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: data.guide_options }),
+                    focServiceDiscount: resolveFocServiceDiscountFromPayload(data.guide_options),
                     isStandalone: false,
                     linkedTo: 'departure',
                     sourceType: 'transfer',
@@ -30086,7 +30314,7 @@
             cost: parseFloat(data.cost || 0),
             sell: parseFloat(data.sell || 0),
             supplement: data.supplement || false,
-            focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: data.transfer_options || data.guide_options }),
+            focServiceDiscount: resolveFocServiceDiscountFromPayload(data),
             destination: data.destination || data.country || data.city || '',
             country: data.country || data.destination || '',
             city: data.city || data.destination || '',
@@ -30257,7 +30485,7 @@
                         sourceId: tour.id,
                         isDestinationPickup: transferData.isDestinationPickup || false,
                         destinationId: transferData.destinationId || null,
-                        focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: transferOptions || transferInfo })
+                        focServiceDiscount: resolveFocServiceDiscountFromPayload(transferOptions || transferInfo || transferData)
                     };
                     
                     transferList.push(transferEntry);
@@ -30368,7 +30596,7 @@
                         adultSell: parseFloat(guideData.sell || 0),
                         childSell: 0,
                         supplement: false,
-                        focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: guideData }),
+                        focServiceDiscount: resolveFocServiceDiscountFromPayload(guideOptions || guideData),
                         isStandalone: false,
                         linkedTo: 'tour',
                         sourceType: 'tour',
@@ -30442,7 +30670,7 @@
             cost: parseFloat(data.cost || 0),
             sell: parseFloat(data.sell || 0),
             supplement: data.supplement || false,
-            focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: data.transfer_options || data.guide_options }),
+            focServiceDiscount: resolveFocServiceDiscountFromPayload(data),
             destination: data.destination || data.country || data.city || '',
             country: data.country || data.destination || '',
             city: data.city || data.destination || '',
@@ -30610,7 +30838,7 @@
                         zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
                         taxIncluded: false,
                         supplement: meal.supplement,
-                        focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: transferOptions || transferInfo }),
+                        focServiceDiscount: resolveFocServiceDiscountFromPayload(transferOptions || transferInfo || transferData),
                         isStandalone: false,
                         sourceType: 'meal',
                         sourceId: meal.id,
@@ -30730,7 +30958,7 @@
                         adultSell: parseFloat(guideData.sell || 0),
                         childSell: 0,
                         supplement: false,
-                        focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: guideOptions || guideData }),
+                        focServiceDiscount: resolveFocServiceDiscountFromPayload(guideOptions || guideData),
                         isStandalone: false,
                         linkedTo: 'restaurant',
                         sourceType: 'meal',
@@ -30981,7 +31209,7 @@
             dropType: dropType,
             taxIncluded: data.taxIncluded || data.tax_included || false,
             supplement: data.supplement !== undefined ? data.supplement : false,
-            focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: data.guide_options }),
+            focServiceDiscount: resolveFocServiceDiscountFromPayload(data),
             // Mark as linked if it has hotel info, linked_to_hotel, or sourceType
             isStandalone: !isHotelLinked && (data.isStandalone !== false && !data.sourceType && !data.source_type && !data.linked_to_hotel && !data.linkedToHotel),
             sourceType: data.sourceType || data.source_type || (isHotelLinked ? 'hotel' : null),
@@ -31041,7 +31269,7 @@
                 adultSell: data.guide_options.sell || data.guide_options.adultSell || data.guide_options.adult_sell || 0,
                 childSell: data.guide_options.childSell || data.guide_options.child_sell || 0,
                 supplement: false,
-                focServiceDiscount: resolveFocServiceDiscountFromPayload(data, { nested: data.guide_options }),
+                focServiceDiscount: resolveFocServiceDiscountFromPayload(data.guide_options),
                 isStandalone: false,
                 linkedTo: 'local_transport',
                 sourceType: 'transfer',
