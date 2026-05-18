@@ -97,26 +97,71 @@ class EnquiryController extends Controller
 
     public function update(Request $request)
     {
-        $currentEnquiry = Enquiry::where('enquiry_id',$request->enquiry_id)->first();
-        if(!$currentEnquiry){
-            return back()->with('error', 'Enquiry Not found!');
-        }
-        $tour = $currentEnquiry ? Tour::where('tour_id', $currentEnquiry->tour_id)->first() : '';
-        if(!$tour){
-            return back()->with('error', 'Tour Not found!');
-        }
-        $currentUser = auth()->user();
-        $lastEnquiry = Enquiry::orderBy('created_at', 'desc')->first();
-        $enq_max_id = $lastEnquiry->enquiry_id ?? 1;
-        $enqId = CommonHelper::createId($enq_max_id);
-        while (Enquiry::where('enquiry_id', $enqId)->exists()) {
-            $enqId = CommonHelper::createId($enqId);
-        }
         $request->validate([
-            'enquiry_id' => 'required|integer',
+            'enquiry_id' => 'nullable|integer',
+            'tour_id' => 'nullable|integer|exists:tours,tour_id',
             'price' => 'required|numeric|min:0',
             'comment' => 'required|string|max:1000',
+            'actual_amount' => 'nullable|numeric|min:0',
         ]);
+
+        if (! $request->filled('enquiry_id') && ! $request->filled('tour_id')) {
+            return back()->with('error', 'Enquiry or tour reference is required.');
+        }
+
+        $currentUser = auth()->user();
+        $currentEnquiry = null;
+        $tour = null;
+
+        if ($request->filled('enquiry_id')) {
+            $currentEnquiry = Enquiry::where('enquiry_id', $request->enquiry_id)->first();
+            if (! $currentEnquiry) {
+                return back()->with('error', 'Enquiry Not found!');
+            }
+        }
+
+        if (! $currentEnquiry && $request->filled('tour_id')) {
+            $tour = Tour::where('tour_id', $request->tour_id)->first();
+            if (! $tour) {
+                return back()->with('error', 'Tour Not found!');
+            }
+            $currentEnquiry = Enquiry::where('tour_id', $tour->tour_id)
+                ->orderByDesc('created_at')
+                ->first();
+        }
+
+        if (! $currentEnquiry && $tour) {
+            $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
+            $newEnquiryId = CommonHelper::createId($lastEnquiryId);
+            while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
+                $newEnquiryId = CommonHelper::createId($newEnquiryId);
+            }
+            $actualForRow = (float) ($request->input('actual_amount', 0));
+
+            $currentEnquiry = Enquiry::create([
+                'tour_id' => $tour->tour_id,
+                'status' => 1,
+                'dmcId' => $tour->dmc_id,
+                'enquiry_id' => $newEnquiryId,
+                'sender_id' => $currentUser->userId,
+                'sender_type' => 'OM',
+                'receiver_id' => 0,
+                'receiver_type' => '',
+                'current_position' => '',
+                'amount' => 0,
+                'actual_amount' => $actualForRow,
+                'comment' => '',
+            ]);
+        }
+
+        if (! $currentEnquiry) {
+            return back()->with('error', 'Enquiry Not found!');
+        }
+
+        $tour = $tour ?? Tour::where('tour_id', $currentEnquiry->tour_id)->first();
+        if (! $tour) {
+            return back()->with('error', 'Tour Not found!');
+        }
 
         // Read before updating: amount = incoming (what came to me), actualAmount = outgoing (what I am sending)
         $amount = $currentEnquiry->amount ?? 0;
@@ -147,7 +192,6 @@ class EnquiryController extends Controller
         $oldStatus = $tourStatus;
         $newStatus = $tourStatus;
 
-        $currentUser = auth()->user();
         $changedByName = $currentUser ? ($currentUser->name ?? '') : null;
         $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
 
