@@ -1696,11 +1696,10 @@
         /**
          * Hotel line total uses a per-night, per-room formula that is independent of pax:
          *   total = Σ (over selected nights) of
-         *           [(price * 2 * num_double) + (price * 2 * num_single) + (price * 3 * num_triple)]
+         *           [(price * 2 * num_double) + (price * 2 * num_single)
+         *            + ((price * 2 + extra_bed_price) * num_triple)]
          * where `price` is the room's weekend_price on weekend days (per hotel.weekend_days)
-         * and weekday_price otherwise. Single/double counts are user-configurable on each hotel
-         * card; by default all rooms are double-occupancy. Triple rooms are only available when
-         * the hotel's room type supports an extra bed.
+         * and weekday_price otherwise. Triple sharing = double-sharing rate + extra bed charge.
          */
         function hotelTotal(item, indexHint) {
             if (!item) return 0;
@@ -1715,6 +1714,7 @@
             const room = rooms[0] || {};
             const weekendPrice = numVal(room.weekend_price);
             const weekdayPrice = numVal(room.weekday_price);
+            const extraBedPrice = numVal(room.extra_bed_price);
             const weekendDays = Array.isArray(item.weekend_days) ? item.weekend_days : [];
 
             const numSingle = getHotelSingleRooms(item);
@@ -1728,7 +1728,8 @@
                 if (!dt) return;
                 const dayName = dayNames[dt.getDay()];
                 const price = weekendDays.includes(dayName) ? weekendPrice : weekdayPrice;
-                total += (price * 2 * numDouble) + (price * 2 * numSingle) + (price * 3 * numTriple);
+                const triplePerRoomPerNight = (price * 2) + extraBedPrice;
+                total += (price * 2 * numDouble) + (price * 2 * numSingle) + (triplePerRoomPerNight * numTriple);
             });
             return total;
         }
