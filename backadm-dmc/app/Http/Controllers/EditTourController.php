@@ -1465,6 +1465,8 @@ class EditTourController extends Controller
                 $currentPayload['remarks'] = $request->input('remarks', '');
             }
             $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
+            $currentPayload['supplement_breakfast_included'] = $request->has('supplement_breakfast_included') && $request->input('supplement_breakfast_included');
+            $currentPayload['breakfast_included_room'] = filter_var($request->input('breakfast_included_room', $currentPayload['breakfast_included_room'] ?? false), FILTER_VALIDATE_BOOLEAN);
 
             // Step 6: Update bookingDate only if provided, otherwise preserve existing
             if (!empty($validated['check_in_date']) && !empty($validated['check_out_date'])) {

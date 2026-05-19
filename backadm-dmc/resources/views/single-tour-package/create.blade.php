@@ -1168,6 +1168,19 @@
                                 </div>
                             </div>
                             
+                            <!-- Supplement breakfast (shown when room has breakfast_included = 1) -->
+                            <div id="hotelSupplementBreakfastWrap" class="row g-2 mb-3" style="display: none;">
+                                <div class="col-md-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="hotelSupplementBreakfastIncluded" value="1" onchange="if(typeof updateRoomPriceDisplay==='function') updateRoomPriceDisplay();">
+                                        <label class="form-check-label" for="hotelSupplementBreakfastIncluded" style="color: #495057; font-size: 0.85rem;">
+                                            Supplement breakfast included
+                                        </label>
+                                    </div>
+                                    <small class="text-muted d-block" style="font-size: 0.75rem;">Room offers complementary breakfast. Check if supplement breakfast applies to this booking.</small>
+                                </div>
+                            </div>
+
                             <!-- Child pricing (shown only when selected room has child_with_bed/child_without_bed prices) -->
                             <div id="hotelChildPricingSection" class="row g-2 mb-3" style="display: none;">
                                 <div id="hotelChildWithBedWrap" class="col-md-6" style="display: none;">
@@ -1782,17 +1795,41 @@
                     }
                 });
                 
+                window.isRoomBreakfastIncluded = function(room) {
+                    if (!room) return false;
+                    return room.breakfast_included == 1 || room.breakfast_included === true || room.breakfast_included === '1';
+                };
+
+                window.updateHotelSupplementBreakfastVisibility = function(roomType) {
+                    const wrap = document.getElementById('hotelSupplementBreakfastWrap');
+                    const chk = document.getElementById('hotelSupplementBreakfastIncluded');
+                    if (!wrap) return;
+
+                    let show = false;
+                    if (roomType && window.roomData && Array.isArray(window.roomData)) {
+                        const roomsOfType = window.roomData.filter(function(r) { return r.room_type === roomType; });
+                        show = roomsOfType.some(window.isRoomBreakfastIncluded);
+                    }
+
+                    wrap.style.display = show ? '' : 'none';
+                    if (!show && chk) {
+                        chk.checked = false;
+                    }
+                };
+
                 // Define calculateCorrectMealCosts early to ensure it's available
-                window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms) {
+                window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms, opts) {
+                    opts = opts || {};
                     if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
                         return 0;
                     }
                     
                     let totalMealCost = 0;
                     const totalGuests = adults + children;
+                    const skipBreakfastCost = !!opts.supplementBreakfastIncluded;
                     
                     if (mealPrices && typeof mealPrices === 'object') {
-                        if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
+                        if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
                             const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
                             if (breakfastPrice > 0) {
                                 totalMealCost += breakfastPrice * totalGuests * numNights * numRooms;
@@ -2393,16 +2430,18 @@
                 };
 
                 // Function to manually calculate correct meal costs (override current logic)
-                window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms) {
+                window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms, opts) {
+                    opts = opts || {};
                     if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
                         return 0;
                     }
                     
                     let totalMealCost = 0;
                     const totalGuests = adults + children;
+                    const skipBreakfastCost = !!opts.supplementBreakfastIncluded;
                     
                     if (mealPrices && typeof mealPrices === 'object') {
-                        if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
+                        if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
                             const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
                             if (breakfastPrice > 0) {
                                 const breakfastCost = breakfastPrice * totalGuests * numNights * numRooms;
@@ -2590,6 +2629,8 @@
                                 occupancy: hotel.occupancy || "double",
                                 selected_persons: parseInt(hotel.selectedPersons) || 1,
                                 number_of_rooms: parseInt(hotel.numberOfRooms) || 1, // Number of rooms selected by user
+                                breakfast_included: hotel.breakfast_included_room ? 1 : 0,
+                                supplement_breakfast_included: hotel.supplement_breakfast_included ? 1 : 0,
                                 beds: [{
                                     bed_id: hotel.bedId || hotel.bed_id || "bed_" + Date.now(),
                                     bed_type: hotel.bedType || hotel.bed_type || "", // Store bed type name, not ID
@@ -2617,7 +2658,8 @@
                                                         numPersons, 
                                                         0, 
                                                         hotel.mealPrices, 
-                                                        numRooms
+                                                        numRooms,
+                                                        { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included }
                                                     );
                                                 }
                                                 
@@ -2722,7 +2764,7 @@
                                 
                                 // Calculate meal costs based on meal plan, guest count, and number of rooms
                                 const mealCost = (typeof window.calculateCorrectMealCosts === 'function') 
-                                    ? window.calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms)
+                                    ? window.calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included })
                                     : 0;
                                 
                                 // Calculate child with bed and child without bed costs
@@ -2753,7 +2795,16 @@
                             supplement: (() => {
                                 const checkboxChecked = document.getElementById(`hotel_is_supplement_${index}`)?.checked || false;
                                 return checkboxChecked;
-                            })()
+                            })(),
+
+                            supplement_breakfast_included: (() => {
+                                const cardChk = document.getElementById(`hotel_supplement_breakfast_${index}`);
+                                if (cardChk) {
+                                    return cardChk.checked;
+                                }
+                                return !!(hotel.supplement_breakfast_included);
+                            })(),
+                            breakfast_included_room: hotel.breakfast_included_room ? 1 : 0
                         };
                     });
                     
@@ -14128,7 +14179,7 @@
                         }
                         
                         // Check what meals are available across all room types (using database boolean fields)
-                        const hasBreakfast = roomsToUse.some(room => room.breakfast == 1 || room.breakfast === true);
+                        const hasBreakfast = roomsToUse.some(room => room.breakfast == 1 || room.breakfast === true || (window.isRoomBreakfastIncluded && window.isRoomBreakfastIncluded(room)));
                         const hasLunch = roomsToUse.some(room => room.lunch == 1 || room.lunch === true);
                         const hasDinner = roomsToUse.some(room => room.dinner == 1 || room.dinner === true);
                         
@@ -14219,6 +14270,7 @@
                                     option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
                                     option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
                                     option.dataset.breakfast = sampleRoom.breakfast || 0;
+                                    option.dataset.breakfastIncluded = sampleRoom.breakfast_included || 0;
                                     option.dataset.lunch = sampleRoom.lunch || 0;
                                     option.dataset.dinner = sampleRoom.dinner || 0;
                                     option.dataset.childWithBed = sampleRoom.child_with_bed || 0;
@@ -14655,10 +14707,14 @@
             console.log('Updating meal plans for room type:', roomType, 'Rooms:', roomsOfType);
 
             // Determine meal availability for this specific room type
-            const hasBreakfast = roomsOfType.some(room => room.breakfast == 1 || room.breakfast === true);
+            const hasBreakfast = roomsOfType.some(room => room.breakfast == 1 || room.breakfast === true || window.isRoomBreakfastIncluded(room));
             const hasLunch = roomsOfType.some(room => room.lunch == 1 || room.lunch === true);
             const hasDinner = roomsOfType.some(room => room.dinner == 1 || room.dinner === true);
             const hasRoomsOnly = roomsOfType.some(room => room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1');
+
+            if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
+                window.updateHotelSupplementBreakfastVisibility(roomType);
+            }
 
             const mealPlans = new Set();
             const roomText = 'room';
@@ -15466,6 +15522,10 @@
             
             // Hide child pricing checkboxes
             if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(null);
+
+            if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
+                window.updateHotelSupplementBreakfastVisibility(null);
+            }
             
             console.log('Room type dependent fields cleared');
         }
@@ -15703,6 +15763,14 @@
             // Capture remarks from hotel remarks textarea (below Add button)
             const hotelRemarksInput = document.getElementById('hotel_remarks');
             const hotelRemarks = hotelRemarksInput ? hotelRemarksInput.value : '';
+
+            let roomBreakfastIncluded = false;
+            if (window.roomData && Array.isArray(window.roomData)) {
+                const roomRec = window.roomData.find(function(r) { return r.room_type === roomType; });
+                roomBreakfastIncluded = window.isRoomBreakfastIncluded ? window.isRoomBreakfastIncluded(roomRec) : false;
+            }
+            const supplementBreakfastChk = document.getElementById('hotelSupplementBreakfastIncluded');
+            const supplementBreakfastIncluded = roomBreakfastIncluded && supplementBreakfastChk && supplementBreakfastChk.checked;
             
             const hotelData = {
                 id: hotelSelect.value,
@@ -15740,7 +15808,9 @@
                 childWithBedPrice: childWithBedPrice,
                 childWithoutBedPrice: childWithoutBedPrice,
                 children: numChildren,
-                remarks: hotelRemarks
+                remarks: hotelRemarks,
+                breakfast_included_room: roomBreakfastIncluded ? 1 : 0,
+                supplement_breakfast_included: supplementBreakfastIncluded
             };
             
             console.log('=== ADDING HOTEL ===');
@@ -15855,6 +15925,11 @@
                 const chkCnb = document.getElementById('chkChildWithoutBed');
                 if (chkCwb) chkCwb.checked = false;
                 if (chkCnb) chkCnb.checked = false;
+                const supplementBreakfastChkReset = document.getElementById('hotelSupplementBreakfastIncluded');
+                if (supplementBreakfastChkReset) supplementBreakfastChkReset.checked = false;
+                if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
+                    window.updateHotelSupplementBreakfastVisibility(null);
+                }
             } catch (error) {
                 console.error('Error resetting Select2 dropdowns:', error);
             }
@@ -16040,7 +16115,7 @@
                                                         ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
                                                             <div class="d-flex justify-content-between mb-1">
                                                                 <span style="color: #495057;">Breakfast:</span>
-                                                                <span style="color: #212529; font-weight: 500;">$${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
+                                                                <span style="color: #212529; font-weight: 500;">${hotel.supplement_breakfast_included ? 'Included (supplement)' : `$${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('lunch') ? `
@@ -16111,7 +16186,7 @@
                                                         <span>Meal Cost:</span>
                                                         <span style="font-weight: 500; color: #ffffff !important;">$${(() => {
                                                             if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                                return window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
+                                                                return window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included });
                                                             }
                                                             // Fallback calculation if function not available
                                                             let mealCost = 0;
@@ -16173,11 +16248,11 @@
                                                         }
                                                         let mealCost = 0;
                                                         if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                            mealCost = window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
+                                                            mealCost = window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included });
                                                         } else {
                                                             const totalGuests = hotel.selectedPersons || 1;
                                                             if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                                if (hotel.mealPlan && (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf'))) {
+                                                                if (!hotel.supplement_breakfast_included && hotel.mealPlan && (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf'))) {
                                                                     mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
                                                                 }
                                                                 if (hotel.mealPlan && hotel.mealPlan.includes('lunch')) {
@@ -16196,6 +16271,12 @@
                                             </div>
                                         </div>
                                         
+                                        ${(hotel.breakfast_included_room == 1 || hotel.breakfast_included_room === true) ? `
+                                        <div class="mt-2 form-check">
+                                            <input class="form-check-input" type="checkbox" name="hotel_supplement_breakfast_${index}" id="hotel_supplement_breakfast_${index}" ${hotel.supplement_breakfast_included ? 'checked' : ''} onchange="selectedHotels[${index}].supplement_breakfast_included = this.checked; if(typeof displaySelectedHotels==='function') displaySelectedHotels(); if(typeof updateHotelDataField==='function') updateHotelDataField();">
+                                            <label class="form-check-label" style="color: #495057; font-size: 0.85rem;" for="hotel_supplement_breakfast_${index}">Supplement breakfast included</label>
+                                        </div>
+                                        ` : ''}
                                         <!-- Is Supplement -->
                                         <div class="mt-2 form-check">
                                             <input class="form-check-input" type="checkbox" name="hotel_is_supplement_${index}" id="hotel_is_supplement_${index}" ${(hotel.supplement || hotel.is_supplement) ? 'checked' : ''} onchange="if(typeof updateHotelDataField==='function') updateHotelDataField();">
@@ -16270,7 +16351,7 @@
                         }
                         let mealCost = 0;
                         if (typeof window.calculateCorrectMealCosts === 'function') {
-                            mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1);
+                            mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1, { supplementBreakfastIncluded: !!h.supplement_breakfast_included });
                         } else {
                             const totalGuests = h.selectedPersons || 1;
                             if (h.mealPrices && typeof h.mealPrices === 'object') {
