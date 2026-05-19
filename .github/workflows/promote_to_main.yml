@@ -6,8 +6,8 @@ on:
       - staging
   workflow_dispatch:
 
-jobs:
 
+jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
