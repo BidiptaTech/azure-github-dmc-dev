@@ -983,6 +983,8 @@ Route::get('/clear', function () {
             Route::get('/bookings/definite', [BookingsController::class, 'definiteBookings'])->name('bookings.definite');
             Route::get('/bookings/actual', [BookingsController::class, 'actualBookings'])->name('bookings.actual');
             Route::get('/bookings/today', [TodaysBookingsController::class, 'index'])->name('bookings.today');
+            Route::get('/lost-found', [\App\Http\Controllers\LostFoundController::class, 'index'])->name('lost-found.index');
+            Route::post('/lost-found/{id}/respond', [\App\Http\Controllers\LostFoundController::class, 'storeResponse'])->name('lost-found.respond');
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
             

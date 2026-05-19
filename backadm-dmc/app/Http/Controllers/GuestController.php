@@ -88,9 +88,16 @@ class GuestController extends Controller
         return $this->normalizeTourIds([is_numeric($str) ? (int) $str : $str]);
     }
 
-    private function syncGuestIdsToFirebase(array $tourIds, $guestId): array
+    private function syncGuestIdsToFirebase(array $tourIds, $guestId, ?string $guestEmail = null): array
     {
         $results = [];
+
+        if ($guestEmail === null) {
+            $guestRow = Guest::query()
+                ->where('guest_id', $guestId)
+                ->value('email');
+            $guestEmail = is_string($guestRow) && trim($guestRow) !== '' ? trim($guestRow) : null;
+        }
 
         foreach ($this->normalizeTourIds($tourIds) as $tourId) {
             $tour = Tour::query()
@@ -110,7 +117,8 @@ class GuestController extends Controller
                 $results[] = app(FirebaseService::class)->upsertChatGuest(
                     (int) $tour->tour_id,
                     (int) $tour->dmc_id,
-                    (int) $guestId
+                    (int) $guestId,
+                    $guestEmail
                 );
             } catch (\Throwable $e) {
                 report($e);

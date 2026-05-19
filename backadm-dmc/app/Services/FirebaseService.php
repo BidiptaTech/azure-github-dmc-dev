@@ -36,6 +36,7 @@ class FirebaseService
                 'messages' => [],
                 'ID' => [],
                 'guestId' => null,
+                'emails' => [],
                 'Tour_Details' => $sanitizedDetails,
             ]);
 
@@ -129,7 +130,7 @@ class FirebaseService
         ];
     }
 
-    public function upsertChatGuest($tourId, $dmcId, $guestId)
+    public function upsertChatGuest($tourId, $dmcId, $guestId, ?string $guestEmail = null)
     {
         $this->ensureChatRoomExists($tourId, $dmcId);
 
@@ -137,7 +138,7 @@ class FirebaseService
             ->getChild('guestId')
             ->set((int) $guestId);
 
-        return [
+        $result = [
             'success' => true,
             'message' => 'Chat guest synced successfully.',
             'data' => [
@@ -146,6 +147,74 @@ class FirebaseService
                 'guestId' => (int) $guestId,
             ],
         ];
+
+        if ($guestEmail !== null && trim($guestEmail) !== '') {
+            $emailSync = $this->mergeChatEmails($tourId, $dmcId, [$guestEmail]);
+            $result['data']['emails'] = $emailSync['data']['emails'] ?? [];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Merge unique email addresses into chat/{tourId}/emails (tour-level list).
+     */
+    public function mergeChatEmails($tourId, $dmcId, array $emails): array
+    {
+        $incoming = $this->filterValidEmails($emails);
+
+        if (empty($incoming)) {
+            return [
+                'success' => true,
+                'message' => 'No valid emails to merge.',
+                'data' => [
+                    'tour_id' => (int) $tourId,
+                    'emails' => [],
+                ],
+            ];
+        }
+
+        $this->ensureChatRoomExists($tourId, $dmcId);
+
+        $emailsRef = $this->getChatReference($tourId)->getChild('emails');
+        $existing = $this->filterValidEmails($emailsRef->getValue() ?? []);
+        $merged = array_values(array_unique(array_merge($existing, $incoming)));
+
+        $emailsRef->set($this->sanitizeForRealtimeDatabase($merged));
+
+        return [
+            'success' => true,
+            'message' => 'Chat emails merged successfully.',
+            'data' => [
+                'tour_id' => (int) $tourId,
+                'emails' => $merged,
+            ],
+        ];
+    }
+
+    /**
+     * @param  mixed  $emails
+     * @return list<string>
+     */
+    private function filterValidEmails($emails): array
+    {
+        if (!is_array($emails)) {
+            return [];
+        }
+
+        $valid = [];
+        foreach ($emails as $email) {
+            if (!is_string($email)) {
+                continue;
+            }
+            $email = trim($email);
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            $valid[] = strtolower($email);
+        }
+
+        return array_values(array_unique($valid));
     }
 
     public function removeChatGuest($tourId, $guestId)
@@ -178,6 +247,7 @@ class FirebaseService
                 'messages' => [],
                 'ID' => [],
                 'guestId' => null,
+                'emails' => [],
             ]);
         }
     }

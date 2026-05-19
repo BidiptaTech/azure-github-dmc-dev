@@ -75,6 +75,30 @@ class JobSheetController extends Controller
         return 'N/A';
     }
 
+    private function resolveDriverEmail($driverId): ?string
+    {
+        if (empty($driverId)) {
+            return null;
+        }
+
+        $driver = Driver::with('user')->where('driver_id', $driverId)->first();
+        $email = $driver?->user?->email ?? null;
+
+        return is_string($email) && trim($email) !== '' ? trim($email) : null;
+    }
+
+    private function resolveGuideEmail($guideId): ?string
+    {
+        if (empty($guideId)) {
+            return null;
+        }
+
+        $guide = Guide::with('user')->where('guide_id', $guideId)->first();
+        $email = $guide?->user?->email ?? null;
+
+        return is_string($email) && trim($email) !== '' ? trim($email) : null;
+    }
+
     private function syncChatAssignmentToFirebase($tourId, $dmcId, $orderId, $driverId = null, $guideId = null)
     {
         $payload = array_filter([
@@ -87,12 +111,25 @@ class JobSheetController extends Controller
         }
 
         try {
-            return app(FirebaseService::class)->upsertChatAssignment(
+            $firebase = app(FirebaseService::class);
+            $result = $firebase->upsertChatAssignment(
                 (int) $tourId,
                 (int) $dmcId,
                 (string) $orderId,
                 $payload
             );
+
+            $emails = array_filter([
+                $this->resolveDriverEmail($driverId),
+                $this->resolveGuideEmail($guideId),
+            ]);
+
+            if (!empty($emails)) {
+                $emailSync = $firebase->mergeChatEmails((int) $tourId, (int) $dmcId, $emails);
+                $result['email_sync'] = $emailSync;
+            }
+
+            return $result;
         } catch (\Throwable $e) {
             report($e);
 
