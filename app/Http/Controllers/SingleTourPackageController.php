@@ -3570,6 +3570,9 @@ class SingleTourPackageController extends Controller
                                         // Child pricing (when child with bed / child without bed checkboxes are checked)
                                         'child_with_bed' => $hotelBooking['child_with_bed'] ?? null,
                                         'child_without_bed' => $hotelBooking['child_without_bed'] ?? null,
+
+                                        // Extra bed (3 pax / extra person on room)
+                                        'extra_bed' => $hotelBooking['extra_bed'] ?? null,
                                         
                                         // Tour ID
                                         'tour_id' => $tourId,
