@@ -1018,7 +1018,7 @@
                     <li class="menu-header small text-uppercase">
                         <span class="menu-header-text">Service Delivery</span>
                     </li>
-                    <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
+                    <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/drivers') || Request::is('jobsheet/guides') || Request::is('lost-found*')) open @endif">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-file-list-3-line"></i>
 
@@ -1031,6 +1031,13 @@
                                     <a href="{{ route('bookings.today') }}" class="menu-link" title="Trip Logs">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span data-i18n="Trip Logs">Trip Logs</span>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li class="menu-item @if(Request::is('lost-found*')) active @endif">
+                                    <a href="{{ route('lost-found.index') }}" class="menu-link" title="Lost & Found and Incident Management">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span data-i18n="Lost & Found and Incident Management">Lost & Found and Incident Management</span>
                                         </div>
                                     </a>
                                 </li>

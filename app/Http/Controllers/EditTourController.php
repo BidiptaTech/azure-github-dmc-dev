@@ -1135,10 +1135,16 @@ class EditTourController extends Controller
         }
 
         try {
+            $guestEmail = is_string($guest->email ?? null) ? trim($guest->email) : null;
+            if ($guestEmail === '') {
+                $guestEmail = null;
+            }
+
             return [app(FirebaseService::class)->upsertChatGuest(
                 (int) $tourRow->tour_id,
                 (int) $tourRow->dmc_id,
-                (int) $guest->guest_id
+                (int) $guest->guest_id,
+                $guestEmail
             )];
         } catch (\Throwable $e) {
             report($e);
