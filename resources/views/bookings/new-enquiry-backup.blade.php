@@ -89,12 +89,6 @@
         position: relative;
         z-index: 10;
     }
-    #toursTable tbody tr:has(.quotation-actions-flyout:hover),
-    #toursTable tbody tr:has(.quotation-actions-flyout:focus-within),
-    #toursTable tbody tr:has(.invoice-actions-flyout:hover),
-    #toursTable tbody tr:has(.invoice-actions-flyout:focus-within) {
-        z-index: 40;
-    }
     
     /* Services column: professional soft-badge style (light bg, colored icon) */
     #toursTable td:nth-child(5) {
@@ -189,8 +183,6 @@
         overflow: visible;
     }
     #toursTable .actions-icons-wrap {
-        overflow: visible;
-        position: relative;
         display: grid;
         grid-template-columns: repeat(3, auto);
         row-gap: 0.5rem;
@@ -208,12 +200,12 @@
         align-items: center;
         justify-content: center;
     }
-    /* Hover reveals stacked links immediately beside the trigger icon */
+    /* Single trigger icon; hover reveals links above (quotation / invoice pairs) */
     #toursTable .quotation-actions-flyout,
     #toursTable .invoice-actions-flyout {
         position: relative;
         display: inline-flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: center;
         z-index: 1;
     }
@@ -223,83 +215,39 @@
     #toursTable .invoice-actions-flyout:focus-within {
         z-index: 20;
     }
-    #toursTable .quotation-actions-flyout:hover .quotation-actions-flyout__trigger,
-    #toursTable .quotation-actions-flyout:focus-within .quotation-actions-flyout__trigger,
-    #toursTable .invoice-actions-flyout:hover .invoice-actions-flyout__trigger,
-    #toursTable .invoice-actions-flyout:focus-within .invoice-actions-flyout__trigger {
-        border-color: color-mix(in srgb, var(--action-color, #0f766e) 55%, #e2e8f0);
-        background: color-mix(in srgb, var(--action-color, #0f766e) 14%, #fff);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-color, #0f766e) 30%, transparent),
-                    0 0 12px color-mix(in srgb, var(--action-color, #0f766e) 38%, transparent);
-    }
     #toursTable .quotation-actions-flyout__links,
     #toursTable .invoice-actions-flyout__links {
         position: absolute;
-        left: calc(100% + 0.2rem);
-        top: 0;
-        right: auto;
-        bottom: auto;
-        transform: none;
+        left: 50%;
+        bottom: calc(100% + 0.35rem);
+        top: auto;
+        transform: translateX(-50%);
         display: flex;
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row;
+        align-items: center;
         gap: 0.35rem;
-        padding: 0.35rem;
+        padding: 0.35rem 0.45rem;
         margin: 0;
         list-style: none;
-        background: rgba(255, 255, 255, 0.97);
+        background: #fff;
         border-radius: 10px;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.14);
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transition: opacity 0.15s ease, visibility 0.15s ease, box-shadow 0.15s ease;
+        transition: opacity 0.15s ease, visibility 0.15s ease;
         white-space: nowrap;
-        z-index: 30;
     }
-    #toursTable .quotation-actions-flyout::before,
-    #toursTable .invoice-actions-flyout::before {
-        content: '';
-        position: absolute;
-        left: 100%;
-        top: 0;
-        width: 0.35rem;
-        height: 100%;
-        z-index: 29;
-    }
-    #toursTable .quotation-actions-flyout:hover .quotation-actions-flyout__links,
-    #toursTable .quotation-actions-flyout:focus-within .quotation-actions-flyout__links {
-        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.14),
-                    0 0 20px color-mix(in srgb, #0f766e 22%, transparent);
-    }
-    #toursTable .invoice-actions-flyout:hover .invoice-actions-flyout__links,
-    #toursTable .invoice-actions-flyout:focus-within .invoice-actions-flyout__links {
-        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.14),
-                    0 0 20px color-mix(in srgb, #0e7490 22%, transparent);
-    }
-    #toursTable .quotation-actions-flyout__links .action-icon-badge,
-    #toursTable .invoice-actions-flyout__links .action-icon-badge {
-        border-color: color-mix(in srgb, var(--action-color, #475569) 50%, #e2e8f0);
-        background: color-mix(in srgb, var(--action-color, #475569) 16%, #fff);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-color, #475569) 28%, transparent),
-                    0 0 14px color-mix(in srgb, var(--action-color, #475569) 42%, transparent);
-    }
-    #toursTable .quotation-actions-flyout__links .action-icon-badge:hover,
-    #toursTable .invoice-actions-flyout__links .action-icon-badge:hover {
-        background: color-mix(in srgb, var(--action-color, #475569) 24%, #fff);
-        border-color: color-mix(in srgb, var(--action-color, #475569) 62%, #e2e8f0);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-color, #475569) 38%, transparent),
-                    0 0 18px color-mix(in srgb, var(--action-color, #475569) 55%, transparent);
-    }
+    /* Bridge gap so pointer can move from button up into the flyout */
     #toursTable .quotation-actions-flyout__links::after,
     #toursTable .invoice-actions-flyout__links::after {
         content: '';
         position: absolute;
-        top: 0;
-        bottom: 0;
-        right: 100%;
-        width: 0.35rem;
+        left: 0;
+        right: 0;
+        top: 100%;
+        height: 10px;
     }
     #toursTable .quotation-actions-flyout:hover .quotation-actions-flyout__links,
     #toursTable .quotation-actions-flyout:focus-within .quotation-actions-flyout__links,
@@ -1317,12 +1265,10 @@
                     <h5 class="modal-title" id="newEnquiryUpdateModalLabel">Update Price & Comment</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form id="newEnquiryUpdateForm" method="POST" action="" data-update-price-url="{{ route('update-price-comment') }}">
+                <form id="newEnquiryUpdateForm" method="POST" action="">
                     @csrf
                     <div class="modal-body">
                         <input type="hidden" name="enquiry_id" id="new_enquiry_modal_enquiry_id" />
-                        <input type="hidden" name="tour_id" id="new_enquiry_modal_tour_id" value="" />
-                        <input type="hidden" name="actual_amount" id="new_enquiry_modal_actual_amount" value="" />
                         
                         <!-- Current details display -->
                         <div class="border rounded p-3 bg-light mb-3">
@@ -5243,15 +5189,7 @@ function testServices() {
 
             form.action = route || '';
             idInput.value = button.getAttribute('data-enquiry-id') || '';
-            var tourIdField = document.getElementById('new_enquiry_modal_tour_id');
-            var actualAmtField = document.getElementById('new_enquiry_modal_actual_amount');
-            if (tourIdField) {
-                tourIdField.value = button.getAttribute('data-tour-id') || '';
-            }
             var actual = button.getAttribute('data-actual') || '';
-            if (actualAmtField) {
-                actualAmtField.value = actual;
-            }
             var prevPrice = button.getAttribute('data-price') || '';
             var discount = button.getAttribute('data-discount') || '';
             var prevComment = button.getAttribute('data-comment') || '';
@@ -5557,28 +5495,27 @@ function testServices() {
             remarkError.classList.add('d-none');
 
             if (action === 'confirm') {
-                const tidEarly = tourIdInput ? String(tourIdInput.value || '').trim() : '';
-                const negotiationRowBtn = tidEarly
-                    ? (document.querySelector('.check-negotiation-btn[data-tour-id="' + tidEarly + '"]')
-                        || document.querySelector('.negotiate-by-agent[data-tour-id="' + tidEarly + '"]'))
-                    : null;
-                let enquiryId = negotiationRowBtn ? (negotiationRowBtn.getAttribute('data-enquiry-id') || '').trim() : '';
-                if (!enquiryId) {
-                    enquiryId = (form.dataset.enquiryId || '').trim();
-                }
-                if (enquiryId) {
-                    form.dataset.enquiryId = enquiryId;
-                    if (enquiryIdHidden) {
-                        enquiryIdHidden.value = enquiryId;
+                let enquiryId = (form.dataset.enquiryId || '').trim();
+                const tid = tourIdInput ? String(tourIdInput.value || '').trim() : '';
+                if (!enquiryId && tid) {
+                    const rowBtn = document.querySelector('.check-negotiation-btn[data-tour-id="' + tid + '"]')
+                        || document.querySelector('.negotiate-by-agent[data-tour-id="' + tid + '"]');
+                    if (rowBtn) {
+                        enquiryId = (rowBtn.getAttribute('data-enquiry-id') || '').trim();
+                        if (enquiryId) {
+                            form.dataset.enquiryId = enquiryId;
+                            if (enquiryIdHidden) {
+                                enquiryIdHidden.value = enquiryId;
+                            }
+                        }
                     }
                 }
-                const tourIdForConfirm = tidEarly || (tourIdInput ? String(tourIdInput.value || '').trim() : '');
-                if (!tourIdForConfirm) {
+                if (!enquiryId) {
                     hideAgentNegotiationModalThen(function () {
                         Swal.fire({
                             icon: 'error',
-                            title: 'Tour not found',
-                            text: 'Cannot submit: missing tour reference. Close the modal and open Negotiate again.'
+                            title: 'Enquiry not found',
+                            text: 'Cannot submit: this row has no enquiry id. Use Negotiation → Update Price instead.'
                         });
                     });
                     return;
@@ -5636,59 +5573,23 @@ function testServices() {
                 preConfirm: () => {
                     return new Promise((resolve) => {
                         if (action === 'confirm') {
-                            const updateForm = document.getElementById('newEnquiryUpdateForm');
-                            const updateUrl = updateForm ? updateForm.getAttribute('data-update-price-url') : '';
-                            if (!updateForm || !updateUrl) {
-                                Swal.showValidationMessage('Update Price form is not configured.');
+                            const updateUrl = form.getAttribute('data-update-price-url');
+                            if (!updateUrl) {
+                                Swal.showValidationMessage('Update URL is not configured.');
                                 resolve();
                                 return;
                             }
-                            const tid = tourIdInput ? String(tourIdInput.value || '').trim() : '';
-                            const rowBtn = tid
-                                ? (document.querySelector('.check-negotiation-btn[data-tour-id="' + tid + '"]')
-                                    || document.querySelector('.negotiate-by-agent[data-tour-id="' + tid + '"]'))
-                                : null;
-                            const enquiryIdForSubmit = rowBtn
-                                ? (rowBtn.getAttribute('data-enquiry-id') || '').trim()
-                                : (form.dataset.enquiryId || '').trim();
-                            if (!tid) {
-                                Swal.showValidationMessage('Missing tour id. Close and open the negotiation modal again.');
-                                resolve();
-                                return;
+                            form.action = updateUrl;
+                            if (enquiryIdHidden) {
+                                enquiryIdHidden.setAttribute('name', 'enquiry_id');
+                                enquiryIdHidden.value = form.dataset.enquiryId || '';
                             }
-                            const idEl = document.getElementById('new_enquiry_modal_enquiry_id');
-                            const tourIdEl = document.getElementById('new_enquiry_modal_tour_id');
-                            const actualAmtEl = document.getElementById('new_enquiry_modal_actual_amount');
-                            const priceEl = document.getElementById('new_enquiry_current_price');
-                            const commentEl = document.getElementById('new_enquiry_comment');
-                            if (!idEl || !priceEl || !commentEl) {
-                                Swal.showValidationMessage('Update Price form fields are missing.');
-                                resolve();
-                                return;
-                            }
-                            idEl.value = enquiryIdForSubmit;
-                            if (tourIdEl) {
-                                tourIdEl.value = tid;
-                            }
-                            const actualCap = rowBtn
-                                ? (rowBtn.getAttribute('data-actual') || '')
-                                : (actualInput ? String(actualInput.value || '').trim() : '');
-                            if (actualAmtEl) {
-                                actualAmtEl.value = actualCap;
-                            }
-                            priceEl.value = amountInput.value;
-                            commentEl.value = remarkInput.value;
-                            if (actualCap !== '') {
-                                priceEl.setAttribute('max', actualCap);
-                            } else {
-                                priceEl.removeAttribute('max');
-                            }
-                            updateForm.action = updateUrl;
-                            if (typeof updateForm.requestSubmit === 'function') {
-                                updateForm.requestSubmit();
-                            } else {
-                                updateForm.submit();
-                            }
+                            amountInput.setAttribute('name', 'price');
+                            remarkInput.setAttribute('name', 'comment');
+                            if (tourIdInput) tourIdInput.removeAttribute('name');
+                            if (actionInput) actionInput.removeAttribute('name');
+                            if (actualInput) actualInput.removeAttribute('name');
+                            form.submit();
                             resolve();
                             return;
                         }
