@@ -151,6 +151,25 @@
     <script>
         window.hasNegotiationHistory = @json($hasNegotiationHistory);
         window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
+
+        window.isRoomBreakfastIncluded = function(room) {
+            if (!room) return false;
+            return room.breakfast_included == 1 || room.breakfast_included === true || room.breakfast_included === '1';
+        };
+
+        window.updateEditHotelSupplementBreakfastVisibility = function(bookingId, roomType) {
+            const wrap = document.getElementById('hotel_supplement_breakfast_wrap_' + bookingId);
+            const chk = document.getElementById('hotel_supplement_breakfast_' + bookingId);
+            if (!wrap) return;
+            let show = false;
+            const roomData = window['roomData_' + bookingId];
+            if (roomType && roomData && Array.isArray(roomData)) {
+                const roomsOfType = roomData.filter(function(r) { return r.room_type === roomType; });
+                show = roomsOfType.some(window.isRoomBreakfastIncluded);
+            }
+            wrap.style.display = show ? '' : 'none';
+            if (!show && chk) chk.checked = false;
+        };
     </script>
     
     <!-- Google Maps API Script -->
@@ -1651,6 +1670,15 @@
                                     $transportReturn = ($transportWay === 'Two Way');
                                     $hotelRemarks = $hotelInfo['remarks'] ?? '';
                                     $hotelSupplement = ($hotelInfo['supplement'] ?? $hotelInfo['is_supplement'] ?? false);
+                                    $supplementBreakfastIncluded = filter_var(
+                                        $hotelInfo['supplement_breakfast_included']
+                                        ?? ($rooms[0]['supplement_breakfast_included'] ?? false),
+                                        FILTER_VALIDATE_BOOLEAN
+                                    );
+                                    $breakfastIncludedRoom = (int)(
+                                        $hotelInfo['breakfast_included_room']
+                                        ?? ($rooms[0]['breakfast_included'] ?? 0)
+                                    ) === 1;
                                 @endphp
                                 <div class="col-12 mb-4">
                                     <div
@@ -1961,6 +1989,7 @@
                                                                             // Child pricing from rooms table
                                                                             option.dataset.childWithBed = sampleRoom.child_with_bed || 0;
                                                                             option.dataset.childWithoutBed = sampleRoom.child_without_bed || 0;
+                                                                            option.dataset.breakfastIncluded = window.isRoomBreakfastIncluded(sampleRoom) ? '1' : '0';
                                                                             // Preserve existing selection if it matches
                                                                             if (roomType === existingRoomType) {
                                                                                 option.selected = true;
@@ -1982,6 +2011,9 @@
                                                                     // Update price grid if room type is already selected
                                                                     if (existingRoomType) {
                                                                         setTimeout(() => {
+                                                                            if (typeof window.updateEditHotelSupplementBreakfastVisibility === 'function') {
+                                                                                window.updateEditHotelSupplementBreakfastVisibility({{ $hotelOrder->booking_id }}, existingRoomType);
+                                                                            }
                                                                             updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
                                                                         }, 200);
                                                                     }
@@ -2000,6 +2032,9 @@
                                                     function loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(roomType) {
                                                         const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
                                                         const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
+                                                        if (typeof window.updateEditHotelSupplementBreakfastVisibility === 'function') {
+                                                            window.updateEditHotelSupplementBreakfastVisibility({{ $hotelOrder->booking_id }}, roomType);
+                                                        }
                                                         
                                                         if (!roomType) {
                                                             bedTypeSelect.disabled = true;
@@ -2757,23 +2792,26 @@
                                                             if (useSavedPrice) {
                                                                 mealPlanSubtotal = savedMealPrice;
                                                             } else if (selectedRoom) {
+                                                                const supplementBreakfastChk = document.getElementById('hotel_supplement_breakfast_{{ $hotelOrder->booking_id }}');
+                                                                const skipBreakfastMealCost = !!(supplementBreakfastChk && supplementBreakfastChk.checked);
                                                                 const breakfastPrice = parseFloat(selectedRoom.breakfast_price || 0);
                                                                 const lunchPrice = parseFloat(selectedRoom.lunch_price || 0);
                                                                 const dinnerPrice = parseFloat(selectedRoom.dinner_price || 0);
+                                                                const bf = skipBreakfastMealCost ? 0 : breakfastPrice;
                                                                 let mealPlanPrice = 0;
                                                                 // room with all meals: value is full_board_all_meals or all_inclusive (no "breakfast" in value)
                                                                 if (selectedMealPlan === 'full_board_all_meals' || selectedMealPlan === 'all_inclusive') {
-                                                                    mealPlanPrice = breakfastPrice + lunchPrice + dinnerPrice;
+                                                                    mealPlanPrice = bf + lunchPrice + dinnerPrice;
                                                                 } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
-                                                                    mealPlanPrice = breakfastPrice + lunchPrice + dinnerPrice;
+                                                                    mealPlanPrice = bf + lunchPrice + dinnerPrice;
                                                                 } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch')) {
-                                                                    mealPlanPrice = breakfastPrice + lunchPrice;
+                                                                    mealPlanPrice = bf + lunchPrice;
                                                                 } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('dinner')) {
-                                                                    mealPlanPrice = breakfastPrice + dinnerPrice;
+                                                                    mealPlanPrice = bf + dinnerPrice;
                                                                 } else if (selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
                                                                     mealPlanPrice = lunchPrice + dinnerPrice;
                                                                 } else if (selectedMealPlan.includes('breakfast')) {
-                                                                    mealPlanPrice = breakfastPrice;
+                                                                    mealPlanPrice = bf;
                                                                 } else if (selectedMealPlan.includes('lunch')) {
                                                                     mealPlanPrice = lunchPrice;
                                                                 } else if (selectedMealPlan.includes('dinner')) {
@@ -2836,6 +2874,8 @@
                                                         }
                                                         
                                                         // Meal plan row (only if meal plan selected and has price)
+                                                        const supplementBreakfastChkGrid = document.getElementById('hotel_supplement_breakfast_{{ $hotelOrder->booking_id }}');
+                                                        const supplementBreakfastIncludedGrid = !!(supplementBreakfastChkGrid && supplementBreakfastChkGrid.checked);
                                                         if (mealPlanSubtotal > 0) {
                                                             gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
                                                                 <div class="d-flex align-items-center">
@@ -2843,6 +2883,14 @@
                                                                     <span style="color: #475569;"><strong>Meal Cost:</strong></span>
                                                                 </div>
                                                                 <span style="color: #1e293b; font-weight: 500;">$${mealPlanSubtotal.toFixed(2)}</span>
+                                                            </div>`;
+                                                        } else if (supplementBreakfastIncludedGrid && selectedMealPlan && selectedMealPlan.includes('breakfast')) {
+                                                            gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
+                                                                <div class="d-flex align-items-center">
+                                                                    <i class="ri-restaurant-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
+                                                                    <span style="color: #475569;"><strong>Breakfast:</strong></span>
+                                                                </div>
+                                                                <span style="color: #1e293b; font-weight: 500;">Included (supplement)</span>
                                                             </div>`;
                                                         }
                                                         
@@ -3066,7 +3114,7 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-home-4-line me-1 text-secondary"></i>Room Type</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <select class="form-select border-2" style="height: 35px;" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(this.value); if(typeof window.updateEditHotelSupplementBreakfastVisibility==='function') window.updateEditHotelSupplementBreakfastVisibility({{ $hotelOrder->booking_id }}, this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Room Type</option>
                                                     @if($roomType)
                                                         <option value="{{ $roomType }}" selected>{{ $roomType }}</option>
@@ -3151,6 +3199,11 @@
                                         <!-- Supplement & Remarks -->
                                         <div class="row mt-3">
                                             <div class="col-12">
+                                                <div id="hotel_supplement_breakfast_wrap_{{ $hotelOrder->booking_id }}" class="form-check mb-2" style="{{ $breakfastIncludedRoom ? '' : 'display: none;' }}">
+                                                    <input class="form-check-input" type="checkbox" name="supplement_breakfast_included" id="hotel_supplement_breakfast_{{ $hotelOrder->booking_id }}" value="1" {{ $supplementBreakfastIncluded ? 'checked' : '' }} onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);">
+                                                    <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="hotel_supplement_breakfast_{{ $hotelOrder->booking_id }}">Supplement breakfast included</label>
+                                                    <small class="text-muted d-block" style="font-size: 0.75rem;">Room offers complementary breakfast (breakfast_included).</small>
+                                                </div>
                                                 <div class="form-check mb-2">
                                                     <input class="form-check-input" type="checkbox" name="supplement" id="hotel_supplement_{{ $hotelOrder->booking_id }}" value="1" {{ $hotelSupplement ? 'checked' : '' }}>
                                                     <label class="form-check-label" style="color: #495057; font-size: 0.875rem;" for="hotel_supplement_{{ $hotelOrder->booking_id }}">Supplement </label>
@@ -23297,6 +23350,15 @@
 
         // Construct rooms_json in the correct format
         let roomsJson = '[]';
+        let roomBreakfastIncluded = false;
+        let supplementBreakfastIncluded = false;
+        const supplementBreakfastChk = formDiv.querySelector('input[name="supplement_breakfast_included"]');
+        supplementBreakfastIncluded = !!(supplementBreakfastChk && supplementBreakfastChk.checked);
+        const roomDataVarForBreakfast = window['roomData_' + bookingId];
+        if (roomType && Array.isArray(roomDataVarForBreakfast)) {
+            const roomRec = roomDataVarForBreakfast.find(r => r.room_type === roomType);
+            roomBreakfastIncluded = window.isRoomBreakfastIncluded && window.isRoomBreakfastIncluded(roomRec);
+        }
         if (checkInDate && checkOutDate && roomType && bedType && mealPlan) {
             const checkIn = new Date(checkInDate);
             const checkOut = new Date(checkOutDate);
@@ -23363,6 +23425,8 @@
                 room_id: roomId,
                 room_type: roomType,
                 number_of_rooms: numberOfRooms,
+                breakfast_included: roomBreakfastIncluded ? 1 : 0,
+                supplement_breakfast_included: supplementBreakfastIncluded ? 1 : 0,
                 beds: [{
                     bed_id: bedId,
                     bed_type: bedType,
@@ -23418,6 +23482,9 @@
         
         // Add rooms_json to form data
         formData.append('rooms_json', roomsJson);
+
+        formData.set('supplement_breakfast_included', supplementBreakfastIncluded ? '1' : '0');
+        formData.set('breakfast_included_room', roomBreakfastIncluded ? '1' : '0');
 
         // Build child_with_bed / child_without_bed JSON from selected room and checkboxes
         const childWithBedCheckbox = formDiv.querySelector('input[name="child_with_bed"]');
