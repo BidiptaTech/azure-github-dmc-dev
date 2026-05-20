@@ -725,6 +725,9 @@
             $overallSingle = (float)($tourPrices['single_sharing'] ?? 0);
             $overallDouble = (float)($tourPrices['double_sharing'] ?? 0);
             $overallTriple = (float)($tourPrices['triple_sharing'] ?? 0);
+            if ($isProTour) {
+                $overallSingle = $overallDouble;
+            }
         @endphp
         <div style="margin-top: 10px;">
             <div class="panel-title">Packaged price per person</div>

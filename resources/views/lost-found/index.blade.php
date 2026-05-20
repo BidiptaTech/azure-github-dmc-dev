@@ -26,8 +26,17 @@
         border: none;
     }
     .lf-table tbody td { padding: 0.5rem 0.65rem; vertical-align: middle; }
-    .lf-badge-resolved { background: #dcfce7; color: #166534; }
-    .lf-badge-open { background: #fef3c7; color: #92400e; }
+    /* Resolved column: explicit true vs false/null */
+    .lf-badge-resolved {
+        background: #166534;
+        color: #ecfdf5;
+        font-weight: 600;
+    }
+    .lf-badge-unresolved {
+        background: #991b1b;
+        color: #fef2f2;
+        font-weight: 600;
+    }
     .lf-modal .form-label { font-size: 0.8125rem; font-weight: 600; color: #475569; }
     .lf-readonly-box {
         background: #f8fafc;
@@ -39,6 +48,14 @@
         min-height: 2.5rem;
     }
     .lf-preview-img { max-width: 80px; max-height: 80px; object-fit: cover; border-radius: 0.25rem; margin: 0.25rem; border: 1px solid #e2e8f0; }
+    .lf-modal-guest-img {
+        max-width: 100%;
+        max-height: 220px;
+        object-fit: contain;
+        border-radius: 0.375rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
 </style>
 @endpush
 
@@ -80,10 +97,10 @@
                             <td>{{ $report->phone ?? '—' }}</td>
                             <td>{{ $report->email ?? '—' }}</td>
                             <td>
-                                @if($report->resolved)
+                                @if($report->resolved === true)
                                     <span class="badge lf-badge-resolved">Yes</span>
                                 @else
-                                    <span class="badge lf-badge-open">No</span>
+                                    <span class="badge lf-badge-unresolved">No</span>
                                 @endif
                             </td>
                             <td class="text-center">
@@ -94,7 +111,8 @@
                                         data-id="{{ $report->id }}"
                                         data-tour-id="{{ $report->tour_display_id ?? $report->tour_id }}"
                                         data-subject="{{ e($report->subject) }}"
-                                        data-description="{{ e($report->description ?? '') }}">
+                                        data-description="{{ e($report->description ?? '') }}"
+                                        data-guest-images='@json($report->guest_images ?? [])'>
                                     <i class="ri-eye-line me-1"></i> View
                                 </button>
                             </td>
@@ -129,6 +147,11 @@
                 <div class="mb-3">
                     <label class="form-label">Description</label>
                     <div class="lf-readonly-box" id="lfModalDescription" style="white-space: pre-wrap;">—</div>
+                </div>
+
+                <div class="mb-3 d-none" id="lfModalGuestImagesWrap">
+                    <label class="form-label">Guest images</label>
+                    <div class="d-flex flex-wrap gap-2 align-items-start" id="lfModalGuestImages"></div>
                 </div>
 
                 <hr>
@@ -170,7 +193,42 @@
     const sendSpinner = document.getElementById('lfSendSpinner');
     const previewEl = document.getElementById('lfImagePreview');
     const alertEl = document.getElementById('lfAlert');
+    const guestImagesWrap = document.getElementById('lfModalGuestImagesWrap');
+    const guestImagesContainer = document.getElementById('lfModalGuestImages');
     let currentReportId = null;
+
+    function parseGuestImagesAttr(raw) {
+        if (!raw || typeof raw !== 'string') return [];
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function renderModalGuestImages(btn) {
+        const urls = parseGuestImagesAttr(btn.getAttribute('data-guest-images'))
+            .filter(function (u) { return typeof u === 'string' && u.trim().length > 0; })
+            .map(function (u) { return u.trim(); });
+
+        guestImagesContainer.innerHTML = '';
+        if (!urls.length) {
+            guestImagesWrap.classList.add('d-none');
+            return;
+        }
+
+        guestImagesWrap.classList.remove('d-none');
+        urls.forEach(function (url) {
+            const img = document.createElement('img');
+            img.className = 'lf-modal-guest-img';
+            img.src = url;
+            img.alt = 'Guest submitted image';
+            img.loading = 'lazy';
+            img.referrerPolicy = 'no-referrer-when-downgrade';
+            guestImagesContainer.appendChild(img);
+        });
+    }
 
     function showAlert(type, message) {
         alertEl.className = 'alert alert-' + type;
@@ -212,10 +270,11 @@
     document.querySelectorAll('.lf-view-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             currentReportId = btn.getAttribute('data-id');
+            resetModalForm();
             document.getElementById('lfModalTourId').textContent = btn.getAttribute('data-tour-id') || '—';
             document.getElementById('lfModalSubject').textContent = btn.getAttribute('data-subject') || '—';
             document.getElementById('lfModalDescription').textContent = btn.getAttribute('data-description') || '—';
-            resetModalForm();
+            renderModalGuestImages(btn);
         });
     });
 
@@ -227,6 +286,8 @@
 
     modalEl.addEventListener('hidden.bs.modal', function () {
         currentReportId = null;
+        guestImagesContainer.innerHTML = '';
+        guestImagesWrap.classList.add('d-none');
         resetModalForm();
     });
 
