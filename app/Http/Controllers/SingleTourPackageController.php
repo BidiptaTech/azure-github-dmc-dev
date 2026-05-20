@@ -743,7 +743,7 @@ class SingleTourPackageController extends Controller
             // $max_tour_id = Tour::max('tour_id') ?? 0;
             // $tourId = CommonHelper::createId($max_tour_id);
 
-            $display_id = 'DMC-ORD-3442';
+            $display_id = 'DMC-ORD';
 
             $userDmcId = CommonHelper::getDmcId(Auth::user());
             $userDMC = User::where('userId', $userDmcId)->first();
@@ -885,6 +885,10 @@ class SingleTourPackageController extends Controller
             }
             $tour->save();
             $tour->refresh();
+
+            $display_id = $display_id . $tour->tour_id;
+            $tour->display_id = $display_id;
+            $tour->save();
 
             // Track initial status in track_details: from null to "New Enquiry"
             $currentUser = Auth::user();
