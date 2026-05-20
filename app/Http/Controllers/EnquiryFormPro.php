@@ -1144,9 +1144,9 @@ class EnquiryFormPro extends Controller
             
             // Generate tour ID — must include soft-deleted tours so IDs are never reused
             // (reusing tour_id orphans/mixes orders from the old soft-deleted tour with the new one)
-            $max_tour_id = (int) (Tour::withTrashed()->max('tour_id') ?? 0);
-            $tourId = CommonHelper::createId($max_tour_id);
-            $display_id = 'DMC-ORD' . $tourId;
+            // $max_tour_id = (int) (Tour::withTrashed()->max('tour_id') ?? 0);
+            // $tourId = CommonHelper::createId($max_tour_id);
+            // $display_id = 'DMC-ORD' . $tourId;
             
             // Get DMC ID based on user role (same logic as create method)
             $user = Auth::user();
@@ -1213,12 +1213,12 @@ class EnquiryFormPro extends Controller
             $tour->child = $request->children;
             $tour->infant = $request->infants;
             $tour->agent_id = $request->agent_id;
-            $tour->tour_id = $tourId;
+            // $tour->tour_id = $tourId;
             $tour->male_count = (int) ($request->male ?? 0);
             $tour->female_count = (int) ($request->female ?? 0);
             $tour->check_in_time = $checkInTime;
             $tour->check_out_time = $checkOutTime;
-            $tour->display_id = $display_id;
+            // $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
             $tour->city = $request->city ?? null;
             $tour->dmc_id = $dmcId;
@@ -1267,7 +1267,7 @@ class EnquiryFormPro extends Controller
                 } catch (\Exception $e) {
                     \Log::error('Error processing main guest data', [
                         'error' => $e->getMessage(),
-                        'tour_id' => $tourId
+                        // 'tour_id' => $tourId
                     ]);
                     $tour->mainguest = null;
                 }
@@ -1295,13 +1295,16 @@ class EnquiryFormPro extends Controller
                 } catch (\Exception $e) {
                     \Log::error('Error processing additional guest data', [
                         'error' => $e->getMessage(),
-                        'tour_id' => $tourId
+                        // 'tour_id' => $tourId
                     ]);
                     $tour->additionalguest = null;
                 }
             }
             
             $tour->save();
+            $tour->refresh();
+            $tourId = $tour->tour_id;
+            $display_id = 'DMC-ORD' . $tourId;
             
             \Log::info('Tour created', [
                 'tour_id' => $tourId,
