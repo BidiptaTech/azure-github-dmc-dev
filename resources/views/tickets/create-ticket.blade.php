@@ -48,7 +48,7 @@
                                     <!-- Child Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="child_price" class="form-label"><strong>Child Price</strong></label>
-                                        <input type="number" step="0.01" class="form-control" id="child_price" name="child_price" value="{{ old('child_price') }}">
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_price" name="child_price" value="{{ old('child_price') }}">
                                         @error('child_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -57,7 +57,7 @@
                                     <!-- Adult Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="adult_price" class="form-label"><strong>Adult Price</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" class="form-control" id="adult_price" name="adult_price" value="{{ old('adult_price') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_price" name="adult_price" value="{{ old('adult_price') }}" required>
                                         @error('adult_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -68,7 +68,7 @@
                                     <!-- Senior Adult Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="senior_adult_price" class="form-label"><strong>Senior Citizen Price</strong></label>
-                                        <input type="number" step="0.01" class="form-control" id="senior_adult_price" name="senior_adult_price" value="{{ old('senior_adult_price') }}">
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_price" name="senior_adult_price" value="{{ old('senior_adult_price') }}">
                                         @error('senior_adult_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -77,7 +77,7 @@
                                     <!-- Child Price NRI -->
                                     <div class="col-md-4 mb-3">
                                         <label for="child_price_nri" class="form-label"><strong>Child Price(NRI)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" class="form-control" id="child_price_nri" name="child_price_nri" placeholder="Enter Child Price" value="{{ old('child_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_price_nri" name="child_price_nri" placeholder="Enter Child Price" value="{{ old('child_price_nri') }}" required>
                                         @error('child_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -86,7 +86,7 @@
                                     <!-- Adult Price NRI-->
                                     <div class="col-md-4 mb-3">
                                         <label for="adult_price_nri" class="form-label"><strong>Adult Price(NRI)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" class="form-control" id="adult_price_nri" name="adult_price_nri" placeholder="Enter Adult Price" value="{{ old('adult_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_price_nri" name="adult_price_nri" placeholder="Enter Adult Price" value="{{ old('adult_price_nri') }}" required>
                                         @error('adult_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -95,7 +95,7 @@
                                     <!-- Senior Adult Price NRI-->
                                     <div class="col-md-4 mb-3">
                                         <label for="senior_adult_price_nri" class="form-label"><strong>Senior Citizen Price(NRI)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" class="form-control" id="senior_adult_price_nri" name="senior_adult_price_nri" placeholder="Enter Senior Citizen Price" value="{{ old('senior_adult_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_price_nri" name="senior_adult_price_nri" placeholder="Enter Senior Citizen Price" value="{{ old('senior_adult_price_nri') }}" required>
                                         @error('senior_adult_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -179,6 +179,19 @@
             allowClear: true,
             tags: true,
             width: '100%'
+        });
+
+        function clampTicketPriceInput(el) {
+            if (!el || el.value === '' || el.value === null) return;
+            const n = parseFloat(String(el.value).replace(',', '.'));
+            if (isNaN(n)) return;
+            el.value = Number(n.toFixed(2));
+        }
+        document.querySelectorAll('.ticket-price-input').forEach(function (el) {
+            el.addEventListener('blur', function () { clampTicketPriceInput(this); });
+            if (el.value !== '') {
+                clampTicketPriceInput(el);
+            }
         });
     });
 </script>
