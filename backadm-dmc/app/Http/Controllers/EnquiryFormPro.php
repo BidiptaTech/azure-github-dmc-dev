@@ -593,6 +593,23 @@ class EnquiryFormPro extends Controller
             }
         }
         
+        // DMC-only list (same as Single Tour Package create) — no destination/country filter
+        if ($request->boolean('by_dmc')) {
+            $agenciesQuery = Agency::where('status', 1);
+            if ($dmc_id) {
+                $agenciesQuery = $agenciesQuery->whereJsonContains('dmc_id', (int) $dmc_id);
+            }
+            $agencies = $agenciesQuery->orderBy('agency_name', 'asc')
+                ->get(['agency_id', 'agency_name', 'country', 'dmc_id']);
+
+            return response()->json([
+                'success' => true,
+                'agencies' => $agencies,
+                'dmc_id' => $dmc_id,
+                'count' => $agencies->count(),
+            ]);
+        }
+
         // Get destination(s) from request
         $destination = $request->input('destination');
         $destinations = $request->input('destinations'); // comma-separated
