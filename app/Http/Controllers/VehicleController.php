@@ -380,12 +380,13 @@ class VehicleController extends Controller
             'city_tour_guides' => 'required|integer|min:1',
             // Add validation for sharable prices when sharable is checked
         ]);
-        $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
-        $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
-        $vehicleId = CommonHelper::createId($vehicle_max_id);
-        while (Vehicle::where('vehicle_id', $vehicleId)->exists()) {
-            $vehicleId = CommonHelper::createId($vehicleId);
-        }
+
+        // $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
+        // $vehicleId = CommonHelper::createId($vehicle_max_id);
+        // while (Vehicle::where('vehicle_id', $vehicleId)->exists()) {
+        //     $vehicleId = CommonHelper::createId($vehicleId);
+        // }
 
         $masterImage = '';
         if ($request->hasFile('master_image')) {
@@ -521,7 +522,7 @@ class VehicleController extends Controller
         $vehicle->seating_capacity = $request->input('seating_capacity');
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity');
         $vehicle->city_tour_guides = $request->input('city_tour_guides');
-        $vehicle->vehicle_id = $vehicleId;
+        // $vehicle->vehicle_id = $vehicleId;
         $vehicle->image = $masterImage;
         $vehicle->is_available = $request->vehicle_status == 1 ? 1 : 0;
         $vehicle->driver_id = $request->driver_id;
@@ -569,6 +570,8 @@ class VehicleController extends Controller
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
 
         if ($vehicle->save()) {
+            $vehicle->refresh();
+            $vehicleId = $vehicle->vehicle_id;
             // LogActivityService::log('create_vehicle', 'App\Models\Vehicle', $vehicle->vehicle_id, $vehicle);
             
             // Redirect to edit page with zone mapping tab active

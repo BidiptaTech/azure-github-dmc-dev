@@ -262,48 +262,69 @@ class ZoneController extends Controller
      */
     public function store(Request $request)
     {
-        // Validate input
+        $statusInput = $request->input('status');
+        if (is_array($statusInput)) {
+            $statusInput = in_array('1', $statusInput, true) || in_array(1, $statusInput, true) ? 1 : 0;
+        }
+        $request->merge(['status' => (int) $statusInput]);
+
         $validator = Validator::make($request->all(), [
             'zone_name' => 'required|string|max:255',
-            'zone_type' => 'required|string|max:255',
-            'vehicle_type' => 'required|string|max:255',
+            'zone_type' => 'required|string|in:Hotel,Attraction,Restaurant',
+            'vehicle_type' => 'required|string|in:Shared,Private,Both',
             'description' => 'nullable|string',
             'city' => 'required',
-            'status' => 'required|integer',
+            'status' => 'required|integer|in:0,1',
         ]);
 
-        $zone_max_id = Zone::max('zone_id') ?? 0;
-        $zoneId = CommonHelper::createId($zone_max_id);
         if ($validator->fails()) {
             return redirect()->back()
-            ->withErrors($validator)
-            ->withInput();
-        }
-        
-        // Create zone with validated data
-        $data = $request->all();
-        // Only set the zone_id if it doesn't already exist in the request
-        if (!isset($data['zone_id'])) {
-            $data['zone_id'] = $zoneId;
-        }
-        // If admin (userId == 1) creates the zone, store it as a master zone.
-        if ((int) (Auth::user()->userId ?? 0) === 1) {
-            $data['dmc_id'] = null;
-            if (Schema::hasColumn('zones', 'created_by')) {
-                $data['created_by'] = Auth::user()->userId; // = 1
-            }
-        } else {
-            // Determine DMC ID using the same conditions as index()
-            $data['dmc_id'] = $this->resolveDmcIdForUser(Auth::user());
-            
-            if(!$data['dmc_id']){
-                return redirect()->back()
-                ->withErrors(['dmc_id' => 'DMC ID not found'])
+                ->withErrors($validator)
                 ->withInput();
+        }
+
+        $validated = $validator->validated();
+        \Log::info('Zone store hit', [
+            'time' => now(),
+            'user' => Auth::id(),
+        ]);
+        // $zoneMaxId = Zone::withTrashed()->max('zone_id') ?? 0;
+        // $zoneId = CommonHelper::createId($zoneMaxId);
+
+
+
+        if ((int) (Auth::user()->userId ?? 0) === 1) {
+            $dmcIdForZone = null;
+        } else {
+            $dmcIdForZone = $this->resolveDmcIdForUser(Auth::user());
+            if (!$dmcIdForZone) {
+                return redirect()->back()
+                    ->withErrors(['dmc_id' => 'DMC ID not found'])
+                    ->withInput();
             }
         }
-        
-        $zone = Zone::create($data);
+
+        $zone = Zone::create([
+            // 'zone_id' => (string) $zoneId,
+            'zone_name' => trim($validated['zone_name']),
+            'zone_type' => $validated['zone_type'],
+            'vehicle_type' => $validated['vehicle_type'],
+            'description' => isset($validated['description']) ? trim($validated['description']) : null,
+            'city' => (string) $validated['city'],
+            'status' => (int) $validated['status'],
+            'dmc_id' => $dmcIdForZone,
+            ...(Schema::hasColumn('zones', 'created_by') && (int) (Auth::user()->userId ?? 0) === 1
+                ? ['created_by' => Auth::user()->userId]
+                : []),
+        ]);
+        \Log::info('Zone created', [
+            'id' => $zone->id,
+            'zone_id' => $zone->zone_id,
+        ]);
+        \Log::info('Zone raw attrs', $zone->getAttributes());
+        $zone->refresh();
+        $zoneId = $zone->zone_id;
+
         return redirect()->route('zones.index')
             ->with('success', 'Zone created successfully');
     }

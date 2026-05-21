@@ -3393,25 +3393,25 @@ class SingleTourPackageController extends Controller
     /**
      * Store service orders in orders table (called separately after tour creation)
      */
-    private function getNextBookingId()
-    {
-        // Use a more robust approach to get the next booking ID
-        try {
-            // Try to get by booking_id first (if column exists)
-            $lastBooking = Order::lockForUpdate()->orderBy('booking_id', 'desc')->first();
-            if ($lastBooking && isset($lastBooking->booking_id) && $lastBooking->booking_id > 0) {
-                return CommonHelper::createId($lastBooking->booking_id);
-            }
-        } catch (\Exception $e) {
-            // Column might not exist, fall back to using id
-            \Log::info("booking_id column not found, using id column instead");
-        }
+    // private function getNextBookingId()
+    // {
+    //     // Use a more robust approach to get the next booking ID
+    //     try {
+    //         // Try to get by booking_id first (if column exists)
+    //         $lastBooking = Order::lockForUpdate()->orderBy('booking_id', 'desc')->first();
+    //         if ($lastBooking && isset($lastBooking->booking_id) && $lastBooking->booking_id > 0) {
+    //             return CommonHelper::createId($lastBooking->booking_id);
+    //         }
+    //     } catch (\Exception $e) {
+    //         // Column might not exist, fall back to using id
+    //         \Log::info("booking_id column not found, using id column instead");
+    //     }
         
-        // Fallback: use the id column 
-        $lastBooking = Order::lockForUpdate()->orderBy('id', 'desc')->first();
-        $lastId = $lastBooking ? $lastBooking->id : 0;
-        return CommonHelper::createId($lastId);
-    }
+    //     // Fallback: use the id column 
+    //     $lastBooking = Order::lockForUpdate()->orderBy('id', 'desc')->first();
+    //     $lastId = $lastBooking ? $lastBooking->id : 0;
+    //     return CommonHelper::createId($lastId);
+    // }
 
     public function storeServiceOrders(Request $request)
     {
@@ -3636,10 +3636,10 @@ class SingleTourPackageController extends Controller
                                     }
                                     
                                     // Generate new booking ID for each hotel
-                                    $newHotelBookingId = $this->getNextBookingId();
+                                    // $newHotelBookingId = $this->getNextBookingId();
                                     
                                     $order = Order::create([
-                                        'booking_id' => $newHotelBookingId,
+                                        // 'booking_id' => $newHotelBookingId,
                                         'agent_id' => $agentId,
                                         'tour_id' => $tourId,
                                         'data' => [$enhancedHotelData], // Store hotel data as array
@@ -3648,6 +3648,7 @@ class SingleTourPackageController extends Controller
                                         'bookingType' => 'enquiry',
                                         'remarks' => $hotelBooking['remarks'] ?? null,
                                     ]);
+                                    $order->refresh();
 
                                     \Log::info("Hotel order created successfully", [
                                         'order_id' => $order->booking_id,
@@ -3727,10 +3728,10 @@ class SingleTourPackageController extends Controller
                                 }
                                 
                                 // Generate new booking ID for each attraction
-                                $newAttractionBookingId = $this->getNextBookingId();
+                                // $newAttractionBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newAttractionBookingId,
+                                    // 'booking_id' => $newAttractionBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$attraction], // Store attraction data as array
@@ -3739,6 +3740,7 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => 'enquiry',
                                     'remarks' => $attraction['remarks'] ?? null,
                                 ]);
+                                $order->refresh();
 
                                 \Log::info("Attraction order created successfully", [
                                     'order_id' => $order->booking_id,
@@ -3802,10 +3804,10 @@ class SingleTourPackageController extends Controller
                                 }
                                 
                                 // Generate new booking ID for each restaurant
-                                $newRestaurantBookingId = $this->getNextBookingId();
+                                // $newRestaurantBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newRestaurantBookingId,
+                                    // 'booking_id' => $newRestaurantBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$restaurant], // Store restaurant data as array
@@ -3814,7 +3816,7 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => 'enquiry',
                                     'remarks' => $restaurant['remarks'] ?? null,
                                 ]);
-
+                                $order->refresh();
                                 \Log::info("Restaurant order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'restaurant_name' => $restaurant['restaurant_name'] ?? 'Unknown Restaurant',
@@ -3845,10 +3847,10 @@ class SingleTourPackageController extends Controller
                                     'final_price' => $guide['price'] ?? 0
                                 ]);
                                 // Generate new booking ID for each guide
-                                $newGuideBookingId = $this->getNextBookingId();
+                                // $newGuideBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newGuideBookingId,
+                                    // 'booking_id' => $newGuideBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$guide], // Store guide data as array
@@ -3857,7 +3859,7 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => 'enquiry',
                                     'remarks' => $guide['remarks'] ?? null,
                                 ]);
-
+                                $order->refresh();
                                 \Log::info("Guide order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'guide_name' => $guide['guide_name'] ?? 'Unknown Guide',
@@ -3917,10 +3919,10 @@ class SingleTourPackageController extends Controller
                                 ]);
                                 
                                 // Generate new booking ID for each transport
-                                $newTransportBookingId = $this->getNextBookingId();
+                                // $newTransportBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newTransportBookingId,
+                                    // 'booking_id' => $newTransportBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
@@ -3929,7 +3931,7 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                     'remarks' => $transport['remarks'] ?? null,
                                 ]);
-
+                                $order->refresh();
                                 \Log::info("Transport order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
@@ -3988,10 +3990,10 @@ class SingleTourPackageController extends Controller
                                 ]);
                                 
                                 // Generate new booking ID for each port transport
-                                $newPortBookingId = $this->getNextBookingId();
+                                // $newPortBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newPortBookingId,
+                                    // 'booking_id' => $newPortBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
@@ -4000,7 +4002,7 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                     'remarks' => $transport['remarks'] ?? null,
                                 ]);
-
+                                $order->refresh();
                                 \Log::info("{$type} transport order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
@@ -4020,10 +4022,10 @@ class SingleTourPackageController extends Controller
                             // For other services, store each as a separate order
                             foreach ($decodedData as $service) {
                                 // Generate new booking ID for each other service
-                                $newServiceBookingId = $this->getNextBookingId();
+                                // $newServiceBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newServiceBookingId,
+                                    // 'booking_id' => $newServiceBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$service], // Store service data as array
@@ -4031,7 +4033,7 @@ class SingleTourPackageController extends Controller
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                 ]);
-
+                                $order->refresh();
                                 \Log::info("{$type} order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'service_name' => $service['port_name'] ?? 'Unknown Service',

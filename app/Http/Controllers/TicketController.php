@@ -118,30 +118,30 @@ class TicketController extends Controller
         }
 
         // Generate a unique 8-digit ticket ID
-        $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
-        $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
-        $ticketMaxId = max($ticketMaxId, 10000000) + 1;
+        // $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
+        // $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
+        // $ticketMaxId = max($ticketMaxId, 10000000) + 1;
         
         // Ensure it's at least 8 digits
         DB::beginTransaction();
 
         try{
-            do {
-                // Lock the latest ticket row to avoid race condition
-                $lastTicket = Ticket::withTrashed()
-                    ->orderBy('ticket_id', 'desc')
-                    ->lockForUpdate()
-                    ->first();
+            // do {
+            //     // Lock the latest ticket row to avoid race condition
+            //     $lastTicket = Ticket::withTrashed()
+            //         ->orderBy('ticket_id', 'desc')
+            //         ->lockForUpdate()
+            //         ->first();
 
-                // Start from 10000000 if no ticket exists
-                $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
-                $ticketMaxId = max($ticketMaxId, 10000000) + 1;
+            //     // Start from 10000000 if no ticket exists
+            //     // $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
+            //     // $ticketMaxId = max($ticketMaxId, 10000000) + 1;
 
-            } while (Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists());
+            // } while (Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists());
             
             // Create a new ticket
             $ticket = new Ticket();
-            $ticket->ticket_id = $ticketMaxId;
+            // $ticket->ticket_id = $ticketMaxId;
             $ticket->name = $request->name;
             $ticket->description = $request->description;
             $ticket->remarks = $request->remarks;
@@ -163,6 +163,7 @@ class TicketController extends Controller
             $ticket->dmc_id = $dmc_id;
             $ticket->attraction_id = $attraction_id;
             $ticket->save();
+            $ticket->refresh();
 
             DB::commit();
             return redirect()->route('tickets.add_ticket', Crypt::encrypt($attraction_id))->with('success', 'Ticket created successfully.');

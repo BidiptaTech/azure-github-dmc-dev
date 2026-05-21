@@ -356,12 +356,12 @@ class AttractionController extends Controller
         // }
 
         $auth_user = Auth::user();
-        $lastAttraction = Attraction::withTrashed()->orderBy('created_at', 'desc')->first();
-        $attraction_max_id = $lastAttraction->attraction_id ?? 0;
-        $attractionId = CommonHelper::createId($attraction_max_id);
-        while (Attraction::where('attraction_id', $attractionId)->exists()) {
-            $attractionId = CommonHelper::createId($attractionId);
-        }
+        // $lastAttraction = Attraction::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $attraction_max_id = $lastAttraction->attraction_id ?? 0;
+        // $attractionId = CommonHelper::createId($attraction_max_id);
+        // while (Attraction::where('attraction_id', $attractionId)->exists()) {
+        //     $attractionId = CommonHelper::createId($attractionId);
+        // }
 
         $imagePaths = [];
         if ($request->hasFile('all_images')) {
@@ -441,7 +441,7 @@ class AttractionController extends Controller
         $attraction->description = $request->input('description');
         $attraction->remarks = $request->input('remarks');
         $attraction->terms_conditions = $request->input('terms_conditions');
-        $attraction->attraction_id = $attractionId;
+        // $attraction->attraction_id = $attractionId;
         $attraction->status = 1;
         // $attraction->dmc_id = $dmc_id ?? 0;
         $attraction->is_active = $request->input('attraction_status') == 1 ? 1 : 0;
@@ -457,11 +457,12 @@ class AttractionController extends Controller
         $attraction->senior_adult_price = 0;
         $attraction->attraction_type = $request->input('attraction_type');
         $attraction->save();
+        $attraction->refresh();
 
         // if (in_array($auth_user->role_id, [11, 4, 3, 35, 74, 93])) {
         //     return view('attractions.thankyou');
         // }
-        return redirect()->route('tickets.add_ticket', Crypt::encrypt($attractionId))->with('success', 'Attraction added successfully!');
+        return redirect()->route('tickets.add_ticket', Crypt::encrypt($attraction->attraction_id))->with('success', 'Attraction added successfully!');
     }
 
     /*
