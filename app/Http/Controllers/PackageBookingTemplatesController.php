@@ -310,14 +310,14 @@ class PackageBookingTemplatesController extends Controller
                     ->withInput();
             }
 
-            $lastInquiryId = PackageInquiryComment::withTrashed()->max('package_inquiry_id') ?? 1;
-            $newInquiryId = CommonHelper::createId($lastInquiryId);
-            while (PackageInquiryComment::withTrashed()->where('package_inquiry_id', $newInquiryId)->exists()) {
-                $newInquiryId = CommonHelper::createId($newInquiryId);
-            }
+            // $lastInquiryId = PackageInquiryComment::withTrashed()->max('package_inquiry_id') ?? 1;
+            // $newInquiryId = CommonHelper::createId($lastInquiryId);
+            // while (PackageInquiryComment::withTrashed()->where('package_inquiry_id', $newInquiryId)->exists()) {
+            //     $newInquiryId = CommonHelper::createId($newInquiryId);
+            // }
 
             $row = PackageInquiryComment::create([
-                'package_inquiry_id' => $newInquiryId,
+                // 'package_inquiry_id' => $newInquiryId,
                 'booking_id' => $booking->booking_id,
                 'dmc_id' => $booking->dmc_id ?? null,
                 'agent_id' => $booking->agent_id ?? null,
@@ -332,6 +332,9 @@ class PackageBookingTemplatesController extends Controller
                 'comment' => (string) ($validated['comment'] ?? ''),
                 'status' => 1,
             ]);
+
+            $row->refresh();
+            $newInquiryId = $row->package_inquiry_id;
 
             if ($row && $activeEnquiry && $activeEnquiry->id !== $row->id) {
                 $activeEnquiry->update(['status' => 0]);
@@ -428,11 +431,11 @@ class PackageBookingTemplatesController extends Controller
             ->first();
 
         // Create a new enquiry record (keep full negotiation history, like enquiry_comments)
-        $lastInquiryId = PackageInquiryComment::withTrashed()->max('package_inquiry_id') ?? 1;
-        $newInquiryId = CommonHelper::createId($lastInquiryId);
-        while (PackageInquiryComment::withTrashed()->where('package_inquiry_id', $newInquiryId)->exists()) {
-            $newInquiryId = CommonHelper::createId($newInquiryId);
-        }
+        // $lastInquiryId = PackageInquiryComment::withTrashed()->max('package_inquiry_id') ?? 1;
+        // $newInquiryId = CommonHelper::createId($lastInquiryId);
+        // while (PackageInquiryComment::withTrashed()->where('package_inquiry_id', $newInquiryId)->exists()) {
+        //     $newInquiryId = CommonHelper::createId($newInquiryId);
+        // }
 
         $newNegotiated = (float) $validated['price'];
 
@@ -449,7 +452,7 @@ class PackageBookingTemplatesController extends Controller
         ]));
 
         $row = PackageInquiryComment::create([
-            'package_inquiry_id' => $newInquiryId,
+            // 'package_inquiry_id' => $newInquiryId,
             'booking_id' => $booking->booking_id,
             'dmc_id' => $booking->dmc_id ?? null,
             'agent_id' => $booking->agent_id ?? null,
@@ -464,6 +467,9 @@ class PackageBookingTemplatesController extends Controller
             'comment' => (string) $validated['comment'],
             'status' => 1,
         ]);
+
+        $row->refresh();
+        $newInquiryId = $row->package_inquiry_id;
 
         // Mark previous active enquiry inactive (if different)
         if ($previousActive && $row && $previousActive->id !== $row->id) {

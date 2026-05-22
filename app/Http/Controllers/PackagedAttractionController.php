@@ -158,12 +158,12 @@ class PackagedAttractionController extends Controller
                 $dmc_id = $user_product_head_dmc->userId;
             }
             // Generate unique package ID
-            $lastPackage = PackagedAttraction::withTrashed()->orderBy('created_at', 'desc')->first();
-            $package_max_id = $lastPackage->package_attraction_id ?? 0;
-            $packageId = CommonHelper::createId($package_max_id);
-            while (PackagedAttraction::where('package_attraction_id', $packageId)->exists()) {
-                $packageId = CommonHelper::createId($packageId);
-            }
+            // $lastPackage = PackagedAttraction::withTrashed()->orderBy('created_at', 'desc')->first();
+            // $package_max_id = $lastPackage->package_attraction_id ?? 0;
+            // $packageId = CommonHelper::createId($package_max_id);
+            // while (PackagedAttraction::where('package_attraction_id', $packageId)->exists()) {
+            //     $packageId = CommonHelper::createId($packageId);
+            // }
             
             
             // Process images - keep existing images and add new ones
@@ -187,7 +187,7 @@ class PackagedAttractionController extends Controller
             // Create packaged attraction
             $packagedAttraction = PackagedAttraction::create([
                 'name' => $request->package_attraction_name,
-                'package_attraction_id' => $packageId,
+                // 'package_attraction_id' => $packageId,
                 'attractions' => json_encode($request->attractions),
                 'senior_citizen_price' => $request->senior_citizen_price,
                 'adult_price' => $request->adult_price,
@@ -198,6 +198,9 @@ class PackagedAttractionController extends Controller
                 'status' => $request->status ?? 1,
                 'created_by' => auth()->user()->userId,
             ]);
+
+            $packagedAttraction->refresh();
+            $packageAttractionId = $packagedAttraction->package_attraction_id;
 
             return redirect()->route('packaged-attractions.index')
                 ->with('success', 'Packaged attraction created successfully.');
