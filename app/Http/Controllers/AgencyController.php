@@ -145,17 +145,17 @@ class AgencyController extends Controller
         }
 
         // Generate unique agency_id following the same pattern as AgentController
-        $lastAgency = Agency::withTrashed()->orderBy('created_at', 'desc')->first();
-        $agency_max_id = $lastAgency->agency_id ?? 1;
-        $agencyId = CommonHelper::createId($agency_max_id);
+        // $lastAgency = Agency::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $agency_max_id = $lastAgency->agency_id ?? 1;
+        // $agencyId = CommonHelper::createId($agency_max_id);
         
-        while (Agency::where('agency_id', $agencyId)->exists()) {
-            $agencyId = CommonHelper::createId($agencyId);
-        }
+        // while (Agency::where('agency_id', $agencyId)->exists()) {
+        //     $agencyId = CommonHelper::createId($agencyId);
+        // }
 
         // Create new agency
         $agency = new Agency();
-        $agency->agency_id = $agencyId;
+        // $agency->agency_id = $agencyId;
         $agency->agency_name = $request->input('agency_name');
         $agency->email = $request->input('email');
         $agency->phone = $request->input('phone');
@@ -171,11 +171,12 @@ class AgencyController extends Controller
         $agency->logo = $logoPath;
         $agency->created_by = Auth::user()->userId;
         $agency->dmc_id = is_array($dmc_id) ? $dmc_id : [$dmc_id];
-
-        if ($agency->save()) {
+        $isSaved = $agency->save();
+        $agency->refresh();
+        if ($isSaved) {
             return redirect()->route('agencies.index')->with('success', 'Agency created successfully!');
         }
-        return redirect()->back()->with('error', 'Failed to create agency. Please try again.');
+        return redirect()->back()->withInput()->with('error', 'Failed to create agency. Please try again.');
     }
 
     /**

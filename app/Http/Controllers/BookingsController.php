@@ -334,17 +334,17 @@ class BookingsController extends Controller
             }
 
             // Include soft-deleted records: enquiry_id is unique, so soft-deleted rows still occupy their ID
-            $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
-            $newEnquiryId = CommonHelper::createId($lastEnquiryId);
-            while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
-                $newEnquiryId = CommonHelper::createId($newEnquiryId);
-            }
+            // $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
+            // $newEnquiryId = CommonHelper::createId($lastEnquiryId);
+            // while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
+            //     $newEnquiryId = CommonHelper::createId($newEnquiryId);
+            // }
 
             $enquiry = Enquiry::create([
                 'tour_id' => $tour->tour_id,
                 'status' => 1,
                 'dmcId' => $tour->dmc_id,
-                'enquiry_id' => $newEnquiryId,
+                // 'enquiry_id' => $newEnquiryId,
                 'sender_id' => $tour->agent_id ?? 0,
                 'sender_type' => 'agent',
                 'receiver_id' => $latestEnquiry->sender_id ?? 0,
@@ -354,7 +354,7 @@ class BookingsController extends Controller
                 'actual_amount' => $actualAmount ?: ($latestEnquiry->actual_amount ?? 0),
                 'comment' => $validated['comment'] ?? '',
             ]);
-
+            $enquiry->refresh();
             if ($enquiry && $activeEnquiry && $activeEnquiry->id !== $enquiry->id) {
                 $activeEnquiry->update(['status' => 0]);
             }
