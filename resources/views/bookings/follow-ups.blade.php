@@ -481,6 +481,71 @@
         font-weight: 600;
         font-size: 0.8rem;
     }
+
+    /* Negotiation modals – shared layout */
+    .negotiation-modal-content {
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+    .negotiation-modal-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+        color: #fff;
+        padding: 1rem 1.25rem;
+    }
+    .negotiation-modal-header .modal-title {
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+    .negotiation-modal-header .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.85;
+    }
+    .negotiation-pricing-summary {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.65rem;
+        padding: 1rem 1.1rem;
+    }
+    .negotiation-pricing-item .negotiation-label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+    }
+    .negotiation-pricing-item .negotiation-value {
+        font-size: 1.02rem;
+        font-weight: 600;
+        color: #0f172a;
+        line-height: 1.3;
+    }
+    .negotiation-pricing-item.negotiation-discount .negotiation-value {
+        color: #dc2626;
+    }
+    .negotiation-pricing-item.negotiation-payable .negotiation-value {
+        color: #2563eb;
+        font-size: 1.12rem;
+    }
+    .negotiation-formula-hint {
+        font-size: 0.72rem;
+        color: #94a3b8;
+        margin-top: 0.65rem;
+        padding-top: 0.55rem;
+        border-top: 1px dashed #e2e8f0;
+    }
+    .negotiation-meta-block {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 0.65rem 0.85rem;
+    }
+    .negotiation-modal-footer {
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+    }
+
     /* Agent column: clear hierarchy for name + company */
     #toursTable td.col-agent .agent-name-line {
         font-weight: 600;
@@ -1016,18 +1081,7 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
-                                    @if($tour->tour_type)
-                                        @php
-                                            $tourTypeLower = strtolower($tour->tour_type);
-                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
-                                            $textColor = '#ffffff';
-                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
-                                        @endphp
-                                        <span class="d-inline-block px-2 py-1 rounded"
-                                              style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">
-                                            {{ $tour->tour_type }}
-                                        </span>
-                                    @endif
+                                    @include('bookings.partials.tour-detail-badges', ['tour' => $tour])
                                     <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
                                     <div class="d-flex align-items-center gap-2 flex-nowrap">
                                         <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
@@ -1221,16 +1275,18 @@
                                     </div>
                             </td>
                             @php
-                                $latestCommentAmount = $tour->enquiry_comment_amount ?? null;
-                                $latestCommentRemark = $tour->enquiry_comment ?? '';
-                                $hasAgentComment = $tour->enquiry_comment && strtolower($tour->enquiry_comment_sender_type ?? '') === 'agent';
+                                $tourEnquiries = \App\Models\Enquiry::where('tour_id', $tour->tour_id)
+                                    ->orderByDesc('enquiry_id')
+                                    ->get();
+                                $latestComment = $tourEnquiries->first();
+                                $latestAgentComment = $tourEnquiries->first(function ($comment) {
+                                    return strtolower($comment->sender_type ?? '') === 'agent';
+                                });
+                                $hasAgentComment = $latestComment && strtolower($latestComment->sender_type ?? '') === 'agent';
+                                $latestCommentAmount = $latestComment->amount ?? null;
+                                $latestCommentRemark = $latestComment->comment ?? '';
                                 
-                                // Get first enquiry for discount calculation
-                                $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
-                                $first_enquiry_actual_amount = $frstenquiry->actual_amount ?? 0;
-                                
-                                // Get latest enquiry
-                                $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
+                                $enquiry = $latestComment ?? \App\Models\Enquiry::where('tour_id', $tour->tour_id)->orderByDesc('enquiry_id')->first();
                                 
                                 // Calculate total tour price from ALL bookings with status 1 or 3
                                 $tourTotalPrice = 0;
@@ -1262,13 +1318,32 @@
                                         }
                                     }
                                 }
-                                $enquiry_amount = $enquiry->amount ?? 0;
-                                $discount = $first_enquiry_actual_amount - $enquiry_amount;
-                                $currentActualAmount = ceil($tourTotalPrice);
-                                $settlementAmount = ceil($tourTotalPrice) - $discount;
-                                $lastAgentAmount = $hasAgentComment ? $settlementAmount : null;
-                                $lastOfferAmount = $lastAgentAmount ?? $settlementAmount;
-                                $lastOfferRemark = $latestCommentRemark;
+                                $tourDiscountAmount = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
+                                $grossTourAmount = ceil($tourTotalPrice);
+                                $netNegotiationBase = max(0, $grossTourAmount - $tourDiscountAmount);
+                                $discount = $tourDiscountAmount;
+
+                                if ($hasAgentComment) {
+                                    $agentOffer = (float) ($latestComment->amount ?? 0);
+                                    $agentRowCap = (float) ($latestComment->actual_amount ?? 0);
+                                    $currentActualAmount = $agentRowCap > 0 ? $agentRowCap : $netNegotiationBase;
+                                    $settlementAmount = $agentOffer > 0 ? $agentOffer : $netNegotiationBase;
+                                    $lastAgentAmount = $agentOffer > 0 ? $agentOffer : null;
+                                    $lastOfferRemark = $latestComment->comment ?? '';
+                                } else {
+                                    $latestCounter = ($latestComment && (float) ($latestComment->amount ?? 0) > 0)
+                                        ? (float) $latestComment->amount
+                                        : 0;
+                                    $currentActualAmount = $latestCounter > 0 ? $latestCounter : $netNegotiationBase;
+                                    $settlementAmount = $currentActualAmount;
+                                    $lastAgentAmount = ($latestAgentComment && (float) ($latestAgentComment->amount ?? 0) > 0)
+                                        ? (float) $latestAgentComment->amount
+                                        : null;
+                                    $lastOfferRemark = $latestAgentComment->comment ?? ($latestComment->comment ?? '');
+                                }
+
+                                $agentNegotiationCap = $currentActualAmount;
+                                $lastOfferAmount = $agentNegotiationCap;
                             @endphp
                             @if(in_array(auth()->user()->role_id, $role))
                             <td class="align-top col-negotiation">
@@ -1277,8 +1352,11 @@
                                     class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
                                     data-tour-id="{{ $tour->tour_id }}"
                                     data-display-id="{{ e($tour->display_id) }}"
-                                    data-actual="{{ $currentActualAmount ?? 0 }}"
+                                    data-actual="{{ $agentNegotiationCap ?? 0 }}"
+                                    data-gross="{{ $grossTourAmount ?? 0 }}"
+                                    data-discount-amount="{{ $tourDiscountAmount ?? 0 }}"
                                     data-last-amount="{{ $lastOfferAmount ?? '' }}"
+                                    data-last-agent-offer="{{ $lastAgentAmount ?? '' }}"
                                     data-last-comment="{{ e($lastOfferRemark) }}"
                                     data-tour-status="{{ e($tour->tour_status) }}"
                                     data-negotiation-locked="{{ $hasAgentComment ? '1' : '0' }}"
@@ -1298,14 +1376,15 @@
                                         data-tour-id="{{ $tour->tour_id }}"
                                         data-enquiry-id="{{ $enquiry->enquiry_id ?? '' }}"
                                         data-price="{{ $settlementAmount }}"
+                                        data-gross="{{ $grossTourAmount ?? 0 }}"
                                         data-actual="{{ $currentActualAmount }}"
                                         data-discount="{{ $discount }}"
-                                        data-comment="{{ e($tour->enquiry_comment ?? '') }}"
+                                        data-comment="{{ e($latestCommentRemark) }}"
                                         onclick="openFollowupModal(this, '{{ route('update-price-comment') }}')"
                                     >
                                         Negotiation
                                     </button>
-                                @elseif($tour->enquiry_comment && strtolower($tour->enquiry_comment_sender_type ?? '') === "om")
+                                @elseif($latestComment && strtolower($latestComment->sender_type ?? '') === 'om')
                                     <span class="badge negotiation-waiting-badge">Waiting for agent response</span>
                                 @else
                                     <span class="text-muted">No negotiation</span>
@@ -1474,57 +1553,64 @@
         </div>
     </div>
     
-    <!-- Update Price Modal (Follow Ups) -->
+    <!-- DMC Check Negotiation Modal (Follow Ups) -->
     <div class="modal fade" id="followupUpdateModal" tabindex="-1" aria-labelledby="followupUpdateModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="followupUpdateModalLabel">Update Price & Comment</h5>
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content negotiation-modal-content border-0 shadow-lg">
+                <div class="modal-header negotiation-modal-header border-0">
+                    <div>
+                        <h5 class="modal-title mb-0" id="followupUpdateModalLabel">DMC Negotiation</h5>
+                        <small class="text-white-50">Review agent offer and respond</small>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form id="followupUpdateForm" method="POST" action="">
                     @csrf
-                    <div class="modal-body">
+                    <div class="modal-body pt-3 pb-2">
                         <input type="hidden" name="enquiry_id" id="followup_modal_enquiry_id" />
-                        
-                        <!-- Current details display -->
-                        <div class="border rounded p-3 bg-light mb-3">
+
+                        <div class="negotiation-pricing-summary mb-3">
                             <div class="row g-3">
-                                <div class="col-4">
-                                    <small class="text-muted d-block">Actual Amount</small>
-                                    <div class="fw-semibold" id="followup_display_actual">—</div>
+                                <div class="col-6 col-md-3 negotiation-pricing-item">
+                                    <span class="negotiation-label">Gross Total</span>
+                                    <div class="negotiation-value" id="followup_display_gross">—</div>
                                 </div>
-                                <div class="col-4">
-                                    <small class="text-muted d-block">Discount</small>
-                                    <div class="fw-semibold text-danger" id="followup_display_discount">—</div>
+                                <div class="col-6 col-md-3 negotiation-pricing-item negotiation-discount">
+                                    <span class="negotiation-label">Discount (FOC)</span>
+                                    <div class="negotiation-value" id="followup_display_discount">—</div>
                                 </div>
-                                <div class="col-4">
-                                    <small class="text-muted d-block">Previous Negotiated Amount</small>
-                                    <div class="fw-semibold text-success" id="followup_display_price">—</div>
+                                <div class="col-6 col-md-3 negotiation-pricing-item negotiation-payable">
+                                    <span class="negotiation-label">Payable Amount</span>
+                                    <div class="negotiation-value" id="followup_display_actual">—</div>
                                 </div>
-                                <div class="col-12">
-                                    <small class="text-muted d-block">Last Comment</small>
-                                    <div class="fw-semibold" id="followup_display_comment">—</div>
+                                <div class="col-6 col-md-3 negotiation-pricing-item">
+                                    <span class="negotiation-label">Agent Offer</span>
+                                    <div class="negotiation-value text-success" id="followup_display_price">—</div>
                                 </div>
                             </div>
+                            <div class="negotiation-formula-hint">Payable = Gross − Discount (FOC). Your counter-offer cannot exceed payable amount.</div>
                         </div>
 
-                        <!-- New update inputs -->
+                        <div class="negotiation-meta-block mb-3">
+                            <span class="negotiation-label">Last Comment</span>
+                            <div class="negotiation-value fw-normal text-muted" id="followup_display_comment" style="font-size: 0.9rem;">—</div>
+                        </div>
+
                         <div class="mb-3">
-                            <label for="followup_current_price" class="form-label">New Price</label>
-                            <input id="followup_current_price" type="number" name="price" class="form-control" placeholder="Enter new price" onkeyup="validateFollowupPrice(this)" required />
-                            <div id="followup-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none">
-                                Enquiry price cannot exceed the actual amount.
+                            <label for="followup_current_price" class="form-label fw-semibold">Your Counter Price</label>
+                            <input id="followup_current_price" type="number" name="price" class="form-control" min="0" step="0.01" placeholder="Enter counter price" onkeyup="validateFollowupPrice(this)" required />
+                            <div id="followup-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none mb-0">
+                                Counter price cannot exceed the payable amount.
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="followup_comment" class="form-label">New Comment</label>
-                            <textarea id="followup_comment" name="comment" rows="3" class="form-control" placeholder="Enter new comment" required></textarea>
+                        <div class="mb-0">
+                            <label for="followup_comment" class="form-label fw-semibold">Remarks <span class="text-danger">*</span></label>
+                            <textarea id="followup_comment" name="comment" rows="3" class="form-control" placeholder="Add remarks for this negotiation" required></textarea>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="followup_cancel_btn">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="followup_submit_btn">Submit</button>
+                    <div class="modal-footer negotiation-modal-footer border-0">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="followup_cancel_btn">Close</button>
+                        <button type="submit" class="btn btn-primary" id="followup_submit_btn">Submit Response</button>
                     </div>
                 </form>
             </div>
@@ -1533,64 +1619,74 @@
     
     <!-- Negotiate by Agent Modal -->
     <div class="modal fade" id="agentNegotiationModal" tabindex="-1" aria-labelledby="agentNegotiationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <form class="modal-content" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}" data-action-url="{{ route('tours.agent-negotiation') }}">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <form class="modal-content negotiation-modal-content border-0 shadow-lg" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}" data-action-url="{{ route('tours.agent-negotiation') }}">
                 @csrf
                 <input type="hidden" name="tour_id" id="agent_negotiation_tour_id">
                 <input type="hidden" name="action" id="agent_negotiation_action" value="negotiate">
                 <input type="hidden" name="actual_amount" id="agent_negotiation_actual_amount">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="agentNegotiationModalLabel">Negotiate by Agent</h5>
+                <div class="modal-header negotiation-modal-header border-0">
+                    <div>
+                        <h5 class="modal-title mb-0" id="agentNegotiationModalLabel">Negotiate by Agent</h5>
+                        <small class="text-white-50">Submit your offer against the payable tour amount</small>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="border rounded p-3 bg-light mb-3">
+                <div class="modal-body pt-3 pb-2">
+                    <div class="negotiation-pricing-summary mb-3">
                         <div class="row g-3">
-                            <div class="col-md-6">
-                                <small class="text-muted d-block">Tour</small>
-                                <div class="fw-semibold" id="agentNegotiationDisplayId">—</div>
+                            <div class="col-12 col-md-4 negotiation-pricing-item">
+                                <span class="negotiation-label">Tour</span>
+                                <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
                             </div>
-                            <div class="col-md-6 text-md-end">
-                                <small class="text-muted d-block">Current Amount</small>
-                                <div class="fw-semibold text-primary" id="agentNegotiationCurrentAmount">—</div>
+                            <div class="col-6 col-md-4 negotiation-pricing-item">
+                                <span class="negotiation-label">Gross Total</span>
+                                <div class="negotiation-value" id="agentNegotiationGrossAmount">—</div>
                             </div>
-                            <div class="col-12">
-                                <small class="text-muted d-block">Last Agent Offer</small>
-                                <div class="fw-semibold text-warning" id="agentNegotiationLastAmount">—</div>
+                            <div class="col-6 col-md-4 negotiation-pricing-item negotiation-discount">
+                                <span class="negotiation-label">Discount (FOC)</span>
+                                <div class="negotiation-value" id="agentNegotiationDiscountAmount">—</div>
                             </div>
-                            <div class="col-12">
-                                <small class="text-muted d-block">Last Remarks</small>
-                                <div class="text-muted" id="agentNegotiationLastRemark">—</div>
+                            <div class="col-12 col-md-4 negotiation-pricing-item negotiation-payable">
+                                <span class="negotiation-label">Payable Amount</span>
+                                <div class="negotiation-value" id="agentNegotiationCurrentAmount">—</div>
+                            </div>
+                        </div>
+                        <div class="negotiation-formula-hint">Payable = Gross − Discount (FOC)</div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <div class="negotiation-meta-block h-100">
+                                <span class="negotiation-label">Last Agent Offer</span>
+                                <div class="negotiation-value text-warning" id="agentNegotiationLastAmount">—</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="negotiation-meta-block h-100">
+                                <span class="negotiation-label">Last Remarks</span>
+                                <div class="negotiation-value fw-normal text-muted" id="agentNegotiationLastRemark" style="font-size: 0.9rem;">—</div>
                             </div>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="agentNegotiationAmount" class="form-label">Amount</label>
+                        <label for="agentNegotiationAmount" class="form-label fw-semibold">Your Offer Amount</label>
                         <input type="number" class="form-control" id="agentNegotiationAmount" name="amount" min="0" step="0.01" placeholder="Enter negotiated amount">
-                        <div class="form-text text-primary fw-semibold" id="agentNegotiationMaxMessage">Maximum allowed amount: <span id="agentNegotiationMaxValue">—</span></div>
+                        <div class="form-text text-primary fw-semibold mt-1" id="agentNegotiationMaxMessage">Maximum allowed: <span id="agentNegotiationMaxValue">—</span></div>
                     </div>
-                    <div class="mb-3">
-                        <label for="agentNegotiationRemark" class="form-label">Remarks <span class="text-danger">*</span></label>
+                    <div class="mb-2">
+                        <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks <span class="text-danger">*</span></label>
                         <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation" required></textarea>
                         <div class="invalid-feedback d-none" id="agentNegotiationRemarkError">Please fill the input.</div>
                     </div>
-                    <div class="alert alert-warning py-2 px-3 d-none" id="agentNegotiationWarning">
-                        Negotiated amount cannot exceed the current amount.
+                    <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
+                        Negotiated amount cannot exceed the payable amount.
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-2 pb-3 px-3 px-md-4 d-flex flex-nowrap align-items-center justify-content-end gap-2" style="background: #f8f9fa;">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" aria-label="Close without saving">
-                        Close
-                    </button>
-                    <button type="button" class="btn btn-outline-success" id="agentNegotiationConfirmBtn" onclick="submitAgentNegotiation('confirm')">
-                        Confirm tour
-                    </button>
-                    <button type="button" class="btn btn-outline-danger" id="agentNegotiationCancelBtn" onclick="submitAgentNegotiation('cancel')">
-                        Cancel tour
-                    </button>
-                    <button type="button" class="btn btn-primary" id="agentNegotiationSubmitBtn" onclick="submitAgentNegotiation('negotiate')">
-                        Negotiate
-                    </button>
+                <div class="modal-footer negotiation-modal-footer border-0 d-flex flex-wrap align-items-center justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" aria-label="Close without saving">Close</button>
+                    <button type="button" class="btn btn-outline-success" id="agentNegotiationConfirmBtn" onclick="submitAgentNegotiation('confirm')">Confirm Tour</button>
+                    <button type="button" class="btn btn-outline-danger" id="agentNegotiationCancelBtn" onclick="submitAgentNegotiation('cancel')">Cancel Tour</button>
+                    <button type="button" class="btn btn-primary" id="agentNegotiationSubmitBtn" onclick="submitAgentNegotiation('negotiate')">Negotiate</button>
                 </div>
             </form>
         </div>
@@ -5008,6 +5104,7 @@ function showFilterResetMessage() {
             var priceInput = document.getElementById('followup_current_price');
             var commentInput = document.getElementById('followup_comment');
             var idInput = document.getElementById('followup_modal_enquiry_id');
+            var displayGross = document.getElementById('followup_display_gross');
             var displayActual = document.getElementById('followup_display_actual');
             var displayPrice = document.getElementById('followup_display_price');
             var displayDiscount = document.getElementById('followup_display_discount');
@@ -5015,21 +5112,39 @@ function showFilterResetMessage() {
 
             form.action = route || '';
             idInput.value = button.getAttribute('data-enquiry-id') || '';
-            var actual = button.getAttribute('data-actual') || '';
-            var prevPrice = button.getAttribute('data-price') || '';
-            var discount = button.getAttribute('data-discount') || '';
+
+            var gross = parseNegotiationAttr(button.getAttribute('data-gross'));
+            var actual = parseNegotiationAttr(button.getAttribute('data-actual'));
+            var discount = parseNegotiationAttr(button.getAttribute('data-discount'));
+            if ((!Number.isFinite(discount) || discount < 0) && Number.isFinite(gross) && Number.isFinite(actual) && gross > actual) {
+                discount = gross - actual;
+            }
+            var prevPrice = parseNegotiationAttr(button.getAttribute('data-price'));
             var prevComment = button.getAttribute('data-comment') || '';
 
-            // Set displays
-            displayActual.textContent = actual !== '' ? actual : '—';
-            displayDiscount.textContent = discount !== '' ? discount : '—';
-            displayPrice.textContent = prevPrice !== '' ? prevPrice : '—';
-            displayComment.textContent = prevComment !== '' ? prevComment : '—';
+            if (displayGross) {
+                displayGross.textContent = Number.isFinite(gross) ? formatNegotiationAmount(gross) : '—';
+            }
+            if (displayActual) {
+                displayActual.textContent = Number.isFinite(actual) ? formatNegotiationAmount(actual) : '—';
+            }
+            if (displayDiscount) {
+                displayDiscount.textContent = Number.isFinite(discount) ? formatNegotiationAmount(discount) : '—';
+            }
+            if (displayPrice) {
+                displayPrice.textContent = Number.isFinite(prevPrice) ? formatNegotiationAmount(prevPrice) : '—';
+            }
+            if (displayComment) {
+                displayComment.textContent = prevComment || '—';
+            }
 
-            // Prefill price with previous negotiated amount; comment left blank
-            priceInput.value = prevPrice;
+            priceInput.value = Number.isFinite(prevPrice) ? prevPrice : '';
             commentInput.value = '';
-            if (actual !== '') priceInput.setAttribute('max', actual); else priceInput.removeAttribute('max');
+            if (Number.isFinite(actual) && actual > 0) {
+                priceInput.setAttribute('max', actual);
+            } else {
+                priceInput.removeAttribute('max');
+            }
 
             var modal = new bootstrap.Modal(modalEl);
             modal.show();
@@ -5100,6 +5215,8 @@ function showFilterResetMessage() {
             const remarkInput = document.getElementById('agentNegotiationRemark');
             const warning = document.getElementById('agentNegotiationWarning');
             const displayEl = document.getElementById('agentNegotiationDisplayId');
+            const grossAmountEl = document.getElementById('agentNegotiationGrossAmount');
+            const discountAmountEl = document.getElementById('agentNegotiationDiscountAmount');
             const currentAmountEl = document.getElementById('agentNegotiationCurrentAmount');
             const lastAmountEl = document.getElementById('agentNegotiationLastAmount');
             const lastRemarkEl = document.getElementById('agentNegotiationLastRemark');
@@ -5109,11 +5226,29 @@ function showFilterResetMessage() {
             const displayId = button.getAttribute('data-display-id') || '—';
             const tourStatus = button.getAttribute('data-tour-status') || '';
             const actualAttr = button.getAttribute('data-actual');
+            const grossAttr = button.getAttribute('data-gross');
+            const discountAmountAttr = button.getAttribute('data-discount-amount');
             const lastAttr = button.getAttribute('data-last-amount');
+            const lastAgentOfferAttr = button.getAttribute('data-last-agent-offer');
             const isLocked = button.getAttribute('data-negotiation-locked') === '1';
-            const actualAmount = actualAttr !== null && actualAttr !== '' ? parseFloat(actualAttr) : null;
-            const lastAmount = lastAttr !== null && lastAttr !== '' ? parseFloat(lastAttr) : null;
+            const actualAmount = parseNegotiationAttr(actualAttr);
+            const grossAmount = parseNegotiationAttr(grossAttr);
+            let tourDiscountAmount = parseNegotiationAttr(discountAmountAttr);
+            const negotiationCap = parseNegotiationAttr(lastAttr) ?? actualAmount;
+            const lastAgentOffer = parseNegotiationAttr(lastAgentOfferAttr);
             const lastRemark = button.getAttribute('data-last-comment') || '';
+
+            if ((!Number.isFinite(tourDiscountAmount) || tourDiscountAmount < 0)
+                && Number.isFinite(grossAmount) && Number.isFinite(actualAmount) && grossAmount > actualAmount) {
+                tourDiscountAmount = grossAmount - actualAmount;
+            }
+
+            if (grossAmountEl) {
+                grossAmountEl.textContent = Number.isFinite(grossAmount) ? formatNegotiationAmount(grossAmount) : '—';
+            }
+            if (discountAmountEl) {
+                discountAmountEl.textContent = Number.isFinite(tourDiscountAmount) ? formatNegotiationAmount(tourDiscountAmount) : '—';
+            }
 
             form.dataset.currentStatus = tourStatus;
             tourIdInput.value = tourId;
@@ -5125,11 +5260,9 @@ function showFilterResetMessage() {
             const remarkErrEl = document.getElementById('agentNegotiationRemarkError');
             if (remarkErrEl) remarkErrEl.classList.add('d-none');
 
-            // Determine the maximum allowed amount
-            // If there's a last negotiated amount, use that as max; otherwise use current amount
             let maxAllowedAmount = null;
-            if (Number.isFinite(lastAmount) && lastAmount > 0) {
-                maxAllowedAmount = lastAmount;
+            if (Number.isFinite(negotiationCap) && negotiationCap > 0) {
+                maxAllowedAmount = negotiationCap;
             } else if (Number.isFinite(actualAmount) && actualAmount > 0) {
                 maxAllowedAmount = actualAmount;
             }
@@ -5144,18 +5277,18 @@ function showFilterResetMessage() {
             }
 
             // Display current amount
-            if (Number.isFinite(actualAmount) && actualAmount > 0) {
-                currentAmountEl.textContent = formatNegotiationAmount(actualAmount);
-            } else {
-                currentAmountEl.textContent = '—';
+            if (currentAmountEl) {
+                currentAmountEl.textContent = Number.isFinite(actualAmount) ? formatNegotiationAmount(actualAmount) : '—';
             }
 
-            // Set last amount value and display
-            if (Number.isFinite(lastAmount) && lastAmount > 0) {
-                amountInput.value = lastAmount;
-                lastAmountEl.textContent = formatNegotiationAmount(lastAmount);
+            if (Number.isFinite(negotiationCap) && negotiationCap > 0) {
+                amountInput.value = negotiationCap;
             } else {
                 amountInput.value = '';
+            }
+            if (Number.isFinite(lastAgentOffer) && lastAgentOffer > 0) {
+                lastAmountEl.textContent = formatNegotiationAmount(lastAgentOffer);
+            } else {
                 lastAmountEl.textContent = '—';
             }
 
@@ -5312,14 +5445,22 @@ function showFilterResetMessage() {
             });
         };
 
+        function parseNegotiationAttr(attr) {
+            if (attr === null || attr === undefined || attr === '') {
+                return null;
+            }
+            const n = parseFloat(attr);
+            return Number.isFinite(n) ? n : null;
+        }
+
         function formatNegotiationAmount(value) {
-            if (isNaN(value)) {
+            if (!Number.isFinite(Number(value))) {
                 return '—';
             }
             return new Intl.NumberFormat(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
-            }).format(value);
+            }).format(Number(value));
         }
     };
 </script>
