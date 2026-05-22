@@ -10,26 +10,11 @@ class Zone extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /**
-     * The primary key for the model.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'zone_id';
+    protected $primaryKey = 'id';
 
-    /**
-     * Indicates if the model's ID is auto-incrementing.
-     *
-     * @var bool
-     */
-    public $incrementing = false;
+    public $incrementing = true;
 
-    /**
-     * The data type of the auto-incrementing ID.
-     *
-     * @var string
-     */
-    protected $keyType = 'string';
+    protected $keyType = 'int';
 
     /**
      * The attributes that are mass assignable.
@@ -37,14 +22,12 @@ class Zone extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'id',
         'zone_name',
         'zone_type',
         'vehicle_type',
         'description',
         'city',
         'status',
-        'zone_id',
         'dmc_id',
         'created_by',
         'deleted_at',
