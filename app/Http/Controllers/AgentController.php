@@ -322,15 +322,15 @@ class AgentController extends Controller
         }
 
         // Create new agent
-        $lastAgent = Agent::withTrashed()->orderBy('created_at', 'desc')->first();
-        $agent_max_id = $lastAgent->agent_id ?? 1;
-        $agentId = CommonHelper::createId($agent_max_id);
-        while (Agent::where('agent_id', $agentId)->exists()) {
-            $agentId = CommonHelper::createId($agentId);
-        }
+        // $lastAgent = Agent::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $agent_max_id = $lastAgent->agent_id ?? 1;
+        // $agentId = CommonHelper::createId($agent_max_id);
+        // while (Agent::where('agent_id', $agentId)->exists()) {
+        //     $agentId = CommonHelper::createId($agentId);
+        // }
 
         $agent = new Agent();
-        $agent->agent_id = $agentId;
+        // $agent->agent_id = $agentId;
         $agent->salutation = $request->input('salutation');
         $agent->name = $request->input('name');
         $agent->company_name = $agency->agency_name;
@@ -353,7 +353,9 @@ class AgentController extends Controller
         $agent->created_by = Auth::user()->userId;
         $agent->dmc_id = json_encode([$dmc_id]); // Store as JSON array
         $agent->status = 1;
-        if ($agent->save()) {
+        $isSaved = $agent->save();
+        $agent->refresh();
+        if ($isSaved) {
             // Send email to the agent
             try {
                 $dmc_user = User::where('userId', $dmc_id)->first();
@@ -400,10 +402,9 @@ class AgentController extends Controller
                 \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
                 // Continue with the process even if email fails
             }
-            
             return redirect()->route('agents.index')->with('success', 'Agent details added successfully!');
         } else {
-            return redirect()->route('agents.index')->with('error', 'Failed to add agent details.');
+            return redirect()->back()->withInput()->with('error', 'Failed to add agent details.');
         }
     }
     

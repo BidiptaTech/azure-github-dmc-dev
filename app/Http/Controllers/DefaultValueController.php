@@ -253,18 +253,18 @@ class DefaultValueController extends Controller
         }
 
         // Generate unique default_id (include soft-deleted rows so we never reuse an existing default_id)
-        $maxDefaultId = DefaultValue::withTrashed()->max('default_id') ?? 0;
-        $defaultId = CommonHelper::createId($maxDefaultId);
+        // $maxDefaultId = DefaultValue::withTrashed()->max('default_id') ?? 0;
+        // $defaultId = CommonHelper::createId($maxDefaultId);
 
         // Create default value
-        DefaultValue::create([
-            'default_id' => $defaultId,
+        $defaultValue = DefaultValue::create([
+            // 'default_id' => CommonHelper::createId(),   
             'dmc_id' => $dmcId,
             'name' => $request->name,
             'service_id' => $request->service_id,
             'status' => $request->status,
         ]);
-
+        $defaultValue->refresh();
         return redirect()->route('default-values.index')
             ->with('success', 'Default value created successfully.');
     }

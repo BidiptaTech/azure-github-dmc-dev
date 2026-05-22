@@ -100,18 +100,18 @@ class BookingListController extends Controller
             DB::beginTransaction();
             try {
                 $last = ItinerarySetting::withTrashed()->orderBy('itinerary_setting_id', 'desc')->first();
-                $lastId = (int) ($last->itinerary_setting_id ?? 0);
-                $newId = CommonHelper::createId($lastId);
+                // $lastId = (int) ($last->itinerary_setting_id ?? 0);
+                // $newId = CommonHelper::createId($lastId);
 
                 $setting = new ItinerarySetting();
-                $setting->itinerary_setting_id = $newId;
+                // $setting->itinerary_setting_id = $newId;
                 $setting->dmc_id = $dmcId;
                 $setting->country = $country;
                 $setting->city = $city;
                 $setting->itinerary_information = $itineraryInformationHtml;
 
                 $setting->save();
-
+                $setting->refresh();
                 DB::commit();
                 return redirect()
                     ->route('itinerary_settings.pdf')
@@ -383,17 +383,17 @@ class BookingListController extends Controller
             DB::beginTransaction();
             try {
                 $last = QuotationSetting::withTrashed()->orderBy('quotation_setting_id', 'desc')->first();
-                $lastId = (int) ($last->quotation_setting_id ?? 0);
-                $newId = CommonHelper::createId($lastId);
+                // $lastId = (int) ($last->quotation_setting_id ?? 0);
+                // $newId = CommonHelper::createId($lastId);
 
                 $setting = new QuotationSetting();
-                $setting->quotation_setting_id = $newId;
+                // $setting->quotation_setting_id = $newId;
                 $setting->dmc_id = $dmcId;
                 $setting->country = $country;
                 $setting->city = $city;
                 $setting->quotation_information = $quotationInformationHtml;
                 $setting->save();
-
+                $setting->refresh();
                 DB::commit();
                 return redirect()
                     ->route('quotation_settings.pdf')

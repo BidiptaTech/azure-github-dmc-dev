@@ -670,11 +670,11 @@
             </div>
         </div>
 
-        <div class="row">
-            <!-- Main Form Column -->
-            <div class="col-lg-{{ $enquiry ? '8' : '12' }}">
-                <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
-                    @csrf
+<div class="row">
+    <!-- Main Form Column -->
+    <div class="col-lg-{{ $enquiry ? '8' : '12' }}">
+        <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
+            @csrf
             
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
@@ -1626,2713 +1626,1982 @@
                     </div>
                 </div>
             </div>
+            <script>
+                    // Ports data for JavaScript
+                    const portsData = @json($ports);
+                    
+                    // DMC User data for zone handling
+                    const UserDmc = @json($dmcUser);
 
-        <script>
-                // Ports data for JavaScript
-                const portsData = @json($ports);
-                
-                // DMC User data for zone handling
-                const UserDmc = @json($dmcUser);
+                    // ==============================
+                    // Additional Guests Management
+                    // ==============================
 
-                // ==============================
-                // Additional Guests Management
-                // ==============================
+                    let additionalGuestCount = 0;
 
-                let additionalGuestCount = 0;
+                    // Get total pax (Adults + Children)
+                    function getTotalPax() {
+                        const adults = parseInt(document.getElementById('adults')?.value || 1);
+                        const children = parseInt(document.getElementById('children')?.value || 0);
+                        return adults + children;
+                    }
 
-                // Get total pax (Adults + Children)
-                function getTotalPax() {
-                    const adults = parseInt(document.getElementById('adults')?.value || 1);
-                    const children = parseInt(document.getElementById('children')?.value || 0);
-                    return adults + children;
-                }
+                    // Max additional guests = total pax (Adults + Children)
+                    function getMaxAdditionalGuests() {
+                        const totalPax = getTotalPax();
+                        return Math.max(0, totalPax);
+                    }
 
-                // Max additional guests = total pax (Adults + Children)
-                function getMaxAdditionalGuests() {
-                    const totalPax = getTotalPax();
-                    return Math.max(0, totalPax);
-                }
+                    function updateGuestLimitInfo() {
+                        const totalPax = getTotalPax();
+                        const maxGuests = getMaxAdditionalGuests();
 
-                function updateGuestLimitInfo() {
-                    const totalPax = getTotalPax();
-                    const maxGuests = getMaxAdditionalGuests();
+                        const totalPaxSpan = document.getElementById('totalPaxCount');
+                        const maxGuestsSpan = document.getElementById('maxAdditionalGuests');
+                        const addBtn = document.getElementById('addGuestBtn');
 
-                    const totalPaxSpan = document.getElementById('totalPaxCount');
-                    const maxGuestsSpan = document.getElementById('maxAdditionalGuests');
-                    const addBtn = document.getElementById('addGuestBtn');
+                        if (totalPaxSpan) totalPaxSpan.textContent = totalPax;
+                        if (maxGuestsSpan) maxGuestsSpan.textContent = maxGuests;
 
-                    if (totalPaxSpan) totalPaxSpan.textContent = totalPax;
-                    if (maxGuestsSpan) maxGuestsSpan.textContent = maxGuests;
-
-                    if (addBtn) {
-                        if (additionalGuestCount >= maxGuests || maxGuests === 0) {
-                            addBtn.disabled = true;
-                            addBtn.classList.add('disabled');
-                        } else {
-                            addBtn.disabled = false;
-                            addBtn.classList.remove('disabled');
+                        if (addBtn) {
+                            if (additionalGuestCount >= maxGuests || maxGuests === 0) {
+                                addBtn.disabled = true;
+                                addBtn.classList.add('disabled');
+                            } else {
+                                addBtn.disabled = false;
+                                addBtn.classList.remove('disabled');
+                            }
                         }
                     }
-                }
 
-                function addAdditionalGuest() {
-                    const maxGuests = getMaxAdditionalGuests();
+                    function addAdditionalGuest() {
+                        const maxGuests = getMaxAdditionalGuests();
 
-                    if (maxGuests === 0) {
-                        alert('Total pax (Adults + Children) is 0. Please set pax before adding additional guests.');
-                        return;
-                    }
+                        if (maxGuests === 0) {
+                            alert('Total pax (Adults + Children) is 0. Please set pax before adding additional guests.');
+                            return;
+                        }
 
-                    if (additionalGuestCount >= maxGuests) {
-                        alert('Maximum number of additional guests reached. Maximum allowed: ' + maxGuests);
-                        return;
-                    }
+                        if (additionalGuestCount >= maxGuests) {
+                            alert('Maximum number of additional guests reached. Maximum allowed: ' + maxGuests);
+                            return;
+                        }
 
-                    const guestIndex = additionalGuestCount + 1;
+                        const guestIndex = additionalGuestCount + 1;
 
-                    const guestHtml = `
-                        <div class="card mb-2 border guest-card" data-guest-index="${guestIndex}" style="border-radius: 8px;">
-                            <div class="card-header bg-light d-flex justify-content-between align-items-center" style="padding: 0.5rem 1rem;">
-                                <h6 class="mb-0 fw-semibold" style="font-size: 0.9rem;">
-                                    <i class="ri-user-line me-2"></i>Guest ${guestIndex}
-                                </h6>
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAdditionalGuest(${guestIndex})" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
-                                    <i class="ri-delete-bin-line me-1"></i>Remove
-                                </button>
-                            </div>
-                            <div class="card-body" style="padding: 0.75rem 1rem;">
-                                <div class="row g-2">
-                                    <div class="col-md-2">
-                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation <span class="text-danger">*</span></label>
-                                        <select class="form-select form-select-sm" name="additional_guests[${guestIndex}][salutation]" required style="font-size: 0.85rem;">
-                                            <option value="">Select</option>
-                                            <option value="Mr">Mr</option>
-                                            <option value="Mrs">Mrs</option>
-                                            <option value="Ms">Ms</option>
-                                            <option value="Miss">Miss</option>
-                                            <option value="Dr">Dr</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Name <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required style="font-size: 0.85rem;">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport No.</label>
-                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number" style="font-size: 0.85rem;">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport Expiry</label>
-                                        <input type="date" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_exp]" style="font-size: 0.85rem;">
-                                    </div>
-                                    <div class="col-md-2">
+                        const guestHtml = `
+                            <div class="card mb-2 border guest-card" data-guest-index="${guestIndex}" style="border-radius: 8px;">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center" style="padding: 0.5rem 1rem;">
+                                    <h6 class="mb-0 fw-semibold" style="font-size: 0.9rem;">
+                                        <i class="ri-user-line me-2"></i>Guest ${guestIndex}
+                                    </h6>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAdditionalGuest(${guestIndex})" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                        <i class="ri-delete-bin-line me-1"></i>Remove
+                                    </button>
+                                </div>
+                                <div class="card-body" style="padding: 0.75rem 1rem;">
+                                    <div class="row g-2">
+                                        <div class="col-md-2">
+                                            <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-sm" name="additional_guests[${guestIndex}][salutation]" required style="font-size: 0.85rem;">
+                                                <option value="">Select</option>
+                                                <option value="Mr">Mr</option>
+                                                <option value="Mrs">Mrs</option>
+                                                <option value="Ms">Ms</option>
+                                                <option value="Miss">Miss</option>
+                                                <option value="Dr">Dr</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label mb-1" style="font-size: 0.8rem;">Name <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required style="font-size: 0.85rem;">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label mb-1" style="font-size: 0.8rem;">Passport No.</label>
+                                            <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number" style="font-size: 0.85rem;">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label mb-1" style="font-size: 0.8rem;">Passport Expiry</label>
+                                            <input type="date" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_exp]" style="font-size: 0.85rem;">
+                                        </div>
+                                        <div class="col-md-2">
 
-                                    <label class="form-label mb-1" style="font-size: 0.8rem;">Contact No.</label>
-                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number" style="font-size: 0.85rem;">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Contact No.</label>
+                                            <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number" style="font-size: 0.85rem;">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
+                        `;
 
-                    const container = document.getElementById('additionalGuestsContainer');
-                    if (container) {
-                        container.insertAdjacentHTML('beforeend', guestHtml);
-                        additionalGuestCount++;
-                        updateGuestLimitInfo();
-                    }
-                }
-
-                function removeAdditionalGuest(guestIndex) {
-                    const guestCard = document.querySelector('.guest-card[data-guest-index="' + guestIndex + '"]');
-                    if (guestCard) {
-                        guestCard.remove();
-                        additionalGuestCount--;
-                        renumberAdditionalGuests();
-                        updateGuestLimitInfo();
-                    }
-                }
-
-                function renumberAdditionalGuests() {
-                    const cards = document.querySelectorAll('.guest-card');
-                    additionalGuestCount = cards.length;
-
-                    cards.forEach((card, index) => {
-                        const newIndex = index + 1;
-                        card.setAttribute('data-guest-index', newIndex);
-
-                        const header = card.querySelector('.card-header h6');
-                        if (header) {
-                            header.innerHTML = '<i class="ri-user-line me-2"></i>Guest ' + newIndex;
+                        const container = document.getElementById('additionalGuestsContainer');
+                        if (container) {
+                            container.insertAdjacentHTML('beforeend', guestHtml);
+                            additionalGuestCount++;
+                            updateGuestLimitInfo();
                         }
+                    }
 
-                        const inputs = card.querySelectorAll('input, select');
-                        inputs.forEach(input => {
-                            const name = input.getAttribute('name');
-                            if (name) {
-                                input.setAttribute('name', name.replace(/additional_guests\[\d+\]/, 'additional_guests[' + newIndex + ']'));
+                    function removeAdditionalGuest(guestIndex) {
+                        const guestCard = document.querySelector('.guest-card[data-guest-index="' + guestIndex + '"]');
+                        if (guestCard) {
+                            guestCard.remove();
+                            additionalGuestCount--;
+                            renumberAdditionalGuests();
+                            updateGuestLimitInfo();
+                        }
+                    }
+
+                    function renumberAdditionalGuests() {
+                        const cards = document.querySelectorAll('.guest-card');
+                        additionalGuestCount = cards.length;
+
+                        cards.forEach((card, index) => {
+                            const newIndex = index + 1;
+                            card.setAttribute('data-guest-index', newIndex);
+
+                            const header = card.querySelector('.card-header h6');
+                            if (header) {
+                                header.innerHTML = '<i class="ri-user-line me-2"></i>Guest ' + newIndex;
+                            }
+
+                            const inputs = card.querySelectorAll('input, select');
+                            inputs.forEach(input => {
+                                const name = input.getAttribute('name');
+                                if (name) {
+                                    input.setAttribute('name', name.replace(/additional_guests\[\d+\]/, 'additional_guests[' + newIndex + ']'));
+                                }
+                            });
+
+                            const removeBtn = card.querySelector('button[onclick*="removeAdditionalGuest"]');
+                            if (removeBtn) {
+                                removeBtn.setAttribute('onclick', 'removeAdditionalGuest(' + newIndex + ')');
                             }
                         });
+                    }
 
-                        const removeBtn = card.querySelector('button[onclick*="removeAdditionalGuest"]');
-                        if (removeBtn) {
-                            removeBtn.setAttribute('onclick', 'removeAdditionalGuest(' + newIndex + ')');
+                    document.addEventListener('DOMContentLoaded', function () {
+                        updateGuestLimitInfo();
+
+                        const adultsInput = document.getElementById('adults');
+                        const childrenInput = document.getElementById('children');
+
+                        if (adultsInput) {
+                            adultsInput.addEventListener('change', updateGuestLimitInfo);
+                        }
+                        if (childrenInput) {
+                            childrenInput.addEventListener('change', updateGuestLimitInfo);
                         }
                     });
-                }
-
-                document.addEventListener('DOMContentLoaded', function () {
-                    updateGuestLimitInfo();
-
-                    const adultsInput = document.getElementById('adults');
-                    const childrenInput = document.getElementById('children');
-
-                    if (adultsInput) {
-                        adultsInput.addEventListener('change', updateGuestLimitInfo);
-                    }
-                    if (childrenInput) {
-                        childrenInput.addEventListener('change', updateGuestLimitInfo);
-                    }
-                });
-                
-                window.isRoomBreakfastIncluded = function(room) {
-                    if (!room) return false;
-                    return room.breakfast_included == 1 || room.breakfast_included === true || room.breakfast_included === '1';
-                };
-
-                window.updateHotelSupplementBreakfastVisibility = function(roomType) {
-                    const wrap = document.getElementById('hotelSupplementBreakfastWrap');
-                    const chk = document.getElementById('hotelSupplementBreakfastIncluded');
-                    if (!wrap) return;
-
-                    let show = false;
-                    if (roomType && window.roomData && Array.isArray(window.roomData)) {
-                        const roomsOfType = window.roomData.filter(function(r) { return r.room_type === roomType; });
-                        show = roomsOfType.some(window.isRoomBreakfastIncluded);
-                    }
-
-                    wrap.style.display = show ? '' : 'none';
-                    if (!show && chk) {
-                        chk.checked = false;
-                    }
-                };
-
-                // Define calculateCorrectMealCosts early to ensure it's available
-                window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms, opts) {
-                    opts = opts || {};
-                    if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
-                        return 0;
-                    }
                     
-                    let totalMealCost = 0;
-                    const totalGuests = adults + children;
-                    const skipBreakfastCost = !!opts.supplementBreakfastIncluded;
-                    
-                    if (mealPrices && typeof mealPrices === 'object') {
-                        if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
-                            const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
-                            if (breakfastPrice > 0) {
-                                totalMealCost += breakfastPrice * totalGuests * numNights * numRooms;
-                            }
+                    window.isRoomBreakfastIncluded = function(room) {
+                        if (!room) return false;
+                        return room.breakfast_included == 1 || room.breakfast_included === true || room.breakfast_included === '1';
+                    };
+
+                    window.updateHotelSupplementBreakfastVisibility = function(roomType) {
+                        const wrap = document.getElementById('hotelSupplementBreakfastWrap');
+                        const chk = document.getElementById('hotelSupplementBreakfastIncluded');
+                        if (!wrap) return;
+
+                        let show = false;
+                        if (roomType && window.roomData && Array.isArray(window.roomData)) {
+                            const roomsOfType = window.roomData.filter(function(r) { return r.room_type === roomType; });
+                            show = roomsOfType.some(window.isRoomBreakfastIncluded);
+                        }
+
+                        wrap.style.display = show ? '' : 'none';
+                        if (!show && chk) {
+                            chk.checked = false;
+                        }
+                    };
+
+                    // Define calculateCorrectMealCosts early to ensure it's available
+                    window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms, opts) {
+                        opts = opts || {};
+                        if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
+                            return 0;
                         }
                         
-                        if (mealPlan.includes('lunch')) {
-                            const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
-                            if (lunchPrice > 0) {
-                                totalMealCost += lunchPrice * totalGuests * numNights * numRooms;
-                            }
-                        }
+                        let totalMealCost = 0;
+                        const totalGuests = adults + children;
+                        const skipBreakfastCost = !!opts.supplementBreakfastIncluded;
                         
-                        if (mealPlan.includes('dinner')) {
-                            const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
-                            if (dinnerPrice > 0) {
-                                totalMealCost += dinnerPrice * totalGuests * numNights * numRooms;
+                        if (mealPrices && typeof mealPrices === 'object') {
+                            if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
+                                const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
+                                if (breakfastPrice > 0) {
+                                    totalMealCost += breakfastPrice * totalGuests * numNights * numRooms;
+                                }
                             }
-                        }
-                    }
-                    
-                    return totalMealCost;
-                };
-                
-                // Function to fetch ports by country
-                window.fetchPortsByCountry = function(countryId) {
-                    if (!countryId) {
-                        // Clear all port dropdowns if no country selected
-                        clearAllPortDropdowns();
-                        return;
-                    }
-                    $.ajax({
-                        url: "{{ route('fetch-ports-by-country-single-tour') }}",
-                        type: "GET",
-                        data: { country_id: countryId },
-                        dataType: 'json',
-                        success: function(response) {
-                            console.log('Ports fetched for country:', countryId, response.ports);
-                            console.log('Number of ports found:', response.ports ? response.ports.length : 0);
                             
-                            // Update all port dropdowns with the new ports
-                            updateAllPortDropdowns(response.ports);
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Error loading ports:', error);
-                            // Clear port dropdowns on error
-                            clearAllPortDropdowns();
+                            if (mealPlan.includes('lunch')) {
+                                const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
+                                if (lunchPrice > 0) {
+                                    totalMealCost += lunchPrice * totalGuests * numNights * numRooms;
+                                }
+                            }
+                            
+                            if (mealPlan.includes('dinner')) {
+                                const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
+                                if (dinnerPrice > 0) {
+                                    totalMealCost += dinnerPrice * totalGuests * numNights * numRooms;
+                                }
+                            }
                         }
-                    });
-                };
-                
-                // Function to update all port dropdowns
-                function updateAllPortDropdowns(ports) {
-                    console.log('updateAllPortDropdowns called with ports:', ports);
+                        
+                        return totalMealCost;
+                    };
                     
-                    // Store filtered ports globally for use by exit port dropoff logic
-                    window.filteredPortsData = ports;
+                    // Function to fetch ports by country
+                    window.fetchPortsByCountry = function(countryId) {
+                        if (!countryId) {
+                            // Clear all port dropdowns if no country selected
+                            clearAllPortDropdowns();
+                            return;
+                        }
+                        $.ajax({
+                            url: "{{ route('fetch-ports-by-country-single-tour') }}",
+                            type: "GET",
+                            data: { country_id: countryId },
+                            dataType: 'json',
+                            success: function(response) {
+                                console.log('Ports fetched for country:', countryId, response.ports);
+                                console.log('Number of ports found:', response.ports ? response.ports.length : 0);
+                                
+                                // Update all port dropdowns with the new ports
+                                updateAllPortDropdowns(response.ports);
+                            },
+                            error: function(xhr, status, error) {
+                                console.error('Error loading ports:', error);
+                                // Clear port dropdowns on error
+                                clearAllPortDropdowns();
+                            }
+                        });
+                    };
                     
-                    // Define the specific IDs for port-related select elements
-                    const portSelectIds = [
-                        'entry_pickup_port_select',      // Entry pickup (ports)
-                        'exit_dropoff_port_select'       // Exit dropoff (ports)
-                    ];
+                    // Function to update all port dropdowns
+                    function updateAllPortDropdowns(ports) {
+                        console.log('updateAllPortDropdowns called with ports:', ports);
+                        
+                        // Store filtered ports globally for use by exit port dropoff logic
+                        window.filteredPortsData = ports;
+                        
+                        // Define the specific IDs for port-related select elements
+                        const portSelectIds = [
+                            'entry_pickup_port_select',      // Entry pickup (ports)
+                            'exit_dropoff_port_select'       // Exit dropoff (ports)
+                        ];
+                        
+                        console.log('Updating port selects with IDs:', portSelectIds);
+                        
+                        portSelectIds.forEach(selectId => {
+                            const select = document.getElementById(selectId);
+                            if (!select) {
+                                console.warn(`Port select not found with ID: ${selectId}`);
+                                return;
+                            }
+                            
+                            console.log(`Updating port select: ${selectId}`);
+                            
+                            // Clear existing options except the first one
+                            const firstOption = select.querySelector('option[value=""]');
+                            select.innerHTML = '';
+                            
+                            // Add the default option
+                            if (firstOption) {
+                                select.appendChild(firstOption.cloneNode(true));
+                            } else {
+                                const defaultOption = document.createElement('option');
+                                defaultOption.value = '';
+                                defaultOption.textContent = 'Select port...';
+                                select.appendChild(defaultOption);
+                            }
+                            
+                            // Add port options
+                            if (ports && ports.length > 0) {
+                                ports.forEach(port => {
+                                    const option = document.createElement('option');
+                                    option.value = port.id;
+                                    option.textContent = port.port_name;
+                                    option.dataset.type = 'port';
+                                    option.dataset.portId = port.port_id;
+                                    select.appendChild(option);
+                                });
+                            } else {
+                                const noPortsOption = document.createElement('option');
+                                noPortsOption.value = '';
+                                noPortsOption.textContent = 'No ports available';
+                                noPortsOption.disabled = true;
+                                select.appendChild(noPortsOption);
+                            }
+                        });
+                        
+                        // Special handling for entry dropoff location select (uses optgroups)
+                        const entryDropoffSelect = document.getElementById('entry_dropoff_location_select');
+                        if (entryDropoffSelect) {
+                            console.log('Updating ports in entry dropoff location select');
+                            
+                            // Find and remove existing Ports optgroup
+                            const existingPortGroup = entryDropoffSelect.querySelector('optgroup[label="Ports"]');
+                            if (existingPortGroup) {
+                                existingPortGroup.remove();
+                                console.log('Removed existing Ports optgroup');
+                            }
+                            
+                            // Add new Ports optgroup with updated ports
+                            if (ports && ports.length > 0) {
+                                const portGroup = document.createElement('optgroup');
+                                portGroup.label = 'Ports';
+                                
+                                ports.forEach(port => {
+                                    const option = document.createElement('option');
+                                    option.value = port.id;
+                                    option.textContent = port.port_name;
+                                    option.setAttribute('data-type', 'Port');
+                                    option.setAttribute('data-port', JSON.stringify(port));
+                                    option.dataset.portId = port.port_id;
+                                    portGroup.appendChild(option);
+                                });
+                                
+                                // Insert Ports optgroup at the beginning (before Hotels, Attractions, Restaurants)
+                                const firstOption = entryDropoffSelect.querySelector('option[value=""]');
+                                if (firstOption && firstOption.nextSibling) {
+                                    entryDropoffSelect.insertBefore(portGroup, firstOption.nextSibling);
+                                } else {
+                                    entryDropoffSelect.appendChild(portGroup);
+                                }
+                                
+                                console.log(`Updated Ports optgroup with ${ports.length} ports in entry dropoff location`);
+                            }
+                            
+                            // Reinitialize Select2 if it's initialized on this select
+                            if (typeof jQuery !== 'undefined' && jQuery(entryDropoffSelect).data('select2')) {
+                                jQuery(entryDropoffSelect).select2('destroy');
+                                jQuery(entryDropoffSelect).select2({
+                                    placeholder: entryDropoffSelect.querySelector('option[value=""]')?.textContent || "Select dropoff location",
+                                    allowClear: true,
+                                    width: '100%'
+                                });
+                            }
+                        }
+                    }
                     
-                    console.log('Updating port selects with IDs:', portSelectIds);
+                    // Function to clear all port dropdowns
+                    function clearAllPortDropdowns() {
+                        // Clear global filtered ports data
+                        window.filteredPortsData = null;
+                        
+                        // Define the specific IDs for port-related select elements
+                        const portSelectIds = [
+                            'entry_pickup_port_select',      // Entry pickup (ports)
+                            'exit_dropoff_port_select'       // Exit dropoff (ports)
+                        ];
+                        
+                        portSelectIds.forEach(selectId => {
+                            const select = document.getElementById(selectId);
+                            if (select) {
+                            select.innerHTML = '<option value="">Select port...</option>';
+                            }
+                        });
+                        
+                        // Special handling for entry dropoff location select (uses optgroups)
+                        const entryDropoffSelect = document.getElementById('entry_dropoff_location_select');
+                        if (entryDropoffSelect) {
+                            // Remove only the Ports optgroup, preserve Hotels, Attractions, Restaurants
+                            const existingPortGroup = entryDropoffSelect.querySelector('optgroup[label="Ports"]');
+                            if (existingPortGroup) {
+                                existingPortGroup.remove();
+                                console.log('Removed Ports optgroup from entry dropoff location select');
+                            }
+                            
+                            // Reinitialize Select2 if it's initialized on this select
+                            if (typeof jQuery !== 'undefined' && jQuery(entryDropoffSelect).data('select2')) {
+                                jQuery(entryDropoffSelect).select2('destroy');
+                                jQuery(entryDropoffSelect).select2({
+                                    placeholder: entryDropoffSelect.querySelector('option[value=""]')?.textContent || "Select dropoff location",
+                                    allowClear: true,
+                                    width: '100%'
+                                });
+                            }
+                        }
+                    }
                     
-                    portSelectIds.forEach(selectId => {
-                        const select = document.getElementById(selectId);
-                        if (!select) {
-                            console.warn(`Port select not found with ID: ${selectId}`);
+                    // Function to populate ports dropdowns (now uses dynamic filtering)
+                    // Function to populate cities dropdown from response
+                    function populateCitiesDropdown(cities) {
+                        console.log('Populating cities dropdown with:', cities);
+                        
+                        // Get both city dropdowns
+                        const entryCitySelect = document.getElementById('modal_local_transfer_city');
+                        const exitCitySelect = document.getElementById('modal_exit_city');
+                        
+                        // Populate entry port city dropdown
+                        if (entryCitySelect) {
+                            // Clear existing options
+                            entryCitySelect.innerHTML = '<option value="">Select city</option>';
+                            
+                            cities.forEach(city => {
+                                const option = document.createElement('option');
+                                option.value = city.name;
+                                option.textContent = city.name;
+                                option.setAttribute('data-city', JSON.stringify(city));
+                                option.setAttribute('data-country', city.country || '');
+                                entryCitySelect.appendChild(option);
+                            });
+                            
+                            console.log(`Successfully populated ${cities.length} cities in entry port dropdown`);
+                        } else {
+                            console.warn('Entry port city select element not found');
+                        }
+                        
+                        // Populate exit port city dropdown
+                        if (exitCitySelect) {
+                            // Clear existing options
+                            exitCitySelect.innerHTML = '<option value="">Select city</option>';
+                            
+                            cities.forEach(city => {
+                                const option = document.createElement('option');
+                                option.value = city.name;
+                                option.textContent = city.name;
+                                option.setAttribute('data-city', JSON.stringify(city));
+                                option.setAttribute('data-country', city.country || '');
+                                exitCitySelect.appendChild(option);
+                            });
+                            
+                            console.log(`Successfully populated ${cities.length} cities in exit port dropdown`);
+                        } else {
+                            console.warn('Exit port city select element not found');
+                        }
+                        
+                        // Store cities globally for use in other functions
+                        window.allCitiesData = cities;
+                        
+                        console.log(`Successfully populated ${cities.length} cities in both dropdowns`);
+                    }
+
+                    function populatePortsDropdowns() {
+                        console.log('populatePortsDropdowns called');
+                        console.log('Initial portsData:', portsData);
+                        
+                        // Use the new dynamic port filtering function
+                        const selectedCountry = document.getElementById('user_country').value;
+                        console.log('Selected country:', selectedCountry);
+                        
+                        if (selectedCountry) {
+                            fetchPortsByCountry(selectedCountry);
+                        } else {
+                            // If no country selected, use the initial ports data
+                            console.log('No country selected, using initial ports data');
+                            updateAllPortDropdowns(portsData);
+                        }
+                    }
+                    
+                    // Service Management Functions
+                    function addPortService(day, portType) {
+                        const data = {
+                            type: portType,
+                            date: document.querySelector(`[name="day${day}_${portType}_port_date"]`).value,
+                            // Add other port service specific data
+                        };
+                        addServiceToPackage('port', data);
+                        updateBookingsSummary();
+                    }
+
+                    function addAttractionService(day) {
+                        const data = {
+                            date: document.querySelector(`[name="day${day}_attraction_date"]`).value,
+                            // Add attraction specific data
+                        };
+                        addServiceToPackage('attraction', data);
+                        updateBookingsSummary();
+                    }
+
+                    function addGuideService(day) {
+                        const data = {
+                            date: document.querySelector(`[name="day${day}_guide_date"]`).value,
+                            // Add guide specific data
+                        };
+                        addServiceToPackage('guide', data);
+                        updateBookingsSummary();
+                    }
+
+                    function addRestaurantService(day) {
+                        const data = {
+                            date: document.querySelector(`[name="day${day}_restaurant_date"]`).value,
+                            // Add restaurant specific data
+                        };
+                        addServiceToPackage('restaurant', data);
+                        updateBookingsSummary();
+                    }
+
+                    function addTransportService(day) {
+                        const data = {
+                            date: document.querySelector(`[name="day${day}_transport_date"]`).value,
+                            // Add transport specific data
+                        };
+                        addServiceToPackage('transport', data);
+                        updateBookingsSummary();
+                    }
+
+                    function addServiceToPackage(type, data) {
+                        // Add customer information to the data
+                        const customerData = getCustomerData();
+                        const serviceData = {
+                            ...data,
+                            ...customerData,
+                            bookingType: 'enquiry'
+                        };
+
+                        // Store in the appropriate hidden field
+                        const fieldId = `${type}Bookings`;
+                        const bookings = JSON.parse(document.getElementById(fieldId).value || '[]');
+                        bookings.push(serviceData);
+                        document.getElementById(fieldId).value = JSON.stringify(bookings);
+
+                        // Update the summary display
+                        updateBookingsSummary();
+
+                        // Show success message
+                        showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} added to package successfully!`);
+                    }
+
+                    function showToast(message) {
+                    }
+
+                    // Function to show notifications
+                    function showNotification(message, type = 'info') {
+                        // Create notification element
+                        const notification = document.createElement('div');
+                        const alertClass = type === 'success' ? 'success' : 
+                                        type === 'error' ? 'danger' : 
+                                        type === 'warning' ? 'warning' : 'info';
+                        notification.className = `alert alert-${alertClass} alert-dismissible fade show position-fixed`;
+                        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px; white-space: pre-line;';
+                        notification.innerHTML = `
+                            ${message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        `;
+                        
+                        // Add to body
+                        document.body.appendChild(notification);
+                        
+                        // Auto remove after 8 seconds for longer messages
+                        const timeout = message.length > 100 ? 8000 : 5000;
+                        setTimeout(() => {
+                            if (notification.parentNode) {
+                                notification.remove();
+                            }
+                        }, timeout);
+                    }
+
+                    function calculateMealCosts(mealPlan, numNights, adults, children, mealPrices = null, numRooms = 1) {
+                        if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
+                            return 0; // No meals included
+                        }
+                        
+                        let totalMealCost = 0;
+                        const totalGuests = adults + children;
+                        
+                        // If we have meal prices, use the actual prices from the database
+                        if (mealPrices && typeof mealPrices === 'object') {
+                            // Check if meals are available and calculate costs
+                            if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
+                                const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
+                                if (breakfastPrice > 0) {
+                                    totalMealCost += breakfastPrice * totalGuests * numNights;
+                                    console.log(`Breakfast: $${breakfastPrice} × ${totalGuests} guests × ${numNights} nights = $${breakfastPrice * totalGuests * numNights}`);
+                                }
+                            }
+                            
+                            if (mealPlan.includes('lunch')) {
+                                const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
+                                if (lunchPrice > 0) {
+                                    totalMealCost += lunchPrice * totalGuests * numNights;
+                                    console.log(`Lunch: $${lunchPrice} × ${totalGuests} guests × ${numNights} nights = $${lunchPrice * totalGuests * numNights}`);
+                                }
+                            }
+                            
+                            if (mealPlan.includes('dinner')) {
+                                const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
+                                if (dinnerPrice > 0) {
+                                    totalMealCost += dinnerPrice * totalGuests * numNights;
+                                    console.log(`Dinner: $${dinnerPrice} × ${totalGuests} guests × ${numNights} nights = $${dinnerPrice * totalGuests * numNights}`);
+                                }
+                            }
+                        } else {
+                            // No meal prices available from database - return 0 (no fallback defaults)
+                            console.log('No meal prices available from database for meal plan:', mealPlan);
+                            return 0;
+                        }
+                        
+                        console.log(`Meal cost calculation: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total Cost: $${totalMealCost}`);
+                        return totalMealCost;
+                    }
+
+                    function debugRoomData() {
+                        console.log('=== DEBUGGING ROOM DATA ===');
+                        
+                        if (window.roomData) {
+                            console.log('Available room data:', window.roomData);
+                            
+                            // Show structure of first room
+                            if (window.roomData.length > 0) {
+                                const firstRoom = window.roomData[0];
+                                console.log('First room structure:', firstRoom);
+                                console.log('Available fields:', Object.keys(firstRoom));
+                                
+                                // Check meal price fields
+                                console.log('Meal price fields:');
+                                console.log('  breakfast_price:', firstRoom.breakfast_price);
+                                console.log('  lunch_price:', firstRoom.lunch_price);
+                                console.log('  dinner_price:', firstRoom.dinner_price);
+                                console.log('  breakfast:', firstRoom.breakfast);
+                                console.log('  lunch:', firstRoom.lunch);
+                                console.log('  dinner:', firstRoom.dinner);
+                            }
+                            
+                            // Show all room types
+                            const roomTypes = [...new Set(window.roomData.map(room => room.room_type))];
+                            console.log('Available room types:', roomTypes);
+                            
+                            // Show all hotel IDs
+                            const hotelIds = [...new Set(window.roomData.map(room => room.hotel_unique_id))];
+                            console.log('Available hotel IDs:', hotelIds);
+                            
+                        } else {
+                            console.log('No room data available (window.roomData is null/undefined)');
+                        }
+                        
+                        // Also check current form values
+                        const hotelSelect = document.getElementById('hotelSelect');
+                        const roomTypeSelect = document.getElementById('roomTypeSelect');
+                        const mealPlanSelect = document.getElementById('mealPlanSelect');
+                        console.log('Current form values:');
+                        console.log('  Selected hotel:', hotelSelect ? hotelSelect.value : 'N/A');
+                        console.log('  Selected room type:', roomTypeSelect ? roomTypeSelect.value : 'N/A');
+                        console.log('  Selected meal plan:', mealPlanSelect ? mealPlanSelect.value : 'N/A');
+                        showNotification('Room data debug completed. Check console for details.', 'info');
+                    }
+
+                    // Function to test meal price fetching from room type options
+                    function testMealPriceFetching() {
+                        console.log('=== TESTING MEAL PRICE FETCHING ===');
+                        const roomTypeSelect = document.getElementById('roomTypeSelect');
+                        if (!roomTypeSelect) {
+                            console.log('Room type select not found');
                             return;
                         }
                         
-                        console.log(`Updating port select: ${selectId}`);
+                        console.log('Room type select options:', roomTypeSelect.options.length);
                         
-                        // Clear existing options except the first one
-                        const firstOption = select.querySelector('option[value=""]');
-                        select.innerHTML = '';
-                        
-                        // Add the default option
-                        if (firstOption) {
-                            select.appendChild(firstOption.cloneNode(true));
-                        } else {
-                            const defaultOption = document.createElement('option');
-                            defaultOption.value = '';
-                            defaultOption.textContent = 'Select port...';
-                            select.appendChild(defaultOption);
-                        }
-                        
-                        // Add port options
-                        if (ports && ports.length > 0) {
-                            ports.forEach(port => {
-                                const option = document.createElement('option');
-                                option.value = port.id;
-                                option.textContent = port.port_name;
-                                option.dataset.type = 'port';
-                                option.dataset.portId = port.port_id;
-                                select.appendChild(option);
-                            });
-                        } else {
-                            const noPortsOption = document.createElement('option');
-                            noPortsOption.value = '';
-                            noPortsOption.textContent = 'No ports available';
-                            noPortsOption.disabled = true;
-                            select.appendChild(noPortsOption);
-                        }
-                    });
-                    
-                    // Special handling for entry dropoff location select (uses optgroups)
-                    const entryDropoffSelect = document.getElementById('entry_dropoff_location_select');
-                    if (entryDropoffSelect) {
-                        console.log('Updating ports in entry dropoff location select');
-                        
-                        // Find and remove existing Ports optgroup
-                        const existingPortGroup = entryDropoffSelect.querySelector('optgroup[label="Ports"]');
-                        if (existingPortGroup) {
-                            existingPortGroup.remove();
-                            console.log('Removed existing Ports optgroup');
-                        }
-                        
-                        // Add new Ports optgroup with updated ports
-                        if (ports && ports.length > 0) {
-                            const portGroup = document.createElement('optgroup');
-                            portGroup.label = 'Ports';
-                            
-                            ports.forEach(port => {
-                                const option = document.createElement('option');
-                                option.value = port.id;
-                                option.textContent = port.port_name;
-                                option.setAttribute('data-type', 'Port');
-                                option.setAttribute('data-port', JSON.stringify(port));
-                                option.dataset.portId = port.port_id;
-                                portGroup.appendChild(option);
-                            });
-                            
-                            // Insert Ports optgroup at the beginning (before Hotels, Attractions, Restaurants)
-                            const firstOption = entryDropoffSelect.querySelector('option[value=""]');
-                            if (firstOption && firstOption.nextSibling) {
-                                entryDropoffSelect.insertBefore(portGroup, firstOption.nextSibling);
-                            } else {
-                                entryDropoffSelect.appendChild(portGroup);
+                        Array.from(roomTypeSelect.options).forEach((option, index) => {
+                            if (option.value) {
+                                console.log(`Option ${index + 1}: ${option.value}`);
+                                console.log('  Dataset:', {
+                                    breakfastPrice: option.dataset.breakfastPrice,
+                                    lunchPrice: option.dataset.lunchPrice,
+                                    dinnerPrice: option.dataset.dinnerPrice,
+                                    breakfast: option.dataset.breakfast,
+                                    lunch: option.dataset.lunch,
+                                    dinner: option.dataset.dinner
+                                });
                             }
-                            
-                            console.log(`Updated Ports optgroup with ${ports.length} ports in entry dropoff location`);
-                        }
-                        
-                        // Reinitialize Select2 if it's initialized on this select
-                        if (typeof jQuery !== 'undefined' && jQuery(entryDropoffSelect).data('select2')) {
-                            jQuery(entryDropoffSelect).select2('destroy');
-                            jQuery(entryDropoffSelect).select2({
-                                placeholder: entryDropoffSelect.querySelector('option[value=""]')?.textContent || "Select dropoff location",
-                                allowClear: true,
-                                width: '100%'
-                            });
-                        }
-                    }
-                }
-                
-                // Function to clear all port dropdowns
-                function clearAllPortDropdowns() {
-                    // Clear global filtered ports data
-                    window.filteredPortsData = null;
-                    
-                    // Define the specific IDs for port-related select elements
-                    const portSelectIds = [
-                        'entry_pickup_port_select',      // Entry pickup (ports)
-                        'exit_dropoff_port_select'       // Exit dropoff (ports)
-                    ];
-                    
-                    portSelectIds.forEach(selectId => {
-                        const select = document.getElementById(selectId);
-                        if (select) {
-                        select.innerHTML = '<option value="">Select port...</option>';
-                        }
-                    });
-                    
-                    // Special handling for entry dropoff location select (uses optgroups)
-                    const entryDropoffSelect = document.getElementById('entry_dropoff_location_select');
-                    if (entryDropoffSelect) {
-                        // Remove only the Ports optgroup, preserve Hotels, Attractions, Restaurants
-                        const existingPortGroup = entryDropoffSelect.querySelector('optgroup[label="Ports"]');
-                        if (existingPortGroup) {
-                            existingPortGroup.remove();
-                            console.log('Removed Ports optgroup from entry dropoff location select');
-                        }
-                        
-                        // Reinitialize Select2 if it's initialized on this select
-                        if (typeof jQuery !== 'undefined' && jQuery(entryDropoffSelect).data('select2')) {
-                            jQuery(entryDropoffSelect).select2('destroy');
-                            jQuery(entryDropoffSelect).select2({
-                                placeholder: entryDropoffSelect.querySelector('option[value=""]')?.textContent || "Select dropoff location",
-                                allowClear: true,
-                                width: '100%'
-                            });
-                        }
-                    }
-                }
-                
-                // Function to populate ports dropdowns (now uses dynamic filtering)
-                // Function to populate cities dropdown from response
-                function populateCitiesDropdown(cities) {
-                    console.log('Populating cities dropdown with:', cities);
-                    
-                    // Get both city dropdowns
-                    const entryCitySelect = document.getElementById('modal_local_transfer_city');
-                    const exitCitySelect = document.getElementById('modal_exit_city');
-                    
-                    // Populate entry port city dropdown
-                    if (entryCitySelect) {
-                        // Clear existing options
-                        entryCitySelect.innerHTML = '<option value="">Select city</option>';
-                        
-                        cities.forEach(city => {
-                            const option = document.createElement('option');
-                            option.value = city.name;
-                            option.textContent = city.name;
-                            option.setAttribute('data-city', JSON.stringify(city));
-                            option.setAttribute('data-country', city.country || '');
-                            entryCitySelect.appendChild(option);
                         });
                         
-                        console.log(`Successfully populated ${cities.length} cities in entry port dropdown`);
-                    } else {
-                        console.warn('Entry port city select element not found');
+                        showNotification('Meal price fetching test completed. Check console for details.', 'info');
                     }
-                    
-                    // Populate exit port city dropdown
-                    if (exitCitySelect) {
-                        // Clear existing options
-                        exitCitySelect.innerHTML = '<option value="">Select city</option>';
+
+                    // Function to force update cost calculation
+                    window.forceUpdateCost = function() {
+                        console.log('=== FORCING COST CALCULATION UPDATE ===');
                         
-                        cities.forEach(city => {
-                            const option = document.createElement('option');
-                            option.value = city.name;
-                            option.textContent = city.name;
-                            option.setAttribute('data-city', JSON.stringify(city));
-                            option.setAttribute('data-country', city.country || '');
-                            exitCitySelect.appendChild(option);
-                        });
+                        const mealPlanSelect = document.getElementById('mealPlanSelect');
+                        const selectedPersonsInput = document.getElementById('selectedPersons');
                         
-                        console.log(`Successfully populated ${cities.length} cities in exit port dropdown`);
-                    } else {
-                        console.warn('Exit port city select element not found');
-                    }
-                    
-                    // Store cities globally for use in other functions
-                    window.allCitiesData = cities;
-                    
-                    console.log(`Successfully populated ${cities.length} cities in both dropdowns`);
-                }
-
-                function populatePortsDropdowns() {
-                    console.log('populatePortsDropdowns called');
-                    console.log('Initial portsData:', portsData);
-                    
-                    // Use the new dynamic port filtering function
-                    const selectedCountry = document.getElementById('user_country').value;
-                    console.log('Selected country:', selectedCountry);
-                    
-                    if (selectedCountry) {
-                        fetchPortsByCountry(selectedCountry);
-                    } else {
-                        // If no country selected, use the initial ports data
-                        console.log('No country selected, using initial ports data');
-                        updateAllPortDropdowns(portsData);
-                    }
-                }
-                
-                // Service Management Functions
-                function addPortService(day, portType) {
-                    const data = {
-                        type: portType,
-                        date: document.querySelector(`[name="day${day}_${portType}_port_date"]`).value,
-                        // Add other port service specific data
-                    };
-                    addServiceToPackage('port', data);
-                    updateBookingsSummary();
-                }
-
-                function addAttractionService(day) {
-                    const data = {
-                        date: document.querySelector(`[name="day${day}_attraction_date"]`).value,
-                        // Add attraction specific data
-                    };
-                    addServiceToPackage('attraction', data);
-                    updateBookingsSummary();
-                }
-
-                function addGuideService(day) {
-                    const data = {
-                        date: document.querySelector(`[name="day${day}_guide_date"]`).value,
-                        // Add guide specific data
-                    };
-                    addServiceToPackage('guide', data);
-                    updateBookingsSummary();
-                }
-
-                function addRestaurantService(day) {
-                    const data = {
-                        date: document.querySelector(`[name="day${day}_restaurant_date"]`).value,
-                        // Add restaurant specific data
-                    };
-                    addServiceToPackage('restaurant', data);
-                    updateBookingsSummary();
-                }
-
-                function addTransportService(day) {
-                    const data = {
-                        date: document.querySelector(`[name="day${day}_transport_date"]`).value,
-                        // Add transport specific data
-                    };
-                    addServiceToPackage('transport', data);
-                    updateBookingsSummary();
-                }
-
-                function addServiceToPackage(type, data) {
-                    // Add customer information to the data
-                    const customerData = getCustomerData();
-                    const serviceData = {
-                        ...data,
-                        ...customerData,
-                        bookingType: 'enquiry'
+                        console.log('Current meal plan:', mealPlanSelect ? mealPlanSelect.value : 'N/A');
+                        console.log('Current persons:', selectedPersonsInput ? selectedPersonsInput.value : 'N/A');
+                        console.log('Selected bed info:', window.selectedBedInfo);
+                        
+                        // Force update the cost calculation
+                        updateRoomCostCalculation();
+                        
+                        showNotification('Cost calculation updated. Check console for details.', 'info');
                     };
 
-                    // Store in the appropriate hidden field
-                    const fieldId = `${type}Bookings`;
-                    const bookings = JSON.parse(document.getElementById(fieldId).value || '[]');
-                    bookings.push(serviceData);
-                    document.getElementById(fieldId).value = JSON.stringify(bookings);
-
-                    // Update the summary display
-                    updateBookingsSummary();
-
-                    // Show success message
-                    showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} added to package successfully!`);
-                }
-
-                function showToast(message) {
-                }
-
-                // Function to show notifications
-                function showNotification(message, type = 'info') {
-                    // Create notification element
-                    const notification = document.createElement('div');
-                    const alertClass = type === 'success' ? 'success' : 
-                                      type === 'error' ? 'danger' : 
-                                      type === 'warning' ? 'warning' : 'info';
-                    notification.className = `alert alert-${alertClass} alert-dismissible fade show position-fixed`;
-                    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px; white-space: pre-line;';
-                    notification.innerHTML = `
-                        ${message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-                    
-                    // Add to body
-                    document.body.appendChild(notification);
-                    
-                    // Auto remove after 8 seconds for longer messages
-                    const timeout = message.length > 100 ? 8000 : 5000;
-                    setTimeout(() => {
-                        if (notification.parentNode) {
-                            notification.remove();
-                        }
-                    }, timeout);
-                }
-
-                function calculateMealCosts(mealPlan, numNights, adults, children, mealPrices = null, numRooms = 1) {
-                    if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
-                        return 0; // No meals included
-                    }
-                    
-                    let totalMealCost = 0;
-                    const totalGuests = adults + children;
-                    
-                    // If we have meal prices, use the actual prices from the database
-                    if (mealPrices && typeof mealPrices === 'object') {
-                        // Check if meals are available and calculate costs
-                        if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
-                            const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
-                            if (breakfastPrice > 0) {
-                                totalMealCost += breakfastPrice * totalGuests * numNights;
-                                console.log(`Breakfast: $${breakfastPrice} × ${totalGuests} guests × ${numNights} nights = $${breakfastPrice * totalGuests * numNights}`);
-                            }
-                        }
+                    // Function to test room data structure
+                    window.testRoomData = function() {
+                        console.log('=== TESTING ROOM DATA STRUCTURE ===');
                         
-                        if (mealPlan.includes('lunch')) {
-                            const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
-                            if (lunchPrice > 0) {
-                                totalMealCost += lunchPrice * totalGuests * numNights;
-                                console.log(`Lunch: $${lunchPrice} × ${totalGuests} guests × ${numNights} nights = $${lunchPrice * totalGuests * numNights}`);
-                            }
-                        }
-                        
-                        if (mealPlan.includes('dinner')) {
-                            const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
-                            if (dinnerPrice > 0) {
-                                totalMealCost += dinnerPrice * totalGuests * numNights;
-                                console.log(`Dinner: $${dinnerPrice} × ${totalGuests} guests × ${numNights} nights = $${dinnerPrice * totalGuests * numNights}`);
-                            }
-                        }
-                    } else {
-                        // No meal prices available from database - return 0 (no fallback defaults)
-                        console.log('No meal prices available from database for meal plan:', mealPlan);
-                        return 0;
-                    }
-                    
-                    console.log(`Meal cost calculation: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total Cost: $${totalMealCost}`);
-                    return totalMealCost;
-                }
-
-                function debugRoomData() {
-                    console.log('=== DEBUGGING ROOM DATA ===');
-                    
-                    if (window.roomData) {
-                        console.log('Available room data:', window.roomData);
-                        
-                        // Show structure of first room
-                        if (window.roomData.length > 0) {
-                            const firstRoom = window.roomData[0];
-                            console.log('First room structure:', firstRoom);
-                            console.log('Available fields:', Object.keys(firstRoom));
-                            
-                            // Check meal price fields
-                            console.log('Meal price fields:');
-                            console.log('  breakfast_price:', firstRoom.breakfast_price);
-                            console.log('  lunch_price:', firstRoom.lunch_price);
-                            console.log('  dinner_price:', firstRoom.dinner_price);
-                            console.log('  breakfast:', firstRoom.breakfast);
-                            console.log('  lunch:', firstRoom.lunch);
-                            console.log('  dinner:', firstRoom.dinner);
-                        }
-                        
-                        // Show all room types
-                        const roomTypes = [...new Set(window.roomData.map(room => room.room_type))];
-                        console.log('Available room types:', roomTypes);
-                        
-                        // Show all hotel IDs
-                        const hotelIds = [...new Set(window.roomData.map(room => room.hotel_unique_id))];
-                        console.log('Available hotel IDs:', hotelIds);
-                        
-                    } else {
-                        console.log('No room data available (window.roomData is null/undefined)');
-                    }
-                    
-                    // Also check current form values
-                    const hotelSelect = document.getElementById('hotelSelect');
-                    const roomTypeSelect = document.getElementById('roomTypeSelect');
-                    const mealPlanSelect = document.getElementById('mealPlanSelect');
-                    console.log('Current form values:');
-                    console.log('  Selected hotel:', hotelSelect ? hotelSelect.value : 'N/A');
-                    console.log('  Selected room type:', roomTypeSelect ? roomTypeSelect.value : 'N/A');
-                    console.log('  Selected meal plan:', mealPlanSelect ? mealPlanSelect.value : 'N/A');
-                    showNotification('Room data debug completed. Check console for details.', 'info');
-                }
-
-                // Function to test meal price fetching from room type options
-                function testMealPriceFetching() {
-                    console.log('=== TESTING MEAL PRICE FETCHING ===');
-                    const roomTypeSelect = document.getElementById('roomTypeSelect');
-                    if (!roomTypeSelect) {
-                        console.log('Room type select not found');
-                        return;
-                    }
-                    
-                    console.log('Room type select options:', roomTypeSelect.options.length);
-                    
-                    Array.from(roomTypeSelect.options).forEach((option, index) => {
-                        if (option.value) {
-                            console.log(`Option ${index + 1}: ${option.value}`);
-                            console.log('  Dataset:', {
-                                breakfastPrice: option.dataset.breakfastPrice,
-                                lunchPrice: option.dataset.lunchPrice,
-                                dinnerPrice: option.dataset.dinnerPrice,
-                                breakfast: option.dataset.breakfast,
-                                lunch: option.dataset.lunch,
-                                dinner: option.dataset.dinner
-                            });
-                        }
-                    });
-                    
-                    showNotification('Meal price fetching test completed. Check console for details.', 'info');
-                }
-
-                // Function to force update cost calculation
-                window.forceUpdateCost = function() {
-                    console.log('=== FORCING COST CALCULATION UPDATE ===');
-                    
-                    const mealPlanSelect = document.getElementById('mealPlanSelect');
-                    const selectedPersonsInput = document.getElementById('selectedPersons');
-                    
-                    console.log('Current meal plan:', mealPlanSelect ? mealPlanSelect.value : 'N/A');
-                    console.log('Current persons:', selectedPersonsInput ? selectedPersonsInput.value : 'N/A');
-                    console.log('Selected bed info:', window.selectedBedInfo);
-                    
-                    // Force update the cost calculation
-                    updateRoomCostCalculation();
-                    
-                    showNotification('Cost calculation updated. Check console for details.', 'info');
-                };
-
-                // Function to test room data structure
-                window.testRoomData = function() {
-                    console.log('=== TESTING ROOM DATA STRUCTURE ===');
-                    
-                    if (window.roomData && Array.isArray(window.roomData)) {
-                        console.log('Global room data available:', window.roomData.length, 'rooms');
-                        console.log('First room structure:', window.roomData[0]);
-                        
-                        if (window.roomData.length > 0) {
-                            const firstRoom = window.roomData[0];
-                            console.log('Available fields in first room:', Object.keys(firstRoom));
-                            console.log('Meal price fields:');
-                            console.log('  breakfast_price:', firstRoom.breakfast_price);
-                            console.log('  lunch_price:', firstRoom.lunch_price);
-                            console.log('  dinner_price:', firstRoom.dinner_price);
-                            console.log('  breakfast:', firstRoom.breakfast);
-                            console.log('  lunch:', firstRoom.lunch);
-                            console.log('  dinner:', firstRoom.dinner);
-                        }
-                        
-                        showNotification(`Room data available: ${window.roomData.length} rooms. Check console for details.`, 'info');
-                    } else {
-                        console.log('❌ No global room data available');
-                        showNotification('No global room data available.', 'error');
-                    }
-                };
-
-                // Function to test meal price retrieval
-                window.testMealPrices = function() {
-                    console.log('=== TESTING MEAL PRICE RETRIEVAL ===');
-                    
-                    const roomTypeSelect = document.getElementById('roomTypeSelect');
-                    if (!roomTypeSelect || !roomTypeSelect.value) {
-                        console.log('❌ No room type selected. Please select a room type first.');
-                        showNotification('Please select a room type first to test meal prices.', 'warning');
-                        return;
-                    }
-                    
-                    const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
-                    if (!selectedOption || !selectedOption.dataset) {
-                        console.log('❌ No dataset available for selected room type.');
-                        showNotification('No dataset available for selected room type.', 'error');
-                        return;
-                    }
-                    
-                    const mealPrices = {
-                        breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 0,
-                        lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 0,
-                        dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 0
-                    };
-                    
-                    console.log('Selected room type:', roomTypeSelect.value);
-                    console.log('Retrieved meal prices:', mealPrices);
-                    console.log('Raw dataset values:', {
-                        breakfastPrice: selectedOption.dataset.breakfastPrice,
-                        lunchPrice: selectedOption.dataset.lunchPrice,
-                        dinnerPrice: selectedOption.dataset.dinnerPrice
-                    });
-                    
-                    if (mealPrices.breakfast_price === 0 && mealPrices.lunch_price === 0 && mealPrices.dinner_price === 0) {
-                        console.log('❌ All meal prices are 0. This means:');
-                        console.log('1. The database values for breakfast_price, lunch_price, dinner_price are 0 or NULL');
-                        console.log('2. Or the room type dataset is not being populated correctly');
-                        console.log('');
-                        console.log('Check your database: SELECT room_id, room_type, breakfast_price, lunch_price, dinner_price FROM rooms WHERE hotel_id = [your_hotel_id]');
-                        
-                        // Try fallback from global room data
-                        console.log('Trying fallback from global room data...');
                         if (window.roomData && Array.isArray(window.roomData)) {
-                            const selectedRoomType = roomTypeSelect.value;
-                            const matchingRoom = window.roomData.find(room => room.room_type === selectedRoomType);
-                            if (matchingRoom) {
-                                const fallbackMealPrices = {
-                                    breakfast_price: parseFloat(matchingRoom.breakfast_price) || 0,
-                                    lunch_price: parseFloat(matchingRoom.lunch_price) || 0,
-                                    dinner_price: parseFloat(matchingRoom.dinner_price) || 0
-                                };
-                                console.log('✅ Fallback meal prices from room data:', fallbackMealPrices);
-                                showNotification(`Fallback meal prices found: Breakfast: $${fallbackMealPrices.breakfast_price}, Lunch: $${fallbackMealPrices.lunch_price}, Dinner: $${fallbackMealPrices.dinner_price}`, 'success');
-                                return fallbackMealPrices;
-                            } else {
-                                console.log('❌ No matching room found in global room data for:', selectedRoomType);
-                                showNotification('No matching room found in global room data.', 'error');
+                            console.log('Global room data available:', window.roomData.length, 'rooms');
+                            console.log('First room structure:', window.roomData[0]);
+                            
+                            if (window.roomData.length > 0) {
+                                const firstRoom = window.roomData[0];
+                                console.log('Available fields in first room:', Object.keys(firstRoom));
+                                console.log('Meal price fields:');
+                                console.log('  breakfast_price:', firstRoom.breakfast_price);
+                                console.log('  lunch_price:', firstRoom.lunch_price);
+                                console.log('  dinner_price:', firstRoom.dinner_price);
+                                console.log('  breakfast:', firstRoom.breakfast);
+                                console.log('  lunch:', firstRoom.lunch);
+                                console.log('  dinner:', firstRoom.dinner);
                             }
+                            
+                            showNotification(`Room data available: ${window.roomData.length} rooms. Check console for details.`, 'info');
                         } else {
-                            console.log('❌ Global room data not available:', window.roomData);
-                            showNotification('Global room data not available.', 'error');
+                            console.log('❌ No global room data available');
+                            showNotification('No global room data available.', 'error');
                         }
-                    } else {
-                        console.log('✅ Meal prices are available!');
-                        console.log('Breakfast: $' + mealPrices.breakfast_price);
-                        console.log('Lunch: $' + mealPrices.lunch_price);
-                        console.log('Dinner: $' + mealPrices.dinner_price);
-                        showNotification(`Meal prices found: Breakfast: $${mealPrices.breakfast_price}, Lunch: $${mealPrices.lunch_price}, Dinner: $${mealPrices.dinner_price}`, 'success');
-                    }
-                    
-                    return mealPrices;
-                };
+                    };
 
-                // Function to manually calculate correct meal costs (override current logic)
-                window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms, opts) {
-                    opts = opts || {};
-                    if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
-                        return 0;
-                    }
-                    
-                    let totalMealCost = 0;
-                    const totalGuests = adults + children;
-                    const skipBreakfastCost = !!opts.supplementBreakfastIncluded;
-                    
-                    if (mealPrices && typeof mealPrices === 'object') {
-                        if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
-                            const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
-                            if (breakfastPrice > 0) {
-                                const breakfastCost = breakfastPrice * totalGuests * numNights * numRooms;
-                                totalMealCost += breakfastCost;
-                                console.log(`CORRECTED Breakfast: $${breakfastPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${breakfastCost}`);
-                            }
+                    // Function to test meal price retrieval
+                    window.testMealPrices = function() {
+                        console.log('=== TESTING MEAL PRICE RETRIEVAL ===');
+                        
+                        const roomTypeSelect = document.getElementById('roomTypeSelect');
+                        if (!roomTypeSelect || !roomTypeSelect.value) {
+                            console.log('❌ No room type selected. Please select a room type first.');
+                            showNotification('Please select a room type first to test meal prices.', 'warning');
+                            return;
                         }
                         
-                        if (mealPlan.includes('lunch')) {
-                            const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
-                            if (lunchPrice > 0) {
-                                const lunchCost = lunchPrice * totalGuests * numNights * numRooms;
-                                totalMealCost += lunchCost;
-                                console.log(`CORRECTED Lunch: $${lunchPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${lunchCost}`);
-                            }
+                        const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+                        if (!selectedOption || !selectedOption.dataset) {
+                            console.log('❌ No dataset available for selected room type.');
+                            showNotification('No dataset available for selected room type.', 'error');
+                            return;
                         }
                         
-                        if (mealPlan.includes('dinner')) {
-                            const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
-                            if (dinnerPrice > 0) {
-                                const dinnerCost = dinnerPrice * totalGuests * numNights * numRooms;
-                                totalMealCost += dinnerCost;
-                                console.log(`CORRECTED Dinner: $${dinnerPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${dinnerCost}`);
-                            }
-                        }
-                    }
-                    
-                    console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: $${totalMealCost}`);
-                    return totalMealCost;
-                };
-
-                // Helper function to capture transfer options from form fields
-                window.captureTransferOptions = function() {
-                    const transferRequired = document.getElementById('hotel_transfer_required')?.value || 'No';
-                    let transferOptions = null;
-                    
-                    if (transferRequired === 'Yes') {
-                        const transferType = document.getElementById('hotel_transfer_type')?.value || '';
-                        const transferWay = document.getElementById('hotel_transfer_way')?.value || '';
-                        const transferVehicle = document.getElementById('hotel_transfer_vehicle')?.value || '';
-                        const transferCost = parseFloat(document.getElementById('hotel_transfer_cost')?.value || 0);
-                        const transferPickupLocation = document.getElementById('hotel_transfer_pickup_location')?.value || '';
-                        const transferDestination = document.getElementById('hotel_transfer_destination')?.value || '';
-                        
-                        // Get pickup location name
-                        let pickupLocationName = '';
-                        if (transferPickupLocation) {
-                            const pickupSelect = document.getElementById('hotel_transfer_pickup_location');
-                            const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
-                            if (selectedPickupOption) {
-                                pickupLocationName = selectedPickupOption.text || '';
-                            }
-                        }
-                        
-                        // Get destination name
-                        let destinationName = '';
-                        if (transferDestination) {
-                            const destinationSelect = document.getElementById('hotel_transfer_destination');
-                            const selectedDestinationOption = destinationSelect ? destinationSelect.options[destinationSelect.selectedIndex] : null;
-                            if (selectedDestinationOption) {
-                                destinationName = selectedDestinationOption.text || '';
-                            }
-                        }
-                        
-                        // Get vehicle details if vehicle is selected
-                        let vehicleDetails = null;
-                        if (transferVehicle) {
-                            const vehicleSelect = document.getElementById('hotel_transfer_vehicle');
-                            const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
-                            if (selectedVehicleOption) {
-                                vehicleDetails = {
-                                    vehicle_id: transferVehicle,
-                                    vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
-                                    vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
-                                    seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
-                                    private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
-                                    shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
-                                };
-                            }
-                        }
-                        
-                        transferOptions = {
-                            transfer_required: true,
-                            type: transferType,
-                            way: transferWay,
-                            vehicle_id: transferVehicle,
-                            vehicle_details: vehicleDetails,
-                            cost: transferCost,
-                            destination_id: transferDestination,
-                            destination_name: destinationName
+                        const mealPrices = {
+                            breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 0,
+                            lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 0,
+                            dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 0
                         };
                         
-                        console.log('Transfer options captured:', transferOptions);
-                    }
-                    
-                    return transferOptions;
-                };
-
-                // Function to collect hotel data when hotels are selected
-                window.updateHotelDataField = function() {
-                    // Safety check: ensure selectedHotels is an array
-                    if (!Array.isArray(selectedHotels)) {
-                        console.warn('selectedHotels is not an array, initializing as empty array');
-                        selectedHotels = [];
-                    }
-                    
-                    console.log('=== UPDATING HOTEL DATA FIELD ===');
-                    console.log('Total hotels to process:', selectedHotels.length);
-                    console.log('Selected hotels array:', selectedHotels);
-                    
-                    const hotelDataArray = selectedHotels.map((hotel, index) => {
-                        // Debug: Log the hotel object to see its structure
-                        console.log(`Processing hotel ${index + 1}:`, hotel);
-                        console.log(`Hotel ${index + 1} stored price:`, hotel.price);
-                        console.log(`Hotel ${index + 1} room type:`, hotel.roomType);
-                        console.log(`Hotel ${index + 1} nights:`, hotel.totalNights);
-                        console.log(`Hotel ${index + 1} rooms:`, hotel.numberOfRooms);
+                        console.log('Selected room type:', roomTypeSelect.value);
+                        console.log('Retrieved meal prices:', mealPrices);
+                        console.log('Raw dataset values:', {
+                            breakfastPrice: selectedOption.dataset.breakfastPrice,
+                            lunchPrice: selectedOption.dataset.lunchPrice,
+                            dinnerPrice: selectedOption.dataset.dinnerPrice
+                        });
                         
-                        // Get current guest information from main form
-                        const adults = parseInt(document.getElementById('adults').value) || 0;
-                        const male = parseInt(document.getElementById('male').value) || 0;
-                        const female = parseInt(document.getElementById('female').value) || 0;
-                        const children = parseInt(document.getElementById('children').value) || 0;
-                        const infants = parseInt(document.getElementById('infants').value) || 0;
+                        if (mealPrices.breakfast_price === 0 && mealPrices.lunch_price === 0 && mealPrices.dinner_price === 0) {
+                            console.log('❌ All meal prices are 0. This means:');
+                            console.log('1. The database values for breakfast_price, lunch_price, dinner_price are 0 or NULL');
+                            console.log('2. Or the room type dataset is not being populated correctly');
+                            console.log('');
+                            console.log('Check your database: SELECT room_id, room_type, breakfast_price, lunch_price, dinner_price FROM rooms WHERE hotel_id = [your_hotel_id]');
+                            
+                            // Try fallback from global room data
+                            console.log('Trying fallback from global room data...');
+                            if (window.roomData && Array.isArray(window.roomData)) {
+                                const selectedRoomType = roomTypeSelect.value;
+                                const matchingRoom = window.roomData.find(room => room.room_type === selectedRoomType);
+                                if (matchingRoom) {
+                                    const fallbackMealPrices = {
+                                        breakfast_price: parseFloat(matchingRoom.breakfast_price) || 0,
+                                        lunch_price: parseFloat(matchingRoom.lunch_price) || 0,
+                                        dinner_price: parseFloat(matchingRoom.dinner_price) || 0
+                                    };
+                                    console.log('✅ Fallback meal prices from room data:', fallbackMealPrices);
+                                    showNotification(`Fallback meal prices found: Breakfast: $${fallbackMealPrices.breakfast_price}, Lunch: $${fallbackMealPrices.lunch_price}, Dinner: $${fallbackMealPrices.dinner_price}`, 'success');
+                                    return fallbackMealPrices;
+                                } else {
+                                    console.log('❌ No matching room found in global room data for:', selectedRoomType);
+                                    showNotification('No matching room found in global room data.', 'error');
+                                }
+                            } else {
+                                console.log('❌ Global room data not available:', window.roomData);
+                                showNotification('Global room data not available.', 'error');
+                            }
+                        } else {
+                            console.log('✅ Meal prices are available!');
+                            console.log('Breakfast: $' + mealPrices.breakfast_price);
+                            console.log('Lunch: $' + mealPrices.lunch_price);
+                            console.log('Dinner: $' + mealPrices.dinner_price);
+                            showNotification(`Meal prices found: Breakfast: $${mealPrices.breakfast_price}, Lunch: $${mealPrices.lunch_price}, Dinner: $${mealPrices.dinner_price}`, 'success');
+                        }
+                        
+                        return mealPrices;
+                    };
+
+                    // Function to manually calculate correct meal costs (override current logic)
+                    window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms, opts) {
+                        opts = opts || {};
+                        if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
+                            return 0;
+                        }
+                        
+                        let totalMealCost = 0;
+                        const totalGuests = adults + children;
+                        const skipBreakfastCost = !!opts.supplementBreakfastIncluded;
+                        
+                        if (mealPrices && typeof mealPrices === 'object') {
+                            if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
+                                const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
+                                if (breakfastPrice > 0) {
+                                    const breakfastCost = breakfastPrice * totalGuests * numNights * numRooms;
+                                    totalMealCost += breakfastCost;
+                                    console.log(`CORRECTED Breakfast: $${breakfastPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${breakfastCost}`);
+                                }
+                            }
+                            
+                            if (mealPlan.includes('lunch')) {
+                                const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
+                                if (lunchPrice > 0) {
+                                    const lunchCost = lunchPrice * totalGuests * numNights * numRooms;
+                                    totalMealCost += lunchCost;
+                                    console.log(`CORRECTED Lunch: $${lunchPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${lunchCost}`);
+                                }
+                            }
+                            
+                            if (mealPlan.includes('dinner')) {
+                                const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
+                                if (dinnerPrice > 0) {
+                                    const dinnerCost = dinnerPrice * totalGuests * numNights * numRooms;
+                                    totalMealCost += dinnerCost;
+                                    console.log(`CORRECTED Dinner: $${dinnerPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${dinnerCost}`);
+                                }
+                            }
+                        }
+                        
+                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: $${totalMealCost}`);
+                        return totalMealCost;
+                    };
+
+                    // Helper function to capture transfer options from form fields
+                    window.captureTransferOptions = function() {
+                        const transferRequired = document.getElementById('hotel_transfer_required')?.value || 'No';
+                        let transferOptions = null;
+                        
+                        if (transferRequired === 'Yes') {
+                            const transferType = document.getElementById('hotel_transfer_type')?.value || '';
+                            const transferWay = document.getElementById('hotel_transfer_way')?.value || '';
+                            const transferVehicle = document.getElementById('hotel_transfer_vehicle')?.value || '';
+                            const transferCost = parseFloat(document.getElementById('hotel_transfer_cost')?.value || 0);
+                            const transferPickupLocation = document.getElementById('hotel_transfer_pickup_location')?.value || '';
+                            const transferDestination = document.getElementById('hotel_transfer_destination')?.value || '';
+                            
+                            // Get pickup location name
+                            let pickupLocationName = '';
+                            if (transferPickupLocation) {
+                                const pickupSelect = document.getElementById('hotel_transfer_pickup_location');
+                                const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
+                                if (selectedPickupOption) {
+                                    pickupLocationName = selectedPickupOption.text || '';
+                                }
+                            }
+                            
+                            // Get destination name
+                            let destinationName = '';
+                            if (transferDestination) {
+                                const destinationSelect = document.getElementById('hotel_transfer_destination');
+                                const selectedDestinationOption = destinationSelect ? destinationSelect.options[destinationSelect.selectedIndex] : null;
+                                if (selectedDestinationOption) {
+                                    destinationName = selectedDestinationOption.text || '';
+                                }
+                            }
+                            
+                            // Get vehicle details if vehicle is selected
+                            let vehicleDetails = null;
+                            if (transferVehicle) {
+                                const vehicleSelect = document.getElementById('hotel_transfer_vehicle');
+                                const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
+                                if (selectedVehicleOption) {
+                                    vehicleDetails = {
+                                        vehicle_id: transferVehicle,
+                                        vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
+                                        vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
+                                        seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
+                                        private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
+                                        shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
+                                    };
+                                }
+                            }
+                            
+                            transferOptions = {
+                                transfer_required: true,
+                                type: transferType,
+                                way: transferWay,
+                                vehicle_id: transferVehicle,
+                                vehicle_details: vehicleDetails,
+                                cost: transferCost,
+                                destination_id: transferDestination,
+                                destination_name: destinationName
+                            };
+                            
+                            console.log('Transfer options captured:', transferOptions);
+                        }
+                        
+                        return transferOptions;
+                    };
+
+                    // Function to collect hotel data when hotels are selected
+                    window.updateHotelDataField = function() {
+                        // Safety check: ensure selectedHotels is an array
+                        if (!Array.isArray(selectedHotels)) {
+                            console.warn('selectedHotels is not an array, initializing as empty array');
+                            selectedHotels = [];
+                        }
+                        
+                        console.log('=== UPDATING HOTEL DATA FIELD ===');
+                        console.log('Total hotels to process:', selectedHotels.length);
+                        console.log('Selected hotels array:', selectedHotels);
+                        
+                        const hotelDataArray = selectedHotels.map((hotel, index) => {
+                            // Debug: Log the hotel object to see its structure
+                            console.log(`Processing hotel ${index + 1}:`, hotel);
+                            console.log(`Hotel ${index + 1} stored price:`, hotel.price);
+                            console.log(`Hotel ${index + 1} room type:`, hotel.roomType);
+                            console.log(`Hotel ${index + 1} nights:`, hotel.totalNights);
+                            console.log(`Hotel ${index + 1} rooms:`, hotel.numberOfRooms);
+                            
+                            // Get current guest information from main form
+                            const adults = parseInt(document.getElementById('adults').value) || 0;
+                            const male = parseInt(document.getElementById('male').value) || 0;
+                            const female = parseInt(document.getElementById('female').value) || 0;
+                            const children = parseInt(document.getElementById('children').value) || 0;
+                            const infants = parseInt(document.getElementById('infants').value) || 0;
+                            
+                            // Get customer information from the Customer Information form
+                            const customerData = getCustomerData();
+                            
+                            // Find the selected hotel data from hotelData array
+                            const selectedHotelInfo = hotelData.find(h => h.hotel_unique_id == hotel.id);
+                            
+                            // Get selected check-in and check-out dates for bookingDate
+                            const currentYear = new Date().getFullYear();
+                            const checkInDate = hotel.checkInDate ? 
+                                moment(hotel.checkInDate + ' ' + currentYear, 'MMM DD YYYY').format('YYYY-MM-DD') : 
+                                new Date().toISOString().split('T')[0];
+                            const checkOutDate = hotel.checkOutDate ? 
+                                moment(hotel.checkOutDate + ' ' + currentYear, 'MMM DD YYYY').format('YYYY-MM-DD') : 
+                                new Date().toISOString().split('T')[0];
+                            
+                            return {
+                                // Customer Information (from Customer Information form)
+                                fullName: customerData.fullName,
+                                email: customerData.email,
+                                phone: customerData.phone,
+                                countryCode: customerData.countryCode,
+                                address1: customerData.address1,
+                                address2: customerData.address2,
+                                state: customerData.state,
+                                zip: customerData.zip,
+                                specialRequests: customerData.specialRequests,
+                                
+                                // Required fields for the exact format
+                                id: null,
+                                bookingType: 'enquiry',
+                                bookingDate: [checkInDate, checkOutDate], // Selected check-in and check-out dates
+                                
+                                // Hotel Details
+                                hotelDetails: selectedHotelInfo ? {
+                                    hotel_id: selectedHotelInfo.hotel_unique_id,
+                                    hotel_name: selectedHotelInfo.name,
+                                    image: selectedHotelInfo.main_image,
+                                    location: selectedHotelInfo.city,
+                                    checkInTime: selectedHotelInfo.check_in_time || "",
+                                    checkOutTime: selectedHotelInfo.check_out_time || "",
+                                    cancellation_charge: null
+                                } : {
+                                    hotel_id: hotel.id,
+                                    hotel_name: hotel.name,
+                                    image: "",
+                                    location: "Location not specified",
+                                    checkInTime: hotel.check_in_time || "",
+                                    checkOutTime: hotel.check_out_time || "",
+                                    cancellation_charge: null
+                                },
+                                
+                                // Price mode information
+                                priceMode: hotel.priceMode || 'dmc',
+                                priceModeId: parseInt('{{ $finalDmcId }}') || 0,
+                                
+                                // Rooms Array - Include the selected room data
+                                rooms: [{
+                                    room_id: hotel.roomId || hotel.room_id || "room_" + Date.now(), // Use room_id, not hotel_id
+                                    room_type: hotel.roomType || hotel.room_type || "",
+                                    occupancy: hotel.occupancy || "double",
+                                    selected_persons: parseInt(hotel.selectedPersons) || 1,
+                                    number_of_rooms: parseInt(hotel.numberOfRooms) || 1, // Number of rooms selected by user
+                                    breakfast_included: hotel.breakfast_included_room ? 1 : 0,
+                                    supplement_breakfast_included: hotel.supplement_breakfast_included ? 1 : 0,
+                                    beds: [{
+                                        bed_id: hotel.bedId || hotel.bed_id || "bed_" + Date.now(),
+                                        bed_type: hotel.bedType || hotel.bed_type || "", // Store bed type name, not ID
+                                        baby_cot: parseInt(hotel.baby_cot) || 0,
+                                        head_count: parseInt(hotel.selectedPersons) || 1,
+                                        max_occupancy: parseInt(hotel.maxOccupancy) || parseInt(hotel.max_occupancy) || (adults + children),
+                                        extra_bed: (parseInt(hotel.selectedPersons) || 1) > (parseInt(hotel.maxOccupancy) || 0) ? 1 : 0,
+                                        extra_bed_price: parseFloat(hotel.extraBedPrice) || 0,
+                                        extra_bed_cost: parseFloat(hotel.extraBedCost) || 0,
+                                        price: parseFloat(hotel.price) || 0,
+                                        mealTypes: [hotel.mealPlan || hotel.meal_plan || ""],
+                                        selectedMeals: {
+                                            meal_1: {
+                                                type: hotel.mealPlan || hotel.meal_plan || "",
+                                                // Calculate total meal cost using the same logic as the display
+                                                price: (() => {
+                                                    const numNights = parseInt(hotel.totalNights) || 1;
+                                                    const numRooms = parseInt(hotel.numberOfRooms) || 1;
+                                                    const numPersons = parseInt(hotel.selectedPersons) || 1;
+                                                    
+                                                    if (typeof window.calculateCorrectMealCosts === 'function') {
+                                                        return window.calculateCorrectMealCosts(
+                                                            hotel.mealPlan || hotel.meal_plan || "", 
+                                                            numNights, 
+                                                            numPersons, 
+                                                            0, 
+                                                            hotel.mealPrices, 
+                                                            numRooms,
+                                                            { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included }
+                                                        );
+                                                    }
+                                                    
+                                                    // Fallback calculation if function not available
+                                                    let mealCost = 0;
+                                                    if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
+                                                        const mealPlan = hotel.mealPlan || hotel.meal_plan || "";
+                                                        if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
+                                                            mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * numPersons * numNights * numRooms;
+                                                        }
+                                                        if (mealPlan.includes('lunch')) {
+                                                            mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * numPersons * numNights * numRooms;
+                                                        }
+                                                        if (mealPlan.includes('dinner')) {
+                                                            mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * numPersons * numNights * numRooms;
+                                                        }
+                                                    }
+                                                    return mealCost;
+                                                })()
+                                            }
+                                        }
+                                    }]
+                                }],
+                                
+                                // Child pricing (child_with_bed, child_without_bed) - include in JSON when present
+                                child_with_bed: (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? {
+                                    enabled: true,
+                                    price: parseFloat(hotel.childWithBedPrice) || 0,
+                                    children: Math.max(children || (parseInt(hotel.children) || 0), 1),
+                                    total_cost: (parseFloat(hotel.childWithBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                                } : null,
+                                child_without_bed: (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? {
+                                    enabled: true,
+                                    price: parseFloat(hotel.childWithoutBedPrice) || 0,
+                                    children: Math.max(children || (parseInt(hotel.children) || 0), 1),
+                                    total_cost: (parseFloat(hotel.childWithoutBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                                } : null,
+
+                                extra_bed: (() => {
+                                    const maxOcc = parseInt(hotel.maxOccupancy) || 0;
+                                    const sel = parseInt(hotel.selectedPersons) || 1;
+                                    const ebPrice = parseFloat(hotel.extraBedPrice) || 0;
+                                    if (ebPrice <= 0 || sel <= maxOcc) {
+                                        return null;
+                                    }
+                                    const numRooms = parseInt(hotel.numberOfRooms) || 1;
+                                    const numNights = parseInt(hotel.totalNights) || 1;
+                                    const extraPersons = sel - maxOcc;
+                                    const storedCost = parseFloat(hotel.extraBedCost);
+                                    const totalCost = Number.isFinite(storedCost) && storedCost >= 0
+                                        ? storedCost
+                                        : extraPersons * ebPrice * numRooms * numNights;
+                                    return {
+                                        price_per_night: ebPrice,
+                                        extra_persons: extraPersons,
+                                        rooms: numRooms,
+                                        nights: numNights,
+                                        total_cost: totalCost
+                                    };
+                                })(),
+                                
+                                // Calculate total price: stored room price (already includes all nights) × number of rooms + meal costs + child costs
+                                totalPrice: (() => {
+                                    // Use the stored price from when the hotel was added
+                                    // This price already includes the correct weekday/weekend calculation for all nights
+                                    let totalRoomPrice = parseFloat(hotel.price) || 0;
+                                    
+                                    // If no stored price, calculate from scratch using per-night breakdown
+                                    if (totalRoomPrice === 0 && hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
+                                        // Sum up the per-night prices
+                                        totalRoomPrice = hotel.priceBreakdown.reduce((sum, night) => sum + night.price, 0);
+                                        console.log(`Calculated room price from breakdown: $${totalRoomPrice}`);
+                                    }
+                                    
+                                    const numRooms = parseInt(hotel.numberOfRooms) || 1;
+                                    const numNights = parseInt(hotel.totalNights) || 1;
+                                    const numChildrenForCwb = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? Math.max(children || (parseInt(hotel.children) || 0), 1) : 0;
+                                    const numChildrenForCnb = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? Math.max(children || (parseInt(hotel.children) || 0), 1) : 0;
+                                    
+                                    const maxOcc = parseInt(hotel.maxOccupancy) || 0;
+                                    const selPersons = parseInt(hotel.selectedPersons) || 1;
+                                    let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
+                                    if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && selPersons > maxOcc) {
+                                        const extraPersons = selPersons - maxOcc;
+                                        extraBedCost = extraPersons * parseFloat(hotel.extraBedPrice) * numRooms * numNights;
+                                    }
+
+                                    let roomAndExtraBedCost;
+                                    if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
+                                        // Price input override already includes room + extra bed
+                                        roomAndExtraBedCost = parseFloat(hotel.customRoomPrice) || parseFloat(hotel.combinedRoomTotal) || 0;
+                                        extraBedCost = 0;
+                                    } else {
+                                        const combined = parseFloat(hotel.combinedRoomTotal);
+                                        if (Number.isFinite(combined) && combined > 0) {
+                                            roomAndExtraBedCost = combined;
+                                            extraBedCost = 0;
+                                        } else {
+                                            roomAndExtraBedCost = (totalRoomPrice * numRooms) + extraBedCost;
+                                        }
+                                    }
+                                    
+                                    // Calculate meal costs based on meal plan, guest count, and number of rooms
+                                    const mealCost = (typeof window.calculateCorrectMealCosts === 'function') 
+                                        ? window.calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included })
+                                        : 0;
+                                    
+                                    // Calculate child with bed and child without bed costs
+                                    const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * numChildrenForCwb * numRooms * numNights : 0;
+                                    const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * numChildrenForCnb * numRooms * numNights : 0;
+                                    
+                                    const total = roomAndExtraBedCost + mealCost + cwbCost + cnbCost;
+                                    console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room+extra bed: $${roomAndExtraBedCost}, Meal cost: $${mealCost}, Extra bed (in room line): $${extraBedCost}, Child with bed: $${cwbCost}, Child without bed: $${cnbCost}, Total: $${total}`);
+                                    
+                                    // Log weekday/weekend breakdown if available
+                                    if (hotel.weekdayNights || hotel.weekendNights) {
+                                        console.log(`  - Weekday nights: ${hotel.weekdayNights || 0}, Weekend nights: ${hotel.weekendNights || 0}`);
+                                    }
+                                    
+                                    return total;
+                                })(),
+                                
+                                // Tour ID as integer
+                                tour_id: parseInt(hotel.tour_id) || 0,
+                                
+                                // Transfer Options - Use stored transfer options from when hotel was added
+                                transfer_options: hotel.transferOptions || null,
+                                
+                                // Remarks - use current section-level hotel_remarks or per-hotel remarks
+                                remarks: document.getElementById('hotel_remarks')?.value || hotel.remarks || '',
+                                
+                                // supplement: only true when user explicitly checks it
+                                supplement: (() => {
+                                    const checkboxChecked = document.getElementById(`hotel_is_supplement_${index}`)?.checked || false;
+                                    return checkboxChecked;
+                                })(),
+
+                                supplement_breakfast_included: (() => {
+                                    const cardChk = document.getElementById(`hotel_supplement_breakfast_${index}`);
+                                    if (cardChk) {
+                                        return cardChk.checked;
+                                    }
+                                    return !!(hotel.supplement_breakfast_included);
+                                })(),
+                                breakfast_included_room: hotel.breakfast_included_room ? 1 : 0
+                            };
+                        });
+                        
+                        // Update the hidden field with JSON string
+                        const hotelDataField = document.getElementById('hotel_data');
+                        if (hotelDataField) {
+                            hotelDataField.value = JSON.stringify(hotelDataArray);
+                            console.log('Hotel data updated:', hotelDataArray);
+                            
+                            // Log the final calculated prices for each hotel
+                            console.log('=== FINAL HOTEL PRICING SUMMARY ===');
+                            hotelDataArray.forEach((hotel, index) => {
+                                console.log(`Hotel ${index + 1} (${hotel.hotelDetails.hotel_name}):`);
+                                console.log(`  - Calculated totalPrice: $${hotel.totalPrice}`);
+                                if (hotel.child_with_bed) console.log(`  - Child with bed: $${hotel.child_with_bed.total_cost} (${hotel.child_with_bed.children} children @ $${hotel.child_with_bed.price})`);
+                                if (hotel.child_without_bed) console.log(`  - Child without bed: $${hotel.child_without_bed.total_cost} (${hotel.child_without_bed.children} children @ $${hotel.child_without_bed.price})`);
+                                console.log(`  - Room type: ${hotel.rooms[0].room_type}`);
+                                console.log(`  - Bed type: ${hotel.rooms[0].beds[0].bed_type}`);
+                                console.log(`  - Tour ID: ${hotel.tour_id}`);
+                                console.log(`  - Price Mode ID: ${hotel.priceModeId}`);
+                                console.log(`  - Transfer Options:`, hotel.transfer_options);
+                            });
+                            
+                            // Verify transfer options are in the JSON string
+                            const jsonString = hotelDataField.value;
+                            console.log('=== VERIFYING TRANSFER OPTIONS IN JSON ===');
+                            if (jsonString.includes('transfer_options')) {
+                                console.log('✅ transfer_options found in JSON string');
+                                try {
+                                    const parsed = JSON.parse(jsonString);
+                                    parsed.forEach((hotel, index) => {
+                                        if (hotel.transfer_options) {
+                                            console.log(`✅ Hotel ${index + 1} has transfer_options:`, hotel.transfer_options);
+                                        } else {
+                                            console.warn(`⚠️ Hotel ${index + 1} is missing transfer_options`);
+                                        }
+                                    });
+                                } catch (e) {
+                                    console.error('Error parsing hotel data JSON:', e);
+                                }
+                            } else {
+                                console.warn('⚠️ transfer_options NOT found in JSON string');
+                            }
+                        }
+                        
+                        // Update package total price display
+                        updatePackageTotalPriceDisplay();
+                    };
+
+                    // Function to fetch attraction details dynamically
+                    async function fetchAttractionDetails(attractionId, ticketId) {
+                        try {
+                            // Fetch attraction details
+                            const attractionResponse = await fetch(`/api/attractions/${attractionId}`);
+                            const attractionData = await attractionResponse.json();
+                            
+                            // Fetch ticket details
+                            const ticketResponse = await fetch(`/api/tickets/${ticketId}`);
+                            const ticketData = await ticketResponse.json();
+                            
+                            // Combine the data
+                            return {
+                                adult_price: ticketData.adult_price || 0,
+                                child_price: ticketData.child_price || 0,
+                                senior_price: ticketData.senior_price || 0,
+                                description: ticketData.description || "",
+                                nri: ticketData.nri || "",
+                                package_attraction_id: attractionData.package_attraction_id || null
+                            };
+                        } catch (error) {
+                            console.error('Error fetching attraction details:', error);
+                            // Return default values if API fails
+                            return {
+                                adult_price: 0,
+                                child_price: 0,
+                                senior_price: 0,
+                                description: "",
+                                nri: "",
+                                package_attraction_id: null
+                            };
+                        }
+                    }
+
+                    // Function to collect attraction data
+                    function updateAttractionDataField() {
+                        const attractionDataArray = [];
                         
                         // Get customer information from the Customer Information form
                         const customerData = getCustomerData();
                         
-                        // Find the selected hotel data from hotelData array
-                        const selectedHotelInfo = hotelData.find(h => h.hotel_unique_id == hotel.id);
-                        
-                        // Get selected check-in and check-out dates for bookingDate
-                        const currentYear = new Date().getFullYear();
-                        const checkInDate = hotel.checkInDate ? 
-                            moment(hotel.checkInDate + ' ' + currentYear, 'MMM DD YYYY').format('YYYY-MM-DD') : 
-                            new Date().toISOString().split('T')[0];
-                        const checkOutDate = hotel.checkOutDate ? 
-                            moment(hotel.checkOutDate + ' ' + currentYear, 'MMM DD YYYY').format('YYYY-MM-DD') : 
-                            new Date().toISOString().split('T')[0];
-                        
-                        return {
-                            // Customer Information (from Customer Information form)
-                            fullName: customerData.fullName,
-                            email: customerData.email,
-                            phone: customerData.phone,
-                            countryCode: customerData.countryCode,
-                            address1: customerData.address1,
-                            address2: customerData.address2,
-                            state: customerData.state,
-                            zip: customerData.zip,
-                            specialRequests: customerData.specialRequests,
-                            
-                            // Required fields for the exact format
-                            id: null,
-                            bookingType: 'enquiry',
-                            bookingDate: [checkInDate, checkOutDate], // Selected check-in and check-out dates
-                            
-                            // Hotel Details
-                            hotelDetails: selectedHotelInfo ? {
-                                hotel_id: selectedHotelInfo.hotel_unique_id,
-                                hotel_name: selectedHotelInfo.name,
-                                image: selectedHotelInfo.main_image,
-                                location: selectedHotelInfo.city,
-                                checkInTime: selectedHotelInfo.check_in_time || "",
-                                checkOutTime: selectedHotelInfo.check_out_time || "",
-                                cancellation_charge: null
-                            } : {
-                                hotel_id: hotel.id,
-                                hotel_name: hotel.name,
-                                image: "",
-                                location: "Location not specified",
-                                checkInTime: hotel.check_in_time || "",
-                                checkOutTime: hotel.check_out_time || "",
-                                cancellation_charge: null
-                            },
-                            
-                            // Price mode information
-                            priceMode: hotel.priceMode || 'dmc',
-                            priceModeId: parseInt('{{ $finalDmcId }}') || 0,
-                            
-                            // Rooms Array - Include the selected room data
-                            rooms: [{
-                                room_id: hotel.roomId || hotel.room_id || "room_" + Date.now(), // Use room_id, not hotel_id
-                                room_type: hotel.roomType || hotel.room_type || "",
-                                occupancy: hotel.occupancy || "double",
-                                selected_persons: parseInt(hotel.selectedPersons) || 1,
-                                number_of_rooms: parseInt(hotel.numberOfRooms) || 1, // Number of rooms selected by user
-                                breakfast_included: hotel.breakfast_included_room ? 1 : 0,
-                                supplement_breakfast_included: hotel.supplement_breakfast_included ? 1 : 0,
-                                beds: [{
-                                    bed_id: hotel.bedId || hotel.bed_id || "bed_" + Date.now(),
-                                    bed_type: hotel.bedType || hotel.bed_type || "", // Store bed type name, not ID
-                                    baby_cot: parseInt(hotel.baby_cot) || 0,
-                                    head_count: parseInt(hotel.selectedPersons) || 1,
-                                    max_occupancy: parseInt(hotel.maxOccupancy) || parseInt(hotel.max_occupancy) || (adults + children),
-                                    extra_bed: (parseInt(hotel.selectedPersons) || 1) > (parseInt(hotel.maxOccupancy) || 0) ? 1 : 0,
-                                    extra_bed_price: parseFloat(hotel.extraBedPrice) || 0,
-                                    extra_bed_cost: parseFloat(hotel.extraBedCost) || 0,
-                                    price: parseFloat(hotel.price) || 0,
-                                    mealTypes: [hotel.mealPlan || hotel.meal_plan || ""],
-                                    selectedMeals: {
-                                        meal_1: {
-                                            type: hotel.mealPlan || hotel.meal_plan || "",
-                                            // Calculate total meal cost using the same logic as the display
-                                            price: (() => {
-                                                const numNights = parseInt(hotel.totalNights) || 1;
-                                                const numRooms = parseInt(hotel.numberOfRooms) || 1;
-                                                const numPersons = parseInt(hotel.selectedPersons) || 1;
-                                                
-                                                if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                    return window.calculateCorrectMealCosts(
-                                                        hotel.mealPlan || hotel.meal_plan || "", 
-                                                        numNights, 
-                                                        numPersons, 
-                                                        0, 
-                                                        hotel.mealPrices, 
-                                                        numRooms,
-                                                        { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included }
-                                                    );
-                                                }
-                                                
-                                                // Fallback calculation if function not available
-                                                let mealCost = 0;
-                                                if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                    const mealPlan = hotel.mealPlan || hotel.meal_plan || "";
-                                                    if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
-                                                        mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * numPersons * numNights * numRooms;
-                                                    }
-                                                    if (mealPlan.includes('lunch')) {
-                                                        mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * numPersons * numNights * numRooms;
-                                                    }
-                                                    if (mealPlan.includes('dinner')) {
-                                                        mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * numPersons * numNights * numRooms;
-                                                    }
-                                                }
-                                                return mealCost;
-                                            })()
-                                        }
-                                    }
-                                }]
-                            }],
-                            
-                            // Child pricing (child_with_bed, child_without_bed) - include in JSON when present
-                            child_with_bed: (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? {
-                                enabled: true,
-                                price: parseFloat(hotel.childWithBedPrice) || 0,
-                                children: Math.max(children || (parseInt(hotel.children) || 0), 1),
-                                total_cost: (parseFloat(hotel.childWithBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
-                            } : null,
-                            child_without_bed: (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? {
-                                enabled: true,
-                                price: parseFloat(hotel.childWithoutBedPrice) || 0,
-                                children: Math.max(children || (parseInt(hotel.children) || 0), 1),
-                                total_cost: (parseFloat(hotel.childWithoutBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
-                            } : null,
-
-                            extra_bed: (() => {
-                                const maxOcc = parseInt(hotel.maxOccupancy) || 0;
-                                const sel = parseInt(hotel.selectedPersons) || 1;
-                                const ebPrice = parseFloat(hotel.extraBedPrice) || 0;
-                                if (ebPrice <= 0 || sel <= maxOcc) {
-                                    return null;
-                                }
-                                const numRooms = parseInt(hotel.numberOfRooms) || 1;
-                                const numNights = parseInt(hotel.totalNights) || 1;
-                                const extraPersons = sel - maxOcc;
-                                const storedCost = parseFloat(hotel.extraBedCost);
-                                const totalCost = Number.isFinite(storedCost) && storedCost >= 0
-                                    ? storedCost
-                                    : extraPersons * ebPrice * numRooms * numNights;
-                                return {
-                                    price_per_night: ebPrice,
-                                    extra_persons: extraPersons,
-                                    rooms: numRooms,
-                                    nights: numNights,
-                                    total_cost: totalCost
-                                };
-                            })(),
-                            
-                            // Calculate total price: stored room price (already includes all nights) × number of rooms + meal costs + child costs
-                            totalPrice: (() => {
-                                // Use the stored price from when the hotel was added
-                                // This price already includes the correct weekday/weekend calculation for all nights
-                                let totalRoomPrice = parseFloat(hotel.price) || 0;
-                                
-                                // If no stored price, calculate from scratch using per-night breakdown
-                                if (totalRoomPrice === 0 && hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
-                                    // Sum up the per-night prices
-                                    totalRoomPrice = hotel.priceBreakdown.reduce((sum, night) => sum + night.price, 0);
-                                    console.log(`Calculated room price from breakdown: $${totalRoomPrice}`);
-                                }
-                                
-                                const numRooms = parseInt(hotel.numberOfRooms) || 1;
-                                const numNights = parseInt(hotel.totalNights) || 1;
-                                const numChildrenForCwb = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? Math.max(children || (parseInt(hotel.children) || 0), 1) : 0;
-                                const numChildrenForCnb = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? Math.max(children || (parseInt(hotel.children) || 0), 1) : 0;
-                                
-                                const maxOcc = parseInt(hotel.maxOccupancy) || 0;
-                                const selPersons = parseInt(hotel.selectedPersons) || 1;
-                                let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
-                                if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && selPersons > maxOcc) {
-                                    const extraPersons = selPersons - maxOcc;
-                                    extraBedCost = extraPersons * parseFloat(hotel.extraBedPrice) * numRooms * numNights;
-                                }
-
-                                let roomAndExtraBedCost;
-                                if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
-                                    // Price input override already includes room + extra bed
-                                    roomAndExtraBedCost = parseFloat(hotel.customRoomPrice) || parseFloat(hotel.combinedRoomTotal) || 0;
-                                    extraBedCost = 0;
-                                } else {
-                                    const combined = parseFloat(hotel.combinedRoomTotal);
-                                    if (Number.isFinite(combined) && combined > 0) {
-                                        roomAndExtraBedCost = combined;
-                                        extraBedCost = 0;
-                                    } else {
-                                        roomAndExtraBedCost = (totalRoomPrice * numRooms) + extraBedCost;
-                                    }
-                                }
-                                
-                                // Calculate meal costs based on meal plan, guest count, and number of rooms
-                                const mealCost = (typeof window.calculateCorrectMealCosts === 'function') 
-                                    ? window.calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included })
-                                    : 0;
-                                
-                                // Calculate child with bed and child without bed costs
-                                const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * numChildrenForCwb * numRooms * numNights : 0;
-                                const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * numChildrenForCnb * numRooms * numNights : 0;
-                                
-                                const total = roomAndExtraBedCost + mealCost + cwbCost + cnbCost;
-                                console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room+extra bed: $${roomAndExtraBedCost}, Meal cost: $${mealCost}, Extra bed (in room line): $${extraBedCost}, Child with bed: $${cwbCost}, Child without bed: $${cnbCost}, Total: $${total}`);
-                                
-                                // Log weekday/weekend breakdown if available
-                                if (hotel.weekdayNights || hotel.weekendNights) {
-                                    console.log(`  - Weekday nights: ${hotel.weekdayNights || 0}, Weekend nights: ${hotel.weekendNights || 0}`);
-                                }
-                                
-                                return total;
-                            })(),
-                            
-                            // Tour ID as integer
-                            tour_id: parseInt(hotel.tour_id) || 0,
-                            
-                            // Transfer Options - Use stored transfer options from when hotel was added
-                            transfer_options: hotel.transferOptions || null,
-                            
-                            // Remarks - use current section-level hotel_remarks or per-hotel remarks
-                            remarks: document.getElementById('hotel_remarks')?.value || hotel.remarks || '',
-                            
-                            // supplement: only true when user explicitly checks it
-                            supplement: (() => {
-                                const checkboxChecked = document.getElementById(`hotel_is_supplement_${index}`)?.checked || false;
-                                return checkboxChecked;
-                            })(),
-
-                            supplement_breakfast_included: (() => {
-                                const cardChk = document.getElementById(`hotel_supplement_breakfast_${index}`);
-                                if (cardChk) {
-                                    return cardChk.checked;
-                                }
-                                return !!(hotel.supplement_breakfast_included);
-                            })(),
-                            breakfast_included_room: hotel.breakfast_included_room ? 1 : 0
+                        // Get current DMC information
+                        const dmcInfo = {
+                            dmc_id: '{{ $finalDmcId }}',
+                            user_id: '{{ $currentUserId }}',
+                            role_id: '{{ $currentUserRole }}',
+                            created_by: '{{ $createdBy }}',
+                            is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
                         };
-                    });
-                    
-                    // Update the hidden field with JSON string
-                    const hotelDataField = document.getElementById('hotel_data');
-                    if (hotelDataField) {
-                        hotelDataField.value = JSON.stringify(hotelDataArray);
-                        console.log('Hotel data updated:', hotelDataArray);
                         
-                        // Log the final calculated prices for each hotel
-                        console.log('=== FINAL HOTEL PRICING SUMMARY ===');
-                        hotelDataArray.forEach((hotel, index) => {
-                            console.log(`Hotel ${index + 1} (${hotel.hotelDetails.hotel_name}):`);
-                            console.log(`  - Calculated totalPrice: $${hotel.totalPrice}`);
-                            if (hotel.child_with_bed) console.log(`  - Child with bed: $${hotel.child_with_bed.total_cost} (${hotel.child_with_bed.children} children @ $${hotel.child_with_bed.price})`);
-                            if (hotel.child_without_bed) console.log(`  - Child without bed: $${hotel.child_without_bed.total_cost} (${hotel.child_without_bed.children} children @ $${hotel.child_without_bed.price})`);
-                            console.log(`  - Room type: ${hotel.rooms[0].room_type}`);
-                            console.log(`  - Bed type: ${hotel.rooms[0].beds[0].bed_type}`);
-                            console.log(`  - Tour ID: ${hotel.tour_id}`);
-                            console.log(`  - Price Mode ID: ${hotel.priceModeId}`);
-                            console.log(`  - Transfer Options:`, hotel.transfer_options);
+                        // Get all attraction selections from all days
+                        document.querySelectorAll('.attraction-select').forEach(select => {
+                            if (select.value) {
+                                const dayMatch = select.name.match(/day(\d+)_attraction_(\d+)/);
+                                if (dayMatch) {
+                                    const day = dayMatch[1];
+                                    const index = dayMatch[2];
+                                    
+                                    const timeSlot = document.getElementById(`day${day}_attraction_${index}_time`)?.value || '';
+                                    const ticket = document.getElementById(`day${day}_attraction_${index}_ticket`)?.value || '';
+                                    const guestSummaryEl = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
+                                    
+                                    // Parse guest info from summary badges/HTML so children counts are accurate
+                                    const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
+                                    
+                                    // Get attraction details from the selected option and fetch dynamic data
+                                    const selectedOption = select.options[select.selectedIndex];
+                                    const attractionId = select.value;
+                                    const ticketId = ticket;
+                                    
+                                    // Get ticket name from the ticket select element
+                                    const ticketSelect = document.getElementById(`day${day}_attraction_${index}_ticket`);
+                                    const ticketName = ticketSelect ? ticketSelect.options[ticketSelect.selectedIndex]?.text || `Ticket ${ticketId}` : `Ticket ${ticketId}`;
+                                    
+                                    // Get transfer options
+                                    const transferRequired = document.getElementById(`day${day}_attraction_${index}_transfer_required`)?.value || 'No';
+                                    let transferOptions = null;
+                                    
+                                    if (transferRequired === 'Yes') {
+                                        const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`)?.value || '';
+                                        const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`)?.value || '';
+                                        const transferVehicle = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`)?.value || '';
+                                        const transferCostBase = parseFloat(document.getElementById(`day${day}_attraction_${index}_transfer_cost`)?.value || 0);
+                                        // For Shared transfer, store total (base × pax) so DB matches displayed price
+                                        let transferCost = transferCostBase;
+                                        if (transferType === 'Shared' && transferCostBase > 0) {
+                                            const guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                                            transferCost = transferCostBase * (guestCount > 0 ? guestCount : 1);
+                                        }
+                                        const transferPickupLocation = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`)?.value || '';
+                                        
+                                        // Get pickup location name
+                                        let pickupLocationName = '';
+                                        if (transferPickupLocation) {
+                                            const pickupSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
+                                            const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
+                                            if (selectedPickupOption) {
+                                                pickupLocationName = selectedPickupOption.text || '';
+                                            }
+                                        }
+                                        
+                                        // Get vehicle details if vehicle is selected
+                                        let vehicleDetails = null;
+                                        if (transferVehicle) {
+                                            const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+                                            const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
+                                            if (selectedVehicleOption) {
+                                                vehicleDetails = {
+                                                    vehicle_id: transferVehicle,
+                                                    vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
+                                                    vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
+                                                    seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
+                                                    private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
+                                                    shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
+                                                };
+                                            }
+                                        }
+                                        
+                                        const transferPickupTime = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time`)?.value || '';
+                                        
+                                        transferOptions = {
+                                            transfer_required: true,
+                                            type: transferType,
+                                            way: transferWay,
+                                            vehicle_id: transferVehicle,
+                                            vehicle_details: vehicleDetails,
+                                            cost: transferCost,
+                                            pickup_location_id: transferPickupLocation,
+                                            pickup_location_name: pickupLocationName,
+                                            pickup_time: transferPickupTime
+                                        };
+                                    }
+                                    
+                                    // Get attraction details and calculate prices
+                                    // Get prices from the selected TICKET option data attributes (not attraction)
+                                    const selectedTicketOption = ticketSelect ? ticketSelect.options[ticketSelect.selectedIndex] : null;
+                                    const adultPrice = selectedTicketOption ? parseFloat(selectedTicketOption.dataset.adultPrice || 0) : 0;
+                                    const childPrice = selectedTicketOption ? parseFloat(selectedTicketOption.dataset.childPrice || 0) : 0;
+                                    const seniorPrice = selectedTicketOption ? parseFloat(selectedTicketOption.dataset.seniorPrice || 0) : 0;
+                                    
+                                    // If no prices in ticket data attributes, try to get from form fields as fallback
+                                    const fallbackAdultPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_adult_price`)?.value || 0);
+                                    const fallbackChildPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_child_price`)?.value || 0);
+                                    const fallbackSeniorPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_senior_price`)?.value || 0);
+                                    
+                                    // Use ticket data attributes if available, otherwise use form fields
+                                    const finalAdultPrice = adultPrice || fallbackAdultPrice;
+                                    const finalChildPrice = childPrice || fallbackChildPrice;
+                                    const finalSeniorPrice = seniorPrice || fallbackSeniorPrice;
+                                    
+                                    // Calculate total price dynamically
+                                    const totalPrice = (guestInfo.adults * finalAdultPrice) + 
+                                                    (guestInfo.children * finalChildPrice) + 
+                                                    (guestInfo.seniors * finalSeniorPrice);
+                                    
+                                    console.log(`Attraction pricing: ${selectedOption.text} - Adult: $${finalAdultPrice} × ${guestInfo.adults}, Child: $${finalChildPrice} × ${guestInfo.children}, Senior: $${finalSeniorPrice} × ${guestInfo.seniors}, Total: $${totalPrice}`);
+                                    
+                                    attractionDataArray.push({
+                                        // Customer Information (from Customer Information form)
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        countryCode: customerData.countryCode,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2,
+                                        state: customerData.state,
+                                        zip: customerData.zip,
+                                        specialRequests: customerData.specialRequests,
+                                        
+                                        // Attraction Information
+                                        bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || getTourDateForDay(day),
+                                        visitTime: timeSlot || "10:00-00:00",
+                                        adultCount: guestInfo.adults || 0,
+                                        childCount: guestInfo.children || 0,
+                                        seniorCount: guestInfo.seniors || 0,
+                                        AttractionId: parseInt(attractionId),
+                                        AttractionName: selectedOption.text,
+                                        ticketId: parseInt(ticketId) || 10000001,
+                                        ticketName: ticketName,
+                                        
+                                        // Ticket Details (with proper pricing)
+                                        ticket_details: {
+                                            adult_price: finalAdultPrice,
+                                            child_price: finalChildPrice,
+                                            senior_price: finalSeniorPrice,
+                                            description: document.getElementById(`day${day}_attraction_${index}_description`)?.value || "",
+                                            nri: document.getElementById(`day${day}_attraction_${index}_nri`)?.value || "residential"
+                                        },
+                                        
+                                        // Transport and Mode
+                                        transport: document.getElementById(`day${day}_attraction_${index}_transport`)?.value || null,
+                                        Selection: document.getElementById(`day${day}_attraction_${index}_transport_selection`)?.value || "withoutTransport",
+                                        mode: "dmc",
+                                        
+                                        // Pricing (calculated dynamically - NOT null)
+                                        totalPrice: totalPrice,
+                                        nri: document.getElementById(`day${day}_attraction_${index}_nri`)?.value || "residential",
+                                        price: totalPrice,
+                                        prices: {
+                                            price: totalPrice
+                                        },
+                                        
+                                        // DMC and Package Info
+                                        dmc_id: dmcInfo.dmc_id,
+                                        created_by_dmc: dmcInfo.dmc_id,
+                                        user_id: dmcInfo.user_id,
+                                        user_role: dmcInfo.role_id,
+                                        bookingType: document.getElementById(`day${day}_attraction_${index}_booking_type`)?.value || "booking",
+                                        package_type: parseInt(document.getElementById(`day${day}_attraction_${index}_package_type`)?.value || 0),
+                                        package_attraction_id: parseInt(document.getElementById(`day${day}_attraction_${index}_package_attraction_id`)?.value || null),
+                                        
+                                        // Transfer Options
+                                        transfer_options: transferOptions,
+                                        
+                                        // Remarks
+                                        remarks: document.getElementById(`day${day}_attraction_${index}_remarks`)?.value || '',
+                                        
+                                        // supplement: true if checkbox checked OR if service adults < tour adults (stored as supplement in DB)
+                                        supplement: (() => {
+                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                            const serviceAdults = guestInfo.adults || 0;
+                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_attraction_${index}_is_supplement`)?.checked || false);
+                                        })(),
+                                        
+                                        // Guide Options
+                                        guide_options: (() => {
+                                            const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`)?.value || 'No';
+                                            if (guideRequired === 'Yes') {
+                                                const guideId = document.getElementById(`day${day}_attraction_${index}_guide`)?.value || '';
+                                                const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+                                                const guideName = guideSelect ? guideSelect.options[guideSelect.selectedIndex]?.text || '' : '';
+                                                
+                                                // Get selected language
+                                                const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
+                                                const language = languageSelect ? languageSelect.value || '' : '';
+                                                
+                                                // Get pickup time - try hidden input first, then fallback to Select2 element
+                                                let pickupTime = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`)?.value || '';
+                                                if (!pickupTime) {
+                                                    // Fallback: try to get from Select2 element
+                                                    const pickupTimeSelect = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_select`);
+                                                    if (pickupTimeSelect) {
+                                                        pickupTime = pickupTimeSelect.value || '';
+                                                        // If Select2 is initialized, try to get the value from Select2
+                                                        if (typeof jQuery !== 'undefined' && jQuery(pickupTimeSelect).data('select2')) {
+                                                            pickupTime = jQuery(pickupTimeSelect).val() || '';
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                const packageHours = document.getElementById(`day${day}_attraction_${index}_guide_package`)?.value || '';
+                                                const basePrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_base_price`)?.value || 0);
+                                                const hours = parseInt(document.getElementById(`day${day}_attraction_${index}_guide_hours`)?.value || 0);
+                                                const surcharge = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_surcharge`)?.value || 0);
+                                                const totalPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_total_price`)?.value || 0);
+                                                
+                                                return {
+                                                    guide_required: true,
+                                                    guide_id: guideId,
+                                                    guide_name: guideName,
+                                                    language: language,
+                                                    pickup_time: pickupTime,
+                                                    package_hours: packageHours,
+                                                    base_price: basePrice,
+                                                    hours: hours,
+                                                    surcharge: surcharge,
+                                                    total_price: totalPrice
+                                                };
+                                            }
+                                            return null;
+                                        })()
+                                    });
+                                }
+                            }
                         });
                         
-                        // Verify transfer options are in the JSON string
-                        const jsonString = hotelDataField.value;
-                        console.log('=== VERIFYING TRANSFER OPTIONS IN JSON ===');
-                        if (jsonString.includes('transfer_options')) {
-                            console.log('✅ transfer_options found in JSON string');
-                            try {
-                                const parsed = JSON.parse(jsonString);
-                                parsed.forEach((hotel, index) => {
-                                    if (hotel.transfer_options) {
-                                        console.log(`✅ Hotel ${index + 1} has transfer_options:`, hotel.transfer_options);
-                                    } else {
-                                        console.warn(`⚠️ Hotel ${index + 1} is missing transfer_options`);
-                                    }
-                                });
-                            } catch (e) {
-                                console.error('Error parsing hotel data JSON:', e);
-                            }
-                        } else {
-                            console.warn('⚠️ transfer_options NOT found in JSON string');
+                        // Update the data field after processing all attractions
+                        const attractionDataField = document.getElementById('attraction_data');
+                        if (attractionDataField) {
+                            attractionDataField.value = JSON.stringify(attractionDataArray);
+                            console.log('Attraction data updated:', attractionDataArray);
                         }
-                    }
-                    
-                    // Update package total price display
-                    updatePackageTotalPriceDisplay();
-                };
-
-                // Function to fetch attraction details dynamically
-                async function fetchAttractionDetails(attractionId, ticketId) {
-                    try {
-                        // Fetch attraction details
-                        const attractionResponse = await fetch(`/api/attractions/${attractionId}`);
-                        const attractionData = await attractionResponse.json();
                         
-                        // Fetch ticket details
-                        const ticketResponse = await fetch(`/api/tickets/${ticketId}`);
-                        const ticketData = await ticketResponse.json();
+                        // Update package total price display
+                        updatePackageTotalPriceDisplay();
+                    }
+
+                    // Function to collect guide data
+                    function updateGuideDataField() {
+                        const guideDataArray = [];
                         
-                        // Combine the data
-                        return {
-                            adult_price: ticketData.adult_price || 0,
-                            child_price: ticketData.child_price || 0,
-                            senior_price: ticketData.senior_price || 0,
-                            description: ticketData.description || "",
-                            nri: ticketData.nri || "",
-                            package_attraction_id: attractionData.package_attraction_id || null
+                        // Get customer information from the Customer Information form
+                        const customerData = getCustomerData();
+                        
+                        // Get current DMC information
+                        const dmcInfo = {
+                            dmc_id: '{{ $finalDmcId }}',
+                            user_id: '{{ $currentUserId }}',
+                            role_id: '{{ $currentUserRole }}',
+                            created_by: '{{ $createdBy }}',
+                            is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
                         };
-                    } catch (error) {
-                        console.error('Error fetching attraction details:', error);
-                        // Return default values if API fails
-                        return {
-                            adult_price: 0,
-                            child_price: 0,
-                            senior_price: 0,
-                            description: "",
-                            nri: "",
-                            package_attraction_id: null
-                        };
-                    }
-                }
-
-                // Function to collect attraction data
-                function updateAttractionDataField() {
-                    const attractionDataArray = [];
-                    
-                    // Get customer information from the Customer Information form
-                    const customerData = getCustomerData();
-                    
-                    // Get current DMC information
-                    const dmcInfo = {
-                        dmc_id: '{{ $finalDmcId }}',
-                        user_id: '{{ $currentUserId }}',
-                        role_id: '{{ $currentUserRole }}',
-                        created_by: '{{ $createdBy }}',
-                        is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
-                    };
-                    
-                    // Get all attraction selections from all days
-                    document.querySelectorAll('.attraction-select').forEach(select => {
-                        if (select.value) {
-                            const dayMatch = select.name.match(/day(\d+)_attraction_(\d+)/);
-                            if (dayMatch) {
-                                const day = dayMatch[1];
-                                const index = dayMatch[2];
-                                
-                                const timeSlot = document.getElementById(`day${day}_attraction_${index}_time`)?.value || '';
-                                const ticket = document.getElementById(`day${day}_attraction_${index}_ticket`)?.value || '';
-                                const guestSummaryEl = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
-                                
-                                // Parse guest info from summary badges/HTML so children counts are accurate
-                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
-                                
-                                // Get attraction details from the selected option and fetch dynamic data
-                                const selectedOption = select.options[select.selectedIndex];
-                                const attractionId = select.value;
-                                const ticketId = ticket;
-                                
-                                // Get ticket name from the ticket select element
-                                const ticketSelect = document.getElementById(`day${day}_attraction_${index}_ticket`);
-                                const ticketName = ticketSelect ? ticketSelect.options[ticketSelect.selectedIndex]?.text || `Ticket ${ticketId}` : `Ticket ${ticketId}`;
-                                
-                                // Get transfer options
-                                const transferRequired = document.getElementById(`day${day}_attraction_${index}_transfer_required`)?.value || 'No';
-                                let transferOptions = null;
-                                
-                                if (transferRequired === 'Yes') {
-                                    const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`)?.value || '';
-                                    const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`)?.value || '';
-                                    const transferVehicle = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`)?.value || '';
-                                    const transferCostBase = parseFloat(document.getElementById(`day${day}_attraction_${index}_transfer_cost`)?.value || 0);
-                                    // For Shared transfer, store total (base × pax) so DB matches displayed price
-                                    let transferCost = transferCostBase;
-                                    if (transferType === 'Shared' && transferCostBase > 0) {
-                                        const guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
-                                        transferCost = transferCostBase * (guestCount > 0 ? guestCount : 1);
-                                    }
-                                    const transferPickupLocation = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`)?.value || '';
+                        
+                        console.log('=== UPDATING GUIDE DATA FIELD ===');
+                        
+                        document.querySelectorAll('.guide-select').forEach(select => {
+                            if (select.value) {
+                                const dayMatch = select.name.match(/day(\d+)_guide_(\d+)/);
+                                if (dayMatch) {
+                                    const day = dayMatch[1];
+                                    const index = dayMatch[2];
                                     
-                                    // Get pickup location name
-                                    let pickupLocationName = '';
-                                    if (transferPickupLocation) {
-                                        const pickupSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
-                                        const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
-                                        if (selectedPickupOption) {
-                                            pickupLocationName = selectedPickupOption.text || '';
-                                        }
-                                    }
+                                    const pickupTime = document.getElementById(`day${day}_guide_${index}_pickup_time`)?.value || '';
+                                    const packageType = document.getElementById(`day${day}_guide_${index}_package`)?.value || '';
+                                    const guestSummaryEl = document.getElementById(`day${day}_guide_${index}_guest_summary`);
                                     
-                                    // Get vehicle details if vehicle is selected
-                                    let vehicleDetails = null;
-                                    if (transferVehicle) {
-                                        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
-                                        const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
-                                        if (selectedVehicleOption) {
-                                            vehicleDetails = {
-                                                vehicle_id: transferVehicle,
-                                                vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
-                                                vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
-                                                seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
-                                                private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
-                                                shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
-                                            };
-                                        }
-                                    }
+                                    // Parse guest info from summary badges/HTML
+                                    const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
                                     
-                                    const transferPickupTime = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time`)?.value || '';
+                                    // Get guide details from the selected option
+                                    const selectedOption = select.options[select.selectedIndex];
+                                    const guideId = select.value;
                                     
-                                    transferOptions = {
-                                        transfer_required: true,
-                                        type: transferType,
-                                        way: transferWay,
-                                        vehicle_id: transferVehicle,
-                                        vehicle_details: vehicleDetails,
-                                        cost: transferCost,
-                                        pickup_location_id: transferPickupLocation,
-                                        pickup_location_name: pickupLocationName,
-                                        pickup_time: transferPickupTime
-                                    };
-                                }
-                                
-                                // Get attraction details and calculate prices
-                                // Get prices from the selected TICKET option data attributes (not attraction)
-                                const selectedTicketOption = ticketSelect ? ticketSelect.options[ticketSelect.selectedIndex] : null;
-                                const adultPrice = selectedTicketOption ? parseFloat(selectedTicketOption.dataset.adultPrice || 0) : 0;
-                                const childPrice = selectedTicketOption ? parseFloat(selectedTicketOption.dataset.childPrice || 0) : 0;
-                                const seniorPrice = selectedTicketOption ? parseFloat(selectedTicketOption.dataset.seniorPrice || 0) : 0;
-                                
-                                // If no prices in ticket data attributes, try to get from form fields as fallback
-                                const fallbackAdultPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_adult_price`)?.value || 0);
-                                const fallbackChildPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_child_price`)?.value || 0);
-                                const fallbackSeniorPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_senior_price`)?.value || 0);
-                                
-                                // Use ticket data attributes if available, otherwise use form fields
-                                const finalAdultPrice = adultPrice || fallbackAdultPrice;
-                                const finalChildPrice = childPrice || fallbackChildPrice;
-                                const finalSeniorPrice = seniorPrice || fallbackSeniorPrice;
-                                
-                                // Calculate total price dynamically
-                                const totalPrice = (guestInfo.adults * finalAdultPrice) + 
-                                                  (guestInfo.children * finalChildPrice) + 
-                                                  (guestInfo.seniors * finalSeniorPrice);
-                                
-                                console.log(`Attraction pricing: ${selectedOption.text} - Adult: $${finalAdultPrice} × ${guestInfo.adults}, Child: $${finalChildPrice} × ${guestInfo.children}, Senior: $${finalSeniorPrice} × ${guestInfo.seniors}, Total: $${totalPrice}`);
-                                
-                                attractionDataArray.push({
-                                    // Customer Information (from Customer Information form)
-                                    fullName: customerData.fullName,
-                                    email: customerData.email,
-                                    phone: customerData.phone,
-                                    countryCode: customerData.countryCode,
-                                    address1: customerData.address1,
-                                    address2: customerData.address2,
-                                    state: customerData.state,
-                                    zip: customerData.zip,
-                                    specialRequests: customerData.specialRequests,
+                                    // Get guide date from the form
+                                    const guideDate = document.getElementById(`day${day}_guide_${index}_date`)?.value || getTourDateForDay(day);
                                     
-                                    // Attraction Information
-                                    bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || getTourDateForDay(day),
-                                    visitTime: timeSlot || "10:00-00:00",
-                                    adultCount: guestInfo.adults || 0,
-                                    childCount: guestInfo.children || 0,
-                                    seniorCount: guestInfo.seniors || 0,
-                                    AttractionId: parseInt(attractionId),
-                                    AttractionName: selectedOption.text,
-                                    ticketId: parseInt(ticketId) || 10000001,
-                                    ticketName: ticketName,
+                                    // Calculate pricing directly from package selection
+                                    let basePrice = 0;
+                                    let hours = 0;
+                                    let surcharge = 0;
+                                    let totalPrice = 0;
                                     
-                                    // Ticket Details (with proper pricing)
-                                    ticket_details: {
-                                        adult_price: finalAdultPrice,
-                                        child_price: finalChildPrice,
-                                        senior_price: finalSeniorPrice,
-                                        description: document.getElementById(`day${day}_attraction_${index}_description`)?.value || "",
-                                        nri: document.getElementById(`day${day}_attraction_${index}_nri`)?.value || "residential"
-                                    },
-                                    
-                                    // Transport and Mode
-                                    transport: document.getElementById(`day${day}_attraction_${index}_transport`)?.value || null,
-                                    Selection: document.getElementById(`day${day}_attraction_${index}_transport_selection`)?.value || "withoutTransport",
-                                    mode: "dmc",
-                                    
-                                    // Pricing (calculated dynamically - NOT null)
-                                    totalPrice: totalPrice,
-                                    nri: document.getElementById(`day${day}_attraction_${index}_nri`)?.value || "residential",
-                                    price: totalPrice,
-                                    prices: {
-                                        price: totalPrice
-                                    },
-                                    
-                                    // DMC and Package Info
-                                    dmc_id: dmcInfo.dmc_id,
-                                    created_by_dmc: dmcInfo.dmc_id,
-                                    user_id: dmcInfo.user_id,
-                                    user_role: dmcInfo.role_id,
-                                    bookingType: document.getElementById(`day${day}_attraction_${index}_booking_type`)?.value || "booking",
-                                    package_type: parseInt(document.getElementById(`day${day}_attraction_${index}_package_type`)?.value || 0),
-                                    package_attraction_id: parseInt(document.getElementById(`day${day}_attraction_${index}_package_attraction_id`)?.value || null),
-                                    
-                                    // Transfer Options
-                                    transfer_options: transferOptions,
-                                    
-                                    // Remarks
-                                    remarks: document.getElementById(`day${day}_attraction_${index}_remarks`)?.value || '',
-                                    
-                                    // supplement: true if checkbox checked OR if service adults < tour adults (stored as supplement in DB)
-                                    supplement: (() => {
-                                        const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                        const serviceAdults = guestInfo.adults || 0;
-                                        return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_attraction_${index}_is_supplement`)?.checked || false);
-                                    })(),
-                                    
-                                    // Guide Options
-                                    guide_options: (() => {
-                                        const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`)?.value || 'No';
-                                        if (guideRequired === 'Yes') {
-                                            const guideId = document.getElementById(`day${day}_attraction_${index}_guide`)?.value || '';
-                                            const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
-                                            const guideName = guideSelect ? guideSelect.options[guideSelect.selectedIndex]?.text || '' : '';
-                                            
-                                            // Get selected language
-                                            const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
-                                            const language = languageSelect ? languageSelect.value || '' : '';
-                                            
-                                            // Get pickup time - try hidden input first, then fallback to Select2 element
-                                            let pickupTime = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`)?.value || '';
-                                            if (!pickupTime) {
-                                                // Fallback: try to get from Select2 element
-                                                const pickupTimeSelect = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_select`);
-                                                if (pickupTimeSelect) {
-                                                    pickupTime = pickupTimeSelect.value || '';
-                                                    // If Select2 is initialized, try to get the value from Select2
-                                                    if (typeof jQuery !== 'undefined' && jQuery(pickupTimeSelect).data('select2')) {
-                                                        pickupTime = jQuery(pickupTimeSelect).val() || '';
-                                                    }
-                                                }
-                                            }
-                                            
-                                            const packageHours = document.getElementById(`day${day}_attraction_${index}_guide_package`)?.value || '';
-                                            const basePrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_base_price`)?.value || 0);
-                                            const hours = parseInt(document.getElementById(`day${day}_attraction_${index}_guide_hours`)?.value || 0);
-                                            const surcharge = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_surcharge`)?.value || 0);
-                                            const totalPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_total_price`)?.value || 0);
-                                            
-                                            return {
-                                                guide_required: true,
-                                                guide_id: guideId,
-                                                guide_name: guideName,
-                                                language: language,
-                                                pickup_time: pickupTime,
-                                                package_hours: packageHours,
-                                                base_price: basePrice,
-                                                hours: hours,
-                                                surcharge: surcharge,
-                                                total_price: totalPrice
-                                            };
-                                        }
-                                        return null;
-                                    })()
-                                });
-                            }
-                        }
-                    });
-                    
-                    // Update the data field after processing all attractions
-                    const attractionDataField = document.getElementById('attraction_data');
-                    if (attractionDataField) {
-                        attractionDataField.value = JSON.stringify(attractionDataArray);
-                        console.log('Attraction data updated:', attractionDataArray);
-                    }
-                    
-                    // Update package total price display
-                    updatePackageTotalPriceDisplay();
-                }
-
-                // Function to collect guide data
-                function updateGuideDataField() {
-                    const guideDataArray = [];
-                    
-                    // Get customer information from the Customer Information form
-                    const customerData = getCustomerData();
-                    
-                    // Get current DMC information
-                    const dmcInfo = {
-                        dmc_id: '{{ $finalDmcId }}',
-                        user_id: '{{ $currentUserId }}',
-                        role_id: '{{ $currentUserRole }}',
-                        created_by: '{{ $createdBy }}',
-                        is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
-                    };
-                    
-                    console.log('=== UPDATING GUIDE DATA FIELD ===');
-                    
-                    document.querySelectorAll('.guide-select').forEach(select => {
-                        if (select.value) {
-                            const dayMatch = select.name.match(/day(\d+)_guide_(\d+)/);
-                            if (dayMatch) {
-                                const day = dayMatch[1];
-                                const index = dayMatch[2];
-                                
-                                const pickupTime = document.getElementById(`day${day}_guide_${index}_pickup_time`)?.value || '';
-                                const packageType = document.getElementById(`day${day}_guide_${index}_package`)?.value || '';
-                                const guestSummaryEl = document.getElementById(`day${day}_guide_${index}_guest_summary`);
-                                
-                                // Parse guest info from summary badges/HTML
-                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
-                                
-                                // Get guide details from the selected option
-                                const selectedOption = select.options[select.selectedIndex];
-                                const guideId = select.value;
-                                
-                                // Get guide date from the form
-                                const guideDate = document.getElementById(`day${day}_guide_${index}_date`)?.value || getTourDateForDay(day);
-                                
-                                // Calculate pricing directly from package selection
-                                let basePrice = 0;
-                                let hours = 0;
-                                let surcharge = 0;
-                                let totalPrice = 0;
-                                
-                                if (packageType) {
-                                    const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
-                                    if (packageSelect && packageSelect.value) {
-                                        const selectedPackage = packageSelect.options[packageSelect.selectedIndex];
-                                        if (selectedPackage && selectedPackage.dataset) {
-                                            basePrice = parseFloat(selectedPackage.dataset.price) || 0;
-                                            hours = parseInt(selectedPackage.dataset.hours) || 0;
-                                            
-                                            // Calculate surcharge based on pickup time
-                                            if (pickupTime) {
-                                                const pickupHour = parseInt(pickupTime.split(':')[0]);
-                                                const nightStartTime = selectedOption.dataset.nightStartTime;
-                                                const nightEndTime = selectedOption.dataset.nightEndTime;
+                                    if (packageType) {
+                                        const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+                                        if (packageSelect && packageSelect.value) {
+                                            const selectedPackage = packageSelect.options[packageSelect.selectedIndex];
+                                            if (selectedPackage && selectedPackage.dataset) {
+                                                basePrice = parseFloat(selectedPackage.dataset.price) || 0;
+                                                hours = parseInt(selectedPackage.dataset.hours) || 0;
                                                 
-                                                if (nightStartTime && nightEndTime) {
-                                                    const nightStart = parseInt(nightStartTime.split(':')[0]);
-                                                    const nightEnd = parseInt(nightEndTime.split(':')[0]) - 1;
+                                                // Calculate surcharge based on pickup time
+                                                if (pickupTime) {
+                                                    const pickupHour = parseInt(pickupTime.split(':')[0]);
+                                                    const nightStartTime = selectedOption.dataset.nightStartTime;
+                                                    const nightEndTime = selectedOption.dataset.nightEndTime;
                                                     
-                                                    // Check if pickup time is in night range
-                                                    const isNightTime = (pickupHour >= nightStart && pickupHour <= nightEnd) || 
-                                                                       (nightStart > nightEnd && (pickupHour >= nightStart || pickupHour <= nightEnd));
-                                                    
-                                                    if (isNightTime) {
-                                                        surcharge = parseFloat(selectedOption.dataset.nightSurcharge) || 0;
+                                                    if (nightStartTime && nightEndTime) {
+                                                        const nightStart = parseInt(nightStartTime.split(':')[0]);
+                                                        const nightEnd = parseInt(nightEndTime.split(':')[0]) - 1;
+                                                        
+                                                        // Check if pickup time is in night range
+                                                        const isNightTime = (pickupHour >= nightStart && pickupHour <= nightEnd) || 
+                                                                        (nightStart > nightEnd && (pickupHour >= nightStart || pickupHour <= nightEnd));
+                                                        
+                                                        if (isNightTime) {
+                                                            surcharge = parseFloat(selectedOption.dataset.nightSurcharge) || 0;
+                                                        }
                                                     }
                                                 }
+                                                
+                                                totalPrice = basePrice + surcharge;
+                                                
+                                                console.log(`Calculated pricing for Day ${day}, Index ${index}:`, {
+                                                    packageType: packageType,
+                                                    basePrice: basePrice,
+                                                    hours: hours,
+                                                    surcharge: surcharge,
+                                                    totalPrice: totalPrice,
+                                                    pickupTime: pickupTime,
+                                                    isNightTime: surcharge > 0
+                                                });
                                             }
-                                            
-                                            totalPrice = basePrice + surcharge;
-                                            
-                                            console.log(`Calculated pricing for Day ${day}, Index ${index}:`, {
-                                                packageType: packageType,
-                                                basePrice: basePrice,
-                                                hours: hours,
-                                                surcharge: surcharge,
-                                                totalPrice: totalPrice,
-                                                pickupTime: pickupTime,
-                                                isNightTime: surcharge > 0
-                                            });
-                                        }
-                                    }
-                                }
-                                
-                                // Debug: Log the final pricing values
-                                console.log(`Final guide pricing for Day ${day}, Index ${index}:`, {
-                                    basePrice: basePrice,
-                                    hours: hours,
-                                    surcharge: surcharge,
-                                    totalPrice: totalPrice,
-                                    packageType: packageType,
-                                    guideId: guideId,
-                                    guideName: selectedOption.text
-                                });
-                                
-                                // Format entry time to 12-hour format with AM/PM
-                                const formatEntryTime = (time) => {
-                                    if (!time) return "12:00 PM";
-                                    // If already in 12-hour format, return as is
-                                    if (time.includes('AM') || time.includes('PM')) return time;
-                                    // Convert 24-hour to 12-hour format
-                                    const [hours, minutes] = time.split(':');
-                                    const hour = parseInt(hours);
-                                    const ampm = hour >= 12 ? 'PM' : 'AM';
-                                    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                                    return `${displayHour}:${minutes} ${ampm}`;
-                                };
-
-                                guideDataArray.push({
-                                    // Required fields for backend format
-                                    id: `guide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                    Mode: "dmc",
-                                    dmc_Id: dmcInfo.dmc_id, // Use dmc_Id (capital I) to match original format
-                                    fullName: customerData.fullName,
-                                    email: customerData.email,
-                                    phone: customerData.phone,
-                                    countryCode: customerData.countryCode,
-                                    address1: customerData.address1,
-                                    address2: customerData.address2 || null,
-                                    state: customerData.state || null,
-                                    zip: customerData.zip,
-                                    specialRequests: customerData.specialRequests || null,
-                                    guide_id: parseInt(guideId),
-                                    guide_name: selectedOption.text,
-                                    image: selectedOption.dataset.image || null,
-                                    entrypickup: formatEntryTime(pickupTime), // Use formatted time for entrypickup
-                                    entrytime: formatEntryTime(pickupTime), // Keep entrytime as formatted string
-                                    adults: parseInt(guestInfo.adults) || 0,
-                                    children: parseInt(guestInfo.children) || 0,
-                                    hours: parseInt(hours) || 0,
-                                    basePrice: parseFloat(basePrice) || 0,
-                                    surcharge: parseFloat(surcharge) || 0,
-                                    totalPrice: parseFloat(totalPrice) || 0,
-                                    pickupdate: guideDate,
-                                    bookingDate: guideDate,
-                                    dayIndex: parseInt(day),
-                                    Tax: "7.00", // Default tax value
-                                    city: "Singapore", // Default city
-                                    country: "Singapore", // Default country
-                                    languages: selectedOption.dataset.languages ? JSON.parse(selectedOption.dataset.languages) : [], // Parse languages if available
-                                    experience: parseInt(selectedOption.dataset.experience) || 0, // Get experience from dataset
-                                    remarks: document.getElementById(`day${day}_guide_${index}_remarks`)?.value || '',
-                                    supplement: (() => {
-                                        const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                        const serviceAdults = parseInt(guestInfo.adults) || 0;
-                                        return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_guide_${index}_is_supplement`)?.checked || false);
-                                    })()
-                                });
-                            }
-                        }
-                    });
-                    
-                    const guideDataField = document.getElementById('guide_data');
-                    if (guideDataField) {
-                        guideDataField.value = JSON.stringify(guideDataArray);
-                        console.log('Guide data updated:', guideDataArray);
-                    }
-                    
-                    // Update package total price display
-                    updatePackageTotalPriceDisplay();
-                }
-
-                // Function to collect restaurant data
-                function updateRestaurantDataField() {
-                    const restaurantDataArray = [];
-                    
-                    // Get customer information from the Customer Information form
-                    const customerData = getCustomerData();
-                    
-                    // Get current DMC information
-                    const dmcInfo = {
-                        dmc_id: '{{ $finalDmcId }}',
-                        user_id: '{{ $currentUserId }}',
-                        role_id: '{{ $currentUserRole }}',
-                        created_by: '{{ $createdBy }}',
-                        is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
-                    };
-                    
-                    document.querySelectorAll('.restaurant-select').forEach(select => {
-                        if (select.value) {
-                            const dayMatch = select.name.match(/day(\d+)_restaurant_(\d+)/);
-                            if (dayMatch) {
-                                const day = dayMatch[1];
-                                const index = dayMatch[2];
-                                
-                                const mealType = document.getElementById(`day${day}_meal_type_${index}`)?.value || '';
-                                const timeSlot = document.getElementById(`day${day}_time_slot_${index}`)?.value || '';
-                                const guestSummaryEl = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
-                                
-                                // Parse guest info from summary badges/HTML
-                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
-                                
-                                // Get restaurant details from the selected option
-                                const selectedOption = select.options[select.selectedIndex];
-                                const restaurantId = select.value;
-                                
-                                // Get pricing data from hidden fields (this is the correct way)
-                                const totalPrice = parseFloat(document.getElementById(`day${day}_restaurant_${index}_total_price`)?.value || 0);
-                                const mealId = document.getElementById(`day${day}_restaurant_${index}_meal_id`)?.value || '';
-                                const dishName = document.getElementById(`day${day}_restaurant_${index}_dish_name`)?.value || '';
-                                
-                                // Get selected dish from the "Select Dish" dropdown
-                                const dishSelect = document.getElementById(`day${day}_dish_${index}`);
-                                const selectedDishValue = dishSelect?.value || '';
-                                const selectedDishOption = dishSelect?.options[dishSelect?.selectedIndex];
-                                const selectedDishText = selectedDishOption?.text || selectedDishValue || '';
-                                
-                                // Get transfer options
-                                const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`)?.value || 'No';
-                                let transferOptions = null;
-                                
-                                if (transferRequired === 'Yes') {
-                                    const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`)?.value || '';
-                                    const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`)?.value || '';
-                                    const transferVehicle = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`)?.value || '';
-                                    const transferCostBase = parseFloat(document.getElementById(`day${day}_restaurant_${index}_transfer_cost`)?.value || 0);
-                                    // For Shared transfer, store total (base × pax) so DB matches displayed price
-                                    let transferCost = transferCostBase;
-                                    if (transferType === 'Shared' && transferCostBase > 0) {
-                                        const guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
-                                        transferCost = transferCostBase * (guestCount > 0 ? guestCount : 1);
-                                    }
-                                    const transferPickupLocation = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`)?.value || '';
-                                    
-                                    // Get pickup location name
-                                    let pickupLocationName = '';
-                                    if (transferPickupLocation) {
-                                        const pickupSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
-                                        const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
-                                        if (selectedPickupOption) {
-                                            pickupLocationName = selectedPickupOption.text || '';
                                         }
                                     }
                                     
-                                    // Get vehicle details if vehicle is selected
-                                    let vehicleDetails = null;
-                                    if (transferVehicle) {
-                                        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
-                                        const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
-                                        if (selectedVehicleOption) {
-                                            vehicleDetails = {
-                                                vehicle_id: transferVehicle,
-                                                vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
-                                                vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
-                                                seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
-                                                private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
-                                                shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
-                                            };
-                                        }
-                                    }
+                                    // Debug: Log the final pricing values
+                                    console.log(`Final guide pricing for Day ${day}, Index ${index}:`, {
+                                        basePrice: basePrice,
+                                        hours: hours,
+                                        surcharge: surcharge,
+                                        totalPrice: totalPrice,
+                                        packageType: packageType,
+                                        guideId: guideId,
+                                        guideName: selectedOption.text
+                                    });
                                     
-                                    const transferPickupTime = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`)?.value || '';
-                                    
-                                    transferOptions = {
-                                        transfer_required: true,
-                                        type: transferType,
-                                        way: transferWay,
-                                        vehicle_id: transferVehicle,
-                                        vehicle_details: vehicleDetails,
-                                        cost: transferCost,
-                                        pickup_location_id: transferPickupLocation,
-                                        pickup_location_name: pickupLocationName,
-                                        pickup_time: transferPickupTime
-                                    };
-                                }
-                                
-                                console.log(`Restaurant pricing for day ${day}, index ${index}:`);
-                                console.log(`- Total Price: $${totalPrice}`);
-                                console.log(`- Meal ID: ${mealId}`);
-                                console.log(`- Dish Name: ${dishName}`);
-                                console.log(`- Selected Dish: ${selectedDishText}`);
-                                console.log(`- Guest Info: ${guestInfo.adults} adults, ${guestInfo.children} children`);
-                                
-                                // Format visit time to 12-hour format with AM/PM
-                                const formatVisitTime = (time) => {
-                                    if (!time) return "12:00 PM";
-                                    // If already in 12-hour format, return as is
-                                    if (time.includes('AM') || time.includes('PM')) return time;
-                                    // Convert 24-hour to 12-hour format
-                                    const [hours, minutes] = time.split(':');
-                                    const hour = parseInt(hours);
-                                    const ampm = hour >= 12 ? 'PM' : 'AM';
-                                    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                                    return `${displayHour}:${minutes} ${ampm}`;
-                                };
-
-                                // Normalize meal type to proper capitalization
-                                const normalizeMealType = (type) => {
-                                    if (!type) return "Lunch";
-                                    const lowerType = type.toLowerCase();
-                                    if (lowerType === 'breakfast') return "Breakfast";
-                                    if (lowerType === 'lunch') return "Lunch";
-                                    if (lowerType === 'dinner') return "Dinner";
-                                    return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
-                                };
-
-                                // Normalize booking type to lowercase
-                                const normalizeBookingType = (type) => {
-                                    if (!type) return "enquiry";
-                                    const lowerType = type.toLowerCase();
-                                    return lowerType === 'enquiry' ? 'enquiry' : 'enquiry';
-                                };
-
-                                restaurantDataArray.push({
-                                    // Customer Information (from Customer Information form)
-                                    fullName: customerData.fullName,
-                                    email: customerData.email,
-                                    phone: customerData.phone,
-                                    countryCode: customerData.countryCode,
-                                    address1: customerData.address1,
-                                    address2: customerData.address2 || null,
-                                    state: customerData.state || null,
-                                    zip: customerData.zip,
-                                    specialRequests: customerData.specialRequests || null,
-                                    
-                                    // Restaurant Information
-                                    bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || getTourDateForDay(day),
-                                    visitTime: formatVisitTime(timeSlot),
-                                    adultCount: guestInfo.adults || 0,
-                                    childCount: guestInfo.children || 0,
-                                    restaurantId: parseInt(restaurantId),
-                                    restaurantName: selectedOption.text,
-                                    
-                                    // Meal Information
-                                    mealType: normalizeMealType(mealType),
-                                    mealSpecificType: selectedDishText || null,
-                                    
-                                    // Meal Description (array of meal items)
-                                    MealDescription: [{
-                                        item_name: dishName || "Menu Item",
-                                        name: dishName || "Menu Item",
-                                        price: parseFloat(totalPrice) || 0,
-                                        meal_id: parseInt(mealId) || parseInt(restaurantId),
-                                        category: document.getElementById(`day${day}_meal_category_${index}`)?.value || "",
-                                        item_type: document.getElementById(`day${day}_meal_item_type_${index}`)?.value || "",
-                                        quantity: 1
-                                    }],
-                                    
-                                    // Pricing
-                                    totalPrice: parseFloat(totalPrice) || 0,
-                                    mealPrice: parseFloat(totalPrice) || 0,
-                                    
-                                    // Transport
-                                    transport: document.getElementById(`day${day}_restaurant_transport_${index}`)?.value || null,
-                                    transportPrice: parseFloat(document.getElementById(`day${day}_restaurant_transport_price_${index}`)?.value || 0),
-                                    
-                                    // Price Types and DMC
-                                    priceTypes: [document.getElementById(`day${day}_restaurant_price_type_${index}`)?.value || "dmc"],
-                                    dmc_id: String(document.getElementById('dmc_id')?.value || "4"),
-                                    bookingType: normalizeBookingType(document.getElementById(`day${day}_restaurant_booking_type_${index}`)?.value),
-                                    
-                                    // Transfer Options
-                                    transfer_options: transferOptions,
-                                    
-                                    // Remarks
-                                    remarks: document.getElementById(`day${day}_restaurant_${index}_remarks`)?.value || '',
-                                    supplement: (() => {
-                                        const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                        const serviceAdults = guestInfo.adults || 0;
-                                        return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_restaurant_${index}_is_supplement`)?.checked || false);
-                                    })()
-                                });
-                            }
-                        }
-                    });
-                    
-                    const restaurantDataField = document.getElementById('restaurant_data');
-                    if (restaurantDataField) {
-                        restaurantDataField.value = JSON.stringify(restaurantDataArray);
-                        console.log('Restaurant data updated:', restaurantDataArray);
-                    }
-                    
-                    // Update package total price display
-                    updatePackageTotalPriceDisplay();
-                }
-
-                // Function to collect transport data (including entry/exit ports)
-                function updateTransportDataField() {
-                        console.log('=== STARTING TRANSPORT DATA COLLECTION ===');
-                    
-                    // Get customer information from the Customer Information form
-                    const customerData = getCustomerData();
-                    
-                    // Initialize arrays for different transport types
-                    let transportDataArray = [];
-                    let entryPortArray = [];
-                    let exitPortArray = [];
-                    
-                    // Get current DMC information
-                    const dmcInfo = {
-                        dmc_id: '{{ $finalDmcId }}',
-                        user_id: '{{ $currentUserId }}',
-                        role_id: '{{ $currentUserRole }}',
-                        created_by: '{{ $createdBy }}',
-                        is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
-                    };
-                    
-                    // Get all transport selections - handle both single and multiple transport patterns
-                    // Include all pickup field types: zone selects, location inputs for point-to-point and hourly
-                    const allPickupSelects = document.querySelectorAll('select[name*="_pickup_zone_id"]');
-                    const allPickupLocationInputs = document.querySelectorAll('input[name*="_pickup_location"]');
-                    const allDropoffLocationInputs = document.querySelectorAll('input[name*="_dropoff_location"]');
-                    // Only include pickup fields for processing, dropoff fields will be handled separately
-                    const allPickupFields = [...allPickupSelects, ...allPickupLocationInputs];
-                    console.log(`Found ${allPickupSelects.length} pickup zone selects and ${allPickupLocationInputs.length} pickup location inputs:`, Array.from(allPickupFields).map(s => s.name));
-                    
-                    // Collect data from additional entry port vehicles (created by addMoreEntryPorts) - Skip index 0 as it's handled in main collection
-                    // NOTE: This section is for ZONE-BASED entry ports (zone_on = 1). For Google Maps entry ports (zone_on = 0), see separate collection below.
-                    console.log('=== COLLECTING ADDITIONAL ENTRY PORT VEHICLES (INDEX > 0) - ZONE-BASED MODE ===');
-                    
-                    // Check if we're in zone-based mode (zone_on = 1) before collecting zone-based data
-                    const dmcUser = @json($UserDmc);
-                    const isZoneBasedMode = !dmcUser || dmcUser.zone_on != 0; // zone_on = 1 or undefined
-                    
-                    if (isZoneBasedMode) {
-                        console.log('Zone-based mode detected (zone_on = 1) - collecting zone-based entry port data');
-                    const additionalEntryVehicles = document.querySelectorAll('select[name*="_entry_"][name*="_vehicle_id"]');
-                    console.log(`Found ${additionalEntryVehicles.length} total entry port vehicles:`, Array.from(additionalEntryVehicles).map(s => s.name));
-                    
-                    additionalEntryVehicles.forEach(vehicleSelect => {
-                        if (vehicleSelect.value) {
-                            const nameMatch = vehicleSelect.name.match(/day(\d+)_entry_(\d+)_vehicle_id/);
-                            if (nameMatch) {
-                                const day = nameMatch[1];
-                                const vehicleIndex = nameMatch[2];
-                                
-                                // Skip index 0 (main vehicle) as it's handled in the main collection section below
-                                if (vehicleIndex === '0') {
-                                    console.log(`Skipping main entry vehicle (index 0) for Day ${day} - will be handled in main collection`);
-                                    return;
-                                }
-                                
-                                console.log(`Processing additional entry port vehicle for Day ${day}, Index ${vehicleIndex}`);
-                                
-                                // Get related fields for this additional vehicle
-                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_entry_${vehicleIndex}_service_type"]`);
-                                const priceDisplay = document.getElementById(`day${day}_entry_${vehicleIndex}_price_display`);
-                                
-                                // Get the main entry port pickup/dropoff data (they're shared)
-                                const pickupZoneSelect = document.querySelector(`select[name="day${day}_entry_pickup_zone_id"]`);
-                                const dropoffZoneSelect = document.querySelector(`select[name="day${day}_entry_dropoff_zone_id"]`);
-                                const timeSelect = document.querySelector(`[name="day${day}_entry_pickup_time"]`);
-                                const dateInput = document.querySelector(`input[name="day${day}_entry_pickup_date"]`);
-                                
-                                if (pickupZoneSelect && dropoffZoneSelect && serviceTypeSelect && vehicleSelect.value) {
-                                    const pickupZone = pickupZoneSelect.options[pickupZoneSelect.selectedIndex];
-                                    const dropoffZone = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex];
-                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    // Get passenger count for this specific vehicle
-                                    const passengerCount = parseInt(document.getElementById(`day${day}_entry_${vehicleIndex}_passengers`)?.value || 1);
-                                    const totalPrice = parseFloat(document.getElementById(`day${day}_entry_${vehicleIndex}_total_price`)?.value || 0);
-                                    
-                                    const transportData = {
-                                        id: `entry-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                        bookingDate: dateInput?.value || getTourDateForDay(day),
-                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
-                                        image: vehicle.dataset.image || "",
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || ""),
-                                        vehicles_name: vehicle.text,
-                                        Mode: "dmc",
-                                        type: serviceTypeSelect.value || "",
-                                        vehicle_type: vehicle.dataset.vehicle_type || "",
-                                        vehicle_model: vehicle.dataset.vehicle_model || "",
-                                        model_year: vehicle.dataset.model_year || "",
-                                        seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
-                                        travel_type: "entry_port",
-                                        arrival_transport_type: document.querySelector(`input[name="day${day}_arrival_transport_type"]:checked`)?.value || "flight",
-                                        arrival_flight_no: document.getElementById(`day${day}_arrival_flight_no`)?.value || "",
-                                        supplement: !!(document.getElementById(`day${day}_entry_${vehicleIndex}_is_supplement`)?.checked),
-                                        entrypickup: pickupZone.text,
-                                        entrydropoff: dropoffZone.text,
-                                        PickupPlaceid: {
-                                            lat: pickupZone.dataset.lat || "",
-                                            lng: pickupZone.dataset.lng || ""
-                                        },
-                                        DropoffPlaceid: {
-                                            lat: dropoffZone.dataset.lat || "",
-                                            lng: dropoffZone.dataset.lng || ""
-                                        },
-                                        pickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: timeSelect?.value || "",
-                                        adults: parseInt(passengerCount) || 0,
-                                        children: 0,
-                                        componentDayIndex: parseInt(day) - 1,
-                                        totalPrice: parseFloat(totalPrice) || 0,
-                                        Tax: parseFloat(document.getElementById(`day${day}_entry_${vehicleIndex}_tax`)?.value || "0.00"),
-                                        distance: parseFloat(document.getElementById(`day${day}_entry_${vehicleIndex}_distance`)?.value || "0"),
-                                        Night_Start_Time: null,
-                                        Night_End_Time: null,
-                                        city: (() => {
-                                            // Get city from the city select field
-                                            const citySelect = document.getElementById('modal_local_transfer_city');
-                                            const cityValue = citySelect?.value || '';
-                                            return cityValue || pickupZone.dataset.city || "";
-                                        })(),
-                                        country: (() => {
-                                            // Get country from city select option's data-country attribute, or from user_country field
-                                            const citySelect = document.getElementById('modal_local_transfer_city');
-                                            const cityOption = citySelect?.options[citySelect?.selectedIndex];
-                                            const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
-                                            const countryFromField = document.getElementById('user_country')?.value || '';
-                                            const countryValue = countryFromCityOption || countryFromField || '';
-                                            return countryValue || pickupZone.dataset.country || "";
-                                        })(),
-                                        fullName: customerData.fullName,
-                                        email: customerData.email,
-                                        phone: customerData.phone,
-                                        countryCode: customerData.countryCode,
-                                        address1: customerData.address1,
-                                        address2: customerData.address2 || null,
-                                        state: customerData.state || null,
-                                        zip: customerData.zip,
-                                        specialRequests: customerData.specialRequests || null,
-                                        userInfo: {
-                                            fullName: customerData.fullName,
-                                            email: customerData.email,
-                                            phone: customerData.phone,
-                                            countryCode: customerData.countryCode,
-                                            address1: customerData.address1,
-                                            address2: customerData.address2 || null,
-                                            state: customerData.state || null,
-                                            zip: customerData.zip,
-                                            specialRequests: customerData.specialRequests || null
-                                        },
-                                        bookingType: "enquiry",
-                                        vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
-                                        remarks: document.getElementById(`day${day}_entry_${vehicleIndex}_remarks`)?.value || ''
-                                    };
-                                    
-                                    entryPortArray.push(transportData);
-                                    console.log(`✅ Added additional entry port vehicle #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
-                                    console.log(`✅ Entry port array now has ${entryPortArray.length} vehicles`);
-                                }
-                            }
-                        }
-                    });
-                    } else {
-                        console.log('Point-to-Point mode detected (zone_on = 0) - skipping zone-based entry port collection. Google Maps collection will handle this.');
-                    }
-                    
-                    // Collect data from additional exit port vehicles (created by addMoreExitPorts) - Skip index 0 as it's handled in main collection
-                    console.log('=== COLLECTING ADDITIONAL EXIT PORT VEHICLES (INDEX > 0) ===');
-                    const additionalExitVehicles = document.querySelectorAll('select[name*="_exit_"][name*="_vehicle_id"]');
-                    console.log(`Found ${additionalExitVehicles.length} total exit port vehicles:`, Array.from(additionalExitVehicles).map(s => s.name));
-                    
-                    additionalExitVehicles.forEach(vehicleSelect => {
-                        if (vehicleSelect.value) {
-                            const nameMatch = vehicleSelect.name.match(/day(\d+)_exit_(\d+)_vehicle_id/);
-                            if (nameMatch) {
-                                const day = nameMatch[1];
-                                const vehicleIndex = nameMatch[2];
-                                
-                                // Skip index 0 (main vehicle) as it's handled in the main collection section below
-                                if (vehicleIndex === '0') {
-                                    console.log(`Skipping main exit vehicle (index 0) for Day ${day} - will be handled in main collection`);
-                                    return;
-                                }
-                                
-                                console.log(`Processing additional exit port vehicle for Day ${day}, Index ${vehicleIndex}`);
-                                
-                                // Get related fields for this additional vehicle
-                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_exit_${vehicleIndex}_service_type"]`);
-                                
-                                // Get the main exit port pickup/dropoff data (they're shared)
-                                const pickupZoneSelect = document.querySelector(`select[name="day${day}_exit_pickup_zone_id"]`);
-                                const dropoffZoneSelect = document.querySelector(`select[name="day${day}_exit_dropoff_zone_id"]`);
-                                const timeSelect = document.querySelector(`[name="day${day}_exit_time"]`);
-                                const dateInput = document.querySelector(`input[name="day${day}_exit_date"]`);
-                                
-                                if (pickupZoneSelect && dropoffZoneSelect && serviceTypeSelect && vehicleSelect.value) {
-                                    const pickupZone = pickupZoneSelect.options[pickupZoneSelect.selectedIndex];
-                                    const dropoffZone = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex];
-                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    // Get passenger count for this specific vehicle
-                                    const passengerCount = parseInt(document.getElementById(`day${day}_exit_${vehicleIndex}_passengers`)?.value || 1);
-                                    const totalPrice = parseFloat(document.getElementById(`day${day}_exit_${vehicleIndex}_total_price`)?.value || 0);
-                                    
-                                    const transportData = {
-                                        id: `exit-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                        bookingDate: dateInput?.value || getTourDateForDay(day),
-                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
-                                        vehicles_name: vehicle.text,
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || ""),
-                                        Mode: "dmc",
-                                        type: serviceTypeSelect.value || "",
-                                        image: vehicle.dataset.image || "",
-                                        travel_type: "exit_port",
-                                        departure_transport_type: document.querySelector(`input[name="day${day}_departure_transport_type"]:checked`)?.value || "flight",
-                                        departure_flight_no: document.getElementById(`day${day}_departure_flight_no`)?.value || "",
-                                        supplement: !!(document.getElementById(`day${day}_exit_${vehicleIndex}_is_supplement`)?.checked),
-                                        vehicle_type: vehicle.dataset.vehicle_type || "SUV",
-                                        vehicle_model: vehicle.dataset.vehicle_model || "",
-                                        model_year: parseInt(vehicle.dataset.model_year) || 0,
-                                        seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 7,
-                                        exitpickup: pickupZone.text,
-                                        exitdropoff: dropoffZone.text,
-                                        PickupPlaceid: {
-                                            lat: pickupZone.dataset.lat || "",
-                                            lng: pickupZone.dataset.lng || ""
-                                        },
-                                        DropoffPlaceid: {
-                                            lat: dropoffZone.dataset.lat || "",
-                                            lng: dropoffZone.dataset.lng || ""
-                                        },
-                                        exitpickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: timeSelect?.value || "",
-                                        adults: parseInt(passengerCount) || 0,
-                                        children: 0,
-                                        totalPrice: parseFloat(totalPrice) || 0,
-                                        Tax: parseFloat(document.getElementById(`day${day}_exit_${vehicleIndex}_tax`)?.value || "0.00"),
-                                        distance: parseFloat(document.getElementById(`day${day}_exit_${vehicleIndex}_distance`)?.value || "0"),
-                                        Night_Start_Time: null,
-                                        Night_End_Time: null,
-                                        city: (() => {
-                                            // Get city from the exit city select field
-                                            const citySelect = document.getElementById('modal_exit_city');
-                                            const cityValue = citySelect?.value || '';
-                                            return cityValue || pickupZone.dataset.city || "";
-                                        })(),
-                                        country: (() => {
-                                            // Get country from exit city select option's data-country attribute, or from user_country field
-                                            const citySelect = document.getElementById('modal_exit_city');
-                                            const cityOption = citySelect?.options[citySelect?.selectedIndex];
-                                            const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
-                                            const countryFromField = document.getElementById('user_country')?.value || '';
-                                            const countryValue = countryFromCityOption || countryFromField || '';
-                                            return countryValue || pickupZone.dataset.country || "";
-                                        })(),
-                                        fullName: customerData.fullName,
-                                        email: customerData.email,
-                                        phone: customerData.phone,
-                                        countryCode: customerData.countryCode,
-                                        address1: customerData.address1,
-                                        address2: customerData.address2 || null,
-                                        state: customerData.state || null,
-                                        zip: customerData.zip,
-                                        specialRequests: customerData.specialRequests || null,
-                                        userInfo: {
-                                            fullName: customerData.fullName,
-                                            email: customerData.email,
-                                            phone: customerData.phone,
-                                            countryCode: customerData.countryCode,
-                                            address1: customerData.address1,
-                                            address2: customerData.address2 || null,
-                                            state: customerData.state || null,
-                                            zip: customerData.zip,
-                                            specialRequests: customerData.specialRequests || null
-                                        },
-                                        bookingType: "enquiry",
-                                        vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
-                                        remarks: document.getElementById(`day${day}_exit_${vehicleIndex}_remarks`)?.value || ''
-                                    };
-                                    
-                                    exitPortArray.push(transportData);
-                                    console.log(`✅ Added additional exit port vehicle #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Debug: Check all input fields that might be transport-related
-                    console.log('=== ALL TRANSPORT-RELATED FIELDS ===');
-                    const allInputs = document.querySelectorAll('input[name*="transport"], input[name*="pickup"], input[name*="dropoff"], input[name*="additional"], input[name*="hourly"]');
-                    allInputs.forEach(input => {
-                        if (input.value) {
-                            console.log(`Field with value: ${input.name} = ${input.value}`);
-                        }
-                    });
-                    
-                    // Debug: Check all select fields that might be transport-related
-                    const allSelects = document.querySelectorAll('select[name*="transport"], select[name*="vehicle"], select[name*="service_type"]');
-                    allSelects.forEach(select => {
-                        if (select.value) {
-                            console.log(`Select with value: ${select.name} = ${select.value}`);
-                        }
-                    });
-                    
-                    // Alternative approach: Find all transport fields by searching for specific patterns
-                    console.log('=== ALTERNATIVE TRANSPORT FIELD DETECTION ===');
-                    const allFields = document.querySelectorAll('input, select');
-                    const transportFields = [];
-                    
-                    allFields.forEach(field => {
-                        if (field.value && field.name) {
-                            // Check if this field is transport-related
-                            if (field.name.includes('transport') || 
-                                field.name.includes('pickup') || 
-                                field.name.includes('dropoff') || 
-                                field.name.includes('vehicle') || 
-                                field.name.includes('additional') || 
-                                field.name.includes('hourly')) {
-                                transportFields.push({
-                                    name: field.name,
-                                    value: field.value,
-                                    type: field.type || 'select'
-                                });
-                            }
-                        }
-                    });
-                    
-                    console.log('All transport-related fields found:', transportFields);
-                    
-                    // Keep track of processed transports to avoid duplicates
-                    const processedTransports = new Set();
-                    
-                    // Keep track of processed fields to avoid processing the same field multiple times
-                    const processedFields = new Set();
-                    
-                    // SEGREGATED TRANSPORT COLLECTION: Handle each transport type separately
-                    // This ensures all transport types are collected correctly
-                    
-                    // 1. Collect Point-to-Point Transport Data
-                    console.log('=== COLLECTING POINT-TO-POINT TRANSPORTS ===');
-                    const pointToPointFields = document.querySelectorAll('input[name*="transport"][name*="pickup_location"]:not([name*="hourly"])');
-                    console.log(`Found ${pointToPointFields.length} point-to-point pickup fields`);
-                    
-                    pointToPointFields.forEach(field => {
-                        if (field.value) {
-                            console.log(`Processing P2P field: ${field.name} = ${field.value}`);
-                            const nameMatch = field.name.match(/day(\d+)_(\w+)(?:_(\d+))?_pickup_location/);
-                            if (nameMatch) {
-                                const day = nameMatch[1];
-                                const section = nameMatch[2];
-                                const transportIndex = nameMatch[3];
-                                const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
-                                
-                                // Check if point-to-point service type is selected
-                                const serviceTypeRadio = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_service_type"][value="point_to_point"]:checked`);
-                                if (!serviceTypeRadio) {
-                                    console.log(`Skipping field ${field.name} - point-to-point service type not selected`);
-                                    return;
-                                }
-                                
-                                console.log(`Point-to-point service type confirmed for ${field.name}`);
-                                
-                                const dropoffField = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_dropoff_location"]`);
-                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
-                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
-                                const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_additional_pickup_time"]`);
-                                const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_additional_date"]`);
-                                
-                                if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
-                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    // Use transport_passengers field if available, otherwise fallback to adult_count
-                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
-                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
-                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
-                                    const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
-                                    
+                                    // Format entry time to 12-hour format with AM/PM
                                     const formatEntryTime = (time) => {
                                         if (!time) return "12:00 PM";
+                                        // If already in 12-hour format, return as is
                                         if (time.includes('AM') || time.includes('PM')) return time;
+                                        // Convert 24-hour to 12-hour format
                                         const [hours, minutes] = time.split(':');
                                         const hour = parseInt(hours);
                                         const ampm = hour >= 12 ? 'PM' : 'AM';
                                         const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
                                         return `${displayHour}:${minutes} ${ampm}`;
                                     };
-                                    
-                                    const transportData = {
-                                        id: `point-to-point-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+
+                                    guideDataArray.push({
+                                        // Required fields for backend format
+                                        id: `guide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                         Mode: "dmc",
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                        dmc_Id: dmcInfo.dmc_id, // Use dmc_Id (capital I) to match original format
                                         fullName: customerData.fullName,
                                         email: customerData.email,
                                         phone: customerData.phone,
-                                        country: "Singapore",
                                         countryCode: customerData.countryCode,
-                                        state: customerData.state || null,
-                                        city: "Singapore",
-                                        zip: customerData.zip,
                                         address1: customerData.address1,
                                         address2: customerData.address2 || null,
-                                        bookingDate: dateInput?.value || getTourDateForDay(day),
-                                        pickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: formatEntryTime(timeSelect?.value),
-                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
-                                        vehicles_name: vehicle.text,
-                                        type: serviceTypeSelect.value || "Private",
-                                        travel_type: "travel_point",
-                                        adults: parseInt(adultCount) || 1,
-                                        children: parseInt(childCount) || 0,
+                                        state: customerData.state || null,
+                                        zip: customerData.zip,
                                         specialRequests: customerData.specialRequests || null,
-                                        image: vehicle.dataset.image || null,
+                                        guide_id: parseInt(guideId),
+                                        guide_name: selectedOption.text,
+                                        image: selectedOption.dataset.image || null,
+                                        entrypickup: formatEntryTime(pickupTime), // Use formatted time for entrypickup
+                                        entrytime: formatEntryTime(pickupTime), // Keep entrytime as formatted string
+                                        adults: parseInt(guestInfo.adults) || 0,
+                                        children: parseInt(guestInfo.children) || 0,
+                                        hours: parseInt(hours) || 0,
+                                        basePrice: parseFloat(basePrice) || 0,
+                                        surcharge: parseFloat(surcharge) || 0,
                                         totalPrice: parseFloat(totalPrice) || 0,
-                                        componentDayIndex: parseInt(day) - 1,
-                                        entrypickup: field.value,
-                                        entrydropoff: dropoffField.value,
-                                        PickupPlaceid: {
-                                            lat: document.getElementById(`day${day}_${section}${fieldSuffix}_additional_pickup_lat`)?.value || "",
-                                            lng: document.getElementById(`day${day}_${section}${fieldSuffix}_additional_pickup_lng`)?.value || ""
-                                        },
-                                        DropoffPlaceid: {
-                                            lat: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lat`)?.value || "",
-                                            lng: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lng`)?.value || ""
-                                        },
-                                        distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
-                                        Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
-                                        Night_Start_Time: null,
-                                        Night_End_Time: null,
-                                        bookingType: "enquiry",
-                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
+                                        pickupdate: guideDate,
+                                        bookingDate: guideDate,
+                                        dayIndex: parseInt(day),
+                                        Tax: "7.00", // Default tax value
+                                        city: "Singapore", // Default city
+                                        country: "Singapore", // Default country
+                                        languages: selectedOption.dataset.languages ? JSON.parse(selectedOption.dataset.languages) : [], // Parse languages if available
+                                        experience: parseInt(selectedOption.dataset.experience) || 0, // Get experience from dataset
+                                        remarks: document.getElementById(`day${day}_guide_${index}_remarks`)?.value || '',
                                         supplement: (() => {
                                             const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                            const serviceAdults = parseInt(adultCount) || 1;
-                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked || false);
+                                            const serviceAdults = parseInt(guestInfo.adults) || 0;
+                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_guide_${index}_is_supplement`)?.checked || false);
                                         })()
-                                    };
-                                    
-                                    transportDataArray.push(transportData);
-                                    console.log(`✅ Added point-to-point transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
+                                    });
                                 }
                             }
+                        });
+                        
+                        const guideDataField = document.getElementById('guide_data');
+                        if (guideDataField) {
+                            guideDataField.value = JSON.stringify(guideDataArray);
+                            console.log('Guide data updated:', guideDataArray);
                         }
-                    });
-                    
-                    // 2. Collect Hourly Transport Data
-                    console.log('=== COLLECTING HOURLY TRANSPORTS ===');
-                    const hourlyFields = document.querySelectorAll('input[name*="hourly_pickup_location"]');
-                    console.log(`Found ${hourlyFields.length} hourly pickup fields`);
-                    
-                    hourlyFields.forEach(field => {
-                        if (field.value) {
-                            console.log(`Processing Hourly field: ${field.name} = ${field.value}`);
-                            const nameMatch = field.name.match(/day(\d+)_(\w+)(?:_(\d+))?_(?:hourly_pickup_location)/);
-                            if (nameMatch) {
-                                const day = nameMatch[1];
-                                const section = nameMatch[2];
-                                const transportIndex = nameMatch[3];
-                                const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
-                                
-                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
-                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
-                                const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
-                                const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_hourly_date"]`);
-                                const selectedHours = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_selected_hours"]`);
-                                
-                                if (vehicleSelect?.value && serviceTypeSelect?.value) {
-                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    // Use transport_passengers field if available, otherwise fallback to adult_count
-                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
-                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
-                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
-                                    const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
+                        
+                        // Update package total price display
+                        updatePackageTotalPriceDisplay();
+                    }
+
+                    // Function to collect restaurant data
+                    function updateRestaurantDataField() {
+                        const restaurantDataArray = [];
+                        
+                        // Get customer information from the Customer Information form
+                        const customerData = getCustomerData();
+                        
+                        // Get current DMC information
+                        const dmcInfo = {
+                            dmc_id: '{{ $finalDmcId }}',
+                            user_id: '{{ $currentUserId }}',
+                            role_id: '{{ $currentUserRole }}',
+                            created_by: '{{ $createdBy }}',
+                            is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
+                        };
+                        
+                        document.querySelectorAll('.restaurant-select').forEach(select => {
+                            if (select.value) {
+                                const dayMatch = select.name.match(/day(\d+)_restaurant_(\d+)/);
+                                if (dayMatch) {
+                                    const day = dayMatch[1];
+                                    const index = dayMatch[2];
                                     
-                                    const formatEntryTime = (time) => {
-                                        if (!time) return "12:00 PM";
-                                        if (time.includes('AM') || time.includes('PM')) return time;
-                                        const [hours, minutes] = time.split(':');
-                                        const hour = parseInt(hours);
-                                        const ampm = hour >= 12 ? 'PM' : 'AM';
-                                        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                                        return `${displayHour}:${minutes} ${ampm}`;
-                                    };
+                                    const mealType = document.getElementById(`day${day}_meal_type_${index}`)?.value || '';
+                                    const timeSlot = document.getElementById(`day${day}_time_slot_${index}`)?.value || '';
+                                    const guestSummaryEl = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
                                     
-                                    const transportData = {
-                                        id: `hourly-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                        Mode: "dmc",
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
-                                        fullName: customerData.fullName,
-                                        email: customerData.email,
-                                        phone: customerData.phone,
-                                        country: "Singapore",
-                                        countryCode: customerData.countryCode,
-                                        state: customerData.state || null,
-                                        city: "Singapore",
-                                        zip: customerData.zip,
-                                        address1: customerData.address1,
-                                        address2: customerData.address2 || null,
-                                        bookingDate: dateInput?.value || getTourDateForDay(day),
-                                        pickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: formatEntryTime(timeSelect?.value),
-                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
-                                        vehicles_name: vehicle.text,
-                                        type: serviceTypeSelect.value || "Private",
-                                        travel_type: "travel_hourly",
-                                        adults: parseInt(adultCount) || 1,
-                                        children: parseInt(childCount) || 0,
-                                        specialRequests: customerData.specialRequests || null,
-                                        image: vehicle.dataset.image || null,
-                                        totalPrice: parseFloat(totalPrice) || 0,
-                                        componentDayIndex: parseInt(day) - 1,
-                                        entrypickup: field.value,
-                                        entrydropoff: 'N/A',
-                                        PickupPlaceid: {
-                                            lat: document.getElementById(`day${day}_${section}${fieldSuffix}_hourly_pickup_lat`)?.value || "",
-                                            lng: document.getElementById(`day${day}_${section}${fieldSuffix}_hourly_pickup_lng`)?.value || ""
-                                        },
-                                        DropoffPlaceid: null,
-                                        distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
-                                        Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
-                                        Night_Start_Time: null,
-                                        Night_End_Time: null,
-                                        selectedHours: parseInt(selectedHours?.value || 1),
-                                        bookingType: "enquiry",
-                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
-                                        supplement: (() => {
-                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
-                                            const serviceAdults = parseInt(adultCount) || 1;
-                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked || false);
-                                        })()
-                                    };
+                                    // Parse guest info from summary badges/HTML
+                                    const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
                                     
-                                    transportDataArray.push(transportData);
-                                    console.log(`✅ Added hourly transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
-                                }
-                            }
-                        }
-                    });
-                    
-                    // 3. Collect Local Transfer Transport Data
-                    console.log('=== COLLECTING LOCAL TRANSFER TRANSPORTS ===');
-                    const localTransferFields = document.querySelectorAll('select[name*="_pickup_zone_id"]');
-                    console.log(`Found ${localTransferFields.length} local transfer pickup fields`);
-                    
-                    localTransferFields.forEach(field => {
-                        if (field.value) {
-                            console.log(`Processing Local Transfer field: ${field.name} = ${field.value}`);
-                            const nameMatch = field.name.match(/day(\d+)_(transport)(?:_(\d+))?_(?:pickup_zone_id)/);
-                            if (nameMatch) {
-                                const day = nameMatch[1];
-                                const section = nameMatch[2];
-                                const transportIndex = nameMatch[3];
-                                const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
-                                
-                                const dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
-                                
-                                // Handle different field naming patterns for static vs dynamic
-                                let vehicleSelect, serviceTypeSelect, timeSelect, dateInput;
-                                
-                                if (transportIndex) {
-                                    // Dynamic transport - use indexed field names
-                                    vehicleSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_vehicle_id"]`);
-                                    serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_service_type"]`);
-                                    timeSelect = document.querySelector(`[name="day${day}_${section}_${transportIndex}_pickup_time"]`);
-                                    dateInput = document.querySelector(`input[name="day${day}_${section}_${transportIndex}_date"]`);
-                                } else {
-                                    // Static transport - use non-indexed field names
-                                    vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
-                                    // For static transport, service type is a radio button, not a select
-                                    const serviceTypeRadio = document.querySelector(`input[name="day${day}_${section}_service_type"]:checked`);
-                                    serviceTypeSelect = serviceTypeRadio ? { value: serviceTypeRadio.value } : null;
-                                    timeSelect = document.querySelector(`[name="day${day}_${section}_pickup_time"]`);
-                                    dateInput = document.querySelector(`input[name="day${day}_${section}_date"]`);
-                                }
-                                
-                                // Debug logging for static vs dynamic transport
-                                console.log(`Transport ${transportIndex ? 'dynamic' : 'static'} - Day ${day}:`, {
-                                    vehicleSelect: vehicleSelect?.value || 'NOT FOUND',
-                                    serviceTypeSelect: serviceTypeSelect?.value || 'NOT FOUND',
-                                    dropoffField: dropoffField?.value || 'NOT FOUND',
-                                    vehicleSelectElement: vehicleSelect ? 'FOUND' : 'NOT FOUND',
-                                    serviceTypeSelectElement: serviceTypeSelect ? 'FOUND' : 'NOT FOUND',
-                                    dropoffFieldElement: dropoffField ? 'FOUND' : 'NOT FOUND'
-                                });
-                                
-                                if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
-                                    const pickupZone = field.options[field.selectedIndex];
-                                    const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
-                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    // Use transport_passengers field if available, otherwise fallback to adults
-                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
-                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adults')?.value || 1);
-                                    const childCount = parseInt(document.getElementById('children')?.value || 0);
+                                    // Get restaurant details from the selected option
+                                    const selectedOption = select.options[select.selectedIndex];
+                                    const restaurantId = select.value;
                                     
-                                    // Handle total price field for both static and dynamic
-                                    let totalPriceField;
-                                    if (transportIndex) {
-                                        totalPriceField = document.getElementById(`day${day}_${section}_${transportIndex}_total_price`);
-                                    } else {
-                                        totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-                                    }
-                                    const totalPrice = parseFloat(totalPriceField?.value || 0);
+                                    // Get pricing data from hidden fields (this is the correct way)
+                                    const totalPrice = parseFloat(document.getElementById(`day${day}_restaurant_${index}_total_price`)?.value || 0);
+                                    const mealId = document.getElementById(`day${day}_restaurant_${index}_meal_id`)?.value || '';
+                                    const dishName = document.getElementById(`day${day}_restaurant_${index}_dish_name`)?.value || '';
                                     
-                                    const formatEntryTime = (time) => {
-                                        if (!time) return "12:00 PM";
-                                        if (time.includes('AM') || time.includes('PM')) return time;
-                                        const [hours, minutes] = time.split(':');
-                                        const hour = parseInt(hours);
-                                        const ampm = hour >= 12 ? 'PM' : 'AM';
-                                        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                                        return `${displayHour}:${minutes} ${ampm}`;
-                                    };
+                                    // Get selected dish from the "Select Dish" dropdown
+                                    const dishSelect = document.getElementById(`day${day}_dish_${index}`);
+                                    const selectedDishValue = dishSelect?.value || '';
+                                    const selectedDishOption = dishSelect?.options[dishSelect?.selectedIndex];
+                                    const selectedDishText = selectedDishOption?.text || selectedDishValue || '';
                                     
-                                    // Get selected hours if available (for hourly service)
-                                    const selectedHours = document.getElementById(`day${day}_${section}_${transportIndex}_selected_hours`)?.value || 
-                                                          document.getElementById(`day${day}_${section}_selected_hours`)?.value || 
-                                                          "1";
+                                    // Get transfer options
+                                    const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`)?.value || 'No';
+                                    let transferOptions = null;
                                     
-                                    // Get pickup and dropoff zone IDs
-                                    const pickupZoneId = pickupZone?.dataset?.zoneId || pickupZone?.value || "";
-                                    const dropoffZoneId = dropoffZone?.dataset?.zoneId || dropoffZone?.value || "";
-                                    
-                                    // Get tour_id if available
-                                    const tourId = document.getElementById('tour_id')?.value || 
-                                                   document.getElementById('hiddenTourId')?.value || 
-                                                   "";
-                                    
-                                    // Get night time settings if available
-                                    const nightStartTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_start_time`)?.value || 
-                                                           document.getElementById(`day${day}_${section}_night_start_time`)?.value || 
-                                                           null;
-                                    const nightEndTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_end_time`)?.value || 
-                                                         document.getElementById(`day${day}_${section}_night_end_time`)?.value || 
-                                                         null;
-                                    
-                                    const transportData = {
-                                        bookingDate: dateInput?.value || getTourDateForDay(day),
-                                        vehicles_id: String(vehicleSelect.value || "0"),
-                                        vehicles_name: vehicle.text,
-                                        image: vehicle.dataset.image || "",
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
-                                        Mode: "dmc",
-                                        type: serviceTypeSelect.value || "Private", // Service type: Private/Shared
-                                        entrypickup: pickupZone.text,
-                                        PickupPlaceid: {
-                                            lat: transportIndex ? 
-                                                document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lat`)?.value || "" :
-                                                document.getElementById(`day${day}_${section}_pickup_lat`)?.value || "",
-                                            lng: transportIndex ? 
-                                                document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lng`)?.value || "" :
-                                                document.getElementById(`day${day}_${section}_pickup_lng`)?.value || ""
-                                        },
-                                        dropoffLocation: dropoffZone.text,
-                                        DropoffPlaceid: {
-                                            lat: transportIndex ? 
-                                                document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lat`)?.value || "" :
-                                                document.getElementById(`day${day}_${section}_dropoff_lat`)?.value || "",
-                                            lng: transportIndex ? 
-                                                document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lng`)?.value || "" :
-                                                document.getElementById(`day${day}_${section}_dropoff_lng`)?.value || ""
-                                        },
-                                        exitpickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: formatEntryTime(timeSelect?.value),
-                                        adults: String(parseInt(adultCount) || 0),
-                                        children: String(parseInt(childCount) || 0),
-                                        selectedHours: selectedHours,
-                                        totalPrice: parseFloat(totalPrice || 0).toFixed(2),
-                                        Tax: String(parseFloat(transportIndex ? 
-                                            document.getElementById(`day${day}_${section}_${transportIndex}_tax`)?.value || "0.00" :
-                                            document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
-                                        Night_Start_Time: nightStartTime || null,
-                                        Night_End_Time: nightEndTime || null,
-                                        country: pickupZone.dataset.country || "Singapore",
-                                        fullName: customerData.fullName,
-                                        email: customerData.email,
-                                        phone: customerData.phone,
-                                        countryCode: customerData.countryCode,
-                                        address1: customerData.address1,
-                                        address2: customerData.address2 || null,
-                                        state: customerData.state || null,
-                                        zip: customerData.zip,
-                                        specialRequests: customerData.specialRequests || null,
-                                        userInfo: {
-                                            fullName: customerData.fullName,
-                                            email: customerData.email,
-                                            phone: customerData.phone,
-                                            address1: customerData.address1,
-                                            address2: customerData.address2 || null,
-                                            state: customerData.state || null,
-                                            zip: customerData.zip
-                                        },
-                                        bookingType: "enquiry",
-                                        service_category: "local_transport",
-                                        travel_type: "local_transport", // This will be used by backend to set type field
-                                        tour_id: tourId,
-                                        pickup_zone_id: pickupZoneId,
-                                        dropoff_zone_id: dropoffZoneId,
-                                        remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
-                                        supplement: !!(document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked)
-                                    };
-                                    
-                                    transportDataArray.push(transportData);
-                                    console.log(`✅ Added local transfer transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
-                                }
-                            }
-                        }
-                    });
-                    
-                    // 4. Collect Main Entry/Exit Port Transport Data (index 0 vehicles)
-                    console.log('=== COLLECTING MAIN ENTRY/EXIT PORT TRANSPORTS (INDEX 0) ===');
-                    
-                    // Collect main entry/exit vehicles (index 0) that weren't collected above
-                    // Include both zone-based selects and Google Maps inputs
-                    const entryExitZoneFields = document.querySelectorAll('select[name*="_entry_pickup_zone_id"], select[name*="_exit_pickup_zone_id"]');
-                    const entryExitLocationFields = document.querySelectorAll('input[name*="_entry_pickup_location"], input[name*="_exit_pickup_location"]');
-                    const entryExitFields = [...entryExitZoneFields, ...entryExitLocationFields];
-                    console.log(`Found ${entryExitZoneFields.length} zone-based entry/exit fields and ${entryExitLocationFields.length} location-based entry/exit fields`);
-                    
-                    entryExitFields.forEach(field => {
-                        console.log(`Checking entry/exit field: ${field.name} = ${field.value}`);
-                        if (field.value) {
-                            // Handle both zone-based and location-based field names
-                            const nameMatch = field.name.match(/day(\d+)_(entry|exit)_pickup_(zone_id|location)/);
-                            if (nameMatch) {
-                                const day = nameMatch[1];
-                                const section = nameMatch[2]; // entry or exit
-                                const fieldSuffix = ''; // No transport index for entry/exit ports
-                                
-                                console.log(`✅ Processing ${section} port field: ${field.name} = ${field.value}`);
-                                
-                                // Determine if this is a zone-based or location-based field
-                                const isLocationField = field.name.includes('_pickup_location');
-                                
-                                let dropoffField, pickupZone, dropoffZone;
-                                if (isLocationField) {
-                                    // Google Maps input fields
-                                    dropoffField = document.querySelector(`input[name="day${day}_${section}_dropoff_location"]`);
-                                    pickupZone = { text: field.value, dataset: {} };
-                                    dropoffZone = { text: dropoffField?.value || '', dataset: {} };
-                                } else {
-                                    // Zone-based select fields
-                                    dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
-                                    pickupZone = field.options[field.selectedIndex];
-                                    dropoffZone = dropoffField?.options[dropoffField.selectedIndex];
-                                }
-                                
-                                // For main entry/exit vehicles, use the correct naming pattern with _0_ index
-                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_0_vehicle_id"]`) || document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
-                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`) || document.querySelector(`select[name="day${day}_${section}_0_service_type"]`);
-                                // Handle different time and date field names for entry vs exit
-                                const timeFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_time` : `day${day}_${section}${fieldSuffix}_pickup_time`;
-                                // Entry uses hidden input [name="dayN_entry_pickup_time"]; exit may use select - query by name only
-                                const timeSelect = document.querySelector(`[name="${timeFieldName}"]`);
-                                
-                                // Date field handling - try section-specific date first, then fallback to travel_dates
-                                let dateInput;
-                                if (section === 'exit') {
-                                    const exitDateFieldName = `day${day}_exit_date`;
-                                    dateInput = document.querySelector(`input[name="${exitDateFieldName}"]`);
-                                } else {
-                                    const entryDateFieldName = `day${day}_${section}_pickup_date`;
-                                    dateInput = document.querySelector(`input[name="${entryDateFieldName}"]`);
-                                }
-                                if (!dateInput) {
-                                    // Fallback to global travel dates control
-                                    dateInput = document.getElementById('travel_dates');
-                                }
-                                
-                                // For entry ports, ensure we use the first day of the tour when no specific date is found
-                                let bookingDateValue;
-                                if (section === 'entry' && (!dateInput?.value || dateInput.id === 'travel_dates')) {
-                                    // For entry ports, use the first day of the tour
-                                    bookingDateValue = getTourDateForDay(1);
-                                } else {
-                                    // For exit ports or when specific date is available, use the actual date
-                                    bookingDateValue = dateInput?.value || getTourDateForDay(day);
-                                }
-                                
-                                console.log(`🔍 Related fields for ${section} port:`, {
-                                    dropoffField: dropoffField?.name || 'NOT_FOUND',
-                                    dropoffValue: dropoffField?.value || 'NO_VALUE',
-                                    vehicleSelect: vehicleSelect?.name || 'NOT_FOUND',
-                                    vehicleValue: vehicleSelect?.value || 'NO_VALUE',
-                                    serviceTypeSelect: serviceTypeSelect?.name || 'NOT_FOUND',
-                                    serviceTypeValue: serviceTypeSelect?.value || 'NO_VALUE',
-                                    timeFieldName: timeFieldName,
-                                    timeValue: timeSelect?.value || 'NO_VALUE',
-                                    dateValue: dateInput?.value || 'NO_VALUE'
-                                });
-                                
-                                if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
-                                    console.log(`✅ All required fields found for ${section} port - proceeding with data creation`);
-                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    // For main entry/exit vehicles, get passenger count from the correct field
-                                    const passengerField = document.getElementById(`day${day}_${section}_0_passengers`);
-                                    const passengerCount = parseInt(passengerField?.value || document.getElementById('adults')?.value || 0);
-                                    const childCount = parseInt(document.getElementById('children')?.value || 0);
-                                    // For main entry/exit vehicles, use the correct naming pattern with _0_ index
-                                    const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_0_total_price`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
-                                    
-                                    if (section === 'entry') {
-                                        // Get city from the city select field
-                                        const citySelect = document.getElementById('modal_local_transfer_city');
-                                        const cityValue = citySelect?.value || '';
+                                    if (transferRequired === 'Yes') {
+                                        const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`)?.value || '';
+                                        const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`)?.value || '';
+                                        const transferVehicle = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`)?.value || '';
+                                        const transferCostBase = parseFloat(document.getElementById(`day${day}_restaurant_${index}_transfer_cost`)?.value || 0);
+                                        // For Shared transfer, store total (base × pax) so DB matches displayed price
+                                        let transferCost = transferCostBase;
+                                        if (transferType === 'Shared' && transferCostBase > 0) {
+                                            const guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                                            transferCost = transferCostBase * (guestCount > 0 ? guestCount : 1);
+                                        }
+                                        const transferPickupLocation = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`)?.value || '';
                                         
-                                        // Get country from city select option's data-country attribute, or from user_country field
-                                        const cityOption = citySelect?.options[citySelect?.selectedIndex];
-                                        const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
-                                        const countryFromField = document.getElementById('user_country')?.value || '';
-                                        const countryValue = countryFromCityOption || countryFromField || '';
+                                        // Get pickup location name
+                                        let pickupLocationName = '';
+                                        if (transferPickupLocation) {
+                                            const pickupSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
+                                            const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
+                                            if (selectedPickupOption) {
+                                                pickupLocationName = selectedPickupOption.text || '';
+                                            }
+                                        }
+                                        
+                                        // Get vehicle details if vehicle is selected
+                                        let vehicleDetails = null;
+                                        if (transferVehicle) {
+                                            const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+                                            const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
+                                            if (selectedVehicleOption) {
+                                                vehicleDetails = {
+                                                    vehicle_id: transferVehicle,
+                                                    vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
+                                                    vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
+                                                    seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
+                                                    private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
+                                                    shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
+                                                };
+                                            }
+                                        }
+                                        
+                                        const transferPickupTime = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`)?.value || '';
+                                        
+                                        transferOptions = {
+                                            transfer_required: true,
+                                            type: transferType,
+                                            way: transferWay,
+                                            vehicle_id: transferVehicle,
+                                            vehicle_details: vehicleDetails,
+                                            cost: transferCost,
+                                            pickup_location_id: transferPickupLocation,
+                                            pickup_location_name: pickupLocationName,
+                                            pickup_time: transferPickupTime
+                                        };
+                                    }
+                                    
+                                    console.log(`Restaurant pricing for day ${day}, index ${index}:`);
+                                    console.log(`- Total Price: $${totalPrice}`);
+                                    console.log(`- Meal ID: ${mealId}`);
+                                    console.log(`- Dish Name: ${dishName}`);
+                                    console.log(`- Selected Dish: ${selectedDishText}`);
+                                    console.log(`- Guest Info: ${guestInfo.adults} adults, ${guestInfo.children} children`);
+                                    
+                                    // Format visit time to 12-hour format with AM/PM
+                                    const formatVisitTime = (time) => {
+                                        if (!time) return "12:00 PM";
+                                        // If already in 12-hour format, return as is
+                                        if (time.includes('AM') || time.includes('PM')) return time;
+                                        // Convert 24-hour to 12-hour format
+                                        const [hours, minutes] = time.split(':');
+                                        const hour = parseInt(hours);
+                                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                                        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                        return `${displayHour}:${minutes} ${ampm}`;
+                                    };
+
+                                    // Normalize meal type to proper capitalization
+                                    const normalizeMealType = (type) => {
+                                        if (!type) return "Lunch";
+                                        const lowerType = type.toLowerCase();
+                                        if (lowerType === 'breakfast') return "Breakfast";
+                                        if (lowerType === 'lunch') return "Lunch";
+                                        if (lowerType === 'dinner') return "Dinner";
+                                        return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+                                    };
+
+                                    // Normalize booking type to lowercase
+                                    const normalizeBookingType = (type) => {
+                                        if (!type) return "enquiry";
+                                        const lowerType = type.toLowerCase();
+                                        return lowerType === 'enquiry' ? 'enquiry' : 'enquiry';
+                                    };
+
+                                    restaurantDataArray.push({
+                                        // Customer Information (from Customer Information form)
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        countryCode: customerData.countryCode,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2 || null,
+                                        state: customerData.state || null,
+                                        zip: customerData.zip,
+                                        specialRequests: customerData.specialRequests || null,
+                                        
+                                        // Restaurant Information
+                                        bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || getTourDateForDay(day),
+                                        visitTime: formatVisitTime(timeSlot),
+                                        adultCount: guestInfo.adults || 0,
+                                        childCount: guestInfo.children || 0,
+                                        restaurantId: parseInt(restaurantId),
+                                        restaurantName: selectedOption.text,
+                                        
+                                        // Meal Information
+                                        mealType: normalizeMealType(mealType),
+                                        mealSpecificType: selectedDishText || null,
+                                        
+                                        // Meal Description (array of meal items)
+                                        MealDescription: [{
+                                            item_name: dishName || "Menu Item",
+                                            name: dishName || "Menu Item",
+                                            price: parseFloat(totalPrice) || 0,
+                                            meal_id: parseInt(mealId) || parseInt(restaurantId),
+                                            category: document.getElementById(`day${day}_meal_category_${index}`)?.value || "",
+                                            item_type: document.getElementById(`day${day}_meal_item_type_${index}`)?.value || "",
+                                            quantity: 1
+                                        }],
+                                        
+                                        // Pricing
+                                        totalPrice: parseFloat(totalPrice) || 0,
+                                        mealPrice: parseFloat(totalPrice) || 0,
+                                        
+                                        // Transport
+                                        transport: document.getElementById(`day${day}_restaurant_transport_${index}`)?.value || null,
+                                        transportPrice: parseFloat(document.getElementById(`day${day}_restaurant_transport_price_${index}`)?.value || 0),
+                                        
+                                        // Price Types and DMC
+                                        priceTypes: [document.getElementById(`day${day}_restaurant_price_type_${index}`)?.value || "dmc"],
+                                        dmc_id: String(document.getElementById('dmc_id')?.value || "4"),
+                                        bookingType: normalizeBookingType(document.getElementById(`day${day}_restaurant_booking_type_${index}`)?.value),
+                                        
+                                        // Transfer Options
+                                        transfer_options: transferOptions,
+                                        
+                                        // Remarks
+                                        remarks: document.getElementById(`day${day}_restaurant_${index}_remarks`)?.value || '',
+                                        supplement: (() => {
+                                            const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                            const serviceAdults = guestInfo.adults || 0;
+                                            return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_restaurant_${index}_is_supplement`)?.checked || false);
+                                        })()
+                                    });
+                                }
+                            }
+                        });
+                        
+                        const restaurantDataField = document.getElementById('restaurant_data');
+                        if (restaurantDataField) {
+                            restaurantDataField.value = JSON.stringify(restaurantDataArray);
+                            console.log('Restaurant data updated:', restaurantDataArray);
+                        }
+                        
+                        // Update package total price display
+                        updatePackageTotalPriceDisplay();
+                    }
+
+                    // Function to collect transport data (including entry/exit ports)
+                    function updateTransportDataField() {
+                            console.log('=== STARTING TRANSPORT DATA COLLECTION ===');
+                        
+                        // Get customer information from the Customer Information form
+                        const customerData = getCustomerData();
+                        
+                        // Initialize arrays for different transport types
+                        let transportDataArray = [];
+                        let entryPortArray = [];
+                        let exitPortArray = [];
+                        
+                        // Get current DMC information
+                        const dmcInfo = {
+                            dmc_id: '{{ $finalDmcId }}',
+                            user_id: '{{ $currentUserId }}',
+                            role_id: '{{ $currentUserRole }}',
+                            created_by: '{{ $createdBy }}',
+                            is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
+                        };
+                        
+                        // Get all transport selections - handle both single and multiple transport patterns
+                        // Include all pickup field types: zone selects, location inputs for point-to-point and hourly
+                        const allPickupSelects = document.querySelectorAll('select[name*="_pickup_zone_id"]');
+                        const allPickupLocationInputs = document.querySelectorAll('input[name*="_pickup_location"]');
+                        const allDropoffLocationInputs = document.querySelectorAll('input[name*="_dropoff_location"]');
+                        // Only include pickup fields for processing, dropoff fields will be handled separately
+                        const allPickupFields = [...allPickupSelects, ...allPickupLocationInputs];
+                        console.log(`Found ${allPickupSelects.length} pickup zone selects and ${allPickupLocationInputs.length} pickup location inputs:`, Array.from(allPickupFields).map(s => s.name));
+                        
+                        // Collect data from additional entry port vehicles (created by addMoreEntryPorts) - Skip index 0 as it's handled in main collection
+                        // NOTE: This section is for ZONE-BASED entry ports (zone_on = 1). For Google Maps entry ports (zone_on = 0), see separate collection below.
+                        console.log('=== COLLECTING ADDITIONAL ENTRY PORT VEHICLES (INDEX > 0) - ZONE-BASED MODE ===');
+                        
+                        // Check if we're in zone-based mode (zone_on = 1) before collecting zone-based data
+                        const dmcUser = @json($UserDmc);
+                        const isZoneBasedMode = !dmcUser || dmcUser.zone_on != 0; // zone_on = 1 or undefined
+                        
+                        if (isZoneBasedMode) {
+                            console.log('Zone-based mode detected (zone_on = 1) - collecting zone-based entry port data');
+                        const additionalEntryVehicles = document.querySelectorAll('select[name*="_entry_"][name*="_vehicle_id"]');
+                        console.log(`Found ${additionalEntryVehicles.length} total entry port vehicles:`, Array.from(additionalEntryVehicles).map(s => s.name));
+                        
+                        additionalEntryVehicles.forEach(vehicleSelect => {
+                            if (vehicleSelect.value) {
+                                const nameMatch = vehicleSelect.name.match(/day(\d+)_entry_(\d+)_vehicle_id/);
+                                if (nameMatch) {
+                                    const day = nameMatch[1];
+                                    const vehicleIndex = nameMatch[2];
+                                    
+                                    // Skip index 0 (main vehicle) as it's handled in the main collection section below
+                                    if (vehicleIndex === '0') {
+                                        console.log(`Skipping main entry vehicle (index 0) for Day ${day} - will be handled in main collection`);
+                                        return;
+                                    }
+                                    
+                                    console.log(`Processing additional entry port vehicle for Day ${day}, Index ${vehicleIndex}`);
+                                    
+                                    // Get related fields for this additional vehicle
+                                    const serviceTypeSelect = document.querySelector(`select[name="day${day}_entry_${vehicleIndex}_service_type"]`);
+                                    const priceDisplay = document.getElementById(`day${day}_entry_${vehicleIndex}_price_display`);
+                                    
+                                    // Get the main entry port pickup/dropoff data (they're shared)
+                                    const pickupZoneSelect = document.querySelector(`select[name="day${day}_entry_pickup_zone_id"]`);
+                                    const dropoffZoneSelect = document.querySelector(`select[name="day${day}_entry_dropoff_zone_id"]`);
+                                    const timeSelect = document.querySelector(`[name="day${day}_entry_pickup_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_entry_pickup_date"]`);
+                                    
+                                    if (pickupZoneSelect && dropoffZoneSelect && serviceTypeSelect && vehicleSelect.value) {
+                                        const pickupZone = pickupZoneSelect.options[pickupZoneSelect.selectedIndex];
+                                        const dropoffZone = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex];
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                        // Get passenger count for this specific vehicle
+                                        const passengerCount = parseInt(document.getElementById(`day${day}_entry_${vehicleIndex}_passengers`)?.value || 1);
+                                        const totalPrice = parseFloat(document.getElementById(`day${day}_entry_${vehicleIndex}_total_price`)?.value || 0);
                                         
                                         const transportData = {
-                                            id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                            bookingDate: bookingDateValue,
+                                            id: `entry-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                            bookingDate: dateInput?.value || getTourDateForDay(day),
                                             vehicles_id: parseInt(vehicleSelect.value) || 0,
                                             image: vehicle.dataset.image || "",
-                                            dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                            dmc_id: parseInt(document.getElementById('dmc_id')?.value || ""),
                                             vehicles_name: vehicle.text,
                                             Mode: "dmc",
                                             type: serviceTypeSelect.value || "",
@@ -4343,29 +3612,42 @@
                                             travel_type: "entry_port",
                                             arrival_transport_type: document.querySelector(`input[name="day${day}_arrival_transport_type"]:checked`)?.value || "flight",
                                             arrival_flight_no: document.getElementById(`day${day}_arrival_flight_no`)?.value || "",
-                                            supplement: !!(document.getElementById(`day${day}_entry_0_is_supplement`)?.checked),
-                                            entrypickup: pickupZone?.text || '',
-                                            entrydropoff: dropoffZone?.text || '',
+                                            supplement: !!(document.getElementById(`day${day}_entry_${vehicleIndex}_is_supplement`)?.checked),
+                                            entrypickup: pickupZone.text,
+                                            entrydropoff: dropoffZone.text,
                                             PickupPlaceid: {
-                                                lat: pickupZone?.dataset?.lat || "",
-                                                lng: pickupZone?.dataset?.lng || ""
+                                                lat: pickupZone.dataset.lat || "",
+                                                lng: pickupZone.dataset.lng || ""
                                             },
                                             DropoffPlaceid: {
-                                                lat: dropoffZone?.dataset?.lat || "",
-                                                lng: dropoffZone?.dataset?.lng || ""
+                                                lat: dropoffZone.dataset.lat || "",
+                                                lng: dropoffZone.dataset.lng || ""
                                             },
-                                            pickupdate: bookingDateValue,
+                                            pickupdate: dateInput?.value || getTourDateForDay(day),
                                             entrytime: timeSelect?.value || "",
                                             adults: parseInt(passengerCount) || 0,
-                                            children: parseInt(childCount) || 0,
+                                            children: 0,
                                             componentDayIndex: parseInt(day) - 1,
                                             totalPrice: parseFloat(totalPrice) || 0,
-                                            Tax: parseFloat(document.getElementById(`day${day}_${section}_0_tax`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
-                                            distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                            Tax: parseFloat(document.getElementById(`day${day}_entry_${vehicleIndex}_tax`)?.value || "0.00"),
+                                            distance: parseFloat(document.getElementById(`day${day}_entry_${vehicleIndex}_distance`)?.value || "0"),
                                             Night_Start_Time: null,
                                             Night_End_Time: null,
-                                            city: cityValue || pickupZone?.dataset?.city || "",
-                                            country: countryValue || pickupZone?.dataset?.country || "",
+                                            city: (() => {
+                                                // Get city from the city select field
+                                                const citySelect = document.getElementById('modal_local_transfer_city');
+                                                const cityValue = citySelect?.value || '';
+                                                return cityValue || pickupZone.dataset.city || "";
+                                            })(),
+                                            country: (() => {
+                                                // Get country from city select option's data-country attribute, or from user_country field
+                                                const citySelect = document.getElementById('modal_local_transfer_city');
+                                                const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                                const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromField = document.getElementById('user_country')?.value || '';
+                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                return countryValue || pickupZone.dataset.country || "";
+                                            })(),
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
@@ -4387,25 +3669,71 @@
                                                 specialRequests: customerData.specialRequests || null
                                             },
                                             bookingType: "enquiry",
-                                            remarks: document.getElementById(`day${day}_entry_0_remarks`)?.value || ''
+                                            vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
+                                            remarks: document.getElementById(`day${day}_entry_${vehicleIndex}_remarks`)?.value || ''
                                         };
+                                        
                                         entryPortArray.push(transportData);
-                                        console.log(`✅ Added main entry port transport: ${transportData.vehicles_name}`, transportData);
+                                        console.log(`✅ Added additional entry port vehicle #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
                                         console.log(`✅ Entry port array now has ${entryPortArray.length} vehicles`);
-                                    } else if (section === 'exit') {
+                                    }
+                                }
+                            }
+                        });
+                        } else {
+                            console.log('Point-to-Point mode detected (zone_on = 0) - skipping zone-based entry port collection. Google Maps collection will handle this.');
+                        }
+                        
+                        // Collect data from additional exit port vehicles (created by addMoreExitPorts) - Skip index 0 as it's handled in main collection
+                        console.log('=== COLLECTING ADDITIONAL EXIT PORT VEHICLES (INDEX > 0) ===');
+                        const additionalExitVehicles = document.querySelectorAll('select[name*="_exit_"][name*="_vehicle_id"]');
+                        console.log(`Found ${additionalExitVehicles.length} total exit port vehicles:`, Array.from(additionalExitVehicles).map(s => s.name));
+                        
+                        additionalExitVehicles.forEach(vehicleSelect => {
+                            if (vehicleSelect.value) {
+                                const nameMatch = vehicleSelect.name.match(/day(\d+)_exit_(\d+)_vehicle_id/);
+                                if (nameMatch) {
+                                    const day = nameMatch[1];
+                                    const vehicleIndex = nameMatch[2];
+                                    
+                                    // Skip index 0 (main vehicle) as it's handled in the main collection section below
+                                    if (vehicleIndex === '0') {
+                                        console.log(`Skipping main exit vehicle (index 0) for Day ${day} - will be handled in main collection`);
+                                        return;
+                                    }
+                                    
+                                    console.log(`Processing additional exit port vehicle for Day ${day}, Index ${vehicleIndex}`);
+                                    
+                                    // Get related fields for this additional vehicle
+                                    const serviceTypeSelect = document.querySelector(`select[name="day${day}_exit_${vehicleIndex}_service_type"]`);
+                                    
+                                    // Get the main exit port pickup/dropoff data (they're shared)
+                                    const pickupZoneSelect = document.querySelector(`select[name="day${day}_exit_pickup_zone_id"]`);
+                                    const dropoffZoneSelect = document.querySelector(`select[name="day${day}_exit_dropoff_zone_id"]`);
+                                    const timeSelect = document.querySelector(`[name="day${day}_exit_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_exit_date"]`);
+                                    
+                                    if (pickupZoneSelect && dropoffZoneSelect && serviceTypeSelect && vehicleSelect.value) {
+                                        const pickupZone = pickupZoneSelect.options[pickupZoneSelect.selectedIndex];
+                                        const dropoffZone = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex];
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                        // Get passenger count for this specific vehicle
+                                        const passengerCount = parseInt(document.getElementById(`day${day}_exit_${vehicleIndex}_passengers`)?.value || 1);
+                                        const totalPrice = parseFloat(document.getElementById(`day${day}_exit_${vehicleIndex}_total_price`)?.value || 0);
+                                        
                                         const transportData = {
-                                            id: `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                            id: `exit-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                             bookingDate: dateInput?.value || getTourDateForDay(day),
                                             vehicles_id: parseInt(vehicleSelect.value) || 0,
                                             vehicles_name: vehicle.text,
-                                            dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                            dmc_id: parseInt(document.getElementById('dmc_id')?.value || ""),
                                             Mode: "dmc",
                                             type: serviceTypeSelect.value || "",
                                             image: vehicle.dataset.image || "",
                                             travel_type: "exit_port",
                                             departure_transport_type: document.querySelector(`input[name="day${day}_departure_transport_type"]:checked`)?.value || "flight",
                                             departure_flight_no: document.getElementById(`day${day}_departure_flight_no`)?.value || "",
-                                            supplement: !!(document.getElementById(`day${day}_exit_0_is_supplement`)?.checked),
+                                            supplement: !!(document.getElementById(`day${day}_exit_${vehicleIndex}_is_supplement`)?.checked),
                                             vehicle_type: vehicle.dataset.vehicle_type || "SUV",
                                             vehicle_model: vehicle.dataset.vehicle_model || "",
                                             model_year: parseInt(vehicle.dataset.model_year) || 0,
@@ -4422,11 +3750,11 @@
                                             },
                                             exitpickupdate: dateInput?.value || getTourDateForDay(day),
                                             entrytime: timeSelect?.value || "",
-                                        adults: parseInt(passengerCount) || 0,
-                                            children: parseInt(childCount) || 0,
+                                            adults: parseInt(passengerCount) || 0,
+                                            children: 0,
                                             totalPrice: parseFloat(totalPrice) || 0,
-                                        Tax: parseFloat(document.getElementById(`day${day}_${section}_0_tax`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
-                                        distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                            Tax: parseFloat(document.getElementById(`day${day}_exit_${vehicleIndex}_tax`)?.value || "0.00"),
+                                            distance: parseFloat(document.getElementById(`day${day}_exit_${vehicleIndex}_distance`)?.value || "0"),
                                             Night_Start_Time: null,
                                             Night_End_Time: null,
                                             city: (() => {
@@ -4449,123 +3777,558 @@
                                             phone: customerData.phone,
                                             countryCode: customerData.countryCode,
                                             address1: customerData.address1,
-                                            address2: customerData.address2,
-                                            state: customerData.state,
+                                            address2: customerData.address2 || null,
+                                            state: customerData.state || null,
                                             zip: customerData.zip,
-                                            specialRequests: customerData.specialRequests,
-                                            remarks: document.getElementById(`day${day}_exit_0_remarks`)?.value || ''
-                                        };
-                                        exitPortArray.push(transportData);
-                                        console.log(`✅ Added exit port transport: ${transportData.vehicles_name}`, transportData);
-                                    }
-                                } else {
-                                    console.log(`❌ Missing required fields for ${section} port:`, {
-                                        vehicleSelect: vehicleSelect?.value || 'MISSING',
-                                        serviceTypeSelect: serviceTypeSelect?.value || 'MISSING',
-                                        dropoffField: dropoffField?.value || 'MISSING'
-                                    });
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Check if we're in Google Maps mode (zone_on = 0) to process Google Maps location fields
-                    const isGoogleMapsMode = dmcUser && dmcUser.zone_on == 0;
-                    if (isGoogleMapsMode) {
-                        console.log('Google Maps mode detected (zone_on = 0). Processing Google Maps location fields...');
-                        
-                        // Look for Google Maps location input fields
-                        const googleMapsEntryFields = document.querySelectorAll('input[name*="_entry_pickup_location"], input[name*="_entry_dropoff_location"]');
-                        const googleMapsExitFields = document.querySelectorAll('input[name*="_exit_pickup_location"], input[name*="_exit_dropoff_location"]');
-                        
-                        console.log(`Found ${googleMapsEntryFields.length} Google Maps entry fields`);
-                        console.log(`Found ${googleMapsExitFields.length} Google Maps exit fields`);
-                        
-                        // Process Google Maps entry fields - but only process pickup fields to avoid duplicates
-                        const processedEntryDays = new Set();
-                        googleMapsEntryFields.forEach(field => {
-                            if (field.value) {
-                                const nameMatch = field.name.match(/day(\d+)_entry_(pickup|dropoff)_location/);
-                                if (nameMatch) {
-                                    const day = nameMatch[1];
-                                    const direction = nameMatch[2]; // pickup or dropoff
-                                    
-                                    // Only process once per day (when we hit the pickup field)
-                                    if (direction === 'pickup' && !processedEntryDays.has(day)) {
-                                        processedEntryDays.add(day);
-                                        console.log(`Processing Google Maps entry fields for day ${day}`);
-                                        
-                                        // Find ALL entry port vehicles for this day (main + additional)
-                                        const allEntryVehicles = document.querySelectorAll(`select[name*="day${day}_entry_"][name*="_vehicle_id"]`);
-                                        console.log(`Found ${allEntryVehicles.length} entry port vehicles for day ${day}:`, Array.from(allEntryVehicles).map(v => v.name));
-                                        
-                                        // Process each vehicle
-                                        allEntryVehicles.forEach(vehicleSelect => {
-                                            if (vehicleSelect.value) {
-                                                const vehicleNameMatch = vehicleSelect.name.match(/day(\d+)_entry_(\d+)_vehicle_id/);
-                                                if (vehicleNameMatch) {
-                                                    const vehicleDay = vehicleNameMatch[1];
-                                                    const vehicleIndex = vehicleNameMatch[2];
-                                                    
-                                                    // Skip index 0 (main vehicle) as it's handled in the main collection section
-                                                    if (vehicleIndex === '0') {
-                                                        console.log(`Skipping main entry vehicle (index 0) for Day ${vehicleDay} - will be handled in main collection`);
-                                                        return;
-                                                    }
-                                                    
-                                                    console.log(`Processing Google Maps entry vehicle: day${vehicleDay}_entry_${vehicleIndex}`);
-                                                    
-                                                    // Find related fields for this specific vehicle
-                                                    const serviceTypeSelect = document.querySelector(`select[name="day${vehicleDay}_entry_${vehicleIndex}_service_type"]`) || 
-                                                                             document.querySelector(`select[name="day${vehicleDay}_entry_service_type"]`);
-                                                    const timeSelect = document.querySelector(`[name="day${vehicleDay}_entry_pickup_time"]`);
-                                                    const dateInput = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_date"]`);
-                                                    
-                                                    // Get coordinates from hidden fields (shared for all vehicles)
-                                                    const latField = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_lat"]`);
-                                                    const lngField = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_lng"]`);
-                                                    const dropoffLatField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_lat"]`);
-                                                    const dropoffLngField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_lng"]`);
-                                    
-                                    if (vehicleSelect?.value && serviceTypeSelect?.value) {
-                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                                        // Get passenger count for this specific vehicle
-                                                        const passengerCount = parseInt(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_passengers`)?.value || document.getElementById('adult_count')?.value || 0);
-                                        const childCount = parseInt(document.getElementById('child_count')?.value || 0);
-                                                        
-                                                        // For zone=0 (Point-to-Point mode), get price from custom price field, otherwise use total_price
-                                                        const dmcUser = @json($UserDmc);
-                                                        const isZoneZero = dmcUser && dmcUser.zone_on == 0;
-                                                        let totalPrice = 0;
-                                                        
-                                                        if (isZoneZero) {
-                                                            // Zone = 0: Get price from custom price field
-                                                            const customPriceField = document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_custom_price`);
-                                                            totalPrice = parseFloat(customPriceField?.value || 0);
-                                                            console.log(`Using custom price for entry vehicle ${vehicleIndex} (zone=0): ${totalPrice}`);
-                                                        } else {
-                                                            // Zone = 1: Get price from total_price hidden field
-                                                            totalPrice = parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_total_price`)?.value || 0);
-                                                            console.log(`Using total_price for entry vehicle ${vehicleIndex} (zone=1): ${totalPrice}`);
-                                                        }
-                                                        
-                                                        // Get pickup and dropoff locations (shared for all vehicles)
-                                                        const pickupField = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_location"]`);
-                                                        const dropoffField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_location"]`);
-                                        
-                                        if (pickupField?.value && dropoffField?.value) {
-                                            const transportData = {
-                                                                id: `entry-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                                bookingDate: dateInput?.value || getTourDateForDay(vehicleDay),
+                                            specialRequests: customerData.specialRequests || null,
+                                            userInfo: {
                                                 fullName: customerData.fullName,
                                                 email: customerData.email,
                                                 phone: customerData.phone,
                                                 countryCode: customerData.countryCode,
                                                 address1: customerData.address1,
-                                                address2: customerData.address2,
-                                                state: customerData.state,
+                                                address2: customerData.address2 || null,
+                                                state: customerData.state || null,
                                                 zip: customerData.zip,
-                                                specialRequests: customerData.specialRequests,
+                                                specialRequests: customerData.specialRequests || null
+                                            },
+                                            bookingType: "enquiry",
+                                            vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
+                                            remarks: document.getElementById(`day${day}_exit_${vehicleIndex}_remarks`)?.value || ''
+                                        };
+                                        
+                                        exitPortArray.push(transportData);
+                                        console.log(`✅ Added additional exit port vehicle #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // Debug: Check all input fields that might be transport-related
+                        console.log('=== ALL TRANSPORT-RELATED FIELDS ===');
+                        const allInputs = document.querySelectorAll('input[name*="transport"], input[name*="pickup"], input[name*="dropoff"], input[name*="additional"], input[name*="hourly"]');
+                        allInputs.forEach(input => {
+                            if (input.value) {
+                                console.log(`Field with value: ${input.name} = ${input.value}`);
+                            }
+                        });
+                        
+                        // Debug: Check all select fields that might be transport-related
+                        const allSelects = document.querySelectorAll('select[name*="transport"], select[name*="vehicle"], select[name*="service_type"]');
+                        allSelects.forEach(select => {
+                            if (select.value) {
+                                console.log(`Select with value: ${select.name} = ${select.value}`);
+                            }
+                        });
+                        
+                        // Alternative approach: Find all transport fields by searching for specific patterns
+                        console.log('=== ALTERNATIVE TRANSPORT FIELD DETECTION ===');
+                        const allFields = document.querySelectorAll('input, select');
+                        const transportFields = [];
+                        
+                        allFields.forEach(field => {
+                            if (field.value && field.name) {
+                                // Check if this field is transport-related
+                                if (field.name.includes('transport') || 
+                                    field.name.includes('pickup') || 
+                                    field.name.includes('dropoff') || 
+                                    field.name.includes('vehicle') || 
+                                    field.name.includes('additional') || 
+                                    field.name.includes('hourly')) {
+                                    transportFields.push({
+                                        name: field.name,
+                                        value: field.value,
+                                        type: field.type || 'select'
+                                    });
+                                }
+                            }
+                        });
+                        
+                        console.log('All transport-related fields found:', transportFields);
+                        
+                        // Keep track of processed transports to avoid duplicates
+                        const processedTransports = new Set();
+                        
+                        // Keep track of processed fields to avoid processing the same field multiple times
+                        const processedFields = new Set();
+                        
+                        // SEGREGATED TRANSPORT COLLECTION: Handle each transport type separately
+                        // This ensures all transport types are collected correctly
+                        
+                        // 1. Collect Point-to-Point Transport Data
+                        console.log('=== COLLECTING POINT-TO-POINT TRANSPORTS ===');
+                        const pointToPointFields = document.querySelectorAll('input[name*="transport"][name*="pickup_location"]:not([name*="hourly"])');
+                        console.log(`Found ${pointToPointFields.length} point-to-point pickup fields`);
+                        
+                        pointToPointFields.forEach(field => {
+                            if (field.value) {
+                                console.log(`Processing P2P field: ${field.name} = ${field.value}`);
+                                const nameMatch = field.name.match(/day(\d+)_(\w+)(?:_(\d+))?_pickup_location/);
+                                if (nameMatch) {
+                                    const day = nameMatch[1];
+                                    const section = nameMatch[2];
+                                    const transportIndex = nameMatch[3];
+                                    const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
+                                    
+                                    // Check if point-to-point service type is selected
+                                    const serviceTypeRadio = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_service_type"][value="point_to_point"]:checked`);
+                                    if (!serviceTypeRadio) {
+                                        console.log(`Skipping field ${field.name} - point-to-point service type not selected`);
+                                        return;
+                                    }
+                                    
+                                    console.log(`Point-to-point service type confirmed for ${field.name}`);
+                                    
+                                    const dropoffField = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_dropoff_location"]`);
+                                    const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
+                                    const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
+                                    const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_additional_pickup_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_additional_date"]`);
+                                    
+                                    if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                        // Use transport_passengers field if available, otherwise fallback to adult_count
+                                        const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                        const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
+                                        const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                        const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
+                                        
+                                        const formatEntryTime = (time) => {
+                                            if (!time) return "12:00 PM";
+                                            if (time.includes('AM') || time.includes('PM')) return time;
+                                            const [hours, minutes] = time.split(':');
+                                            const hour = parseInt(hours);
+                                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                                            const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                            return `${displayHour}:${minutes} ${ampm}`;
+                                        };
+                                        
+                                        const transportData = {
+                                            id: `point-to-point-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                            Mode: "dmc",
+                                            dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            country: "Singapore",
+                                            countryCode: customerData.countryCode,
+                                            state: customerData.state || null,
+                                            city: "Singapore",
+                                            zip: customerData.zip,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2 || null,
+                                            bookingDate: dateInput?.value || getTourDateForDay(day),
+                                            pickupdate: dateInput?.value || getTourDateForDay(day),
+                                            entrytime: formatEntryTime(timeSelect?.value),
+                                            vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                            vehicles_name: vehicle.text,
+                                            type: serviceTypeSelect.value || "Private",
+                                            travel_type: "travel_point",
+                                            adults: parseInt(adultCount) || 1,
+                                            children: parseInt(childCount) || 0,
+                                            specialRequests: customerData.specialRequests || null,
+                                            image: vehicle.dataset.image || null,
+                                            totalPrice: parseFloat(totalPrice) || 0,
+                                            componentDayIndex: parseInt(day) - 1,
+                                            entrypickup: field.value,
+                                            entrydropoff: dropoffField.value,
+                                            PickupPlaceid: {
+                                                lat: document.getElementById(`day${day}_${section}${fieldSuffix}_additional_pickup_lat`)?.value || "",
+                                                lng: document.getElementById(`day${day}_${section}${fieldSuffix}_additional_pickup_lng`)?.value || ""
+                                            },
+                                            DropoffPlaceid: {
+                                                lat: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lat`)?.value || "",
+                                                lng: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lng`)?.value || ""
+                                            },
+                                            distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                            Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
+                                            Night_Start_Time: null,
+                                            Night_End_Time: null,
+                                            bookingType: "enquiry",
+                                            remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
+                                            supplement: (() => {
+                                                const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                                const serviceAdults = parseInt(adultCount) || 1;
+                                                return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked || false);
+                                            })()
+                                        };
+                                        
+                                        transportDataArray.push(transportData);
+                                        console.log(`✅ Added point-to-point transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // 2. Collect Hourly Transport Data
+                        console.log('=== COLLECTING HOURLY TRANSPORTS ===');
+                        const hourlyFields = document.querySelectorAll('input[name*="hourly_pickup_location"]');
+                        console.log(`Found ${hourlyFields.length} hourly pickup fields`);
+                        
+                        hourlyFields.forEach(field => {
+                            if (field.value) {
+                                console.log(`Processing Hourly field: ${field.name} = ${field.value}`);
+                                const nameMatch = field.name.match(/day(\d+)_(\w+)(?:_(\d+))?_(?:hourly_pickup_location)/);
+                                if (nameMatch) {
+                                    const day = nameMatch[1];
+                                    const section = nameMatch[2];
+                                    const transportIndex = nameMatch[3];
+                                    const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
+                                    
+                                    const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
+                                    const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
+                                    const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_hourly_date"]`);
+                                    const selectedHours = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_selected_hours"]`);
+                                    
+                                    if (vehicleSelect?.value && serviceTypeSelect?.value) {
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                        // Use transport_passengers field if available, otherwise fallback to adult_count
+                                        const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                        const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
+                                        const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                        const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
+                                        
+                                        const formatEntryTime = (time) => {
+                                            if (!time) return "12:00 PM";
+                                            if (time.includes('AM') || time.includes('PM')) return time;
+                                            const [hours, minutes] = time.split(':');
+                                            const hour = parseInt(hours);
+                                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                                            const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                            return `${displayHour}:${minutes} ${ampm}`;
+                                        };
+                                        
+                                        const transportData = {
+                                            id: `hourly-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                            Mode: "dmc",
+                                            dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            country: "Singapore",
+                                            countryCode: customerData.countryCode,
+                                            state: customerData.state || null,
+                                            city: "Singapore",
+                                            zip: customerData.zip,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2 || null,
+                                            bookingDate: dateInput?.value || getTourDateForDay(day),
+                                            pickupdate: dateInput?.value || getTourDateForDay(day),
+                                            entrytime: formatEntryTime(timeSelect?.value),
+                                            vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                            vehicles_name: vehicle.text,
+                                            type: serviceTypeSelect.value || "Private",
+                                            travel_type: "travel_hourly",
+                                            adults: parseInt(adultCount) || 1,
+                                            children: parseInt(childCount) || 0,
+                                            specialRequests: customerData.specialRequests || null,
+                                            image: vehicle.dataset.image || null,
+                                            totalPrice: parseFloat(totalPrice) || 0,
+                                            componentDayIndex: parseInt(day) - 1,
+                                            entrypickup: field.value,
+                                            entrydropoff: 'N/A',
+                                            PickupPlaceid: {
+                                                lat: document.getElementById(`day${day}_${section}${fieldSuffix}_hourly_pickup_lat`)?.value || "",
+                                                lng: document.getElementById(`day${day}_${section}${fieldSuffix}_hourly_pickup_lng`)?.value || ""
+                                            },
+                                            DropoffPlaceid: null,
+                                            distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                            Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
+                                            Night_Start_Time: null,
+                                            Night_End_Time: null,
+                                            selectedHours: parseInt(selectedHours?.value || 1),
+                                            bookingType: "enquiry",
+                                            remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
+                                            supplement: (() => {
+                                                const tourAdults = parseInt(document.getElementById('adults')?.value || 1);
+                                                const serviceAdults = parseInt(adultCount) || 1;
+                                                return (serviceAdults < tourAdults) || (document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked || false);
+                                            })()
+                                        };
+                                        
+                                        transportDataArray.push(transportData);
+                                        console.log(`✅ Added hourly transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // 3. Collect Local Transfer Transport Data
+                        console.log('=== COLLECTING LOCAL TRANSFER TRANSPORTS ===');
+                        const localTransferFields = document.querySelectorAll('select[name*="_pickup_zone_id"]');
+                        console.log(`Found ${localTransferFields.length} local transfer pickup fields`);
+                        
+                        localTransferFields.forEach(field => {
+                            if (field.value) {
+                                console.log(`Processing Local Transfer field: ${field.name} = ${field.value}`);
+                                const nameMatch = field.name.match(/day(\d+)_(transport)(?:_(\d+))?_(?:pickup_zone_id)/);
+                                if (nameMatch) {
+                                    const day = nameMatch[1];
+                                    const section = nameMatch[2];
+                                    const transportIndex = nameMatch[3];
+                                    const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
+                                    
+                                    const dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
+                                    
+                                    // Handle different field naming patterns for static vs dynamic
+                                    let vehicleSelect, serviceTypeSelect, timeSelect, dateInput;
+                                    
+                                    if (transportIndex) {
+                                        // Dynamic transport - use indexed field names
+                                        vehicleSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_vehicle_id"]`);
+                                        serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_service_type"]`);
+                                        timeSelect = document.querySelector(`[name="day${day}_${section}_${transportIndex}_pickup_time"]`);
+                                        dateInput = document.querySelector(`input[name="day${day}_${section}_${transportIndex}_date"]`);
+                                    } else {
+                                        // Static transport - use non-indexed field names
+                                        vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+                                        // For static transport, service type is a radio button, not a select
+                                        const serviceTypeRadio = document.querySelector(`input[name="day${day}_${section}_service_type"]:checked`);
+                                        serviceTypeSelect = serviceTypeRadio ? { value: serviceTypeRadio.value } : null;
+                                        timeSelect = document.querySelector(`[name="day${day}_${section}_pickup_time"]`);
+                                        dateInput = document.querySelector(`input[name="day${day}_${section}_date"]`);
+                                    }
+                                    
+                                    // Debug logging for static vs dynamic transport
+                                    console.log(`Transport ${transportIndex ? 'dynamic' : 'static'} - Day ${day}:`, {
+                                        vehicleSelect: vehicleSelect?.value || 'NOT FOUND',
+                                        serviceTypeSelect: serviceTypeSelect?.value || 'NOT FOUND',
+                                        dropoffField: dropoffField?.value || 'NOT FOUND',
+                                        vehicleSelectElement: vehicleSelect ? 'FOUND' : 'NOT FOUND',
+                                        serviceTypeSelectElement: serviceTypeSelect ? 'FOUND' : 'NOT FOUND',
+                                        dropoffFieldElement: dropoffField ? 'FOUND' : 'NOT FOUND'
+                                    });
+                                    
+                                    if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
+                                        const pickupZone = field.options[field.selectedIndex];
+                                        const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                        // Use transport_passengers field if available, otherwise fallback to adults
+                                        const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                        const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adults')?.value || 1);
+                                        const childCount = parseInt(document.getElementById('children')?.value || 0);
+                                        
+                                        // Handle total price field for both static and dynamic
+                                        let totalPriceField;
+                                        if (transportIndex) {
+                                            totalPriceField = document.getElementById(`day${day}_${section}_${transportIndex}_total_price`);
+                                        } else {
+                                            totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+                                        }
+                                        const totalPrice = parseFloat(totalPriceField?.value || 0);
+                                        
+                                        const formatEntryTime = (time) => {
+                                            if (!time) return "12:00 PM";
+                                            if (time.includes('AM') || time.includes('PM')) return time;
+                                            const [hours, minutes] = time.split(':');
+                                            const hour = parseInt(hours);
+                                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                                            const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                            return `${displayHour}:${minutes} ${ampm}`;
+                                        };
+                                        
+                                        // Get selected hours if available (for hourly service)
+                                        const selectedHours = document.getElementById(`day${day}_${section}_${transportIndex}_selected_hours`)?.value || 
+                                                            document.getElementById(`day${day}_${section}_selected_hours`)?.value || 
+                                                            "1";
+                                        
+                                        // Get pickup and dropoff zone IDs
+                                        const pickupZoneId = pickupZone?.dataset?.zoneId || pickupZone?.value || "";
+                                        const dropoffZoneId = dropoffZone?.dataset?.zoneId || dropoffZone?.value || "";
+                                        
+                                        // Get tour_id if available
+                                        const tourId = document.getElementById('tour_id')?.value || 
+                                                    document.getElementById('hiddenTourId')?.value || 
+                                                    "";
+                                        
+                                        // Get night time settings if available
+                                        const nightStartTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_start_time`)?.value || 
+                                                            document.getElementById(`day${day}_${section}_night_start_time`)?.value || 
+                                                            null;
+                                        const nightEndTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_end_time`)?.value || 
+                                                            document.getElementById(`day${day}_${section}_night_end_time`)?.value || 
+                                                            null;
+                                        
+                                        const transportData = {
+                                            bookingDate: dateInput?.value || getTourDateForDay(day),
+                                            vehicles_id: String(vehicleSelect.value || "0"),
+                                            vehicles_name: vehicle.text,
+                                            image: vehicle.dataset.image || "",
+                                            dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                            Mode: "dmc",
+                                            type: serviceTypeSelect.value || "Private", // Service type: Private/Shared
+                                            entrypickup: pickupZone.text,
+                                            PickupPlaceid: {
+                                                lat: transportIndex ? 
+                                                    document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lat`)?.value || "" :
+                                                    document.getElementById(`day${day}_${section}_pickup_lat`)?.value || "",
+                                                lng: transportIndex ? 
+                                                    document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lng`)?.value || "" :
+                                                    document.getElementById(`day${day}_${section}_pickup_lng`)?.value || ""
+                                            },
+                                            dropoffLocation: dropoffZone.text,
+                                            DropoffPlaceid: {
+                                                lat: transportIndex ? 
+                                                    document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lat`)?.value || "" :
+                                                    document.getElementById(`day${day}_${section}_dropoff_lat`)?.value || "",
+                                                lng: transportIndex ? 
+                                                    document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lng`)?.value || "" :
+                                                    document.getElementById(`day${day}_${section}_dropoff_lng`)?.value || ""
+                                            },
+                                            exitpickupdate: dateInput?.value || getTourDateForDay(day),
+                                            entrytime: formatEntryTime(timeSelect?.value),
+                                            adults: String(parseInt(adultCount) || 0),
+                                            children: String(parseInt(childCount) || 0),
+                                            selectedHours: selectedHours,
+                                            totalPrice: parseFloat(totalPrice || 0).toFixed(2),
+                                            Tax: String(parseFloat(transportIndex ? 
+                                                document.getElementById(`day${day}_${section}_${transportIndex}_tax`)?.value || "0.00" :
+                                                document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
+                                            Night_Start_Time: nightStartTime || null,
+                                            Night_End_Time: nightEndTime || null,
+                                            country: pickupZone.dataset.country || "Singapore",
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            countryCode: customerData.countryCode,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2 || null,
+                                            state: customerData.state || null,
+                                            zip: customerData.zip,
+                                            specialRequests: customerData.specialRequests || null,
+                                            userInfo: {
+                                                fullName: customerData.fullName,
+                                                email: customerData.email,
+                                                phone: customerData.phone,
+                                                address1: customerData.address1,
+                                                address2: customerData.address2 || null,
+                                                state: customerData.state || null,
+                                                zip: customerData.zip
+                                            },
+                                            bookingType: "enquiry",
+                                            service_category: "local_transport",
+                                            travel_type: "local_transport", // This will be used by backend to set type field
+                                            tour_id: tourId,
+                                            pickup_zone_id: pickupZoneId,
+                                            dropoff_zone_id: dropoffZoneId,
+                                            remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
+                                            supplement: !!(document.getElementById(`day${day}_transport_${transportIndex || 1}_is_supplement`)?.checked)
+                                        };
+                                        
+                                        transportDataArray.push(transportData);
+                                        console.log(`✅ Added local transfer transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // 4. Collect Main Entry/Exit Port Transport Data (index 0 vehicles)
+                        console.log('=== COLLECTING MAIN ENTRY/EXIT PORT TRANSPORTS (INDEX 0) ===');
+                        
+                        // Collect main entry/exit vehicles (index 0) that weren't collected above
+                        // Include both zone-based selects and Google Maps inputs
+                        const entryExitZoneFields = document.querySelectorAll('select[name*="_entry_pickup_zone_id"], select[name*="_exit_pickup_zone_id"]');
+                        const entryExitLocationFields = document.querySelectorAll('input[name*="_entry_pickup_location"], input[name*="_exit_pickup_location"]');
+                        const entryExitFields = [...entryExitZoneFields, ...entryExitLocationFields];
+                        console.log(`Found ${entryExitZoneFields.length} zone-based entry/exit fields and ${entryExitLocationFields.length} location-based entry/exit fields`);
+                        
+                        entryExitFields.forEach(field => {
+                            console.log(`Checking entry/exit field: ${field.name} = ${field.value}`);
+                            if (field.value) {
+                                // Handle both zone-based and location-based field names
+                                const nameMatch = field.name.match(/day(\d+)_(entry|exit)_pickup_(zone_id|location)/);
+                                if (nameMatch) {
+                                    const day = nameMatch[1];
+                                    const section = nameMatch[2]; // entry or exit
+                                    const fieldSuffix = ''; // No transport index for entry/exit ports
+                                    
+                                    console.log(`✅ Processing ${section} port field: ${field.name} = ${field.value}`);
+                                    
+                                    // Determine if this is a zone-based or location-based field
+                                    const isLocationField = field.name.includes('_pickup_location');
+                                    
+                                    let dropoffField, pickupZone, dropoffZone;
+                                    if (isLocationField) {
+                                        // Google Maps input fields
+                                        dropoffField = document.querySelector(`input[name="day${day}_${section}_dropoff_location"]`);
+                                        pickupZone = { text: field.value, dataset: {} };
+                                        dropoffZone = { text: dropoffField?.value || '', dataset: {} };
+                                    } else {
+                                        // Zone-based select fields
+                                        dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
+                                        pickupZone = field.options[field.selectedIndex];
+                                        dropoffZone = dropoffField?.options[dropoffField.selectedIndex];
+                                    }
+                                    
+                                    // For main entry/exit vehicles, use the correct naming pattern with _0_ index
+                                    const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_0_vehicle_id"]`) || document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
+                                    const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`) || document.querySelector(`select[name="day${day}_${section}_0_service_type"]`);
+                                    // Handle different time and date field names for entry vs exit
+                                    const timeFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_time` : `day${day}_${section}${fieldSuffix}_pickup_time`;
+                                    // Entry uses hidden input [name="dayN_entry_pickup_time"]; exit may use select - query by name only
+                                    const timeSelect = document.querySelector(`[name="${timeFieldName}"]`);
+                                    
+                                    // Date field handling - try section-specific date first, then fallback to travel_dates
+                                    let dateInput;
+                                    if (section === 'exit') {
+                                        const exitDateFieldName = `day${day}_exit_date`;
+                                        dateInput = document.querySelector(`input[name="${exitDateFieldName}"]`);
+                                    } else {
+                                        const entryDateFieldName = `day${day}_${section}_pickup_date`;
+                                        dateInput = document.querySelector(`input[name="${entryDateFieldName}"]`);
+                                    }
+                                    if (!dateInput) {
+                                        // Fallback to global travel dates control
+                                        dateInput = document.getElementById('travel_dates');
+                                    }
+                                    
+                                    // For entry ports, ensure we use the first day of the tour when no specific date is found
+                                    let bookingDateValue;
+                                    if (section === 'entry' && (!dateInput?.value || dateInput.id === 'travel_dates')) {
+                                        // For entry ports, use the first day of the tour
+                                        bookingDateValue = getTourDateForDay(1);
+                                    } else {
+                                        // For exit ports or when specific date is available, use the actual date
+                                        bookingDateValue = dateInput?.value || getTourDateForDay(day);
+                                    }
+                                    
+                                    console.log(`🔍 Related fields for ${section} port:`, {
+                                        dropoffField: dropoffField?.name || 'NOT_FOUND',
+                                        dropoffValue: dropoffField?.value || 'NO_VALUE',
+                                        vehicleSelect: vehicleSelect?.name || 'NOT_FOUND',
+                                        vehicleValue: vehicleSelect?.value || 'NO_VALUE',
+                                        serviceTypeSelect: serviceTypeSelect?.name || 'NOT_FOUND',
+                                        serviceTypeValue: serviceTypeSelect?.value || 'NO_VALUE',
+                                        timeFieldName: timeFieldName,
+                                        timeValue: timeSelect?.value || 'NO_VALUE',
+                                        dateValue: dateInput?.value || 'NO_VALUE'
+                                    });
+                                    
+                                    if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
+                                        console.log(`✅ All required fields found for ${section} port - proceeding with data creation`);
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                        // For main entry/exit vehicles, get passenger count from the correct field
+                                        const passengerField = document.getElementById(`day${day}_${section}_0_passengers`);
+                                        const passengerCount = parseInt(passengerField?.value || document.getElementById('adults')?.value || 0);
+                                        const childCount = parseInt(document.getElementById('children')?.value || 0);
+                                        // For main entry/exit vehicles, use the correct naming pattern with _0_ index
+                                        const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_0_total_price`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
+                                        
+                                        if (section === 'entry') {
+                                            // Get city from the city select field
+                                            const citySelect = document.getElementById('modal_local_transfer_city');
+                                            const cityValue = citySelect?.value || '';
+                                            
+                                            // Get country from city select option's data-country attribute, or from user_country field
+                                            const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                            const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                            const countryFromField = document.getElementById('user_country')?.value || '';
+                                            const countryValue = countryFromCityOption || countryFromField || '';
+                                            
+                                            const transportData = {
+                                                id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                                bookingDate: bookingDateValue,
                                                 vehicles_id: parseInt(vehicleSelect.value) || 0,
                                                 image: vehicle.dataset.image || "",
                                                 dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
@@ -4577,209 +4340,40 @@
                                                 model_year: vehicle.dataset.model_year || "",
                                                 seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
                                                 travel_type: "entry_port",
-                                                arrival_transport_type: document.querySelector(`input[name="day${vehicleDay}_arrival_transport_type"]:checked`)?.value || "flight",
-                                                arrival_flight_no: document.getElementById(`day${vehicleDay}_arrival_flight_no`)?.value || "",
-                                                supplement: !!(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_is_supplement`)?.checked),
-                                                entrypickup: pickupField.value,
-                                                entrydropoff: dropoffField.value,
+                                                arrival_transport_type: document.querySelector(`input[name="day${day}_arrival_transport_type"]:checked`)?.value || "flight",
+                                                arrival_flight_no: document.getElementById(`day${day}_arrival_flight_no`)?.value || "",
+                                                supplement: !!(document.getElementById(`day${day}_entry_0_is_supplement`)?.checked),
+                                                entrypickup: pickupZone?.text || '',
+                                                entrydropoff: dropoffZone?.text || '',
                                                 PickupPlaceid: {
-                                                    lat: latField?.value || "",
-                                                    lng: lngField?.value || ""
+                                                    lat: pickupZone?.dataset?.lat || "",
+                                                    lng: pickupZone?.dataset?.lng || ""
                                                 },
                                                 DropoffPlaceid: {
-                                                                    lat: dropoffLatField?.value || "",
-                                                                    lng: dropoffLngField?.value || ""
+                                                    lat: dropoffZone?.dataset?.lat || "",
+                                                    lng: dropoffZone?.dataset?.lng || ""
                                                 },
-                                                                pickupdate: dateInput?.value || getTourDateForDay(vehicleDay),
-                                                entrytime: timeSelect?.value || "12:00 PM",
-                                                                adults: passengerCount,
-                                                children: childCount,
-                                                totalPrice: totalPrice,
-                                                                Tax: parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_tax`)?.value || "7.00"),
-                                                                distance: parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_distance`)?.value || "0"),
-                                                Night_Start_Time: "10:00:00",
-                                                Night_End_Time: "20:00:00",
-                                                city: (() => {
-                                                    // Get city from the city select field
-                                                    const citySelect = document.getElementById('modal_local_transfer_city');
-                                                    const cityValue = citySelect?.value || '';
-                                                    return cityValue || "Singapore";
-                                                })(),
-                                                country: (() => {
-                                                    // Get country from city select option's data-country attribute, or from user_country field
-                                                    const citySelect = document.getElementById('modal_local_transfer_city');
-                                                    const cityOption = citySelect?.options[citySelect?.selectedIndex];
-                                                    const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
-                                                    const countryFromField = document.getElementById('user_country')?.value || '';
-                                                    const countryValue = countryFromCityOption || countryFromField || '';
-                                                    return countryValue || "Singapore";
-                                                })(),
-                                                                bookingType: "enquiry",
-                                                                vehicleIndex: vehicleIndex, // Add index to identify which vehicle this is
-                                                                remarks: document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_remarks`)?.value || ''
-                                            };
-                                            
-                                            entryPortArray.push(transportData);
-                                                            console.log(`✅ Added Google Maps entry port transport #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
-                                                        } else {
-                                                            console.log(`❌ Missing pickup or dropoff location for entry vehicle #${vehicleIndex}`);
-                                                        }
-                                                    } else {
-                                                        console.log(`❌ Missing vehicle or service type for entry vehicle #${vehicleIndex}`);
-                                                    }
-                                                } else {
-                                                    console.log(`❌ Invalid vehicle name format: ${vehicleSelect.name}`);
-                                                }
-                                            } else {
-                                                console.log(`❌ Entry vehicle has no value: ${vehicleSelect.name}`);
-                                            }
-                                        });
-                                    } else {
-                                        console.log(`❌ Skipping non-pickup field: ${field.name}`);
-                                    }
-                                }
-                            }
-                        });
-                        
-                        // Process Google Maps exit fields - but only process pickup fields to avoid duplicates
-                        const processedExitDays = new Set();
-                        googleMapsExitFields.forEach(field => {
-                            if (field.value) {
-                                const nameMatch = field.name.match(/day(\d+)_exit_(pickup|dropoff)_location/);
-                                if (nameMatch) {
-                                    const day = nameMatch[1];
-                                    const direction = nameMatch[2]; // pickup or dropoff
-                                    
-                                    // Only process once per day (when we hit the pickup field)
-                                    if (direction === 'pickup' && !processedExitDays.has(day)) {
-                                        processedExitDays.add(day);
-                                        console.log(`Processing Google Maps exit fields for day ${day}`);
-                                        
-                                        // Find ALL exit port vehicles for this day (main + additional)
-                                        const allExitVehicles = document.querySelectorAll(`select[name*="day${day}_exit_"][name*="_vehicle_id"]`);
-                                        console.log(`Found ${allExitVehicles.length} exit port vehicles for day ${day}:`, Array.from(allExitVehicles).map(v => v.name));
-                                        
-                                        // Process each vehicle
-                                        allExitVehicles.forEach(vehicleSelect => {
-                                            if (vehicleSelect.value) {
-                                                const vehicleNameMatch = vehicleSelect.name.match(/day(\d+)_exit_(\d+)_vehicle_id/);
-                                                if (vehicleNameMatch) {
-                                                    const vehicleDay = vehicleNameMatch[1];
-                                                    const vehicleIndex = vehicleNameMatch[2];
-                                                    
-                                                    // Skip index 0 (main vehicle) as it's handled in the main collection section
-                                                    if (vehicleIndex === '0') {
-                                                        console.log(`Skipping main exit vehicle (index 0) for Day ${vehicleDay} - will be handled in main collection`);
-                                                        return;
-                                                    }
-                                                    
-                                                    console.log(`Processing Google Maps exit vehicle: day${vehicleDay}_exit_${vehicleIndex}`);
-                                                    
-                                                    // Find related fields for this specific vehicle
-                                                    const serviceTypeSelect = document.querySelector(`select[name="day${vehicleDay}_exit_${vehicleIndex}_service_type"]`) || 
-                                                                             document.querySelector(`select[name="day${vehicleDay}_exit_service_type"]`);
-                                                    const timeSelect = document.querySelector(`select[name="day${vehicleDay}_exit_pickup_time"]`);
-                                                    const dateInput = document.querySelector(`input[name="day${vehicleDay}_exit_pickup_date"]`);
-                                                    
-                                                    // Get coordinates from hidden fields (shared for all vehicles)
-                                                    const latField = document.querySelector(`input[name="day${vehicleDay}_exit_pickup_lat"]`);
-                                                    const lngField = document.querySelector(`input[name="day${vehicleDay}_exit_pickup_lng"]`);
-                                                    const dropoffLatField = document.querySelector(`input[name="day${vehicleDay}_exit_dropoff_lat"]`);
-                                                    const dropoffLngField = document.querySelector(`input[name="day${vehicleDay}_exit_dropoff_lng"]`);
-                                    
-                                    if (vehicleSelect?.value && serviceTypeSelect?.value) {
-                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                                        // Get passenger count for this specific vehicle
-                                                        const passengerCount = parseInt(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_passengers`)?.value || document.getElementById('adult_count')?.value || 0);
-                                        const childCount = parseInt(document.getElementById('child_count')?.value || 0);
-                                                        
-                                                        // For zone=0 (Point-to-Point mode), get price from custom price field if available, otherwise use total_price
-                                                        const dmcUser = @json($UserDmc);
-                                                        const isZoneZero = dmcUser && dmcUser.zone_on == 0;
-                                                        let totalPrice = 0;
-                                                        
-                                                        if (isZoneZero) {
-                                                            // Zone = 0: Check for custom price field first, fallback to total_price
-                                                            const customPriceField = document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_custom_price`);
-                                                            if (customPriceField && customPriceField.value) {
-                                                                totalPrice = parseFloat(customPriceField.value || 0);
-                                                                console.log(`Using custom price for exit vehicle ${vehicleIndex} (zone=0): ${totalPrice}`);
-                                                            } else {
-                                                                totalPrice = parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_total_price`)?.value || 0);
-                                                                console.log(`Using total_price for exit vehicle ${vehicleIndex} (zone=0): ${totalPrice}`);
-                                                            }
-                                                        } else {
-                                                            // Zone = 1: Get price from total_price hidden field
-                                                            totalPrice = parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_total_price`)?.value || 0);
-                                                            console.log(`Using total_price for exit vehicle ${vehicleIndex} (zone=1): ${totalPrice}`);
-                                                        }
-                                                        
-                                                        // Get pickup and dropoff locations (shared for all vehicles)
-                                                        const pickupField = document.querySelector(`input[name="day${vehicleDay}_exit_pickup_location"]`);
-                                                        const dropoffField = document.querySelector(`input[name="day${vehicleDay}_exit_dropoff_location"]`);
-                                        
-                                        if (pickupField?.value && dropoffField?.value) {
-                                            const transportData = {
-                                                                id: `exit-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                                bookingDate: dateInput?.value || getTourDateForDay(vehicleDay),
+                                                pickupdate: bookingDateValue,
+                                                entrytime: timeSelect?.value || "",
+                                                adults: parseInt(passengerCount) || 0,
+                                                children: parseInt(childCount) || 0,
+                                                componentDayIndex: parseInt(day) - 1,
+                                                totalPrice: parseFloat(totalPrice) || 0,
+                                                Tax: parseFloat(document.getElementById(`day${day}_${section}_0_tax`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
+                                                distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                                Night_Start_Time: null,
+                                                Night_End_Time: null,
+                                                city: cityValue || pickupZone?.dataset?.city || "",
+                                                country: countryValue || pickupZone?.dataset?.country || "",
                                                 fullName: customerData.fullName,
                                                 email: customerData.email,
                                                 phone: customerData.phone,
                                                 countryCode: customerData.countryCode,
                                                 address1: customerData.address1,
-                                                address2: customerData.address2,
-                                                state: customerData.state,
+                                                address2: customerData.address2 || null,
+                                                state: customerData.state || null,
                                                 zip: customerData.zip,
-                                                specialRequests: customerData.specialRequests,
-                                                vehicles_id: parseInt(vehicleSelect.value) || 0,
-                                                image: vehicle.dataset.image || "",
-                                                dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
-                                                vehicles_name: vehicle.text,
-                                                Mode: "dmc",
-                                                type: serviceTypeSelect.value || "",
-                                                vehicle_type: vehicle.dataset.vehicle_type || "",
-                                                vehicle_model: vehicle.dataset.vehicle_model || "",
-                                                model_year: vehicle.dataset.model_year || "",
-                                                seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
-                                                travel_type: "exit_port",
-                                                departure_transport_type: document.querySelector(`input[name="day${vehicleDay}_departure_transport_type"]:checked`)?.value || "flight",
-                                                departure_flight_no: document.getElementById(`day${vehicleDay}_departure_flight_no`)?.value || "",
-                                                supplement: !!(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_is_supplement`)?.checked),
-                                                exitpickup: pickupField.value,
-                                                exitdropoff: dropoffField.value,
-                                                PickupPlaceid: {
-                                                    lat: latField?.value || "",
-                                                    lng: lngField?.value || ""
-                                                },
-                                                DropoffPlaceid: {
-                                                    lat: dropoffLatField?.value || "",
-                                                    lng: dropoffLngField?.value || ""
-                                                },
-                                                pickupdate: dateInput?.value || getTourDateForDay(day),
-                                                exittime: timeSelect?.value || "",
-                                                adults: parseInt(passengerCount) || 0,
-                                                children: parseInt(childCount) || 0,
-                                                componentDayIndex: parseInt(day) - 1,
-                                                totalPrice: parseFloat(totalPrice) || 0,
-                                                Tax: parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_tax`)?.value || "0.00"),
-                                                distance: parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_distance`)?.value || "0"),
-                                                Night_Start_Time: null,
-                                                Night_End_Time: null,
-                                                city: (() => {
-                                                    // Get city from the exit city select field
-                                                    const citySelect = document.getElementById('modal_exit_city');
-                                                    const cityValue = citySelect?.value || '';
-                                                    return cityValue || "";
-                                                })(),
-                                                country: (() => {
-                                                    // Get country from exit city select option's data-country attribute, or from user_country field
-                                                    const citySelect = document.getElementById('modal_exit_city');
-                                                    const cityOption = citySelect?.options[citySelect?.selectedIndex];
-                                                    const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
-                                                    const countryFromField = document.getElementById('user_country')?.value || '';
-                                                    const countryValue = countryFromCityOption || countryFromField || '';
-                                                    return countryValue || "";
-                                                })(),
+                                                specialRequests: customerData.specialRequests || null,
                                                 userInfo: {
                                                     fullName: customerData.fullName,
                                                     email: customerData.email,
@@ -4792,944 +4386,1518 @@
                                                     specialRequests: customerData.specialRequests || null
                                                 },
                                                 bookingType: "enquiry",
-                                                vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
-                                                remarks: document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_remarks`)?.value || ''
+                                                remarks: document.getElementById(`day${day}_entry_0_remarks`)?.value || ''
                                             };
-                                            
+                                            entryPortArray.push(transportData);
+                                            console.log(`✅ Added main entry port transport: ${transportData.vehicles_name}`, transportData);
+                                            console.log(`✅ Entry port array now has ${entryPortArray.length} vehicles`);
+                                        } else if (section === 'exit') {
+                                            const transportData = {
+                                                id: `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                                bookingDate: dateInput?.value || getTourDateForDay(day),
+                                                vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                                vehicles_name: vehicle.text,
+                                                dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                                Mode: "dmc",
+                                                type: serviceTypeSelect.value || "",
+                                                image: vehicle.dataset.image || "",
+                                                travel_type: "exit_port",
+                                                departure_transport_type: document.querySelector(`input[name="day${day}_departure_transport_type"]:checked`)?.value || "flight",
+                                                departure_flight_no: document.getElementById(`day${day}_departure_flight_no`)?.value || "",
+                                                supplement: !!(document.getElementById(`day${day}_exit_0_is_supplement`)?.checked),
+                                                vehicle_type: vehicle.dataset.vehicle_type || "SUV",
+                                                vehicle_model: vehicle.dataset.vehicle_model || "",
+                                                model_year: parseInt(vehicle.dataset.model_year) || 0,
+                                                seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 7,
+                                                exitpickup: pickupZone.text,
+                                                exitdropoff: dropoffZone.text,
+                                                PickupPlaceid: {
+                                                    lat: pickupZone.dataset.lat || "",
+                                                    lng: pickupZone.dataset.lng || ""
+                                                },
+                                                DropoffPlaceid: {
+                                                    lat: dropoffZone.dataset.lat || "",
+                                                    lng: dropoffZone.dataset.lng || ""
+                                                },
+                                                exitpickupdate: dateInput?.value || getTourDateForDay(day),
+                                                entrytime: timeSelect?.value || "",
+                                            adults: parseInt(passengerCount) || 0,
+                                                children: parseInt(childCount) || 0,
+                                                totalPrice: parseFloat(totalPrice) || 0,
+                                            Tax: parseFloat(document.getElementById(`day${day}_${section}_0_tax`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
+                                            distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                                Night_Start_Time: null,
+                                                Night_End_Time: null,
+                                                city: (() => {
+                                                    // Get city from the exit city select field
+                                                    const citySelect = document.getElementById('modal_exit_city');
+                                                    const cityValue = citySelect?.value || '';
+                                                    return cityValue || pickupZone.dataset.city || "";
+                                                })(),
+                                                country: (() => {
+                                                    // Get country from exit city select option's data-country attribute, or from user_country field
+                                                    const citySelect = document.getElementById('modal_exit_city');
+                                                    const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                                    const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                    const countryFromField = document.getElementById('user_country')?.value || '';
+                                                    const countryValue = countryFromCityOption || countryFromField || '';
+                                                    return countryValue || pickupZone.dataset.country || "";
+                                                })(),
+                                                fullName: customerData.fullName,
+                                                email: customerData.email,
+                                                phone: customerData.phone,
+                                                countryCode: customerData.countryCode,
+                                                address1: customerData.address1,
+                                                address2: customerData.address2,
+                                                state: customerData.state,
+                                                zip: customerData.zip,
+                                                specialRequests: customerData.specialRequests,
+                                                remarks: document.getElementById(`day${day}_exit_0_remarks`)?.value || ''
+                                            };
                                             exitPortArray.push(transportData);
-                                                            console.log(`✅ Added Google Maps exit port vehicle #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
-                                                            console.log(`✅ Exit port array now has ${exitPortArray.length} vehicles`);
+                                            console.log(`✅ Added exit port transport: ${transportData.vehicles_name}`, transportData);
                                         }
-                                    }
-                                                }
-                                            }
+                                    } else {
+                                        console.log(`❌ Missing required fields for ${section} port:`, {
+                                            vehicleSelect: vehicleSelect?.value || 'MISSING',
+                                            serviceTypeSelect: serviceTypeSelect?.value || 'MISSING',
+                                            dropoffField: dropoffField?.value || 'MISSING'
                                         });
                                     }
                                 }
                             }
                         });
-                    }
-                    
-                    // ===== FINAL SUMMARY =====
-                    console.log('=== SEGREGATED TRANSPORT COLLECTION SUMMARY ===');
-                    console.log(`✅ Point-to-Point Transports: ${transportDataArray.filter(t => t.travel_type === 'travel_point').length}`);
-                    console.log(`✅ Hourly Transports: ${transportDataArray.filter(t => t.travel_type === 'travel_hourly').length}`);
-                    console.log(`✅ Local Transfer Transports: ${transportDataArray.filter(t => t.travel_type === 'local_transfer').length}`);
-                    console.log(`✅ Entry Ports: ${entryPortArray.length}`);
-                    console.log(`✅ Exit Ports: ${exitPortArray.length}`);
-                    console.log(`✅ Total Transports Collected: ${transportDataArray.length}`);
-                    
-                    // Enhanced Breakdown by Type and ID
-                    console.log('=== DETAILED TRANSPORT BREAKDOWN ===');
-                    transportDataArray.forEach((transport, index) => {
-                        console.log(`Transport ${index + 1}:`, {
-                            id: transport.id,
-                            type: transport.travel_type,
-                            vehicle: transport.vehicles_name,
-                            pickup: transport.entrypickup,
-                            dropoff: transport.entrydropoff,
-                            price: transport.totalPrice
-                        });
-                    });
-                    
-                    // Remove duplicate entries based on multiple criteria
-                    const removeDuplicates = (array) => {
-                        const seen = new Set();
-                        return array.filter(item => {
-                            // Create a unique key based on multiple fields to catch different types of duplicates
-                            const key = `${item.vehicles_name || ''}_${item.entrypickup || ''}_${item.entrydropoff || ''}_${item.travel_type || ''}_${item.componentDayIndex || ''}`;
-                            if (seen.has(key)) {
-                                console.log(`Removing duplicate entry:`, {
-                                    vehicles_name: item.vehicles_name,
-                                    entrypickup: item.entrypickup,
-                                    entrydropoff: item.entrydropoff,
-                                    travel_type: item.travel_type,
-                                    componentDayIndex: item.componentDayIndex
-                                });
-                                return false;
-                            }
-                            seen.add(key);
-                            return true;
-                        });
-                    };
-                    
-                    // Remove duplicates from all arrays
-                    console.log('=== BEFORE DUPLICATE REMOVAL ===');
-                    console.log('Transport array length:', transportDataArray.length);
-                    console.log('Entry port array length:', entryPortArray.length);
-                    console.log('Exit port array length:', exitPortArray.length);
-                    
-                    // Temporarily disable duplicate removal to allow multiple same vehicles
-                    console.log('=== DUPLICATE REMOVAL DISABLED TO ALLOW MULTIPLE SAME VEHICLES ===');
-                    // transportDataArray = removeDuplicates(transportDataArray);
-                    // entryPortArray = removeDuplicates(entryPortArray);
-                    // exitPortArray = removeDuplicates(exitPortArray);
-                    
-                    console.log('=== AFTER DUPLICATE REMOVAL (DISABLED) ===');
-                    console.log('Transport array length:', transportDataArray.length);
-                    console.log('Entry port array length:', entryPortArray.length);
-                    console.log('Exit port array length:', exitPortArray.length);
-                    
-                    // Update all transport-related fields
-                    const transportDataField = document.getElementById('transport_data');
-                    if (transportDataField) {
-                        transportDataField.value = JSON.stringify(transportDataArray);
-                        console.log('=== FINAL TRANSPORT DATA ===');
-                        console.log('Transport Data Array:', transportDataArray);
-                        console.log('Transport Data Field Value:', transportDataField.value);
-                    }
-                    
-                    const entryPortDataField = document.getElementById('entry_port_data');
-                    if (entryPortDataField) {
-                        entryPortDataField.value = JSON.stringify(entryPortArray);
-                        console.log('✅ Set entry_port_data field with', entryPortArray.length, 'vehicles:', entryPortDataField.value);
-                        console.log('✅ Entry port vehicles collected:', entryPortArray.map(v => `${v.vehicles_name} (Index: ${v.vehicleIndex || 'main'})`));
-                    } else {
-                        console.log('❌ entry_port_data field not found!');
-                    }
-                    
-                    const exitPortDataField = document.getElementById('exit_port_data');
-                    if (exitPortDataField) {
-                        exitPortDataField.value = JSON.stringify(exitPortArray);
-                        console.log('✅ Set exit_port_data field:', exitPortDataField.value);
-                    } else {
-                        console.log('❌ exit_port_data field not found!');
-                    }
-                    
-                    // Debug: Log the final values being set
-                    console.log('=== FINAL TRANSPORT DATA BEING SET ===');
-                    console.log('transportDataArray:', transportDataArray);
-                    console.log('transportDataField.value:', transportDataField?.value);
-                    console.log('entryPortArray:', entryPortArray);
-                    console.log('exitPortArray:', exitPortArray);
-                    
-                    // Debug: Check each transport in the array
-                    transportDataArray.forEach((transport, index) => {
-                        console.log(`=== TRANSPORT ${index + 1} DETAILS ===`);
-                        console.log('ID:', transport.id);
-                        console.log('Travel Type:', transport.travel_type);
-                        console.log('Service Type:', transport.type);
-                        console.log('Vehicle Name:', transport.vehicles_name);
-                        console.log('Pickup:', transport.entrypickup);
-                        console.log('Dropoff:', transport.entrydropoff);
-                        console.log('Booking Type:', transport.bookingType);
-                        console.log('Full transport object:', transport);
-                    });
-                    
-                    // Test function to manually trigger transport data collection
-                    window.testTransportData = function() {
-                        console.log('=== MANUAL TRANSPORT DATA TEST ===');
-                        updateTransportDataField();
                         
-                        const transportField = document.getElementById('transport_data');
-                        if (transportField && transportField.value) {
-                            try {
-                                const data = JSON.parse(transportField.value);
-                                console.log('Transport data found:', data);
-                                console.log('Number of transports:', data.length);
-                                
-                                data.forEach((transport, index) => {
-                                    console.log(`Transport ${index + 1}:`, {
-                                        id: transport.id,
-                                        travel_type: transport.travel_type,
-                                        type: transport.type,
-                                        vehicles_name: transport.vehicles_name,
-                                        bookingType: transport.bookingType
+                        // Check if we're in Google Maps mode (zone_on = 0) to process Google Maps location fields
+                        const isGoogleMapsMode = dmcUser && dmcUser.zone_on == 0;
+                        if (isGoogleMapsMode) {
+                            console.log('Google Maps mode detected (zone_on = 0). Processing Google Maps location fields...');
+                            
+                            // Look for Google Maps location input fields
+                            const googleMapsEntryFields = document.querySelectorAll('input[name*="_entry_pickup_location"], input[name*="_entry_dropoff_location"]');
+                            const googleMapsExitFields = document.querySelectorAll('input[name*="_exit_pickup_location"], input[name*="_exit_dropoff_location"]');
+                            
+                            console.log(`Found ${googleMapsEntryFields.length} Google Maps entry fields`);
+                            console.log(`Found ${googleMapsExitFields.length} Google Maps exit fields`);
+                            
+                            // Process Google Maps entry fields - but only process pickup fields to avoid duplicates
+                            const processedEntryDays = new Set();
+                            googleMapsEntryFields.forEach(field => {
+                                if (field.value) {
+                                    const nameMatch = field.name.match(/day(\d+)_entry_(pickup|dropoff)_location/);
+                                    if (nameMatch) {
+                                        const day = nameMatch[1];
+                                        const direction = nameMatch[2]; // pickup or dropoff
+                                        
+                                        // Only process once per day (when we hit the pickup field)
+                                        if (direction === 'pickup' && !processedEntryDays.has(day)) {
+                                            processedEntryDays.add(day);
+                                            console.log(`Processing Google Maps entry fields for day ${day}`);
+                                            
+                                            // Find ALL entry port vehicles for this day (main + additional)
+                                            const allEntryVehicles = document.querySelectorAll(`select[name*="day${day}_entry_"][name*="_vehicle_id"]`);
+                                            console.log(`Found ${allEntryVehicles.length} entry port vehicles for day ${day}:`, Array.from(allEntryVehicles).map(v => v.name));
+                                            
+                                            // Process each vehicle
+                                            allEntryVehicles.forEach(vehicleSelect => {
+                                                if (vehicleSelect.value) {
+                                                    const vehicleNameMatch = vehicleSelect.name.match(/day(\d+)_entry_(\d+)_vehicle_id/);
+                                                    if (vehicleNameMatch) {
+                                                        const vehicleDay = vehicleNameMatch[1];
+                                                        const vehicleIndex = vehicleNameMatch[2];
+                                                        
+                                                        // Skip index 0 (main vehicle) as it's handled in the main collection section
+                                                        if (vehicleIndex === '0') {
+                                                            console.log(`Skipping main entry vehicle (index 0) for Day ${vehicleDay} - will be handled in main collection`);
+                                                            return;
+                                                        }
+                                                        
+                                                        console.log(`Processing Google Maps entry vehicle: day${vehicleDay}_entry_${vehicleIndex}`);
+                                                        
+                                                        // Find related fields for this specific vehicle
+                                                        const serviceTypeSelect = document.querySelector(`select[name="day${vehicleDay}_entry_${vehicleIndex}_service_type"]`) || 
+                                                                                document.querySelector(`select[name="day${vehicleDay}_entry_service_type"]`);
+                                                        const timeSelect = document.querySelector(`[name="day${vehicleDay}_entry_pickup_time"]`);
+                                                        const dateInput = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_date"]`);
+                                                        
+                                                        // Get coordinates from hidden fields (shared for all vehicles)
+                                                        const latField = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_lat"]`);
+                                                        const lngField = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_lng"]`);
+                                                        const dropoffLatField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_lat"]`);
+                                                        const dropoffLngField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_lng"]`);
+                                        
+                                        if (vehicleSelect?.value && serviceTypeSelect?.value) {
+                                            const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                                            // Get passenger count for this specific vehicle
+                                                            const passengerCount = parseInt(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_passengers`)?.value || document.getElementById('adult_count')?.value || 0);
+                                            const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                                            
+                                                            // For zone=0 (Point-to-Point mode), get price from custom price field, otherwise use total_price
+                                                            const dmcUser = @json($UserDmc);
+                                                            const isZoneZero = dmcUser && dmcUser.zone_on == 0;
+                                                            let totalPrice = 0;
+                                                            
+                                                            if (isZoneZero) {
+                                                                // Zone = 0: Get price from custom price field
+                                                                const customPriceField = document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_custom_price`);
+                                                                totalPrice = parseFloat(customPriceField?.value || 0);
+                                                                console.log(`Using custom price for entry vehicle ${vehicleIndex} (zone=0): ${totalPrice}`);
+                                                            } else {
+                                                                // Zone = 1: Get price from total_price hidden field
+                                                                totalPrice = parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_total_price`)?.value || 0);
+                                                                console.log(`Using total_price for entry vehicle ${vehicleIndex} (zone=1): ${totalPrice}`);
+                                                            }
+                                                            
+                                                            // Get pickup and dropoff locations (shared for all vehicles)
+                                                            const pickupField = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_location"]`);
+                                                            const dropoffField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_location"]`);
+                                            
+                                            if (pickupField?.value && dropoffField?.value) {
+                                                const transportData = {
+                                                                    id: `entry-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                                    bookingDate: dateInput?.value || getTourDateForDay(vehicleDay),
+                                                    fullName: customerData.fullName,
+                                                    email: customerData.email,
+                                                    phone: customerData.phone,
+                                                    countryCode: customerData.countryCode,
+                                                    address1: customerData.address1,
+                                                    address2: customerData.address2,
+                                                    state: customerData.state,
+                                                    zip: customerData.zip,
+                                                    specialRequests: customerData.specialRequests,
+                                                    vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                                    image: vehicle.dataset.image || "",
+                                                    dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                                    vehicles_name: vehicle.text,
+                                                    Mode: "dmc",
+                                                    type: serviceTypeSelect.value || "",
+                                                    vehicle_type: vehicle.dataset.vehicle_type || "",
+                                                    vehicle_model: vehicle.dataset.vehicle_model || "",
+                                                    model_year: vehicle.dataset.model_year || "",
+                                                    seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
+                                                    travel_type: "entry_port",
+                                                    arrival_transport_type: document.querySelector(`input[name="day${vehicleDay}_arrival_transport_type"]:checked`)?.value || "flight",
+                                                    arrival_flight_no: document.getElementById(`day${vehicleDay}_arrival_flight_no`)?.value || "",
+                                                    supplement: !!(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_is_supplement`)?.checked),
+                                                    entrypickup: pickupField.value,
+                                                    entrydropoff: dropoffField.value,
+                                                    PickupPlaceid: {
+                                                        lat: latField?.value || "",
+                                                        lng: lngField?.value || ""
+                                                    },
+                                                    DropoffPlaceid: {
+                                                                        lat: dropoffLatField?.value || "",
+                                                                        lng: dropoffLngField?.value || ""
+                                                    },
+                                                                    pickupdate: dateInput?.value || getTourDateForDay(vehicleDay),
+                                                    entrytime: timeSelect?.value || "12:00 PM",
+                                                                    adults: passengerCount,
+                                                    children: childCount,
+                                                    totalPrice: totalPrice,
+                                                                    Tax: parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_tax`)?.value || "7.00"),
+                                                                    distance: parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_distance`)?.value || "0"),
+                                                    Night_Start_Time: "10:00:00",
+                                                    Night_End_Time: "20:00:00",
+                                                    city: (() => {
+                                                        // Get city from the city select field
+                                                        const citySelect = document.getElementById('modal_local_transfer_city');
+                                                        const cityValue = citySelect?.value || '';
+                                                        return cityValue || "Singapore";
+                                                    })(),
+                                                    country: (() => {
+                                                        // Get country from city select option's data-country attribute, or from user_country field
+                                                        const citySelect = document.getElementById('modal_local_transfer_city');
+                                                        const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                                        const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromField = document.getElementById('user_country')?.value || '';
+                                                        const countryValue = countryFromCityOption || countryFromField || '';
+                                                        return countryValue || "Singapore";
+                                                    })(),
+                                                                    bookingType: "enquiry",
+                                                                    vehicleIndex: vehicleIndex, // Add index to identify which vehicle this is
+                                                                    remarks: document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_remarks`)?.value || ''
+                                                };
+                                                
+                                                entryPortArray.push(transportData);
+                                                                console.log(`✅ Added Google Maps entry port transport #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
+                                                            } else {
+                                                                console.log(`❌ Missing pickup or dropoff location for entry vehicle #${vehicleIndex}`);
+                                                            }
+                                                        } else {
+                                                            console.log(`❌ Missing vehicle or service type for entry vehicle #${vehicleIndex}`);
+                                                        }
+                                                    } else {
+                                                        console.log(`❌ Invalid vehicle name format: ${vehicleSelect.name}`);
+                                                    }
+                                                } else {
+                                                    console.log(`❌ Entry vehicle has no value: ${vehicleSelect.name}`);
+                                                }
+                                            });
+                                        } else {
+                                            console.log(`❌ Skipping non-pickup field: ${field.name}`);
+                                        }
+                                    }
+                                }
+                            });
+                            
+                            // Process Google Maps exit fields - but only process pickup fields to avoid duplicates
+                            const processedExitDays = new Set();
+                            googleMapsExitFields.forEach(field => {
+                                if (field.value) {
+                                    const nameMatch = field.name.match(/day(\d+)_exit_(pickup|dropoff)_location/);
+                                    if (nameMatch) {
+                                        const day = nameMatch[1];
+                                        const direction = nameMatch[2]; // pickup or dropoff
+                                        
+                                        // Only process once per day (when we hit the pickup field)
+                                        if (direction === 'pickup' && !processedExitDays.has(day)) {
+                                            processedExitDays.add(day);
+                                            console.log(`Processing Google Maps exit fields for day ${day}`);
+                                            
+                                            // Find ALL exit port vehicles for this day (main + additional)
+                                            const allExitVehicles = document.querySelectorAll(`select[name*="day${day}_exit_"][name*="_vehicle_id"]`);
+                                            console.log(`Found ${allExitVehicles.length} exit port vehicles for day ${day}:`, Array.from(allExitVehicles).map(v => v.name));
+                                            
+                                            // Process each vehicle
+                                            allExitVehicles.forEach(vehicleSelect => {
+                                                if (vehicleSelect.value) {
+                                                    const vehicleNameMatch = vehicleSelect.name.match(/day(\d+)_exit_(\d+)_vehicle_id/);
+                                                    if (vehicleNameMatch) {
+                                                        const vehicleDay = vehicleNameMatch[1];
+                                                        const vehicleIndex = vehicleNameMatch[2];
+                                                        
+                                                        // Skip index 0 (main vehicle) as it's handled in the main collection section
+                                                        if (vehicleIndex === '0') {
+                                                            console.log(`Skipping main exit vehicle (index 0) for Day ${vehicleDay} - will be handled in main collection`);
+                                                            return;
+                                                        }
+                                                        
+                                                        console.log(`Processing Google Maps exit vehicle: day${vehicleDay}_exit_${vehicleIndex}`);
+                                                        
+                                                        // Find related fields for this specific vehicle
+                                                        const serviceTypeSelect = document.querySelector(`select[name="day${vehicleDay}_exit_${vehicleIndex}_service_type"]`) || 
+                                                                                document.querySelector(`select[name="day${vehicleDay}_exit_service_type"]`);
+                                                        const timeSelect = document.querySelector(`select[name="day${vehicleDay}_exit_pickup_time"]`);
+                                                        const dateInput = document.querySelector(`input[name="day${vehicleDay}_exit_pickup_date"]`);
+                                                        
+                                                        // Get coordinates from hidden fields (shared for all vehicles)
+                                                        const latField = document.querySelector(`input[name="day${vehicleDay}_exit_pickup_lat"]`);
+                                                        const lngField = document.querySelector(`input[name="day${vehicleDay}_exit_pickup_lng"]`);
+                                                        const dropoffLatField = document.querySelector(`input[name="day${vehicleDay}_exit_dropoff_lat"]`);
+                                                        const dropoffLngField = document.querySelector(`input[name="day${vehicleDay}_exit_dropoff_lng"]`);
+                                        
+                                        if (vehicleSelect?.value && serviceTypeSelect?.value) {
+                                            const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                                            // Get passenger count for this specific vehicle
+                                                            const passengerCount = parseInt(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_passengers`)?.value || document.getElementById('adult_count')?.value || 0);
+                                            const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                                            
+                                                            // For zone=0 (Point-to-Point mode), get price from custom price field if available, otherwise use total_price
+                                                            const dmcUser = @json($UserDmc);
+                                                            const isZoneZero = dmcUser && dmcUser.zone_on == 0;
+                                                            let totalPrice = 0;
+                                                            
+                                                            if (isZoneZero) {
+                                                                // Zone = 0: Check for custom price field first, fallback to total_price
+                                                                const customPriceField = document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_custom_price`);
+                                                                if (customPriceField && customPriceField.value) {
+                                                                    totalPrice = parseFloat(customPriceField.value || 0);
+                                                                    console.log(`Using custom price for exit vehicle ${vehicleIndex} (zone=0): ${totalPrice}`);
+                                                                } else {
+                                                                    totalPrice = parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_total_price`)?.value || 0);
+                                                                    console.log(`Using total_price for exit vehicle ${vehicleIndex} (zone=0): ${totalPrice}`);
+                                                                }
+                                                            } else {
+                                                                // Zone = 1: Get price from total_price hidden field
+                                                                totalPrice = parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_total_price`)?.value || 0);
+                                                                console.log(`Using total_price for exit vehicle ${vehicleIndex} (zone=1): ${totalPrice}`);
+                                                            }
+                                                            
+                                                            // Get pickup and dropoff locations (shared for all vehicles)
+                                                            const pickupField = document.querySelector(`input[name="day${vehicleDay}_exit_pickup_location"]`);
+                                                            const dropoffField = document.querySelector(`input[name="day${vehicleDay}_exit_dropoff_location"]`);
+                                            
+                                            if (pickupField?.value && dropoffField?.value) {
+                                                const transportData = {
+                                                                    id: `exit-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                                    bookingDate: dateInput?.value || getTourDateForDay(vehicleDay),
+                                                    fullName: customerData.fullName,
+                                                    email: customerData.email,
+                                                    phone: customerData.phone,
+                                                    countryCode: customerData.countryCode,
+                                                    address1: customerData.address1,
+                                                    address2: customerData.address2,
+                                                    state: customerData.state,
+                                                    zip: customerData.zip,
+                                                    specialRequests: customerData.specialRequests,
+                                                    vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                                    image: vehicle.dataset.image || "",
+                                                    dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                                    vehicles_name: vehicle.text,
+                                                    Mode: "dmc",
+                                                    type: serviceTypeSelect.value || "",
+                                                    vehicle_type: vehicle.dataset.vehicle_type || "",
+                                                    vehicle_model: vehicle.dataset.vehicle_model || "",
+                                                    model_year: vehicle.dataset.model_year || "",
+                                                    seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
+                                                    travel_type: "exit_port",
+                                                    departure_transport_type: document.querySelector(`input[name="day${vehicleDay}_departure_transport_type"]:checked`)?.value || "flight",
+                                                    departure_flight_no: document.getElementById(`day${vehicleDay}_departure_flight_no`)?.value || "",
+                                                    supplement: !!(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_is_supplement`)?.checked),
+                                                    exitpickup: pickupField.value,
+                                                    exitdropoff: dropoffField.value,
+                                                    PickupPlaceid: {
+                                                        lat: latField?.value || "",
+                                                        lng: lngField?.value || ""
+                                                    },
+                                                    DropoffPlaceid: {
+                                                        lat: dropoffLatField?.value || "",
+                                                        lng: dropoffLngField?.value || ""
+                                                    },
+                                                    pickupdate: dateInput?.value || getTourDateForDay(day),
+                                                    exittime: timeSelect?.value || "",
+                                                    adults: parseInt(passengerCount) || 0,
+                                                    children: parseInt(childCount) || 0,
+                                                    componentDayIndex: parseInt(day) - 1,
+                                                    totalPrice: parseFloat(totalPrice) || 0,
+                                                    Tax: parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_tax`)?.value || "0.00"),
+                                                    distance: parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_distance`)?.value || "0"),
+                                                    Night_Start_Time: null,
+                                                    Night_End_Time: null,
+                                                    city: (() => {
+                                                        // Get city from the exit city select field
+                                                        const citySelect = document.getElementById('modal_exit_city');
+                                                        const cityValue = citySelect?.value || '';
+                                                        return cityValue || "";
+                                                    })(),
+                                                    country: (() => {
+                                                        // Get country from exit city select option's data-country attribute, or from user_country field
+                                                        const citySelect = document.getElementById('modal_exit_city');
+                                                        const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                                        const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromField = document.getElementById('user_country')?.value || '';
+                                                        const countryValue = countryFromCityOption || countryFromField || '';
+                                                        return countryValue || "";
+                                                    })(),
+                                                    userInfo: {
+                                                        fullName: customerData.fullName,
+                                                        email: customerData.email,
+                                                        phone: customerData.phone,
+                                                        countryCode: customerData.countryCode,
+                                                        address1: customerData.address1,
+                                                        address2: customerData.address2 || null,
+                                                        state: customerData.state || null,
+                                                        zip: customerData.zip,
+                                                        specialRequests: customerData.specialRequests || null
+                                                    },
+                                                    bookingType: "enquiry",
+                                                    vehicleIndex: vehicleIndex, // Add index to identify which additional vehicle this is
+                                                    remarks: document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_remarks`)?.value || ''
+                                                };
+                                                
+                                                exitPortArray.push(transportData);
+                                                                console.log(`✅ Added Google Maps exit port vehicle #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
+                                                                console.log(`✅ Exit port array now has ${exitPortArray.length} vehicles`);
+                                            }
+                                        }
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        
+                        // ===== FINAL SUMMARY =====
+                        console.log('=== SEGREGATED TRANSPORT COLLECTION SUMMARY ===');
+                        console.log(`✅ Point-to-Point Transports: ${transportDataArray.filter(t => t.travel_type === 'travel_point').length}`);
+                        console.log(`✅ Hourly Transports: ${transportDataArray.filter(t => t.travel_type === 'travel_hourly').length}`);
+                        console.log(`✅ Local Transfer Transports: ${transportDataArray.filter(t => t.travel_type === 'local_transfer').length}`);
+                        console.log(`✅ Entry Ports: ${entryPortArray.length}`);
+                        console.log(`✅ Exit Ports: ${exitPortArray.length}`);
+                        console.log(`✅ Total Transports Collected: ${transportDataArray.length}`);
+                        
+                        // Enhanced Breakdown by Type and ID
+                        console.log('=== DETAILED TRANSPORT BREAKDOWN ===');
+                        transportDataArray.forEach((transport, index) => {
+                            console.log(`Transport ${index + 1}:`, {
+                                id: transport.id,
+                                type: transport.travel_type,
+                                vehicle: transport.vehicles_name,
+                                pickup: transport.entrypickup,
+                                dropoff: transport.entrydropoff,
+                                price: transport.totalPrice
+                            });
+                        });
+                        
+                        // Remove duplicate entries based on multiple criteria
+                        const removeDuplicates = (array) => {
+                            const seen = new Set();
+                            return array.filter(item => {
+                                // Create a unique key based on multiple fields to catch different types of duplicates
+                                const key = `${item.vehicles_name || ''}_${item.entrypickup || ''}_${item.entrydropoff || ''}_${item.travel_type || ''}_${item.componentDayIndex || ''}`;
+                                if (seen.has(key)) {
+                                    console.log(`Removing duplicate entry:`, {
+                                        vehicles_name: item.vehicles_name,
+                                        entrypickup: item.entrypickup,
+                                        entrydropoff: item.entrydropoff,
+                                        travel_type: item.travel_type,
+                                        componentDayIndex: item.componentDayIndex
                                     });
-                                });
-                            } catch (error) {
-                                console.error('Error parsing transport data:', error);
-                            }
-                        } else {
-                            console.log('No transport data found in field');
-                        }
-                    };
-                    
-                    // Debug function to check all form fields
-                    window.debugAllFields = function() {
-                        console.log('=== DEBUG ALL FORM FIELDS ===');
-                        const allFields = document.querySelectorAll('input, select');
-                        const filledFields = [];
-                        
-                        allFields.forEach(field => {
-                            if (field.value && field.name) {
-                                filledFields.push({
-                                    name: field.name,
-                                    value: field.value,
-                                    type: field.type || 'select'
-                                });
-                            }
-                        });
-                        
-                        console.log('All filled fields:', filledFields);
-                        
-                        // Look specifically for point to point fields
-                        const pointToPointFields = filledFields.filter(field => 
-                            field.name.includes('additional') || 
-                            field.name.includes('point') ||
-                            field.name.includes('pickup') ||
-                            field.name.includes('dropoff')
-                        );
-                        
-                        console.log('Point to point related fields:', pointToPointFields);
-                    };
-                    
-                    // Test function to verify all transport bookings are collected
-                    window.testAllTransportBookings = function() {
-                        console.log('=== TESTING ALL TRANSPORT BOOKINGS ===');
-                        
-                        // Force update transport data
-                        updateTransportDataField();
-                        
-                        // Get the final transport data from hidden fields
-                        const transportData = document.getElementById('transport_data')?.value;
-                        const entryPortData = document.getElementById('entry_port_data')?.value;
-                        const exitPortData = document.getElementById('exit_port_data')?.value;
-                        
-                        console.log('=== FINAL COLLECTED DATA ===');
-                        
-                        if (transportData && transportData !== '[]') {
-                            const transports = JSON.parse(transportData);
-                            console.log(`✅ Regular Transports Found: ${transports.length}`);
-                            transports.forEach((transport, index) => {
-                                console.log(`Transport ${index + 1}:`, {
-                                    id: transport.id,
-                                    type: transport.travel_type,
-                                    vehicle: transport.vehicles_name,
-                                    pickup: transport.entrypickup,
-                                    dropoff: transport.entrydropoff,
-                                    price: transport.totalPrice
-                                });
+                                    return false;
+                                }
+                                seen.add(key);
+                                return true;
                             });
-                        } else {
-                            console.log('❌ No regular transport data found');
-                        }
-                        
-                        if (entryPortData && entryPortData !== '[]') {
-                            const entryPorts = JSON.parse(entryPortData);
-                            console.log(`✅ Entry Ports Found: ${entryPorts.length}`);
-                            entryPorts.forEach((port, index) => {
-                                console.log(`Entry Port ${index + 1}:`, {
-                                    id: port.id,
-                                    vehicle: port.vehicles_name,
-                                    pickup: port.entrypickup,
-                                    dropoff: port.entrydropoff
-                                });
-                            });
-                        } else {
-                            console.log('❌ No entry port data found');
-                        }
-                        
-                        if (exitPortData && exitPortData !== '[]') {
-                            const exitPorts = JSON.parse(exitPortData);
-                            console.log(`✅ Exit Ports Found: ${exitPorts.length}`);
-                            exitPorts.forEach((port, index) => {
-                                console.log(`Exit Port ${index + 1}:`, {
-                                    id: port.id,
-                                    vehicle: port.vehicles_name,
-                                    pickup: port.exitpickup,
-                                    dropoff: port.exitdropoff
-                                });
-                            });
-                        } else {
-                            console.log('❌ No exit port data found');
-                        }
-                        
-                        // Return summary
-                        const summary = {
-                            regularTransports: transportData ? JSON.parse(transportData).length : 0,
-                            entryPorts: entryPortData ? JSON.parse(entryPortData).length : 0,
-                            exitPorts: exitPortData ? JSON.parse(exitPortData).length : 0
                         };
                         
-                        console.log('=== SUMMARY ===', summary);
-                        return summary;
-                    };
-                    
-                    // Quick test function for point to point fields
-                    window.testPointToPointFields = function() {
-                        console.log('=== TESTING POINT TO POINT FIELDS ===');
+                        // Remove duplicates from all arrays
+                        console.log('=== BEFORE DUPLICATE REMOVAL ===');
+                        console.log('Transport array length:', transportDataArray.length);
+                        console.log('Entry port array length:', entryPortArray.length);
+                        console.log('Exit port array length:', exitPortArray.length);
                         
-                        // Check for pickup location fields
-                        const pickupFields = document.querySelectorAll('input[name*="pickup_location"]');
-                        console.log('Pickup location fields found:', pickupFields.length);
-                        pickupFields.forEach(field => {
-                            console.log(`- ${field.name}: ${field.value}`);
-                        });
+                        // Temporarily disable duplicate removal to allow multiple same vehicles
+                        console.log('=== DUPLICATE REMOVAL DISABLED TO ALLOW MULTIPLE SAME VEHICLES ===');
+                        // transportDataArray = removeDuplicates(transportDataArray);
+                        // entryPortArray = removeDuplicates(entryPortArray);
+                        // exitPortArray = removeDuplicates(exitPortArray);
                         
-                        // Check for dropoff location fields
-                        const dropoffFields = document.querySelectorAll('input[name*="dropoff_location"]');
-                        console.log('Dropoff location fields found:', dropoffFields.length);
-                        dropoffFields.forEach(field => {
-                            console.log(`- ${field.name}: ${field.value}`);
-                        });
+                        console.log('=== AFTER DUPLICATE REMOVAL (DISABLED) ===');
+                        console.log('Transport array length:', transportDataArray.length);
+                        console.log('Entry port array length:', entryPortArray.length);
+                        console.log('Exit port array length:', exitPortArray.length);
                         
-                        // Check for vehicle selection
-                        const vehicleFields = document.querySelectorAll('select[name*="vehicle_id"]');
-                        console.log('Vehicle fields found:', vehicleFields.length);
-                        vehicleFields.forEach(field => {
-                            console.log(`- ${field.name}: ${field.value}`);
-                        });
-                        
-                        // Check for service type
-                        const serviceTypeFields = document.querySelectorAll('select[name*="service_type"], input[name*="service_type"]');
-                        console.log('Service type fields found:', serviceTypeFields.length);
-                        serviceTypeFields.forEach(field => {
-                            console.log(`- ${field.name}: ${field.value}`);
-                        });
-                    };
-                    
-                    console.log('Transport data updated:', {
-                        transport: transportDataArray,
-                        entry_port: entryPortArray,
-                        exit_port: exitPortArray
-                    });
-                    
-                    // Debug: Log the number of transports found
-                    console.log(`=== TRANSPORT DATA SUMMARY ===`);
-                    console.log(`Total regular transports: ${transportDataArray.length}`);
-                    console.log(`Total entry ports: ${entryPortArray.length}`);
-                    console.log(`Total exit ports: ${exitPortArray.length}`);
-                    
-                    // Log details of each transport
-                    transportDataArray.forEach((transport, index) => {
-                        console.log(`Transport ${index + 1}: ${transport.vehicles_name} - $${transport.totalPrice}`);
-                    });
-                    
-                    // Update package total price display
-                    updatePackageTotalPriceDisplay();
-                }
-
-                // Helper function to parse guest summary text
-                function parseGuestSummary(summaryText) {
-                    console.log('Parsing guest summary:', summaryText);
-                    
-                    // Handle both old text format and new HTML format
-                    // For HTML format, extract text content first
-                    let textToParse = summaryText;
-                    if (typeof summaryText === 'string' && summaryText.includes('<')) {
-                        // Create a temporary element to extract text
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = summaryText;
-                        textToParse = tempDiv.textContent || tempDiv.innerText || '';
-                    }
-                    
-                    const adultMatch = textToParse.match(/(\d+)\s+Adults/i) || textToParse.match(/(\d+)\s+adults/i);
-                    const maleMatch = textToParse.match(/(\d+)\s+male/i);
-                    const femaleMatch = textToParse.match(/(\d+)\s+female/i);
-                    const childMatch = textToParse.match(/(\d+)\s+children/i);
-                    const infantMatch = textToParse.match(/(\d+)\s+infants/i);
-                    
-                    // If no matches found, try to extract from badge spans directly
-                    let adults = adultMatch ? parseInt(adultMatch[1]) : 0;
-                    let male = maleMatch ? parseInt(maleMatch[1]) : 0;
-                    let female = femaleMatch ? parseInt(femaleMatch[1]) : 0;
-                    let children = childMatch ? parseInt(childMatch[1]) : 0;
-                    let infants = infantMatch ? parseInt(infantMatch[1]) : 0;
-                    
-                    // If parsing from HTML, try to get values from badge spans
-                    if (typeof summaryText === 'string' && summaryText.includes('<span')) {
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = summaryText;
-                        const badges = tempDiv.querySelectorAll('.badge span:last-child');
-                        if (badges.length >= 5) {
-                            // Format: Adults badge, Male badge, Female badge, Children badge, Infants badge
-                            const adultsText = badges[0].textContent.trim();
-                            adults = parseInt(adultsText.match(/\d+/)?.[0] || '0');
-                            male = parseInt(badges[1].textContent.trim() || '0');
-                            female = parseInt(badges[2].textContent.trim() || '0');
-                            children = parseInt(badges[3].textContent.trim() || '0');
-                            infants = parseInt(badges[4].textContent.trim() || '0');
-                        }
-                        // Fallback: find Children badge by title so child count is never missed
-                        const childrenBadge = tempDiv.querySelector('.badge[title="Children"]');
-                        if (childrenBadge) {
-                            const childSpan = childrenBadge.querySelector('span:last-child');
-                            if (childSpan) {
-                                const n = parseInt(childSpan.textContent.trim(), 10);
-                                if (!isNaN(n)) children = n;
-                            }
-                        }
-                    }
-                    
-                    // For now, assume seniors are part of adults (this can be enhanced later with age-based logic)
-                    // In a real implementation, you might want to add a senior age input field
-                    const seniors = 0; // Placeholder - can be enhanced with age-based calculation
-                    const regularAdults = adults - seniors;
-                    
-                    const result = {
-                        adults: regularAdults,
-                        male: male,
-                        female: female,
-                        children: children,
-                        infants: infants,
-                        seniors: seniors
-                    };
-                    
-                    console.log('Parsed guest info:', result);
-                    return result;
-                }
-
-                // Function to calculate total price for all services
-                function calculateTotalPackagePrice() {
-                    let totalPrice = 0;
-                    
-                    try {
-                        // Calculate hotel prices
-                        const hotelData = document.getElementById('hotel_data')?.value;
-                        if (hotelData) {
-                            const hotels = JSON.parse(hotelData);
-                            console.log('=== CALCULATING HOTEL PRICES ===');
-                            console.log('Hotels data:', hotels);
-                            hotels.forEach((hotel, index) => {
-                                if (hotel.totalPrice && !isNaN(parseFloat(hotel.totalPrice))) {
-                                    const hotelPrice = parseFloat(hotel.totalPrice);
-                                    totalPrice += hotelPrice;
-                                    console.log(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): $${hotelPrice} added to total`);
-                                } else {
-                                    console.warn(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): Invalid or missing totalPrice:`, hotel.totalPrice);
-                                }
-                            });
-                            console.log('Total after hotels:', totalPrice);
+                        // Update all transport-related fields
+                        const transportDataField = document.getElementById('transport_data');
+                        if (transportDataField) {
+                            transportDataField.value = JSON.stringify(transportDataArray);
+                            console.log('=== FINAL TRANSPORT DATA ===');
+                            console.log('Transport Data Array:', transportDataArray);
+                            console.log('Transport Data Field Value:', transportDataField.value);
                         }
                         
-                        // Calculate attraction prices
-                        const attractionData = document.getElementById('attraction_data')?.value;
-                        if (attractionData) {
-                            const attractions = JSON.parse(attractionData);
-                            attractions.forEach(attraction => {
-                                if (attraction.totalPrice && !isNaN(parseFloat(attraction.totalPrice))) {
-                                    totalPrice += parseFloat(attraction.totalPrice);
-                                }
-                            });
-                        }
-                        
-                        // Calculate restaurant prices
-                        const restaurantData = document.getElementById('restaurant_data')?.value;
-                        if (restaurantData) {
-                            const restaurants = JSON.parse(restaurantData);
-                            restaurants.forEach(restaurant => {
-                                if (restaurant.totalPrice && !isNaN(parseFloat(restaurant.totalPrice))) {
-                                    totalPrice += parseFloat(restaurant.totalPrice);
-                                }
-                            });
-                        }
-                        
-                        // Calculate guide prices
-                        const guideData = document.getElementById('guide_data')?.value;
-                        if (guideData) {
-                            const guides = JSON.parse(guideData);
-                            guides.forEach(guide => {
-                                if (guide.totalPrice && !isNaN(parseFloat(guide.totalPrice))) {
-                                    totalPrice += parseFloat(guide.totalPrice);
-                                }
-                            });
-                        }
-                        
-                        // Calculate transport prices
-                        const transportData = document.getElementById('transport_data')?.value;
-                        if (transportData) {
-                            const transports = JSON.parse(transportData);
-                            transports.forEach(transport => {
-                                if (transport.totalPrice && !isNaN(parseFloat(transport.totalPrice))) {
-                                    totalPrice += parseFloat(transport.totalPrice);
-                                }
-                            });
-                        }
-                        
-                        // Calculate entry port prices
-                        const entryPortData = document.getElementById('entry_port_data')?.value;
-                        if (entryPortData) {
-                            const entryPorts = JSON.parse(entryPortData);
-                            entryPorts.forEach(entryPort => {
-                                if (entryPort.totalPrice && !isNaN(parseFloat(entryPort.totalPrice))) {
-                                    totalPrice += parseFloat(entryPort.totalPrice);
-                                }
-                            });
-                        }
-                        
-                        // Calculate exit port prices
-                        const exitPortData = document.getElementById('exit_port_data')?.value;
-                        if (exitPortData) {
-                            const exitPorts = JSON.parse(exitPortData);
-                            exitPorts.forEach(exitPort => {
-                                if (exitPort.totalPrice && !isNaN(parseFloat(exitPort.totalPrice))) {
-                                    totalPrice += parseFloat(exitPort.totalPrice);
-                                }
-                            });
-                        }
-                        
-                        console.log('Total package price calculated:', totalPrice);
-                        return totalPrice.toFixed(2);
-                        
-                    } catch (error) {
-                        console.error('Error calculating total price:', error);
-                        return '0.00';
-                    }
-                }
-
-                // Function to update the package total price display
-                function updatePackageTotalPriceDisplay() {
-                    const totalPrice = calculateTotalPackagePrice();
-                    const totalPriceElement = document.getElementById('packageTotalPrice');
-                    if (totalPriceElement) {
-                        totalPriceElement.textContent = `$${totalPrice}`;
-                        console.log('Package total price display updated:', totalPrice);
-                    }
-                    
-                    // Also update the price breakdown display
-                    updatePriceBreakdownDisplay();
-                }
-
-                // Function to display price breakdown for each service
-                function updatePriceBreakdownDisplay() {
-                    let breakdownHTML = '';
-                    let totalCalculated = 0;
-                    
-                    try {
-                        // Hotel prices
-                        const hotelData = document.getElementById('hotel_data')?.value;
-                        if (hotelData) {
-                            const hotels = JSON.parse(hotelData);
-                            hotels.forEach((hotel, index) => {
-                                if (hotel.totalPrice && !isNaN(parseFloat(hotel.totalPrice))) {
-                                    const price = parseFloat(hotel.totalPrice);
-                                    totalCalculated += price;
-                                    const roomInfo = hotel.rooms && hotel.rooms[0] ? 
-                                        `${hotel.rooms[0].room_type} (${hotel.number_of_rooms || 1} room${hotel.number_of_rooms > 1 ? 's' : ''} × ${hotel.total_nights || 1} night${hotel.total_nights > 1 ? 's' : ''})` : '';
-                                    breakdownHTML += `
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span><i class="ri-hotel-bed-line me-2"></i>Hotel ${index + 1}: ${hotel.hotel_name || 'Hotel'}</span>
-                                            <span class="badge bg-primary">$${price.toFixed(2)}</span>
-                                        </div>
-                                        <small class="text-muted ms-4">${roomInfo}</small>
-                                    `;
-                                }
-                            });
-                        }
-                        
-                        // Attraction prices
-                        const attractionData = document.getElementById('attraction_data')?.value;
-                        if (attractionData) {
-                            const attractions = JSON.parse(attractionData);
-                            attractions.forEach((attraction, index) => {
-                                if (attraction.totalPrice && !isNaN(parseFloat(attraction.totalPrice))) {
-                                    const price = parseFloat(attraction.totalPrice);
-                                    totalCalculated += price;
-                                    const ticketInfo = attraction.ticket_details ? 
-                                        `Ticket: ${attraction.ticketName} (${attraction.adultCount} adults, ${attraction.childCount} children, ${attraction.seniorCount} seniors)` : '';
-                                    breakdownHTML += `
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span><i class="ri-camera-3-line me-2"></i>Attraction ${index + 1}: ${attraction.AttractionName || 'Attraction'}</span>
-                                            <span class="badge bg-info">$${price.toFixed(2)}</span>
-                                        </div>
-                                        <small class="text-muted ms-4">${ticketInfo}</small>
-                                    `;
-                                }
-                            });
-                        }
-                        
-                        // Restaurant prices
-                        const restaurantData = document.getElementById('restaurant_data')?.value;
-                        if (restaurantData) {
-                            const restaurants = JSON.parse(restaurantData);
-                            restaurants.forEach((restaurant, index) => {
-                                if (restaurant.totalPrice && !isNaN(parseFloat(restaurant.totalPrice))) {
-                                    const price = parseFloat(restaurant.totalPrice);
-                                    totalCalculated += price;
-                                    const mealInfo = restaurant.MealDescription && restaurant.MealDescription[0] ? 
-                                        `Meal: ${restaurant.MealDescription[0].name} (${restaurant.adultCount} adults, ${restaurant.childCount} children)` : '';
-                                    breakdownHTML += `
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span><i class="ri-restaurant-2-line me-2"></i>Restaurant ${index + 1}: ${restaurant.restaurantName || 'Restaurant'}</span>
-                                            <span class="badge bg-warning text-dark">$${price.toFixed(2)}</span>
-                                        </div>
-                                        <small class="text-muted ms-4">${mealInfo}</small>
-                                    `;
-                                }
-                            });
-                        }
-                        
-                        // Guide prices
-                        const guideData = document.getElementById('guide_data')?.value;
-                        if (guideData) {
-                            const guides = JSON.parse(guideData);
-                            guides.forEach((guide, index) => {
-                                if (guide.totalPrice && !isNaN(parseFloat(guide.totalPrice))) {
-                                    const price = parseFloat(guide.totalPrice);
-                                    totalCalculated += price;
-                                    breakdownHTML += `
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span><i class="ri-map-pin-user-line me-2"></i>Guide ${index + 1}: ${guide.guide_name || 'Guide'}</span>
-                                            <span class="badge bg-success">$${price.toFixed(2)}</span>
-                                        </div>
-                                    `;
-                                }
-                            });
-                        }
-                        
-                        // Transport prices
-                        const transportData = document.getElementById('transport_data')?.value;
-                        if (transportData) {
-                            const transports = JSON.parse(transportData);
-                            transports.forEach((transport, index) => {
-                                if (transport.totalPrice && !isNaN(parseFloat(transport.totalPrice))) {
-                                    const price = parseFloat(transport.totalPrice);
-                                    totalCalculated += price;
-                                    breakdownHTML += `
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span><i class="ri-car-line me-2"></i>Transport ${index + 1}: ${transport.vehicles_name || 'Transport'}</span>
-                                            <span class="badge bg-secondary">$${price.toFixed(2)}</span>
-                                        </div>
-                                    `;
-                                }
-                            });
-                        }
-                        
-                        // Entry port prices
-                        const entryPortData = document.getElementById('entry_port_data')?.value;
-                        if (entryPortData) {
-                            const entryPorts = JSON.parse(entryPortData);
-                            entryPorts.forEach((entryPort, index) => {
-                                if (entryPort.totalPrice && !isNaN(parseFloat(entryPort.totalPrice))) {
-                                    const price = parseFloat(entryPort.totalPrice);
-                                    totalCalculated += price;
-                                    breakdownHTML += `
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span><i class="ri-map-pin-line me-2"></i>Entry Port ${index + 1}: ${entryPort.vehicles_name || 'Entry Transport'}</span>
-                                            <span class="badge bg-info">$${price.toFixed(2)}</span>
-                                        </div>
-                                    `;
-                                }
-                            });
-                        }
-                        
-                        // Exit port prices
-                        const exitPortData = document.getElementById('exit_port_data')?.value;
-                        if (exitPortData) {
-                            const exitPorts = JSON.parse(exitPortData);
-                            exitPorts.forEach((exitPort, index) => {
-                                if (exitPort.totalPrice && !isNaN(parseFloat(exitPort.totalPrice))) {
-                                    const price = parseFloat(exitPort.totalPrice);
-                                    totalCalculated += price;
-                                    breakdownHTML += `
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span><i class="ri-map-pin-line me-2"></i>Exit Port ${index + 1}: ${exitPort.vehicles_name || 'Exit Transport'}</span>
-                                            <span class="badge bg-info">$${price.toFixed(2)}</span>
-                                        </div>
-                                    `;
-                                }
-                            });
-                        }
-                        
-                        // Add total at the bottom
-                        if (breakdownHTML) {
-                            breakdownHTML += `
-                                <hr class="my-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold"><i class="ri-money-dollar-circle-line me-2"></i>Total Package Price:</span>
-                                    <span class="h5 text-success mb-0">$${totalCalculated.toFixed(2)}</span>
-                                </div>
-                            `;
+                        const entryPortDataField = document.getElementById('entry_port_data');
+                        if (entryPortDataField) {
+                            entryPortDataField.value = JSON.stringify(entryPortArray);
+                            console.log('✅ Set entry_port_data field with', entryPortArray.length, 'vehicles:', entryPortDataField.value);
+                            console.log('✅ Entry port vehicles collected:', entryPortArray.map(v => `${v.vehicles_name} (Index: ${v.vehicleIndex || 'main'})`));
                         } else {
-                            breakdownHTML = '<p class="text-muted">No services added yet</p>';
+                            console.log('❌ entry_port_data field not found!');
                         }
                         
-                        // Update the breakdown display
-                        const breakdownElement = document.getElementById('priceBreakdown');
-                        if (breakdownElement) {
-                            breakdownElement.innerHTML = breakdownHTML;
+                        const exitPortDataField = document.getElementById('exit_port_data');
+                        if (exitPortDataField) {
+                            exitPortDataField.value = JSON.stringify(exitPortArray);
+                            console.log('✅ Set exit_port_data field:', exitPortDataField.value);
+                        } else {
+                            console.log('❌ exit_port_data field not found!');
                         }
                         
-                    } catch (error) {
-                        console.error('Error updating price breakdown:', error);
-                    }
-                }
-                
-                // Reset save button to original state
-                function resetSaveButton() {
-                    const saveBtn = document.getElementById('savePackageBtn');
-                    if (saveBtn) {
-                        saveBtn.disabled = false;
-                        saveBtn.innerHTML = '<i class="ri-save-line me-2"></i>Save Tour Package';
-                    }
-                }
-                
-                // Handle save package button click - show loader and disable
-                async function handleSavePackage(button) {
-                    // Disable button
-                    button.disabled = true;
-                    
-                    // Show loader and update text
-                    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
-                    
-                    // Call the actual save function
-                    const result = await saveAllBookings();
-                    
-                    // If save failed or returned false, reset button
-                    if (result === false) {
-                        resetSaveButton();
-                    }
-                }
-
-                async function saveAllBookings() {
-                    
-                    const agentId = document.getElementById('agent_id').value;
-                    let tourId = window.currentTourId;
-                    const cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
-                    const isMultiCity = (cityMode === 'multi');
-                    const enquiry = @json($enquiry);
-                    const csrfToken = document.querySelector('input[name="_token"]').value;
-                    const storeTourUrl = '{{ route('single-tour-package.store') }}';
-                    const storeOrdersUrl = '{{ route('single-tour-package.store-orders') }}';
-                    const thankYouUrl = '{{ route('single-tour-package.thank-you') }}';
-
-                    // ── Shared validation (guests, tour type, etc.) ──
-                    const startDate = document.getElementById('start_date').value;
-                    const endDate = document.getElementById('end_date').value;
-                    const agent = document.getElementById('agent_id').value;
-
-                    if (!startDate || !endDate || !agent) {
-                        alert('Please fill in all required fields (Travel Dates, Agent, and Guests) before saving.');
-                        resetSaveButton();
-                        return false;
-                    }
-
-                    const adults = parseInt(document.getElementById('adults').value) || 0;
-                    const male = parseInt(document.getElementById('male').value) || 0;
-                    const female = parseInt(document.getElementById('female').value) || 0;
-                    let children = parseInt(document.getElementById('children').value) || 0;
-                    const infants = parseInt(document.getElementById('infants').value) || 0;
-                    const childAgesData = document.getElementById('child_ages').value;
-                    let childAges = [];
-
-                    if (enquiry && enquiry.child_ages) {
-                        if (typeof enquiry.child_ages === 'string') {
-                            childAges = enquiry.child_ages.split(',').map(a => a.trim()).filter(a => a !== '');
-                        } else if (Array.isArray(enquiry.child_ages)) {
-                            childAges = enquiry.child_ages;
-                        }
-                        children = enquiry.child || children;
-                        if (childAges.length !== children) { alert('Please select ages for all children.'); return false; }
-                    } else if (children > 0) {
-                        try { childAges = childAgesData ? JSON.parse(childAgesData) : []; } catch (e) { alert('Invalid child ages data.'); return false; }
-                        if (childAges.length !== children) { alert('Please select ages for all children.'); return false; }
-                    }
-                    if (adults < 1) { alert('At least 1 adult is required.'); return false; }
-                    if ((male + female) !== adults) { alert('Male + Female must equal Adults.'); return false; }
-
-                    // Guest data
-                    const leadSection = document.getElementById('customerAccordion');
-                    const getLeadVal = (id, name) => {
-                        const el = leadSection ? leadSection.querySelector(`#${id}, [name="${name}"]`) : (document.getElementById(id) || document.querySelector(`[name="${name}"]`));
-                        return (el?.value || '').trim();
-                    };
-                    const mainGuestData = {
-                        salutation: getLeadVal('customerSalutation', 'customer_salutation'),
-                        full_name: getLeadVal('customerFullName', 'customer_full_name'),
-                        email: getLeadVal('customerEmail', 'customer_email'),
-                        country_code: getLeadVal('customerCountryCode', 'customer_country_code'),
-                        phone: getLeadVal('customerPhone', 'customer_phone'),
-                        address1: getLeadVal('customerAddress1', 'customer_address1'),
-                        address2: getLeadVal('customerAddress2', 'customer_address2'),
-                        state: getLeadVal('customerState', 'customer_state'),
-                        zip: getLeadVal('customerZip', 'customer_zip'),
-                        special_requests: getLeadVal('customerSpecialRequests', 'customer_special_requests'),
-                        passport: getLeadVal('customerPassport', 'customer_passport'),
-                        passport_exp: getLeadVal('customerPassportExpiry', 'customer_passport_expiry')
-                    };
-                    const additionalGuests = [];
-                    document.querySelectorAll('.guest-card').forEach(card => {
-                        const guestData = {};
-                        card.querySelectorAll('input, select').forEach(input => {
-                            const name = input.getAttribute('name');
-                            if (name && name.includes('additional_guests')) {
-                                const m = name.match(/\[(\d+)\]\[(\w+)\]/);
-                                if (m) guestData[m[2]] = input.value || '';
-                            }
+                        // Debug: Log the final values being set
+                        console.log('=== FINAL TRANSPORT DATA BEING SET ===');
+                        console.log('transportDataArray:', transportDataArray);
+                        console.log('transportDataField.value:', transportDataField?.value);
+                        console.log('entryPortArray:', entryPortArray);
+                        console.log('exitPortArray:', exitPortArray);
+                        
+                        // Debug: Check each transport in the array
+                        transportDataArray.forEach((transport, index) => {
+                            console.log(`=== TRANSPORT ${index + 1} DETAILS ===`);
+                            console.log('ID:', transport.id);
+                            console.log('Travel Type:', transport.travel_type);
+                            console.log('Service Type:', transport.type);
+                            console.log('Vehicle Name:', transport.vehicles_name);
+                            console.log('Pickup:', transport.entrypickup);
+                            console.log('Dropoff:', transport.entrydropoff);
+                            console.log('Booking Type:', transport.bookingType);
+                            console.log('Full transport object:', transport);
                         });
-                        if (Object.keys(guestData).length > 0) additionalGuests.push(guestData);
-                    });
-
-                    // Tour type
-                    let tourType = window.selectedTourType || 'FIT';
-                    const tourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
-                    if (tourTypeRadio && tourTypeRadio.value) { tourType = tourTypeRadio.value; window.selectedTourType = tourType; }
-                    if (!tourType || tourType === 'FIT') {
-                        for (let r of document.querySelectorAll('input[name="tour_type"]')) { if (r.checked) { tourType = r.value; window.selectedTourType = tourType; break; } }
+                        
+                        // Test function to manually trigger transport data collection
+                        window.testTransportData = function() {
+                            console.log('=== MANUAL TRANSPORT DATA TEST ===');
+                            updateTransportDataField();
+                            
+                            const transportField = document.getElementById('transport_data');
+                            if (transportField && transportField.value) {
+                                try {
+                                    const data = JSON.parse(transportField.value);
+                                    console.log('Transport data found:', data);
+                                    console.log('Number of transports:', data.length);
+                                    
+                                    data.forEach((transport, index) => {
+                                        console.log(`Transport ${index + 1}:`, {
+                                            id: transport.id,
+                                            travel_type: transport.travel_type,
+                                            type: transport.type,
+                                            vehicles_name: transport.vehicles_name,
+                                            bookingType: transport.bookingType
+                                        });
+                                    });
+                                } catch (error) {
+                                    console.error('Error parsing transport data:', error);
+                                }
+                            } else {
+                                console.log('No transport data found in field');
+                            }
+                        };
+                        
+                        // Debug function to check all form fields
+                        window.debugAllFields = function() {
+                            console.log('=== DEBUG ALL FORM FIELDS ===');
+                            const allFields = document.querySelectorAll('input, select');
+                            const filledFields = [];
+                            
+                            allFields.forEach(field => {
+                                if (field.value && field.name) {
+                                    filledFields.push({
+                                        name: field.name,
+                                        value: field.value,
+                                        type: field.type || 'select'
+                                    });
+                                }
+                            });
+                            
+                            console.log('All filled fields:', filledFields);
+                            
+                            // Look specifically for point to point fields
+                            const pointToPointFields = filledFields.filter(field => 
+                                field.name.includes('additional') || 
+                                field.name.includes('point') ||
+                                field.name.includes('pickup') ||
+                                field.name.includes('dropoff')
+                            );
+                            
+                            console.log('Point to point related fields:', pointToPointFields);
+                        };
+                        
+                        // Test function to verify all transport bookings are collected
+                        window.testAllTransportBookings = function() {
+                            console.log('=== TESTING ALL TRANSPORT BOOKINGS ===');
+                            
+                            // Force update transport data
+                            updateTransportDataField();
+                            
+                            // Get the final transport data from hidden fields
+                            const transportData = document.getElementById('transport_data')?.value;
+                            const entryPortData = document.getElementById('entry_port_data')?.value;
+                            const exitPortData = document.getElementById('exit_port_data')?.value;
+                            
+                            console.log('=== FINAL COLLECTED DATA ===');
+                            
+                            if (transportData && transportData !== '[]') {
+                                const transports = JSON.parse(transportData);
+                                console.log(`✅ Regular Transports Found: ${transports.length}`);
+                                transports.forEach((transport, index) => {
+                                    console.log(`Transport ${index + 1}:`, {
+                                        id: transport.id,
+                                        type: transport.travel_type,
+                                        vehicle: transport.vehicles_name,
+                                        pickup: transport.entrypickup,
+                                        dropoff: transport.entrydropoff,
+                                        price: transport.totalPrice
+                                    });
+                                });
+                            } else {
+                                console.log('❌ No regular transport data found');
+                            }
+                            
+                            if (entryPortData && entryPortData !== '[]') {
+                                const entryPorts = JSON.parse(entryPortData);
+                                console.log(`✅ Entry Ports Found: ${entryPorts.length}`);
+                                entryPorts.forEach((port, index) => {
+                                    console.log(`Entry Port ${index + 1}:`, {
+                                        id: port.id,
+                                        vehicle: port.vehicles_name,
+                                        pickup: port.entrypickup,
+                                        dropoff: port.entrydropoff
+                                    });
+                                });
+                            } else {
+                                console.log('❌ No entry port data found');
+                            }
+                            
+                            if (exitPortData && exitPortData !== '[]') {
+                                const exitPorts = JSON.parse(exitPortData);
+                                console.log(`✅ Exit Ports Found: ${exitPorts.length}`);
+                                exitPorts.forEach((port, index) => {
+                                    console.log(`Exit Port ${index + 1}:`, {
+                                        id: port.id,
+                                        vehicle: port.vehicles_name,
+                                        pickup: port.exitpickup,
+                                        dropoff: port.exitdropoff
+                                    });
+                                });
+                            } else {
+                                console.log('❌ No exit port data found');
+                            }
+                            
+                            // Return summary
+                            const summary = {
+                                regularTransports: transportData ? JSON.parse(transportData).length : 0,
+                                entryPorts: entryPortData ? JSON.parse(entryPortData).length : 0,
+                                exitPorts: exitPortData ? JSON.parse(exitPortData).length : 0
+                            };
+                            
+                            console.log('=== SUMMARY ===', summary);
+                            return summary;
+                        };
+                        
+                        // Quick test function for point to point fields
+                        window.testPointToPointFields = function() {
+                            console.log('=== TESTING POINT TO POINT FIELDS ===');
+                            
+                            // Check for pickup location fields
+                            const pickupFields = document.querySelectorAll('input[name*="pickup_location"]');
+                            console.log('Pickup location fields found:', pickupFields.length);
+                            pickupFields.forEach(field => {
+                                console.log(`- ${field.name}: ${field.value}`);
+                            });
+                            
+                            // Check for dropoff location fields
+                            const dropoffFields = document.querySelectorAll('input[name*="dropoff_location"]');
+                            console.log('Dropoff location fields found:', dropoffFields.length);
+                            dropoffFields.forEach(field => {
+                                console.log(`- ${field.name}: ${field.value}`);
+                            });
+                            
+                            // Check for vehicle selection
+                            const vehicleFields = document.querySelectorAll('select[name*="vehicle_id"]');
+                            console.log('Vehicle fields found:', vehicleFields.length);
+                            vehicleFields.forEach(field => {
+                                console.log(`- ${field.name}: ${field.value}`);
+                            });
+                            
+                            // Check for service type
+                            const serviceTypeFields = document.querySelectorAll('select[name*="service_type"], input[name*="service_type"]');
+                            console.log('Service type fields found:', serviceTypeFields.length);
+                            serviceTypeFields.forEach(field => {
+                                console.log(`- ${field.name}: ${field.value}`);
+                            });
+                        };
+                        
+                        console.log('Transport data updated:', {
+                            transport: transportDataArray,
+                            entry_port: entryPortArray,
+                            exit_port: exitPortArray
+                        });
+                        
+                        // Debug: Log the number of transports found
+                        console.log(`=== TRANSPORT DATA SUMMARY ===`);
+                        console.log(`Total regular transports: ${transportDataArray.length}`);
+                        console.log(`Total entry ports: ${entryPortArray.length}`);
+                        console.log(`Total exit ports: ${exitPortArray.length}`);
+                        
+                        // Log details of each transport
+                        transportDataArray.forEach((transport, index) => {
+                            console.log(`Transport ${index + 1}: ${transport.vehicles_name} - $${transport.totalPrice}`);
+                        });
+                        
+                        // Update package total price display
+                        updatePackageTotalPriceDisplay();
                     }
 
-                    // Helper: build base FormData for creating a Tour (shared fields)
-                    const makeBaseTourFormData = function () {
-                        const fd = new FormData();
-                        fd.append('_token', csrfToken);
-                        fd.append('adults', adults);
-                        fd.append('male', male);
-                        fd.append('female', female);
-                        fd.append('children', children);
-                        fd.append('infants', infants);
-                        fd.append('child_ages', childAgesData);
-                        fd.append('agent_id', agent);
-                        fd.append('reference_number', document.getElementById('reference_number')?.value || '');
-                        fd.append('enquiry_id', enquiry ? enquiry.enquiry_id : 0);
-                        fd.append('mainguest', JSON.stringify(mainGuestData));
-                        fd.append('additionalguest', JSON.stringify(additionalGuests));
-                        fd.append('tour_type', tourType);
-                        // GROUP: persist FOC details (mounted inside modal)
-                        if (String(tourType).toUpperCase() === 'GROUP') {
-                            fd.append('foc_size', document.getElementById('foc_size')?.value || 0);
-                            fd.append('group_size', document.getElementById('group_size')?.value || 0);
-                            fd.append('paying_pax', document.getElementById('paying_pax')?.value || 0);
-                            fd.append('discount', document.getElementById('discount')?.value || 0);
+                    // Helper function to parse guest summary text
+                    function parseGuestSummary(summaryText) {
+                        console.log('Parsing guest summary:', summaryText);
+                        
+                        // Handle both old text format and new HTML format
+                        // For HTML format, extract text content first
+                        let textToParse = summaryText;
+                        if (typeof summaryText === 'string' && summaryText.includes('<')) {
+                            // Create a temporary element to extract text
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = summaryText;
+                            textToParse = tempDiv.textContent || tempDiv.innerText || '';
                         }
-                        // Manual discount price (applies to both FIT and GROUP)
-                        fd.append('discount_price', document.getElementById('discount_price')?.value || 0);
-                        // Persist Single/Multi city selection to DB column `city_type`
-                        fd.append('city_type', (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single');
-                        return fd;
-                    };
-
-                    // Helper: POST to create a Tour and return {tour_id, display_id}
-                    const createTourViaAjax = async function (fd) {
-                        const resp = await fetch(storeTourUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
-                        if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || e.message || 'Failed to create tour'); }
-                        const data = await resp.json();
-                        if (!data || !data.success) throw new Error(data?.message || 'Failed to create tour');
-                        return data;
-                    };
-
-                    // Helper: POST service orders for a tour_id
-                    const postServiceOrders = async function (payload) {
-                        const fd = new FormData();
-                        fd.append('_token', csrfToken);
-                        fd.append('tour_id', payload.tour_id);
-                        fd.append('agent_id', agentId);
-                        fd.append('hotel_data', payload.hotel_data || '');
-                        fd.append('attraction_data', payload.attraction_data || '');
-                        fd.append('restaurant_data', payload.restaurant_data || '');
-                        fd.append('guide_data', payload.guide_data || '');
-                        fd.append('transport_data', payload.transport_data || '');
-                        fd.append('entry_port_data', payload.entry_port_data || '');
-                        fd.append('exit_port_data', payload.exit_port_data || '');
-                        fd.append('total_price', payload.total_price || 0);
-                        const resp = await fetch(storeOrdersUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
-                        if (!resp.ok) { const txt = await resp.text(); throw new Error('HTTP ' + resp.status + ': ' + txt); }
-                        return await resp.json();
-                    };
-
-                    // Helper: derive country from a city <option>
-                    const countryFromOpt = function (opt) {
-                        if (!opt) return '';
-                        const dc = opt.getAttribute('data-country');
-                        if (dc && String(dc).trim()) return String(dc).trim();
-                        const txt = opt.textContent || '';
-                        const m = txt.match(/\(([^)]+)\)\s*$/);
-                        return m && m[1] ? String(m[1]).trim() : '';
-                    };
-
-                    // =============================================
-                    // MULTI-CITY PATH
-                    // One tour record, but store ALL segments' services
-                    // =============================================
-                    if (isMultiCity) {
-                        const segEls = Array.from(document.querySelectorAll('#segmentsWrapper .segment'));
-                        if (!segEls.length) {
-                            alert('Please add at least one city plan (stay) in Multi City mode.');
-                            resetSaveButton();
-                            return false;
+                        
+                        const adultMatch = textToParse.match(/(\d+)\s+Adults/i) || textToParse.match(/(\d+)\s+adults/i);
+                        const maleMatch = textToParse.match(/(\d+)\s+male/i);
+                        const femaleMatch = textToParse.match(/(\d+)\s+female/i);
+                        const childMatch = textToParse.match(/(\d+)\s+children/i);
+                        const infantMatch = textToParse.match(/(\d+)\s+infants/i);
+                        
+                        // If no matches found, try to extract from badge spans directly
+                        let adults = adultMatch ? parseInt(adultMatch[1]) : 0;
+                        let male = maleMatch ? parseInt(maleMatch[1]) : 0;
+                        let female = femaleMatch ? parseInt(femaleMatch[1]) : 0;
+                        let children = childMatch ? parseInt(childMatch[1]) : 0;
+                        let infants = infantMatch ? parseInt(infantMatch[1]) : 0;
+                        
+                        // If parsing from HTML, try to get values from badge spans
+                        if (typeof summaryText === 'string' && summaryText.includes('<span')) {
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = summaryText;
+                            const badges = tempDiv.querySelectorAll('.badge span:last-child');
+                            if (badges.length >= 5) {
+                                // Format: Adults badge, Male badge, Female badge, Children badge, Infants badge
+                                const adultsText = badges[0].textContent.trim();
+                                adults = parseInt(adultsText.match(/\d+/)?.[0] || '0');
+                                male = parseInt(badges[1].textContent.trim() || '0');
+                                female = parseInt(badges[2].textContent.trim() || '0');
+                                children = parseInt(badges[3].textContent.trim() || '0');
+                                infants = parseInt(badges[4].textContent.trim() || '0');
+                            }
+                            // Fallback: find Children badge by title so child count is never missed
+                            const childrenBadge = tempDiv.querySelector('.badge[title="Children"]');
+                            if (childrenBadge) {
+                                const childSpan = childrenBadge.querySelector('span:last-child');
+                                if (childSpan) {
+                                    const n = parseInt(childSpan.textContent.trim(), 10);
+                                    if (!isNaN(n)) children = n;
+                                }
+                            }
                         }
+                        
+                        // For now, assume seniors are part of adults (this can be enhanced later with age-based logic)
+                        // In a real implementation, you might want to add a senior age input field
+                        const seniors = 0; // Placeholder - can be enhanced with age-based calculation
+                        const regularAdults = adults - seniors;
+                        
+                        const result = {
+                            adults: regularAdults,
+                            male: male,
+                            female: female,
+                            children: children,
+                            infants: infants,
+                            seniors: seniors
+                        };
+                        
+                        console.log('Parsed guest info:', result);
+                        return result;
+                    }
 
-                        // Save the currently-active segment's state so it isn't lost.
-                        // saveMultiSegmentServiceState now flushes all update*DataField()
-                        // functions internally before snapshotting, so every segment's
-                        // hidden fields are guaranteed to be populated.
+                    // Function to calculate total price for all services
+                    function calculateTotalPackagePrice() {
+                        let totalPrice = 0;
+                        
                         try {
-                            const $activeSeg = $('#segmentServicesBundle').closest('.segment');
-                            if ($activeSeg && $activeSeg.length && typeof window.saveMultiSegmentServiceState === 'function') {
-                                window.saveMultiSegmentServiceState($activeSeg);
+                            // Calculate hotel prices
+                            const hotelData = document.getElementById('hotel_data')?.value;
+                            if (hotelData) {
+                                const hotels = JSON.parse(hotelData);
+                                console.log('=== CALCULATING HOTEL PRICES ===');
+                                console.log('Hotels data:', hotels);
+                                hotels.forEach((hotel, index) => {
+                                    if (hotel.totalPrice && !isNaN(parseFloat(hotel.totalPrice))) {
+                                        const hotelPrice = parseFloat(hotel.totalPrice);
+                                        totalPrice += hotelPrice;
+                                        console.log(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): $${hotelPrice} added to total`);
+                                    } else {
+                                        console.warn(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): Invalid or missing totalPrice:`, hotel.totalPrice);
+                                    }
+                                });
+                                console.log('Total after hotels:', totalPrice);
                             }
-                        } catch (e) { console.warn('Could not save active segment state:', e); }
-
-                        if (!window.__segmentServiceState) window.__segmentServiceState = {};
-
-                        // Collect segment info + build city CSV and country for the single Tour record
-                        const segmentInfos = [];
-                        const allCityLabels = [];
-                        const allCountries = [];
-
-                        for (let i = 0; i < segEls.length; i++) {
-                            const segEl = segEls[i];
-                            const key = String(segEl.getAttribute('data-index') || '');
-                            const citySel = segEl.querySelector('.city-select');
-                            const startEl = segEl.querySelector('.start-date');
-                            const endEl = segEl.querySelector('.end-date');
-                            const cityId = (citySel && citySel.value) ? String(citySel.value).trim() : '';
-                            const stayFrom = (startEl && startEl.value) ? String(startEl.value).trim() : '';
-                            const stayTo = (endEl && endEl.value) ? String(endEl.value).trim() : '';
-                            const opt = (citySel && citySel.selectedIndex >= 0) ? citySel.options[citySel.selectedIndex] : null;
-                            const cityLabel = opt ? String(opt.textContent || '').trim() : '';
-                            const segCountry = countryFromOpt(opt);
-
-                            if (!cityId || !stayFrom || !stayTo) {
-                                alert('Please complete City + Stay from + Stay until for each city plan before saving.');
-                                resetSaveButton();
-                                return false;
+                            
+                            // Calculate attraction prices
+                            const attractionData = document.getElementById('attraction_data')?.value;
+                            if (attractionData) {
+                                const attractions = JSON.parse(attractionData);
+                                attractions.forEach(attraction => {
+                                    if (attraction.totalPrice && !isNaN(parseFloat(attraction.totalPrice))) {
+                                        totalPrice += parseFloat(attraction.totalPrice);
+                                    }
+                                });
                             }
-
-                            const st = window.__segmentServiceState[key];
-                            if (!st) {
-                                alert('Services for "' + (cityLabel || 'segment ' + key) + '" are not saved yet.\nPlease click on that city plan row once so its services are loaded, then try saving again.');
-                                resetSaveButton();
-                                return false;
+                            
+                            // Calculate restaurant prices
+                            const restaurantData = document.getElementById('restaurant_data')?.value;
+                            if (restaurantData) {
+                                const restaurants = JSON.parse(restaurantData);
+                                restaurants.forEach(restaurant => {
+                                    if (restaurant.totalPrice && !isNaN(parseFloat(restaurant.totalPrice))) {
+                                        totalPrice += parseFloat(restaurant.totalPrice);
+                                    }
+                                });
                             }
-
-                            const hasAny = !!(st.hotelDataField || st.attractionDataField || st.restaurantDataField ||
-                                              st.guideDataField || st.transportDataField || st.entryPortDataField || st.exitPortDataField);
-
-                            segmentInfos.push({ key, cityId, cityLabel, segCountry, stayFrom, stayTo, st, hasAny });
-
-                            // Build CSV for the single Tour record
-                            if (cityLabel) {
-                                allCityLabels.push(stayFrom && stayTo ? `${cityLabel} [${stayFrom}→${stayTo}]` : cityLabel);
+                            
+                            // Calculate guide prices
+                            const guideData = document.getElementById('guide_data')?.value;
+                            if (guideData) {
+                                const guides = JSON.parse(guideData);
+                                guides.forEach(guide => {
+                                    if (guide.totalPrice && !isNaN(parseFloat(guide.totalPrice))) {
+                                        totalPrice += parseFloat(guide.totalPrice);
+                                    }
+                                });
                             }
-                            if (segCountry && !allCountries.includes(segCountry)) allCountries.push(segCountry);
+                            
+                            // Calculate transport prices
+                            const transportData = document.getElementById('transport_data')?.value;
+                            if (transportData) {
+                                const transports = JSON.parse(transportData);
+                                transports.forEach(transport => {
+                                    if (transport.totalPrice && !isNaN(parseFloat(transport.totalPrice))) {
+                                        totalPrice += parseFloat(transport.totalPrice);
+                                    }
+                                });
+                            }
+                            
+                            // Calculate entry port prices
+                            const entryPortData = document.getElementById('entry_port_data')?.value;
+                            if (entryPortData) {
+                                const entryPorts = JSON.parse(entryPortData);
+                                entryPorts.forEach(entryPort => {
+                                    if (entryPort.totalPrice && !isNaN(parseFloat(entryPort.totalPrice))) {
+                                        totalPrice += parseFloat(entryPort.totalPrice);
+                                    }
+                                });
+                            }
+                            
+                            // Calculate exit port prices
+                            const exitPortData = document.getElementById('exit_port_data')?.value;
+                            if (exitPortData) {
+                                const exitPorts = JSON.parse(exitPortData);
+                                exitPorts.forEach(exitPort => {
+                                    if (exitPort.totalPrice && !isNaN(parseFloat(exitPort.totalPrice))) {
+                                        totalPrice += parseFloat(exitPort.totalPrice);
+                                    }
+                                });
+                            }
+                            
+                            console.log('Total package price calculated:', totalPrice);
+                            return totalPrice.toFixed(2);
+                            
+                        } catch (error) {
+                            console.error('Error calculating total price:', error);
+                            return '0.00';
                         }
+                    }
 
-                        // Validate at least one segment has services
-                        if (!segmentInfos.some(s => s.hasAny)) {
-                            alert('Please add at least one service to at least one city stay.');
+                    // Function to update the package total price display
+                    function updatePackageTotalPriceDisplay() {
+                        const totalPrice = calculateTotalPackagePrice();
+                        const totalPriceElement = document.getElementById('packageTotalPrice');
+                        if (totalPriceElement) {
+                            totalPriceElement.textContent = `$${totalPrice}`;
+                            console.log('Package total price display updated:', totalPrice);
+                        }
+                        
+                        // Also update the price breakdown display
+                        updatePriceBreakdownDisplay();
+                    }
+
+                    // Function to display price breakdown for each service
+                    function updatePriceBreakdownDisplay() {
+                        let breakdownHTML = '';
+                        let totalCalculated = 0;
+                        
+                        try {
+                            // Hotel prices
+                            const hotelData = document.getElementById('hotel_data')?.value;
+                            if (hotelData) {
+                                const hotels = JSON.parse(hotelData);
+                                hotels.forEach((hotel, index) => {
+                                    if (hotel.totalPrice && !isNaN(parseFloat(hotel.totalPrice))) {
+                                        const price = parseFloat(hotel.totalPrice);
+                                        totalCalculated += price;
+                                        const roomInfo = hotel.rooms && hotel.rooms[0] ? 
+                                            `${hotel.rooms[0].room_type} (${hotel.number_of_rooms || 1} room${hotel.number_of_rooms > 1 ? 's' : ''} × ${hotel.total_nights || 1} night${hotel.total_nights > 1 ? 's' : ''})` : '';
+                                        breakdownHTML += `
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span><i class="ri-hotel-bed-line me-2"></i>Hotel ${index + 1}: ${hotel.hotel_name || 'Hotel'}</span>
+                                                <span class="badge bg-primary">$${price.toFixed(2)}</span>
+                                            </div>
+                                            <small class="text-muted ms-4">${roomInfo}</small>
+                                        `;
+                                    }
+                                });
+                            }
+                            
+                            // Attraction prices
+                            const attractionData = document.getElementById('attraction_data')?.value;
+                            if (attractionData) {
+                                const attractions = JSON.parse(attractionData);
+                                attractions.forEach((attraction, index) => {
+                                    if (attraction.totalPrice && !isNaN(parseFloat(attraction.totalPrice))) {
+                                        const price = parseFloat(attraction.totalPrice);
+                                        totalCalculated += price;
+                                        const ticketInfo = attraction.ticket_details ? 
+                                            `Ticket: ${attraction.ticketName} (${attraction.adultCount} adults, ${attraction.childCount} children, ${attraction.seniorCount} seniors)` : '';
+                                        breakdownHTML += `
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span><i class="ri-camera-3-line me-2"></i>Attraction ${index + 1}: ${attraction.AttractionName || 'Attraction'}</span>
+                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                            </div>
+                                            <small class="text-muted ms-4">${ticketInfo}</small>
+                                        `;
+                                    }
+                                });
+                            }
+                            
+                            // Restaurant prices
+                            const restaurantData = document.getElementById('restaurant_data')?.value;
+                            if (restaurantData) {
+                                const restaurants = JSON.parse(restaurantData);
+                                restaurants.forEach((restaurant, index) => {
+                                    if (restaurant.totalPrice && !isNaN(parseFloat(restaurant.totalPrice))) {
+                                        const price = parseFloat(restaurant.totalPrice);
+                                        totalCalculated += price;
+                                        const mealInfo = restaurant.MealDescription && restaurant.MealDescription[0] ? 
+                                            `Meal: ${restaurant.MealDescription[0].name} (${restaurant.adultCount} adults, ${restaurant.childCount} children)` : '';
+                                        breakdownHTML += `
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span><i class="ri-restaurant-2-line me-2"></i>Restaurant ${index + 1}: ${restaurant.restaurantName || 'Restaurant'}</span>
+                                                <span class="badge bg-warning text-dark">$${price.toFixed(2)}</span>
+                                            </div>
+                                            <small class="text-muted ms-4">${mealInfo}</small>
+                                        `;
+                                    }
+                                });
+                            }
+                            
+                            // Guide prices
+                            const guideData = document.getElementById('guide_data')?.value;
+                            if (guideData) {
+                                const guides = JSON.parse(guideData);
+                                guides.forEach((guide, index) => {
+                                    if (guide.totalPrice && !isNaN(parseFloat(guide.totalPrice))) {
+                                        const price = parseFloat(guide.totalPrice);
+                                        totalCalculated += price;
+                                        breakdownHTML += `
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span><i class="ri-map-pin-user-line me-2"></i>Guide ${index + 1}: ${guide.guide_name || 'Guide'}</span>
+                                                <span class="badge bg-success">$${price.toFixed(2)}</span>
+                                            </div>
+                                        `;
+                                    }
+                                });
+                            }
+                            
+                            // Transport prices
+                            const transportData = document.getElementById('transport_data')?.value;
+                            if (transportData) {
+                                const transports = JSON.parse(transportData);
+                                transports.forEach((transport, index) => {
+                                    if (transport.totalPrice && !isNaN(parseFloat(transport.totalPrice))) {
+                                        const price = parseFloat(transport.totalPrice);
+                                        totalCalculated += price;
+                                        breakdownHTML += `
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span><i class="ri-car-line me-2"></i>Transport ${index + 1}: ${transport.vehicles_name || 'Transport'}</span>
+                                                <span class="badge bg-secondary">$${price.toFixed(2)}</span>
+                                            </div>
+                                        `;
+                                    }
+                                });
+                            }
+                            
+                            // Entry port prices
+                            const entryPortData = document.getElementById('entry_port_data')?.value;
+                            if (entryPortData) {
+                                const entryPorts = JSON.parse(entryPortData);
+                                entryPorts.forEach((entryPort, index) => {
+                                    if (entryPort.totalPrice && !isNaN(parseFloat(entryPort.totalPrice))) {
+                                        const price = parseFloat(entryPort.totalPrice);
+                                        totalCalculated += price;
+                                        breakdownHTML += `
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span><i class="ri-map-pin-line me-2"></i>Entry Port ${index + 1}: ${entryPort.vehicles_name || 'Entry Transport'}</span>
+                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                            </div>
+                                        `;
+                                    }
+                                });
+                            }
+                            
+                            // Exit port prices
+                            const exitPortData = document.getElementById('exit_port_data')?.value;
+                            if (exitPortData) {
+                                const exitPorts = JSON.parse(exitPortData);
+                                exitPorts.forEach((exitPort, index) => {
+                                    if (exitPort.totalPrice && !isNaN(parseFloat(exitPort.totalPrice))) {
+                                        const price = parseFloat(exitPort.totalPrice);
+                                        totalCalculated += price;
+                                        breakdownHTML += `
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span><i class="ri-map-pin-line me-2"></i>Exit Port ${index + 1}: ${exitPort.vehicles_name || 'Exit Transport'}</span>
+                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                            </div>
+                                        `;
+                                    }
+                                });
+                            }
+                            
+                            // Add total at the bottom
+                            if (breakdownHTML) {
+                                breakdownHTML += `
+                                    <hr class="my-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold"><i class="ri-money-dollar-circle-line me-2"></i>Total Package Price:</span>
+                                        <span class="h5 text-success mb-0">$${totalCalculated.toFixed(2)}</span>
+                                    </div>
+                                `;
+                            } else {
+                                breakdownHTML = '<p class="text-muted">No services added yet</p>';
+                            }
+                            
+                            // Update the breakdown display
+                            const breakdownElement = document.getElementById('priceBreakdown');
+                            if (breakdownElement) {
+                                breakdownElement.innerHTML = breakdownHTML;
+                            }
+                            
+                        } catch (error) {
+                            console.error('Error updating price breakdown:', error);
+                        }
+                    }
+                    
+                    // Reset save button to original state
+                    function resetSaveButton() {
+                        const saveBtn = document.getElementById('savePackageBtn');
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = '<i class="ri-save-line me-2"></i>Save Tour Package';
+                        }
+                    }
+                    
+                    // Handle save package button click - show loader and disable
+                    async function handleSavePackage(button) {
+                        // Disable button
+                        button.disabled = true;
+                        
+                        // Show loader and update text
+                        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+                        
+                        // Call the actual save function
+                        const result = await saveAllBookings();
+                        
+                        // If save failed or returned false, reset button
+                        if (result === false) {
+                            resetSaveButton();
+                        }
+                    }
+
+                    async function saveAllBookings() {
+                        
+                        const agentId = document.getElementById('agent_id').value;
+                        let tourId = window.currentTourId;
+                        const cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        const isMultiCity = (cityMode === 'multi');
+                        const enquiry = @json($enquiry);
+                        const csrfToken = document.querySelector('input[name="_token"]').value;
+                        const storeTourUrl = '{{ route('single-tour-package.store') }}';
+                        const storeOrdersUrl = '{{ route('single-tour-package.store-orders') }}';
+                        const thankYouUrl = '{{ route('single-tour-package.thank-you') }}';
+
+                        // ── Shared validation (guests, tour type, etc.) ──
+                        const startDate = document.getElementById('start_date').value;
+                        const endDate = document.getElementById('end_date').value;
+                        const agent = document.getElementById('agent_id').value;
+
+                        if (!startDate || !endDate || !agent) {
+                            alert('Please fill in all required fields (Travel Dates, Agent, and Guests) before saving.');
                             resetSaveButton();
                             return false;
                         }
 
-                        const multiCityCsv = allCityLabels.join(', ');
-                        const multiCountry = allCountries.join(', ');
-                        if (!multiCountry) {
-                            alert('Could not determine country from selected cities. Please check your city selections.');
-                            resetSaveButton();
-                            return false;
+                        const adults = parseInt(document.getElementById('adults').value) || 0;
+                        const male = parseInt(document.getElementById('male').value) || 0;
+                        const female = parseInt(document.getElementById('female').value) || 0;
+                        let children = parseInt(document.getElementById('children').value) || 0;
+                        const infants = parseInt(document.getElementById('infants').value) || 0;
+                        const childAgesData = document.getElementById('child_ages').value;
+                        let childAges = [];
+
+                        if (enquiry && enquiry.child_ages) {
+                            if (typeof enquiry.child_ages === 'string') {
+                                childAges = enquiry.child_ages.split(',').map(a => a.trim()).filter(a => a !== '');
+                            } else if (Array.isArray(enquiry.child_ages)) {
+                                childAges = enquiry.child_ages;
+                            }
+                            children = enquiry.child || children;
+                            if (childAges.length !== children) { alert('Please select ages for all children.'); return false; }
+                        } else if (children > 0) {
+                            try { childAges = childAgesData ? JSON.parse(childAgesData) : []; } catch (e) { alert('Invalid child ages data.'); return false; }
+                            if (childAges.length !== children) { alert('Please select ages for all children.'); return false; }
+                        }
+                        if (adults < 1) { alert('At least 1 adult is required.'); return false; }
+                        if ((male + female) !== adults) { alert('Male + Female must equal Adults.'); return false; }
+
+                        // Guest data
+                        const leadSection = document.getElementById('customerAccordion');
+                        const getLeadVal = (id, name) => {
+                            const el = leadSection ? leadSection.querySelector(`#${id}, [name="${name}"]`) : (document.getElementById(id) || document.querySelector(`[name="${name}"]`));
+                            return (el?.value || '').trim();
+                        };
+                        const mainGuestData = {
+                            salutation: getLeadVal('customerSalutation', 'customer_salutation'),
+                            full_name: getLeadVal('customerFullName', 'customer_full_name'),
+                            email: getLeadVal('customerEmail', 'customer_email'),
+                            country_code: getLeadVal('customerCountryCode', 'customer_country_code'),
+                            phone: getLeadVal('customerPhone', 'customer_phone'),
+                            address1: getLeadVal('customerAddress1', 'customer_address1'),
+                            address2: getLeadVal('customerAddress2', 'customer_address2'),
+                            state: getLeadVal('customerState', 'customer_state'),
+                            zip: getLeadVal('customerZip', 'customer_zip'),
+                            special_requests: getLeadVal('customerSpecialRequests', 'customer_special_requests'),
+                            passport: getLeadVal('customerPassport', 'customer_passport'),
+                            passport_exp: getLeadVal('customerPassportExpiry', 'customer_passport_expiry')
+                        };
+                        const additionalGuests = [];
+                        document.querySelectorAll('.guest-card').forEach(card => {
+                            const guestData = {};
+                            card.querySelectorAll('input, select').forEach(input => {
+                                const name = input.getAttribute('name');
+                                if (name && name.includes('additional_guests')) {
+                                    const m = name.match(/\[(\d+)\]\[(\w+)\]/);
+                                    if (m) guestData[m[2]] = input.value || '';
+                                }
+                            });
+                            if (Object.keys(guestData).length > 0) additionalGuests.push(guestData);
+                        });
+
+                        // Tour type
+                        let tourType = window.selectedTourType || 'FIT';
+                        const tourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+                        if (tourTypeRadio && tourTypeRadio.value) { tourType = tourTypeRadio.value; window.selectedTourType = tourType; }
+                        if (!tourType || tourType === 'FIT') {
+                            for (let r of document.querySelectorAll('input[name="tour_type"]')) { if (r.checked) { tourType = r.value; window.selectedTourType = tourType; break; } }
                         }
 
-                        // STEP 1: Create ONE Tour record (all cities as CSV)
-                        if (!tourId) {
-                            const fd = makeBaseTourFormData();
-                            fd.append('user_country', multiCountry);
-                            fd.append('city', multiCityCsv);
-                            fd.append('start_date', startDate);
-                            fd.append('end_date', endDate);
+                        // Helper: build base FormData for creating a Tour (shared fields)
+                        const makeBaseTourFormData = function () {
+                            const fd = new FormData();
+                            fd.append('_token', csrfToken);
+                            fd.append('adults', adults);
+                            fd.append('male', male);
+                            fd.append('female', female);
+                            fd.append('children', children);
+                            fd.append('infants', infants);
+                            fd.append('child_ages', childAgesData);
+                            fd.append('agent_id', agent);
+                            fd.append('reference_number', document.getElementById('reference_number')?.value || '');
+                            fd.append('enquiry_id', enquiry ? enquiry.enquiry_id : 0);
+                            fd.append('mainguest', JSON.stringify(mainGuestData));
+                            fd.append('additionalguest', JSON.stringify(additionalGuests));
+                            fd.append('tour_type', tourType);
+                            // GROUP: persist FOC details (mounted inside modal)
+                            if (String(tourType).toUpperCase() === 'GROUP') {
+                                fd.append('foc_size', document.getElementById('foc_size')?.value || 0);
+                                fd.append('group_size', document.getElementById('group_size')?.value || 0);
+                                fd.append('paying_pax', document.getElementById('paying_pax')?.value || 0);
+                                fd.append('discount', document.getElementById('discount')?.value || 0);
+                            }
+                            // Manual discount price (applies to both FIT and GROUP)
+                            fd.append('discount_price', document.getElementById('discount_price')?.value || 0);
+                            // Persist Single/Multi city selection to DB column `city_type`
+                            fd.append('city_type', (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single');
+                            return fd;
+                        };
+
+                        // Helper: POST to create a Tour and return {tour_id, display_id}
+                        const createTourViaAjax = async function (fd) {
+                            const resp = await fetch(storeTourUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
+                            if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || e.message || 'Failed to create tour'); }
+                            const data = await resp.json();
+                            if (!data || !data.success) throw new Error(data?.message || 'Failed to create tour');
+                            return data;
+                        };
+
+                        // Helper: POST service orders for a tour_id
+                        const postServiceOrders = async function (payload) {
+                            const fd = new FormData();
+                            fd.append('_token', csrfToken);
+                            fd.append('tour_id', payload.tour_id);
+                            fd.append('agent_id', agentId);
+                            fd.append('hotel_data', payload.hotel_data || '');
+                            fd.append('attraction_data', payload.attraction_data || '');
+                            fd.append('restaurant_data', payload.restaurant_data || '');
+                            fd.append('guide_data', payload.guide_data || '');
+                            fd.append('transport_data', payload.transport_data || '');
+                            fd.append('entry_port_data', payload.entry_port_data || '');
+                            fd.append('exit_port_data', payload.exit_port_data || '');
+                            fd.append('total_price', payload.total_price || 0);
+                            const resp = await fetch(storeOrdersUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
+                            if (!resp.ok) { const txt = await resp.text(); throw new Error('HTTP ' + resp.status + ': ' + txt); }
+                            return await resp.json();
+                        };
+
+                        // Helper: derive country from a city <option>
+                        const countryFromOpt = function (opt) {
+                            if (!opt) return '';
+                            const dc = opt.getAttribute('data-country');
+                            if (dc && String(dc).trim()) return String(dc).trim();
+                            const txt = opt.textContent || '';
+                            const m = txt.match(/\(([^)]+)\)\s*$/);
+                            return m && m[1] ? String(m[1]).trim() : '';
+                        };
+
+                        // =============================================
+                        // MULTI-CITY PATH
+                        // One tour record, but store ALL segments' services
+                        // =============================================
+                        if (isMultiCity) {
+                            const segEls = Array.from(document.querySelectorAll('#segmentsWrapper .segment'));
+                            if (!segEls.length) {
+                                alert('Please add at least one city plan (stay) in Multi City mode.');
+                                resetSaveButton();
+                                return false;
+                            }
+
+                            // Save the currently-active segment's state so it isn't lost.
+                            // saveMultiSegmentServiceState now flushes all update*DataField()
+                            // functions internally before snapshotting, so every segment's
+                            // hidden fields are guaranteed to be populated.
+                            try {
+                                const $activeSeg = $('#segmentServicesBundle').closest('.segment');
+                                if ($activeSeg && $activeSeg.length && typeof window.saveMultiSegmentServiceState === 'function') {
+                                    window.saveMultiSegmentServiceState($activeSeg);
+                                }
+                            } catch (e) { console.warn('Could not save active segment state:', e); }
+
+                            if (!window.__segmentServiceState) window.__segmentServiceState = {};
+
+                            // Collect segment info + build city CSV and country for the single Tour record
+                            const segmentInfos = [];
+                            const allCityLabels = [];
+                            const allCountries = [];
+
+                            for (let i = 0; i < segEls.length; i++) {
+                                const segEl = segEls[i];
+                                const key = String(segEl.getAttribute('data-index') || '');
+                                const citySel = segEl.querySelector('.city-select');
+                                const startEl = segEl.querySelector('.start-date');
+                                const endEl = segEl.querySelector('.end-date');
+                                const cityId = (citySel && citySel.value) ? String(citySel.value).trim() : '';
+                                const stayFrom = (startEl && startEl.value) ? String(startEl.value).trim() : '';
+                                const stayTo = (endEl && endEl.value) ? String(endEl.value).trim() : '';
+                                const opt = (citySel && citySel.selectedIndex >= 0) ? citySel.options[citySel.selectedIndex] : null;
+                                const cityLabel = opt ? String(opt.textContent || '').trim() : '';
+                                const segCountry = countryFromOpt(opt);
+
+                                if (!cityId || !stayFrom || !stayTo) {
+                                    alert('Please complete City + Stay from + Stay until for each city plan before saving.');
+                                    resetSaveButton();
+                                    return false;
+                                }
+
+                                const st = window.__segmentServiceState[key];
+                                if (!st) {
+                                    alert('Services for "' + (cityLabel || 'segment ' + key) + '" are not saved yet.\nPlease click on that city plan row once so its services are loaded, then try saving again.');
+                                    resetSaveButton();
+                                    return false;
+                                }
+
+                                const hasAny = !!(st.hotelDataField || st.attractionDataField || st.restaurantDataField ||
+                                                st.guideDataField || st.transportDataField || st.entryPortDataField || st.exitPortDataField);
+
+                                segmentInfos.push({ key, cityId, cityLabel, segCountry, stayFrom, stayTo, st, hasAny });
+
+                                // Build CSV for the single Tour record
+                                if (cityLabel) {
+                                    allCityLabels.push(stayFrom && stayTo ? `${cityLabel} [${stayFrom}→${stayTo}]` : cityLabel);
+                                }
+                                if (segCountry && !allCountries.includes(segCountry)) allCountries.push(segCountry);
+                            }
+
+                            // Validate at least one segment has services
+                            if (!segmentInfos.some(s => s.hasAny)) {
+                                alert('Please add at least one service to at least one city stay.');
+                                resetSaveButton();
+                                return false;
+                            }
+
+                            const multiCityCsv = allCityLabels.join(', ');
+                            const multiCountry = allCountries.join(', ');
+                            if (!multiCountry) {
+                                alert('Could not determine country from selected cities. Please check your city selections.');
+                                resetSaveButton();
+                                return false;
+                            }
+
+                            // STEP 1: Create ONE Tour record (all cities as CSV)
+                            if (!tourId) {
+                                const fd = makeBaseTourFormData();
+                                fd.append('user_country', multiCountry);
+                                fd.append('city', multiCityCsv);
+                                fd.append('start_date', startDate);
+                                fd.append('end_date', endDate);
+
+                                try {
+                                    console.log('=== MULTI-CITY: Creating ONE tour for all cities ===');
+                                    console.log('Cities:', multiCityCsv);
+                                    console.log('Country:', multiCountry);
+                                    const tourData = await createTourViaAjax(fd);
+                                    console.log('✅ Tour created:', tourData.tour_id, tourData.display_id);
+                                    window.currentTourId = tourData.tour_id;
+                                    window.currentDisplayId = tourData.display_id;
+                                    tourId = tourData.tour_id;
+                                    tourStartDate = startDate;
+                                    tourEndDate = endDate;
+                                    showNotification('Tour created! ID: ' + tourData.display_id, 'success');
+                                } catch (error) {
+                                    console.error('Error creating tour:', error);
+                                    alert('Error creating tour: ' + error.message);
+                                    resetSaveButton();
+                                    return false;
+                                }
+                            }
+
+                            // STEP 2: Store services for EACH segment, all under the SAME tour_id
+                            const allCreatedOrders = [];
+                            let lastTourDetails = null;
 
                             try {
-                                console.log('=== MULTI-CITY: Creating ONE tour for all cities ===');
-                                console.log('Cities:', multiCityCsv);
-                                console.log('Country:', multiCountry);
-                                const tourData = await createTourViaAjax(fd);
-                                console.log('✅ Tour created:', tourData.tour_id, tourData.display_id);
+                                for (let i = 0; i < segmentInfos.length; i++) {
+                                    const seg = segmentInfos[i];
+                                    if (!seg.hasAny) {
+                                        console.log(`⚠️ Segment ${seg.key} (${seg.cityLabel}) has no services — skipping.`);
+                                        continue;
+                                    }
+
+                                    console.log(`=== MULTI-CITY: Storing services for segment ${seg.key} (${seg.cityLabel}) → tour_id=${tourId} ===`);
+                                    console.log('Service data lengths:', {
+                                        hotel: (seg.st.hotelDataField || '').length,
+                                        attraction: (seg.st.attractionDataField || '').length,
+                                        restaurant: (seg.st.restaurantDataField || '').length,
+                                        guide: (seg.st.guideDataField || '').length,
+                                        transport: (seg.st.transportDataField || '').length,
+                                        entry_port: (seg.st.entryPortDataField || '').length,
+                                        exit_port: (seg.st.exitPortDataField || '').length
+                                    });
+
+                                    // Multi-city requirement: for each stay, store ALL non-hotel services on the stay start date.
+                                    // Example: 16→19 stay => save services on 16; 21→22 stay => save services on 21.
+                                    const forceServicesToSegmentStartDate = function (raw, segmentStart) {
+                                        if (!raw || !segmentStart) return raw || '';
+                                        let arr;
+                                        try { arr = JSON.parse(raw); } catch (e) { return raw; }
+                                        if (!Array.isArray(arr)) return raw;
+                                        const base = moment(segmentStart, 'YYYY-MM-DD', true);
+                                        if (!base.isValid()) return raw;
+                                        const d = base.format('YYYY-MM-DD');
+
+                                        const set = (obj, key) => { if (obj && key) obj[key] = d; };
+                                        const fixed = arr.map(function (item) {
+                                            if (!item || typeof item !== 'object') return item;
+                                            set(item, 'bookingDate');
+                                            set(item, 'pickupdate');
+                                            set(item, 'entrypickupdate');
+                                            set(item, 'exitpickupdate');
+                                            return item;
+                                        });
+                                        try { return JSON.stringify(fixed); } catch (e2) { return raw; }
+                                    };
+
+                                    const result = await postServiceOrders({
+                                        tour_id: tourId,
+                                        hotel_data: seg.st.hotelDataField || '',
+                                        attraction_data: forceServicesToSegmentStartDate(seg.st.attractionDataField || '', seg.stayFrom),
+                                        restaurant_data: forceServicesToSegmentStartDate(seg.st.restaurantDataField || '', seg.stayFrom),
+                                        guide_data: forceServicesToSegmentStartDate(seg.st.guideDataField || '', seg.stayFrom),
+                                        transport_data: forceServicesToSegmentStartDate(seg.st.transportDataField || '', seg.stayFrom),
+                                        entry_port_data: forceServicesToSegmentStartDate(seg.st.entryPortDataField || '', seg.stayFrom),
+                                        exit_port_data: forceServicesToSegmentStartDate(seg.st.exitPortDataField || '', seg.stayFrom),
+                                        total_price: 0
+                                    });
+
+                                    if (!result || !result.success) {
+                                        throw new Error(result?.message || 'Failed to save services for ' + seg.cityLabel);
+                                    }
+                                    allCreatedOrders.push(...(result.created_orders || []));
+                                    if (result.tour_details) lastTourDetails = result.tour_details;
+                                    console.log(`✅ Services stored for ${seg.cityLabel}: ${(result.created_orders || []).length} orders`);
+                                }
+                            } catch (error) {
+                                console.error('Multi-city save error:', error);
+                                alert('Error saving multi-city services: ' + error.message);
+                                resetSaveButton();
+                                return false;
+                            }
+
+                            // Redirect to thank-you
+                            if (lastTourDetails && lastTourDetails.redirect_url) {
+                                // Use redirect_url from backend response
+                            }
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = thankYouUrl;
+                            const addHidden = (n, v) => { const inp = document.createElement('input'); inp.type = 'hidden'; inp.name = n; inp.value = v; form.appendChild(inp); };
+                            addHidden('_token', csrfToken);
+                            addHidden('tour_details', JSON.stringify(lastTourDetails || {}));
+                            addHidden('created_orders', JSON.stringify(allCreatedOrders));
+                            document.body.appendChild(form);
+                            form.submit();
+                            return;
+                        }
+
+                        // =============================================
+                        // SINGLE-CITY PATH (unchanged existing logic)
+                        // =============================================
+                        if (!tourId) {
+                            console.log('Tour not created yet, creating tour first...');
+
+                            let country = '';
+                            const userCountryEl = document.getElementById('user_country');
+                            if (userCountryEl && userCountryEl.value && String(userCountryEl.value).trim() !== '') {
+                                country = String(userCountryEl.value).trim();
+                            }
+                            const singleCity = document.getElementById('single_city');
+                            if (!country && singleCity && singleCity.value) {
+                                try {
+                                    if (typeof $ !== 'undefined' && $(singleCity).length && $(singleCity).data('select2')) {
+                                        const d = $(singleCity).select2('data');
+                                        if (d && d.length && d[0]) {
+                                            if (d[0].country != null && String(d[0].country).trim() !== '') { country = String(d[0].country).trim(); }
+                                            else { const txt = d[0].text != null ? String(d[0].text) : ''; const p = txt.match(/\(([^)]+)\)\s*$/); if (p && p[1]) country = String(p[1]).trim(); }
+                                        }
+                                    }
+                                } catch (e) {}
+                                if (!country) {
+                                    let opt = null;
+                                    try { if (typeof $ !== 'undefined' && $(singleCity).length && $(singleCity).data('select2')) { const d = $(singleCity).select2('data'); if (d && d.length && d[0].element) opt = d[0].element; } } catch (e2) {}
+                                    if (!opt && singleCity.selectedIndex >= 0) opt = singleCity.options[singleCity.selectedIndex];
+                                    if (opt) { const c = opt.getAttribute('data-country'); if (c != null && String(c).trim() !== '') country = String(c).trim(); }
+                                }
+                            }
+                            if (!country && enquiry && enquiry.country) { country = String(enquiry.country).trim(); }
+                            if (!country) { alert('Please select a city so the country can be saved.'); resetSaveButton(); return false; }
+
+                            let cityName = '';
+                            const cityEl = document.getElementById('single_city');
+                            if (cityEl) {
+                                // Select2 ajax uses numeric city_id as `id` — always persist the human name
+                                if (typeof $ !== 'undefined' && $(cityEl).length && $(cityEl).data('select2')) {
+                                    try {
+                                        const d2 = $(cityEl).select2('data');
+                                        if (d2 && d2.length && d2[0] && d2[0].text) {
+                                            cityName = String(d2[0].text).replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        }
+                                    } catch (e3) { /* ignore */ }
+                                }
+                                if (!cityName) {
+                                    const v = String(cityEl.value || '').trim();
+                                    if (v && !/^\d+$/.test(v)) {
+                                        cityName = v.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                    } else if (v && cityEl.selectedIndex >= 0) {
+                                        const opt = cityEl.options[cityEl.selectedIndex];
+                                        const t = opt ? String(opt.textContent || '').trim() : '';
+                                        if (t) cityName = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        else cityName = v;
+                                    }
+                                }
+                            }
+                            if (!cityName) { alert('Please select a city.'); resetSaveButton(); return false; }
+
+                            const tourFormData = makeBaseTourFormData();
+                            tourFormData.append('user_country', country);
+                            tourFormData.append('city', cityName);
+                            tourFormData.append('start_date', startDate);
+                            tourFormData.append('end_date', endDate);
+
+                            try {
+                                const tourData = await createTourViaAjax(tourFormData);
+                                console.log('✅ Tour created successfully:', tourData);
+                                tourStartDate = startDate;
+                                tourEndDate = endDate;
                                 window.currentTourId = tourData.tour_id;
                                 window.currentDisplayId = tourData.display_id;
                                 tourId = tourData.tour_id;
-                                tourStartDate = startDate;
-                                tourEndDate = endDate;
-                                showNotification('Tour created! ID: ' + tourData.display_id, 'success');
+                                showNotification('Tour created successfully! Tour ID: ' + tourData.display_id, 'success');
                             } catch (error) {
                                 console.error('Error creating tour:', error);
                                 alert('Error creating tour: ' + error.message);
@@ -5738,240 +5906,71 @@
                             }
                         }
 
-                        // STEP 2: Store services for EACH segment, all under the SAME tour_id
-                        const allCreatedOrders = [];
-                        let lastTourDetails = null;
+                        // Validate service selections
+                        if (!validateServiceSelections()) { return false; }
+                        calculateAllGuidePricing();
+                        updateHotelDataField();
+                        updateAttractionDataField();
+                        updateGuideDataField();
+                        updateRestaurantDataField();
+                        updateTransportDataField();
 
-                        try {
-                            for (let i = 0; i < segmentInfos.length; i++) {
-                                const seg = segmentInfos[i];
-                                if (!seg.hasAny) {
-                                    console.log(`⚠️ Segment ${seg.key} (${seg.cityLabel}) has no services — skipping.`);
-                                    continue;
-                                }
+                        const hotelData = document.getElementById('hotel_data')?.value || '';
+                        const attractionData = document.getElementById('attraction_data')?.value || '';
+                        const restaurantData = document.getElementById('restaurant_data')?.value || '';
+                        const guideData = document.getElementById('guide_data')?.value || '';
+                        const transportData = document.getElementById('transport_data')?.value || '';
+                        const entryPortData = document.getElementById('entry_port_data')?.value || '';
+                        const exitPortData = document.getElementById('exit_port_data')?.value || '';
 
-                                console.log(`=== MULTI-CITY: Storing services for segment ${seg.key} (${seg.cityLabel}) → tour_id=${tourId} ===`);
-                                console.log('Service data lengths:', {
-                                    hotel: (seg.st.hotelDataField || '').length,
-                                    attraction: (seg.st.attractionDataField || '').length,
-                                    restaurant: (seg.st.restaurantDataField || '').length,
-                                    guide: (seg.st.guideDataField || '').length,
-                                    transport: (seg.st.transportDataField || '').length,
-                                    entry_port: (seg.st.entryPortDataField || '').length,
-                                    exit_port: (seg.st.exitPortDataField || '').length
-                                });
-
-                                // Multi-city requirement: for each stay, store ALL non-hotel services on the stay start date.
-                                // Example: 16→19 stay => save services on 16; 21→22 stay => save services on 21.
-                                const forceServicesToSegmentStartDate = function (raw, segmentStart) {
-                                    if (!raw || !segmentStart) return raw || '';
-                                    let arr;
-                                    try { arr = JSON.parse(raw); } catch (e) { return raw; }
-                                    if (!Array.isArray(arr)) return raw;
-                                    const base = moment(segmentStart, 'YYYY-MM-DD', true);
-                                    if (!base.isValid()) return raw;
-                                    const d = base.format('YYYY-MM-DD');
-
-                                    const set = (obj, key) => { if (obj && key) obj[key] = d; };
-                                    const fixed = arr.map(function (item) {
-                                        if (!item || typeof item !== 'object') return item;
-                                        set(item, 'bookingDate');
-                                        set(item, 'pickupdate');
-                                        set(item, 'entrypickupdate');
-                                        set(item, 'exitpickupdate');
-                                        return item;
-                                    });
-                                    try { return JSON.stringify(fixed); } catch (e2) { return raw; }
-                                };
-
-                                const result = await postServiceOrders({
-                                    tour_id: tourId,
-                                    hotel_data: seg.st.hotelDataField || '',
-                                    attraction_data: forceServicesToSegmentStartDate(seg.st.attractionDataField || '', seg.stayFrom),
-                                    restaurant_data: forceServicesToSegmentStartDate(seg.st.restaurantDataField || '', seg.stayFrom),
-                                    guide_data: forceServicesToSegmentStartDate(seg.st.guideDataField || '', seg.stayFrom),
-                                    transport_data: forceServicesToSegmentStartDate(seg.st.transportDataField || '', seg.stayFrom),
-                                    entry_port_data: forceServicesToSegmentStartDate(seg.st.entryPortDataField || '', seg.stayFrom),
-                                    exit_port_data: forceServicesToSegmentStartDate(seg.st.exitPortDataField || '', seg.stayFrom),
-                                    total_price: 0
-                                });
-
-                                if (!result || !result.success) {
-                                    throw new Error(result?.message || 'Failed to save services for ' + seg.cityLabel);
-                                }
-                                allCreatedOrders.push(...(result.created_orders || []));
-                                if (result.tour_details) lastTourDetails = result.tour_details;
-                                console.log(`✅ Services stored for ${seg.cityLabel}: ${(result.created_orders || []).length} orders`);
-                            }
-                        } catch (error) {
-                            console.error('Multi-city save error:', error);
-                            alert('Error saving multi-city services: ' + error.message);
-                            resetSaveButton();
+                        if (!hotelData && !attractionData && !restaurantData && !guideData &&
+                            !transportData && !entryPortData && !exitPortData) {
+                            alert('Please add at least one service (hotel, attraction, guide, restaurant, or transport)');
                             return false;
                         }
 
-                        // Redirect to thank-you
-                        if (lastTourDetails && lastTourDetails.redirect_url) {
-                            // Use redirect_url from backend response
-                        }
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = thankYouUrl;
-                        const addHidden = (n, v) => { const inp = document.createElement('input'); inp.type = 'hidden'; inp.name = n; inp.value = v; form.appendChild(inp); };
-                        addHidden('_token', csrfToken);
-                        addHidden('tour_details', JSON.stringify(lastTourDetails || {}));
-                        addHidden('created_orders', JSON.stringify(allCreatedOrders));
-                        document.body.appendChild(form);
-                        form.submit();
-                        return;
-                    }
-
-                    // =============================================
-                    // SINGLE-CITY PATH (unchanged existing logic)
-                    // =============================================
-                    if (!tourId) {
-                        console.log('Tour not created yet, creating tour first...');
-
-                        let country = '';
-                        const userCountryEl = document.getElementById('user_country');
-                        if (userCountryEl && userCountryEl.value && String(userCountryEl.value).trim() !== '') {
-                            country = String(userCountryEl.value).trim();
-                        }
-                        const singleCity = document.getElementById('single_city');
-                        if (!country && singleCity && singleCity.value) {
-                            try {
-                                if (typeof $ !== 'undefined' && $(singleCity).length && $(singleCity).data('select2')) {
-                                    const d = $(singleCity).select2('data');
-                                    if (d && d.length && d[0]) {
-                                        if (d[0].country != null && String(d[0].country).trim() !== '') { country = String(d[0].country).trim(); }
-                                        else { const txt = d[0].text != null ? String(d[0].text) : ''; const p = txt.match(/\(([^)]+)\)\s*$/); if (p && p[1]) country = String(p[1]).trim(); }
-                                    }
-                                }
-                            } catch (e) {}
-                            if (!country) {
-                                let opt = null;
-                                try { if (typeof $ !== 'undefined' && $(singleCity).length && $(singleCity).data('select2')) { const d = $(singleCity).select2('data'); if (d && d.length && d[0].element) opt = d[0].element; } } catch (e2) {}
-                                if (!opt && singleCity.selectedIndex >= 0) opt = singleCity.options[singleCity.selectedIndex];
-                                if (opt) { const c = opt.getAttribute('data-country'); if (c != null && String(c).trim() !== '') country = String(c).trim(); }
-                            }
-                        }
-                        if (!country && enquiry && enquiry.country) { country = String(enquiry.country).trim(); }
-                        if (!country) { alert('Please select a city so the country can be saved.'); resetSaveButton(); return false; }
-
-                        let cityName = '';
-                        const cityEl = document.getElementById('single_city');
-                        if (cityEl) {
-                            // Select2 ajax uses numeric city_id as `id` — always persist the human name
-                            if (typeof $ !== 'undefined' && $(cityEl).length && $(cityEl).data('select2')) {
-                                try {
-                                    const d2 = $(cityEl).select2('data');
-                                    if (d2 && d2.length && d2[0] && d2[0].text) {
-                                        cityName = String(d2[0].text).replace(/\s*\([^)]*\)\s*$/, '').trim();
-                                    }
-                                } catch (e3) { /* ignore */ }
-                            }
-                            if (!cityName) {
-                                const v = String(cityEl.value || '').trim();
-                                if (v && !/^\d+$/.test(v)) {
-                                    cityName = v.replace(/\s*\([^)]*\)\s*$/, '').trim();
-                                } else if (v && cityEl.selectedIndex >= 0) {
-                                    const opt = cityEl.options[cityEl.selectedIndex];
-                                    const t = opt ? String(opt.textContent || '').trim() : '';
-                                    if (t) cityName = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
-                                    else cityName = v;
-                                }
-                            }
-                        }
-                        if (!cityName) { alert('Please select a city.'); resetSaveButton(); return false; }
-
-                        const tourFormData = makeBaseTourFormData();
-                        tourFormData.append('user_country', country);
-                        tourFormData.append('city', cityName);
-                        tourFormData.append('start_date', startDate);
-                        tourFormData.append('end_date', endDate);
+                        const totalPrice = calculateTotalPackagePrice();
 
                         try {
-                            const tourData = await createTourViaAjax(tourFormData);
-                            console.log('✅ Tour created successfully:', tourData);
-                            tourStartDate = startDate;
-                            tourEndDate = endDate;
-                            window.currentTourId = tourData.tour_id;
-                            window.currentDisplayId = tourData.display_id;
-                            tourId = tourData.tour_id;
-                            showNotification('Tour created successfully! Tour ID: ' + tourData.display_id, 'success');
-                        } catch (error) {
-                            console.error('Error creating tour:', error);
-                            alert('Error creating tour: ' + error.message);
-                            resetSaveButton();
-                            return false;
-                        }
-                    }
+                            const result = await postServiceOrders({
+                                tour_id: tourId,
+                                hotel_data: hotelData,
+                                attraction_data: attractionData,
+                                restaurant_data: restaurantData,
+                                guide_data: guideData,
+                                transport_data: transportData,
+                                entry_port_data: entryPortData,
+                                exit_port_data: exitPortData,
+                                total_price: totalPrice
+                            });
 
-                    // Validate service selections
-                    if (!validateServiceSelections()) { return false; }
-                    calculateAllGuidePricing();
-                    updateHotelDataField();
-                    updateAttractionDataField();
-                    updateGuideDataField();
-                    updateRestaurantDataField();
-                    updateTransportDataField();
-
-                    const hotelData = document.getElementById('hotel_data')?.value || '';
-                    const attractionData = document.getElementById('attraction_data')?.value || '';
-                    const restaurantData = document.getElementById('restaurant_data')?.value || '';
-                    const guideData = document.getElementById('guide_data')?.value || '';
-                    const transportData = document.getElementById('transport_data')?.value || '';
-                    const entryPortData = document.getElementById('entry_port_data')?.value || '';
-                    const exitPortData = document.getElementById('exit_port_data')?.value || '';
-
-                    if (!hotelData && !attractionData && !restaurantData && !guideData &&
-                        !transportData && !entryPortData && !exitPortData) {
-                        alert('Please add at least one service (hotel, attraction, guide, restaurant, or transport)');
-                        return false;
-                    }
-
-                    const totalPrice = calculateTotalPackagePrice();
-
-                    try {
-                        const result = await postServiceOrders({
-                            tour_id: tourId,
-                            hotel_data: hotelData,
-                            attraction_data: attractionData,
-                            restaurant_data: restaurantData,
-                            guide_data: guideData,
-                            transport_data: transportData,
-                            entry_port_data: entryPortData,
-                            exit_port_data: exitPortData,
-                            total_price: totalPrice
-                        });
-
-                        if (result.success) {
-                            console.log('✅ Service orders saved successfully!');
-                            if (result.redirect_url) {
-                                const form = document.createElement('form');
-                                form.method = 'POST';
-                                form.action = result.redirect_url;
-                                const addHidden = (n, v) => { const inp = document.createElement('input'); inp.type = 'hidden'; inp.name = n; inp.value = v; form.appendChild(inp); };
-                                addHidden('_token', csrfToken);
-                                addHidden('tour_details', JSON.stringify(result.tour_details));
-                                addHidden('created_orders', JSON.stringify(result.created_orders));
-                                document.body.appendChild(form);
-                                form.submit();
+                            if (result.success) {
+                                console.log('✅ Service orders saved successfully!');
+                                if (result.redirect_url) {
+                                    const form = document.createElement('form');
+                                    form.method = 'POST';
+                                    form.action = result.redirect_url;
+                                    const addHidden = (n, v) => { const inp = document.createElement('input'); inp.type = 'hidden'; inp.name = n; inp.value = v; form.appendChild(inp); };
+                                    addHidden('_token', csrfToken);
+                                    addHidden('tour_details', JSON.stringify(result.tour_details));
+                                    addHidden('created_orders', JSON.stringify(result.created_orders));
+                                    document.body.appendChild(form);
+                                    form.submit();
+                                } else {
+                                    showNotification('All service orders saved successfully!', 'success');
+                                }
                             } else {
-                                showNotification('All service orders saved successfully!', 'success');
+                                alert('Error saving orders: ' + result.message);
                             }
-                        } else {
-                            alert('Error saving orders: ' + result.message);
+                        } catch (error) {
+                            console.error('Error saving orders:', error);
+                            alert('Error saving orders: ' + error.message);
+                            resetSaveButton();
                         }
-                    } catch (error) {
-                        console.error('Error saving orders:', error);
-                        alert('Error saving orders: ' + error.message);
-                        resetSaveButton();
                     }
-                }
-    </script>
-                </form>
-            </div>
+            </script>
+        </form>
+    </div>
             
             <!-- Enquiry Details Sidebar -->
             @if($enquiry)
@@ -6178,7 +6177,7 @@
                                                                                             <span class="badge bg-secondary text-white" style="font-size: 0.65rem;">{{ $category }}</span>
                                                                                         @endif
                                                                                     </div>
-                                                                                   
+                                                                                    
                                                                                 </div>
                                                                             </div>
                                                                         @endif
@@ -6304,7 +6303,7 @@
             @endif
         </div>
     </div>
-    </div>
+</div>
 @endsection
 
 @section('scripts')

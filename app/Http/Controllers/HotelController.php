@@ -1231,11 +1231,11 @@ class HotelController extends Controller
         
         $admin_base_room = 1; // Admin creates base rooms
         $lastRoom = Room::withTrashed()->orderBy('id', 'desc')->first();
-        $room_max_id = $lastRoom->room_id ?? 0;
-        $roomId = CommonHelper::createId($room_max_id);
-        while (Room::where('room_id', $roomId)->exists()) {
-            $roomId = CommonHelper::createId($roomId);
-        }
+        // $room_max_id = $lastRoom->room_id ?? 0;
+        // $roomId = CommonHelper::createId($room_max_id);
+        // while (Room::where('room_id', $roomId)->exists()) {
+        //     $roomId = CommonHelper::createId($roomId);
+        // }
         // Handle image paths
         $imagePaths = [];
         if ($request->hasFile('all_images')) {
@@ -1298,7 +1298,7 @@ class HotelController extends Controller
         $room->dimension = $request->dimension;
         $room->children_price = $request->children_price;
         $room->status = $request->room_status == 1 ? 1 : 0;
-        $room->room_id = $roomId;
+        // $room->room_id = $roomId;
         $room->dmc_base_room = $admin_base_room;
         $room->created_by = $auth_user->userId;
         $room->images = $imagePathsJson;
@@ -1317,30 +1317,29 @@ class HotelController extends Controller
         $room->breakfast_included=$request->supplementary_breakfast;
         $room->child_with_bed = $request->child_with_bed;
         $room->child_without_bed = $request->child_without_bed;
-        $room->save();
-        
-        if($request->no_of_rooms){
-            $lastBed = Bed::withTrashed()->orderBy('bed_id', 'desc')->first();
-            $bed_max_id = $lastBed->bed_id ?? 0;
-            $bedId = CommonHelper::createId($bed_max_id);
-            while (Bed::where('bed_id', $bedId)->exists()) {
-                $bedId = CommonHelper::createId($bedId);
-            }
-        }
-
+        $is_save = $room->save();
+        $room->refresh();
+        // if($request->no_of_rooms){
+        //     $lastBed = Bed::withTrashed()->orderBy('bed_id', 'desc')->first();
+        //     $bed_max_id = $lastBed->bed_id ?? 0;
+        //     // $bedId = CommonHelper::createId($bed_max_id);
+        //     // while (Bed::where('bed_id', $bedId)->exists()) {
+        //     //     $bedId = CommonHelper::createId($bedId);
+        //     // }
+        // }
         $lastRoomId = Room::latest()->value('room_id');
         // Return response based on room save result
-        if ($room->save()) {
+        if ($is_save) {
             $auth_user = Auth::user();
             $roomQuery = Room::with('hotel');
             if ($auth_user->user_type == 1) {
                 $rooms = $roomQuery->get(); // Fetch all rooms for user_type 1
             } else {
-                            $rooms = $roomQuery->whereHas('hotel', function ($query) use ($auth_user) {
+                $rooms = $roomQuery->whereHas('hotel', function ($query) use ($auth_user) {
                 $query->whereJsonContains('dmc_id', $auth_user->userId); // Filter by dmcId for other user types
-            })->get();
+                })->get();
             }
-            $currentRooms = Room::where('room_type', 'Standard')->first();
+                $currentRooms = Room::where('room_type', 'Standard')->first();
             return redirect()->route('hotels.createroom', ['id' => $request->hotel_id])->with('success', 'Room details saved successfully!');
         } else {
             return redirect()->back()->with('error', 'An error occurred while saving the room details.');
@@ -1375,12 +1374,12 @@ class HotelController extends Controller
         $lastDate = Carbon::createFromFormat('m/d/Y', $lastDate);
        
         // Generate rate ID
-        $lastRate = Rate::withTrashed()->orderBy('created_at', 'desc')->first();
-        $rate_max_id = $lastRate->rate_id ?? 0;
-        $rateId = CommonHelper::createId($rate_max_id);
-        while (Rate::where('rate_id', $rateId)->exists()) {
-            $rateId = CommonHelper::createId($rateId);
-        }
+        // $lastRate = Rate::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $rate_max_id = $lastRate->rate_id ?? 0;
+        // $rateId = CommonHelper::createId($rate_max_id);
+        // while (Rate::where('rate_id', $rateId)->exists()) {
+        //     $rateId = CommonHelper::createId($rateId);
+        // }
 
         // Set DMC ID based on user role
         $dmcId = null;
@@ -1395,7 +1394,7 @@ class HotelController extends Controller
         $rate = Rate::create([
             'event' => $request->event,
             'hotel_id' => $request->hotel_id,
-            'rate_id' => $rateId,
+            // 'rate_id' => $rateId,
             'event_type' => $request->event_type,
             'price' => $request->price ? $request->price : $request->surcharge,
             'weekday_price' => 0.00,
@@ -1405,8 +1404,9 @@ class HotelController extends Controller
             'dmc_id' => $dmcId, // Set DMC ID based on user role
             'is_active' => $request->rate_status == 1 ? 1 : 0
         ]);
-
-        if ($rate->save()) {
+        $is_save = $rate->save();
+        $rate->refresh();
+        if ($is_save) {
             return redirect()->back()
                 ->with('success', 'Rates details saved successfully!');
         } else {
@@ -1438,13 +1438,13 @@ class HotelController extends Controller
         
         $request->validate($rules);
         // dd($request->all());
-        $lastRate = Rate::orderBy('created_at', 'desc')->first();
+        // $lastRate = Rate::orderBy('created_at', 'desc')->first();
 
-        $rate_max_id = $lastRate->rate_id ?? 0;
-        $rateId = CommonHelper::createId($rate_max_id);
-        while (Rate::where('rate_id', $rateId)->exists()) {
-            $rateId = CommonHelper::createId($rateId);
-        }
+        // $rate_max_id = $lastRate->rate_id ?? 0;
+        // $rateId = CommonHelper::createId($rate_max_id);
+        // while (Rate::where('rate_id', $rateId)->exists()) {
+        //     $rateId = CommonHelper::createId($rateId);
+        // }
 
         list($firstDate, $lastDate) = explode(' - ', $request->date_range);
         // Convert the string dates to the format 'Y-m-d' for database compatibility
@@ -1483,7 +1483,7 @@ class HotelController extends Controller
         $rate = Rate::create([
             'event' => $request->event, 
             'hotel_id' => $request->hotel_id,
-            'rate_id' => $rateId,
+            // 'rate_id' => $rateId,
             'event_type' => $request->event_type,
             'price' => 0,
             'weekday_price' => $request->weekday_price,
@@ -1496,7 +1496,9 @@ class HotelController extends Controller
             'is_active' => $request->season_status == 1 ? 1 : 0
         ]);
 
-        if ($rate->save()) {
+        $is_save = $rate->save();
+        $rate->refresh();
+        if ($is_save) {
             // LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
             return redirect()->back()
                 ->with('success', 'Rates details saved successfully!');
@@ -1945,12 +1947,12 @@ class HotelController extends Controller
         $roomCreatedByDmcUserId = $roomCreatedByDmcUserId ?? $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
 
         // Generate new room ID
-        $lastRoom = Room::withTrashed()->orderBy('id', 'desc')->first();
-        $room_max_id = $lastRoom->room_id ?? 0;
-        $roomId = CommonHelper::createId($room_max_id);
-        while (Room::where('room_id', $roomId)->exists()) {
-            $roomId = CommonHelper::createId($roomId);
-        }
+        // $lastRoom = Room::withTrashed()->orderBy('id', 'desc')->first();
+        // $room_max_id = $lastRoom->room_id ?? 0;
+        // $roomId = CommonHelper::createId($room_max_id);
+        // while (Room::where('room_id', $roomId)->exists()) {
+        //     $roomId = CommonHelper::createId($roomId);
+        // }
 
         // Handle master image
         $master_image = '';
@@ -2011,7 +2013,7 @@ class HotelController extends Controller
         $newRoom = Room::create([
             'hotel_id' => $request->hotel_id,
             'room_type' => $originalRoom->room_type,
-            'room_id' => $roomId,
+            // 'room_id' => $roomId,
             'no_of_room' => $request->total_no_of_room,
             'weekday_price' => $finalWeekdayPrice,
             'weekend_price' => $finalWeekendPrice,
@@ -2041,6 +2043,15 @@ class HotelController extends Controller
             'child_with_bed' => $request->child_with_bed,
             'child_without_bed' => $request->child_without_bed,
         ]);
+        $is_save = $newRoom->save();
+        $newRoom->refresh();
+        if ($is_save) {
+            return redirect()->back()
+                ->with('success', 'Room details saved successfully!');
+        } else {
+            return redirect()->back()
+                ->with('error', 'An error occurred while saving the room details.');
+        }
     }
 
     /*
@@ -2219,12 +2230,12 @@ class HotelController extends Controller
             return redirect()->route('hotels.beds', $request->hotel_id)->with('error', 'You have already filled.');
         }
 
-        $lastBed = Bed::withTrashed()->orderBy('bed_id', 'desc')->first();
-        $bed_max_id = $lastBed->bed_id ?? 0;
-        $bedId = CommonHelper::createId($bed_max_id);
-        while (Bed::where('bed_id', $bedId)->exists()) {
-            $bedId = CommonHelper::createId($bedId);
-        }
+        // $lastBed = Bed::withTrashed()->orderBy('bed_id', 'desc')->first();
+        // $bed_max_id = $lastBed->bed_id ?? 0;
+        // $bedId = CommonHelper::createId($bed_max_id);
+        // while (Bed::where('bed_id', $bedId)->exists()) {
+        //     $bedId = CommonHelper::createId($bedId);
+        // }
         
         $nameOfBedType = 'Unknown';
 
@@ -2246,7 +2257,7 @@ class HotelController extends Controller
         $bed->extra_bed_price = $request->input('extra_bed_price') ?? 0;
         $bed->baby_cot = $request->input('baby_cot') ?? null;
         $bed->baby_cot_price = $request->input('baby_cot_price') ?? 0;
-        $bed->bed_id = $bedId;
+        // $bed->bed_id = $bedId;
         
         // Set DMC ID based on user role
         if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
@@ -2261,12 +2272,17 @@ class HotelController extends Controller
         $bed->is_active = $request->input('bed_status');
         $bed->force_child = $request->input('force_child');
         $bed->force_child_count = $request->input('force_child_count');
-        $bed->save();
+        $is_save = $bed->save();
+        $bed->refresh();
         if ($request->hotel_id) {
             Hotel::where('hotel_unique_id', $request->hotel_id)->update(['is_complete' => 1]);
         }
         // Redirect or return response
-        return redirect()->route('hotels.beds', $request->hotel_id)->with('success', 'Bed saved successfully.');
+        if ($is_save) {
+            return redirect()->route('hotels.beds', $request->hotel_id)->with('success', 'Bed saved successfully.');
+        } else {
+            return redirect()->route('hotels.beds', $request->hotel_id)->with('error', 'An error occurred while saving the bed details.');
+        }
     }
 
     //edit bed

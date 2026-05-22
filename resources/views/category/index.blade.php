@@ -397,7 +397,7 @@
                             <td class="gap-2">
                                 <!-- Edit Button -->
                                 @if(hasPermission('edit category'))
-                                <a href="{{ route('category.edit', $category->id) }}"
+                                <a href="{{ route('category.edit', $category->category_id) }}"
                                     class="btn btn-icon btn-icon-edit"
                                     title="Edit Category">
                                     <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px"

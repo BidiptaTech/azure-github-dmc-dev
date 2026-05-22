@@ -887,21 +887,21 @@ class SingleTourPackageController extends Controller
             // Store main guest and additional guests in guests table (if data found)
             $tourIdForGuests = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
             try {
-                $nextGuestId = function () {
-                    $last = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $id = CommonHelper::createId($last->guest_id ?? 0);
-                    while (Guest::where('guest_id', $id)->exists()) {
-                        $id = CommonHelper::createId($id);
-                    }
-                    return $id;
-                };
+                // $nextGuestId = function () {
+                //     $last = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+                //     $id = CommonHelper::createId($last->guest_id ?? 0);
+                //     while (Guest::where('guest_id', $id)->exists()) {
+                //         $id = CommonHelper::createId($id);
+                //     }
+                //     return $id;
+                // };
                 if (!empty($mainGuestData) && is_array($mainGuestData)) {
                     $salutation = $mainGuestData['salutation'] ?? null;
                     if (is_string($salutation)) {
                         $salutation = rtrim($salutation, '.'); // Mr. -> Mr
                     }
                     Guest::create([
-                        'guest_id' => $nextGuestId(),
+                        // 'guest_id' => $nextGuestId(),
                         'tour_id' => [$tourIdForGuests],
                         'guest_name' => $mainGuestData['full_name'] ?? 'Guest',
                         'email' => $mainGuestData['email'] ?? null,
@@ -927,7 +927,7 @@ class SingleTourPackageController extends Controller
                         $salutation = rtrim($salutation, '.'); // Mr. -> Mr
                     }
                     Guest::create([
-                        'guest_id' => $nextGuestId(),
+                        // 'guest_id' => $nextGuestId(),
                         'tour_id' => [$tourIdForGuests],
                         'guest_name' => $name !== '' ? $name : 'Guest',
                         'email' => !empty($row['email']) ? $row['email'] : null,
@@ -937,7 +937,14 @@ class SingleTourPackageController extends Controller
                         'passport' => $row['passport_no'] ?? $row['passport'] ?? null,
                         'passport_exp' => !empty($row['passport_exp']) ? $row['passport_exp'] : null,
                         'salutation' => $salutation,
-                    ]);
+                    ]); $newGuest->refresh();
+                    if ($newGuest) {
+                        return response()->json([
+                            'success' => true,
+                            'message' => 'Guest created successfully!',
+                            'guest' => $newGuest
+                        ]);
+                    }
                 }
             } catch (\Exception $e) {
                 \Log::error('Error storing guests in guests table', ['tour_id' => $tourId, 'error' => $e->getMessage()]);

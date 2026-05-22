@@ -131,18 +131,18 @@ class EnquiryController extends Controller
         }
 
         if (! $currentEnquiry && $tour) {
-            $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
-            $newEnquiryId = CommonHelper::createId($lastEnquiryId);
-            while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
-                $newEnquiryId = CommonHelper::createId($newEnquiryId);
-            }
+            // $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
+            // $newEnquiryId = CommonHelper::createId($lastEnquiryId);
+            // while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
+            //     $newEnquiryId = CommonHelper::createId($newEnquiryId);
+            // }
             $actualForRow = (float) ($request->input('actual_amount', 0));
 
             $currentEnquiry = Enquiry::create([
                 'tour_id' => $tour->tour_id,
                 'status' => 1,
                 'dmcId' => $tour->dmc_id,
-                'enquiry_id' => $newEnquiryId,
+                // 'enquiry_id' => $newEnquiryId,
                 'sender_id' => $currentUser->userId,
                 'sender_type' => 'OM',
                 'receiver_id' => 0,
@@ -152,6 +152,7 @@ class EnquiryController extends Controller
                 'actual_amount' => $actualForRow,
                 'comment' => '',
             ]);
+            $currentEnquiry->refresh();
         }
 
         if (! $currentEnquiry) {
@@ -305,12 +306,12 @@ class EnquiryController extends Controller
         $currentEnquiry = Enquiry::where('enquiry_id',$request->enquiry_id)->first();
         $receiver_id = $request->aom_id;
         $currentUser = auth()->user();
-        $lastEnquiry = Enquiry::orderBy('created_at', 'desc')->first();
-        $enq_max_id = $lastEnquiry->enquiry_id ?? 1;
-        $enqId = CommonHelper::createId($enq_max_id);
-        while (Enquiry::where('enquiry_id', $enqId)->exists()) {
-            $enqId = CommonHelper::createId($enqId);
-        }
+        // $lastEnquiry = Enquiry::orderBy('created_at', 'desc')->first();
+        // $enq_max_id = $lastEnquiry->enquiry_id ?? 1;
+        // $enqId = CommonHelper::createId($enq_max_id);
+        // while (Enquiry::where('enquiry_id', $enqId)->exists()) {
+        //     $enqId = CommonHelper::createId($enqId);
+        // }
 
         $currentEnquiry->sender_id = $currentUser->userId;
         $currentEnquiry->sender_type = 'OM';
@@ -319,7 +320,9 @@ class EnquiryController extends Controller
         $currentEnquiry->receiver_type = 'AOM';
         $currentEnquiry->current_position = 'AOM';
         $currentEnquiry->status = 1;
-        if ($currentEnquiry->save()) {
+        $isSaved = $currentEnquiry->save();
+        $currentEnquiry->refresh();
+        if ($isSaved) {
             return response()->json([
                 'status' => 'success', 
                 'message' => 'Asst. Manager assigned successfully!'
