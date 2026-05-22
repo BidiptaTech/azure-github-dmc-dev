@@ -174,33 +174,8 @@
         min-height: 72px;
         vertical-align: top;
     }
-    #toursTable td:nth-child(2) .tour-type-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-start;
-        padding: 0.15rem 0.5rem;
-        border-radius: 999px;
-        font-weight: 600;
-        font-size: 0.7rem;
-        line-height: 1.2;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+    #toursTable td:nth-child(2) .tour-detail-badges-row {
         max-width: 100%;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    #toursTable td:nth-child(2) .tour-type-badge.fit {
-        background: #059669;
-        color: #ffffff;
-        width: 40px;
-    }
-
-    #toursTable td:nth-child(2) .tour-type-badge.group {
-        background: #7c3aed;
-        color: #ffffff;
-        width: 60px;
     }
     /* Services column: professional soft-badge style (same as confirmed) */
     #toursTable thead th:nth-child(4),
@@ -963,16 +938,28 @@
                             if (!empty($allDueDates)) {
                                 $earliestDueDate = collect($allDueDates)->min();
                             }
-                            
-                            $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-                            $enquiry_amount = $enquiry ? ($enquiry->amount ?? 0) : 0;
-                            $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
-                            $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
-                            $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
-                            
-                            // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
-                            $baseAmount = round($tourTotalPrice) - $discountAmount;
-                            
+
+                            $confirmedEnquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)
+                                ->where('status', 2)
+                                ->orderByDesc('enquiry_id')
+                                ->first();
+                            $latestEnquiryRow = \App\Models\Enquiry::where('tour_id', $tour->tour_id)
+                                ->orderByDesc('enquiry_id')
+                                ->first();
+                            $lastNegotiatedAmount = 0;
+                            if ($confirmedEnquiry && (float) ($confirmedEnquiry->amount ?? 0) > 0) {
+                                $lastNegotiatedAmount = (float) $confirmedEnquiry->amount;
+                            } elseif ($latestEnquiryRow && (float) ($latestEnquiryRow->amount ?? 0) > 0) {
+                                $lastNegotiatedAmount = (float) $latestEnquiryRow->amount;
+                            }
+                            $grossTourAmount = round($tourTotalPrice);
+                            $tourFocDiscount = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
+                            $discountAmount = $tourFocDiscount;
+                            $priceAfterFoc = max(0, $grossTourAmount - $discountAmount);
+                            $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $priceAfterFoc;
+                            $netTourAmount = $baseAmount;
+                            $negotiationDiscount = max(0, $priceAfterFoc - $baseAmount);
+
                             // Calculate tax amount using TaxHelper
                             $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
                             $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
@@ -1026,15 +1013,7 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
-                                    @if($tour->tour_type)
-                                        @php
-                                            $tourTypeLower = strtolower($tour->tour_type);
-                                            $tourTypeClass = $tourTypeLower === 'group' ? 'group' : 'fit';
-                                        @endphp
-                                        <span class="tour-type-badge {{ $tourTypeClass }}" title="{{ $tour->tour_type }}">
-                                            {{ $tour->tour_type }}
-                                        </span>
-                                    @endif
+                                    @include('bookings.partials.tour-detail-badges', ['tour' => $tour])
                                     <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
                                     <div class="d-flex align-items-center gap-2 flex-nowrap">
                                         <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
@@ -4839,16 +4818,28 @@
                 }
             }
         }
-        
-        $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-        $enquiry_amount = $enquiry ? ($enquiry->amount ?? 0) : 0;
-        $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
-        $first_enquiry_amount = $frstenquiry ? ($frstenquiry->actual_amount ?? 0) : 0;
-        $discountAmount = $first_enquiry_amount - $enquiry_amount;
-        
-        // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
-        $baseAmount = round($tourTotalPrice) - $discountAmount;
-        
+
+        $confirmedEnquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)
+            ->where('status', 2)
+            ->orderByDesc('enquiry_id')
+            ->first();
+        $latestEnquiryRow = \App\Models\Enquiry::where('tour_id', $tour->tour_id)
+            ->orderByDesc('enquiry_id')
+            ->first();
+        $lastNegotiatedAmount = 0;
+        if ($confirmedEnquiry && (float) ($confirmedEnquiry->amount ?? 0) > 0) {
+            $lastNegotiatedAmount = (float) $confirmedEnquiry->amount;
+        } elseif ($latestEnquiryRow && (float) ($latestEnquiryRow->amount ?? 0) > 0) {
+            $lastNegotiatedAmount = (float) $latestEnquiryRow->amount;
+        }
+        $grossTourAmount = round($tourTotalPrice);
+        $tourFocDiscount = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
+        $discountAmount = $tourFocDiscount;
+        $priceAfterFoc = max(0, $grossTourAmount - $discountAmount);
+        $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $priceAfterFoc;
+        $netTourAmount = $baseAmount;
+        $negotiationDiscount = max(0, $priceAfterFoc - $baseAmount);
+
         // Calculate tax amount using TaxHelper
         $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
         $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
@@ -5100,19 +5091,7 @@
                             </div>
                             <div class="alert alert-info">
                                 <!-- Pricing Breakdown -->
-                                @if($discountAmount > 0)
-                                <div class="row text-center mb-2">
-                                    <div class="col-6">
-                                        <small class="text-muted">Actual Price</small>
-                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted">Discount</small>
-                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                </div>
-                                <hr class="my-2">
-                                @endif
+                                @include('bookings.partials.add-payment-pricing-breakdown', ['tourCurrency' => $tourCurrency])
                                 <div class="row text-center mb-2">
                                     <div class="col-4">
                                         <small class="text-muted">Base Amount</small>

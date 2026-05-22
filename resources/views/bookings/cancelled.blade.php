@@ -386,18 +386,7 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
-                                    @if($tour->tour_type)
-                                        @php
-                                            $tourTypeLower = strtolower($tour->tour_type);
-                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
-                                            $textColor = '#ffffff';
-                                            $badgeWidth = $tourTypeLower === 'group' ? '60px' : '40px';
-                                        @endphp
-                                        <span class="d-inline-block px-2 py-1 rounded"
-                                              style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.7rem; text-align: left; letter-spacing: 0.3px; text-transform: uppercase; width: {{ $badgeWidth }}; display: inline-block;">
-                                            {{ $tour->tour_type }}
-                                        </span>
-                                    @endif
+                                    @include('bookings.partials.tour-detail-badges', ['tour' => $tour])
                                     <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
                                     <div class="d-flex align-items-center gap-2 flex-nowrap">
                                         <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>

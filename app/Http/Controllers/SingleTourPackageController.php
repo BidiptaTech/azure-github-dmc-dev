@@ -786,11 +786,11 @@ class SingleTourPackageController extends Controller
             $tour->discount = (strtoupper((string) ($request->tour_type ?? 'FIT')) === 'GROUP')
                 ? (((int) ($request->input('discount', 0) ?: 0)) ? 1 : 0)
                 : 0;
-            // UI field discount_price → existing column discount_amount (same field, no new column)
-            $tour->discount_amount = (float) ($request->input(
+            // UI field discount_price → existing column discount_amount (ceiling, e.g. 847.64 → 848)
+            $tour->discount_amount = (float) ceil((float) ($request->input(
                 'discount_price',
                 $request->input('discount_amount', 0)
-            ) ?: 0);
+            ) ?: 0));
             // Persist new DB column `city_type` ("single" / "multi")
             $tour->city_type = $request->city_type ?? ($request->city_mode ?? 'single');
             // $tour->tour_id = $tourId;
