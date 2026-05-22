@@ -1305,6 +1305,9 @@ class EnquiryFormPro extends Controller
             $tour->refresh();
             $tourId = $tour->tour_id;
             $display_id = 'DMC-ORD' . $tourId;
+
+            $tour->display_id = $display_id;
+            $tour->save();
             
             \Log::info('Tour created', [
                 'tour_id' => $tourId,
@@ -1369,13 +1372,13 @@ class EnquiryFormPro extends Controller
                         $entryPort['type'] = $this->normalizeTransferType($entryPort['type']);
                     }
                     
-                    $bookingId = $this->generateBookingId();
+                    // $bookingId = $this->generateBookingId();
                     
                     // Add tour_id to the JSON data
                     $entryPort['tour_id'] = $tourId;
                     
                     $order = Order::create([
-                        'booking_id' => $bookingId,
+                        // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
                         'data' => [$entryPort],
@@ -1387,6 +1390,9 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
+
+                    $order->refresh();
+                    $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
                         'type' => 'entry_port',
@@ -1443,13 +1449,13 @@ class EnquiryFormPro extends Controller
                         $exitPort['type'] = $this->normalizeTransferType($exitPort['type']);
                     }
                     
-                    $bookingId = $this->generateBookingId();
+                    // $bookingId = $this->generateBookingId();
                     
                     // Add tour_id to the JSON data
                     $exitPort['tour_id'] = $tourId;
                     
                     $order = Order::create([
-                        'booking_id' => $bookingId,
+                        // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
                         'data' => [$exitPort],
@@ -1461,7 +1467,10 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
-                    
+
+                    $order->refresh();
+                    $bookingId = $order->booking_id;
+
                     $createdOrders[] = [
                         'type' => 'exit_port',
                         'booking_id' => $bookingId,
@@ -1480,13 +1489,13 @@ class EnquiryFormPro extends Controller
                         'has_transfer_options' => isset($accommodation['transfer_options']),
                         'transfer_options' => $accommodation['transfer_options'] ?? null
                     ]);
-                    $bookingId = $this->generateBookingId();
+                    // $bookingId = $this->generateBookingId();
                     
                     // Add tour_id to the JSON data
                     $accommodation['tour_id'] = $tourId;
                     
                     $order = Order::create([
-                        'booking_id' => $bookingId,
+                        // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
                         'data' => [$accommodation],
@@ -1498,6 +1507,9 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
+                    
+                    $order->refresh();
+                    $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
                         'type' => 'hotel',
@@ -1529,13 +1541,13 @@ class EnquiryFormPro extends Controller
                         'transfer_options' => $tourItem['transfer_options'] ?? null,
                         'guide_options' => $tourItem['guide_options'] ?? null
                     ]);
-                    $bookingId = $this->generateBookingId();
+                    // $bookingId = $this->generateBookingId();
                     
                     // Add tour_id to the JSON data
                     $tourItem['tour_id'] = $tourId;
                     
                     $order = Order::create([
-                        'booking_id' => $bookingId,
+                        // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
                         'data' => [$tourItem],
@@ -1547,6 +1559,9 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
+                    
+                    $order->refresh();
+                    $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
                         'type' => 'attraction',
@@ -1740,13 +1755,13 @@ class EnquiryFormPro extends Controller
                         'has_guide_info' => isset($meal['guideInfo']),
                         'guide_info' => $meal['guideInfo'] ?? null
                     ]);
-                    $bookingId = $this->generateBookingId();
+                    // $bookingId = $this->generateBookingId();
                     
                     // Add tour_id to the JSON data
                     $meal['tour_id'] = $tourId;
                     
                     $order = Order::create([
-                        'booking_id' => $bookingId,
+                        // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
                         'data' => [$meal],
@@ -1758,6 +1773,9 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
+                    
+                    $order->refresh();
+                    $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
                         'type' => 'restaurant',
@@ -1818,9 +1836,9 @@ class EnquiryFormPro extends Controller
                                 'linked_to_restaurant' => $bookingId
                             ];
                             
-                            $guideBookingId = $this->generateBookingId();
+                            // $guideBookingId = $this->generateBookingId();
                             Order::create([
-                                'booking_id' => $guideBookingId,
+                                // 'booking_id' => $guideBookingId,
                                 'agent_id' => $request->agent_id,
                                 'tour_id' => $tourId,
                                 'data' => [$guideData],
@@ -1832,6 +1850,8 @@ class EnquiryFormPro extends Controller
                                 'markup_type' => $markupType,
                                 'status' => 1,
                             ]);
+                            $order->refresh();
+                            $guideBookingId = $order->booking_id;
                             
                             $createdOrders[] = ['type' => 'guide', 'booking_id' => $guideBookingId, 'linked_to' => 'restaurant'];
                             
@@ -2008,10 +2028,10 @@ class EnquiryFormPro extends Controller
                         }
                     }
                     
-                    $bookingId = $this->generateBookingId();
+                    // $bookingId = $this->generateBookingId();
                     
                     $order = Order::create([
-                        'booking_id' => $bookingId,
+                        // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
                         'data' => [$transfer],
@@ -2023,6 +2043,9 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
+                    
+                    $order->refresh();
+                    $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
                         'type' => 'local_transport',
@@ -2039,10 +2062,10 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $guide['tour_id'] = $tourId;
                     
-                    $bookingId = $this->generateBookingId();
+                    // $bookingId = $this->generateBookingId();    
                     
                     $order = Order::create([
-                        'booking_id' => $bookingId,
+                        // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
                         'data' => [$guide],
@@ -2054,6 +2077,9 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
+                    
+                    $order->refresh();
+                    $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
                         'type' => 'guide',
@@ -2070,10 +2096,10 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $miscItem['tour_id'] = $tourId;
                     
-                    $bookingId = $this->generateBookingId();
+                    // $bookingId = $this->generateBookingId();    
                     
                     $order = Order::create([
-                        'booking_id' => $bookingId,
+                        // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
                         'data' => [$miscItem],
@@ -2085,6 +2111,9 @@ class EnquiryFormPro extends Controller
                         'markup_type' => $markupType,
                         'status' => 1,
                     ]);
+                    
+                    $order->refresh();
+                    $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
                         'type' => 'miscellaneous',
@@ -2150,16 +2179,16 @@ class EnquiryFormPro extends Controller
     /**
      * Generate unique booking ID (must include soft-deleted rows or IDs get reused → duplicate rows / unique violations).
      */
-    private function generateBookingId()
-    {
-        $max_book_id = (int) (Order::withTrashed()->max('booking_id') ?? 0);
-        $bookingId = CommonHelper::createId($max_book_id);
-        while (Order::withTrashed()->where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId((int) $bookingId);
-        }
+    // private function generateBookingId()
+    // {
+    //     $max_book_id = (int) (Order::withTrashed()->max('booking_id') ?? 0);
+    //     $bookingId = CommonHelper::createId($max_book_id);
+    //     while (Order::withTrashed()->where('booking_id', $bookingId)->exists()) {
+    //         $bookingId = CommonHelper::createId((int) $bookingId);
+    //     }
 
-        return $bookingId;
-    }
+    //     return $bookingId;
+    // }
     
     /**
      * Get zone prices from vehicle_zone_mappings
@@ -3144,9 +3173,9 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
 
-                $bookingId = $this->generateBookingId();
-                Order::create([
-                    'booking_id' => $bookingId,
+                // $bookingId = $this->generateBookingId();
+                $order = Order::create([
+                    // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
                     'data' => [$entryPort],
@@ -3158,6 +3187,9 @@ class EnquiryFormPro extends Controller
                     'markup_type' => $markupType,
                     'status' => 1,
                 ]);
+                $order->refresh();
+                $bookingId = $order->booking_id;
+                
                 $syncedOrders[] = ['type' => 'entry_port', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
@@ -3210,9 +3242,9 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
 
-                $bookingId = $this->generateBookingId();
-                Order::create([
-                    'booking_id' => $bookingId,
+                // $bookingId = $this->generateBookingId();    
+                $order = Order::create([
+                    // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
                     'data' => [$exitPort],
@@ -3224,6 +3256,9 @@ class EnquiryFormPro extends Controller
                     'markup_type' => $markupType,
                     'status' => 1,
                 ]);
+                $order->refresh();
+                $bookingId = $order->booking_id;
+                
                 $syncedOrders[] = ['type' => 'exit_port', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
@@ -3262,9 +3297,9 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
 
-                $bookingId = $this->generateBookingId();
-                Order::create([
-                    'booking_id' => $bookingId,
+                // $bookingId = $this->generateBookingId();    
+                $order = Order::create([
+                    // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
                     'data' => [$accommodation],
@@ -3276,6 +3311,9 @@ class EnquiryFormPro extends Controller
                     'markup_type' => $markupType,
                     'status' => 1,
                 ]);
+                $order->refresh();
+                $bookingId = $order->booking_id;
+                
                 $syncedOrders[] = ['type' => 'hotel', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
@@ -3312,9 +3350,9 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
 
-                $bookingId = $this->generateBookingId();
-                Order::create([
-                    'booking_id' => $bookingId,
+                // $bookingId = $this->generateBookingId();    
+                $order = Order::create([
+                    // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
                     'data' => [$tourItem],
@@ -3326,6 +3364,9 @@ class EnquiryFormPro extends Controller
                     'markup_type' => $markupType,
                     'status' => 1,
                 ]);
+                $order->refresh();
+                $bookingId = $order->booking_id;
+                
                 $syncedOrders[] = ['type' => 'attraction', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
@@ -3363,9 +3404,9 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
 
-                $bookingId = $this->generateBookingId();
-                Order::create([
-                    'booking_id' => $bookingId,
+                // $bookingId = $this->generateBookingId();    
+                $order = Order::create([
+                    // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
                     'data' => [$meal],
@@ -3377,6 +3418,9 @@ class EnquiryFormPro extends Controller
                     'markup_type' => $markupType,
                     'status' => 1,
                 ]);
+                $order->refresh();
+                $bookingId = $order->booking_id;
+                
                 $syncedOrders[] = ['type' => 'restaurant', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
@@ -3460,9 +3504,9 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
 
-                $bookingId = $this->generateBookingId();
-                Order::create([
-                    'booking_id' => $bookingId,
+                // $bookingId = $this->generateBookingId();    
+                $order = Order::create([
+                    // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
                     'data' => [$transfer],
@@ -3474,6 +3518,9 @@ class EnquiryFormPro extends Controller
                     'markup_type' => $markupType,
                     'status' => 1,
                 ]);
+                $order->refresh();
+                $bookingId = $order->booking_id;
+                
                 $syncedOrders[] = ['type' => 'local_transport', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
@@ -3510,9 +3557,9 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
 
-                $bookingId = $this->generateBookingId();
-                Order::create([
-                    'booking_id' => $bookingId,
+                // $bookingId = $this->generateBookingId();
+                $order = Order::create([
+                    // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
                     'data' => [$guide],
@@ -3524,6 +3571,9 @@ class EnquiryFormPro extends Controller
                     'markup_type' => $markupType,
                     'status' => 1,
                 ]);
+                $order->refresh();
+                $bookingId = $order->booking_id;
+                
                 $syncedOrders[] = ['type' => 'guide', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
@@ -3559,9 +3609,9 @@ class EnquiryFormPro extends Controller
                     continue;
                 }
 
-                $bookingId = $this->generateBookingId();
-                Order::create([
-                    'booking_id' => $bookingId,
+                // $bookingId = $this->generateBookingId();
+                $order = Order::create([
+                    // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
                     'data' => [$miscItem],
@@ -3573,6 +3623,9 @@ class EnquiryFormPro extends Controller
                     'markup_type' => $markupType,
                     'status' => 1,
                 ]);
+                $order->refresh();
+                $bookingId = $order->booking_id;
+                
                 $syncedOrders[] = ['type' => 'miscellaneous', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
