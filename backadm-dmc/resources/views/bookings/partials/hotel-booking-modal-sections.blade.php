@@ -180,7 +180,7 @@
                     @endphp
                     <div class="col-md-4">
                         <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
-                            <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-hotel-bed-line me-1" style="font-size: 0.8rem;"></i>Extra Bed <span class="badge bg-secondary ms-1" style="font-size: 0.55rem;">Lite</span></div>
+                            <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-hotel-bed-line me-1" style="font-size: 0.8rem;"></i>Extra Bed</div>
                             <div class="row g-1">
                                 <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($ebPriceNight, 2) }}</div></div>
                                 <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Extra Persons</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $ebExtraPersons }}</div></div>
@@ -200,7 +200,7 @@
                     @endphp
                     <div class="col-md-4">
                         <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
-                            <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-hotel-bed-line me-1" style="font-size: 0.8rem;"></i>Extra Bed <span class="badge bg-primary ms-1" style="font-size: 0.55rem;">Pro</span></div>
+                            <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-hotel-bed-line me-1" style="font-size: 0.8rem;"></i>Extra Bed</div>
                             <div class="row g-1">
                                 <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
                                 <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($extraBedPrice, 2) }}</div></div>
